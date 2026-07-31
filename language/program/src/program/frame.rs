@@ -81,6 +81,16 @@ impl FrameTable {
             slots: sections.insert(slots.into_entries()),
         }
     }
+
+    /// Return whether every frame layout range fits the slot column.
+    pub(super) fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+        let slots = sections.entries(self.slots).len();
+
+        sections
+            .entries(self.layouts)
+            .iter()
+            .all(|layout| layout.slots.fits(slots))
+    }
 }
 
 /// Mutable Program frame table before section packing.

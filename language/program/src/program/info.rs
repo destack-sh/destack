@@ -277,6 +277,45 @@ impl ProgramInfo {
     ) -> &'a [FrameSlotInfo] {
         frame.slots.slice(sections.entries(self.frame_slots))
     }
+
+    /// Return whether every reflected payload range fits its flattened column.
+    pub(super) fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+        let type_operands = sections.entries(self.type_operands).len();
+        let fields = sections.entries(self.fields).len();
+        let elements = sections.entries(self.tuple_elements).len();
+        let members = sections.entries(self.members);
+        let index_signatures = sections.entries(self.index_signatures).len();
+        let parameters = sections.entries(self.function_parameters).len();
+        let cases = sections.entries(self.variant_cases).len();
+        let frame_slots = sections.entries(self.frame_slots).len();
+
+        // check every variable type payload
+        let types_fit = sections.entries(self.types).iter().all(|ty| {
+            let payload = ty.payload;
+
+            payload.type_operands.fits(type_operands)
+                && payload.fields.fits(fields)
+                && payload.elements.fits(elements)
+                && payload.members.fits(members.len())
+                && payload.index_signatures.fits(index_signatures)
+                && payload.function_parameters.fits(parameters)
+                && payload.variant_cases.fits(cases)
+        });
+        if !types_fit {
+            return false;
+        }
+
+        // check ranges nested inside reflected member and frame rows
+        let members_fit = members
+            .iter()
+            .all(|member| member.arguments.fits(type_operands));
+        let frames_fit = sections
+            .entries(self.frames)
+            .iter()
+            .all(|frame| frame.slots.fits(frame_slots));
+
+        members_fit && frames_fit
+    }
 }
 
 /// Build-time reflected type entry.

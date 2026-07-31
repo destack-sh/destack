@@ -126,6 +126,26 @@ impl BindingTable {
     pub fn hosts<'a>(&self, sections: SectionImage<'a>, binding: &Binding) -> &'a [StringId] {
         binding.hosts.slice(sections.entries(self.strings))
     }
+
+    /// Return whether every binding range fits the string column.
+    pub(super) fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+        let bindings = sections.entries(self.bindings);
+        let indices = sections.entries(self.id_index);
+        let strings = sections.entries(self.strings).len();
+
+        // check the dense identity indirection before BindingTable::get indexes through it
+        let indices_fit = indices
+            .iter()
+            .all(|index| (*index as usize) < bindings.len());
+        let strings_fit = bindings.iter().all(|binding| {
+            binding.requires.fits(strings)
+                && binding.platforms.fits(strings)
+                && binding.families.fits(strings)
+                && binding.hosts.fits(strings)
+        });
+
+        indices_fit && strings_fit
+    }
 }
 
 /// Build-time runtime binding declaration.

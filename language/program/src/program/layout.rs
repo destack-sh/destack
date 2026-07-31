@@ -130,6 +130,31 @@ impl LayoutTable {
             TensorSharding::Sharded { axes } => axes.slice(sections.entries(self.tensor_axes)),
         }
     }
+
+    /// Return whether every layout payload range fits its flattened column.
+    pub(super) fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+        let fields = sections.entries(self.fields).len();
+        let cases = sections.entries(self.cases).len();
+        let dimensions = sections.entries(self.tensor_dimensions).len();
+        let axes = sections.entries(self.tensor_axes).len();
+
+        // check each variable layout payload against its owning column
+        sections
+            .entries(self.layouts)
+            .iter()
+            .all(|layout| match layout.shape {
+                LayoutShape::Struct(range) | LayoutShape::Tuple(range) => range.fits(fields),
+                LayoutShape::Tensor(tensor) => {
+                    tensor.dimensions.fits(dimensions) && tensor.sharding.fits(axes)
+                }
+                LayoutShape::TensorView(view) => {
+                    view.dimensions.fits(dimensions) && view.sharding.fits(axes)
+                }
+                LayoutShape::Variant(variant) => variant.cases.fits(cases),
+                LayoutShape::Object(object) => object.fields.fits(fields),
+                _ => true,
+            })
+    }
 }
 
 /// Opaque identifier for one program memory layout.
@@ -855,6 +880,16 @@ pub enum TensorSharding {
     },
 }
 
+impl TensorSharding {
+    /// Return whether the sharding range fits the tensor axis column.
+    fn fits(self, axes: usize) -> bool {
+        match self {
+            Self::Unsharded => true,
+            Self::Sharded { axes: range } => range.fits(axes),
+        }
+    }
+}
+
 /// Per-axis placement descriptor for a sharded tensor.
 #[repr(C, u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
@@ -1298,7 +1333,8 @@ mod tests {
         let mut sections = SectionBuilder::new();
         let table = LayoutTable::pack(&mut sections, vec![layout]);
         let storage = sections.build();
-        let sections = SectionImage::new(&storage);
+        // SAFETY: storage was produced by the SectionBuilder immediately above.
+        let sections = unsafe { SectionImage::new(&storage) };
         let layout = table
             .get(sections, LayoutId::new(1))
             .expect("variant layout should exist");

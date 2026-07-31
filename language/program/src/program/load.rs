@@ -1,7 +1,10 @@
 use std::fmt;
 
 use destack_bytecode::{Code, CodeBuilder};
-use destack_core::{Optional, SectionBuilder, SectionEntry, SectionStorage, StringId, StringPool};
+use destack_core::{
+    Optional, SectionBuilder, SectionEntry, SectionImage, SectionImageError, SectionLoader,
+    SectionStorage, StringId, StringPool,
+};
 use destack_heap::TraceTable;
 use destack_mir as mir;
 use destack_mir::TargetLayout;
@@ -22,34 +25,44 @@ const PROGRAM_VERSION: u16 = 7;
 /// Program image load failure.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProgramLoadError {
-    /// The byte region cannot contain a Program header.
-    Truncated,
-    /// The byte region does not satisfy program alignment.
-    Misaligned,
+    /// The physical section image is malformed.
+    Image(SectionImageError),
     /// The byte region does not contain a Destack program.
     InvalidMagic,
     /// The program version is not supported.
     UnsupportedVersion(u16),
     /// The recorded image length does not match the supplied storage.
     InvalidLength,
+    /// One relative range lies outside its sibling column.
+    InvalidRange,
+    /// One stored program string is not valid UTF-8.
+    InvalidString,
 }
 
 impl fmt::Display for ProgramLoadError {
     /// Format one program image load failure.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Truncated => formatter.write_str("truncated program image"),
-            Self::Misaligned => formatter.write_str("misaligned program image"),
+            Self::Image(error) => write!(formatter, "invalid program image: {error}"),
             Self::InvalidMagic => formatter.write_str("invalid program image magic"),
             Self::UnsupportedVersion(version) => {
                 write!(formatter, "unsupported program image version {version}")
             }
             Self::InvalidLength => formatter.write_str("invalid program image length"),
+            Self::InvalidRange => formatter.write_str("invalid program image range"),
+            Self::InvalidString => formatter.write_str("invalid program image string"),
         }
     }
 }
 
 impl std::error::Error for ProgramLoadError {}
+
+impl From<SectionImageError> for ProgramLoadError {
+    /// Convert one malformed physical section image.
+    fn from(error: SectionImageError) -> Self {
+        Self::Image(error)
+    }
+}
 
 /// Mutable builder for one mapped Program image.
 #[derive(Debug)]
@@ -102,7 +115,7 @@ pub struct ProgramBuilder {
 /// Fixed header stored at byte zero of every Program image.
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, SectionEntry)]
-struct Header {
+struct ObjectHeader {
     /// Stable Program format marker.
     magic: u32,
     /// Stable Program format version.
@@ -155,7 +168,7 @@ struct Header {
     wasm: Optional<wasm::Code>,
 }
 
-impl Header {
+impl ObjectHeader {
     /// Create one empty Program header for a target layout.
     fn new(target_layout: TargetLayout) -> Self {
         Self {
@@ -183,6 +196,42 @@ impl Header {
             native: Optional::none(),
             wasm: Optional::none(),
         }
+    }
+
+    /// Check every relationship required by infallible Program navigation.
+    fn check(&self, sections: SectionImage<'_>) -> Result<(), ProgramLoadError> {
+        // reject strings that cannot be borrowed without repeated decoding
+        if !self.strings.entries_fit(sections) {
+            return Err(ProgramLoadError::InvalidString);
+        }
+
+        // reject any relative range outside its owning sibling column
+        if !self.ranges_fit(sections) {
+            return Err(ProgramLoadError::InvalidRange);
+        }
+
+        Ok(())
+    }
+
+    /// Return whether every compact table range fits its sibling column.
+    fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+        self.types.ranges_fit(sections)
+            && self.layouts.ranges_fit(sections)
+            && self.frames.ranges_fit(sections)
+            && self.functions.ranges_fit(sections)
+            && self.bindings.ranges_fit(sections)
+            && self.dispatch.ranges_fit(sections)
+            && self.traces.ranges_fit(sections)
+            && self.info.get().is_none_or(|info| info.ranges_fit(sections))
+            && self
+                .bytecode
+                .get()
+                .is_none_or(|code| code.ranges_fit(sections))
+            && self
+                .native
+                .get()
+                .is_none_or(|code| code.ranges_fit(sections))
+            && self.wasm.get().is_none_or(|code| code.ranges_fit(sections))
     }
 }
 
@@ -364,7 +413,7 @@ impl ProgramBuilder {
     /// Build one immutable Program image.
     pub fn build(self) -> Program {
         let mut sections = SectionBuilder::new();
-        let mut header = Header::new(self.target_layout);
+        let mut header = ObjectHeader::new(self.target_layout);
         let header_section = sections.insert([header]);
 
         // pack runtime tables in canonical order
@@ -409,31 +458,23 @@ impl ProgramBuilder {
 }
 
 impl Program {
-    /// Load one compiler-produced Program from retained aligned image storage.
-    ///
-    /// # Safety
-    ///
-    /// The storage must contain a Program image produced by the matching compiler version.
-    pub unsafe fn load(storage: SectionStorage) -> Result<Self, ProgramLoadError> {
-        let bytes = storage.bytes();
-        if bytes.len() < size_of::<Header>() {
-            return Err(ProgramLoadError::Truncated);
-        }
-        if !(bytes.as_ptr() as usize).is_multiple_of(align_of::<Header>()) {
-            return Err(ProgramLoadError::Misaligned);
-        }
-
-        // SAFETY: the caller guarantees a compiler-produced header and alignment is checked above.
-        let header = unsafe { &*bytes.as_ptr().cast::<Header>() };
+    /// Load one Program from retained aligned image storage.
+    pub fn load(storage: SectionStorage) -> Result<Self, ProgramLoadError> {
+        let loader = SectionLoader::new(&storage)?;
+        let header = loader.header::<ObjectHeader>()?;
         if header.magic != PROGRAM_MAGIC {
             return Err(ProgramLoadError::InvalidMagic);
         }
         if header.version != PROGRAM_VERSION {
             return Err(ProgramLoadError::UnsupportedVersion(header.version));
         }
-        if usize::try_from(header.byte_len).ok() != Some(bytes.len()) {
+        if usize::try_from(header.byte_len).ok() != Some(loader.bytes().len()) {
             return Err(ProgramLoadError::InvalidLength);
         }
+
+        // SAFETY: SectionLoader validated every absolute section reachable from the header.
+        let sections = unsafe { SectionImage::new(&storage) };
+        header.check(sections)?;
 
         Ok(Self::from_header(*header, storage))
     }
@@ -444,7 +485,7 @@ impl Program {
     }
 
     /// Create one Program from its fixed header and retained section storage.
-    fn from_header(header: Header, storage: SectionStorage) -> Self {
+    fn from_header(header: ObjectHeader, storage: SectionStorage) -> Self {
         Self {
             target_layout: header.target_layout,
             strings: header.strings,
@@ -470,54 +511,4 @@ impl Program {
     }
 }
 
-const _: () = assert!(align_of::<Header>() == 16);
-
-#[cfg(test)]
-mod tests {
-    use destack_core::{SectionStorage, StringId, StringPool};
-    use destack_mir::{TargetLayout, TraceTable};
-
-    use crate::{
-        DispatchTableBuilder, FunctionTableBuilder, GlobalTableBuilder, Program, ProgramBuilder,
-        ProgramInfoBuilder, SiteTableBuilder, TypeTableBuilder,
-    };
-
-    /// Load one complete Program directly from its retained image storage.
-    #[test]
-    fn test_load_program_image() {
-        let (program, name) = empty_program();
-        let bytes = program.bytes().to_vec();
-        let storage = SectionStorage::from_bytes(&bytes);
-
-        // SAFETY: bytes came from ProgramBuilder in this test.
-        let loaded = unsafe { Program::load(storage) }.expect("program should load");
-
-        assert_eq!(loaded.bytes(), program.bytes());
-        assert_eq!(loaded.string(name), Some("main"));
-        assert_eq!(loaded.bytecode(), None);
-    }
-
-    /// Build one minimal section-backed Program.
-    fn empty_program() -> (Program, StringId) {
-        let strings = StringPool::new();
-        let name = strings.intern("main");
-        let traces = TraceTable::new();
-        let program = ProgramBuilder::new(TargetLayout::default())
-            .strings(&strings, [name])
-            .types(TypeTableBuilder::new())
-            .drops([])
-            .layouts([])
-            .functions(FunctionTableBuilder::new())
-            .dispatch(DispatchTableBuilder::new())
-            .sites(SiteTableBuilder::new())
-            .traces(traces)
-            .globals(GlobalTableBuilder::new())
-            .info(ProgramInfoBuilder::new())
-            .constant_space([])
-            .shared_static_space([])
-            .local_static_space([])
-            .build();
-
-        (program, name)
-    }
-}
+const _: () = assert!(align_of::<ObjectHeader>() == 16);

@@ -142,6 +142,29 @@ impl DispatchTable {
     ) -> &'a [DynamicSlot] {
         shape.slots.slice(sections.entries(self.dynamic_slots))
     }
+
+    /// Return whether every dispatch range fits its flattened column.
+    pub(super) fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+        let methods = sections.entries(self.virtual_methods).len();
+        let entries = sections.entries(self.dynamic_entries).len();
+        let slots = sections.entries(self.dynamic_slots).len();
+
+        // check each dispatch table family independently
+        let virtual_tables = sections
+            .entries(self.virtual_tables)
+            .iter()
+            .all(|table| table.methods.fits(methods));
+        let dynamic_tables = sections
+            .entries(self.dynamic_tables)
+            .iter()
+            .all(|table| table.entries.fits(entries));
+        let dynamic_shapes = sections
+            .entries(self.dynamic_shapes)
+            .iter()
+            .all(|shape| shape.slots.fits(slots));
+
+        virtual_tables && dynamic_tables && dynamic_shapes
+    }
 }
 
 /// Virtual dispatch table for one concrete type.

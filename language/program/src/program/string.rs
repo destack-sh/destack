@@ -33,14 +33,33 @@ impl StringTable {
         let bytes = sections.entries(self.bytes);
         let start = entry.offset as usize;
         let end = start + entry.byte_len as usize;
-        let bytes = bytes.get(start..end)?;
+        let bytes = &bytes[start..end];
 
-        std::str::from_utf8(bytes).ok()
+        // SAFETY: builders originate from Rust strings and Program loading checks every entry.
+        Some(unsafe { std::str::from_utf8_unchecked(bytes) })
     }
 
     /// Return whether this table is empty.
     pub fn is_empty(&self, sections: SectionImage<'_>) -> bool {
         sections.entries(self.entries).is_empty()
+    }
+
+    /// Return whether every entry names valid UTF-8 inside the byte column.
+    pub(super) fn entries_fit(&self, sections: SectionImage<'_>) -> bool {
+        let bytes = sections.entries(self.bytes);
+
+        // check every byte range before normal lookup becomes infallible
+        sections.entries(self.entries).iter().all(|entry| {
+            let start = entry.offset as usize;
+            let Some(end) = start.checked_add(entry.byte_len as usize) else {
+                return false;
+            };
+            let Some(text) = bytes.get(start..end) else {
+                return false;
+            };
+
+            std::str::from_utf8(text).is_ok()
+        })
     }
 
     /// Return one string entry by stable id.

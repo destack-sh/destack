@@ -151,6 +151,16 @@ impl TypeTable {
             .supertypes
             .slice(sections.entries(self.supertypes))
     }
+
+    /// Return whether every descriptor range fits the supertype column.
+    pub(super) fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+        let supertypes = sections.entries(self.supertypes).len();
+
+        sections
+            .entries(self.descriptors)
+            .iter()
+            .all(|descriptor| descriptor.supertypes.fits(supertypes))
+    }
 }
 
 /// Mutable runtime type table before section packing.

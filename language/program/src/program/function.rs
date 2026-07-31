@@ -198,6 +198,16 @@ impl FunctionTable {
             .parameters
             .slice(sections.entries(self.parameters))
     }
+
+    /// Return whether every signature range fits the parameter column.
+    pub(super) fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+        let parameters = sections.entries(self.parameters).len();
+
+        sections
+            .entries(self.signatures)
+            .iter()
+            .all(|signature| signature.parameters.fits(parameters))
+    }
 }
 
 /// Exported function name.

@@ -10,7 +10,6 @@ use destack_memory::{MemoryMap, MemoryResult};
 use destack_mir::{Space, Storage, TargetLayout, TraceId, TraceMap};
 use destack_native as native;
 use destack_serde::Reflect;
-use destack_source::ContentId;
 use destack_webassembly as wasm;
 use serde::{Deserialize, Serialize};
 
@@ -78,21 +77,6 @@ pub struct Program {
 }
 
 impl Program {
-    /// Return all content ids referenced by this program.
-    pub fn content_ids(&self) -> Vec<ContentId> {
-        let mut ids = Vec::new();
-
-        if let Some(native) = &self.native {
-            ids.extend(native.content_ids());
-        }
-
-        if let Some(wasm) = &self.wasm {
-            ids.extend(wasm.content_ids());
-        }
-
-        ids
-    }
-
     /// Return runtime type table.
     pub fn types(&self) -> &TypeTable {
         &self.types
@@ -137,7 +121,8 @@ impl Program {
 
     /// Return a read-only view of program sections.
     pub fn sections(&self) -> SectionImage<'_> {
-        SectionImage::new(&self.storage)
+        // SAFETY: Program construction builds or validates every absolute section in its header.
+        unsafe { SectionImage::new(&self.storage) }
     }
 
     /// Return one program function entry.
