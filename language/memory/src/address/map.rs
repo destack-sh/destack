@@ -4,6 +4,7 @@ use std::ptr::{copy_nonoverlapping, from_ref, write_bytes};
 use std::slice;
 use std::sync::Arc;
 
+use destack_serde::Reflect;
 use parking_lot::Mutex;
 use serde::ser::{SerializeSeq, SerializeStruct};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -45,7 +46,7 @@ pub struct MemoryImage {
 }
 
 /// One allocated logical byte range.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct MemoryRange {
     /// The byte offset inside the memory map.
     pub offset: usize,
@@ -205,6 +206,20 @@ impl MemoryMap {
         let mut range_allocator = self.range_allocator.lock();
 
         range_allocator.allocate(byte_len, alignment, self.byte_len)
+    }
+
+    /// Allocate one aligned logical range initialized from the provided bytes.
+    pub fn allocate_bytes(&self, bytes: &[u8], alignment: usize) -> MemoryResult<MemoryRange> {
+        let range = self.allocate(bytes.len(), alignment)?;
+
+        // initialize the allocation or return it to the allocator on failure
+        if let Err(error) = self.write_bytes(range.offset, bytes) {
+            self.release(range)?;
+
+            return Err(error);
+        }
+
+        Ok(range)
     }
 
     /// Claim one exact logical byte range while restoring memory state.
