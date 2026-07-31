@@ -39,6 +39,11 @@ pub enum Outcome<T> {
 /// Reason execution stopped before completion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum StopReason {
+    /// Runtime pause requested at one reconstructable point.
+    Pause {
+        /// Program point retained by the pause.
+        point: ProgramPoint,
+    },
     /// Explicit program breakpoint instruction.
     Instruction {
         /// Program point that stopped execution.
@@ -153,7 +158,8 @@ impl StopReason {
     /// Return the program point that produced this stop.
     pub const fn point(self) -> ProgramPoint {
         match self {
-            Self::Instruction { point }
+            Self::Pause { point }
+            | Self::Instruction { point }
             | Self::Breakpoint { point, .. }
             | Self::Watchpoint { point, .. } => point,
         }
@@ -166,16 +172,17 @@ impl StopReason {
                 point: self.point(),
                 reason: self,
             }),
-            Self::Instruction { .. } | Self::Watchpoint { .. } => None,
+            Self::Pause { .. } | Self::Instruction { .. } | Self::Watchpoint { .. } => None,
         }
     }
 
     /// Return a stable sorting key for deterministic stop selection.
     const fn sort_key(self) -> (u8, u64) {
         match self {
-            Self::Instruction { .. } => (0, 0),
-            Self::Breakpoint { breakpoint_id, .. } => (1, breakpoint_id.get()),
-            Self::Watchpoint { watchpoint_id, .. } => (2, watchpoint_id.get()),
+            Self::Pause { .. } => (0, 0),
+            Self::Instruction { .. } => (1, 0),
+            Self::Breakpoint { breakpoint_id, .. } => (2, breakpoint_id.get()),
+            Self::Watchpoint { watchpoint_id, .. } => (3, watchpoint_id.get()),
         }
     }
 }
@@ -189,7 +196,9 @@ impl ResumeSkip {
 
         match self.reason {
             StopReason::Breakpoint { .. } => matches!(reason, StopReason::Breakpoint { .. }),
-            StopReason::Instruction { .. } | StopReason::Watchpoint { .. } => false,
+            StopReason::Pause { .. }
+            | StopReason::Instruction { .. }
+            | StopReason::Watchpoint { .. } => false,
         }
     }
 }

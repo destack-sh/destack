@@ -1,11 +1,61 @@
 use std::fmt;
 
+use destack_heap::{HeapResult, RootSlot};
+
 use crate::{Binding, Continuation, Memory, Task, TaskOutcome, Value, Waiter, Word};
+
+/// Action returned by one runtime poll.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Poll {
+    /// Continue execution in the current engine.
+    Continue,
+    /// Retain execution and return control to the host.
+    Pause,
+    /// Retain execution for transfer to another engine.
+    Deoptimize,
+}
+
+/// Mutable roots retained by one active execution engine.
+pub trait RootSource {
+    /// Root traversal failure.
+    type Error;
+
+    /// Visit every mutable root retained by the active engine.
+    fn visit(
+        &mut self,
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+    ) -> Result<(), Self::Error>;
+}
+
+impl<E, F> RootSource for F
+where
+    F: FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
+{
+    type Error = E;
+
+    /// Visit every mutable root retained by the closure.
+    fn visit(
+        &mut self,
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+    ) -> Result<(), Self::Error> {
+        self(visit)
+    }
+}
 
 /// Runtime services available to executing program code.
 pub trait Runtime {
     /// Runtime operation failure.
     type Error;
+
+    /// Return whether runtime work is pending.
+    fn is_poll_requested(&self) -> bool;
+
+    /// Service pending runtime work against the active roots.
+    fn poll(
+        &mut self,
+        memory: Memory<'_>,
+        roots: &mut dyn RootSource<Error = Self::Error>,
+    ) -> Result<Poll, Self::Error>;
 
     /// Call one linked runtime binding.
     fn call_binding(
@@ -79,6 +129,7 @@ impl<R> fmt::Debug for Activation<'_, '_, R>
 where
     R: Runtime + ?Sized,
 {
+    /// Format one active program execution.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("Activation")
