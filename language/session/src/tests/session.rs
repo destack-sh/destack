@@ -102,6 +102,7 @@ impl TestSession {
             worker_count,
             None,
         )?;
+        session.set_tracing(true);
 
         Ok(Self {
             root,

@@ -30,6 +30,8 @@ pub(crate) struct ProviderAttempt {
     diagnostics: Mutex<DiagnosticCollection>,
     /// The sidecars produced by this attempt.
     sidecars: Mutex<Vec<ArtifactSidecar>>,
+    /// The dependencies read during provider execution.
+    reads: Mutex<Vec<ArtifactDependency>>,
     /// The recorder for this artifact attempt, when the run is timed.
     recorder: Option<Arc<ArtifactAttemptRecorder>>,
 }
@@ -45,8 +47,14 @@ impl ProviderAttempt {
             dependencies: None,
             diagnostics: Mutex::new(DiagnosticCollection::new()),
             sidecars: Mutex::new(Vec::new()),
+            reads: Mutex::new(Vec::new()),
             recorder: None,
         }
+    }
+
+    /// Take the dependencies read during provider execution.
+    pub(crate) fn take_reads(&self) -> Vec<ArtifactDependency> {
+        std::mem::take(&mut self.reads.lock())
     }
 
     /// Attach one recorder to this attempt.
@@ -261,6 +269,11 @@ impl DiagnosticContext for ProviderAttempt {
 }
 
 impl ProviderContext for ProviderAttempt {
+    /// Record one dependency read during provider execution.
+    fn observe(&self, dependency: ArtifactDependency) {
+        self.reads.lock().push(dependency);
+    }
+
     /// Return the pinned repository revision for this attempt.
     fn revision(&self) -> Revision {
         self.revision()

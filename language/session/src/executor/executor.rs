@@ -147,12 +147,12 @@ impl Executor {
             trace.clone(),
             owns_trace,
         ));
-        trace.add_counter("roots", artifact_keys.len() as u64);
+        trace.add_counter("run.roots", artifact_keys.len() as u64);
 
         self.state.emit_event(SessionEvent::RunStarted { run_id });
 
         // enqueue roots into the shared scheduler
-        trace.span("enqueue", || {
+        trace.span("run.enqueue", || {
             self.scheduler.insert_run(state.clone());
             self.scheduler.enqueue_roots(state.roots(), state.id());
         });
@@ -168,7 +168,7 @@ impl Executor {
             Execution::Inline => 1,
         };
 
-        Trace::new(clock, workers)
+        Trace::new(clock, workers, self.state.is_tracing())
     }
 
     /// Require one artifact version for an immutable revision.
@@ -285,8 +285,8 @@ impl Executor {
     ) -> Result<(), SessionError> {
         let trace = run.trace();
 
-        trace.span("execute", || match self.execution {
-            Execution::Inline => self.run_inline(run, tasks, goal),
+        trace.span("run.await", || match self.execution {
+            Execution::Inline => self.run_inline(run, goal),
             Execution::Threaded => self.scheduler.wait_until(|| {
                 if let Some(error) = run.error() {
                     return Err(error);

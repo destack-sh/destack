@@ -17,11 +17,15 @@ pub(super) struct Scheduler {
     state: Mutex<SchedulerState>,
     /// Notification for task graph and artifact outcome changes.
     changed: Condvar,
+    /// Notification for newly claimable work, watched only by workers.
+    ready: Condvar,
 }
 
 /// Shared artifact task graph state.
 #[derive(Debug, Default)]
 struct SchedulerState {
+    /// Tasks made claimable since the last worker wake.
+    readied: usize,
     /// Active runs waiting on root tasks.
     runs: HashMap<ArtifactRunId, Arc<ArtifactRunState>>,
     /// Tracked tasks by revision and artifact key.
@@ -72,6 +76,13 @@ impl Scheduler {
         Self::default()
     }
 
+    /// Wake one idle worker per task made claimable since the last wake.
+    fn wake_ready(&self, state: &mut SchedulerState) {
+        for _readied in 0..std::mem::take(&mut state.readied) {
+            self.ready.notify_one();
+        }
+    }
+
     /// Register one active run.
     pub(super) fn insert_run(&self, run: Arc<ArtifactRunState>) {
         self.state.lock().runs.insert(run.id(), run);
@@ -83,6 +94,7 @@ impl Scheduler {
         state.remove_run(run_id);
         state.advance();
         self.changed.notify_all();
+        self.ready.notify_all();
     }
 
     /// Enqueue root tasks for one run.
@@ -93,6 +105,7 @@ impl Scheduler {
         }
         state.advance();
         self.changed.notify_all();
+        self.wake_ready(&mut state);
     }
 
     /// Claim the next runnable task, or none after shutdown.
@@ -108,10 +121,15 @@ impl Scheduler {
             }
 
             if let Some(task) = self.claim_ready_task(&mut state) {
+                // chain one wake so absorbed notifications never strand work
+                if state.has_ready() {
+                    self.ready.notify_one();
+                }
+
                 return Some(task);
             }
 
-            self.changed.wait(&mut state);
+            self.ready.wait(&mut state);
         }
     }
 
@@ -176,6 +194,7 @@ impl Scheduler {
         state.wait_on(task, dependencies, pending_set)?;
         state.advance();
         self.changed.notify_all();
+        self.wake_ready(&mut state);
 
         Ok(())
     }
@@ -186,6 +205,7 @@ impl Scheduler {
         state.mark_done(task);
         state.advance();
         self.changed.notify_all();
+        self.wake_ready(&mut state);
     }
 
     /// Abort every run waiting on one failed task.
@@ -194,6 +214,7 @@ impl Scheduler {
         state.abort(task, error);
         state.advance();
         self.changed.notify_all();
+        self.ready.notify_all();
     }
 
     /// Return whether a worker is still recording into one run.
@@ -207,6 +228,7 @@ impl Scheduler {
         state.is_shutdown = true;
         state.advance();
         self.changed.notify_all();
+        self.ready.notify_all();
     }
 
     /// Claim one ready task from locked scheduler state.
@@ -319,11 +341,19 @@ impl SchedulerState {
         }
     }
 
+    /// Return whether any task is queued for claiming.
+    fn has_ready(&self) -> bool {
+        self.ready
+            .iter()
+            .any(|stages| stages.iter().any(|stage| !stage.is_empty()))
+    }
+
     /// Enqueue one ready task by priority and toolchain stage.
     fn push_ready(&mut self, task: Task, priority: ArtifactPriority) {
         let stage = task.key.stage() as usize;
 
         self.ready[priority.index()][stage].push_back(task);
+        self.readied += 1;
     }
 
     /// Pop one task from the highest priority earliest stage.

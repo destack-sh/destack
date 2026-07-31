@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 use destack_artifact::ArtifactOutcome;
 use destack_compiler::Compiler;
@@ -27,6 +27,8 @@ pub(crate) struct SessionState {
     event_handler: Option<SessionEventHandler>,
     /// Monotonic ids for session runs.
     next_run_id: AtomicU32,
+    /// Whether runs record detailed traces.
+    is_tracing: AtomicBool,
     /// The trace of the latest finished run.
     last_trace: Mutex<Option<Arc<Trace>>>,
 }
@@ -65,8 +67,19 @@ impl SessionState {
             indexer,
             event_handler,
             next_run_id: AtomicU32::new(1),
+            is_tracing: AtomicBool::new(false),
             last_trace: Mutex::new(None),
         }
+    }
+
+    /// Enable or disable detailed run tracing.
+    pub(crate) fn set_tracing(&self, is_tracing: bool) {
+        self.is_tracing.store(is_tracing, Ordering::Relaxed);
+    }
+
+    /// Return whether runs record detailed traces.
+    pub(crate) fn is_tracing(&self) -> bool {
+        self.is_tracing.load(Ordering::Relaxed)
     }
 
     /// Record the trace of one finished run.

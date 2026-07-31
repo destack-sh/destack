@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactDependencySet, ArtifactFailure, ArtifactKey, ArtifactOutcome,
-    ArtifactPayload, ArtifactProvider, ArtifactSidecar, ArtifactVersion,
+    ArtifactPayload, ArtifactProvider, ArtifactSidecar,
 };
 use destack_repository::{
-    ArtifactAttemptOutcome, ArtifactResolution, DependencySetResolution, ProviderError,
-    ProviderResult, Revision,
+    ArtifactAttemptOutcome, ArtifactAttemptRecorder, ArtifactBase, ArtifactPlan, ProviderError,
+    ProviderResult, Repository, Revision,
 };
 use destack_source::DiagnosticCollection;
 
@@ -33,7 +33,7 @@ impl SessionState {
         &self,
         revision: Revision,
         key: ArtifactKey,
-        base: Option<Arc<destack_repository::ArtifactBase>>,
+        base: Option<Arc<ArtifactBase>>,
     ) -> ProviderResult<ArtifactDependencySet> {
         let attempt = ProviderAttempt::new(self.repository(), revision, key).with_base(base);
 
@@ -48,7 +48,6 @@ impl SessionState {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 impl Worker {
     /// Drive the shared scheduler until the executor shuts down.
     pub(super) fn run(&self) {
@@ -79,7 +78,7 @@ impl Worker {
         }
     }
 
-    /// Provide one claimed task.
+    /// Provide one claimed task per the repository's plan.
     pub(super) fn provide_task(
         &self,
         run: &ArtifactRunState,
@@ -94,247 +93,125 @@ impl Worker {
             artifact_key: task.key,
         });
 
+        // ask the repository what this attempt requires
         let repository = self.state.repository();
+        let mut collect = |base| {
+            self.state
+                .collect_dependencies(task.revision, task.key, base)
+        };
+        let plan = repository.plan_artifact(
+            task.revision,
+            task.key,
+            pending_set,
+            recorder.as_ref(),
+            &mut collect,
+        );
 
-        // resolve one stored artifact before collecting new dependencies
-        let resolution = recorder.span("resolve", || {
-            repository.resolve_artifact(task.revision, &task.key)
-        });
-        match resolution {
-            Ok(ArtifactResolution::Terminal { outcome, .. }) => {
+        match plan {
+            // finish with the terminal result the revision already binds
+            Ok(ArtifactPlan::Done { outcome, attempt }) => {
+                recorder.finish(attempt);
                 match outcome {
-                    ArtifactOutcome::Ok => {
-                        recorder.finish(ArtifactAttemptOutcome::MemoryCached);
-                        self.finish_ready(run.id(), task);
-                    }
-                    ArtifactOutcome::Failed(_) => {
-                        recorder.finish(ArtifactAttemptOutcome::Failed);
-                        self.finish_failed(run.id(), task);
-                    }
+                    ArtifactOutcome::Ok => self.finish_ready(run.id(), task),
+                    ArtifactOutcome::Failed(_) => self.finish_failed(run.id(), task),
                 }
 
-                return Ok(());
+                Ok(())
             }
-            Ok(ArtifactResolution::Pending { frontier }) => {
-                recorder.record_counter("frontier", frontier.len() as u64);
-                let frontier = frontier
-                    .into_iter()
-                    .map(|key| Task::new(task.revision, key))
-                    .collect();
-                let result =
-                    recorder.span("scheduler", || self.scheduler.wait_on(task, frontier, None));
-                let outcome = if result.is_ok() {
-                    ArtifactAttemptOutcome::Parked
-                } else {
-                    ArtifactAttemptOutcome::Failed
-                };
-                recorder.finish(outcome);
-
-                return result;
-            }
-            Ok(ArtifactResolution::Stale) => {}
-            Err(error) => {
+            // wait until the declared frontier becomes terminal
+            Ok(ArtifactPlan::Park {
+                frontier,
+                pending_set,
+            }) => self.park(task, frontier, pending_set, &recorder),
+            // fail immediately on a poisoned dependency
+            Ok(ArtifactPlan::Build {
+                dependencies,
+                failed: Some(failed_dependency),
+                ..
+            }) => {
+                let failure = ArtifactFailure::requirement(failed_dependency);
+                let diagnostics = DiagnosticCollection::new();
+                let result = recorder.span("commit", || {
+                    self.fail(
+                        run.id(),
+                        task,
+                        dependencies,
+                        diagnostics,
+                        Vec::new(),
+                        failure,
+                    )
+                });
                 recorder.finish(ArtifactAttemptOutcome::Failed);
 
-                return Err(SessionError::Internal {
-                    detail: format!("failed to resolve artifact {:?}: {error}", task.key),
-                });
+                result
             }
+            // run the provider over the exact dependency set
+            Ok(ArtifactPlan::Build {
+                base,
+                dependencies,
+                failed: None,
+            }) => self.provide(run, task, &repository, base, dependencies, &recorder),
+            Err(error) => Err(self.fail_internal(&recorder, error.to_string())),
         }
+    }
 
-        let base = recorder.span("base", || repository.artifact_base(task.revision, task.key));
-        let base = match base {
-            Ok(base) => base,
-            Err(error) => {
-                recorder.finish(ArtifactAttemptOutcome::Failed);
-
-                return Err(SessionError::Internal {
-                    detail: format!("failed to select artifact base {:?}: {error}", task.key),
-                });
-            }
-        };
-
-        // resolve a saved pending set or collect a fresh one
-        let mut collected = if let Some(pending_set) = pending_set {
-            Ok(pending_set)
-        } else {
-            recorder.span("collect", || {
-                self.state
-                    .collect_dependencies(task.revision, task.key, base.clone())
-            })
-        };
-        let (dependencies, failed) = loop {
-            let dependency_set = match collected {
-                Ok(dependency_set) => dependency_set,
-                Err(error) => {
-                    recorder.finish(ArtifactAttemptOutcome::Failed);
-
-                    return Err(SessionError::Internal {
-                        detail: format!("failed to collect artifact {:?}: {error}", task.key),
-                    });
-                }
-            };
-            let resolution = recorder.span("dependencies", || {
-                repository.resolve_dependency_set(
-                    task.revision,
-                    dependency_set,
-                    base.as_deref(),
-                    recorder.as_ref(),
-                )
-            });
-            let resolution = match resolution {
-                Ok(resolution) => resolution,
-                Err(error) => {
-                    recorder.finish(ArtifactAttemptOutcome::Failed);
-
-                    return Err(SessionError::Internal {
-                        detail: format!(
-                            "failed to resolve artifact dependencies {:?}: {error}",
-                            task.key
-                        ),
-                    });
-                }
-            };
-
-            match resolution {
-                DependencySetResolution::Incomplete => {
-                    collected = recorder.span("collect", || {
-                        self.state
-                            .collect_dependencies(task.revision, task.key, base.clone())
-                    });
-                }
-                DependencySetResolution::Pending {
-                    frontier,
-                    pending_set,
-                } => {
-                    recorder.record_counter("frontier", frontier.len() as u64);
-                    let frontier = frontier
-                        .into_iter()
-                        .map(|key| Task::new(task.revision, key))
-                        .collect();
-                    let result = recorder.span("scheduler", || {
-                        self.scheduler.wait_on(task, frontier, pending_set)
-                    });
-                    let outcome = if result.is_ok() {
-                        ArtifactAttemptOutcome::Parked
-                    } else {
-                        ArtifactAttemptOutcome::Failed
-                    };
-                    recorder.finish(outcome);
-
-                    return result;
-                }
-                DependencySetResolution::Resolved {
-                    dependencies,
-                    failed,
-                } => break (dependencies, failed),
-            }
-        };
-        let dependencies = Arc::<[ArtifactDependency]>::from(dependencies);
-        recorder.record_dependencies(&dependencies);
-
-        // identify the reusable result from its dependency observations
-        let version = recorder.span("version", || {
-            ArtifactVersion::new(
-                task.key,
-                repository.host().build_id(),
-                dependencies.iter().cloned(),
-            )
-        });
-
-        // fail this artifact immediately on a poisoned dependency
-        if let Some(failed_dependency) = failed {
-            let failure = ArtifactFailure::requirement(failed_dependency);
-            let diagnostics = DiagnosticCollection::new();
-            let sidecars = Vec::new();
-            let result = recorder.span("complete", || {
-                self.fail(
-                    run.id(),
-                    task,
-                    version,
-                    dependencies,
-                    diagnostics,
-                    sidecars,
-                    failure,
-                )
-            });
-            recorder.finish(ArtifactAttemptOutcome::Failed);
-
-            return result;
-        }
-
-        // bind a committed payload when the dependency set already produced it
-        let reused = recorder.span("memory_cache", || {
-            repository.bind_artifact_version(task.revision, version, Arc::clone(&dependencies))
-        });
-        let reused = match reused {
-            Ok(reused) => reused,
-            Err(error) => {
-                recorder.finish(ArtifactAttemptOutcome::Failed);
-
-                return Err(SessionError::Internal {
-                    detail: format!("failed to bind reused artifact {:?}: {error}", task.key),
-                });
-            }
-        };
-        if reused {
-            recorder.finish(ArtifactAttemptOutcome::MemoryCached);
-            self.finish_ready(run.id(), task);
-
-            return Ok(());
-        }
-
-        // load and select a committed result before running the provider
-        let loaded = recorder.span("store_cache", || {
-            repository.load_artifact_binding(
-                task.revision,
-                version,
-                Arc::clone(&dependencies),
-                Some(recorder.as_ref()),
-            )
-        });
-        let loaded = match loaded {
-            Ok(loaded) => loaded,
-            Err(error) => {
-                recorder.finish(ArtifactAttemptOutcome::Failed);
-
-                return Err(SessionError::Internal {
-                    detail: format!("failed to load cached artifact {:?}: {error}", task.key),
-                });
-            }
-        };
-        if loaded {
-            recorder.finish(ArtifactAttemptOutcome::StoreCached);
-            self.finish_ready(run.id(), task);
-
-            return Ok(());
-        }
-
+    /// Run the provider once and commit everything it produced and read.
+    fn provide(
+        &self,
+        run: &ArtifactRunState,
+        task: Task,
+        repository: &Arc<Repository>,
+        base: Option<Arc<ArtifactBase>>,
+        dependencies: Arc<[ArtifactDependency]>,
+        recorder: &Arc<ArtifactAttemptRecorder>,
+    ) -> Result<(), SessionError> {
         // run the provider exactly once over the resolved dependency set
-        let attempt = ProviderAttempt::new(repository, task.revision, task.key)
+        let attempt = ProviderAttempt::new(Arc::clone(repository), task.revision, task.key)
             .with_base(base)
             .with_dependencies(Arc::clone(&dependencies))
-            .with_recorder(Arc::clone(&recorder));
-        match recorder.span("provider", || self.call_provider(&attempt)) {
+            .with_recorder(Arc::clone(recorder));
+        let provided = recorder.span("provide", || self.call_provider(&attempt));
+
+        // park and retry when execution read an artifact that was not ready
+        if let Err(error) = &provided
+            && let ProviderError::Blocked { keys } = error.as_ref()
+        {
+            return self.park(task, keys.clone(), None, recorder);
+        }
+
+        // complete the dependency set with everything the provider read
+        let mut reads = attempt.take_reads();
+        recorder.record_reads(&reads);
+        let dependencies = if reads.is_empty() {
+            dependencies
+        } else {
+            // deduplicate repeated reads of one value
+            reads.sort_unstable();
+            reads.dedup();
+
+            let mut complete = dependencies.to_vec();
+            complete.extend(reads);
+
+            Arc::<[ArtifactDependency]>::from(complete)
+        };
+
+        match provided {
             Ok(payload) => {
-                let result = recorder.span("complete", || {
+                let result = recorder.span("commit", || {
                     self.state.repository().complete_artifact(
                         task.revision,
-                        version,
+                        task.key,
                         payload,
-                        dependencies,
+                        Arc::clone(&dependencies),
                         attempt.diagnostics(),
                         attempt.sidecars(),
                         Some(recorder.as_ref()),
                     )
                 });
-                match result {
-                    Ok(_) => {}
-                    Err(error) => {
-                        recorder.finish(ArtifactAttemptOutcome::Failed);
+                if let Err(error) = result {
+                    recorder.finish(ArtifactAttemptOutcome::Failed);
 
-                        return Err(error.into());
-                    }
+                    return Err(error.into());
                 }
                 recorder.finish(ArtifactAttemptOutcome::Built);
                 self.finish_ready(run.id(), task);
@@ -342,8 +219,8 @@ impl Worker {
                 Ok(())
             }
             Err(error) => {
-                let result = recorder.span("complete", || {
-                    self.fail_provider(&attempt, run.id(), task, version, dependencies, *error)
+                let result = recorder.span("commit", || {
+                    self.fail_provider(&attempt, run.id(), task, dependencies, *error)
                 });
                 recorder.finish(ArtifactAttemptOutcome::Failed);
 
@@ -352,13 +229,45 @@ impl Worker {
         }
     }
 
+    /// Park this attempt until its frontier becomes terminal.
+    fn park(
+        &self,
+        task: Task,
+        frontier: Vec<ArtifactKey>,
+        pending_set: Option<ArtifactDependencySet>,
+        recorder: &Arc<ArtifactAttemptRecorder>,
+    ) -> Result<(), SessionError> {
+        recorder.record_counter("park.frontier", frontier.len() as u64);
+        let frontier = frontier
+            .into_iter()
+            .map(|key| Task::new(task.revision, key))
+            .collect();
+        let result = recorder.span("park", || {
+            self.scheduler.wait_on(task, frontier, pending_set)
+        });
+        let outcome = if result.is_ok() {
+            ArtifactAttemptOutcome::Parked
+        } else {
+            ArtifactAttemptOutcome::Failed
+        };
+        recorder.finish(outcome);
+
+        result
+    }
+
+    /// Fail this attempt with one internal error.
+    fn fail_internal(&self, recorder: &ArtifactAttemptRecorder, detail: String) -> SessionError {
+        recorder.finish(ArtifactAttemptOutcome::Failed);
+
+        SessionError::Internal { detail }
+    }
+
     /// Route one provider failure into a recorded artifact failure.
     fn fail_provider(
         &self,
         attempt: &ProviderAttempt,
         run: ArtifactRunId,
         task: Task,
-        version: ArtifactVersion,
         dependencies: Arc<[ArtifactDependency]>,
         error: ProviderError,
     ) -> Result<(), SessionError> {
@@ -369,25 +278,11 @@ impl Worker {
             ProviderError::RequirementFailed { key } => {
                 let failure = ArtifactFailure::requirement(key);
 
-                self.fail(
-                    run,
-                    task,
-                    version,
-                    dependencies,
-                    diagnostics,
-                    sidecars,
-                    failure,
-                )
+                self.fail(run, task, dependencies, diagnostics, sidecars, failure)
             }
-            ProviderError::Failed { failure } => self.fail(
-                run,
-                task,
-                version,
-                dependencies,
-                diagnostics,
-                sidecars,
-                failure,
-            ),
+            ProviderError::Failed { failure } => {
+                self.fail(run, task, dependencies, diagnostics, sidecars, failure)
+            }
             ProviderError::Corrupt { version: corrupt } => Err(SessionError::Internal {
                 detail: format!(
                     "failed to provide artifact {:?}: corrupt required artifact: {corrupt:?}",
@@ -433,7 +328,6 @@ impl Worker {
         &self,
         run: ArtifactRunId,
         task: Task,
-        version: ArtifactVersion,
         dependencies: Arc<[ArtifactDependency]>,
         diagnostics: DiagnosticCollection,
         sidecars: Vec<ArtifactSidecar>,
@@ -441,7 +335,7 @@ impl Worker {
     ) -> Result<(), SessionError> {
         self.state.repository().fail_artifact(
             task.revision,
-            version,
+            task.key,
             dependencies,
             diagnostics,
             sidecars,

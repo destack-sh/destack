@@ -103,7 +103,7 @@ impl CheckMeasurement {
         Self {
             total_micros: trace.total_micros,
             counts: TraceCounts::from_trace(trace),
-            changed_modules: artifact_counter(trace, "component.graph", "changed_modules"),
+            changed_modules: artifact_counter(trace, "component.graph", "graph.changed"),
             graph_micros: stage_micros(trace, "graph"),
             check_micros: stage_micros(trace, "check"),
             modules_micros: time_micros(trace, "modules"),
@@ -270,7 +270,8 @@ fn test_measure_check_after_single_module_edit() {
         let (_edited, edited_trace) = test.check("src/module-0.ds", "js");
         let edited = CheckMeasurement::from_trace(&edited_trace);
 
-        assert_eq!(edited.changed_modules, Some(1));
+        // a body edit refreshes the graph binding without a derive
+        assert_eq!(edited.changed_modules, None);
         assert_eq!(edited.counts.failed, 0);
 
         table = table.row(vec![
@@ -365,7 +366,9 @@ fn test_measure_component_graph_after_body_and_import_edits() {
         let body = measure_component_graph_body_edit(graph);
         let import = measure_component_graph_import_edit(graph);
 
-        assert_eq!(body.changed_modules, Some(1));
+        // body edits leave the edge projections unchanged, so the graph
+        //  binding refreshes in place without a derive
+        assert_eq!(body.changed_modules, None);
         assert_eq!(body.counts.failed, 0);
         assert_eq!(import.changed_modules, Some(1));
         assert_eq!(import.counts.failed, 0);
@@ -445,7 +448,7 @@ export const result = value;
     .unwrap();
 
     let (cold, cold_trace) = test.check("src/index.ds", "js");
-    assert_eq!(cold_trace.stats.built, 3254);
+    assert_eq!(cold_trace.stats.built, 3209);
     assert_eq!(cold_trace.stats.memory_cached, 0);
     assert_eq!(cold_trace.stats.store_cached, 0);
     assert_eq!(cold_trace.stats.failed, 0);
@@ -484,6 +487,8 @@ export const result = value;
             ("built", "dir.export"),
             ("built", "dir.import"),
             ("built", "dir.parse"),
+            // the importer re-resolves against the changed export surface
+            ("built", "dir.resolve"),
             ("built", "dir.resolve"),
         ],
     );
@@ -518,6 +523,8 @@ export const result = value;
             ("built", "dir.export"),
             ("built", "dir.import"),
             ("built", "dir.parse"),
+            // the importer re-resolves against the changed export surface
+            ("built", "dir.resolve"),
             ("built", "dir.resolve"),
             ("memory_cached", "dir.check"),
         ],
@@ -564,8 +571,8 @@ fn test_check_keeps_unrelated_module_current_after_single_edit() {
     assert_eq!(
         TraceCounts::from_trace(&left_trace),
         TraceCounts {
-            attempts: 13,
-            built: 7,
+            attempts: 12,
+            built: 6,
             memory_cached: 1,
             store_cached: 0,
             parked: 5,

@@ -44,6 +44,11 @@ impl Session {
         thread::available_parallelism().map_or(1, usize::from)
     }
 
+    /// Enable or disable detailed run tracing.
+    pub fn set_tracing(&self, is_tracing: bool) {
+        self.state.set_tracing(is_tracing);
+    }
+
     /// Return the trace of the latest finished run.
     pub fn last_trace(&self) -> Option<Arc<Trace>> {
         self.state.last_trace()

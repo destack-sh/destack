@@ -310,7 +310,7 @@ impl ArtifactRunState {
             return;
         }
 
-        self.trace.span("cleanup", || {
+        self.trace.span("run.clean", || {
             scheduler.remove_run(self.id);
             session.emit_event(SessionEvent::RunFinished { run_id: self.id });
         });
