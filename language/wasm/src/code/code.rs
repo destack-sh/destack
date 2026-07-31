@@ -2,7 +2,6 @@ use destack_core::{
     EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
 };
 use destack_serde::Reflect;
-use destack_source::ContentId;
 use serde::{Deserialize, Serialize};
 
 use super::{Entry, FrameMap, FrameMapBuilder, FrameSlot};
@@ -15,8 +14,8 @@ const ABI_VERSION: u32 = 1;
 pub struct Code {
     /// Destack WebAssembly ABI version required by this module.
     pub abi_version: u32,
-    /// The linked WebAssembly module.
-    pub module: ContentId,
+    /// Encoded linked WebAssembly module bytes.
+    module: SectionSlice<u8>,
     /// Exported entries keyed by Program function id.
     entries: SectionSlice<Optional<Entry>>,
     /// Physical frame maps keyed by Program frame state id.
@@ -26,8 +25,19 @@ pub struct Code {
 }
 
 impl Code {
+    /// Return whether every frame range fits the flattened slot column.
+    pub fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+        let slots = sections.entries(self.slots);
+
+        sections
+            .entries(self.frames)
+            .iter()
+            .filter_map(|frame| frame.get())
+            .all(|frame| frame.slots.fits(slots.len()))
+    }
+
     /// Return one exported WebAssembly entry.
-    pub fn entry(self, sections: SectionImage<'_>, function: usize) -> Option<Entry> {
+    pub fn entry(&self, sections: SectionImage<'_>, function: usize) -> Option<Entry> {
         sections
             .entries(self.entries)
             .get(function)
@@ -35,7 +45,7 @@ impl Code {
     }
 
     /// Return one physical WebAssembly frame map.
-    pub fn frame(self, sections: SectionImage<'_>, state: usize) -> Option<FrameMap> {
+    pub fn frame(&self, sections: SectionImage<'_>, state: usize) -> Option<FrameMap> {
         sections
             .entries(self.frames)
             .get(state)
@@ -43,21 +53,21 @@ impl Code {
     }
 
     /// Return physical slots in one WebAssembly frame map.
-    pub fn slots<'a>(self, sections: SectionImage<'a>, frame: FrameMap) -> &'a [FrameSlot] {
+    pub fn slots<'a>(&self, sections: SectionImage<'a>, frame: FrameMap) -> &'a [FrameSlot] {
         frame.slots.slice(sections.entries(self.slots))
     }
 
-    /// Return all content ids referenced by this WebAssembly code.
-    pub fn content_ids(self) -> Vec<ContentId> {
-        vec![self.module]
+    /// Return the encoded linked WebAssembly module.
+    pub fn module<'a>(&self, sections: SectionImage<'a>) -> &'a [u8] {
+        sections.entries(self.module)
     }
 }
 
 /// Mutable WebAssembly code before Program section packing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodeBuilder {
-    /// The linked WebAssembly module.
-    module: ContentId,
+    /// Encoded linked WebAssembly module bytes.
+    module: Vec<u8>,
     /// Exported entries keyed by Program function id.
     entries: Vec<Option<Entry>>,
     /// Physical frame maps keyed by Program frame state id.
@@ -66,9 +76,9 @@ pub struct CodeBuilder {
 
 impl CodeBuilder {
     /// Create one WebAssembly code builder.
-    pub fn new(module: ContentId) -> Self {
+    pub fn new(module: impl Into<Vec<u8>>) -> Self {
         Self {
-            module,
+            module: module.into(),
             entries: Vec::new(),
             frames: Vec::new(),
         }
@@ -105,7 +115,7 @@ impl CodeBuilder {
 
         Code {
             abi_version: ABI_VERSION,
-            module: self.module,
+            module: sections.insert(self.module),
             entries: sections.insert(entries),
             frames: sections.insert(frames),
             slots: sections.insert(slots.into_entries()),
