@@ -10,17 +10,12 @@ Destack extends TypeScript's type system with precise primitives, nominal types 
 
 ## Primitives
 
-Destack is based on TypeScript, and TypeScript inherits its main primitive types from JavaScript: `string`, `boolean`, `number`, `bigint`, and `symbol`, plus the `null` and `undefined` sentinels.
-Destack evolves this set into a serious set of primitive types:
-- precise numeric types beyond `number`, with variable-width signed and unsigned integers (`int8`, `uint32`, `int17`) as well as concrete float formats (`float16`, `float32`, `float64`)
-- pointer-sized integers, i.e. integers as wide as the target pointer size, spelled `isize` and `usize`
-- `int` and `uint` as aliases to `int64` and `uint64`
-- `number` becomes an alias for `float`, and `float` becomes an alias for `float64`
+Destack is spiritually "TypeScript++", and so we inherit TypeScript's main primitive types, which in turn are based on JavaScript: `string`, `boolean`, `number` (aliases to `float64`), `bigint`, and `symbol`, plus the `null` and `undefined` sentinels.
+Beyond the basic set, Destack adds some more primitive types:
+- variable-width signed and unsigned integers (`int8`, `uint32`, `int17`) 
+- concrete float formats (`float32`, `float64`)
+- pointer-sized integers (`isize` and `usize`)
 - `char` as a single Unicode scalar value, distinct from `string`
-
-It should be noted that `string` and `bigint` are not really "special" in Destack like they are in TypeScript, they are just aliases to the standard library `String` and `BigInt` classes.
-They feel the same, though.
-In general, Destack follows TypeScript behavior as exactly as possible for a sound and strict type system, including the exact same widening rules where numeric literals start as exact values and can flow into any numeric type that can represent them.
 
 ```ds
 const id: uint64 = 12345;
@@ -40,13 +35,21 @@ const initial: char = 'A';
 const input: unknown = readInput();
 ```
 
+Builtin types like `string` and `bigint` are not really "special" in Destack in the same way they are in TypeScript, instead they are just aliases to the standard library `String` and `BigInt` classes.
+In general, Destack follows TypeScript behavior as exactly as possible for a *sound and strict* type system, including the exact same widening rules, infer and match, template inference, and all the other fun stuff.
+
+```
+const s: string = "";
+s satisfies String;
+
+const n: bigint = 123n;
+n satisfies BigInt;
+```
+
 ## Unknown
 
 TypeScript has two "top" types: `unknown` and `any` can contain _all_ other types.
-Of course, `any` is unsound, because everything can be assigned to and from `any` without any checks, so Destack forbids it in favor of the explicit `unknown`.
-`unknown` is really just a transparent top constraint, and so it behaves like an interface with zero members under the regular [representation rules](#representation):
-- As a bound or other type-only constraint, `unknown` imposes no requirements.
-- As a value, storage, or ABI type, bare `unknown` has no layout, so it erases to `Dynamic<unknown>` (and then can be narrowed and accessed through the runtime value it carries).
+Of course, `any` is unsound, because everything can be assigned to and from `any` without any checks (!), so Destack forbids it in favor of the explicit `unknown`.
 
 ```ds
 function parse(value: unknown): string {
@@ -633,11 +636,24 @@ Generic parameters also support `...` forms:
 type Callback<...Parameters, Return> = (...parameters: Parameters) => Return;
 ```
 
-Type inference (including generics) works across modules, even when modules circularly reference one another - though of course, this should be used with caution and can lead to longer compile times because it forces large connected components during inference checking.
+## Boundaries
+
+The type of every module export must be derivable from that module alone, which means all exported functions need to write their parameter and result types explicitly.
+Everything else - locals, lambdas, private helpers, and any initializer that module-local inference can settle - infers as usual.
+
+```ds
+export const FOO = 1;                  // OK - module-local inference
+export const NEXT = increment(FOO);    // OK - increment lives in this module
+export const B: Widget = imported();   // OK - annotate because imported() is in another module
+
+export function scale(value: float64): float64 {
+    return value * FACTOR;
+}
+```
 
 ## Variance
 
-Variance describes how subtyping relates generic types, including the types that managed language users may not usually think of as "generic" (like `Array` or `Record`).
+Variance describes how subtyping relates generic types, including the types that "managed language" users may not usually think of as "generic" (like `Array` or `Record`).
 Mutable covariance - the fact that TypeScript lets us assign `Circle[]` to `Shape[]` and then mutate the `Circle[]` _through_ the widened `Shape[]` alias - is one of TypeScript's best known soundness holes, so Destack derives variance from one principle: **a position is invariant exactly when a widened value and the original can reach the same mutable storage.**
 
 Widening compiles to nothing.
@@ -654,7 +670,7 @@ const boxed: Holder<unknown> = circles;          // ERROR: the payload would nee
 
 The rejected widenings still flow value by value: constructing `Holder<Circle | Square>` from a `Circle` tags the payload at the construction, and rebuilding an existing value arm by arm converts each payload at its own value position.
 
-The memory form of a handle decides how much of this its payload needs:
+The handle form decides how its payload arguments relate:
 
 | Handle | Payload arguments | Reason |
 | --- | --- | --- |
@@ -689,18 +705,6 @@ const shapes: Shape[] = circles;        // ERROR: mutable arrays are invariant
 const view: readonly Shape[] = circles; // OK: readonly views are covariant
 const copies: Shape[] = [...circles];   // OK: explicit copy reifies Shape elements
 ```
-
-For the other ways to write "a collection of shapes", the element representation decides everything:
-
-| Element type | `Shape[]` means | Holds |
-| --- | --- | --- |
-| `class Shape` | array of managed references | any subclass, open set |
-| `type` / `newtype` union | array of tagged variant layouts | the listed variants, closed set |
-| `interface Shape` | array of `Dynamic<Shape>` | any implementor, open set |
-| `Dynamic<Shape>` | array of erased fat pointers | any implementor, open set |
-
-An array of `class Shape` holds subclasses because upcast references are physically identical; an array of a union holds exactly the listed variants because each element carries the union layout.
-The same reasoning as everywhere else: representation-changing widenings happen at value positions, never inside storage.
 
 ## Static
 
@@ -852,122 +856,45 @@ A `where` clause accepts the same constraint forms as inline bounds, plus a few 
 
 ## Representation
 
-Destack's general philosophy is to let users opt _in_ to additional control and complexity as needed - as much as possible, things should "just work" like in TypeScript.
-That said, the actual memory representation of types does matter, and our unique blend of TypeScript type algebra and actual systems-y AOT compilation means that Destack needs to make representation tradeoffs differently from other languages.
-Specifically, we distinguish four type properties that affect representation:
+Destack's general philosophy is to let users opt _in_ to additional control and complexity as needed - as much as possible, things should "just work" like in TypeScript, which means the actual memory representation of values should feel "natural" as well (and still be plenty fast by default).
+That said, memory representation matters often, and Destack draws a key distinction between `open` and `closed` types based on whether all type members are known at compile time (at the usage site).
 
-| Axis | Question | Examples |
-| --- | --- | --- |
-| *nominal* vs *structural* | must the type be constructed or implemented explicitly? | `newtype` / `struct` / `class` / `newtype interface` vs `type` / `{ x: number }` |
-| *transparent* vs *opaque* | does the name just expand to a type expression? | `type` vs `interface` / `struct` / `class` / `newtype` |
-| *closed* vs *open* | does the type expression close to one represented shape? | object alias / union alias vs interface / open index signature |
-| *represented* vs *erased* | how is a value slot stored? | direct layout vs `Dynamic<T>` |
-
-The position a type is used in decides who "commits" to a representation: a _constraint_ position leaves the choice to each use site, while a _storage_ position needs an actually concrete ("storable") representation:
-
-| Form | Type behavior | Storage default |
-| --- | --- | --- |
-| `type Point = { x: number; y: number }` | Structural, transparent, closed when reified. | Anonymous object layout. |
-| `interface Point { x: number; y: number }` | Structural, named, open. | `Dynamic<Point>` |
-| `newtype interface Point { x: number; y: number }` | Nominal constraint, open. | `Dynamic<Point>` |
-| `type Shape = Circle | Rectangle` | Transparent, closed. | Represented union. |
-| `type Flags = Record<"debug" | "trace", boolean>` | Transparent, closed when reified. | Anonymous object layout. |
-| `type Bag = Record<string, Handler>` | Transparent, open index constraint. | `Dynamic<Bag>`. |
-| `struct Point { x: number; y: number }` | Nominal, closed. | Inline value. |
-| `class Point { x: number; y: number }` | Nominal, closed. | Managed reference. |
-| `newtype Point = T` | Nominal, closed when `T` is closed. | Newtype representation. |
-| `<T: PointLike>` | Explicit generic parameter. | Concrete per instantiation. |
+Standard type aliases like `type` and `newtype` or inline `{ x: number }` types are `closed` by default, and thus just become regular concrete types. 
+(Anonymous object-shaped types are managed types by default, essentially like anonymous classes.)
 
 ```ds
-type Point = {
-    x: int32;
-    y: int32;
-};
+const point: { x: int32; y: int32 } = { x: 1, y: 2 }; // one concrete row behind a managed reference
 
-function draw(point: Point): void {
-    // ...
-}
-
-struct Rectangle {
-    position: Point;
-}
-
-draw({ x: 1, y: 2, z: 3 }); // OK
-
-const rectangle = Rectangle {
-    position: { x: 1, y: 2, z: 3 } // ERROR: fresh object literal has excess property `z`
-};
-```
-
-Transparent aliases over closed represented types can be represented directly in storage positions, while open constraints and interfaces become `Dynamic<T>` in storage positions (unless the user writes an explicit generic parameter):
-
-```ds
 interface PointLike {
     x: int32;
     y: int32;
 }
 
-function draw(point: PointLike): void {
-    // ...
-}
-
 struct Rectangle {
-    start: PointLike;
-    end: PointLike;
+    position: PointLike; // stores as Dynamic<PointLike>
 }
 ```
 
-Desugared, that is basically:
+To require static monomorphization of open-typed values, write the generic parameter explicitly:
 
 ```ds
-struct Rectangle {
-    start: Dynamic<PointLike>;
-    end: Dynamic<PointLike>;
+struct Rectangle<TPosition: PointLike> {
+    position: TPosition;
 }
 ```
 
-For static storage, spell the generic parameters explicitly:
+Index signatures are also supported in both `interface`s and `type`s, but because we do cannot know all fields ahead of time, they are open and must be stored behind a `Dynamic` wrapper.
+Unlike in TypeScript, index signature fields may only be read but not written (we have proper `Map` types for this and found this behavior to cover most relevant use cases with much more predictable performance).
 
 ```ds
-struct Rectangle<TStart: PointLike, TEnd: PointLike> {
-    start: TStart;
-    end: TEnd;
-}
-```
+type Counts = { [key: string]: int32 };
 
-For contrast, a function-valued field is still an ordinary representable structural shape, because the field itself has a representation (a function pointer):
+declare const counts: Counts;
+counts["pears"] satisfies int32 | undefined;
+counts["pears"] = 3; // ERROR: keyed writes need an IndexSet implementer like Map
 
-```ds
-type WriterField = {
-    write: (bytes: &[uint8]) => Result<usize, Error>;
-};
-```
-
-Structural type annotations still typecheck structurally, and structural value expressions synthesize concrete anonymous shapes when they are used as values.
-Here the annotation checks the object shape, and the object expression supplies the concrete value shape:
-
-```ds
-const point: { x: int32; y: int32 } = { x: 1, y: 2 };
-```
-
-Return positions are also considered storage positions, and the return representation is solved from the function body:
-- When all joined return paths produce _one_ concrete type, the return is existential, that is, callers type against the declared transparent type, but the compiled function returns the specific concrete representation at zero cost.
-- When the paths join _different_ concrete types and the declared return is a transparent data shape (like a union alias), the return reifies that shape's concrete layout - for a union alias, the tagged variant layout - just as a stored field would.
-
-```ds
-type Shape = Rectangle | Circle; // transparent alias
-
-function foo(): Shape {
-    return Rectangle(); // existential: the compiled return type is Rectangle
-}
-
-function bar(): Shape { // reified: the compiled return type is the Shape variant layout
-    if (getRandom() > 4) {
-        return Circle();
-    } else {
-        return Rectangle();
-    }
-}
+const scores = new Map<string, int32>();
+scores["pears"] = 3; // OK: Map implements IndexSet
 ```
 
 A representation change is also exactly what separates a compiled conversion from a plain type-level widening.
@@ -976,9 +903,8 @@ Literals never convert at all; a constant materializes directly at its solved ty
 
 ## Layout
 
-Layout is the concrete storage and ABI shape selected for a representable type under the active target, the default representation being `@repr("destack")`.
-Only represented types have layout; structural shapes become represented when a value expression materializes a concrete object, while open slots use an explicit generic parameter or become indirect behind `Dynamic<T>`.
-The exact layout of a type can be configured via decorators that constrain its representation as needed, the conventions being very similar to Rust's:
+The layout of a type is just the concrete shape the bits take on in memory.
+Decorators constrain the layout as needed, following Rust's conventions:
 
 | Decorator | Meaning |
 | --- | --- |
@@ -1002,7 +928,7 @@ struct WireHeader {
 }
 ```
 
-Destack also supports querying parameters of the effective representation during compilation - available as a [static term](#static) during inference - for conditional branching and storage:
+Layout can also be queried during compilation - available as a [static term](#static) during inference - for conditional branching and storage:
 
 | Layout Query | Result |
 | --- | --- |
@@ -1010,10 +936,6 @@ Destack also supports querying parameters of the effective representation during
 | `alignOf<T>()` | The required alignment of `T` as `usize`. |
 | `strideOf<T>()` | The spacing between adjacent array elements of `T` as `usize`. |
 | `layoutOf<T>()` | The reflected `size`, `align`, `stride`, and shape for `T` as a `Layout` value. |
-
-Layout queries evaluate as type operations: a query over an open or generic type stays symbolic and reduces to its value once its argument becomes concrete.
-Inference therefore answers exactly the queries whose inputs it has settled, and comptime evaluation forces the remainder.
-Layout is never stored in the compiler's program representation; every phase recomputes it on demand from the type and the active target through one shared measure, and code generation derives its structural layout from that same measure.
 
 ## Reflection
 

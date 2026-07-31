@@ -146,7 +146,7 @@ Object shapes are static and exact: no prototype tricks, no runtime mutation, an
 | Feature | Example | Ruling |
 | --- | --- | --- |
 | **Interchangeable `type` / `interface`** | data-shaped `interface Point` in a field | diverges in storage positions |
-| **`Record<K, V>`** | `Record<string, User>` | mapped utility type, use `Map<K, V>` for dynamic keyed storage |
+| **`Record<K, V>`** | `Record<string, User>` | mapped utility type, keyed reads are optional-typed, keyed writes need `Map<K, V>` |
 | **`object`** | `let value: object` | not supported, use a structural shape, `unknown`, or an  interface |
 | **Declaration expressions** | `const C = class {}` | not supported, runtime type generation is not statically knowable |
 | **Prototype objects** | `.prototype`, `.__proto__`, `Object.setPrototypeOf` | not supported |

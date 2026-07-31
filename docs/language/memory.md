@@ -209,25 +209,26 @@ function pick<'c>(a: &'c Node, b: &'c Node): &'c Node {
 }
 ```
 
-Elided borrowed forms complete the owning declaration with hidden generic lifetime parameters in _all_ declarations, not just in function signatures.
-Unlike structural constraints, this does not select a hidden concrete representation.
+Lifetime elision - whether you need to write a lifetime parameter explicitly or not - follows the same rules as Rust:
+- **Type declarations**: structs, classes, enums, and type aliases need their lifetime parameters explicitly.
+- **Function signatures**: including written function types elide freely: elided borrows complete the signature with hidden generic lifetime parameters.
+(We tried inducing lifetimes implicitly, but that turned out ergonomically weird and a nightmare to implement correctly.)
 
 ```ds
-// elided form
-struct WorldView {
-    engine: &Engine;
-    assets: &AssetStore;
-}
-
-// explicit form
+// stored borrows write their lifetimes
 struct WorldView<'e, 'a> {
     engine: &'e Engine;
     assets: &'a AssetStore;
 }
+
+// signatures elide, completing hidden lifetime parameters
+function inspect(engine: &Engine): &string {
+    return &engine.name;
+}
 ```
 
 Like in Rust, a signature always means exactly what it says, and nothing is inferred into the lifetimes from the function body.
-(We tried that, and it caused all sorts of inference complexities and weird action at a distance behavior.)
+(We tried that too, and it caused all sorts of inference complexities and weird action at a distance behavior.)
 The elision rules are straightforward and a little more general than in Rust:
  - With a borrowed receiver, the result takes the receiver's lifetime.
  - With other borrowed inputs, the result takes the union of the input lifetimes.
