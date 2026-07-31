@@ -117,6 +117,14 @@ impl Default for LocalHeapOptions {
 }
 
 impl LocalHeapOptions {
+    /// Return the initial limits for one worker-local heap.
+    pub const fn limits(&self) -> heap::HeapLimits {
+        heap::HeapLimits {
+            max_bytes: self.max_bytes,
+            retained_bytes: None,
+        }
+    }
+
     /// Resolve the minimum heap byte budget from nursery width.
     fn minimum_heap_bytes(&self) -> u64 {
         let young_min_size_bytes = 4 * self.young_size_bytes as u64;
@@ -139,6 +147,14 @@ pub struct SharedHeapOptions {
 }
 
 impl SharedHeapOptions {
+    /// Return the initial limits for one runtime-shared heap.
+    pub const fn limits(&self) -> heap::SharedHeapLimits {
+        heap::SharedHeapLimits {
+            max_bytes: self.max_bytes,
+            retained_bytes: None,
+        }
+    }
+
     /// Resolve the minimum heap byte budget.
     fn minimum_heap_bytes(&self) -> u64 {
         self.min_bytes.unwrap_or(DEFAULT_GC_MINIMUM_HEAP_BYTES)
