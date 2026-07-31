@@ -12,10 +12,8 @@ pub type RuntimeStatusCode = u32;
 pub enum RuntimeStatus {
     /// Native execution may continue.
     Continue = 0,
-    /// The operation failed normally and native code should take its failure edge.
-    Failed = 1,
-    /// Native execution must return the exit kind stored in the context.
-    Exit = 2,
+    /// Native execution must return the kind stored in the activation exit record.
+    Exit = 1,
 }
 
 /// Native runtime status code conversion error.
@@ -50,8 +48,7 @@ impl TryFrom<RuntimeStatusCode> for RuntimeStatus {
     fn try_from(code: RuntimeStatusCode) -> Result<Self, Self::Error> {
         match code {
             0 => Ok(Self::Continue),
-            1 => Ok(Self::Failed),
-            2 => Ok(Self::Exit),
+            1 => Ok(Self::Exit),
             code => Err(RuntimeStatusError { code }),
         }
     }

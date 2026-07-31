@@ -14,8 +14,8 @@ pub type ExitCode = u32;
 pub struct Exit {
     /// Exit kind written by runtime operations that leave native execution.
     pub kind: ExitCode,
-    /// Safepoint associated with one non-completion exit.
-    pub safepoint: u32,
+    /// Frame map associated with one non-completion exit.
+    pub frame_map: u32,
     /// Trap code associated with trap exits.
     pub trap: TrapCode,
 }
@@ -55,7 +55,7 @@ impl Exit {
     pub const fn new() -> Self {
         Self {
             kind: ExitKind::Completed.code(),
-            safepoint: 0,
+            frame_map: 0,
             trap: 0,
         }
     }
@@ -63,6 +63,22 @@ impl Exit {
     /// Set this record to one language panic exit.
     pub fn panic(&mut self) -> ExitCode {
         self.kind = ExitKind::Panicked.code();
+
+        self.kind
+    }
+
+    /// Set this record to one debugger stop exit.
+    pub fn stop(&mut self, frame_map: u32) -> ExitCode {
+        self.kind = ExitKind::Stopped.code();
+        self.frame_map = frame_map;
+
+        self.kind
+    }
+
+    /// Set this record to one deoptimization exit.
+    pub fn deopt(&mut self, frame_map: u32) -> ExitCode {
+        self.kind = ExitKind::Deoptimized.code();
+        self.frame_map = frame_map;
 
         self.kind
     }

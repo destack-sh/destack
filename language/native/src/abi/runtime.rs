@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ConstantSpace, Exit, ExitCode, RuntimeStatusCode, StaticSpace, TaskOutcomeCode, TrapCode,
+    ConstantSpace, Exit, ExitCode, RuntimeStatusCode, Space, StaticSpace, TaskOutcomeCode, TrapCode,
 };
 
 /// Opaque runtime owner for one active native call.
@@ -67,6 +67,7 @@ pub type Entry = unsafe extern "C" fn(
 /// Allocate one heap object through the runtime.
 pub type Allocate = unsafe extern "C" fn(
     activation: *mut Activation,
+    space: Space,
     allocation_plan: u32,
     initialization: AllocationInitialization,
     result: *mut usize,
@@ -75,6 +76,7 @@ pub type Allocate = unsafe extern "C" fn(
 /// Allocate one repeated heap backing through the runtime.
 pub type AllocateSlice = unsafe extern "C" fn(
     activation: *mut Activation,
+    space: Space,
     element_allocation_plan: u32,
     length: usize,
     initialization: AllocationInitialization,
@@ -82,50 +84,64 @@ pub type AllocateSlice = unsafe extern "C" fn(
 ) -> RuntimeStatusCode;
 
 /// Release one unique heap value through the runtime.
-pub type Free =
-    unsafe extern "C" fn(activation: *mut Activation, value: usize) -> RuntimeStatusCode;
+pub type Free = unsafe extern "C" fn(
+    activation: *mut Activation,
+    space: Space,
+    value: usize,
+) -> RuntimeStatusCode;
 
 /// Pin one heap value against movement through the runtime.
 pub type Pin = unsafe extern "C" fn(
     activation: *mut Activation,
+    space: Space,
     value: usize,
     result: *mut usize,
 ) -> RuntimeStatusCode;
 
 /// Release one pinned heap value through the runtime.
-pub type Unpin =
-    unsafe extern "C" fn(activation: *mut Activation, value: usize) -> RuntimeStatusCode;
+pub type Unpin = unsafe extern "C" fn(
+    activation: *mut Activation,
+    space: Space,
+    value: usize,
+) -> RuntimeStatusCode;
 
 /// Record one managed reference write through the runtime.
 pub type WriteBarrier = unsafe extern "C" fn(
     activation: *mut Activation,
+    space: Space,
     object: usize,
     offset: usize,
     byte_len: usize,
 ) -> RuntimeStatusCode;
 
-/// Poll runtime work at one native safepoint.
+/// Poll runtime work at one reconstructable native frame.
 pub type Poll =
-    unsafe extern "C" fn(activation: *mut Activation, safepoint: u32) -> RuntimeStatusCode;
+    unsafe extern "C" fn(activation: *mut Activation, frame_map: u32) -> RuntimeStatusCode;
 
 /// Stop execution for host inspection.
-pub type Stop = unsafe extern "C" fn(activation: *mut Activation, safepoint: u32) -> ExitCode;
+pub type Stop =
+    unsafe extern "C" fn(activation: *mut Activation, frame_map: u32) -> RuntimeStatusCode;
 
 /// Deoptimize native execution into interpreter state.
-pub type Deopt = unsafe extern "C" fn(activation: *mut Activation, safepoint: u32) -> ExitCode;
+pub type Deopt =
+    unsafe extern "C" fn(activation: *mut Activation, frame_map: u32) -> RuntimeStatusCode;
 
 /// Report one native trap.
-pub type TrapExit = unsafe extern "C" fn(activation: *mut Activation, trap: TrapCode) -> ExitCode;
+pub type TrapExit =
+    unsafe extern "C" fn(activation: *mut Activation, trap: TrapCode) -> RuntimeStatusCode;
 
 /// Report one payloadless language panic.
-pub type Panic = unsafe extern "C" fn(activation: *mut Activation) -> ExitCode;
+pub type Panic = unsafe extern "C" fn(activation: *mut Activation) -> RuntimeStatusCode;
 
 /// Copy one typed language panic payload into runtime ownership.
-pub type PanicValue =
-    unsafe extern "C" fn(activation: *mut Activation, ty: u32, words: *const u64) -> ExitCode;
+pub type PanicValue = unsafe extern "C" fn(
+    activation: *mut Activation,
+    ty: u32,
+    words: *const u64,
+) -> RuntimeStatusCode;
 
 /// Continue the active language unwind.
-pub type UnwindResume = unsafe extern "C" fn(activation: *mut Activation) -> ExitCode;
+pub type UnwindResume = unsafe extern "C" fn(activation: *mut Activation) -> RuntimeStatusCode;
 
 /// Queue one suspended waiter with a typed value.
 pub type QueueWaiter = unsafe extern "C" fn(
