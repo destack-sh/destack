@@ -23,7 +23,7 @@ use crate::{
     DirCheckedComponent, DirDeclaredComponent, DirExpanded, DirExported, DirImported,
     DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, InferenceComponentIndex,
     MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted,
-    Object, PackageGraph, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
+    Object, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 
 macro_rules! artifact_getter {
@@ -47,18 +47,24 @@ pub struct ArtifactTable {
     artifact_ids: DashMap<ArtifactKey, ArtifactId, FxBuildHasher>,
     /// The next dense artifact id.
     next_artifact_id: AtomicU32,
+
     /// Immutable live bindings by compact id.
     bindings: ArtifactBindingIndex,
     /// Exact binding ids grouped by reusable artifact version.
     bindings_by_version: DashMap<ArtifactVersion, Vec<ArtifactBindingId>, FxBuildHasher>,
+    /// Every published binding of one artifact key, in publish order.
+    bindings_by_artifact: DashMap<ArtifactId, Vec<ArtifactBindingId>, FxBuildHasher>,
+
     /// Immutable binding dependencies indexed by their owners.
     dependents: DashMap<ArtifactDependencyOwner, Vec<ArtifactDependent>, FxBuildHasher>,
+
     /// Projection fingerprints calculated for observed artifact values.
     projections: DashMap<
         (ArtifactVersion, ArtifactProjectionKey),
         ArtifactProjectionFingerprint,
         FxBuildHasher,
     >,
+
     /// The live retain count for each exact artifact binding.
     retained_bindings: DashMap<ArtifactBindingId, usize, FxBuildHasher>,
     /// Synchronizes binding retention with pruning.
@@ -95,15 +101,18 @@ impl ArtifactTable {
 
     /// Decrease the live reference count for one exact artifact binding.
     pub(crate) fn release_binding(&self, binding: ArtifactBindingId) {
-        let Some(mut retain_count) = self.retained_bindings.get_mut(&binding) else {
-            unreachable!("artifact pins can only release retained bindings: {binding:?}");
-        };
-
-        if *retain_count == 1 {
-            drop(retain_count);
-            self.retained_bindings.remove(&binding);
-        } else {
-            *retain_count -= 1;
+        // drop or decrement the retain count under the entry lock
+        match self.retained_bindings.entry(binding) {
+            Entry::Occupied(mut retained) => {
+                if *retained.get() == 1 {
+                    retained.remove();
+                } else {
+                    *retained.get_mut() -= 1;
+                }
+            }
+            Entry::Vacant(_) => {
+                unreachable!("artifact pins can only release retained bindings: {binding:?}")
+            }
         }
     }
 
@@ -353,6 +362,22 @@ impl ArtifactTable {
         Some(*fingerprint)
     }
 
+    /// Return every published binding of one artifact, newest first.
+    pub fn artifact_bindings(&self, artifact: ArtifactId) -> Vec<ArtifactBindingId> {
+        let Some(bindings) = self.bindings_by_artifact.get(&artifact) else {
+            return Vec::new();
+        };
+
+        bindings.iter().rev().copied().collect()
+    }
+
+    /// Return the newest published binding of one artifact.
+    pub fn latest_artifact_binding(&self, artifact: ArtifactId) -> Option<ArtifactBindingId> {
+        let bindings = self.bindings_by_artifact.get(&artifact)?;
+
+        bindings.last().copied()
+    }
+
     /// Intern one exact artifact binding.
     fn intern_binding(
         &self,
@@ -379,6 +404,10 @@ impl ArtifactTable {
             dependencies,
         };
         let id = self.bindings.insert(binding.clone())?;
+        self.bindings_by_artifact
+            .entry(artifact)
+            .or_default()
+            .push(id);
         self.record_dependents(artifact, id, &binding);
         bindings.push(id);
 
@@ -415,7 +444,6 @@ impl ArtifactTable {
     }
 
     artifact_getter!(global_environment, GlobalEnvironment, GlobalEnvironment);
-    artifact_getter!(package_graph, PackageGraph, PackageGraph);
     artifact_getter!(component_graph, ComponentGraph, ComponentGraph);
     artifact_getter!(program_analysis, ProgramAnalysis, ProgramAnalysis);
     artifact_getter!(dir_parsed, DirParsed, DirParsed);

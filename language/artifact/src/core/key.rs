@@ -35,8 +35,6 @@ pub enum ArtifactKey {
 
     /// Explicit global environment for one profile.
     GlobalEnvironment { profile: ProfileId },
-    /// Active package graph for one profile.
-    PackageGraph { profile: ProfileId },
     /// Strongly connected component partition for one profile.
     ComponentGraph { profile: ProfileId },
     /// Whole-program analysis for one profile and target.
@@ -244,7 +242,6 @@ impl ArtifactKey {
         match self {
             Self::DirParsed { .. } | Self::Data { .. } => ArtifactProvider::Loader,
             Self::GlobalEnvironment { .. }
-            | Self::PackageGraph { .. }
             | Self::ComponentGraph { .. }
             | Self::ProgramAnalysis { .. }
             | Self::DirBound { .. }
@@ -291,11 +288,6 @@ impl ArtifactKey {
     /// Build one global environment artifact key.
     pub fn global_environment(profile: ProfileId) -> Self {
         Self::GlobalEnvironment { profile }
-    }
-
-    /// Build one active package graph artifact key.
-    pub fn package_graph(profile: ProfileId) -> Self {
-        Self::PackageGraph { profile }
     }
 
     /// Build one component graph artifact key.
@@ -512,7 +504,7 @@ impl ArtifactKey {
             Self::ModuleIndex { .. }
             | Self::InferenceComponentIndex { .. }
             | Self::ProgramIndex { .. } => ArtifactStage::Index,
-            Self::GlobalEnvironment { .. } | Self::PackageGraph { .. } => ArtifactStage::Init,
+            Self::GlobalEnvironment { .. } => ArtifactStage::Init,
         }
     }
 
@@ -520,7 +512,6 @@ impl ArtifactKey {
     pub fn display_name(&self) -> &'static str {
         match self {
             Self::GlobalEnvironment { .. } => "environment",
-            Self::PackageGraph { .. } => "package.graph",
             Self::DirParsed { .. } => "dir.parse",
             Self::Data { .. } => "data",
             Self::DirBound { .. } => "dir.bind",
@@ -558,7 +549,6 @@ impl ArtifactKey {
     pub fn name(&self) -> &'static str {
         match self {
             Self::GlobalEnvironment { .. } => "global_environment",
-            Self::PackageGraph { .. } => "package_graph",
             Self::DirParsed { .. } => "dir_parsed",
             Self::Data { .. } => "data",
             Self::DirBound { .. } => "dir_bound",
@@ -615,7 +605,6 @@ impl ArtifactKey {
             | Self::Asset { module, .. }
             | Self::ModuleLinted { module, .. } => Some(*module),
             Self::GlobalEnvironment { .. }
-            | Self::PackageGraph { .. }
             | Self::ComponentGraph { .. }
             | Self::DirDeclaredComponent { .. }
             | Self::DirCheckedComponent { .. }
@@ -664,7 +653,6 @@ impl ArtifactKey {
     pub fn profile_id(&self) -> Option<ProfileId> {
         match self {
             Self::GlobalEnvironment { profile }
-            | Self::PackageGraph { profile }
             | Self::ComponentGraph { profile }
             | Self::ProgramAnalysis { profile, .. }
             | Self::DirBound { profile, .. }

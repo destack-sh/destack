@@ -8,8 +8,8 @@ use crate::{
     DirMaterialized, DirParsed, DirResolved, EmitFormat, GlobalEnvironment, Host,
     InferenceComponentIndex, LanguageEnvironment, LanguageIntrinsics, MirAnalyzed, MirElaborated,
     MirLowered, MirOptimized, MirVerified, ModuleEdges, ModuleIndex, ModuleLinted, Object,
-    ObjectFormat, PackageGraph, Platform, Product, ProductTarget, ProgramAnalysis, ProgramIndex,
-    ProgramLinted, Runtime, Script, ScriptBody, ScriptLanguage, SourceMap,
+    ObjectFormat, Platform, Product, ProductTarget, ProgramAnalysis, ProgramIndex, ProgramLinted,
+    Runtime, Script, ScriptBody, ScriptLanguage, SourceMap,
 };
 
 /// Include public artifact schema roots.
@@ -39,7 +39,6 @@ pub fn schema(registry: &mut SchemaRegistry) {
     registry.register::<ModuleLinted>();
     registry.register::<ProgramLinted>();
     registry.register::<BuildManifest>();
-    registry.register::<PackageGraph>();
     registry.register::<ModuleIndex>();
     registry.register::<InferenceComponentIndex>();
     registry.register::<ProgramIndex>();

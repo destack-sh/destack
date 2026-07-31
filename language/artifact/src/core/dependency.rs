@@ -56,35 +56,26 @@ impl PackageSetFingerprint {
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
-pub enum SourceDependency {
-    /// One exact source file content.
-    FileContent {
-        /// The source file id.
-        file: FileId,
-        /// The exact source content id.
-        content: ContentId,
-    },
-    /// The complete repository package identity set.
-    Packages {
-        /// The observed package set fingerprint.
-        fingerprint: PackageSetFingerprint,
-    },
-    /// The complete repository module identity set.
-    Modules {
-        /// The observed module set fingerprint.
-        fingerprint: ModuleSetFingerprint,
-    },
+pub struct SourceDependency {
+    /// The observed repository source.
+    pub key: SourceDependencyKey,
+    /// The stable stamp of the observed value.
+    pub stamp: u128,
 }
 
 /// One repository source selected by a source dependency.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-enum SourceDependencyKey {
-    /// One source file.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
+pub enum SourceDependencyKey {
+    /// One source file's content.
     File(FileId),
     /// The repository package set.
     Packages,
     /// The repository module set.
     Modules,
+    /// The module resolution of one probed path.
+    ModulePath(FileId),
 }
 
 /// Stable fingerprint of one observed artifact projection.
@@ -247,29 +238,37 @@ impl ArtifactRequirement {
 impl SourceDependency {
     /// Build one file content dependency.
     pub fn file_content(file: FileId, content: ContentId) -> Self {
-        Self::FileContent { file, content }
+        Self {
+            key: SourceDependencyKey::File(file),
+            stamp: content.0,
+        }
     }
 
     /// Build one complete package set dependency.
     pub fn packages(packages: &[PackageId]) -> Self {
-        Self::Packages {
-            fingerprint: PackageSetFingerprint::new(packages),
+        Self {
+            key: SourceDependencyKey::Packages,
+            stamp: PackageSetFingerprint::new(packages).0,
         }
     }
 
     /// Build one complete module set dependency.
     pub fn modules(modules: &[ModuleId]) -> Self {
-        Self::Modules {
-            fingerprint: ModuleSetFingerprint::new(modules),
+        Self {
+            key: SourceDependencyKey::Modules,
+            stamp: ModuleSetFingerprint::new(modules).0,
         }
     }
 
-    /// Return the selected repository source.
-    const fn key(self) -> SourceDependencyKey {
-        match self {
-            Self::FileContent { file, .. } => SourceDependencyKey::File(file),
-            Self::Packages { .. } => SourceDependencyKey::Packages,
-            Self::Modules { .. } => SourceDependencyKey::Modules,
+    /// Build one module path probe dependency.
+    pub fn module_path(file: FileId, module: Option<ModuleId>) -> Self {
+        let mut hasher = StableHasher::new();
+        hasher.update_len_prefixed(b"destack.artifact.module-path.v1");
+        module.hash(&mut hasher);
+
+        Self {
+            key: SourceDependencyKey::ModulePath(file),
+            stamp: hasher.finish_u128(),
         }
     }
 }
@@ -352,7 +351,7 @@ impl ArtifactDependencySet {
             .iter()
             .zip(sources)
             .all(|(source, dependency)| match dependency {
-                ArtifactDependency::Source(dependency) => source.key() == dependency.key(),
+                ArtifactDependency::Source(dependency) => source.key == dependency.key,
                 ArtifactDependency::Artifact(_) | ArtifactDependency::Projection(_) => false,
             });
 

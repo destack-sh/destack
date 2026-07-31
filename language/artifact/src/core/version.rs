@@ -1,3 +1,5 @@
+use std::hash::{Hash, Hasher};
+
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -6,14 +8,19 @@ use destack_source::{ModuleId, PackageId, ProfileId};
 use crate::{ArtifactDependency, ArtifactFingerprint, ArtifactKey, BuildId};
 
 /// Reusable identity of one artifact result.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
 pub struct ArtifactVersion {
     /// The artifact key.
     pub key: ArtifactKey,
     /// The observed input fingerprint.
     pub fingerprint: ArtifactFingerprint,
+}
+
+impl Hash for ArtifactVersion {
+    /// Hash by the fingerprint alone: it already covers the key.
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.fingerprint.hash(state);
+    }
 }
 
 impl ArtifactVersion {
@@ -23,7 +30,7 @@ impl ArtifactVersion {
         build_id: BuildId,
         dependencies: impl IntoIterator<Item = ArtifactDependency>,
     ) -> Self {
-        let fingerprint = ArtifactFingerprint::new(build_id, dependencies);
+        let fingerprint = ArtifactFingerprint::new(key, build_fingerprint, dependencies);
 
         Self { key, fingerprint }
     }
