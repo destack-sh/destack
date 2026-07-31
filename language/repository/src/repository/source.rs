@@ -53,7 +53,7 @@ pub fn open_repository(
     settings: Settings,
     layout_override: DestackLayoutOverride,
 ) -> Result<Repository, RepositoryError> {
-    let root = find_source_root(host.files().as_ref(), &path)?;
+    let root = PathBuf::from(SourceRoot::discover(host.files().as_ref(), &path)?);
     let environment = host.environment();
     let cwd = environment.cwd.as_deref().unwrap_or(&path);
     let layout = DestackLayout::resolve(&root, cwd, environment, &settings, &layout_override, None);
@@ -73,39 +73,58 @@ pub fn open_repository(
     Ok(repository)
 }
 
-/// Find the source root for one filesystem input path.
-fn find_source_root(file_system: &dyn FileSystem, path: &Path) -> Result<PathBuf, RepositoryError> {
-    let metadata =
-        file_system
-            .metadata(path)
-            .map_err(|error| RepositoryError::WorkspaceRootDiscovery {
+/// A source root discovered from one filesystem path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SourceRoot {
+    /// A root declared by a `destack.json` manifest.
+    Declared(PathBuf),
+    /// A root implied by a source path outside a declared package.
+    Implicit(PathBuf),
+}
+
+impl SourceRoot {
+    /// Discover the nearest source root for one filesystem path.
+    pub fn discover(file_system: &dyn FileSystem, path: &Path) -> Result<Self, RepositoryError> {
+        let metadata = file_system.metadata(path).map_err(|error| {
+            RepositoryError::WorkspaceRootDiscovery {
                 path: path.to_path_buf(),
                 message: error.to_string(),
-            })?;
+            }
+        })?;
 
-    // normalize file inputs to their containing directory
-    let input_directory = if metadata.is_file {
-        path.parent()
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|| path.to_path_buf())
-    } else {
-        path.to_path_buf()
-    };
-    let mut current = input_directory.clone();
+        // normalize file inputs to their containing directory
+        let directory = if metadata.is_file {
+            path.parent()
+                .map(Path::to_path_buf)
+                .unwrap_or_else(|| path.to_path_buf())
+        } else {
+            path.to_path_buf()
+        };
+        let mut current = directory.clone();
 
-    // walk up directories looking for a source root
-    loop {
-        if FileSystemSource::read_destack_config(file_system, &current)?.is_some() {
-            return Ok(current);
+        // walk up directories looking for a declared source root
+        loop {
+            if FileSystemSource::read_destack_config(file_system, &current)?.is_some() {
+                return Ok(Self::Declared(current));
+            }
+
+            let Some(parent) = current.parent() else {
+                break;
+            };
+            current = parent.to_path_buf();
         }
 
-        let Some(parent) = current.parent() else {
-            break;
-        };
-        current = parent.to_path_buf();
+        Ok(Self::Implicit(directory))
     }
+}
 
-    Ok(input_directory)
+impl From<SourceRoot> for PathBuf {
+    /// Consume one discovered source root.
+    fn from(root: SourceRoot) -> Self {
+        match root {
+            SourceRoot::Declared(path) | SourceRoot::Implicit(path) => path,
+        }
+    }
 }
 
 /// Filesystem-backed source.
