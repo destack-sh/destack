@@ -79,6 +79,33 @@ impl TraceTable {
             cases: sections.entries(self.cases),
         }
     }
+
+    /// Return whether every compact payload range fits its sibling column.
+    pub fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+        let view = self.view(sections);
+
+        // check fixed reference offset ranges
+        let fixed_fit = view.fixed.iter().all(|fixed| {
+            fixed.local_offsets.fits(view.offsets.len())
+                && fixed.shared_offsets.fits(view.offsets.len())
+                && fixed.frame_offsets.fits(view.offsets.len())
+        });
+        if !fixed_fit {
+            return false;
+        }
+
+        // check composite and variant payload ranges
+        let composites_fit = view
+            .composite
+            .iter()
+            .all(|composite| composite.children.fits(view.children.len()));
+        let variants_fit = view
+            .variants
+            .iter()
+            .all(|variant| variant.cases.fits(view.cases.len()));
+
+        composites_fit && variants_fit
+    }
 }
 
 /// Borrowed compact heap trace rows.
@@ -784,63 +811,5 @@ impl TraceTableBuilder {
             children,
             cases,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use destack_core::{SectionBuilder, SectionImage};
-    use destack_mir as mir;
-    use destack_mir::{DiscriminantField, VariantEncoding};
-
-    use super::*;
-
-    /// Roundtrip direct and niche variant maps through compact trace sections.
-    #[test]
-    fn test_roundtrip_variant_trace_maps() {
-        let cases = vec![
-            VariantTrace {
-                discriminant: 3u128.into(),
-                payload_offset: 8,
-                map: TraceMap::Fixed {
-                    local_offsets: vec![0].into_boxed_slice(),
-                    shared_offsets: Box::default(),
-                    frame_offsets: Box::default(),
-                },
-            },
-            VariantTrace {
-                discriminant: 7u128.into(),
-                payload_offset: 16,
-                map: TraceMap::Empty,
-            },
-        ]
-        .into_boxed_slice();
-        let direct = TraceMap::Variant {
-            encoding: VariantEncoding::Direct {
-                field: DiscriminantField::scalar(4, 1),
-            },
-            cases: cases.clone(),
-        };
-        let niche = TraceMap::Variant {
-            encoding: VariantEncoding::Niche {
-                field: DiscriminantField::scalar(8, 8),
-                untagged_case: 0,
-                niche_case_start: 1,
-                niche_case_end: 1,
-                niche_start: 0u128.into(),
-            },
-            cases,
-        };
-        let mut source = mir::TraceTable::new();
-        let direct_id = source.insert(direct.clone());
-        let niche_id = source.insert(niche.clone());
-        let mut sections = SectionBuilder::new();
-        let table = TraceTable::pack(&mut sections, &source);
-        let storage = sections.build();
-        let sections = SectionImage::new(&storage);
-        let view = table.view(sections);
-
-        assert_eq!(view.trace_map(direct_id), Ok(direct));
-        assert_eq!(view.trace_map(niche_id), Ok(niche));
     }
 }

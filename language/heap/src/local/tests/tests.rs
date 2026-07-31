@@ -134,7 +134,8 @@ impl TestTraceTable {
 
     /// Return the packed trace view.
     pub(crate) fn view(&self) -> TraceView<'_> {
-        let sections = SectionImage::new(&self.storage);
+        // SAFETY: test storage is built exclusively through SectionBuilder.
+        let sections = unsafe { SectionImage::new(&self.storage) };
 
         self.traces.view(sections)
     }
