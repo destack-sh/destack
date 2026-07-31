@@ -78,12 +78,12 @@ pub trait Runtime {
     /// Start one running task.
     fn start_task(&mut self) -> Task;
 
-    /// Suspend one running task and return its runtime waiter.
+    /// Suspend one running task or return its continuation unchanged.
     fn suspend_task(
         &mut self,
         task: Task,
         continuation: Continuation,
-    ) -> Result<Waiter, Self::Error>;
+    ) -> Result<Waiter, (Self::Error, Continuation)>;
 
     /// Park one waiter until a task completes or is cancelled.
     fn park_task(&mut self, task: Task, waiter: Waiter) -> Result<(), Self::Error>;

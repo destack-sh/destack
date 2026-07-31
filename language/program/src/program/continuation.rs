@@ -127,12 +127,22 @@ impl ContinuationTable {
 
     /// Release every live continuation's frame bytes.
     pub fn release(self, memory: &MemoryMap) -> Result<()> {
+        let mut error = None;
+
         for slot in self.slots {
             let Some(continuation) = slot.continuation else {
                 continue;
             };
 
-            continuation.release(memory)?;
+            if let Err(current) = continuation.release(memory)
+                && error.is_none()
+            {
+                error = Some(current);
+            }
+        }
+
+        if let Some(error) = error {
+            return Err(error);
         }
 
         Ok(())
@@ -153,6 +163,16 @@ impl ContinuationTable {
         slot.continuation = Some(continuation);
 
         ContinuationId::new(index, slot.generation)
+    }
+
+    /// Return one continuation selected by its exact generation.
+    pub fn get(&self, id: ContinuationId) -> Option<&Continuation> {
+        let slot = self.slots.get(id.index() as usize)?;
+        if slot.generation != id.generation() {
+            return None;
+        }
+
+        slot.continuation.as_ref()
     }
 
     /// Consume one continuation selected by its exact generation.
