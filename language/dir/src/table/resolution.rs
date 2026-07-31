@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     AccessResolution, AssignPatternResolution, AssignmentResolution, CallResolution,
     ConstructResolution, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, GuardResolution,
-    TreeResolution,
     InstantiationResolution, LabelResolution, MemberResolution, NameResolution, OperatorResolution,
     PatternResolution, PlaceResolution, ReceiverResolution, SegmentView, SubscriptResolution,
+    TreeResolution,
 };
 
 /// Cumulative checked resolutions for one DIR module.

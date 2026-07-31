@@ -97,6 +97,21 @@ pub enum Type {
     Intersection(IntersectionType),
 }
 
+impl From<ShapeType> for Type {
+    /// Classify one shape as a concrete class or a signature contract.
+    fn from(shape: ShapeType) -> Self {
+        let has_signatures = !shape.call_signatures.is_empty()
+            || !shape.construct_signatures.is_empty()
+            || !shape.index_signatures.is_empty();
+
+        // field-only shapes are the exact concrete class, signatures keep a contract
+        match has_signatures {
+            true => Self::Shape(shape),
+            false => Self::Object(shape),
+        }
+    }
+}
+
 impl From<TypeLiteral> for Type {
     /// Convert a source type literal into a type.
     fn from(value: TypeLiteral) -> Self {

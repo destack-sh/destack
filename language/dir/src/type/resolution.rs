@@ -6,9 +6,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     AdjustedReceiver, ArgumentBinding, ArgumentSource, BinaryOperator, ClassConstructor,
     DynamicDispatch, GenericArgumentBinding, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId,
-    StringId,
     MemberReceiver, MemberSpace, Predicate, Projection, ProjectionResolution, ScalarFamilySet,
-    ScalarLiteral, StaticKey, UnaryOperator,
+    ScalarLiteral, StaticKey, StringId, UnaryOperator,
 };
 
 /// One operation or the operations selected for every runtime union arm.
