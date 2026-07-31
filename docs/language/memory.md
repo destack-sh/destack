@@ -546,21 +546,6 @@ let pointer: *User = &user;  // typed as raw: an inert, unchecked pointer value
 let again: &User = pointer;  // ERROR: pointers only reborrow inside @unsafe
 ```
 
-## Receivers
-
-A method receiver is a parameter.
-An explicit `this` parameter spells its type with the ordinary form algebra: `&readonly this` receives a readonly borrow, `&exclusive this` an exclusive borrow, and `^this` consumes the owned value.
-
-An unwritten `this` takes the family's highest form.
-Reference nominals receive the managed value, so class methods mutate through `this` as in TypeScript.
-Value nominals receive an exclusive borrow of `this` at an induced lifetime, so struct and enum methods also mutate without annotation.
-There is no receiver inference: the mode is determined by the declaration alone.
-
-Call sites adjust the receiver toward the declared mode.
-A managed reference lends its borrow as a kind change, an owned value lends the address of its place, and a borrow reborrows.
-Two adjustments are errors rather than implicit conversions: a readonly view never lends past readonly, and an owned value of a reference-family nominal never reaches the bare managed `this` because that conversion is an allocation.
-Both are resolved by declaring the receiver explicitly in the method signature.
-
 ## Unsafe
 
 Safe Destack code can create and carry raw pointers, because there is nothing directly unsafe about just looking at pointers.
