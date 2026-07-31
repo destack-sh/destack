@@ -44,6 +44,11 @@ export extension<T> of Slice<T> implements From<Iterable<T>>, FromIterator<T>, D
         return sliceLength<T>(this);
     }
 
+    /// Return the number of elements.
+    get length(): usize {
+        return this.size;
+    }
+
     /// Return whether this slice has no elements.
     get isEmpty(): boolean {
         this.size == 0

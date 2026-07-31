@@ -4,22 +4,19 @@ import { Numeric } from "destack:math";
 import { Equal } from "destack:ops";
 
 /// A value assertion chain.
-export class Expect<T> {
+export struct Expect<T> {
     /// The value under assertion.
     private value: T;
 
     /// Whether this chain negates the next assertion.
     private isNegated: boolean = false;
 
-    /// Create an assertion chain.
-    constructor(value: T, isNegated?: boolean) {
-        this.value = value;
-        this.isNegated = isNegated ?? false;
-    }
-
     /// Negated assertions.
-    get not(): Expect<T> {
-        new Expect(this.value, !this.isNegated)
+    get not(this): Expect<T> {
+        Expect {
+            value: this.value,
+            isNegated: !this.isNegated,
+        }
     }
 
     /// Check one assertion result.
@@ -124,5 +121,5 @@ export class Expect<T> {
 
 /// Create an assertion chain for `value`.
 export function expect<T>(value: T): Expect<T> {
-    new Expect(value)
+    Expect { value, isNegated: false }
 }
