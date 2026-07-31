@@ -24,6 +24,8 @@ pub struct Activation {
     pub shared_statics: StaticSpace,
     /// Worker-local static bytes.
     pub local_statics: StaticSpace,
+    /// Worker-local runtime poll request word.
+    pub poll_request: *const u32,
     /// Exit record written before non-completion returns.
     pub exit: *mut Exit,
 }
@@ -45,6 +47,7 @@ impl Activation {
         constants: ConstantSpace,
         shared_statics: StaticSpace,
         local_statics: StaticSpace,
+        poll_request: *const u32,
         exit: *mut Exit,
     ) -> Self {
         Self {
@@ -52,6 +55,7 @@ impl Activation {
             constants,
             shared_statics,
             local_statics,
+            poll_request,
             exit,
         }
     }
@@ -115,16 +119,25 @@ pub type WriteBarrier = unsafe extern "C" fn(
 ) -> RuntimeStatusCode;
 
 /// Poll runtime work at one reconstructable native frame.
-pub type Poll =
-    unsafe extern "C" fn(activation: *mut Activation, frame_map: u32) -> RuntimeStatusCode;
+pub type Poll = unsafe extern "C" fn(
+    activation: *mut Activation,
+    frame_map: u32,
+    marker: *const u8,
+) -> RuntimeStatusCode;
 
-/// Stop execution for host inspection.
-pub type Stop =
-    unsafe extern "C" fn(activation: *mut Activation, frame_map: u32) -> RuntimeStatusCode;
+/// Pause execution and return control to the host.
+pub type Stop = unsafe extern "C" fn(
+    activation: *mut Activation,
+    frame_map: u32,
+    marker: *const u8,
+) -> RuntimeStatusCode;
 
 /// Deoptimize native execution into interpreter state.
-pub type Deopt =
-    unsafe extern "C" fn(activation: *mut Activation, frame_map: u32) -> RuntimeStatusCode;
+pub type Deopt = unsafe extern "C" fn(
+    activation: *mut Activation,
+    frame_map: u32,
+    marker: *const u8,
+) -> RuntimeStatusCode;
 
 /// Report one native trap.
 pub type TrapExit =
@@ -171,15 +184,12 @@ pub type ResolveTask = unsafe extern "C" fn(
 pub type StartTask =
     unsafe extern "C" fn(activation: *mut Activation, result: *mut u64) -> RuntimeStatusCode;
 
-/// Suspend one running task with canonical continuation storage.
+/// Suspend one running task at a reconstructable native frame.
 pub type SuspendTask = unsafe extern "C" fn(
     activation: *mut Activation,
     task: u64,
-    completion: u32,
-    states: *const u32,
-    state_count: usize,
-    bytes: *const u8,
-    byte_len: usize,
+    frame_map: u32,
+    marker: *const u8,
     result: *mut u64,
 ) -> RuntimeStatusCode;
 
