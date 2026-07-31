@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use destack_mir as mir;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -51,6 +53,30 @@ impl FramePoint {
         match self {
             Self::Entry { function } => function,
             Self::Operation(point) => point.function,
+        }
+    }
+}
+
+impl PartialOrd for FramePoint {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for FramePoint {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // order functions first so every function owns one contiguous frame range
+        let function = self.function().cmp(&other.function());
+        if function != Ordering::Equal {
+            return function;
+        }
+
+        // order the entry before executable operations inside one function
+        match (self, other) {
+            (Self::Entry { .. }, Self::Entry { .. }) => Ordering::Equal,
+            (Self::Entry { .. }, Self::Operation(_)) => Ordering::Less,
+            (Self::Operation(_), Self::Entry { .. }) => Ordering::Greater,
+            (Self::Operation(left), Self::Operation(right)) => left.operation.cmp(&right.operation),
         }
     }
 }

@@ -9,16 +9,48 @@ use super::FramePoint;
 pub struct FrameState {
     /// The logical coordinate represented by this frame state.
     pub point: FramePoint,
-    /// The object-local types of live values in acquisition order.
-    pub types: Vec<mir::TypeId>,
+    /// The live logical frame slots in acquisition order.
+    pub slots: Vec<FrameSlot>,
 }
 
 impl FrameState {
     /// Create one logical frame state.
-    pub fn new(point: FramePoint, types: impl IntoIterator<Item = mir::TypeId>) -> Self {
+    pub fn new(point: FramePoint, slots: impl IntoIterator<Item = FrameSlot>) -> Self {
         Self {
             point,
-            types: types.into_iter().collect(),
+            slots: slots.into_iter().collect(),
         }
     }
+
+    /// Iterate the object-local types in acquisition order.
+    pub fn types(&self) -> impl ExactSizeIterator<Item = mir::TypeId> + '_ {
+        self.slots.iter().map(|slot| slot.ty)
+    }
+}
+
+/// One live logical value inside a frame state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct FrameSlot {
+    /// The logical place containing the value.
+    pub place: FramePlace,
+    /// The object-local value type.
+    pub ty: mir::TypeId,
+}
+
+impl FrameSlot {
+    /// Create one live logical frame slot.
+    pub const fn new(place: FramePlace, ty: mir::TypeId) -> Self {
+        Self { place, ty }
+    }
+}
+
+/// One MIR place retained by an engine frame.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum FramePlace {
+    /// The hidden callable environment.
+    Environment,
+    /// One addressable MIR local.
+    Local(mir::LocalId),
+    /// One MIR SSA value.
+    Value(mir::Value),
 }
