@@ -36,7 +36,7 @@ pub struct ProgramQueryContext<'a> {
 
 impl<'a> ProgramQueryContext<'a> {
     /// Return the artifact roots read by one program query.
-    pub fn artifact_keys(
+    pub fn artifact_roots(
         repository: &Repository,
         revision: Revision,
         profile_id: ProfileId,

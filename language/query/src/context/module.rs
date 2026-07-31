@@ -7,7 +7,7 @@ use destack_artifact::{
 };
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_repository::{ArtifactReader, ProviderError, ProviderResult, Repository, Revision};
+use destack_repository::{ArtifactReader, ProviderResult, Repository, Revision};
 use destack_source::{File, FileId, ModuleId, ProfileId, SourceIndex, Span};
 
 use crate::{Module, QueryError, QueryResult};
@@ -72,21 +72,13 @@ impl ModuleArtifacts {
         module_id: ModuleId,
         profile_id: ProfileId,
     ) -> ProviderResult<Self> {
-        let graph = reader.component_graph(profile_id)?;
-        let component = graph.inference_component(module_id).ok_or_else(|| {
-            ProviderError::internal(format!(
-                "query module is absent from the component graph: {module_id:?}"
-            ))
-        })?;
-        let checked = reader.dir_checked_module(component, module_id, profile_id)?;
-
         Ok(Self {
             parsed: reader.dir_parsed(module_id)?,
             bound: reader.dir_bound(module_id, profile_id)?,
             imported: reader.dir_imported(module_id, profile_id)?,
             expanded: reader.dir_expanded(module_id, profile_id)?,
             resolved: reader.dir_resolved(module_id, profile_id)?,
-            checked,
+            checked: reader.dir_checked(module_id, profile_id)?,
         })
     }
 }
