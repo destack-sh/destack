@@ -1,6 +1,36 @@
+use destack_lsp_server::jsonrpc;
 use destack_lsp_types as lsp;
 
 use super::tests::{TestServer, markdown, position, range, replace, replace_document};
+
+/// Open a package nested below its editor folder.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_open_nested_package() {
+    let source = answer("float64", "1");
+    let mut server = TestServer::new_editor_folder("nested-package");
+    server.create_package("language/library");
+    let document = server.write("language/library/main.ds", &source);
+    server
+        .initialize(lsp::ClientCapabilities::default(), None)
+        .await
+        .unwrap();
+    server.initialized().await;
+
+    // open the nested source through its declared package
+    server.open(&document, 1, &source).await;
+    let params = document.hover(position(0, 16));
+    let expected = lsp::Hover {
+        contents: lsp::HoverContents::Markup(markdown(format!(
+            "**Signature**\n\n```ds\nexport function answer(): float64\n```\n\n\
+             **Location**\n\n`{}:1:17`",
+            document.path().display()
+        ))),
+        range: Some(range(0, 16, 0, 22)),
+    };
+    server
+        .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
+        .await;
+}
 
 /// Publish and query only the latest of several rapid document revisions.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -186,6 +216,61 @@ async fn test_save_document_contents() {
     };
     server
         .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
+        .await;
+}
+
+/// Retain a project until its final editor document closes.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_retain_project_for_open_document() {
+    let source = answer("float64", "1");
+    let mut server = TestServer::new("open-document-project");
+    let document = server.write("main.ds", &source);
+    server
+        .initialize(lsp::ClientCapabilities::default(), None)
+        .await
+        .unwrap();
+    server.initialized().await;
+    server.open(&document, 1, &source).await;
+
+    // remove the editor folder while its document remains open
+    let folder = lsp::WorkspaceFolder {
+        uri: server.root_uri(),
+        name: "open-document-project".to_string(),
+    };
+    server
+        .notify::<lsp::notification::DidChangeWorkspaceFolders>(
+            lsp::DidChangeWorkspaceFoldersParams {
+                event: lsp::WorkspaceFoldersChangeEvent {
+                    added: Vec::new(),
+                    removed: vec![folder],
+                },
+            },
+        )
+        .await;
+
+    // continue serving the open document from its retained project
+    let params = document.hover(position(0, 16));
+    let expected = lsp::Hover {
+        contents: lsp::HoverContents::Markup(markdown(format!(
+            "**Signature**\n\n```ds\nexport function answer(): float64\n```\n\n\
+             **Location**\n\n`{}:1:17`",
+            document.path().display()
+        ))),
+        range: Some(range(0, 16, 0, 22)),
+    };
+    server
+        .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
+        .await;
+
+    // release the project after its final document closes
+    server.close(&document).await;
+    let params = document.hover(position(0, 16));
+    let expected = Err(jsonrpc::Error::invalid_params(format!(
+        "no Destack project owns {}",
+        document.path().display()
+    )));
+    server
+        .assert_request::<lsp::request::HoverRequest>(params, expected)
         .await;
 }
 

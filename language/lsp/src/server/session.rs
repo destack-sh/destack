@@ -8,9 +8,12 @@ use destack_artifact::MemoryBlobStore;
 use destack_lsp_server::{Client, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_query as query;
-use destack_repository::{DestackLayoutOverride, Environment, Settings, open_repository_from_fs};
+use destack_repository::{
+    DestackLayoutOverride, Environment, Settings, SourceRoot, open_repository_from_fs,
+};
 use destack_source::{FileSystem, OverlayFileSystem, PhysicalFileSystem};
 use destack_workspace::LocalWorkspace;
+use parking_lot::RwLock;
 use serde::Deserialize;
 use serde_json::from_value;
 
@@ -20,8 +23,10 @@ use crate::query::DiagnosticDelivery;
 /// State installed after one language server initialization.
 #[derive(Debug)]
 pub(super) struct ServerSession {
-    /// Workspace used for semantic state.
-    pub(super) workspace: Arc<LocalWorkspace>,
+    /// Shared editor overlay used by every project.
+    file_system: Arc<OverlayFileSystem>,
+    /// Projects discovered for the current editor workspace.
+    projects: RwLock<ProjectSet>,
     /// Features supported by the connected client.
     pub(super) client_capabilities: ClientCapabilities,
     /// Mutable editor configuration.
@@ -30,19 +35,153 @@ pub(super) struct ServerSession {
     pub(super) diagnostics: DiagnosticDelivery,
 }
 
-impl ServerSession {
-    /// Open one initialized language server session.
-    pub(super) fn open(params: &lsp::InitializeParams) -> jsonrpc::Result<Self> {
-        let mut roots = Self::roots(params)?;
-        let repository_path = Self::repository_path(params, &roots)?;
-        if roots.is_empty() {
-            roots.push(repository_path.clone());
+/// Projects discovered from the current editor workspace folders.
+#[derive(Debug, Default)]
+struct ProjectSet {
+    /// Client-provided workspace folders.
+    editor_folders: Vec<PathBuf>,
+    /// Discovered semantic projects ordered by source root.
+    projects: Vec<Project>,
+}
+
+/// One independently configured semantic project.
+#[derive(Debug)]
+struct Project {
+    /// The declared or implicit source root.
+    root: PathBuf,
+    /// The local semantic workspace.
+    workspace: Arc<LocalWorkspace>,
+    /// Editor documents retaining this project.
+    documents: Vec<PathBuf>,
+}
+
+impl ProjectSet {
+    /// Return the most specific project containing one normalized path.
+    fn select(&self, path: &Path) -> Option<&Project> {
+        let index = self.select_index(path)?;
+
+        Some(&self.projects[index])
+    }
+
+    /// Return the most specific mutable project containing one normalized path.
+    fn select_mut(&mut self, path: &Path) -> Option<&mut Project> {
+        let index = self.select_index(path)?;
+
+        Some(&mut self.projects[index])
+    }
+
+    /// Return the most specific project index containing one normalized path.
+    fn select_index(&self, path: &Path) -> Option<usize> {
+        self.projects
+            .iter()
+            .enumerate()
+            .filter(|(_, project)| project.contains(path))
+            .max_by_key(|(_, project)| project.root.components().count())
+            .map(|(index, _)| index)
+    }
+
+    /// Return the project at one exact source root.
+    fn get(&self, root: &Path) -> Option<&Project> {
+        self.projects
+            .binary_search_by(|project| project.root.as_path().cmp(root))
+            .ok()
+            .map(|index| &self.projects[index])
+    }
+
+    /// Insert one project unless its source root is already open.
+    fn insert(&mut self, project: Project) -> &Project {
+        match self
+            .projects
+            .binary_search_by(|existing| existing.root.cmp(&project.root))
+        {
+            // merge ownership into the project already opened for this root
+            Ok(index) => {
+                for document in project.documents {
+                    self.projects[index].open_document(document);
+                }
+
+                &self.projects[index]
+            }
+
+            // preserve source-root order for stable workspace iteration
+            Err(index) => {
+                self.projects.insert(index, project);
+
+                &self.projects[index]
+            }
+        }
+    }
+
+    /// Retain the project containing one opened editor document.
+    fn open_document(&mut self, path: PathBuf) -> Option<Arc<LocalWorkspace>> {
+        let project = self.select_mut(&path)?;
+        project.open_document(path);
+
+        Some(project.workspace())
+    }
+
+    /// Release one closed editor document and remove newly unowned projects.
+    fn close_document(&mut self, path: &Path) -> Vec<PathBuf> {
+        if let Some(project) = self.select_mut(path) {
+            project.close_document(path);
         }
 
-        let physical_file_system = Arc::new(PhysicalFileSystem::new());
-        let file_system = Arc::new(OverlayFileSystem::with_inner(physical_file_system));
+        self.remove_unowned()
+    }
+
+    /// Add one client-provided workspace folder.
+    fn add_folder(&mut self, folder: PathBuf) {
+        if !self.editor_folders.contains(&folder) {
+            self.editor_folders.push(folder);
+        }
+    }
+
+    /// Remove one folder and every project no longer owned by the client.
+    fn remove_folder(&mut self, folder: &Path) -> Vec<PathBuf> {
+        let Some(index) = self
+            .editor_folders
+            .iter()
+            .position(|candidate| candidate == folder)
+        else {
+            return Vec::new();
+        };
+        self.editor_folders.remove(index);
+
+        self.remove_unowned()
+    }
+
+    /// Return every opened project workspace in source-root order.
+    fn workspaces(&self) -> Vec<Arc<LocalWorkspace>> {
+        self.projects
+            .iter()
+            .map(|project| project.workspace.clone())
+            .collect()
+    }
+
+    /// Remove every project outside all editor and document ownership.
+    fn remove_unowned(&mut self) -> Vec<PathBuf> {
+        let editor_folders = &self.editor_folders;
+        let mut removed = Vec::new();
+
+        // remove projects outside every remaining editor folder and document
+        self.projects.retain(|project| {
+            let is_owned = project.is_owned(editor_folders);
+            if !is_owned {
+                removed.push(project.root.clone());
+            }
+
+            is_owned
+        });
+
+        removed
+    }
+}
+
+impl Project {
+    /// Open one project from its exact source root.
+    fn open(root: PathBuf, file_system: Arc<OverlayFileSystem>) -> jsonrpc::Result<Self> {
         let repository = open_repository_from_fs(
-            repository_path,
+            root.clone(),
             file_system.clone(),
             Environment::capture_process(),
             Settings::default(),
@@ -51,22 +190,68 @@ impl ServerSession {
         .map_err(internal_error)?;
         #[cfg(test)]
         let repository = repository.with_blob_store(Arc::new(MemoryBlobStore::new()));
-        let repository_root = Self::canonicalize(repository.path())?;
-
-        // include the repository root selected by discovery
-        if !roots.contains(&repository_root) {
-            roots.insert(0, repository_root);
-        }
-
         let workspace = LocalWorkspace::new(
             Arc::new(repository),
             Some(file_system),
             None,
-            roots,
+            vec![root.clone()],
             LocalWorkspace::default_worker_count(),
             None,
         )
         .map_err(internal_error)?;
+
+        Ok(Self {
+            root,
+            workspace: Arc::new(workspace),
+            documents: Vec::new(),
+        })
+    }
+
+    /// Return whether this project contains one normalized path.
+    fn contains(&self, path: &Path) -> bool {
+        path.starts_with(&self.root)
+    }
+
+    /// Return whether this project and one editor folder contain one another.
+    fn overlaps(&self, folder: &Path) -> bool {
+        self.root.starts_with(folder) || folder.starts_with(&self.root)
+    }
+
+    /// Return whether an editor folder or document retains this project.
+    fn is_owned(&self, editor_folders: &[PathBuf]) -> bool {
+        !self.documents.is_empty() || editor_folders.iter().any(|folder| self.overlaps(folder))
+    }
+
+    /// Retain one opened editor document.
+    fn open_document(&mut self, path: PathBuf) {
+        if !self.documents.contains(&path) {
+            self.documents.push(path);
+        }
+    }
+
+    /// Release one closed editor document.
+    fn close_document(&mut self, path: &Path) {
+        if let Some(index) = self.documents.iter().position(|document| document == path) {
+            self.documents.remove(index);
+        }
+    }
+
+    /// Return the local semantic workspace.
+    fn workspace(&self) -> Arc<LocalWorkspace> {
+        self.workspace.clone()
+    }
+}
+
+impl ServerSession {
+    /// Open one initialized language server session.
+    pub(super) fn open(params: &lsp::InitializeParams) -> jsonrpc::Result<Self> {
+        let mut folders = Self::editor_folders(params)?;
+        if folders.is_empty() {
+            folders.push(Self::initial_path(params)?);
+        }
+
+        let physical_file_system = Arc::new(PhysicalFileSystem::new());
+        let file_system = Arc::new(OverlayFileSystem::with_inner(physical_file_system));
         let client_capabilities = ClientCapabilities::try_from(params)?;
         let diagnostics = if client_capabilities.supports_pull_diagnostics {
             DiagnosticDelivery::pull(client_capabilities.supports_diagnostic_refresh)
@@ -74,17 +259,120 @@ impl ServerSession {
             DiagnosticDelivery::push()
         };
 
-        Ok(Self {
-            workspace: Arc::new(workspace),
+        let session = Self {
+            file_system,
+            projects: RwLock::new(ProjectSet::default()),
             client_capabilities,
             settings: ServerSettings::default(),
             diagnostics,
+        };
+
+        // register editor folders and open their declared source roots
+        for folder in folders {
+            session.open_editor_folder(&folder)?;
+        }
+
+        Ok(session)
+    }
+
+    /// Resolve the project workspace that owns one source path.
+    pub(super) fn workspace(&self, path: &Path) -> jsonrpc::Result<Arc<LocalWorkspace>> {
+        let path = Self::normalize(path)?;
+        let workspace = self.projects.read().select(&path).map(Project::workspace);
+
+        workspace.ok_or_else(|| {
+            jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
         })
     }
 
-    /// Read distinct workspace roots in client order.
-    fn roots(params: &lsp::InitializeParams) -> jsonrpc::Result<Vec<PathBuf>> {
-        let mut roots = Vec::new();
+    /// Open one editor document through its nearest project.
+    pub(super) fn open_document(&self, path: &Path) -> jsonrpc::Result<Arc<LocalWorkspace>> {
+        let path = Self::normalize(path)?;
+        let workspace = self.projects.write().open_document(path.clone());
+        if let Some(workspace) = workspace {
+            return Ok(workspace);
+        }
+
+        let directory = path
+            .parent()
+            .ok_or_else(|| jsonrpc::Error::invalid_params("document path has no parent"))?;
+        let root = SourceRoot::discover(self.file_system.as_ref(), directory)
+            .map(PathBuf::from)
+            .map_err(internal_error)?;
+        let root = Self::canonicalize(&root)?;
+        let mut project = Project::open(root, self.file_system.clone())?;
+        project.open_document(path);
+        let workspace = self.projects.write().insert(project).workspace();
+
+        Ok(workspace)
+    }
+
+    /// Close one editor document and return projects released with it.
+    pub(super) fn close_document(&self, path: &Path) -> jsonrpc::Result<Vec<PathBuf>> {
+        let path = Self::normalize(path)?;
+        let removed = self.projects.write().close_document(&path);
+
+        Ok(removed)
+    }
+
+    /// Register one editor folder and open its declared source root.
+    pub(super) fn open_editor_folder(
+        &self,
+        path: &Path,
+    ) -> jsonrpc::Result<Option<Arc<LocalWorkspace>>> {
+        let path = Self::canonicalize(path)?;
+        let workspace = self.projects.read().select(&path).map(Project::workspace);
+        let workspace = if let Some(workspace) = workspace {
+            Some(workspace)
+        } else {
+            let root =
+                SourceRoot::discover(self.file_system.as_ref(), &path).map_err(internal_error)?;
+            match root {
+                SourceRoot::Declared(root) => {
+                    let root = Self::canonicalize(&root)?;
+                    Some(self.open_root(root)?)
+                }
+                SourceRoot::Implicit(_) => None,
+            }
+        };
+
+        // retain client ownership after workspace resolution
+        self.projects.write().add_folder(path);
+
+        Ok(workspace)
+    }
+
+    /// Open one project from its exact source root.
+    fn open_root(&self, root: PathBuf) -> jsonrpc::Result<Arc<LocalWorkspace>> {
+        if let Some(project) = self.projects.read().get(&root) {
+            return Ok(project.workspace());
+        }
+
+        // build the project outside the shared project lock
+        let project = Project::open(root, self.file_system.clone())?;
+
+        // retain the first project opened concurrently for this root
+        let workspace = self.projects.write().insert(project).workspace();
+
+        Ok(workspace)
+    }
+
+    /// Return every opened project workspace.
+    pub(super) fn workspaces(&self) -> Vec<Arc<LocalWorkspace>> {
+        self.projects.read().workspaces()
+    }
+
+    /// Close projects owned only by one removed editor folder.
+    pub(super) fn close_editor_folder(&self, folder: &Path) -> jsonrpc::Result<Vec<PathBuf>> {
+        let folder = Self::normalize(folder)?;
+        let removed = self.projects.write().remove_folder(&folder);
+
+        Ok(removed)
+    }
+
+    /// Read distinct editor workspace folders in client order.
+    fn editor_folders(params: &lsp::InitializeParams) -> jsonrpc::Result<Vec<PathBuf>> {
+        let mut folders = Vec::new();
         if let Some(workspace_folders) = params.workspace_folders.as_ref() {
             for folder in workspace_folders {
                 let path = folder
@@ -95,29 +383,24 @@ impl ServerSession {
                         jsonrpc::Error::invalid_params("workspace folder URI is not a file URI")
                     })?;
                 let path = Self::canonicalize(&path)?;
-                if !roots.contains(&path) {
-                    roots.push(path);
+                if !folders.contains(&path) {
+                    folders.push(path);
                 }
             }
         }
 
-        Ok(roots)
+        Ok(folders)
     }
 
-    /// Select the path used for repository discovery.
+    /// Select the initial path used when no workspace folder is available.
     #[allow(deprecated)]
-    fn repository_path(
-        params: &lsp::InitializeParams,
-        roots: &[PathBuf],
-    ) -> jsonrpc::Result<PathBuf> {
+    fn initial_path(params: &lsp::InitializeParams) -> jsonrpc::Result<PathBuf> {
         let path = if let Some(uri) = params.root_uri.as_ref() {
             uri.to_file_path()
                 .map(|path| path.into_owned())
                 .ok_or_else(|| jsonrpc::Error::invalid_params("root URI is not a file URI"))?
         } else if let Some(path) = params.root_path.clone().map(PathBuf::from) {
             path
-        } else if let Some(path) = roots.first() {
-            path.clone()
         } else {
             std::env::current_dir().map_err(|error| {
                 jsonrpc::Error::invalid_params(format!(
@@ -137,6 +420,23 @@ impl ServerSession {
                 path.display()
             ))
         })
+    }
+
+    /// Normalize one existing or newly removed source path.
+    fn normalize(path: &Path) -> jsonrpc::Result<PathBuf> {
+        if let Ok(path) = fs::canonicalize(path) {
+            return Ok(path);
+        }
+
+        let Some(parent) = path.parent() else {
+            return Self::canonicalize(path);
+        };
+        let Some(file_name) = path.file_name() else {
+            return Self::canonicalize(path);
+        };
+        let parent = Self::canonicalize(parent)?;
+
+        Ok(parent.join(file_name))
     }
 }
 

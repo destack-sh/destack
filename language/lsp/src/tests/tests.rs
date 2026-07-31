@@ -55,6 +55,25 @@ impl TestServer {
         }
     }
 
+    /// Create one language server rooted at an editor folder without a manifest.
+    pub(super) fn new_editor_folder(name: &str) -> Self {
+        let file_system = TemporaryPhysicalFileSystem::new_with_prefix(name);
+        let (service, socket) = LspService::new(DestackLanguageServer::new);
+
+        Self {
+            file_system,
+            service,
+            socket,
+            next_request_id: 1,
+        }
+    }
+
+    /// Create one configured package below the editor folder.
+    pub(super) fn create_package(&self, path: impl AsRef<Path>) {
+        self.file_system
+            .write_text_or_error(path.as_ref().join("destack.json"), DESTACK_JSON);
+    }
+
     /// Write one workspace document.
     pub(super) fn write(&self, path: impl AsRef<Path>, source: &str) -> TestDocument {
         let path = self.file_system.write_text_or_error(path, source);
@@ -348,6 +367,15 @@ impl TestDocument {
         lsp::HoverParams {
             text_document_position_params: self.position(position),
             work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+        }
+    }
+
+    /// Build semantic token parameters for this document.
+    pub(super) fn semantic_tokens(&self) -> lsp::SemanticTokensParams {
+        lsp::SemanticTokensParams {
+            text_document: self.identifier(),
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+            partial_result_params: lsp::PartialResultParams::default(),
         }
     }
 }

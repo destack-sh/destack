@@ -1121,7 +1121,6 @@ dependencies = [
 name = "destack_lsp"
 version = "0.55.4"
 dependencies = [
- "dashmap",
  "destack_artifact",
  "destack_compiler",
  "destack_core",

@@ -33,7 +33,6 @@ destack_source = { workspace = true }
 destack_workspace = { workspace = true }
 
 # general
-dashmap = { workspace = true }
 libc = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
