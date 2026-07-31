@@ -8,11 +8,13 @@ use serde::{Deserialize, Serialize};
 pub struct Entry {
     /// The native symbol exported by the linked image.
     pub symbol: StringId,
+    /// Linked module owning this function.
+    pub module: u32,
 }
 
 impl Entry {
     /// Create one native function entry.
-    pub const fn new(symbol: StringId) -> Self {
-        Self { symbol }
+    pub const fn new(symbol: StringId, module: u32) -> Self {
+        Self { symbol, module }
     }
 }

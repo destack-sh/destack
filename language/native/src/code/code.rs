@@ -1,13 +1,17 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use destack_core::{Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId};
+use destack_core::{
+    EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId,
+};
 use destack_mir::TargetLayout;
-use destack_source::ContentId;
 
 use crate::abi;
 
-use super::{CodeMap, CodeMapBuilder, Entry, Image, ImportTable, ImportTableBuilder};
+use super::{
+    CodeMap, CodeMapBuilder, Entry, Image, ImageBuilder, ImportTable, ImportTableBuilder, Module,
+    ModuleBuilder,
+};
 
 /// Durable native code produced for one program.
 #[repr(C)]
@@ -23,8 +27,20 @@ pub struct Code {
     pub image: Image,
     /// Native imports required by this code.
     pub imports: ImportTable,
-    /// Native code map for safepoints and deoptimization.
+    /// Native frame maps for collection, inspection, and deoptimization.
     pub map: CodeMap,
+    /// Program identity mappings in archive object order.
+    modules: SectionSlice<Module>,
+    /// Program function identities referenced by native modules.
+    functions: SectionSlice<abi::Function>,
+    /// Optional Program type ids referenced by linked modules.
+    types: SectionSlice<Optional<u32>>,
+    /// Optional Program layout ids referenced by linked modules.
+    layouts: SectionSlice<Optional<u32>>,
+    /// Program global ids referenced by linked modules.
+    globals: SectionSlice<u32>,
+    /// Program dynamic-table ids referenced by linked modules.
+    dynamics: SectionSlice<u32>,
     /// Native entries keyed by program ids.
     entries: SectionSlice<Optional<Entry>>,
 }
@@ -37,24 +53,27 @@ pub struct CodeBuilder {
     /// Target ABI layout expected by this code.
     target_layout: TargetLayout,
     /// Native image payload.
-    image: Image,
+    image: ImageBuilder,
     /// Required native imports.
     imports: ImportTableBuilder,
     /// Native code map.
     map: CodeMapBuilder,
+    /// Program identity mappings in archive object order.
+    modules: Vec<ModuleBuilder>,
     /// Native entry table.
     entries: Vec<Option<Entry>>,
 }
 
 impl CodeBuilder {
     /// Create one native code builder.
-    pub fn new(target: StringId, target_layout: TargetLayout, image: Image) -> Self {
+    pub fn new(target: StringId, target_layout: TargetLayout, image: ImageBuilder) -> Self {
         Self {
             target,
             target_layout,
             image,
             imports: ImportTableBuilder::default(),
             map: CodeMapBuilder::default(),
+            modules: Vec::new(),
             entries: Vec::new(),
         }
     }
@@ -73,6 +92,13 @@ impl CodeBuilder {
         self
     }
 
+    /// Set Program identity mappings in archive object order.
+    pub fn modules(mut self, modules: impl IntoIterator<Item = ModuleBuilder>) -> Self {
+        self.modules = modules.into_iter().collect();
+
+        self
+    }
+
     /// Set the native entry table.
     pub fn entries(mut self, entries: impl IntoIterator<Item = Option<Entry>>) -> Self {
         self.entries = entries.into_iter().collect();
@@ -82,8 +108,27 @@ impl CodeBuilder {
 
     /// Build this native code payload into program sections.
     pub fn build(self, sections: &mut SectionBuilder) -> Code {
+        let image = self.image.build(sections);
         let imports = self.imports.build(sections);
         let map = self.map.build(sections);
+        let mut functions = EntryStore::new();
+        let mut types = EntryStore::new();
+        let mut layouts = EntryStore::new();
+        let mut globals = EntryStore::new();
+        let mut dynamics = EntryStore::new();
+        let modules = self
+            .modules
+            .into_iter()
+            .map(|module| {
+                module.build(
+                    &mut functions,
+                    &mut types,
+                    &mut layouts,
+                    &mut globals,
+                    &mut dynamics,
+                )
+            })
+            .collect::<Vec<_>>();
         let entries = self
             .entries
             .into_iter()
@@ -94,15 +139,91 @@ impl CodeBuilder {
             abi_version: abi::VERSION,
             target: self.target,
             target_layout: self.target_layout,
-            image: self.image,
+            image,
             imports,
             map,
+            modules: sections.insert(modules),
+            functions: sections.insert(functions.into_entries()),
+            types: sections.insert(types.into_entries()),
+            layouts: sections.insert(layouts.into_entries()),
+            globals: sections.insert(globals.into_entries()),
+            dynamics: sections.insert(dynamics.into_entries()),
             entries: sections.insert(entries),
         }
     }
 }
 
 impl Code {
+    /// Return whether every relative range fits its sibling column.
+    pub fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+        let functions = self.functions(sections);
+        let types = self.types(sections);
+        let layouts = self.layouts(sections);
+        let globals = self.globals(sections);
+        let dynamics = self.dynamics(sections);
+
+        // check each module's linked identity ranges
+        let modules_fit = self.modules(sections).iter().all(|module| {
+            module.ranges_fit(
+                functions.len(),
+                types.len(),
+                layouts.len(),
+                globals.len(),
+                dynamics.len(),
+            )
+        });
+        if !modules_fit {
+            return false;
+        }
+
+        // check canonical native frame maps
+        if !self.map.ranges_fit(sections) {
+            return false;
+        }
+
+        // check archived object byte ranges when present
+        let Image::Archive(archive) = self.image else {
+            return true;
+        };
+
+        archive.ranges_fit(sections)
+    }
+
+    /// Return Program identity mappings in archive object order.
+    pub fn modules<'a>(&self, sections: SectionImage<'a>) -> &'a [Module] {
+        sections.entries(self.modules)
+    }
+
+    /// Return one Program identity mapping by archive object index.
+    pub fn module(&self, sections: SectionImage<'_>, index: u32) -> Option<Module> {
+        sections.entries(self.modules).get(index as usize).copied()
+    }
+
+    /// Return Program function identities referenced by native modules.
+    pub fn functions<'a>(&self, sections: SectionImage<'a>) -> &'a [abi::Function] {
+        sections.entries(self.functions)
+    }
+
+    /// Return optional Program type ids referenced by linked modules.
+    pub fn types<'a>(&self, sections: SectionImage<'a>) -> &'a [Optional<u32>] {
+        sections.entries(self.types)
+    }
+
+    /// Return optional Program layout ids referenced by linked modules.
+    pub fn layouts<'a>(&self, sections: SectionImage<'a>) -> &'a [Optional<u32>] {
+        sections.entries(self.layouts)
+    }
+
+    /// Return Program global ids referenced by linked modules.
+    pub fn globals<'a>(&self, sections: SectionImage<'a>) -> &'a [u32] {
+        sections.entries(self.globals)
+    }
+
+    /// Return Program dynamic-table ids referenced by linked modules.
+    pub fn dynamics<'a>(&self, sections: SectionImage<'a>) -> &'a [u32] {
+        sections.entries(self.dynamics)
+    }
+
     /// Return one native function entry.
     pub fn entry(&self, sections: SectionImage<'_>, function: usize) -> Option<Entry> {
         sections
@@ -114,10 +235,5 @@ impl Code {
     /// Return native function entries in dense Program function order.
     pub fn entries<'a>(&self, sections: SectionImage<'a>) -> &'a [Optional<Entry>] {
         sections.entries(self.entries)
-    }
-
-    /// Return all content ids referenced by this native code.
-    pub fn content_ids(&self) -> Vec<ContentId> {
-        self.image.content_ids()
     }
 }

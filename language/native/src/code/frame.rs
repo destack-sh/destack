@@ -2,17 +2,26 @@ use destack_core::{EntryRange, EntryStore, SectionEntry};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-/// Physical native projection of one canonical frame state.
+/// Physical native projection of one canonical Program frame state.
 #[repr(C)]
-#[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct FrameMap {
+    /// Program function containing this frame map.
+    pub function: u32,
+    /// Return-address offset from the containing function entry.
+    pub offset: u32,
+    /// Canonical Program frame-state id.
+    pub state: u32,
     /// Canonical values in Program frame slot order.
     values: EntryRange<FrameValue>,
 }
 
 impl FrameMap {
+    /// Return whether this frame's value range fits its shared column.
+    pub(super) fn values_fit(self, values: usize) -> bool {
+        self.values.fits(values)
+    }
+
     /// Return canonical values in Program frame slot order.
     pub fn values(self, values: &[FrameValue]) -> &[FrameValue] {
         self.values.slice(values)
@@ -20,16 +29,27 @@ impl FrameMap {
 }
 
 /// Mutable native frame map before section packing.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FrameMapBuilder {
+    /// Function containing this frame map.
+    function: u32,
+    /// Return-address offset from the containing function entry.
+    offset: u32,
+    /// Logical frame-state id.
+    state: u32,
     /// Canonical values in Program frame slot order.
     values: Vec<FrameValueBuilder>,
 }
 
 impl FrameMapBuilder {
-    /// Create one empty native frame map builder.
-    pub fn new() -> Self {
-        Self::default()
+    /// Create one native frame map builder.
+    pub const fn new(function: u32, offset: u32, state: u32) -> Self {
+        Self {
+            function,
+            offset,
+            state,
+            values: Vec::new(),
+        }
     }
 
     /// Set canonical values in Program frame slot order.
@@ -52,6 +72,9 @@ impl FrameMapBuilder {
             .collect::<Vec<_>>();
 
         FrameMap {
+            function: self.function,
+            offset: self.offset,
+            state: self.state,
             values: values.append(entries),
         }
     }
@@ -66,6 +89,11 @@ pub struct FrameValue {
 }
 
 impl FrameValue {
+    /// Return whether this value's location range fits its shared column.
+    pub(super) fn locations_fit(self, locations: usize) -> bool {
+        self.locations.fits(locations)
+    }
+
     /// Return physical pieces in canonical byte order.
     pub fn locations(self, locations: &[FrameLocation]) -> &[FrameLocation] {
         self.locations.slice(locations)

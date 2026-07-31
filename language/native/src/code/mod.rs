@@ -1,3 +1,4 @@
+mod archive;
 mod code;
 mod entry;
 mod frame;
@@ -5,8 +6,10 @@ mod image;
 mod import;
 mod library;
 mod map;
+mod module;
 mod object;
 
+pub use archive::*;
 pub use code::*;
 pub use entry::*;
 pub use frame::*;
@@ -14,4 +17,5 @@ pub use image::*;
 pub use import::*;
 pub use library::*;
 pub use map::*;
+pub use module::*;
 pub use object::*;

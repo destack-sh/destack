@@ -1,38 +1,30 @@
-use destack_core::{
-    EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
-};
+use destack_core::{EntryStore, SectionBuilder, SectionEntry, SectionImage, SectionSlice};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::{FrameLocation, FrameMap, FrameMapBuilder, FrameValue};
+use super::{FrameLocation, FrameMap, FrameMapBuilder, FrameSource, FrameValue};
 
-/// Native code map for entries, safepoints, roots, and deoptimization.
+/// Native frame maps for collection, inspection, and deoptimization.
 #[repr(C)]
 #[derive(
     Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
 )]
 pub struct CodeMap {
-    /// Native function code ranges.
-    function: SectionSlice<FunctionCode>,
-    /// Native safepoints keyed by safepoint id.
-    safepoint: SectionSlice<Optional<Safepoint>>,
-    /// Native roots referenced by safepoints.
-    root: SectionSlice<Root>,
+    /// Physical native frame maps in dense id order.
+    frames: SectionSlice<FrameMap>,
     /// Canonical native frame values.
-    value: SectionSlice<FrameValue>,
+    values: SectionSlice<FrameValue>,
     /// Physical locations containing canonical frame values.
-    location: SectionSlice<FrameLocation>,
+    locations: SectionSlice<FrameLocation>,
     /// Immutable bytes referenced by constant frame locations.
-    constant: SectionSlice<u8>,
+    constants: SectionSlice<u8>,
 }
 
 /// Build-time native code map.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CodeMapBuilder {
-    /// Native function code ranges.
-    functions: Vec<FunctionCode>,
-    /// Native safepoints keyed by safepoint id.
-    safepoints: Vec<Option<SafepointBuilder>>,
+    /// Physical native frame maps in dense id order.
+    frames: Vec<FrameMapBuilder>,
     /// Immutable bytes referenced by constant frame locations.
     constants: Vec<u8>,
 }
@@ -43,19 +35,9 @@ impl CodeMapBuilder {
         Self::default()
     }
 
-    /// Set native function code ranges.
-    pub fn functions(mut self, functions: impl IntoIterator<Item = FunctionCode>) -> Self {
-        self.functions = functions.into_iter().collect();
-
-        self
-    }
-
-    /// Set native safepoints in dense id order.
-    pub fn safepoints(
-        mut self,
-        safepoints: impl IntoIterator<Item = Option<SafepointBuilder>>,
-    ) -> Self {
-        self.safepoints = safepoints.into_iter().collect();
+    /// Set physical native frame maps in dense id order.
+    pub fn frames(mut self, frames: impl IntoIterator<Item = FrameMapBuilder>) -> Self {
+        self.frames = frames.into_iter().collect();
 
         self
     }
@@ -69,25 +51,19 @@ impl CodeMapBuilder {
 
     /// Build this code map into program sections.
     pub(super) fn build(self, sections: &mut SectionBuilder) -> CodeMap {
-        let mut roots = EntryStore::<Root>::new();
         let mut values = EntryStore::<FrameValue>::new();
         let mut locations = EntryStore::<FrameLocation>::new();
-        let safepoints = self
-            .safepoints
+        let frames = self
+            .frames
             .into_iter()
-            .map(|safepoint| {
-                safepoint.map(|safepoint| safepoint.build(&mut roots, &mut values, &mut locations))
-            })
-            .map(Optional::from)
+            .map(|frame| frame.build(&mut values, &mut locations))
             .collect::<Vec<_>>();
 
         CodeMap {
-            function: sections.insert(self.functions),
-            safepoint: sections.insert(safepoints),
-            root: sections.insert(roots.into_entries()),
-            value: sections.insert(values.into_entries()),
-            location: sections.insert(locations.into_entries()),
-            constant: sections.insert(self.constants),
+            frames: sections.insert(frames),
+            values: sections.insert(values.into_entries()),
+            locations: sections.insert(locations.into_entries()),
+            constants: sections.insert(self.constants),
         }
     }
 }
@@ -98,32 +74,51 @@ impl CodeMap {
         Self::default()
     }
 
-    /// Return native function code ranges.
-    pub fn functions<'a>(&self, sections: SectionImage<'a>) -> &'a [FunctionCode] {
-        sections.entries(self.function)
+    /// Return whether every relative frame-map range fits its shared column.
+    pub(super) fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+        let frames = sections.entries(self.frames);
+        let values = sections.entries(self.values);
+        let locations = sections.entries(self.locations);
+        let constants = sections.entries(self.constants);
+
+        // require every frame and value to fit its flattened column
+        let frames_fit = frames.iter().all(|frame| frame.values_fit(values.len()));
+        let values_fit = values
+            .iter()
+            .all(|value| value.locations_fit(locations.len()));
+        if !frames_fit || !values_fit {
+            return false;
+        }
+
+        // require constant locations to fit the mapped constant section
+        locations.iter().all(|location| {
+            if location.source != FrameSource::Constant {
+                return true;
+            }
+
+            let Ok(start) = usize::try_from(location.source_offset) else {
+                return false;
+            };
+
+            start
+                .checked_add(location.byte_len as usize)
+                .is_some_and(|end| end <= constants.len())
+        })
     }
 
-    /// Return native safepoints.
-    pub fn safepoints<'a>(&self, sections: SectionImage<'a>) -> &'a [Optional<Safepoint>] {
-        sections.entries(self.safepoint)
+    /// Return physical native frame maps.
+    pub fn frames<'a>(&self, sections: SectionImage<'a>) -> &'a [FrameMap] {
+        sections.entries(self.frames)
     }
 
-    /// Return one safepoint by id.
-    pub fn safepoint(&self, sections: SectionImage<'_>, id: u32) -> Option<Safepoint> {
-        sections
-            .entries(self.safepoint)
-            .get(id as usize)
-            .and_then(|safepoint| safepoint.get())
-    }
-
-    /// Return native roots for one safepoint.
-    pub fn roots<'a>(&self, sections: SectionImage<'a>, safepoint: Safepoint) -> &'a [Root] {
-        safepoint.roots.slice(sections.entries(self.root))
+    /// Return one physical native frame map by id.
+    pub fn frame(&self, sections: SectionImage<'_>, id: u32) -> Option<FrameMap> {
+        sections.entries(self.frames).get(id as usize).copied()
     }
 
     /// Return canonical values in one native frame map.
     pub fn values<'a>(&self, sections: SectionImage<'a>, frame: FrameMap) -> &'a [FrameValue] {
-        frame.values(sections.entries(self.value))
+        frame.values(sections.entries(self.values))
     }
 
     /// Return physical locations containing one canonical frame value.
@@ -132,162 +127,12 @@ impl CodeMap {
         sections: SectionImage<'a>,
         value: FrameValue,
     ) -> &'a [FrameLocation] {
-        value.locations(sections.entries(self.location))
+        value.locations(sections.entries(self.locations))
     }
 
     /// Return immutable bytes referenced by constant frame locations.
     pub fn constants<'a>(&self, sections: SectionImage<'a>) -> &'a [u8] {
-        sections.entries(self.constant)
-    }
-}
-
-/// One native function code range.
-#[repr(C)]
-#[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
-)]
-pub struct FunctionCode {
-    /// The dense Program function index covered by this range.
-    pub function: u32,
-    /// The native code byte range.
-    pub range: CodeRange,
-}
-
-impl FunctionCode {
-    /// Create one native function code range.
-    pub const fn new(function: u32, range: CodeRange) -> Self {
-        Self { function, range }
-    }
-}
-
-/// One native image byte range.
-#[repr(C)]
-#[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
-)]
-pub struct CodeRange {
-    /// The byte offset from the native image base.
-    pub offset: u32,
-    /// The byte length of this range.
-    pub byte_len: u32,
-}
-
-impl CodeRange {
-    /// Create one native image byte range.
-    pub const fn new(offset: u32, byte_len: u32) -> Self {
-        Self { offset, byte_len }
-    }
-}
-
-/// One native safepoint.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct Safepoint {
-    /// The safepoint id passed through the native ABI.
-    pub id: u32,
-    /// The function containing this safepoint.
-    pub function: u32,
-    /// The byte offset from the native image base.
-    pub offset: u32,
-    /// The runtime frame state corresponding to this safepoint.
-    pub frame_state: u32,
-    /// Native roots live at this safepoint.
-    pub roots: EntryRange<Root>,
-    /// Physical projection of the canonical frame state.
-    pub frame: FrameMap,
-    /// Materialization target when this safepoint can deoptimize.
-    pub deopt: Optional<u32>,
-}
-
-/// Mutable native safepoint before section flattening.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SafepointBuilder {
-    /// The safepoint id passed through the native ABI.
-    id: u32,
-    /// The function containing this safepoint.
-    function: u32,
-    /// The byte offset from the native image base.
-    offset: u32,
-    /// The runtime frame state corresponding to this safepoint.
-    frame_state: u32,
-    /// Native roots live at this safepoint.
-    roots: Vec<Root>,
-    /// Physical projection of the canonical frame state.
-    frame: FrameMapBuilder,
-    /// Materialization target when this safepoint can deoptimize.
-    deopt: Option<u32>,
-}
-
-impl SafepointBuilder {
-    /// Create one native safepoint.
-    pub fn new(
-        id: u32,
-        function: u32,
-        offset: u32,
-        frame_state: u32,
-        frame: FrameMapBuilder,
-    ) -> Self {
-        Self {
-            id,
-            function,
-            offset,
-            frame_state,
-            roots: Vec::new(),
-            frame,
-            deopt: None,
-        }
-    }
-
-    /// Set native roots live at this safepoint.
-    pub fn roots(mut self, roots: impl IntoIterator<Item = Root>) -> Self {
-        self.roots = roots.into_iter().collect();
-
-        self
-    }
-
-    /// Set the materialization target.
-    pub fn deopt(mut self, deopt: u32) -> Self {
-        self.deopt = Some(deopt);
-
-        self
-    }
-
-    /// Build this safepoint into one section entry.
-    fn build(
-        self,
-        roots: &mut EntryStore<Root>,
-        values: &mut EntryStore<FrameValue>,
-        locations: &mut EntryStore<FrameLocation>,
-    ) -> Safepoint {
-        let roots = roots.append(self.roots);
-        let frame = self.frame.build(values, locations);
-
-        Safepoint {
-            id: self.id,
-            function: self.function,
-            offset: self.offset,
-            frame_state: self.frame_state,
-            roots,
-            frame,
-            deopt: self.deopt.into(),
-        }
-    }
-}
-
-/// One native root location at one safepoint.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct Root {
-    /// Signed byte offset from the native frame base.
-    pub offset: i32,
-    /// The root value type.
-    pub ty: u32,
-}
-
-impl Root {
-    /// Create one native root location.
-    pub const fn new(offset: i32, ty: u32) -> Self {
-        Self { offset, ty }
+        sections.entries(self.constants)
     }
 }
 
@@ -305,21 +150,30 @@ mod tests {
             FrameLocation::new(FrameSource::Register, 3, 0, 8),
             FrameLocation::new(FrameSource::Stack, -16, 8, 8),
         ]);
-        let frame = FrameMapBuilder::new().values([value]);
-        let safepoint = SafepointBuilder::new(7, 2, 24, 4, frame).roots([Root::new(-16, 3)]);
+        let first = FrameMapBuilder::new(2, 24, 7).values([value.clone()]);
+        let second = FrameMapBuilder::new(2, 40, 7).values([value]);
         let mut sections = SectionBuilder::new();
         let map = CodeMapBuilder::new()
-            .safepoints([Some(safepoint)])
+            .frames([first, second])
             .constants([1, 2, 3, 4])
             .build(&mut sections);
         let storage = sections.build();
-        let sections = SectionImage::new(&storage);
+        // SAFETY: storage was produced by the SectionBuilder immediately above.
+        let sections = unsafe { SectionImage::new(&storage) };
+
+        // retain distinct physical maps for the same canonical frame state
+        let [first, second] = map.frames(sections) else {
+            panic!("native code map should contain both physical frames");
+        };
+        assert_eq!(first.function, 2);
+        assert_eq!(first.offset, 24);
+        assert_eq!(first.state, 7);
+        assert_eq!(second.function, 2);
+        assert_eq!(second.offset, 40);
+        assert_eq!(second.state, 7);
 
         // recover each physical piece in canonical value order
-        let safepoint = map
-            .safepoint(sections, 0)
-            .expect("native safepoint should exist");
-        let [value] = map.values(sections, safepoint.frame) else {
+        let [value] = map.values(sections, *first) else {
             panic!("native frame should contain one canonical value");
         };
         assert_eq!(
@@ -329,7 +183,6 @@ mod tests {
                 FrameLocation::new(FrameSource::Stack, -16, 8, 8),
             ]
         );
-        assert_eq!(map.roots(sections, safepoint), &[Root::new(-16, 3)]);
         assert_eq!(map.constants(sections), &[1, 2, 3, 4]);
     }
 }

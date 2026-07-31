@@ -1,4 +1,4 @@
-use destack_core::{Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId};
+use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -55,63 +55,45 @@ impl ImportTable {
 }
 
 /// One native import required by generated native code.
-#[repr(C)]
+#[repr(C, u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct Import {
-    /// Import kind.
-    kind: ImportKind,
-    /// Fixed runtime operation payload.
-    operation: Optional<abi::Operation>,
-    /// External symbol payload.
-    symbol: Optional<SymbolImport>,
+pub enum Import {
+    /// Fixed runtime operation import.
+    Runtime(abi::Operation),
+    /// External linker-visible symbol import.
+    Symbol(SymbolImport),
 }
 
 impl Import {
-    /// Create one fixed runtime operation import.
-    pub fn from_operation(operation: abi::Operation) -> Self {
-        Self {
-            kind: ImportKind::Runtime,
-            operation: Optional::some(operation),
-            symbol: Optional::none(),
-        }
-    }
-
-    /// Create one external symbol import.
-    pub fn from_symbol(symbol: SymbolImport) -> Self {
-        Self {
-            kind: ImportKind::Symbol,
-            operation: Optional::none(),
-            symbol: Optional::some(symbol),
-        }
-    }
-
     /// Return this import as a fixed runtime operation.
     pub fn operation(self) -> Option<abi::Operation> {
-        if self.kind == ImportKind::Runtime {
-            self.operation.get()
-        } else {
-            None
+        match self {
+            Self::Runtime(operation) => Some(operation),
+            Self::Symbol(_) => None,
         }
     }
 
     /// Return this import as an external symbol.
     pub fn symbol(self) -> Option<SymbolImport> {
-        if self.kind == ImportKind::Symbol {
-            self.symbol.get()
-        } else {
-            None
+        match self {
+            Self::Runtime(_) => None,
+            Self::Symbol(symbol) => Some(symbol),
         }
     }
 }
 
-/// Native import kind.
-#[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub enum ImportKind {
-    /// Fixed runtime operation import.
-    Runtime = 0,
-    /// External symbol import.
-    Symbol = 1,
+impl From<abi::Operation> for Import {
+    /// Convert one fixed runtime operation import.
+    fn from(operation: abi::Operation) -> Self {
+        Self::Runtime(operation)
+    }
+}
+
+impl From<SymbolImport> for Import {
+    /// Convert one external linker-visible symbol import.
+    fn from(symbol: SymbolImport) -> Self {
+        Self::Symbol(symbol)
+    }
 }
 
 /// External linker-visible symbol import.
