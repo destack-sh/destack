@@ -6,7 +6,7 @@ use destack_heap::{
     AllocationPlan, AllocationShape, DropId, HeapOptions, HeapResult, ReferenceRange, RootSlot,
     SharedHeapOptions, TraceTable, TraceView, visit_heap_root_slots,
 };
-use destack_memory::{MemoryMap, MemoryResult};
+use destack_memory::{MemoryMap, MemoryRange, MemoryResult};
 use destack_mir::{Space, Storage, TargetLayout, TraceId, TraceMap};
 use destack_native as native;
 use destack_serde::Reflect;
@@ -14,16 +14,16 @@ use destack_webassembly as wasm;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Binding, BindingId, BindingTable, CallSite, CallSiteId, Continuation, ContinuationSite,
-    ContinuationSiteId, DispatchTable, DropEntry, DropTable, DynamicEntry, DynamicTable,
-    DynamicTableId, Error, FrameLayout, FrameLayoutId, FramePoint, FrameSlot, FrameState,
-    FrameStateId, FrameTable, Function, FunctionId, FunctionTable, Global, GlobalAddress, GlobalId,
-    GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId, LayoutShape, LayoutTable,
-    ProgramInfo, ProgramPoint, Result, SampleKey, SampleSite, SampleValue, ScalarFormat, Signature,
-    SignatureEntry, SignatureId, SiteTable, StaticImage, StaticSpace, StringTable, SuspensionSite,
-    SuspensionSiteId, Symbol, TensorDimension, TensorLayout, TensorViewLayout, TypeFingerprint,
-    TypeId, TypeTable, Value, VariantCaseLayout, VariantLayout, VirtualTable, VirtualTableId, Word,
-    WordLayout,
+    ActivationImage, Binding, BindingId, BindingTable, CallSite, CallSiteId, Continuation,
+    ContinuationSite, ContinuationSiteId, DispatchTable, DropEntry, DropTable, DynamicEntry,
+    DynamicTable, DynamicTableId, Error, FrameLayout, FrameLayoutId, FramePoint, FrameSlot,
+    FrameState, FrameStateId, FrameTable, Function, FunctionId, FunctionTable, Global,
+    GlobalAddress, GlobalId, GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId,
+    LayoutShape, LayoutTable, ProgramInfo, ProgramPoint, Result, SampleKey, SampleSite,
+    SampleValue, ScalarFormat, Signature, SignatureEntry, SignatureId, SiteTable, StaticImage,
+    StaticSpace, StringTable, SuspensionSite, SuspensionSiteId, Symbol, TensorDimension,
+    TensorLayout, TensorViewLayout, TypeFingerprint, TypeId, TypeTable, Value, VariantCaseLayout,
+    VariantLayout, VirtualTable, VirtualTableId, Word, WordLayout,
 };
 
 /// Linked program.
@@ -684,14 +684,55 @@ impl Program {
     /// Visit mutable heap roots retained by one continuation.
     pub fn visit_continuation_root_slots(
         &self,
-        continuation: &mut Continuation,
+        memory: &MemoryMap,
+        continuation: &Continuation,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<()> {
-        let innermost = continuation.innermost().ok_or(Error::EmptyContinuation)?;
+        let states = continuation.frames().iter().map(|frame| frame.state());
+
+        self.visit_memory_frame_root_slots(memory, continuation.memory(), states, visit)
+    }
+
+    /// Visit mutable heap roots retained by one activation image.
+    pub fn visit_activation_root_slots(
+        &self,
+        memory: &MemoryMap,
+        activation: &ActivationImage,
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+    ) -> Result<()> {
+        let states = activation.frames().iter().map(|frame| frame.state());
+
+        self.visit_memory_frame_root_slots(memory, activation.memory(), states, visit)
+    }
+
+    /// Visit roots retained by packed frames inside one memory map.
+    fn visit_memory_frame_root_slots(
+        &self,
+        memory: &MemoryMap,
+        range: MemoryRange,
+        states: impl ExactSizeIterator<Item = FrameStateId> + Clone,
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+    ) -> Result<()> {
+        memory.make_writable(range.offset, range.byte_len)?;
+
+        // SAFETY: the owning machine exclusively visits this allocated frame range
+        let bytes = unsafe { memory.mapped_bytes_mut(range.offset, range.byte_len) };
+
+        self.visit_frame_root_slots(states, bytes, visit)
+    }
+
+    /// Visit roots through one exact frame state sequence.
+    fn visit_frame_root_slots(
+        &self,
+        states: impl ExactSizeIterator<Item = FrameStateId> + Clone,
+        bytes: &mut [u8],
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+    ) -> Result<()> {
+        let innermost = states.clone().last().ok_or(Error::EmptyCallChain)?;
         let mut frame_byte_offset = 0usize;
 
-        // compute the complete canonical call chain byte length
-        for &frame_state in continuation.states() {
+        // compute the complete packed call chain byte length
+        for frame_state in states.clone() {
             let state = self
                 .frame_state(frame_state)
                 .ok_or(Error::UndefinedFrameState { frame_state })?;
@@ -704,9 +745,9 @@ impl Program {
             frame_byte_offset += layout.byte_len as usize;
         }
 
-        // require the exact canonical call chain byte length
+        // require the exact packed call chain byte length
         let expected = frame_byte_offset;
-        let actual = continuation.bytes().len();
+        let actual = bytes.len();
         if actual != expected {
             return Err(Error::FrameByteLengthMismatch {
                 frame_state: innermost,
@@ -715,10 +756,9 @@ impl Program {
             });
         }
 
-        // visit every canonical value through its exact Program type
-        let (states, bytes) = continuation.state_bytes_mut();
+        // visit every retained value through its exact Program type
         let mut frame_byte_offset = 0usize;
-        for &frame_state in states {
+        for frame_state in states {
             let state = self
                 .frame_state(frame_state)
                 .ok_or(Error::UndefinedFrameState { frame_state })?;

@@ -1,22 +1,23 @@
 use std::sync::Arc;
 
 use destack_heap::{HeapResult, RootSlot};
+use destack_memory::{MemoryMap, MemoryRange};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::Result;
 
-use super::{FrameStateId, Program, Word};
+use super::{FrameImage, Program, Word};
 
-/// One canonical coroutine call chain.
+/// One suspended coroutine call chain.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Continuation {
     /// Root completion mode for the call chain.
     completion: Completion,
-    /// Canonical frame states in caller to callee order.
-    states: Arc<[FrameStateId]>,
-    /// Canonical live frame bytes in the same order.
-    bytes: Arc<[u8]>,
+    /// Retained frames in caller to callee order.
+    frames: Arc<[FrameImage]>,
+    /// Packed live frame bytes inside the owning MemoryMap.
+    memory: MemoryRange,
 }
 
 /// Root completion mode preserved by one coroutine call chain.
@@ -53,16 +54,16 @@ struct ContinuationSlot {
 }
 
 impl Continuation {
-    /// Create one canonical coroutine call chain.
+    /// Create one suspended coroutine call chain.
     pub fn new(
         completion: Completion,
-        states: impl Into<Arc<[FrameStateId]>>,
-        bytes: impl Into<Arc<[u8]>>,
+        frames: impl Into<Arc<[FrameImage]>>,
+        memory: MemoryRange,
     ) -> Self {
         Self {
             completion,
-            states: states.into(),
-            bytes: bytes.into(),
+            frames: frames.into(),
+            memory,
         }
     }
 
@@ -71,43 +72,70 @@ impl Continuation {
         self.completion
     }
 
-    /// Fork this continuation through copy-on-write frame storage.
-    pub fn fork(&self) -> Self {
+    /// Duplicate this continuation inside its current memory map.
+    pub fn fork(&self, memory: &MemoryMap) -> Result<Self> {
+        let bytes = memory.read_bytes(self.memory.offset, self.memory.byte_len)?;
+        let range = memory.allocate_bytes(&bytes, align_of::<Word>())?;
+
+        Ok(Self {
+            completion: self.completion,
+            frames: self.frames.clone(),
+            memory: range,
+        })
+    }
+
+    /// Inherit this continuation into an already-forked memory map.
+    pub fn inherit(&self) -> Self {
         Self {
             completion: self.completion,
-            states: self.states.clone(),
-            bytes: self.bytes.clone(),
+            frames: self.frames.clone(),
+            memory: self.memory,
         }
     }
 
-    /// Return canonical frame states in caller to callee order.
-    pub fn states(&self) -> &[FrameStateId] {
-        &self.states
+    /// Release this continuation's frame bytes.
+    pub fn release(self, memory: &MemoryMap) -> Result<()> {
+        memory.release(self.memory)?;
+
+        Ok(())
     }
 
-    /// Return the innermost frame state.
-    pub fn innermost(&self) -> Option<FrameStateId> {
-        self.states.last().copied()
+    /// Return retained frames in caller to callee order.
+    pub fn frames(&self) -> &[FrameImage] {
+        &self.frames
     }
 
-    /// Return canonical live frame bytes in caller to callee order.
-    pub fn bytes(&self) -> &[u8] {
-        &self.bytes
+    /// Return the innermost frame.
+    pub fn innermost(&self) -> Option<FrameImage> {
+        self.frames.last().copied()
     }
 
-    /// Return frame states and mutable canonical bytes.
-    pub(crate) fn state_bytes_mut(&mut self) -> (&[FrameStateId], &mut [u8]) {
-        (&self.states, Arc::make_mut(&mut self.bytes))
+    /// Return packed frame bytes inside the owning MemoryMap.
+    pub const fn memory(&self) -> MemoryRange {
+        self.memory
     }
 }
 
 impl ContinuationTable {
-    /// Fork this continuation table through copy-on-write continuation storage.
-    pub fn fork(&self) -> Self {
+    /// Inherit this continuation table into an already-forked memory map.
+    pub fn inherit(&self) -> Self {
         Self {
-            slots: self.slots.iter().map(ContinuationSlot::fork).collect(),
+            slots: self.slots.iter().map(ContinuationSlot::inherit).collect(),
             vacant: self.vacant.clone(),
         }
+    }
+
+    /// Release every live continuation's frame bytes.
+    pub fn release(self, memory: &MemoryMap) -> Result<()> {
+        for slot in self.slots {
+            let Some(continuation) = slot.continuation else {
+                continue;
+            };
+
+            continuation.release(memory)?;
+        }
+
+        Ok(())
     }
 
     /// Insert one continuation and return its runtime identity.
@@ -153,16 +181,17 @@ impl ContinuationTable {
 
     /// Visit mutable heap roots retained by every live continuation.
     pub fn visit_root_slots(
-        &mut self,
+        &self,
         program: &Program,
+        memory: &MemoryMap,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<()> {
-        for slot in &mut self.slots {
-            let Some(continuation) = &mut slot.continuation else {
+        for slot in &self.slots {
+            let Some(continuation) = &slot.continuation else {
                 continue;
             };
 
-            program.visit_continuation_root_slots(continuation, visit)?;
+            program.visit_continuation_root_slots(memory, continuation, visit)?;
         }
 
         Ok(())
@@ -170,11 +199,11 @@ impl ContinuationTable {
 }
 
 impl ContinuationSlot {
-    /// Fork this occupied or vacant continuation slot.
-    fn fork(&self) -> Self {
+    /// Inherit this occupied or vacant continuation slot.
+    fn inherit(&self) -> Self {
         Self {
             generation: self.generation,
-            continuation: self.continuation.as_ref().map(Continuation::fork),
+            continuation: self.continuation.as_ref().map(Continuation::inherit),
         }
     }
 }

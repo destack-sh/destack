@@ -1,6 +1,7 @@
 use std::{error, fmt};
 
 use destack_heap::{DropId, HeapError, TraceTableError};
+use destack_memory::MemoryError;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -88,8 +89,8 @@ pub enum Error {
         /// The missing frame layout id.
         frame_layout: FrameLayoutId,
     },
-    /// A continuation contains no frames.
-    EmptyContinuation,
+    /// A retained call chain contains no frames.
+    EmptyCallChain,
     /// A waiter does not name a live suspended continuation.
     UndefinedWaiter {
         /// The undefined waiter.
@@ -105,7 +106,7 @@ pub enum Error {
         /// The task in the invalid state.
         task: Task,
     },
-    /// A captured frame byte width differs from its frame layout.
+    /// A retained frame byte width differs from its frame layout.
     FrameByteLengthMismatch {
         /// The mismatched frame state.
         frame_state: FrameStateId,
@@ -114,7 +115,7 @@ pub enum Error {
         /// The captured frame byte width.
         actual: usize,
     },
-    /// A canonical frame slot names bytes outside its captured frame.
+    /// A canonical frame slot names bytes outside its retained frame.
     FrameSlotOutOfBounds {
         /// The containing frame state.
         frame_state: FrameStateId,
@@ -132,6 +133,11 @@ pub enum Error {
     Heap {
         /// The heap failure.
         error: Box<HeapError>,
+    },
+    /// A memory operation failed.
+    Memory {
+        /// The memory failure.
+        error: MemoryError,
     },
 }
 
@@ -191,6 +197,13 @@ impl From<HeapError> for Error {
     }
 }
 
+impl From<MemoryError> for Error {
+    /// Preserve one memory operation failure.
+    fn from(error: MemoryError) -> Self {
+        Self::Memory { error }
+    }
+}
+
 impl fmt::Display for Error {
     /// Format one Program operation failure.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -239,7 +252,7 @@ impl fmt::Display for Error {
             Self::UndefinedFrameLayout { frame_layout } => {
                 write!(formatter, "undefined frame layout {frame_layout:?}")
             }
-            Self::EmptyContinuation => formatter.write_str("continuation contains no frames"),
+            Self::EmptyCallChain => formatter.write_str("retained call chain contains no frames"),
             Self::UndefinedWaiter { waiter } => {
                 write!(formatter, "undefined waiter {waiter:?}")
             }
@@ -265,6 +278,7 @@ impl fmt::Display for Error {
             ),
             Self::Trace { error } => error.fmt(formatter),
             Self::Heap { error } => error.fmt(formatter),
+            Self::Memory { error } => error.fmt(formatter),
         }
     }
 }
@@ -275,6 +289,7 @@ impl error::Error for Error {
         match self {
             Self::Trace { error } => Some(error),
             Self::Heap { error } => Some(error.as_ref()),
+            Self::Memory { error } => Some(error),
             _ => None,
         }
     }
