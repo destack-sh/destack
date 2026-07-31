@@ -266,7 +266,7 @@ impl<'a> GlobalLinker<'a> {
         }
 
         let function = self.program.function_id(self.module, function);
-        let bytes = self.unsigned_bytes(u128::from(function.0), byte_len);
+        let bytes = self.unsigned_bytes(u128::from(function.word().bits()), byte_len);
 
         Ok(bytes)
     }
