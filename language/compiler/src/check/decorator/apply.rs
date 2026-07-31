@@ -43,9 +43,8 @@ impl CheckState<'_> {
                         }
                     }
                 }
-                Err(dir::LanguageItem::Derive) => {
-                    self.apply_derive_decorator(module, &application, &resolution, &value)?;
-                }
+                // leave derive decorators to the end of the walk
+                Err(dir::LanguageItem::Derive) => {}
                 Err(dir::LanguageItem::ReprDecorator) => {
                     self.apply_representation_decorator(module, &application, &value)?;
                 }

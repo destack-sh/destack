@@ -10,8 +10,6 @@ use crate::{CompilerError, CompilerResult};
 
 /// One selected compiler-owned derive provider.
 struct SelectedDeriveProvider {
-    /// The provider expression origin.
-    origin: Origin,
     /// The source provider argument.
     argument: dir::GlobalNodeId<dir::Argument>,
     /// The exact provider backing.
@@ -41,7 +39,7 @@ impl BodyState<'_, '_> {
         let reference = dir::Type::Reference(dir::TypeReference {
             symbol: application.symbol,
         });
-        let reference = self.intern_type(module, reference)?;
+        let reference = self.intern_type(reference)?;
         self.commit_node_type(target, reference)?;
 
         // dispatch compiler-owned derive to its intrinsic backing
@@ -144,8 +142,8 @@ impl BodyState<'_, '_> {
 
                 return Ok(Answer::Ready(None));
             };
+            // reject duplicate providers without a second report
             if !selected_symbols.insert(selected.newtype.symbol) {
-                self.report_duplicate_derive_provider(selected.origin, selected.newtype.symbol)?;
                 self.commit_error_node(site.node)?;
 
                 return Ok(Answer::Ready(None));
@@ -164,14 +162,11 @@ impl BodyState<'_, '_> {
             .collect();
 
         // construct the opaque compiler-defined derive type
-        let type_arguments = self.intern_type_ids(module, &[])?;
-        let ty = self.intern_type(
-            module,
-            dir::Type::Application(dir::GenericApplication {
-                symbol: application.symbol,
-                arguments: type_arguments,
-            }),
-        )?;
+        let type_arguments = self.intern_type_ids(&[])?;
+        let ty = self.intern_type(dir::Type::Application(dir::GenericApplication {
+            symbol: application.symbol,
+            arguments: type_arguments,
+        }))?;
         let resolution = dir::DecoratorResolution {
             target: dir::DecoratorTarget::LanguageItem {
                 symbol: application.symbol,
@@ -220,13 +215,16 @@ impl BodyState<'_, '_> {
             let symbol = self.resolve_symbol_alias(symbol)?;
 
             // require a newtype provider
-            if !matches!(self.symbol_kind(symbol), dir::SymbolKind::Newtype) {
+            if self
+                .symbol_kind_maybe(symbol)?
+                .is_some_and(|kind| !matches!(kind, dir::SymbolKind::Newtype))
+            {
                 self.report_invalid_derive_provider(origin)?;
 
                 return Ok(Answer::Ready(None));
             }
             let reference = dir::Type::Reference(dir::TypeReference { symbol });
-            let reference = self.intern_type(module, reference)?;
+            let reference = self.intern_type(reference)?;
             self.commit_node_type(target, reference)?;
 
             // collect written generic arguments
@@ -293,7 +291,10 @@ impl BodyState<'_, '_> {
             let symbol = self.resolve_symbol_alias(symbol)?;
 
             // require a newtype provider
-            if !matches!(self.symbol_kind(symbol), dir::SymbolKind::Newtype) {
+            if self
+                .symbol_kind_maybe(symbol)?
+                .is_some_and(|kind| !matches!(kind, dir::SymbolKind::Newtype))
+            {
                 self.report_invalid_derive_provider(origin)?;
 
                 return Ok(Answer::Ready(None));
@@ -340,7 +341,6 @@ impl BodyState<'_, '_> {
         }
 
         Ok(Answer::Ready(Some(SelectedDeriveProvider {
-            origin,
             argument: argument.into_global(module),
             newtype: selection,
             ty,

@@ -421,8 +421,12 @@ impl CheckState<'_> {
                 _ => return Ok(Err(StaticError::NotStatic(expression))),
             }
         }
-        // otherwise read a type declaration as a first-class value
-        else if self.symbol_kind(symbol).can_be_used_as_type() {
+        // otherwise read a type declaration as a first-class value,
+        //  skipping foreign kinds while declaring
+        else if self
+            .symbol_kind_maybe(symbol)?
+            .is_some_and(|kind| kind.can_be_used_as_type())
+        {
             let ty = self.require_node_type(source)?;
             let ty = self.settled_root(ty)?;
 

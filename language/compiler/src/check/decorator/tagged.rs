@@ -4,7 +4,7 @@ use destack_core::{FxIndexMap, FxIndexSet, StringPool};
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::check::{Answer, CheckState, DecoratorApplication, DecoratorObject, Origin};
+use crate::check::{Answer, CheckState, DecoratorApplication, Origin};
 use crate::{CompilerError, CompilerResult};
 
 /// One Tagged provider configuration.
@@ -56,79 +56,158 @@ struct TaggedVariant {
 }
 
 impl CheckState<'_> {
-    /// Apply one compiler-owned derive decorator from its provider values.
-    pub(in crate::check) fn apply_derive_decorator(
-        &mut self,
-        module: ModuleId,
-        application: &DecoratorApplication,
-        resolution: &dir::DecoratorResolution,
-        value: &dir::StaticTerm,
-    ) -> CompilerResult<()> {
-        let dir::DecoratorSelection::Derive { providers } = &resolution.selection else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "derive decorator {:?} has a non-derive selection",
-                    application.expression.decorator
-                ),
-            });
-        };
-        let Some((_, value)) = value.as_newtype() else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "derive decorator {:?} has a non-newtype value",
-                    application.expression.decorator
-                ),
-            });
-        };
-        let Some(values) = value.as_tuple() else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "derive decorator {:?} has a non-tuple value",
-                    application.expression.decorator
-                ),
-            });
-        };
-        if providers.len() != values.len() {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "derive decorator {:?} selected {} providers but evaluated {} values",
-                    application.expression.decorator,
-                    providers.len(),
-                    values.len()
-                ),
-            });
-        }
-
-        // apply providers in authored order
-        for (provider, value) in providers.iter().zip(values) {
-            let argument = provider.argument.local_id;
-            let expression = self
-                .module_view(module)
-                .get(argument)
-                .value()
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("derive provider argument {argument:?} has no expression"),
-                })?;
-            let origin = self.node_site(expression.into_global_any(module))?.origin();
-            match self.global.language.item(provider.newtype.symbol) {
-                Some(dir::LanguageItem::Tagged) => self.apply_tagged_derive(
-                    origin,
-                    application.owner,
-                    provider.newtype.symbol,
-                    value,
-                )?,
-                item => {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "derive provider {:?} has unsupported language item {item:?}",
-                            provider.newtype.symbol
-                        ),
-                    });
-                }
+    /// Apply every walked derive decorator onto its module declarations.
+    ///
+    /// Derived members belong to the declared module, so this pass runs at the end of the walk
+    /// in declare and check alike and reads only written module-local syntax.
+    /// Checking later validates the derive expressions against their provider declarations.
+    pub(in crate::check) fn apply_derive_decorators(&mut self) -> CompilerResult<()> {
+        // select every walked derive application
+        let mut applications = Vec::new();
+        for application in &self.decorators {
+            if self.global.language.item(application.symbol) == Some(dir::LanguageItem::Derive) {
+                applications.push(application.clone());
             }
         }
 
+        // apply each application onto its annotated declaration
+        for application in &applications {
+            self.apply_derive_application(application)?;
+        }
+
         Ok(())
+    }
+
+    /// Apply one walked derive application onto its annotated declaration.
+    fn apply_derive_application(
+        &mut self,
+        application: &DecoratorApplication,
+    ) -> CompilerResult<()> {
+        let module = application.owner.module_id;
+        for argument in application.expression.arguments.iter().copied() {
+            let Some(expression) = self.module_view(module).get(argument).value() else {
+                continue;
+            };
+
+            // split one provider reference from its written options
+            let (target, options) = match self.module_view(module).get(expression) {
+                dir::Expression::Call {
+                    left, arguments, ..
+                } => (*left, arguments.first().copied()),
+                _ => (expression, None),
+            };
+            let options =
+                options.and_then(|argument| self.module_view(module).get(argument).value());
+
+            // providers resolve by language item, without foreign module loads
+            let Some(symbol) = self.reference_symbol(target.into_global_any(module)) else {
+                continue;
+            };
+            let symbol = self.resolve_symbol_alias(symbol)?;
+            if self.global.language.item(symbol) != Some(dir::LanguageItem::Tagged) {
+                continue;
+            }
+
+            // derived members require written literal options
+            let origin = self.node_site(expression.into_global_any(module))?.origin();
+            let Some(options) = self.decode_tagged_options(module, options) else {
+                self.report_undecidable_static_value(module, expression.into_any());
+                continue;
+            };
+            self.apply_tagged_derive(origin, application.owner, symbol, options)?;
+        }
+
+        Ok(())
+    }
+
+    /// Decode literal Tagged options from one written provider argument.
+    fn decode_tagged_options(
+        &self,
+        module: ModuleId,
+        expression: Option<dir::LocalNodeId<dir::Expression>>,
+    ) -> Option<TaggedOptions> {
+        let mut options = TaggedOptions {
+            discriminator: None,
+            case: TaggedCaseConvention::UpperCamel,
+            names: FxIndexMap::default(),
+        };
+        let Some(expression) = expression else {
+            return Some(options);
+        };
+        let dir::Expression::ObjectExpression { properties } =
+            self.module_view(module).get(expression)
+        else {
+            return None;
+        };
+
+        for property in properties {
+            let (key, value) = self.literal_property(module, *property)?;
+            match self.strings().get(key) {
+                "discriminator" => {
+                    options.discriminator = match self.literal_scalar(module, value)? {
+                        dir::ScalarLiteral::Undefined => None,
+                        dir::ScalarLiteral::String(name) => Some(dir::StaticKey::Name(name)),
+                        _ => return None,
+                    };
+                }
+                "case" => {
+                    options.case = match self.literal_scalar(module, value)? {
+                        dir::ScalarLiteral::Undefined => TaggedCaseConvention::UpperCamel,
+                        dir::ScalarLiteral::String(name) => {
+                            TaggedCaseConvention::from_text(self.strings().get(name))?
+                        }
+                        _ => return None,
+                    };
+                }
+                "names" => {
+                    let dir::Expression::ObjectExpression { properties } =
+                        self.module_view(module).get(value)
+                    else {
+                        return None;
+                    };
+                    for property in properties {
+                        let (key, value) = self.literal_property(module, *property)?;
+                        let dir::ScalarLiteral::String(name) =
+                            self.literal_scalar(module, value)?
+                        else {
+                            return None;
+                        };
+                        options.names.insert(key, name);
+                    }
+                }
+                _ => return None,
+            }
+        }
+
+        Some(options)
+    }
+
+    /// Return one written literal object property as a name and value.
+    fn literal_property(
+        &self,
+        module: ModuleId,
+        property: dir::LocalNodeId<dir::Property>,
+    ) -> Option<(dir::StringId, dir::LocalNodeId<dir::Expression>)> {
+        let dir::Property::Field { key, value, .. } = self.module_view(module).get(property) else {
+            return None;
+        };
+        let Some(dir::StaticKey::Name(key)) = key.direct_static_key() else {
+            return None;
+        };
+
+        Some((key, *value))
+    }
+
+    /// Return one written scalar literal expression value.
+    fn literal_scalar(
+        &self,
+        module: ModuleId,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::ScalarLiteral> {
+        match self.module_view(module).get(expression) {
+            dir::Expression::ScalarLiteral(value) => Some(*value),
+            _ => None,
+        }
     }
 
     /// Apply one Tagged provider to its annotated declaration.
@@ -137,7 +216,7 @@ impl CheckState<'_> {
         origin: Origin,
         owner: dir::GlobalNodeIdAny,
         provider: dir::GlobalSymbolId,
-        value: &dir::StaticTerm,
+        options: TaggedOptions,
     ) -> CompilerResult<()> {
         let module = owner.module_id;
         let symbol = self.module(module).declaration_symbol(owner.local_id);
@@ -146,7 +225,7 @@ impl CheckState<'_> {
 
             return Ok(());
         };
-        let (backing, template, is_tagged) = match self.loaded_definition(symbol) {
+        let (backing, template, is_tagged) = match self.definintion_maybe(symbol) {
             Some(dir::Definition::Newtype(definition)) => (
                 definition.backing,
                 definition
@@ -167,7 +246,6 @@ impl CheckState<'_> {
         }
 
         // collect every constructible backing arm before selecting a discriminator
-        let options = TaggedOptions::decode(value, self.strings())?;
         let mut active = FxIndexSet::default();
         let Some(arms) = self.tagged_arms(origin, backing, &mut active)? else {
             self.report_invalid_tagged_variant(origin)?;
@@ -214,18 +292,13 @@ impl CheckState<'_> {
         }
 
         // create one static variant symbol for each validated backing arm
-        let instance = self.declaration_instance(module, symbol)?;
-        let owner_ty = self.intern_type(module, dir::Type::Application(instance))?;
+        let instance = self.declaration_instance(symbol)?;
+        let owner_ty = self.intern_type(dir::Type::Application(instance))?;
         let mut members = Vec::with_capacity(cases.len());
         for (key, variant) in cases {
             let member = self.insert_tagged_variant_symbol(symbol, key)?;
-            let ty = self.tagged_variant_member_type(
-                module,
-                owner_ty,
-                member,
-                template,
-                variant.argument,
-            )?;
+            let ty =
+                self.tagged_variant_member_type(owner_ty, member, template, variant.argument)?;
             self.bind_symbol_type(member, ty)?;
             members.push(dir::DefinitionMember::TaggedVariant(
                 dir::TaggedVariantDefinition {
@@ -289,7 +362,7 @@ impl CheckState<'_> {
             }
 
             // return one structural arm with its checked fields
-            dir::Type::Shape(shape) => {
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
                 let fields = self
                     .shape_properties(ty.module_id, shape.properties)?
                     .to_vec();
@@ -302,8 +375,13 @@ impl CheckState<'_> {
                 Ok(Some(vec![arm]))
             }
 
-            // return structs or flatten a nested newtype
+            // return structs or flatten a nested newtype; derive
+            //  foreign arms only when checking
             dir::Type::Application(instance) => {
+                if self.is_declaration() && !self.is_own_module(instance.symbol.module_id) {
+                    return Ok(None);
+                }
+
                 match self.definition(instance.symbol)? {
                     // return one struct arm with its instantiated fields
                     Some(dir::Definition::Struct(_)) => {
@@ -348,8 +426,7 @@ impl CheckState<'_> {
                         let substitution = self
                             .instance_substitution(ty.module_id, &instance)?
                             .with_receiver(ty);
-                        let backing =
-                            self.substitute_type(origin.module(), backing, &substitution)?;
+                        let backing = self.substitute_type(backing, &substitution)?;
                         let arms = self.tagged_arms(origin, backing, active)?;
                         active.swap_remove(&instance.symbol);
 
@@ -500,7 +577,7 @@ impl CheckState<'_> {
                 index_signatures: dir::TypeListId::EMPTY,
             };
 
-            Some(self.intern_type(module, dir::Type::Shape(shape))?)
+            Some(self.intern_type(dir::Type::from(shape))?)
         };
 
         Ok(TaggedVariant {
@@ -513,23 +590,19 @@ impl CheckState<'_> {
     /// Build one generated tagged variant member type.
     fn tagged_variant_member_type(
         &mut self,
-        module: ModuleId,
         owner: dir::GlobalTypeId,
         member: dir::GlobalSymbolId,
         template: Option<dir::GlobalGenericTemplateId>,
         argument: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let variant = self.intern_type(
-            module,
-            dir::Type::Variant(dir::VariantType {
-                owner,
-                variant: member,
-            }),
-        )?;
+        let variant = self.intern_type(dir::Type::Variant(dir::VariantType {
+            owner,
+            variant: member,
+        }))?;
         let Some(argument) = argument else {
             return Ok(variant);
         };
-        let dir::Type::Shape(shape) = self.ty(argument)? else {
+        let (dir::Type::Shape(shape) | dir::Type::Object(shape)) = self.ty(argument)? else {
             return Err(CompilerError::Internal {
                 message: format!("tagged constructor argument {argument:?} is not a shape"),
             });
@@ -544,7 +617,7 @@ impl CheckState<'_> {
             is_optional,
             is_rest: false,
         };
-        let parameters = self.intern_parameters(module, &[parameter])?;
+        let parameters = self.intern_parameters(&[parameter])?;
         let signature = dir::FunctionSignatureType {
             asynchrony: dir::Asynchrony::Sync,
             template,
@@ -554,7 +627,7 @@ impl CheckState<'_> {
             is_generator: false,
         };
 
-        self.intern_signature(module, signature)
+        self.intern_signature(signature)
     }
 
     /// Insert one generated tagged variant member symbol.
@@ -594,30 +667,6 @@ impl CheckState<'_> {
 }
 
 impl TaggedOptions {
-    /// Decode one Tagged provider value.
-    fn decode(value: &dir::StaticTerm, strings: &StringPool) -> CompilerResult<Self> {
-        let Some((_, value)) = value.as_newtype() else {
-            return Err(CompilerError::Internal {
-                message: "Tagged provider has a non-newtype value".to_string(),
-            });
-        };
-        let mut options = Self {
-            discriminator: None,
-            case: TaggedCaseConvention::UpperCamel,
-            names: FxIndexMap::default(),
-        };
-
-        // decode the selected provider backing
-        if let Some(elements) = value.as_tuple()
-            && elements.is_empty()
-        {
-            return Ok(options);
-        }
-        options.apply_properties(value, strings)?;
-
-        Ok(options)
-    }
-
     /// Return the constructor name selected for one discriminant.
     fn case_name(
         &self,
@@ -645,98 +694,21 @@ impl TaggedOptions {
 
         Some(key)
     }
-
-    /// Apply Tagged options in object evaluation order.
-    fn apply_properties(
-        &mut self,
-        value: &dir::StaticTerm,
-        strings: &StringPool,
-    ) -> CompilerResult<()> {
-        let object = DecoratorObject::try_from(value)?;
-        for (key, value) in object.fields {
-            self.apply_property(key, value, strings)?;
-        }
-
-        Ok(())
-    }
-
-    /// Apply one Tagged option.
-    fn apply_property(
-        &mut self,
-        key: dir::StringId,
-        value: &dir::StaticTerm,
-        strings: &StringPool,
-    ) -> CompilerResult<()> {
-        match strings.get(key) {
-            "discriminator" => {
-                self.discriminator = if value.as_scalar() == Some(dir::ScalarLiteral::Undefined) {
-                    None
-                } else {
-                    let discriminator =
-                        value.as_string().ok_or_else(|| CompilerError::Internal {
-                            message: "Tagged discriminator has a non-string value".to_string(),
-                        })?;
-
-                    Some(dir::StaticKey::Name(discriminator))
-                };
-            }
-            "case" => {
-                self.case = if value.as_scalar() == Some(dir::ScalarLiteral::Undefined) {
-                    TaggedCaseConvention::UpperCamel
-                } else {
-                    TaggedCaseConvention::decode(value, strings)?
-                };
-            }
-            "names" => {
-                self.names.clear();
-                if value.as_scalar() != Some(dir::ScalarLiteral::Undefined) {
-                    self.apply_names(value)?;
-                }
-            }
-            name => {
-                return Err(CompilerError::Internal {
-                    message: format!("Tagged provider has unknown field '{name}'"),
-                });
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Apply explicit Tagged names from one object value.
-    fn apply_names(&mut self, value: &dir::StaticTerm) -> CompilerResult<()> {
-        let object = DecoratorObject::try_from(value)?;
-        for (key, value) in object.fields {
-            let value = value.as_string().ok_or_else(|| CompilerError::Internal {
-                message: "Tagged name has a non-string value".to_string(),
-            })?;
-            self.names.insert(key, value);
-        }
-
-        Ok(())
-    }
 }
 
 impl TaggedCaseConvention {
-    /// Decode one Tagged constructor naming policy.
-    fn decode(value: &dir::StaticTerm, strings: &StringPool) -> CompilerResult<Self> {
-        let value = value.as_string().ok_or_else(|| CompilerError::Internal {
-            message: "Tagged case has a non-string value".to_string(),
-        })?;
-        let case = match strings.get(value) {
+    /// Decode one written case convention name.
+    fn from_text(text: &str) -> Option<Self> {
+        let case = match text {
             "preserve" => Self::Preserve,
             "camelCase" => Self::Camel,
             "UpperCamelCase" => Self::UpperCamel,
             "snake_case" => Self::Snake,
             "SCREAMING_SNAKE_CASE" => Self::ScreamingSnake,
-            value => {
-                return Err(CompilerError::Internal {
-                    message: format!("Tagged provider has invalid case '{value}'"),
-                });
-            }
+            _ => return None,
         };
 
-        Ok(case)
+        Some(case)
     }
 
     /// Apply this naming policy to one discriminant.

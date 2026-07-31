@@ -484,7 +484,9 @@ newtype Shape = { kind: "shape" };
 
 newtype Shape = { kind: "shape" };
 /// @type.symbol symbol=Shape source="newtype Shape = { kind: \"shape\" }" type=Shape
-/// @definition.newtype symbol=Shape source="newtype Shape = { kind: \"shape\" }" backing={ kind: "shape" }
+/// @type.symbol symbol=Shape.Shape type=Shape.Shape
+/// @definition.newtype symbol=Shape source="newtype Shape = { kind: \"shape\" }" discriminator=kind backing={ kind: "shape" }
+/// @definition.variant symbol=Shape.Shape source="newtype Shape = { kind: \"shape\" }" key=Shape discriminant=shape backing={ kind: "shape" }
 "#,
         r#"
 /// @diagnostic.error id=duplicate-derive-provider message="duplicate derive provider 'Tagged'"
