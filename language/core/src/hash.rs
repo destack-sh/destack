@@ -6,11 +6,18 @@ pub type FxIndexMap<K, V> = indexmap::IndexMap<K, V, rustc_hash::FxBuildHasher>;
 /// Insertion-ordered set hashed by the fast session hasher.
 pub type FxIndexSet<T> = indexmap::IndexSet<T, rustc_hash::FxBuildHasher>;
 
+/// The pending buffer size batching tiny updates into one BLAKE3 feed.
+const STABLE_HASHER_BUFFER_BYTES: usize = 512;
+
 /// Deterministic BLAKE3-backed hasher for stable ids and cache keys.
 #[derive(Clone, Debug)]
 pub struct StableHasher {
     /// The underlying BLAKE3 state.
     inner: blake3::Hasher,
+    /// Pending bytes not yet fed into the BLAKE3 state.
+    buffer: [u8; STABLE_HASHER_BUFFER_BYTES],
+    /// The pending byte count.
+    buffered: usize,
 }
 
 impl Default for StableHasher {
@@ -24,12 +31,29 @@ impl StableHasher {
     pub fn new() -> Self {
         Self {
             inner: blake3::Hasher::new(),
+            buffer: [0; STABLE_HASHER_BUFFER_BYTES],
+            buffered: 0,
         }
     }
 
     /// Add raw bytes to the hash stream.
     pub fn update(&mut self, bytes: &[u8]) {
-        self.inner.update(bytes);
+        // buffer small updates until the window fills
+        if self.buffered + bytes.len() <= STABLE_HASHER_BUFFER_BYTES {
+            self.buffer[self.buffered..self.buffered + bytes.len()].copy_from_slice(bytes);
+            self.buffered += bytes.len();
+        }
+        // feed oversized updates straight through
+        else if bytes.len() >= STABLE_HASHER_BUFFER_BYTES {
+            self.flush();
+            self.inner.update(bytes);
+        }
+        // restart the buffer with the overflowing update
+        else {
+            self.flush();
+            self.buffer[..bytes.len()].copy_from_slice(bytes);
+            self.buffered = bytes.len();
+        }
     }
 
     /// Add a length-prefixed byte slice to the hash stream.
@@ -39,19 +63,35 @@ impl StableHasher {
         self.update(bytes);
     }
 
+    /// Feed pending bytes into the BLAKE3 state.
+    fn flush(&mut self) {
+        if self.buffered > 0 {
+            self.inner.update(&self.buffer[..self.buffered]);
+            self.buffered = 0;
+        }
+    }
+
+    /// Return the BLAKE3 digest including pending bytes.
+    fn digest(&self) -> blake3::Hash {
+        let mut inner = self.inner.clone();
+        inner.update(&self.buffer[..self.buffered]);
+
+        inner.finalize()
+    }
+
     /// Finish the hash stream as a 64-bit value.
     pub fn finish_u64(&self) -> u64 {
-        hash_to_u64(self.inner.finalize())
+        hash_to_u64(self.digest())
     }
 
     /// Finish the hash stream as a 128-bit value.
     pub fn finish_u128(&self) -> u128 {
-        hash_to_u128(self.inner.finalize())
+        hash_to_u128(self.digest())
     }
 
     /// Finish the hash stream as a full BLAKE3 digest.
     pub fn finish_bytes(&self) -> [u8; 32] {
-        *self.inner.finalize().as_bytes()
+        *self.digest().as_bytes()
     }
 }
 
