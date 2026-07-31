@@ -1522,12 +1522,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
 
     /// Return the storage for a reference-like type.
     fn reference_storage(ty: &mir::Type) -> Option<mir::Storage> {
-        match ty {
-            mir::Type::Reference { storage, .. }
-            | mir::Type::Slice { storage, .. }
-            | mir::Type::TensorView { storage, .. } => Some(*storage),
-            _ => None,
-        }
+        ty.reference_storage()
     }
 
     /// Return borrow sources from a MIR lifetime.

@@ -121,7 +121,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Place> {
         // root the place at the reference value for reference receivers
         let ty = self.node_type_id(expression)?;
-        if let Some(layer) = self.lowerer.peel_reference(ty)? {
+        if let Some(layer) = self.lowerer.peel_reference(ty, &self.type_substitution)? {
             let value = self.lower_expression(expression)?;
 
             return Ok(Place {

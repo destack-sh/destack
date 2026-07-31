@@ -86,7 +86,9 @@ impl FunctionLowerer<'_, '_, '_> {
                         self.lower_borrowed_place(expression, target)?
                     }
                     CoercionValue::Runtime(value)
-                        if self.lowerer.has_reference_representation(source)? =>
+                        if self
+                            .lowerer
+                            .has_reference_representation(source, &self.type_substitution)? =>
                     {
                         self.builder.cast(mir::CastOperator::Bitcast, value, target)
                     }
@@ -154,7 +156,10 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         // borrow reference sources as a kind change
         let source = self.node_type_id(expression)?;
-        if self.lowerer.has_reference_representation(source)? {
+        if self
+            .lowerer
+            .has_reference_representation(source, &self.type_substitution)?
+        {
             let value = self.lower_expression_value(expression)?;
 
             return Ok(self.builder.cast(mir::CastOperator::Bitcast, value, target));

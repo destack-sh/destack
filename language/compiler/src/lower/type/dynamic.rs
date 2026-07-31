@@ -13,7 +13,11 @@ impl TypeLowerer<'_, '_> {
         let constraint = self.lower_dynamic_constraint(constraint)?;
 
         Ok(self.tree.intern_type(mir::Type::Dynamic {
+            kind: mir::ReferenceKind::Managed,
+            lifetime: mir::Lifetime::empty(),
             constraint,
+            storage: mir::Storage::Heap(mir::Space::Local),
+            access: mir::Access::Mutable,
             nullability: mir::Nullability::None,
         }))
     }

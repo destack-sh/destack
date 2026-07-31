@@ -16,10 +16,25 @@ impl FunctionLowerer<'_, '_, '_> {
 
         match *self.builder.tree().get(ty) {
             // fat values pair the function with an empty environment
-            mir::Type::Function { environment, .. } => {
+            mir::Type::Function {
+                kind,
+                lifetime,
+                storage,
+                access,
+                ..
+            } => {
                 let Ok(function) = self.function(&key) else {
                     return Err(self.foreign_function_error());
                 };
+                let pointee = self.builder.tree_mut().void_type();
+                let environment = self.builder.tree_mut().intern_type(mir::Type::Reference {
+                    kind,
+                    lifetime,
+                    storage,
+                    access,
+                    pointee,
+                    nullability: mir::Nullability::Null,
+                });
                 let environment = self.builder.constant(mir::Constant::Null, environment);
 
                 Ok(Some(self.builder.function_bind(function, ty, environment)))

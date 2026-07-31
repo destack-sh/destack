@@ -198,7 +198,11 @@ impl TypeLowerer<'_, '_> {
             | dir::Definition::TypeAlias(_) => ty,
             // erase interface storage behind the constraint's dynamic
             dir::Definition::Interface(_) => self.tree.intern_type(mir::Type::Dynamic {
+                kind: mir::ReferenceKind::Managed,
+                lifetime: mir::Lifetime::empty(),
                 constraint: mir::TypeId::from(ty),
+                storage: mir::Storage::Heap(mir::Space::Local),
+                access: mir::Access::Mutable,
                 nullability: mir::Nullability::None,
             }),
             _ => {
@@ -395,7 +399,7 @@ impl TypeLowerer<'_, '_> {
             type_substitution,
             lifetime_parameters,
             lifetimes,
-            type_arguments: representations,
+            type_arguments: concrete_types,
         })
     }
 
@@ -415,13 +419,13 @@ impl TypeLowerer<'_, '_> {
             };
         }
 
-        let applied_storage = self.tree.intern_type(mir::Type::WithLifetimes {
+        let applied_storage = self.tree.intern_type(mir::Type::Application {
             base: storage,
             lifetimes: lifetimes.to_vec(),
         });
         let applied_value = match value == storage {
             true => applied_storage,
-            false => self.tree.intern_type(mir::Type::WithLifetimes {
+            false => self.tree.intern_type(mir::Type::Application {
                 base: value,
                 lifetimes: lifetimes.to_vec(),
             }),

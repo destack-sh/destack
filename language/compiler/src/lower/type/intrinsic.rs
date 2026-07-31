@@ -31,7 +31,7 @@ impl TypeLowerer<'_, '_> {
                             kind: mir::ReferenceKind::Unique,
                             lifetime: mir::Lifetime::empty(),
                             element,
-                            space: mir::Space::Local,
+                            storage: mir::Storage::Heap(mir::Space::Local),
                             access: mir::Access::Exclusive,
                             nullability: mir::Nullability::None,
                         }
@@ -42,7 +42,7 @@ impl TypeLowerer<'_, '_> {
                         mir::Type::Reference {
                             kind: mir::ReferenceKind::Unique,
                             lifetime: mir::Lifetime::empty(),
-                            space: mir::Space::Local,
+                            storage: mir::Storage::Heap(mir::Space::Local),
                             access: mir::Access::Exclusive,
                             pointee,
                             nullability: mir::Nullability::None,

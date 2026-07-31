@@ -159,12 +159,14 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             dir::Type::This => self.lower_receiver_value(),
             // ride the reference carrier's niches for nullable unions
             dir::Type::Union(union) => {
-                if let Some((nullability, carrier)) =
-                    self.lowerer.decompose_nullish_union(id.module_id, &union)?
-                {
+                if let Some((nullability, carrier)) = self.lowerer.decompose_nullish_union(
+                    id.module_id,
+                    &union,
+                    self.type_substitution,
+                )? {
                     let reference = self.lower(carrier)?;
 
-                    return self.insert_nullable_reference(reference, nullability);
+                    return self.insert_nullability(reference, nullability);
                 }
 
                 // store non-nullish unions as indexed variants
@@ -188,7 +190,6 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             }
             // erase structural rows behind the dynamic carrier
             dir::Type::Shape(_) | dir::Type::Unknown => self.lower_dynamic(id),
-            dir::Type::Dynamic(dynamic) => self.lower_dynamic(dynamic.constraint),
             // resolve memory forms through the form algebra
             dir::Type::Form(_) => self.lower_form(id, None),
             // lower slice values as fat headers over managed element storage
@@ -198,7 +199,14 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                 mir::Access::Mutable,
                 id,
             ),
-            // lower fixed arrays to their inline element storage
+            // dynamic and callable values are managed fat references by default
+            dir::Type::Dynamic(_) | dir::Type::Function(_) => self.lower_reference(
+                mir::ReferenceKind::Managed,
+                mir::Lifetime::empty(),
+                mir::Access::Mutable,
+                id,
+            ),
+            // fixed arrays lower to their inline element storage
             dir::Type::FixedArray(fixed) => {
                 let element = self.lower(fixed.element)?;
                 let length = self.lowerer.fixed_array_length(fixed.count)?;
@@ -220,23 +228,24 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
 
                 Ok(self.insert_tuple(elements))
             }
-            // pair a code pointer with an erased environment for function values
-            dir::Type::Function(function) => self.lower_function(&function),
             dir::Type::FunctionPointer(pointer) => {
-                let signature = self.lower_signature_type(pointer.signature)?;
+                let signature = self.lower_callable_signature(pointer.signature)?;
 
-                Ok(self.tree.intern_type(mir::Type::FunctionPointer {
-                    signature: mir::TypeId::from(signature),
-                }))
+                Ok(self
+                    .tree
+                    .intern_type(mir::Type::FunctionPointer { signature }))
             }
-            // lower a bare signature in value position as the fat callable
+            // lower a bare signature in value position as a managed callable
             dir::Type::FunctionSignature(_) => {
-                let signature = self.lower_signature_type(id)?;
-                let environment = self.erased_environment();
+                let signature = self.lower_callable_signature(id)?;
 
                 Ok(self.tree.intern_type(mir::Type::Function {
-                    signature: mir::TypeId::from(signature),
-                    environment: mir::TypeId::from(environment),
+                    kind: mir::ReferenceKind::Managed,
+                    lifetime: mir::Lifetime::empty(),
+                    signature,
+                    storage: mir::Storage::Heap(mir::Space::Local),
+                    access: mir::Access::Mutable,
+                    nullability: mir::Nullability::None,
                 }))
             }
             // lower never without a value

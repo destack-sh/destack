@@ -193,7 +193,10 @@ impl FunctionLowerer<'_, '_, '_> {
         let value = self.lower_member_receiver(value, &field.receiver)?;
 
         // load fields through addresses for reference receivers
-        if let Some(layer) = self.lowerer.peel_reference(receiver)? {
+        if let Some(layer) = self
+            .lowerer
+            .peel_reference(receiver, &self.type_substitution)?
+        {
             let address = self.emit_field_address(value, index, result_type, layer.access);
 
             return Ok(self.builder.load(address, result_type));
@@ -257,9 +260,14 @@ impl FunctionLowerer<'_, '_, '_> {
         field: &dir::FieldResolution,
     ) -> CompilerResult<u32> {
         // locate storage in the selected receiver
-        let stored = match self.lowerer.peel_reference(field.receiver.ty())? {
+        let stored = match self
+            .lowerer
+            .peel_reference(field.receiver.ty(), &self.type_substitution)?
+        {
             Some(layer) => layer.stored,
-            None => self.lowerer.peel_owned(field.receiver.ty())?,
+            None => self
+                .lowerer
+                .peel_owned(field.receiver.ty(), &self.type_substitution)?,
         };
 
         // find the field's position in the storage the receiver declares

@@ -86,7 +86,7 @@ impl TypeLowerer<'_, '_> {
                 }
             }
 
-            let signature = self.lower_signature_row(&signature, reduced.module_id)?;
+            let signature = self.lower_callable_signature(reduced)?;
             let name = self.lowerer.symbol_name(method.symbol)?;
             slots.push(mir::DynamicSlot::Function { name, signature });
         }

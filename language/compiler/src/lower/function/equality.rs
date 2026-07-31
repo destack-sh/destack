@@ -73,10 +73,14 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let ty = self.node_type_id(expression)?;
-        let Some(layer) = self.lowerer.peel_reference(ty)? else {
+        let Some(layer) = self.lowerer.peel_reference(ty, &self.type_substitution)? else {
             return Ok(ty);
         };
-        if self.lowerer.peel_reference(layer.stored)?.is_some() {
+        if self
+            .lowerer
+            .peel_reference(layer.stored, &self.type_substitution)?
+            .is_some()
+        {
             return Ok(ty);
         }
 
@@ -110,8 +114,12 @@ impl FunctionLowerer<'_, '_, '_> {
         let mut value = self.lower_expression(expression)?;
 
         // read non-reference values through their borrowed views
-        if let Some(layer) = self.lowerer.peel_reference(carrier)?
-            && !self.lowerer.has_reference_representation(layer.stored)?
+        if let Some(layer) = self
+            .lowerer
+            .peel_reference(carrier, &self.type_substitution)?
+            && !self
+                .lowerer
+                .has_reference_representation(layer.stored, &self.type_substitution)?
         {
             carrier = layer.stored;
             let pointee = self.lower_type(carrier)?;

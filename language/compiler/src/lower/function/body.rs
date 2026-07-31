@@ -217,9 +217,9 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<NominalInstance> {
-        let stored = match self.lowerer.peel_reference(id)? {
+        let stored = match self.lowerer.peel_reference(id, &self.type_substitution)? {
             Some(reference) => reference.stored,
-            None => self.lowerer.peel_owned(id)?,
+            None => self.lowerer.peel_owned(id, &self.type_substitution)?,
         };
         let dir::Type::Application(instance) = self.lowerer.ty(stored)? else {
             return Err(CompilerError::Internal {

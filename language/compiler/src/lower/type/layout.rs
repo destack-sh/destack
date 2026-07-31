@@ -172,7 +172,7 @@ impl<'tree> LayoutBuilder<'tree> {
             | mir::Type::TypeId
             | mir::Type::Atomic { .. }
             | mir::Type::Dynamic { .. }
-            | mir::Type::WithLifetimes { .. }
+            | mir::Type::Application { .. }
             | mir::Type::Reference { .. }
             | mir::Type::Slice { .. }
             | mir::Type::Uninit { .. }
@@ -209,7 +209,7 @@ impl<'tree> LayoutBuilder<'tree> {
         // transparent storage forms share their represented layout exactly
         let represented = match self.tree.get(ty) {
             mir::Type::Atomic { value }
-            | mir::Type::WithLifetimes { base: value, .. }
+            | mir::Type::Application { base: value, .. }
             | mir::Type::Uninit { value }
             | mir::Type::ManuallyDrop { value } => Some(*value),
             _ => None,
@@ -314,7 +314,7 @@ impl<'tree> LayoutBuilder<'tree> {
                 })
             }
 
-            // pack struct fields largest alignment first
+            // structs pack their named fields largest alignment first
             mir::Type::Struct { fields, .. } => {
                 let mut components = Vec::with_capacity(fields.len());
                 for field in fields {
@@ -391,10 +391,11 @@ impl<'tree> LayoutBuilder<'tree> {
                 })
             }
 
-            // owning tensors carry one managed storage handle
+            // tensors carry one storage reference
             mir::Type::Tensor {
+                kind,
+                storage,
                 element,
-                space,
                 shape,
                 format,
                 sharding,
@@ -411,7 +412,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     }),
                     size: self.pointer_bytes(),
                     alignment: self.pointer_alignment(),
-                    trace_map: Self::managed_trace(space),
+                    trace_map: Self::reference_trace(kind, storage),
                 })
             }
 
@@ -449,25 +450,24 @@ impl<'tree> LayoutBuilder<'tree> {
                 })
             }
 
-            // dynamic values store a managed payload and dispatch table id
-            mir::Type::Dynamic { space, .. } => Ok(mir::Layout {
+            // dynamic values store one erased payload reference and dispatch table id
+            mir::Type::Dynamic { kind, storage, .. } => Ok(mir::Layout {
                 shape: mir::LayoutShape::Dynamic,
                 size: self.pointer_bytes() * 2,
                 alignment: self.pointer_alignment(),
-                trace_map: Self::managed_trace(space),
+                trace_map: Self::reference_trace(kind, storage),
             }),
 
-            // closures store a code pointer and environment value
-            mir::Type::Function { environment, .. } => {
-                let environment_layout = self.layout_type(environment)?;
-                let environment_layout = self.layouts.layout(environment_layout).clone();
+            // closures store a code pointer and erased environment reference
+            mir::Type::Function { kind, storage, .. } => {
                 let environment_offset = self.pointer_bytes();
+                let environment_trace = Self::reference_trace(kind, storage);
 
                 Ok(mir::Layout {
                     shape: mir::LayoutShape::Function,
                     size: self.pointer_bytes() * 2,
                     alignment: self.pointer_alignment(),
-                    trace_map: Self::nested_trace(environment_offset, environment_layout.trace_map),
+                    trace_map: Self::nested_trace(environment_offset, environment_trace),
                 })
             }
 
@@ -479,7 +479,7 @@ impl<'tree> LayoutBuilder<'tree> {
 
             // transparent storage forms are handled before layout construction
             mir::Type::Atomic { .. }
-            | mir::Type::WithLifetimes { .. }
+            | mir::Type::Application { .. }
             | mir::Type::Uninit { .. }
             | mir::Type::ManuallyDrop { .. }
             | mir::Type::Error

@@ -57,7 +57,7 @@ impl ModuleLowerer<'_> {
             let initializer = self.constant_initializer(builder, &term, declared)?;
             let ty = self.constant_type(builder, declared)?;
             let name = self.constant_name(symbol)?;
-            let global = builder.global_constant(&name, ty, initializer);
+            let global = builder.constant(&name, ty, initializer);
             self.globals.insert(symbol, global);
         }
 
