@@ -77,6 +77,16 @@
                     "default": "",
                     "markdownDescription": "Working directory for the language server. Supports `~` and `${workspaceFolder}`."
                 },
+                "destack.trace.server": {
+                    "type": "string",
+                    "enum": [
+                        "off",
+                        "messages",
+                        "verbose"
+                    ],
+                    "default": "off",
+                    "description": "Trace language server queries and artifact execution in the Destack output."
+                },
                 "destack.completion.autoImports": {
                     "type": "boolean",
                     "default": true,
