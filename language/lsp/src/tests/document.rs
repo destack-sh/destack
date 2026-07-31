@@ -83,6 +83,53 @@ export function useOld(): void {
         .await;
 }
 
+/// Return exact target URIs for resolved module links.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_return_resolved_document_links() {
+    let manifest = r#"{
+  "name": "lsp-fixture",
+  "targets": {
+    "default": {
+      "include": ["src/**/*.ds"]
+    }
+  },
+  "defaultTarget": "default"
+}
+"#;
+    let source = r#"import { value } from "./library.ds";
+"#;
+    let mut server = TestServer::new("resolved-document-links");
+    server.write("destack.json", manifest);
+    let library = server.write("src/library.ds", "export const value = 1;\n");
+    let document = server.write("src/main.ds", source);
+    server
+        .initialize(lsp::ClientCapabilities::default(), None)
+        .await
+        .unwrap();
+    server.initialized().await;
+
+    // map the authored specifier to its exact source identity
+    server.open(&document, 1, source).await;
+    server
+        .assert_notification::<lsp::notification::PublishDiagnostics>(
+            lsp::PublishDiagnosticsParams {
+                uri: document.uri().clone(),
+                diagnostics: Vec::new(),
+                version: Some(1),
+            },
+        )
+        .await;
+    let expected = Some(vec![lsp::DocumentLink {
+        range: range(0, 22, 0, 36),
+        target: Some(library.uri().clone()),
+        tooltip: None,
+        data: None,
+    }]);
+    server
+        .assert_request::<lsp::request::DocumentLinkRequest>(document.links(), Ok(expected))
+        .await;
+}
+
 /// Complete concurrent semantic document requests over shared artifacts.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_run_concurrent_document_queries() {

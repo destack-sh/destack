@@ -367,15 +367,11 @@ impl DocumentSet {
     /// Render one hover item as Markdown.
     fn render_hover_item(&self, item: &query::HoverItem) -> jsonrpc::Result<String> {
         let document = self.document(item.target.span.file)?;
-        let path = document
-            .file()
-            .path
-            .as_ref()
-            .ok_or_else(|| internal_error("hover target file has no source path"))?;
+        let uri = document.uri()?;
         let position = document.position(item.target.selection_span.start)?;
         let location = format!(
             "{}:{}:{}",
-            path.to_string_lossy(),
+            uri.as_str(),
             position.line + 1,
             position.character + 1
         );

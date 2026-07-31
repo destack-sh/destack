@@ -2,7 +2,7 @@ use destack_lsp_server::jsonrpc;
 use destack_lsp_types as lsp;
 use destack_query as query;
 
-use super::{Document, DocumentUri};
+use super::{Document, DocumentSet};
 use crate::server::internal_error;
 
 /// Semantic token types in legend order.
@@ -350,16 +350,11 @@ impl Document {
     }
 }
 
-impl Document {
+impl DocumentSet {
     /// Encode one document link as an LSP document link.
     pub(crate) fn link(&self, link: &query::Link) -> jsonrpc::Result<lsp::DocumentLink> {
-        let range = self.range(link.range)?;
-        let target = DocumentUri::path(&link.path).ok_or_else(|| {
-            internal_error(format!(
-                "document link path has no representable LSP URI: {}",
-                link.path.display()
-            ))
-        })?;
+        let range = self.document(link.range.file)?.range(link.range)?;
+        let target = self.document(link.target)?.uri()?;
 
         Ok(lsp::DocumentLink {
             range,

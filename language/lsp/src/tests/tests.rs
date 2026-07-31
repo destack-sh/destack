@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Duration;
 
 use destack_lsp_server::jsonrpc::{self, Id};
@@ -273,7 +273,7 @@ impl TestServer {
         let path = self.file_system.path_for(path);
         let uri = uri(&path);
 
-        TestDocument { path, uri }
+        TestDocument { uri }
     }
 
     /// Receive one server initiated protocol message.
@@ -288,18 +288,11 @@ impl TestServer {
 /// One workspace document used by an LSP test.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct TestDocument {
-    /// Absolute filesystem path.
-    path: PathBuf,
     /// LSP document URI.
     uri: lsp::Uri,
 }
 
 impl TestDocument {
-    /// Return the absolute filesystem path.
-    pub(super) fn path(&self) -> &Path {
-        &self.path
-    }
-
     /// Return the LSP document URI.
     pub(super) fn uri(&self) -> &lsp::Uri {
         &self.uri
@@ -373,6 +366,15 @@ impl TestDocument {
     /// Build semantic token parameters for this document.
     pub(super) fn semantic_tokens(&self) -> lsp::SemanticTokensParams {
         lsp::SemanticTokensParams {
+            text_document: self.identifier(),
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+            partial_result_params: lsp::PartialResultParams::default(),
+        }
+    }
+
+    /// Build document link parameters for this document.
+    pub(super) fn links(&self) -> lsp::DocumentLinkParams {
+        lsp::DocumentLinkParams {
             text_document: self.identifier(),
             work_done_progress_params: lsp::WorkDoneProgressParams::default(),
             partial_result_params: lsp::PartialResultParams::default(),

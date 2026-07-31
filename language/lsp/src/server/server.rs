@@ -1708,12 +1708,12 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
-        let document = Document::new(query_file.file.clone());
         let request = query::QueryRequest::Links(query::LinksRequest {
             module: query_file.module,
             file_id: query_file.file.id,
         });
         let response = self.query_module(&query_file, request).await?;
+        let revision = response.revision;
         let query::QueryResponse::Links(response) = response.response else {
             return Err(internal_error("query did not return links"));
         };
@@ -1722,10 +1722,14 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         }
 
+        // load exact source and target documents
+        let file_ids = links.iter().flat_map(|link| [link.range.file, link.target]);
+        let documents = self.load_documents(&query_file.path, revision, file_ids)?;
+
         // build LSP links
         let lsp_links = links
             .iter()
-            .map(|query_link| document.link(query_link))
+            .map(|query_link| documents.link(query_link))
             .collect::<jsonrpc::Result<Vec<_>>>()?;
 
         Ok(Some(lsp_links))

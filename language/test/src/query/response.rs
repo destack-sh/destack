@@ -677,10 +677,10 @@ fn link_rows(run: &QueryRun<'_>, links: &[Link]) -> Result<Vec<QueryRow>, String
     let rows = links
         .iter()
         .map(|link| {
-            let path = run.format_module_path(&link.path)?;
+            let path = run.path(link.target)?;
             let row = QueryRow::new("links.link")
                 .field("range", run.format_span(link.range)?)
-                .field("path", path);
+                .field("path", display_query_path(path));
 
             Ok(row)
         })

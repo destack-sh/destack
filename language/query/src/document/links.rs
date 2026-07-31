@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use destack_dir as dir;
 use destack_repository::RepositoryError;
 use destack_serde::Reflect;
@@ -13,17 +11,14 @@ use crate::{Module, ModuleQueryContext, QueryError, QueryResult};
 pub struct Link {
     /// The range of the link in the module.
     pub range: Span,
-    /// The resolved target file path.
-    pub path: PathBuf,
+    /// The resolved target source file.
+    pub target: FileId,
 }
 
 impl Link {
     /// Create a file link.
-    fn new(range: Span, path: impl Into<PathBuf>) -> Self {
-        Self {
-            range,
-            path: path.into(),
-        }
+    fn new(range: Span, target: FileId) -> Self {
+        Self { range, target }
     }
 }
 
@@ -71,10 +66,6 @@ impl ModuleQueryContext<'_> {
                 .ok_or(RepositoryError::MissingModule {
                     module: target_module_id,
                 })?;
-            let Some(path) = target_module.path.as_ref() else {
-                continue;
-            };
-
             let span = self
                 .node_selection_span(view, expression_id.into())
                 .ok_or(QueryError::missing(format!("link span: {node_id:?}")))?;
@@ -82,7 +73,7 @@ impl ModuleQueryContext<'_> {
                 continue;
             }
 
-            links.push(Link::new(span, path));
+            links.push(Link::new(span, target_module.file_id));
         }
 
         links.sort_by_key(|link| (link.range.start, link.range.end));

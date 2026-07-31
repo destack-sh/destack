@@ -23,7 +23,7 @@ async fn test_open_nested_package() {
         contents: lsp::HoverContents::Markup(markdown(format!(
             "**Signature**\n\n```ds\nexport function answer(): float64\n```\n\n\
              **Location**\n\n`{}:1:17`",
-            document.path().display()
+            document.uri().as_str()
         ))),
         range: Some(range(0, 16, 0, 22)),
     };
@@ -74,7 +74,7 @@ async fn test_publish_latest_document_revision() {
         contents: lsp::HoverContents::Markup(markdown(format!(
             "**Signature**\n\n```ds\nexport function answer(): float64\n```\n\n\
              **Location**\n\n`{}:1:17`",
-            document.path().display()
+            document.uri().as_str()
         ))),
         range: Some(range(0, 16, 0, 22)),
     };
@@ -131,7 +131,7 @@ async fn test_apply_incremental_document_changes() {
         contents: lsp::HoverContents::Markup(markdown(format!(
             "**Signature**\n\n```ds\nexport function choose(input: string): string\n```\n\n\
              **Location**\n\n`{}:1:17`",
-            document.path().display()
+            document.uri().as_str()
         ))),
         range: Some(range(0, 16, 0, 22)),
     };
@@ -160,7 +160,7 @@ async fn test_restore_file_after_closing_document() {
         contents: lsp::HoverContents::Markup(markdown(format!(
             "**Signature**\n\n```ds\nexport function answer(): boolean\n```\n\n\
              **Location**\n\n`{}:1:17`",
-            document.path().display()
+            document.uri().as_str()
         ))),
         range: Some(range(0, 16, 0, 22)),
     };
@@ -175,7 +175,7 @@ async fn test_restore_file_after_closing_document() {
         contents: lsp::HoverContents::Markup(markdown(format!(
             "**Signature**\n\n```ds\nexport function answer(): float64\n```\n\n\
              **Location**\n\n`{}:1:17`",
-            document.path().display()
+            document.uri().as_str()
         ))),
         range: Some(range(0, 16, 0, 22)),
     };
@@ -210,7 +210,7 @@ async fn test_save_document_contents() {
         contents: lsp::HoverContents::Markup(markdown(format!(
             "**Signature**\n\n```ds\nexport function answer(): string\n```\n\n\
              **Location**\n\n`{}:1:17`",
-            document.path().display()
+            document.uri().as_str()
         ))),
         range: Some(range(0, 16, 0, 22)),
     };
@@ -254,7 +254,7 @@ async fn test_retain_project_for_open_document() {
         contents: lsp::HoverContents::Markup(markdown(format!(
             "**Signature**\n\n```ds\nexport function answer(): float64\n```\n\n\
              **Location**\n\n`{}:1:17`",
-            document.path().display()
+            document.uri().as_str()
         ))),
         range: Some(range(0, 16, 0, 22)),
     };
@@ -267,7 +267,7 @@ async fn test_retain_project_for_open_document() {
     let params = document.hover(position(0, 16));
     let expected = Err(jsonrpc::Error::invalid_params(format!(
         "no Destack project owns {}",
-        document.path().display()
+        document.uri().as_str()
     )));
     server
         .assert_request::<lsp::request::HoverRequest>(params, expected)

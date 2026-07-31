@@ -766,21 +766,6 @@ impl<'a> QueryRun<'a> {
         ))
     }
 
-    /// Require one declared workspace-relative module path.
-    pub(super) fn format_module_path(&self, value: &Path) -> Result<String, String> {
-        self.files
-            .values
-            .keys()
-            .find(|path| path.as_path() == value)
-            .map(|path| display_query_path(path))
-            .ok_or_else(|| {
-                format!(
-                    "query response names undeclared module path '{}'",
-                    value.display()
-                )
-            })
-    }
-
     /// Apply and compare every complete edited file.
     fn require_files(&self, patches: &PatchSet, expected: &[QueryFile]) -> Result<(), String> {
         let mut expected_by_path = HashMap::with_capacity(expected.len());
