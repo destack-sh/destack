@@ -378,6 +378,30 @@ impl TestDocument {
             partial_result_params: lsp::PartialResultParams::default(),
         }
     }
+
+    /// Build code action parameters for this document.
+    pub(super) fn code_actions(
+        &self,
+        range: lsp::Range,
+        context: lsp::CodeActionContext,
+    ) -> lsp::CodeActionParams {
+        lsp::CodeActionParams {
+            text_document: self.identifier(),
+            range,
+            context,
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+            partial_result_params: lsp::PartialResultParams::default(),
+        }
+    }
+
+    /// Build code lens parameters for this document.
+    pub(super) fn code_lenses(&self) -> lsp::CodeLensParams {
+        lsp::CodeLensParams {
+            text_document: self.identifier(),
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+            partial_result_params: lsp::PartialResultParams::default(),
+        }
+    }
 }
 
 /// One typed client request being evaluated by the server.
