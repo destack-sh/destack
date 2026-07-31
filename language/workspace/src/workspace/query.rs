@@ -201,9 +201,9 @@ impl QueryRun {
 }
 
 /// Artifact roots selected for one semantic query.
-struct QueryArtifacts {
-    /// Semantic roots that must provide ready payloads.
-    required: Vec<ArtifactKey>,
+struct QueryRoots {
+    /// Artifact roots whose payloads the query reads.
+    artifacts: Vec<ArtifactKey>,
     /// Diagnostic roots that may have failed terminal outcomes.
     diagnostics: Vec<ArtifactKey>,
 }
@@ -249,18 +249,18 @@ impl LocalWorkspace {
         };
 
         // schedule every query artifact root into one operation trace
-        let artifact_keys = session.query_artifacts(&request.request)?;
+        let roots = session.query_roots(&request.request)?;
         let trace = session.session().start_trace();
         let required = session.session().schedule_artifacts_traced(
             session.revision(),
-            &artifact_keys.required,
+            &roots.artifacts,
             ArtifactPriority::Foreground,
             trace.clone(),
         );
-        let diagnostics = (!artifact_keys.diagnostics.is_empty()).then(|| {
+        let diagnostics = (!roots.diagnostics.is_empty()).then(|| {
             session.session().schedule_artifacts_traced(
                 session.revision(),
-                &artifact_keys.diagnostics,
+                &roots.diagnostics,
                 ArtifactPriority::Foreground,
                 trace.clone(),
             )
@@ -287,31 +287,31 @@ impl LocalWorkspace {
 
 impl SessionPin {
     /// Return the complete artifact roots for one query.
-    fn query_artifacts(&self, request: &QueryRequest) -> Result<QueryArtifacts, Error> {
-        let mut required = Vec::new();
+    fn query_roots(&self, request: &QueryRequest) -> Result<QueryRoots, Error> {
+        let mut artifacts = Vec::new();
 
         // provide the semantic scope selected by the request
         match request.scope() {
             QueryScope::Module(module) => {
-                Self::push_module_artifacts(module, &mut required);
+                Self::push_module_artifacts(module, &mut artifacts);
             }
             QueryScope::Program(profile_id) => {
-                self.push_program_artifacts(request, profile_id, &mut required)?;
+                self.push_program_artifacts(request, profile_id, &mut artifacts)?;
 
                 if let Some(module) = request.module() {
-                    Self::push_module_artifacts(module, &mut required);
+                    Self::push_module_artifacts(module, &mut artifacts);
                 }
             }
             QueryScope::Workspace => {
                 for profile_id in self.selected_profile_ids()? {
-                    self.push_program_artifacts(request, profile_id, &mut required)?;
+                    self.push_program_artifacts(request, profile_id, &mut artifacts)?;
                 }
             }
         }
 
         // completion additionally reads the selected global environment
         if let QueryRequest::Completion(params) = request {
-            required.push(ArtifactKey::global_environment(
+            artifacts.push(ArtifactKey::global_environment(
                 params.position.module.profile_id,
             ));
         }
@@ -325,13 +325,13 @@ impl SessionPin {
             Vec::new()
         };
 
-        required.sort_unstable();
-        required.dedup();
+        artifacts.sort_unstable();
+        artifacts.dedup();
         diagnostics.sort_unstable();
         diagnostics.dedup();
 
-        Ok(QueryArtifacts {
-            required,
+        Ok(QueryRoots {
+            artifacts,
             diagnostics,
         })
     }
@@ -351,13 +351,13 @@ impl SessionPin {
         profile_id: ProfileId,
         artifacts: &mut Vec<ArtifactKey>,
     ) -> Result<(), Error> {
-        let required = ProgramQueryContext::artifact_keys(
+        let roots = ProgramQueryContext::artifact_roots(
             self.repository(),
             self.revision(),
             profile_id,
             request.method(),
         )?;
-        artifacts.extend(required);
+        artifacts.extend(roots);
 
         Ok(())
     }
@@ -420,7 +420,7 @@ impl SessionPin {
                 QueryResponse::CodeLenses(CodeLensesResponse { lenses })
             }
             QueryRequest::FoldingRanges(params) => {
-                let context = self.module_context(params.module)?;
+                let context = self.module(params.module)?;
                 let ranges = context.folding_ranges(params.file_id)?;
 
                 QueryResponse::FoldingRanges(FoldingRangesResponse { ranges })
@@ -455,7 +455,7 @@ impl SessionPin {
                 QueryResponse::SearchSymbols(SearchSymbolsResponse { symbols })
             }
             QueryRequest::Links(params) => {
-                let context = self.module_context(params.module)?;
+                let context = self.module(params.module)?;
                 let links = context.links(params.file_id)?;
 
                 QueryResponse::Links(LinksResponse { links })
@@ -469,7 +469,7 @@ impl SessionPin {
                 QueryResponse::Highlight(HighlightResponse { highlights })
             }
             QueryRequest::SelectionRanges(params) => {
-                let context = self.module_context(params.module)?;
+                let context = self.module(params.module)?;
                 let ranges = context.selection_ranges(params.file_id, &params.offsets)?;
 
                 QueryResponse::SelectionRanges(SelectionRangesResponse { ranges })
@@ -669,15 +669,15 @@ impl SessionPin {
         Ok(response)
     }
 
-    /// Return the module query context for one module.
-    fn module_context(&self, module: Module) -> Result<ModuleQueryContext<'_>, Error> {
-        let repository = self.repository();
-        let revision = self.revision();
-
-        // build the module context over exact ready revision state
-        let context =
-            ModuleQueryContext::new(repository, revision, module.module_id, module.profile_id)
-                .map_err(QueryError::from)?;
+    /// Return one module context at the pinned query revision.
+    fn module(&self, module: Module) -> Result<ModuleQueryContext<'_>, Error> {
+        let context = ModuleQueryContext::new(
+            self.repository(),
+            self.revision(),
+            module.module_id,
+            module.profile_id,
+        )
+        .map_err(QueryError::from)?;
 
         Ok(context)
     }
