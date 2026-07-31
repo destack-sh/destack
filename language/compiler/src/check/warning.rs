@@ -109,6 +109,15 @@ pub enum CheckWarning {
         module: ModuleId,
     },
 
+    /// Resolved definition is experimental.
+    #[diagnostic(id = "experimental", message = "use of experimental definition")]
+    Experimental {
+        /// Report the experimental use.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
     /// Name resolves identically without its qualifier.
     #[diagnostic(id = "unnecessary-qualifier", message = "unnecessary qualifier")]
     UnnecessaryQualifier {
