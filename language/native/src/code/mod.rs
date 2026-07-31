@@ -1,6 +1,6 @@
 mod archive;
 mod code;
-mod entry;
+mod definition;
 mod frame;
 mod image;
 mod import;
@@ -11,7 +11,7 @@ mod object;
 
 pub use archive::*;
 pub use code::*;
-pub use entry::*;
+pub use definition::*;
 pub use frame::*;
 pub use image::*;
 pub use import::*;

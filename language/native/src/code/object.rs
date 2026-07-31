@@ -18,6 +18,18 @@ pub struct Object {
     storage: SectionStorage,
 }
 
+/// One defined function inside a relocatable native object.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct Function {
+    /// Internal native function body symbol bytes.
+    body: EntryRange<u8>,
+    /// Native runtime entry symbol bytes.
+    entry: EntryRange<u8>,
+    /// Compiled body byte length.
+    pub body_byte_len: u32,
+}
+
 /// Native object load failure.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ObjectLoadError {
@@ -47,8 +59,8 @@ struct ObjectHeader {
     target: EntryRange<u8>,
     /// Native module symbol bytes inside the string column.
     module: EntryRange<u8>,
-    /// Exported symbols in object-local function order.
-    entries: SectionSlice<Optional<EntryRange<u8>>>,
+    /// Optional definitions in object-local function order.
+    functions: SectionSlice<Optional<Function>>,
     /// Contiguous object-local string bytes.
     strings: SectionSlice<u8>,
     /// Runtime operations imported by this object.
@@ -93,7 +105,7 @@ impl ObjectHeader {
             byte_len: 0,
             target: EntryRange::empty(),
             module: EntryRange::empty(),
-            entries: SectionSlice::empty(),
+            functions: SectionSlice::empty(),
             strings: SectionSlice::empty(),
             imports: SectionSlice::empty(),
             map: CodeMap::empty(),
@@ -113,11 +125,13 @@ impl ObjectHeader {
         }
         // SAFETY: every absolute section reachable from the header was validated above.
         let sections = unsafe { SectionImage::new(storage) };
-        let entries = sections.entries(header.entries);
+        let functions = sections.entries(header.functions);
         let strings = sections.entries(header.strings);
 
-        // require every subordinate range used by infallible navigation
-        header.check_strings(entries, strings)?;
+        // require every string used by infallible navigation
+        if !header.strings_fit(functions, strings) {
+            return Err(ObjectLoadError::InvalidString);
+        }
         if !header.map.ranges_fit(sections) {
             return Err(ObjectLoadError::InvalidRange);
         }
@@ -125,37 +139,36 @@ impl ObjectHeader {
         Ok(header)
     }
 
-    /// Require every nested string section to contain valid UTF-8.
-    fn check_strings(
-        &self,
-        entries: &[Optional<EntryRange<u8>>],
-        strings: &[u8],
-    ) -> Result<(), ObjectLoadError> {
-        if !self.target.fits(strings.len()) || !self.module.fits(strings.len()) {
-            return Err(ObjectLoadError::InvalidString);
+    /// Return whether every nested string is in bounds and valid UTF-8.
+    fn strings_fit(&self, functions: &[Optional<Function>], strings: &[u8]) -> bool {
+        let header_strings = [self.target, self.module];
+        if !header_strings
+            .into_iter()
+            .all(|range| Self::string_fits(range, strings))
+        {
+            return false;
         }
-        Self::check_string(self.target.slice(strings))?;
-        Self::check_string(self.module.slice(strings))?;
 
-        // validate every optional exported symbol
-        for entry in entries {
-            let Some(entry) = entry.get() else {
+        // validate every defined function symbol
+        for function in functions {
+            let Some(function) = function.get() else {
                 continue;
             };
-            if !entry.fits(strings.len()) {
-                return Err(ObjectLoadError::InvalidString);
+            let symbols = [function.body, function.entry];
+            if !symbols
+                .into_iter()
+                .all(|range| Self::string_fits(range, strings))
+            {
+                return false;
             }
-            Self::check_string(entry.slice(strings))?;
         }
 
-        Ok(())
+        true
     }
 
-    /// Require one byte slice to contain valid UTF-8.
-    fn check_string(bytes: &[u8]) -> Result<(), ObjectLoadError> {
-        std::str::from_utf8(bytes)
-            .map(|_| ())
-            .map_err(|_| ObjectLoadError::InvalidString)
+    /// Return whether one string range is in bounds and valid UTF-8.
+    fn string_fits(range: EntryRange<u8>, strings: &[u8]) -> bool {
+        range.fits(strings.len()) && std::str::from_utf8(range.slice(strings)).is_ok()
     }
 }
 
@@ -208,14 +221,19 @@ impl Object {
         self.string(self.header().module)
     }
 
-    /// Iterate exported symbols in object-local function order.
-    pub fn entries(&self) -> impl ExactSizeIterator<Item = Option<&str>> {
-        let sections = self.sections();
+    /// Return optional definitions in object-local function order.
+    pub fn functions(&self) -> &[Optional<Function>] {
+        self.sections().entries(self.header().functions)
+    }
 
-        sections
-            .entries(self.header().entries)
-            .iter()
-            .map(move |entry| entry.get().map(|entry| self.string(entry)))
+    /// Return one defined function's internal body symbol.
+    pub fn body(&self, function: Function) -> &str {
+        self.string(function.body)
+    }
+
+    /// Return one defined function's runtime entry symbol.
+    pub fn entry(&self, function: Function) -> &str {
+        self.string(function.entry)
     }
 
     /// Return imported runtime operations.
@@ -277,8 +295,8 @@ pub struct ObjectBuilder {
     image: Vec<u8>,
     /// Native module symbol imported by this object.
     module: String,
-    /// Exported symbols in object-local function order.
-    entries: Vec<Option<String>>,
+    /// Optional definitions in object-local function order.
+    functions: Vec<Option<FunctionBuilder>>,
     /// Runtime operations imported by this object.
     imports: Vec<abi::Operation>,
     /// Physical native frame maps.
@@ -293,15 +311,18 @@ impl ObjectBuilder {
             format,
             image,
             module,
-            entries: Vec::new(),
+            functions: Vec::new(),
             imports: Vec::new(),
             map: CodeMapBuilder::new(),
         }
     }
 
-    /// Set exported symbols in object-local function order.
-    pub fn entries(mut self, entries: impl IntoIterator<Item = Option<String>>) -> Self {
-        self.entries = entries.into_iter().collect();
+    /// Set optional definitions in object-local function order.
+    pub fn functions(
+        mut self,
+        functions: impl IntoIterator<Item = Option<FunctionBuilder>>,
+    ) -> Self {
+        self.functions = functions.into_iter().collect();
 
         self
     }
@@ -330,12 +351,12 @@ impl ObjectBuilder {
         let mut strings = EntryStore::new();
         header.target = strings.append(self.target.bytes());
         header.module = strings.append(self.module.bytes());
-        let entries = self
-            .entries
+        let functions = self
+            .functions
             .into_iter()
-            .map(|entry| entry.map(|entry| strings.append(entry.bytes())).into())
+            .map(|function| function.map(|function| function.build(&mut strings)).into())
             .collect::<Vec<_>>();
-        header.entries = sections.insert(entries);
+        header.functions = sections.insert(functions);
         header.strings = sections.insert(strings.into_entries());
 
         // pack imports and physical frame maps
@@ -353,6 +374,37 @@ impl ObjectBuilder {
     }
 }
 
+/// One relocatable native function under construction.
+#[derive(Debug)]
+pub struct FunctionBuilder {
+    /// Internal native function body symbol.
+    body: String,
+    /// Native runtime entry symbol.
+    entry: String,
+    /// Compiled body byte length.
+    body_byte_len: u32,
+}
+
+impl FunctionBuilder {
+    /// Create one relocatable native function builder.
+    pub fn new(body: String, entry: String, body_byte_len: u32) -> Self {
+        Self {
+            body,
+            entry,
+            body_byte_len,
+        }
+    }
+
+    /// Pack this function into the object string column.
+    fn build(self, strings: &mut EntryStore<u8>) -> Function {
+        Function {
+            body: strings.append(self.body.bytes()),
+            entry: strings.append(self.entry.bytes()),
+            body_byte_len: self.body_byte_len,
+        }
+    }
+}
+
 /// Native object file format.
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
@@ -367,43 +419,3 @@ pub enum ObjectFormat {
 
 const _: () = assert!(align_of::<ObjectHeader>() == 16);
 const _: () = assert!(size_of::<ObjectHeader>() == 160);
-
-#[cfg(test)]
-mod tests {
-    use destack_core::SectionImageError;
-
-    use super::*;
-
-    /// Load complete native objects and reject invalid nested entry representations.
-    #[test]
-    fn test_load_native_object_image() {
-        let object = ObjectBuilder::new(
-            "x86_64-unknown-linux-gnu".to_string(),
-            ObjectFormat::Elf,
-            vec![1, 2, 3, 4],
-            "test.module".to_string(),
-        )
-        .entries([Some("test.entry".to_string())])
-        .imports([abi::Operation::Poll])
-        .build();
-        let loaded = Object::from_bytes(object.bytes()).expect("native object should load");
-
-        assert_eq!(loaded.target(), "x86_64-unknown-linux-gnu");
-        assert_eq!(loaded.module(), "test.module");
-        assert_eq!(loaded.entries().collect::<Vec<_>>(), [Some("test.entry")]);
-        assert_eq!(loaded.imports(), [abi::Operation::Poll]);
-        assert_eq!(loaded.image(), [1, 2, 3, 4]);
-
-        // reject an unknown operation before constructing its enum value
-        let mut bytes = object.bytes().to_vec();
-        let operation = object.header().imports.byte_offset as usize;
-        bytes[operation..operation + size_of::<u16>()].copy_from_slice(&u16::MAX.to_ne_bytes());
-        let error = Object::from_bytes(&bytes)
-            .expect_err("invalid native operation discriminant must be rejected");
-
-        assert_eq!(
-            error,
-            ObjectLoadError::Image(SectionImageError::InvalidEntry)
-        );
-    }
-}

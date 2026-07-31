@@ -9,8 +9,8 @@ use destack_mir::TargetLayout;
 use crate::abi;
 
 use super::{
-    CodeMap, CodeMapBuilder, Entry, Image, ImageBuilder, ImportTable, ImportTableBuilder, Module,
-    ModuleBuilder,
+    CodeMap, CodeMapBuilder, Definition, Image, ImageBuilder, ImportTable, ImportTableBuilder,
+    Module, ModuleBuilder,
 };
 
 /// Durable native code produced for one program.
@@ -41,8 +41,8 @@ pub struct Code {
     globals: SectionSlice<u32>,
     /// Program dynamic-table ids referenced by linked modules.
     dynamics: SectionSlice<u32>,
-    /// Native entries keyed by program ids.
-    entries: SectionSlice<Optional<Entry>>,
+    /// Native definitions keyed by Program function id.
+    definitions: SectionSlice<Optional<Definition>>,
 }
 
 /// Build-time native code payload.
@@ -60,8 +60,8 @@ pub struct CodeBuilder {
     map: CodeMapBuilder,
     /// Program identity mappings in archive object order.
     modules: Vec<ModuleBuilder>,
-    /// Native entry table.
-    entries: Vec<Option<Entry>>,
+    /// Native definitions keyed by Program function id.
+    definitions: Vec<Option<Definition>>,
 }
 
 impl CodeBuilder {
@@ -74,7 +74,7 @@ impl CodeBuilder {
             imports: ImportTableBuilder::default(),
             map: CodeMapBuilder::default(),
             modules: Vec::new(),
-            entries: Vec::new(),
+            definitions: Vec::new(),
         }
     }
 
@@ -99,9 +99,12 @@ impl CodeBuilder {
         self
     }
 
-    /// Set the native entry table.
-    pub fn entries(mut self, entries: impl IntoIterator<Item = Option<Entry>>) -> Self {
-        self.entries = entries.into_iter().collect();
+    /// Set native definitions in dense Program function order.
+    pub fn definitions(
+        mut self,
+        definitions: impl IntoIterator<Item = Option<Definition>>,
+    ) -> Self {
+        self.definitions = definitions.into_iter().collect();
 
         self
     }
@@ -129,8 +132,8 @@ impl CodeBuilder {
                 )
             })
             .collect::<Vec<_>>();
-        let entries = self
-            .entries
+        let definitions = self
+            .definitions
             .into_iter()
             .map(Optional::from)
             .collect::<Vec<_>>();
@@ -148,7 +151,7 @@ impl CodeBuilder {
             layouts: sections.insert(layouts.into_entries()),
             globals: sections.insert(globals.into_entries()),
             dynamics: sections.insert(dynamics.into_entries()),
-            entries: sections.insert(entries),
+            definitions: sections.insert(definitions),
         }
     }
 }
@@ -224,16 +227,16 @@ impl Code {
         sections.entries(self.dynamics)
     }
 
-    /// Return one native function entry.
-    pub fn entry(&self, sections: SectionImage<'_>, function: usize) -> Option<Entry> {
+    /// Return one native function definition.
+    pub fn definition(&self, sections: SectionImage<'_>, function: usize) -> Option<Definition> {
         sections
-            .entries(self.entries)
+            .entries(self.definitions)
             .get(function)
-            .and_then(|entry| entry.get())
+            .and_then(|definition| definition.get())
     }
 
-    /// Return native function entries in dense Program function order.
-    pub fn entries<'a>(&self, sections: SectionImage<'a>) -> &'a [Optional<Entry>] {
-        sections.entries(self.entries)
+    /// Return native definitions in dense Program function order.
+    pub fn definitions<'a>(&self, sections: SectionImage<'a>) -> &'a [Optional<Definition>] {
+        sections.entries(self.definitions)
     }
 }
