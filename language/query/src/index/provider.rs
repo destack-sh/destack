@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_artifact::{
     ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey,
     ArtifactVersion, DirCheckedModule, IndexKind, InferenceComponentIndex,
-    InferenceComponentModule, ModuleIndex, ProgramIndex, SourceDependency,
+    InferenceComponentModule, ModuleIndex, ProgramIndex, SourceDependencyKey,
 };
 use destack_repository::{
     ArtifactReader, ProviderContext, ProviderError, ProviderResult, Repository,
@@ -439,7 +439,9 @@ impl Indexer {
         for dependency in dependencies {
             let version = match dependency {
                 ArtifactDependency::Artifact(version) => version,
-                ArtifactDependency::Source(SourceDependency::Modules { .. }) => {
+                ArtifactDependency::Source(source)
+                    if source.key == SourceDependencyKey::Modules =>
+                {
                     continue;
                 }
                 ArtifactDependency::Projection(dependency)

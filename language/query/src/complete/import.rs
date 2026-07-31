@@ -485,14 +485,7 @@ impl CompletionBuilder<'_, '_, '_> {
         let module = repository
             .module(revision, module_id)?
             .ok_or(RepositoryError::MissingModule { module: module_id })?;
-        let package = self
-            .program
-            .package_graph()?
-            .package(module.package_id)
-            .ok_or(QueryError::missing(format!(
-                "indexed package: {:?}",
-                module.package_id
-            )))?;
+        let package = self.program.package_node(module.package_id)?;
 
         // offer only loaded direct dependencies from the active profile
         for (name, dependency) in &package.dependencies {

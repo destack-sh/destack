@@ -1,8 +1,12 @@
+use destack_artifact::PackageDependency;
 use destack_core::StringId;
 use destack_dir as dir;
 use destack_source::{FileId, ModuleId, Patch, Span};
 
-use crate::source::{path_text, relative_path};
+use crate::source::{
+    canonical_module_path, export_keys_selecting_module, package_specifier, path_text,
+    relative_path,
+};
 use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
 
 /// One binding introduced by an auto import.
@@ -361,19 +365,42 @@ impl ProgramQueryContext<'_> {
                 .ok_or(QueryError::missing(format!(
                     "repository module: {source_module_id:?}"
                 )))?;
-        // read persisted public package specifiers across package boundaries
+        // invert public exports of the resolved dependency across packages
         if source_module.package_id != target_module_id.package_id {
-            let specifiers = self
-                .package_graph()?
-                .package_specifiers(source_module.package_id, target_module_id)
-                .map(str::to_string)
-                .collect();
+            let source_node = self.package_node(source_module.package_id)?;
+            let mut specifiers = Vec::new();
+
+            // invert each alias resolving to the target package
+            for (alias, dependency) in &source_node.dependencies {
+                let PackageDependency::Resolved(dependency) = dependency else {
+                    continue;
+                };
+                if *dependency != target_module_id.package_id {
+                    continue;
+                }
+                let dependency_node = self.package_node(*dependency)?;
+                let keys = export_keys_selecting_module(
+                    repository,
+                    revision,
+                    *dependency,
+                    &dependency_node,
+                    target_module_id,
+                )?;
+                for key in &keys {
+                    specifiers.push(package_specifier(alias, key)?);
+                }
+            }
+
+            // order and deduplicate the inverted specifiers
+            specifiers.sort();
+            specifiers.dedup();
 
             return Ok(specifiers);
         }
 
         // skip modules that have no exact default import path
-        let Some(target_path) = self.package_graph()?.module_path(target_module_id) else {
+        let Some(target_path) = canonical_module_path(repository, revision, target_module_id)?
+        else {
             return Ok(Vec::new());
         };
         let source_path = source_module
@@ -385,7 +412,7 @@ impl ProgramQueryContext<'_> {
         let source_directory = source_path.parent().ok_or(QueryError::invalid(format!(
             "module import base: {source_module_id:?}"
         )))?;
-        let relative = relative_path(source_directory, target_path).ok_or(QueryError::invalid(
+        let relative = relative_path(source_directory, &target_path).ok_or(QueryError::invalid(
             format!("relative module path: {source_module_id:?} -> {target_module_id:?}"),
         ))?;
         let mut specifier = path_text(&relative)?;

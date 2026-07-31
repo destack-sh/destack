@@ -1,37 +1,25 @@
-use std::sync::{Arc, OnceLock};
+use std::ops::Deref;
+use std::sync::{Arc, Mutex, OnceLock};
 
 use destack_artifact::{
-    ArtifactKey, ComponentGraph, GlobalEnvironment, IndexKind, InferenceComponentIndex,
-    ModuleIndex, PackageGraph, ProgramIndex,
+    ArtifactKey, ComponentGraph, IndexKind, InferenceComponentIndex, ModuleIndex, PackageNode,
+    ProgramIndex,
 };
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProviderError, Repository, RepositoryError, Revision};
-use destack_source::{ModuleId, ProfileId};
-use parking_lot::Mutex;
+use destack_source::{ModuleId, PackageId, ProfileId};
 use rustc_hash::FxHashMap;
 
 use crate::{Module, ModuleQueryContext, QueryError, QueryMethod, QueryResult};
 
 /// Query context anchored to a program revision.
 pub struct ProgramQueryContext<'a> {
-    /// The repository used for this query.
-    repository: &'a Repository,
-    /// The revision used for this query.
-    revision: Revision,
-    /// The profile used for module artifacts.
-    profile_id: ProfileId,
-    /// Module ids in stable program order.
-    module_ids: Box<[ModuleId]>,
-    /// Module contexts read by this query.
-    modules: Mutex<FxHashMap<ModuleId, Arc<ModuleQueryContext<'a>>>>,
-    /// Exact artifact requirements for actual query reads.
-    require_artifacts: &'a dyn Fn(&[ArtifactKey]) -> QueryResult<()>,
-    /// Lazily read package graph for import completion.
-    package_graph: OnceLock<Result<Arc<PackageGraph>, ProviderError>>,
-    /// Lazily read compiler language and global bindings.
-    global_environment: OnceLock<Result<Arc<GlobalEnvironment>, ProviderError>>,
+    /// Shared semantic access for this program.
+    query: QueryContext<'a>,
     /// Lazily read component graph for semantic index families.
     component_graph: OnceLock<Result<Arc<ComponentGraph>, ProviderError>>,
+    /// Lazily built package import-resolution nodes.
+    package_nodes: Mutex<FxHashMap<PackageId, Arc<PackageNode>>>,
     /// Lazily read program indexes by family.
     program_indexes: [OnceLock<Result<Arc<ProgramIndex>, ProviderError>>; IndexKind::ALL.len()],
     /// Lazily read module indexes by module and family.
@@ -69,9 +57,6 @@ impl<'a> ProgramQueryContext<'a> {
         method: QueryMethod,
     ) -> QueryResult<Vec<ArtifactKey>> {
         let mut artifacts = Vec::new();
-        if method == QueryMethod::Completion {
-            artifacts.push(ArtifactKey::package_graph(profile_id));
-        }
         let kinds = Self::index_kinds(method);
         if kinds.iter().any(|kind| kind.is_inference_component_owned()) {
             artifacts.push(ArtifactKey::component_graph(profile_id));
@@ -205,20 +190,27 @@ impl<'a> ProgramQueryContext<'a> {
         Ok(authored)
     }
 
-    /// Read the active package graph for this program.
-    pub(crate) fn package_graph(&self) -> QueryResult<&PackageGraph> {
-        let artifact = ArtifactKey::package_graph(self.profile_id());
-        (self.require_artifacts)(&[artifact])?;
-        let graph = self.package_graph.get_or_init(|| {
-            let artifacts = ArtifactReader::new(self.repository(), self.revision());
-
-            artifacts.package_graph(self.profile_id())
-        });
-
-        match graph {
-            Ok(graph) => Ok(graph.as_ref()),
-            Err(error) => Err(QueryError::from(error.clone())),
+    /// Build the import-resolution node of one package for this program.
+    pub(crate) fn package_node(&self, package: PackageId) -> QueryResult<Arc<PackageNode>> {
+        if let Some(node) = self.package_nodes.lock().unwrap().get(&package) {
+            return Ok(Arc::clone(node));
         }
+
+        let repository = self.repository();
+        let revision = self.revision();
+        let profile = repository
+            .profile(revision, self.profile_id())?
+            .ok_or_else(|| QueryError::missing(format!("profile: {:?}", self.profile_id())))?;
+        let node = repository
+            .package_node(revision, package, profile.conditions())?
+            .ok_or_else(|| QueryError::missing(format!("package configuration: {package:?}")))?;
+        let node = Arc::new(node);
+        self.package_nodes
+            .lock()
+            .unwrap()
+            .insert(package, Arc::clone(&node));
+
+        Ok(node)
     }
 
     /// Return the compiler language and global bindings for this program.
@@ -405,15 +397,9 @@ impl<'a> ProgramQueryContext<'a> {
         module_ids.sort_unstable();
         module_ids.dedup();
         Ok(Self {
-            repository,
-            revision,
-            profile_id,
-            module_ids: module_ids.into_boxed_slice(),
-            modules: Mutex::new(FxHashMap::default()),
-            require_artifacts,
-            package_graph: OnceLock::new(),
-            global_environment: OnceLock::new(),
+            query,
             component_graph: OnceLock::new(),
+            package_nodes: Mutex::new(FxHashMap::default()),
             program_indexes: std::array::from_fn(|_| OnceLock::new()),
             module_indexes: OnceLock::new(),
             component_indexes: OnceLock::new(),
