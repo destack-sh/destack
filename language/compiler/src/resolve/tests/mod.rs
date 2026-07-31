@@ -1,4 +1,4 @@
-mod component;
+mod graph;
 mod export;
 mod global;
 mod import;

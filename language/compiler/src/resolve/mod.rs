@@ -1,4 +1,4 @@
-mod component;
+mod graph;
 mod error;
 mod provide;
 mod resolve;
