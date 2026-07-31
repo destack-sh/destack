@@ -1,7 +1,7 @@
-use std::path::{Component, Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
-use destack_artifact::ArtifactDependencySet;
+use destack_artifact::{ArtifactDependencySet, SourceDependency};
 use destack_repository::{
     CompilerOptions, DestackFile, Environment, Module, Package, Profile, ProviderContext, Revision,
     Target,
@@ -106,22 +106,28 @@ impl Compiler {
         Ok(config)
     }
 
-    /// Observe one package's config declaration files as source dependencies.
-    pub(crate) fn observe_package_config(
+    /// Return one package's config declaration files as source dependencies.
+    pub(crate) fn package_config_sources(
         &self,
-        context: &dyn ProviderContext,
+        revision: Revision,
         package_id: PackageId,
-        dependencies: &mut ArtifactDependencySet,
-    ) -> CompilerResult<()> {
-        let Some(config) = self.destack_for_package(context, package_id)? else {
-            return Ok(());
+    ) -> CompilerResult<Vec<SourceDependency>> {
+        let config = self
+            .repository
+            .destack_for_package_id(revision, package_id)
+            .map_err(|error| CompilerError::Internal {
+                message: format!("failed to load package config {package_id:?}: {error}"),
+            })?;
+        let Some(config) = config else {
+            return Ok(Vec::new());
         };
 
         // every declaration that built the effective config feeds the fingerprint
+        let mut sources = Vec::with_capacity(config.file_ids.len());
         for file_id in &config.file_ids {
             let content = self
                 .repository
-                .file_content_id(context.revision(), *file_id)
+                .file_content_id(revision, *file_id)
                 .map_err(|error| CompilerError::Internal {
                     message: format!(
                         "failed to load config file content id for {file_id:?}: {error}"
@@ -130,8 +136,21 @@ impl Compiler {
                 .ok_or_else(|| CompilerError::Internal {
                     message: format!("missing config file content id for {file_id:?}"),
                 })?;
+            sources.push(SourceDependency::file_content(*file_id, content));
+        }
 
-            dependencies.observe_file(*file_id, content);
+        Ok(sources)
+    }
+
+    /// Observe one package's config declaration files as source dependencies.
+    pub(crate) fn observe_package_config(
+        &self,
+        context: &dyn ProviderContext,
+        package_id: PackageId,
+        dependencies: &mut ArtifactDependencySet,
+    ) -> CompilerResult<()> {
+        for source in self.package_config_sources(context.revision(), package_id)? {
+            dependencies.observe(source);
         }
 
         Ok(())
@@ -227,26 +246,5 @@ impl Compiler {
             .map_err(|error| CompilerError::Internal {
                 message: format!("failed to resolve module URI '{uri}': {error}"),
             })
-    }
-
-    /// Normalize one workspace logical path.
-    pub(crate) fn normalize_workspace_path(&self, path: PathBuf) -> Option<PathBuf> {
-        let mut normalized = PathBuf::new();
-
-        // fold lexical path components
-        for component in path.components() {
-            match component {
-                Component::CurDir => {}
-                Component::ParentDir => {
-                    if !normalized.pop() {
-                        return None;
-                    }
-                }
-                Component::Normal(component) => normalized.push(component),
-                Component::RootDir | Component::Prefix(_) => {}
-            }
-        }
-
-        Some(normalized)
     }
 }

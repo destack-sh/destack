@@ -49,7 +49,10 @@ impl Compiler {
         &'a self,
         context: &'a dyn ProviderContext,
     ) -> ArtifactReader<'a> {
-        let artifacts = self.repository.artifact_reader(context.revision());
+        let artifacts = self
+            .repository
+            .artifact_reader(context.revision())
+            .with_context(context);
         let Some(dependencies) = context.artifact_dependencies() else {
             return artifacts;
         };

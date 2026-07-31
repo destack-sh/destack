@@ -2,7 +2,7 @@ use std::hash::Hash;
 
 use destack_core::StableHasher;
 use destack_serde::Reflect;
-use destack_source::{ComponentId, ContentId, FileId, ModuleId, PackageId};
+use destack_source::{ContentId, FileId, ModuleId, PackageId};
 use serde::{Deserialize, Serialize};
 use siphasher::sip128::Hasher128;
 
@@ -119,30 +119,18 @@ impl ArtifactProjectionFingerprint {
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub enum ArtifactProjectionKey {
-    /// The reference component containing one module.
-    ReferenceComponent(ModuleId),
-    /// The sorted modules belonging to one reference component.
-    ReferenceMembers(ComponentId),
-    /// The direct external reference components one component depends on.
-    ReferenceDependencies(ComponentId),
-    /// The inference component containing one module.
-    InferenceComponent(ModuleId),
-    /// The sorted inference component identities.
-    InferenceComponents,
-    /// The member modules of one inference component.
-    InferenceMembers(ComponentId),
-    /// The upstream inference components one inference component depends on.
-    InferenceDependencies(ComponentId),
-    /// The inherent extensions resolved across the component graph.
+    /// The sorted modules of one module graph.
+    Modules,
+    /// The import edges of one module in the module graph.
+    ModuleEdges(ModuleId),
+    /// The inherent extensions resolved across the module graph.
     InherentExtensions,
-    /// A declared DIR module inside a declared component.
-    DirDeclaredModule(ModuleId),
-    /// Exported symbols whose consumers require inference.
-    DirInferenceExports,
-    /// Resolved relationships that determine component graph edges.
-    DirComponentEdges,
-    /// A checked DIR module inside a checked component.
-    DirCheckedModule(ModuleId),
+    /// The declared output fingerprint of one declared module.
+    Declared,
+    /// The checked output fingerprint of one checked module.
+    Checked,
+    /// The resolved import relationships that shape module graph edges.
+    ImportEdges,
 }
 
 /// One artifact projection selected by owner artifact and projection key.

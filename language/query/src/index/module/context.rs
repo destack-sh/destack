@@ -1,7 +1,7 @@
 use std::slice;
 use std::sync::Arc;
 
-use destack_artifact::{DirBound, DirCheckedModule, DirExpanded, DirParsed, DirResolved};
+use destack_artifact::{DirBound, DirChecked, DirExpanded, DirParsed, DirResolved};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::{ModuleId, SourceIndex, Span};
@@ -35,17 +35,18 @@ impl<'a> ModuleIndexContext<'a> {
     /// Build semantic index read state from exact DIR artifacts.
     pub(in crate::index) fn new(
         strings: &'a StringPool,
+        module_id: ModuleId,
         parsed: Arc<DirParsed>,
         bound: &DirBound,
         expanded: Arc<DirExpanded>,
         resolved: Arc<DirResolved>,
-        checked: &DirCheckedModule,
+        checked: &DirChecked,
     ) -> Self {
         let bindings = checked.binding_table(bound, &expanded);
         let types = checked.type_table(bound, &expanded);
 
         Self {
-            module_id: checked.module,
+            module_id,
             parsed,
             expanded,
             bindings,

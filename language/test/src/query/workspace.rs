@@ -173,7 +173,7 @@ impl QueryWorkspace {
     /// Begin one fixture operation trace when timings are enabled.
     pub(super) fn begin_trace(&self) -> Option<Arc<Trace>> {
         self.has_timings
-            .then(|| Trace::new(self.repository.host().clock(), 1))
+            .then(|| Trace::new(self.repository.host().clock(), 1, true))
     }
 
     /// Finish and snapshot one fixture operation trace.

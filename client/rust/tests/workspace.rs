@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use parking_lot::Mutex;
 
 use destack_workspace::{
-    CheckInput, Client, ClientOptions, RootOpenOptions, Transport, TransportError,
+    CheckInput, Client, ClientOptions, Transport, TransportError,
 };
 
 static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
@@ -97,7 +97,7 @@ fn test_check_local_workspace_through_embedded_server() -> Result<(), Box<dyn st
     client.handshake(ClientOptions::default())?;
 
     // open the project root through the client
-    let opened = client.open_root(root.path().to_path_buf(), RootOpenOptions::default())?;
+    let opened = client.open_root(root.path().to_path_buf())?;
 
     // check the project through the embedded server
     let output = client.check(

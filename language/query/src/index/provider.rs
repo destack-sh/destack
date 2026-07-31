@@ -2,14 +2,13 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey,
-    ArtifactVersion, DirCheckedModule, IndexKind, InferenceComponentIndex,
-    InferenceComponentModule, ModuleIndex, ProgramIndex, SourceDependencyKey,
+    ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactVersion,
+    DirChecked, IndexKind, ModuleIndex, ProgramIndex, SourceDependencyKey,
 };
 use destack_repository::{
     ArtifactReader, ProviderContext, ProviderError, ProviderResult, Repository,
 };
-use destack_source::{ComponentId, ModuleId, ProfileId};
+use destack_source::{ModuleId, ProfileId};
 
 use super::module::{
     CallIndexer, DecoratorIndexer, ExportIndexer, ExtensionIndexer, HeritageIndexer, MemberIndexer,
@@ -43,11 +42,6 @@ impl Indexer {
                 profile,
                 kind,
             } => self.collect_module_index(module, profile, kind),
-            ArtifactKey::InferenceComponentIndex {
-                component,
-                profile,
-                kind,
-            } => self.collect_component_index(context, component, profile, kind),
             ArtifactKey::ProgramIndex { profile, kind } => {
                 self.collect_program_index(context, profile, kind)
             }
@@ -65,12 +59,6 @@ impl Indexer {
         profile_id: ProfileId,
         kind: IndexKind,
     ) -> ProviderResult<ArtifactDependencySet> {
-        if !kind.is_module_owned() {
-            return Err(
-                ProviderError::internal(format!("{kind:?} is not a module index family")).into(),
-            );
-        }
-
         let mut dependencies = ArtifactDependencySet::default();
 
         // index declarations directly from expanded DIR
@@ -83,64 +71,14 @@ impl Indexer {
         else if kind == IndexKind::Exports {
             dependencies.require(ArtifactKey::dir_exported(module_id, profile_id));
             dependencies.require(ArtifactKey::dir_resolved(module_id, profile_id));
-        } else {
-            return Err(ProviderError::internal(format!(
-                "unsupported module index family: {kind:?}"
-            ))
-            .into());
         }
-
-        Ok(dependencies)
-    }
-
-    /// Collect dependencies for one checked component index artifact.
-    fn collect_component_index(
-        &self,
-        context: &dyn ProviderContext,
-        component_id: ComponentId,
-        profile_id: ProfileId,
-        kind: IndexKind,
-    ) -> ProviderResult<ArtifactDependencySet> {
-        if !kind.is_inference_component_owned() {
-            return Err(ProviderError::internal(format!(
-                "{kind:?} is not a component index family"
-            ))
-            .into());
-        }
-
-        let mut dependencies = ArtifactDependencySet::default();
-        let graph_key = ArtifactKey::component_graph(profile_id);
-        dependencies.require_projection(
-            graph_key,
-            ArtifactProjectionKey::InferenceMembers(component_id),
-        );
-
-        // resolve component membership before naming module inputs
-        let artifacts = ArtifactReader::new(self.repository(), context.revision());
-        let graph = match artifacts.component_graph_reader(profile_id) {
-            Ok(graph) => graph,
-            Err(ProviderError::Blocked { .. }) => {
-                dependencies.mark_partial();
-
-                return Ok(dependencies);
-            }
-            Err(error) => return Err(error.into()),
-        };
-        let module_ids = graph.inference_members(component_id)?;
-        if module_ids.is_empty() {
-            return Err(ProviderError::internal(format!(
-                "query index component has no modules: {component_id}"
-            ))
-            .into());
-        }
-
-        // index every checked module row in this component
-        dependencies.require(ArtifactKey::dir_checked_component(component_id, profile_id));
-        for module_id in module_ids {
-            dependencies.require(ArtifactKey::dir_parsed(*module_id));
-            dependencies.require(ArtifactKey::dir_bound(*module_id, profile_id));
-            dependencies.require(ArtifactKey::dir_expanded(*module_id, profile_id));
-            dependencies.require(ArtifactKey::dir_resolved(*module_id, profile_id));
+        // index checked families over the module's checked DIR
+        else {
+            dependencies.require(ArtifactKey::dir_parsed(module_id));
+            dependencies.require(ArtifactKey::dir_bound(module_id, profile_id));
+            dependencies.require(ArtifactKey::dir_expanded(module_id, profile_id));
+            dependencies.require(ArtifactKey::dir_resolved(module_id, profile_id));
+            dependencies.require(ArtifactKey::dir_checked(module_id, profile_id));
         }
 
         Ok(dependencies)
@@ -159,39 +97,10 @@ impl Indexer {
         })?;
         module_ids.sort_unstable();
         module_ids.dedup();
+        // require every module's index of this family
         let mut dependencies = ArtifactDependencySet::default();
-        let keys = if kind.is_module_owned() {
-            module_ids
-                .iter()
-                .map(|module| ArtifactKey::module_index(*module, profile_id, kind))
-                .collect::<Vec<_>>()
-        } else {
-            let graph_key = ArtifactKey::component_graph(profile_id);
-            dependencies.require_projection(graph_key, ArtifactProjectionKey::InferenceComponents);
-
-            // resolve component identities before naming component indexes
-            let artifacts = ArtifactReader::new(self.repository(), revision);
-            let graph = match artifacts.component_graph_reader(profile_id) {
-                Ok(graph) => graph,
-                Err(ProviderError::Blocked { .. }) => {
-                    dependencies.mark_partial();
-
-                    return Ok(dependencies);
-                }
-                Err(error) => return Err(error.into()),
-            };
-            graph
-                .inference_components()?
-                .iter()
-                .map(|component| {
-                    ArtifactKey::inference_component_index(*component, profile_id, kind)
-                })
-                .collect::<Vec<_>>()
-        };
-
-        // require every matching index owner
-        for key in keys {
-            dependencies.require(key);
+        for module in &module_ids {
+            dependencies.require(ArtifactKey::module_index(*module, profile_id, kind));
         }
         dependencies.observe_modules(&module_ids);
 
@@ -206,11 +115,6 @@ impl Indexer {
                 profile,
                 kind,
             } => self.provide_module_index(context, module, profile, kind),
-            ArtifactKey::InferenceComponentIndex {
-                component,
-                profile,
-                kind,
-            } => self.provide_component_index(context, component, profile, kind),
             ArtifactKey::ProgramIndex { profile, kind } => {
                 self.provide_program_index(context, profile, kind)
             }
@@ -229,12 +133,6 @@ impl Indexer {
         profile_id: ProfileId,
         kind: IndexKind,
     ) -> ProviderResult<ArtifactPayload> {
-        if !kind.is_module_owned() {
-            return Err(
-                ProviderError::internal(format!("{kind:?} is not a module index family")).into(),
-            );
-        }
-
         let revision = context.revision();
         let artifacts = ArtifactReader::new(self.repository(), revision).restrict(
             context.artifact_dependencies().ok_or_else(|| {
@@ -262,91 +160,29 @@ impl Indexer {
                 )?)
             }
             kind => {
-                return Err(ProviderError::internal(format!(
-                    "unsupported module index family: {kind:?}"
-                ))
-                .into());
+                let checked = artifacts.dir_checked(module_id, profile_id)?;
+                let module =
+                    self.module_index_context(&artifacts, module_id, profile_id, &checked)?;
+
+                match kind {
+                    IndexKind::Members => ModuleIndex::Members(MemberIndexer::build(&module)),
+                    IndexKind::References => {
+                        ModuleIndex::References(ReferenceIndexer::build(&module)?)
+                    }
+                    IndexKind::Calls => ModuleIndex::Calls(CallIndexer::build(&module)?),
+                    IndexKind::Heritage => ModuleIndex::Heritage(HeritageIndexer::build(&module)?),
+                    IndexKind::Extensions => {
+                        ModuleIndex::Extensions(ExtensionIndexer::build(&module)?)
+                    }
+                    IndexKind::Decorators => {
+                        ModuleIndex::Decorators(DecoratorIndexer::build(&module))
+                    }
+                    IndexKind::Symbols | IndexKind::Exports => unreachable!(),
+                }
             }
         };
 
         Ok(ArtifactPayload::ModuleIndex(Arc::new(payload)))
-    }
-
-    /// Provide one checked component index artifact.
-    fn provide_component_index(
-        &self,
-        context: &dyn ProviderContext,
-        component_id: ComponentId,
-        profile_id: ProfileId,
-        kind: IndexKind,
-    ) -> ProviderResult<ArtifactPayload> {
-        if !kind.is_inference_component_owned() {
-            return Err(ProviderError::internal(format!(
-                "{kind:?} is not a component index family"
-            ))
-            .into());
-        }
-
-        let artifacts = ArtifactReader::new(self.repository(), context.revision()).restrict(
-            context.artifact_dependencies().ok_or_else(|| {
-                ProviderError::internal("module index provider has no frozen dependencies")
-            })?,
-        );
-        let checked = artifacts.dir_checked_component(component_id, profile_id)?;
-        if checked.component != component_id {
-            return Err(ProviderError::internal(format!(
-                "component index received checked component {:?}",
-                checked.component
-            ))
-            .into());
-        }
-        let graph = artifacts.component_graph_reader(profile_id)?;
-        let expected_modules = graph.inference_members(component_id)?;
-        let checked_modules = checked
-            .modules
-            .iter()
-            .map(|module| module.module)
-            .collect::<Vec<_>>();
-        if checked_modules != expected_modules {
-            return Err(ProviderError::internal(format!(
-                "checked component modules differ from component graph: component={component_id}"
-            ))
-            .into());
-        }
-
-        // build one matching index row for every checked module
-        let mut modules = Vec::with_capacity(checked.modules.len());
-        for checked_module in &checked.modules {
-            let module_id = checked_module.module;
-            let module =
-                self.module_index_context(&artifacts, module_id, profile_id, checked_module)?;
-            let index = match kind {
-                IndexKind::Members => ModuleIndex::Members(MemberIndexer::build(&module)?),
-                IndexKind::References => ModuleIndex::References(ReferenceIndexer::build(&module)?),
-                IndexKind::Calls => ModuleIndex::Calls(CallIndexer::build(&module)?),
-                IndexKind::Heritage => ModuleIndex::Heritage(HeritageIndexer::build(&module)?),
-                IndexKind::Extensions => ModuleIndex::Extensions(ExtensionIndexer::build(&module)?),
-                IndexKind::Decorators => ModuleIndex::Decorators(DecoratorIndexer::build(&module)),
-                kind => {
-                    return Err(ProviderError::internal(format!(
-                        "unsupported component index family: {kind:?}"
-                    ))
-                    .into());
-                }
-            };
-            modules.push(InferenceComponentModule {
-                module: module_id,
-                index: Arc::new(index),
-            });
-        }
-
-        let index = InferenceComponentIndex {
-            component: component_id,
-            kind,
-            modules,
-        };
-
-        Ok(ArtifactPayload::InferenceComponentIndex(Arc::new(index)))
     }
 
     /// Read semantic DIR state for one module index row.
@@ -355,7 +191,7 @@ impl Indexer {
         artifacts: &ArtifactReader<'_>,
         module_id: ModuleId,
         profile_id: ProfileId,
-        checked: &DirCheckedModule,
+        checked: &DirChecked,
     ) -> ProviderResult<ModuleIndexContext<'a>> {
         let parsed = artifacts.dir_parsed(module_id)?;
         let bound = artifacts.dir_bound(module_id, profile_id)?;
@@ -364,7 +200,7 @@ impl Indexer {
         let strings = self.repository().string_pool();
 
         Ok(ModuleIndexContext::new(
-            strings, parsed, &bound, expanded, resolved, checked,
+            strings, module_id, parsed, &bound, expanded, resolved, checked,
         ))
     }
 
@@ -393,7 +229,7 @@ impl Indexer {
         let dependencies = context.artifact_dependencies().ok_or_else(|| {
             ProviderError::internal("program index provider has no frozen dependencies")
         })?;
-        let versions = Self::program_module_versions(repository, dependencies, profile_id, kind)?;
+        let versions = Self::program_module_versions( dependencies, profile_id, kind)?;
         Self::require_program_modules(&versions, &module_ids)?;
         if let Some(started) = started {
             context.emit_span("index_owners", started);
@@ -427,13 +263,11 @@ impl Indexer {
 
     /// Collect each program module's index owner version.
     fn program_module_versions(
-        repository: &Repository,
         dependencies: &[ArtifactDependency],
         profile_id: ProfileId,
         kind: IndexKind,
     ) -> ProviderResult<BTreeMap<ModuleId, ArtifactVersion>> {
         let mut versions = BTreeMap::<ModuleId, ArtifactVersion>::new();
-        let graph_key = ArtifactKey::component_graph(profile_id);
 
         // collect one owner version for every indexed module
         for dependency in dependencies {
@@ -441,14 +275,6 @@ impl Indexer {
                 ArtifactDependency::Artifact(version) => version,
                 ArtifactDependency::Source(source)
                     if source.key == SourceDependencyKey::Modules =>
-                {
-                    continue;
-                }
-                ArtifactDependency::Projection(dependency)
-                    if kind.is_inference_component_owned()
-                        && dependency.projection().artifact == graph_key
-                        && dependency.projection().key
-                            == ArtifactProjectionKey::InferenceComponents =>
                 {
                     continue;
                 }
@@ -467,72 +293,19 @@ impl Indexer {
                 }
             };
 
-            // collect pre-check module index owners
+            // collect module index owners
             if let ArtifactKey::ModuleIndex {
                 module,
                 profile,
                 kind: dependency_kind,
             } = version.key
             {
-                if !kind.is_module_owned() {
-                    return Err(ProviderError::internal(format!(
-                        "program {kind:?} index has a module index dependency"
-                    ))
-                    .into());
-                }
                 Self::require_index_family(profile_id, kind, profile, dependency_kind)?;
                 if versions.insert(module, *version).is_some() {
                     return Err(ProviderError::internal(format!(
                         "program index contains duplicate module dependencies: module={module:?}"
                     ))
                     .into());
-                }
-
-                continue;
-            }
-
-            // collect checked component index owners
-            if let ArtifactKey::InferenceComponentIndex {
-                component,
-                profile,
-                kind: dependency_kind,
-            } = version.key
-            {
-                if !kind.is_inference_component_owned() {
-                    return Err(ProviderError::internal(format!(
-                        "program {kind:?} index has a component index dependency"
-                    ))
-                    .into());
-                }
-                Self::require_index_family(profile_id, kind, profile, dependency_kind)?;
-                let index = repository
-                    .artifact_table()
-                    .inference_component_index(version)
-                    .ok_or(ProviderError::Corrupt { version: *version })?;
-                if index.component != component || index.kind != kind {
-                    return Err(ProviderError::internal(format!(
-                        "component index payload differs from its key: {:?}",
-                        version.key
-                    ))
-                    .into());
-                }
-
-                // bind every component row to the owning artifact version
-                for module in &index.modules {
-                    if module.index.kind() != kind {
-                        return Err(ProviderError::internal(format!(
-                            "component {component} {kind:?} index contains {:?}",
-                            module.index.kind()
-                        ))
-                        .into());
-                    }
-                    if versions.insert(module.module, *version).is_some() {
-                        return Err(ProviderError::internal(format!(
-                            "program index contains duplicate module rows: module={:?}",
-                            module.module
-                        ))
-                        .into());
-                    }
                 }
 
                 continue;
@@ -610,7 +383,7 @@ impl Indexer {
 
         // rebuild when program membership changed
         let base_versions =
-            Self::program_module_versions(repository, &base.dependencies, profile_id, kind)?;
+            Self::program_module_versions( &base.dependencies, profile_id, kind)?;
         let base_modules = base_versions.keys().copied().collect::<Vec<_>>();
         if base_modules != module_ids {
             return Ok(None);
@@ -691,17 +464,6 @@ impl Indexer {
                     .artifact_table()
                     .module_index(&version)
                     .ok_or(ProviderError::Corrupt { version })?
-            }
-            ArtifactKey::InferenceComponentIndex { .. } => {
-                let component = repository
-                    .artifact_table()
-                    .inference_component_index(&version)
-                    .ok_or(ProviderError::Corrupt { version })?;
-                component.get(module_id).cloned().ok_or_else(|| {
-                    ProviderError::internal(format!(
-                        "component index does not contain program module {module_id:?}"
-                    ))
-                })?
             }
             key => {
                 return Err(ProviderError::internal(format!(

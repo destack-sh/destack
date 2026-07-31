@@ -2,13 +2,13 @@ use std::slice;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactKey, DirBound, DirCheckedModule, DirExpanded, DirImported, DirParsed, DirParsedFile,
+    ArtifactKey, DirBound, DirChecked, DirExpanded, DirImported, DirParsed, DirParsedFile,
     DirResolved,
 };
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProviderResult, Repository, Revision};
-use destack_source::{ComponentId, File, FileId, ModuleId, ProfileId, SourceIndex, Span};
+use destack_source::{File, FileId, ModuleId, ProfileId, SourceIndex, Span};
 
 use crate::{Module, QueryError, QueryResult};
 
@@ -62,7 +62,7 @@ struct ModuleArtifacts {
     /// The resolved import and source-reference artifact.
     resolved: Arc<DirResolved>,
     /// The checked module artifact.
-    checked: Arc<DirCheckedModule>,
+    checked: Arc<DirChecked>,
 }
 
 impl ModuleArtifacts {
@@ -73,15 +73,13 @@ impl ModuleArtifacts {
         profile_id: ProfileId,
         component: ComponentId,
     ) -> ProviderResult<Self> {
-        let checked = reader.dir_checked_module(component, module_id, profile_id)?;
-
         Ok(Self {
             parsed: reader.dir_parsed(module_id)?,
             bound: reader.dir_bound(module_id, profile_id)?,
             imported: reader.dir_imported(module_id, profile_id)?,
             expanded: reader.dir_expanded(module_id, profile_id)?,
             resolved: reader.dir_resolved(module_id, profile_id)?,
-            checked,
+            checked: reader.dir_checked(module_id, profile_id)?,
         })
     }
 }

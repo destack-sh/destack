@@ -4,16 +4,14 @@ use std::sync::Arc;
 use destack_artifact::{
     ArtifactDependency, ArtifactKey, ArtifactOutcome, ArtifactProjection,
     ArtifactProjectionDependency, ArtifactProjectionFingerprint, ArtifactProjectionKey,
-    ArtifactRequirement, ArtifactTable, ArtifactVersion, Asset, Build, Bundle, ComponentGraph,
-    Data, DirBound, DirCheckedComponent, DirCheckedModule, DirDeclaredComponent, DirExpanded,
-    DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, ExternalReferenceComponents,
-    GlobalEnvironment, IndexKind, InferenceComponentIndex, MirAnalyzed, MirElaborated, MirLowered,
-    MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object, Product, ProgramAnalysis,
-    ProgramIndex, ProgramLinted, Script,
+    ArtifactRequirement, ArtifactTable, ArtifactVersion, Asset, Build, Bundle, Data, DirBound,
+    DirChecked, DirDeclared, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed,
+    DirResolved, GlobalEnvironment, IndexKind, InherentExtension, MirAnalyzed, MirElaborated,
+    MirLowered, MirOptimized, MirVerified, ModuleGraph, ModuleIndex, ModuleLinted, Object, Product,
+    ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 use destack_program::Program;
-use destack_source::{ComponentId, ModuleId, PackageId, ProductId, ProfileId, TargetId};
-use rustc_hash::FxHashSet;
+use destack_source::{ModuleId, PackageId, ProductId, ProfileId, TargetId};
 
 use crate::provider::{ProviderContext, ProviderError};
 use crate::repository::{Repository, Revision};
@@ -33,13 +31,13 @@ pub struct ArtifactReader<'a> {
 
 /// Projection-checked read-only view over one component graph.
 #[derive(Debug)]
-pub struct ComponentGraphReader<'a> {
+pub struct ModuleGraphReader<'a> {
     /// The artifact reader enforcing provider dependencies.
     artifacts: &'a ArtifactReader<'a>,
-    /// The component graph artifact key.
+    /// The module graph artifact key.
     key: ArtifactKey,
-    /// The exact component graph payload.
-    graph: Arc<ComponentGraph>,
+    /// The exact module graph payload.
+    graph: Arc<ModuleGraph>,
 }
 
 impl std::fmt::Debug for ArtifactReader<'_> {
@@ -325,31 +323,28 @@ impl<'a> ArtifactReader<'a> {
         )
     }
 
-    /// Read one component graph artifact.
-    pub fn component_graph(
-        &self,
-        profile: ProfileId,
-    ) -> Result<Arc<ComponentGraph>, ProviderError> {
+    /// Read one module graph artifact.
+    pub fn module_graph(&self, profile: ProfileId) -> Result<Arc<ModuleGraph>, ProviderError> {
         self.read(
-            ArtifactKey::component_graph(profile),
-            ArtifactTable::component_graph,
+            ArtifactKey::module_graph(profile),
+            ArtifactTable::module_graph,
         )
     }
 
-    /// Read one component graph through exact projected values.
-    pub fn component_graph_reader(
+    /// Read one module graph through exact projected values.
+    pub fn module_graph_reader(
         &'a self,
         profile: ProfileId,
-    ) -> Result<ComponentGraphReader<'a>, ProviderError> {
-        let key = ArtifactKey::component_graph(profile);
+    ) -> Result<ModuleGraphReader<'a>, ProviderError> {
+        let key = ArtifactKey::module_graph(profile);
         let version = self.projection_owner_version(key)?;
         let graph = self
             .repository
             .artifact_table()
-            .component_graph(&version)
+            .module_graph(&version)
             .ok_or(ProviderError::Corrupt { version })?;
 
-        Ok(ComponentGraphReader {
+        Ok(ModuleGraphReader {
             artifacts: self,
             key,
             graph,
@@ -454,67 +449,16 @@ impl<'a> ArtifactReader<'a> {
         Ok(resolved)
     }
 
-    /// Read one declared DIR component artifact.
-    pub fn dir_declared_component(
+    /// Read one declared DIR artifact.
+    pub fn dir_declared(
         &self,
-        component: ComponentId,
-        profile: ProfileId,
-    ) -> Result<Arc<DirDeclaredComponent>, ProviderError> {
-        let key = ArtifactKey::dir_declared_component(component, profile);
-        let version = self.projection_owner_version(key)?;
-        let component = self
-            .repository
-            .artifact_table()
-            .dir_declared_component(&version)
-            .ok_or(ProviderError::Corrupt { version })?;
-
-        // require every module row before exposing the complete component
-        for module in &component.modules {
-            let projection = ArtifactProjection::new(
-                key,
-                ArtifactProjectionKey::DirDeclaredModule(module.module),
-            );
-            let _version = self.projection_version(projection)?;
-        }
-
-        Ok(component)
-    }
-
-    /// Read one checked DIR component artifact.
-    pub fn dir_checked_component(
-        &self,
-        component: ComponentId,
-        profile: ProfileId,
-    ) -> Result<Arc<DirCheckedComponent>, ProviderError> {
-        self.read(
-            ArtifactKey::dir_checked_component(component, profile),
-            ArtifactTable::dir_checked_component,
-        )
-    }
-
-    /// Read one projected checked DIR module.
-    pub fn dir_checked_module(
-        &self,
-        component: ComponentId,
         module: ModuleId,
         profile: ProfileId,
-    ) -> Result<Arc<DirCheckedModule>, ProviderError> {
-        let key = ArtifactKey::dir_checked_component(component, profile);
-        let projection =
-            ArtifactProjection::new(key, ArtifactProjectionKey::DirCheckedModule(module));
-        let version = self.projection_version(projection)?;
-        let component = self
-            .repository
-            .artifact_table()
-            .dir_checked_component(&version)
-            .ok_or(ProviderError::Corrupt { version })?;
-        let module = component.module(module).ok_or_else(|| {
-            ProviderError::internal(format!(
-                "checked component {key:?} does not contain module {module:?}"
-            ))
-        })?;
-
-        Ok(Arc::new(module.clone()))
+    ) -> Result<Arc<DirDeclared>, ProviderError> {
+        self.read(
+            ArtifactKey::dir_declared(module, profile),
+            ArtifactTable::dir_declared,
+        )
     }
 
     /// Read one checked DIR artifact.
@@ -522,81 +466,11 @@ impl<'a> ArtifactReader<'a> {
         &self,
         module: ModuleId,
         profile: ProfileId,
-    ) -> Result<Arc<DirCheckedModule>, ProviderError> {
-        // read the facade that names the owning component
-        let version = self.version(ArtifactKey::dir_checked(module, profile))?;
-        let checked = self
-            .repository
-            .artifact_table()
-            .dir_checked(&version)
-            .ok_or(ProviderError::Corrupt { version })?;
-
-        // require the current component to carry the selected module output
-        let component_key = ArtifactKey::dir_checked_component(checked.component, profile);
-        let projection = ArtifactProjection::new(
-            component_key,
-            ArtifactProjectionKey::DirCheckedModule(module),
-        );
-        let binding = self
-            .repository
-            .artifact_binding(self.revision, &version.key)
-            .map_err(|error| ProviderError::internal(error.to_string()))?
-            .ok_or(ProviderError::Corrupt { version })?;
-        if binding.version != version {
-            return Err(ProviderError::internal(format!(
-                "checked facade binding changed during provider execution: expected={version:?}, \
-                 found={:?}",
-                binding.version
-            )));
-        }
-        let dependency = binding
-            .dependencies
-            .iter()
-            .find_map(|dependency| match dependency {
-                ArtifactDependency::Projection(dependency)
-                    if dependency.projection() == projection =>
-                {
-                    Some(dependency)
-                }
-                _ => None,
-            })
-            .ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "checked facade has no module projection dependency: {projection:?}"
-                ))
-            })?;
-        let component_version = dependency.version();
-        let fingerprint = self
-            .repository
-            .artifact_table()
-            .projection_fingerprint(&component_version, &projection)
-            .ok_or(ProviderError::Corrupt {
-                version: component_version,
-            })?;
-        if fingerprint != checked.fingerprint || fingerprint != dependency.fingerprint() {
-            return Err(ProviderError::internal(format!(
-                "checked facade projection does not match component: facade={:?}, dependency={:?}, component={fingerprint:?}",
-                checked.fingerprint,
-                dependency.fingerprint(),
-            )));
-        }
-
-        // read the checked module entry from the owning component
-        let component = self
-            .repository
-            .artifact_table()
-            .dir_checked_component(&component_version)
-            .ok_or(ProviderError::Corrupt {
-                version: component_version,
-            })?;
-        let entry = component.module(module).ok_or_else(|| {
-            ProviderError::internal(format!(
-                "checked component {} does not contain module {module:?}",
-                checked.component
-            ))
-        })?;
-
-        Ok(Arc::new(entry.clone()))
+    ) -> Result<Arc<DirChecked>, ProviderError> {
+        self.read(
+            ArtifactKey::dir_checked(module, profile),
+            ArtifactTable::dir_checked,
+        )
     }
 
     /// Read one materialized DIR artifact.
@@ -701,19 +575,6 @@ impl<'a> ArtifactReader<'a> {
         )
     }
 
-    /// Read one checked component query index artifact.
-    pub fn inference_component_index(
-        &self,
-        component: ComponentId,
-        profile: ProfileId,
-        kind: IndexKind,
-    ) -> Result<Arc<InferenceComponentIndex>, ProviderError> {
-        self.read(
-            ArtifactKey::inference_component_index(component, profile, kind),
-            ArtifactTable::inference_component_index,
-        )
-    }
-
     /// Read one program index artifact.
     pub fn program_index(
         &self,
@@ -805,232 +666,50 @@ impl<'a> ArtifactReader<'a> {
     }
 }
 
-impl ComponentGraphReader<'_> {
-    /// Return the reference component containing one module.
-    pub fn reference_component(
-        &self,
-        module: ModuleId,
-    ) -> Result<Option<ComponentId>, ProviderError> {
-        self.require(ArtifactProjectionKey::ReferenceComponent(module))?;
+impl ModuleGraphReader<'_> {
+    /// Return the sorted module universe.
+    pub fn modules(&self) -> Result<&[ModuleId], ProviderError> {
+        self.require(ArtifactProjectionKey::Modules)?;
 
-        Ok(self.graph.reference_component(module))
+        Ok(self.graph.modules())
     }
 
-    /// Return the member modules of one reference component.
-    pub fn reference_members(&self, component: ComponentId) -> Result<&[ModuleId], ProviderError> {
-        self.require(ArtifactProjectionKey::ReferenceMembers(component))?;
+    /// Return whether one module is part of this graph.
+    pub fn contains(&self, module: ModuleId) -> Result<bool, ProviderError> {
+        self.require(ArtifactProjectionKey::Modules)?;
 
-        self.graph.reference_members(component).ok_or_else(|| {
-            ProviderError::internal(format!(
-                "reference component {component:?} is absent from the component graph"
-            ))
-        })
+        Ok(self.graph.contains(module))
     }
 
-    /// Return the direct external reference components of one component.
-    pub fn reference_dependencies(
-        &self,
-        component: ComponentId,
-    ) -> Result<&[ComponentId], ProviderError> {
-        self.require(ArtifactProjectionKey::ReferenceDependencies(component))?;
+    /// Return outgoing import edges for one module.
+    pub fn edges(&self, module: ModuleId) -> Result<Option<Arc<[ModuleId]>>, ProviderError> {
+        self.require(ArtifactProjectionKey::ModuleEdges(module))?;
 
-        self.graph.reference_dependencies(component).ok_or_else(|| {
-            ProviderError::internal(format!(
-                "reference component {component:?} is absent from the component graph"
-            ))
-        })
+        Ok(self.graph.edges(module))
     }
 
-    /// Return the inference component containing one module.
-    pub fn inference_component(
-        &self,
-        module: ModuleId,
-    ) -> Result<Option<ComponentId>, ProviderError> {
-        self.require(ArtifactProjectionKey::InferenceComponent(module))?;
+    /// Return sorted modules reachable from the given roots over import edges.
+    pub fn reachable(&self, roots: &[ModuleId]) -> Result<Vec<ModuleId>, ProviderError> {
+        let reachable = self.graph.reachable(roots);
 
-        Ok(self.graph.inference_component(module))
-    }
-
-    /// Return the sorted inference component identities.
-    pub fn inference_components(&self) -> Result<&[ComponentId], ProviderError> {
-        self.require(ArtifactProjectionKey::InferenceComponents)?;
-
-        Ok(self.graph.inference_components())
-    }
-
-    /// Return the member modules of one inference component.
-    pub fn inference_members(&self, component: ComponentId) -> Result<&[ModuleId], ProviderError> {
-        self.require(ArtifactProjectionKey::InferenceMembers(component))?;
-
-        self.graph.inference_members(component).ok_or_else(|| {
-            ProviderError::internal(format!(
-                "inference component {component:?} is absent from the component graph"
-            ))
-        })
-    }
-
-    /// Return upstream inference components of one inference component.
-    pub fn inference_dependencies(
-        &self,
-        component: ComponentId,
-    ) -> Result<&[ComponentId], ProviderError> {
-        self.require(ArtifactProjectionKey::InferenceDependencies(component))?;
-
-        self.graph.inference_dependencies(component).ok_or_else(|| {
-            ProviderError::internal(format!(
-                "inference component {component:?} is absent from the component graph"
-            ))
-        })
-    }
-
-    /// Return the entry module of one reference component.
-    pub fn reference_entry(
-        &self,
-        component: ComponentId,
-    ) -> Result<Option<ModuleId>, ProviderError> {
-        Ok(self.reference_members(component)?.first().copied())
-    }
-
-    /// Return the entry module of one inference component.
-    pub fn inference_entry(
-        &self,
-        component: ComponentId,
-    ) -> Result<Option<ModuleId>, ProviderError> {
-        Ok(self.inference_members(component)?.first().copied())
-    }
-
-    /// Return components reachable from module roots in stable breadth-first order.
-    pub fn reachable_components(
-        &self,
-        roots: &[ModuleId],
-    ) -> Result<Vec<ComponentId>, ProviderError> {
-        let mut components = Vec::new();
-        let mut seen = FxHashSet::default();
-
-        // seed the walk with root components in caller order
-        for root in roots {
-            let component = self.reference_component(*root)?.ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "module {root:?} is absent from the component graph"
-                ))
-            })?;
-            if seen.insert(component) {
-                components.push(component);
-            }
+        // record the edges the walk observed
+        for module in &reachable {
+            self.require(ArtifactProjectionKey::ModuleEdges(*module))?;
         }
 
-        // extend the ordered worklist through the condensation graph
-        let mut index = 0;
-        while index < components.len() {
-            let component = components[index];
-            index += 1;
-
-            for dependency in self.reference_dependencies(component)? {
-                if seen.insert(*dependency) {
-                    components.push(*dependency);
-                }
-            }
-        }
-
-        Ok(components)
+        Ok(reachable)
     }
 
-    /// Return every transitive reference dependency in stable breadth-first order.
-    pub fn transitive_reference_dependencies(
+    /// Return the inherent extensions declared outside their target's module.
+    pub fn cross_module_extensions(
         &self,
-        component: ComponentId,
-    ) -> Result<Vec<ComponentId>, ProviderError> {
-        let mut dependencies = Vec::new();
-        let mut seen = FxHashSet::default();
-
-        // seed the walk with direct dependencies
-        for dependency in self.reference_dependencies(component)? {
-            if seen.insert(*dependency) {
-                dependencies.push(*dependency);
-            }
-        }
-
-        // extend the ordered worklist through the condensation graph
-        let mut index = 0;
-        while index < dependencies.len() {
-            let component = dependencies[index];
-            index += 1;
-
-            for dependency in self.reference_dependencies(component)? {
-                if seen.insert(*dependency) {
-                    dependencies.push(*dependency);
-                }
-            }
-        }
-
-        Ok(dependencies)
-    }
-
-    /// Return external reference components loaded with one component.
-    pub fn external_reference_components(
-        &self,
-        component: ComponentId,
-        implicit_modules: impl IntoIterator<Item = ModuleId>,
-    ) -> Result<ExternalReferenceComponents, ProviderError> {
-        let references = self.transitive_reference_dependencies(component)?;
+    ) -> Result<impl Iterator<Item = &InherentExtension>, ProviderError> {
         self.require(ArtifactProjectionKey::InherentExtensions)?;
 
-        // prevent extension closures from recursively loading extensions
-        if self.graph.is_extension_component(component) {
-            return Ok(ExternalReferenceComponents {
-                references,
-                extensions: Vec::new(),
-            });
-        }
-
-        // index ordinary references and every component loaded so far
-        let reference_set = references.iter().copied().collect::<FxHashSet<_>>();
-        let mut loaded = reference_set.clone();
-        let implicit = implicit_modules.into_iter().collect::<FxHashSet<_>>();
-        let mut extensions = Vec::new();
-
-        // load extensions whose targets are referenced or implicit
-        for extension in self.graph.cross_component_extensions() {
-            let target = self
-                .graph
-                .reference_component(extension.target.module_id)
-                .ok_or_else(|| {
-                    ProviderError::internal(format!(
-                        "inherent extension target is absent from the component graph: {:?}",
-                        extension.target
-                    ))
-                })?;
-            let is_target_loaded =
-                implicit.contains(&extension.target.module_id) || reference_set.contains(&target);
-            let source = self
-                .graph
-                .reference_component(extension.symbol.module_id)
-                .ok_or_else(|| {
-                    ProviderError::internal(format!(
-                        "inherent extension source is absent from the component graph: {:?}",
-                        extension.symbol
-                    ))
-                })?;
-            if !is_target_loaded || source == component || !loaded.insert(source) {
-                continue;
-            }
-
-            // load the extension source and everything it references
-            extensions.push(source);
-            for dependency in self.transitive_reference_dependencies(source)? {
-                if loaded.insert(dependency) {
-                    extensions.push(dependency);
-                }
-            }
-        }
-
-        Ok(ExternalReferenceComponents {
-            references,
-            extensions,
-        })
+        Ok(self.graph.cross_module_extensions())
     }
 
-    /// Require one exact component graph projection.
+    /// Require one exact module graph projection.
     fn require(&self, projection: ArtifactProjectionKey) -> Result<(), ProviderError> {
         let projection = ArtifactProjection::new(self.key, projection);
         let _version = self.artifacts.projection_version(projection)?;

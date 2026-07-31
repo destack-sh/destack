@@ -15,7 +15,7 @@ pub use destack_workspace as workspace;
 pub use destack_artifact::{
     ArtifactDependency, ArtifactFingerprint, ArtifactKey, ArtifactProjection,
     ArtifactProjectionDependency, ArtifactProjectionFingerprint, ArtifactProjectionKey,
-    ArtifactRecord, ArtifactSidecar, ArtifactVersion, ComponentGraphProjection, SourceDependency,
+    ArtifactRecord, ArtifactSidecar, ArtifactVersion, SourceDependency,
 };
 pub use destack_core::StringId;
 pub use destack_repository::Revision;

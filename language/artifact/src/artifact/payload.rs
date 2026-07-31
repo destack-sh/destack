@@ -5,12 +5,11 @@ use destack_serde::Reflect;
 use destack_source::ContentId;
 
 use crate::{
-    ArtifactKey, ArtifactProjectionFingerprint, ArtifactProjectionKey, Asset, Build, Bundle,
-    ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirDeclaredComponent,
-    DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
-    GlobalEnvironment, InferenceComponentIndex, MirAnalyzed, MirElaborated, MirLowered,
-    MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object, Product, ProgramAnalysis,
-    ProgramIndex, ProgramLinted, Script,
+    ArtifactKey, ArtifactProjectionFingerprint, ArtifactProjectionKey, Asset, Build, Bundle, Data,
+    DirBound, DirChecked, DirDeclared, DirExpanded, DirExported, DirImported, DirMaterialized,
+    DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed, MirElaborated, MirLowered,
+    MirOptimized, MirVerified, ModuleGraph, ModuleIndex, ModuleLinted, Object, Product,
+    ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 use serde::{Deserialize, Serialize};
 
@@ -24,7 +23,7 @@ pub enum ArtifactPayload {
     /// Explicit global environment for one profile.
     GlobalEnvironment(Arc<GlobalEnvironment>),
     /// Component partition for one profile.
-    ComponentGraph(Arc<ComponentGraph>),
+    ModuleGraph(Arc<ModuleGraph>),
     /// Whole-program analysis for one profile and target.
     ProgramAnalysis(Arc<ProgramAnalysis>),
     /// Bound DIR.
@@ -37,11 +36,9 @@ pub enum ArtifactPayload {
     DirExported(Arc<DirExported>),
     /// Resolved DIR imports.
     DirResolved(Arc<DirResolved>),
-    /// Declared DIR reference component.
-    DirDeclaredComponent(Arc<DirDeclaredComponent>),
-    /// Checked DIR inference component.
-    DirCheckedComponent(Arc<DirCheckedComponent>),
-    /// Checked DIR facade.
+    /// Declared DIR module.
+    DirDeclared(Arc<DirDeclared>),
+    /// Checked DIR module.
     DirChecked(Arc<DirChecked>),
     /// Materialized DIR.
     DirMaterialized(Arc<DirMaterialized>),
@@ -57,8 +54,6 @@ pub enum ArtifactPayload {
     MirOptimized(Arc<MirOptimized>),
     /// One query index for a module profile.
     ModuleIndex(Arc<ModuleIndex>),
-    /// One query index for a checked inference component.
-    InferenceComponentIndex(Arc<InferenceComponentIndex>),
     /// One query index for a program profile.
     ProgramIndex(Arc<ProgramIndex>),
     /// One structured linker input for one target.
@@ -91,7 +86,7 @@ pub enum ArtifactPayloadRef<'a> {
     /// Explicit global environment for one profile.
     GlobalEnvironment(&'a GlobalEnvironment),
     /// Component partition for one profile.
-    ComponentGraph(&'a ComponentGraph),
+    ModuleGraph(&'a ModuleGraph),
     /// Whole-program analysis for one profile and target.
     ProgramAnalysis(&'a ProgramAnalysis),
     /// Bound DIR.
@@ -104,11 +99,9 @@ pub enum ArtifactPayloadRef<'a> {
     DirExported(&'a DirExported),
     /// Resolved DIR imports.
     DirResolved(&'a DirResolved),
-    /// Declared DIR reference component.
-    DirDeclaredComponent(&'a DirDeclaredComponent),
-    /// Checked DIR inference component.
-    DirCheckedComponent(&'a DirCheckedComponent),
-    /// Checked DIR facade.
+    /// Declared DIR module.
+    DirDeclared(&'a DirDeclared),
+    /// Checked DIR module.
     DirChecked(&'a DirChecked),
     /// Materialized DIR.
     DirMaterialized(&'a DirMaterialized),
@@ -124,8 +117,6 @@ pub enum ArtifactPayloadRef<'a> {
     MirOptimized(&'a MirOptimized),
     /// One query index for a module profile.
     ModuleIndex(&'a ModuleIndex),
-    /// One query index for a checked inference component.
-    InferenceComponentIndex(&'a InferenceComponentIndex),
     /// One query index for a program profile.
     ProgramIndex(&'a ProgramIndex),
     /// One structured linker input for one target.
@@ -155,12 +146,6 @@ impl ArtifactPayload {
             (ArtifactKey::ModuleIndex { kind, .. }, ArtifactPayload::ModuleIndex(index)) => {
                 *kind == index.kind()
             }
-            (
-                ArtifactKey::InferenceComponentIndex {
-                    component, kind, ..
-                },
-                ArtifactPayload::InferenceComponentIndex(index),
-            ) => *component == index.component && *kind == index.kind,
             (ArtifactKey::ProgramIndex { kind, .. }, ArtifactPayload::ProgramIndex(index)) => {
                 *kind == index.kind()
             }
@@ -170,8 +155,8 @@ impl ArtifactPayload {
                     ArtifactKey::GlobalEnvironment { .. },
                     ArtifactPayload::GlobalEnvironment(_)
                 ) | (
-                    ArtifactKey::ComponentGraph { .. },
-                    ArtifactPayload::ComponentGraph(_)
+                    ArtifactKey::ModuleGraph { .. },
+                    ArtifactPayload::ModuleGraph(_)
                 ) | (
                     ArtifactKey::ProgramAnalysis { .. },
                     ArtifactPayload::ProgramAnalysis(_)
@@ -195,12 +180,8 @@ impl ArtifactPayload {
                         ArtifactPayload::DirResolved(_)
                     )
                     | (
-                        ArtifactKey::DirDeclaredComponent { .. },
-                        ArtifactPayload::DirDeclaredComponent(_)
-                    )
-                    | (
-                        ArtifactKey::DirCheckedComponent { .. },
-                        ArtifactPayload::DirCheckedComponent(_)
+                        ArtifactKey::DirDeclared { .. },
+                        ArtifactPayload::DirDeclared(_)
                     )
                     | (
                         ArtifactKey::DirChecked { .. },
@@ -257,19 +238,14 @@ impl ArtifactPayload {
             Self::GlobalEnvironment(payload) => {
                 ArtifactPayloadRef::GlobalEnvironment(payload.as_ref())
             }
-            Self::ComponentGraph(payload) => ArtifactPayloadRef::ComponentGraph(payload.as_ref()),
+            Self::ModuleGraph(payload) => ArtifactPayloadRef::ModuleGraph(payload.as_ref()),
             Self::ProgramAnalysis(payload) => ArtifactPayloadRef::ProgramAnalysis(payload.as_ref()),
             Self::DirBound(payload) => ArtifactPayloadRef::DirBound(payload.as_ref()),
             Self::DirImported(payload) => ArtifactPayloadRef::DirImported(payload.as_ref()),
             Self::DirExpanded(payload) => ArtifactPayloadRef::DirExpanded(payload.as_ref()),
             Self::DirExported(payload) => ArtifactPayloadRef::DirExported(payload.as_ref()),
             Self::DirResolved(payload) => ArtifactPayloadRef::DirResolved(payload.as_ref()),
-            Self::DirDeclaredComponent(payload) => {
-                ArtifactPayloadRef::DirDeclaredComponent(payload.as_ref())
-            }
-            Self::DirCheckedComponent(payload) => {
-                ArtifactPayloadRef::DirCheckedComponent(payload.as_ref())
-            }
+            Self::DirDeclared(payload) => ArtifactPayloadRef::DirDeclared(payload.as_ref()),
             Self::DirChecked(payload) => ArtifactPayloadRef::DirChecked(payload.as_ref()),
             Self::DirMaterialized(payload) => ArtifactPayloadRef::DirMaterialized(payload.as_ref()),
             Self::MirLowered(payload) => ArtifactPayloadRef::MirLowered(payload.as_ref()),
@@ -278,9 +254,6 @@ impl ArtifactPayload {
             Self::MirAnalyzed(payload) => ArtifactPayloadRef::MirAnalyzed(payload.as_ref()),
             Self::MirOptimized(payload) => ArtifactPayloadRef::MirOptimized(payload.as_ref()),
             Self::ModuleIndex(payload) => ArtifactPayloadRef::ModuleIndex(payload.as_ref()),
-            Self::InferenceComponentIndex(payload) => {
-                ArtifactPayloadRef::InferenceComponentIndex(payload.as_ref())
-            }
             Self::ProgramIndex(payload) => ArtifactPayloadRef::ProgramIndex(payload.as_ref()),
             Self::Script(payload) => ArtifactPayloadRef::Script(payload.as_ref()),
             Self::Object(payload) => ArtifactPayloadRef::Object(payload.as_ref()),
@@ -298,7 +271,7 @@ impl ArtifactPayload {
     pub fn name(&self) -> &'static str {
         match self {
             Self::GlobalEnvironment(_) => "global_environment",
-            Self::ComponentGraph(_) => "component_graph",
+            Self::ModuleGraph(_) => "component_graph",
             Self::ProgramAnalysis(_) => "program_analysis",
             Self::DirParsed(_) => "dir_parsed",
             Self::Data(_) => "data",
@@ -307,8 +280,7 @@ impl ArtifactPayload {
             Self::DirExpanded(_) => "dir_expanded",
             Self::DirExported(_) => "dir_exported",
             Self::DirResolved(_) => "dir_resolved",
-            Self::DirDeclaredComponent(_) => "dir_declared_component",
-            Self::DirCheckedComponent(_) => "dir_checked_component",
+            Self::DirDeclared(_) => "dir_declared",
             Self::DirChecked(_) => "dir_checked",
             Self::DirMaterialized(_) => "dir_materialized",
             Self::MirLowered(_) => "mir_lowered",
@@ -317,7 +289,6 @@ impl ArtifactPayload {
             Self::MirAnalyzed(_) => "mir_analyzed",
             Self::MirOptimized(_) => "mir_optimized",
             Self::ModuleIndex(_) => "module_index",
-            Self::InferenceComponentIndex(_) => "inference_component_index",
             Self::ProgramIndex(_) => "program_index",
             Self::Script(_) => "script",
             Self::Object(_) => "object",
@@ -352,23 +323,16 @@ impl ArtifactPayloadRef<'_> {
         projection: ArtifactProjectionKey,
     ) -> Option<ArtifactProjectionFingerprint> {
         match (self, projection) {
-            (Self::ComponentGraph(payload), projection) => {
-                payload.fingerprint_projection(projection)
-            }
-            (Self::DirExported(payload), ArtifactProjectionKey::DirInferenceExports) => {
-                Some(payload.inference_exports_fingerprint())
-            }
-            (Self::DirResolved(payload), ArtifactProjectionKey::DirComponentEdges) => {
+            (Self::ModuleGraph(payload), projection) => payload.fingerprint_projection(projection),
+            (Self::DirResolved(payload), ArtifactProjectionKey::ImportEdges) => {
                 Some(payload.component_edges_fingerprint())
             }
-            (
-                Self::DirDeclaredComponent(payload),
-                ArtifactProjectionKey::DirDeclaredModule(module),
-            ) => payload.module(module).map(|entry| entry.fingerprint),
-            (
-                Self::DirCheckedComponent(payload),
-                ArtifactProjectionKey::DirCheckedModule(module),
-            ) => payload.module(module).map(|entry| entry.fingerprint),
+            (Self::DirDeclared(payload), ArtifactProjectionKey::Declared) => {
+                Some(payload.fingerprint)
+            }
+            (Self::DirChecked(payload), ArtifactProjectionKey::Checked) => {
+                Some(payload.fingerprint)
+            }
             _ => None,
         }
     }
@@ -380,74 +344,38 @@ impl ArtifactPayloadRef<'_> {
     {
         let mut projections = Vec::new();
 
-        // index component graph columns at their natural row granularity
-        if let Self::ComponentGraph(graph) = self {
+        // index module graph columns at their natural row granularity
+        if let Self::ModuleGraph(graph) = self {
             for module in graph.modules() {
-                let keys = [
-                    ArtifactProjectionKey::ReferenceComponent(*module),
-                    ArtifactProjectionKey::InferenceComponent(*module),
-                ];
-                push_projection_fingerprints(self, keys, &mut projections)?;
-            }
-            for component in graph.reference_components() {
-                let keys = [
-                    ArtifactProjectionKey::ReferenceMembers(*component),
-                    ArtifactProjectionKey::ReferenceDependencies(*component),
-                ];
-                push_projection_fingerprints(self, keys, &mut projections)?;
-            }
-            for component in graph.inference_components() {
-                let keys = [
-                    ArtifactProjectionKey::InferenceMembers(*component),
-                    ArtifactProjectionKey::InferenceDependencies(*component),
-                ];
+                let keys = [ArtifactProjectionKey::ModuleEdges(*module)];
                 push_projection_fingerprints(self, keys, &mut projections)?;
             }
             push_projection_fingerprints(
                 self,
-                [ArtifactProjectionKey::InferenceComponents],
-                &mut projections,
-            )?;
-            push_projection_fingerprints(
-                self,
-                [ArtifactProjectionKey::InherentExtensions],
+                [
+                    ArtifactProjectionKey::Modules,
+                    ArtifactProjectionKey::InherentExtensions,
+                ],
                 &mut projections,
             )?;
         }
 
-        // index independently reusable exported and resolved DIR relationships
-        if matches!(self, Self::DirExported(_)) {
-            push_projection_fingerprints(
-                self,
-                [ArtifactProjectionKey::DirInferenceExports],
-                &mut projections,
-            )?;
-        }
+        // index independently reusable resolved DIR relationships
         if matches!(self, Self::DirResolved(_)) {
             push_projection_fingerprints(
                 self,
-                [ArtifactProjectionKey::DirComponentEdges],
+                [ArtifactProjectionKey::ImportEdges],
                 &mut projections,
             )?;
         }
 
         // index independently reusable module outputs
         match self {
-            Self::DirDeclaredComponent(component) => {
-                for module in &component.modules {
-                    projections.push((
-                        ArtifactProjectionKey::DirDeclaredModule(module.module),
-                        module.fingerprint,
-                    ));
-                }
+            Self::DirDeclared(declared) => {
+                projections.push((ArtifactProjectionKey::Declared, declared.fingerprint));
             }
-            Self::DirCheckedComponent(component) => {
-                for module in &component.modules {
-                    projections.push((
-                        ArtifactProjectionKey::DirCheckedModule(module.module),
-                        module.fingerprint,
-                    ));
-                }
+            Self::DirChecked(checked) => {
+                projections.push((ArtifactProjectionKey::Checked, checked.fingerprint));
             }
             _ => {}
         }
@@ -503,10 +431,10 @@ impl From<GlobalEnvironment> for ArtifactPayload {
     }
 }
 
-impl From<ComponentGraph> for ArtifactPayload {
+impl From<ModuleGraph> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
-    fn from(payload: ComponentGraph) -> Self {
-        Self::ComponentGraph(Arc::new(payload))
+    fn from(payload: ModuleGraph) -> Self {
+        Self::ModuleGraph(Arc::new(payload))
     }
 }
 
@@ -552,17 +480,10 @@ impl From<DirResolved> for ArtifactPayload {
     }
 }
 
-impl From<DirDeclaredComponent> for ArtifactPayload {
-    /// Wrap one declared DIR component payload.
-    fn from(payload: DirDeclaredComponent) -> Self {
-        Self::DirDeclaredComponent(Arc::new(payload))
-    }
-}
-
-impl From<DirCheckedComponent> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: DirCheckedComponent) -> Self {
-        Self::DirCheckedComponent(Arc::new(payload))
+impl From<DirDeclared> for ArtifactPayload {
+    /// Wrap one declared DIR module payload.
+    fn from(payload: DirDeclared) -> Self {
+        Self::DirDeclared(Arc::new(payload))
     }
 }
 
@@ -619,13 +540,6 @@ impl From<ModuleIndex> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: ModuleIndex) -> Self {
         Self::ModuleIndex(Arc::new(payload))
-    }
-}
-
-impl From<InferenceComponentIndex> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: InferenceComponentIndex) -> Self {
-        Self::InferenceComponentIndex(Arc::new(payload))
     }
 }
 

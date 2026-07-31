@@ -2,7 +2,7 @@ use std::ops::Deref;
 use std::sync::{Arc, Mutex, OnceLock};
 
 use destack_artifact::{
-    ArtifactKey, ComponentGraph, IndexKind, InferenceComponentIndex, ModuleIndex, PackageNode,
+    ArtifactKey, IndexKind, ModuleIndex, PackageNode,
     ProgramIndex,
 };
 use destack_dir as dir;
@@ -16,23 +16,12 @@ use crate::{Module, ModuleQueryContext, QueryError, QueryMethod, QueryResult};
 pub struct ProgramQueryContext<'a> {
     /// Shared semantic access for this program.
     query: QueryContext<'a>,
-    /// Lazily read component graph for semantic index families.
-    component_graph: OnceLock<Result<Arc<ComponentGraph>, ProviderError>>,
     /// Lazily built package import-resolution nodes.
     package_nodes: Mutex<FxHashMap<PackageId, Arc<PackageNode>>>,
     /// Lazily read program indexes by family.
     program_indexes: [OnceLock<Result<Arc<ProgramIndex>, ProviderError>>; IndexKind::ALL.len()],
     /// Lazily read module indexes by module and family.
-    module_indexes: OnceLock<
-        Box<[[OnceLock<Result<Arc<ModuleIndex>, ProviderError>>; IndexKind::MODULE_COUNT]]>,
-    >,
-    /// Lazily read component indexes by component and family.
-    component_indexes: OnceLock<
-        Box<
-            [[OnceLock<Result<Arc<InferenceComponentIndex>, ProviderError>>;
-                 IndexKind::INFERENCE_COMPONENT_COUNT]],
-        >,
-    >,
+    module_indexes: Box<[[OnceLock<Result<Arc<ModuleIndex>, ProviderError>>; IndexKind::ALL.len()]]>,
 }
 
 impl std::fmt::Debug for ProgramQueryContext<'_> {
@@ -58,9 +47,6 @@ impl<'a> ProgramQueryContext<'a> {
     ) -> QueryResult<Vec<ArtifactKey>> {
         let mut artifacts = Vec::new();
         let kinds = Self::index_kinds(method);
-        if kinds.iter().any(|kind| kind.is_inference_component_owned()) {
-            artifacts.push(ArtifactKey::component_graph(profile_id));
-        }
         for kind in kinds {
             artifacts.push(ArtifactKey::program_index(profile_id, *kind));
         }
@@ -398,19 +384,15 @@ impl<'a> ProgramQueryContext<'a> {
         module_ids.dedup();
         Ok(Self {
             query,
-            component_graph: OnceLock::new(),
             package_nodes: Mutex::new(FxHashMap::default()),
             program_indexes: std::array::from_fn(|_| OnceLock::new()),
-            module_indexes: OnceLock::new(),
-            component_indexes: OnceLock::new(),
+            module_indexes,
         })
     }
 
     /// Read one exact program index artifact.
     fn program_index(&self, kind: IndexKind) -> QueryResult<&ProgramIndex> {
-        let artifact = ArtifactKey::program_index(self.profile_id(), kind);
-        (self.require_artifacts)(&[artifact])?;
-        let index = self.program_indexes[kind.program_index_ordinal()].get_or_init(|| {
+        let index = self.program_indexes[kind.ordinal()].get_or_init(|| {
             let artifacts = ArtifactReader::new(self.repository(), self.revision());
 
             artifacts.program_index(self.profile_id(), kind)
@@ -424,16 +406,7 @@ impl<'a> ProgramQueryContext<'a> {
 
     /// Read one exact module index artifact.
     fn module_index(&self, module_id: ModuleId, kind: IndexKind) -> QueryResult<&ModuleIndex> {
-        if kind.is_inference_component_owned() {
-            return self.component_module_index(module_id, kind);
-        }
-
-        // require the exact module index before reading its payload
-        let artifact = ArtifactKey::module_index(module_id, self.profile_id(), kind);
-        (self.require_artifacts)(&[artifact])?;
-        let kind_ordinal = kind
-            .module_index_ordinal()
-            .ok_or_else(|| QueryError::invalid(format!("non-module index family: {kind:?}")))?;
+        let kind_ordinal = kind.ordinal();
         let ordinal = self.module_ordinal(module_id)?;
         let module_indexes = self.module_indexes.get_or_init(|| {
             (0..self.module_ids.len())
@@ -449,68 +422,6 @@ impl<'a> ProgramQueryContext<'a> {
 
         match index {
             Ok(index) => Ok(index.as_ref()),
-            Err(error) => Err(QueryError::from(error.clone())),
-        }
-    }
-
-    /// Read one exact component index row.
-    fn component_module_index(
-        &self,
-        module_id: ModuleId,
-        kind: IndexKind,
-    ) -> QueryResult<&ModuleIndex> {
-        let graph = self.component_graph()?;
-        let component = graph
-            .inference_component(module_id)
-            .ok_or_else(|| QueryError::missing(format!("module component: {module_id:?}")))?;
-        let ordinal = graph
-            .inference_components()
-            .binary_search(&component)
-            .map_err(|_| QueryError::invalid(format!("inference component: {component:?}")))?;
-        let kind_ordinal = kind
-            .inference_component_index_ordinal()
-            .ok_or_else(|| QueryError::invalid(format!("non-component index family: {kind:?}")))?;
-        let artifact = ArtifactKey::inference_component_index(component, self.profile_id(), kind);
-        (self.require_artifacts)(&[artifact])?;
-        let component_indexes = self.component_indexes.get_or_init(|| {
-            (0..graph.inference_components().len())
-                .map(|_| std::array::from_fn(|_| OnceLock::new()))
-                .collect::<Vec<_>>()
-                .into_boxed_slice()
-        });
-        let index = component_indexes[ordinal][kind_ordinal].get_or_init(|| {
-            let artifacts = ArtifactReader::new(self.repository(), self.revision());
-
-            artifacts.inference_component_index(component, self.profile_id(), kind)
-        });
-        let index = match index {
-            Ok(index) => index,
-            Err(error) => return Err(QueryError::from(error.clone())),
-        };
-        if index.component != component || index.kind != kind {
-            return Err(QueryError::invalid(format!(
-                "component index differs from its request: component={component:?}, kind={kind:?}"
-            )));
-        }
-
-        index
-            .get(module_id)
-            .map(Arc::as_ref)
-            .ok_or_else(|| QueryError::missing(format!("component index module: {module_id:?}")))
-    }
-
-    /// Read the exact component graph artifact.
-    fn component_graph(&self) -> QueryResult<&ComponentGraph> {
-        let artifact = ArtifactKey::component_graph(self.profile_id());
-        (self.require_artifacts)(&[artifact])?;
-        let graph = self.component_graph.get_or_init(|| {
-            let artifacts = ArtifactReader::new(self.repository(), self.revision());
-
-            artifacts.component_graph(self.profile_id())
-        });
-
-        match graph {
-            Ok(graph) => Ok(graph.as_ref()),
             Err(error) => Err(QueryError::from(error.clone())),
         }
     }

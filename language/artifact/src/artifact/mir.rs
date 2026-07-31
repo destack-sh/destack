@@ -24,6 +24,8 @@ pub struct MirLowered {
     pub effects: mir::EffectTable,
     /// Static profile counter table.
     pub profile: mir::ProfileTable,
+    /// The module initializer storing runtime bindings, when one exists.
+    pub initializer: Option<mir::FunctionId>,
 }
 
 impl MirLowered {
@@ -39,6 +41,7 @@ impl MirLowered {
             memory: mir::MemoryTable::default(),
             effects: mir::EffectTable::default(),
             profile: mir::ProfileTable::default(),
+            initializer: None,
         }
     }
 }

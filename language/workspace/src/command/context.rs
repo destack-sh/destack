@@ -154,6 +154,22 @@ impl<'a> CommandContext<'a> {
             .map_err(|error| error.to_string().into())
     }
 
+    /// Return the display label of one traced artifact.
+    fn artifact_label(
+        &self,
+        revision: Revision,
+        key: ArtifactKey,
+    ) -> CommandResult<Option<String>> {
+        // label module artifacts through the repository index
+        let Some(module) = key.module_id() else {
+            return Ok(None);
+        };
+
+        self.repository
+            .module_display(revision, module)
+            .map_err(|error| CommandError::internal(error.to_string()))
+    }
+
     /// Return diagnostics emitted by the requested artifact roots.
     pub(super) fn command_diagnostics(
         &self,

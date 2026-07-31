@@ -19,11 +19,10 @@ use super::pin::ArtifactBindingPin;
 use crate::{
     ArtifactDependency, ArtifactError, ArtifactFailure, ArtifactKey, ArtifactPayload,
     ArtifactProjection, ArtifactProjectionFingerprint, ArtifactProjectionKey, ArtifactRecord,
-    ArtifactVersion, Asset, Build, Bundle, ComponentGraph, Data, DirBound, DirChecked,
-    DirCheckedComponent, DirDeclaredComponent, DirExpanded, DirExported, DirImported,
-    DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, InferenceComponentIndex,
-    MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted,
-    Object, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
+    ArtifactVersion, Asset, Build, Bundle, Data, DirBound, DirChecked, DirDeclared, DirExpanded,
+    DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment,
+    MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleGraph, ModuleIndex,
+    ModuleLinted, Object, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 
 macro_rules! artifact_getter {
@@ -444,7 +443,7 @@ impl ArtifactTable {
     }
 
     artifact_getter!(global_environment, GlobalEnvironment, GlobalEnvironment);
-    artifact_getter!(component_graph, ComponentGraph, ComponentGraph);
+    artifact_getter!(module_graph, ModuleGraph, ModuleGraph);
     artifact_getter!(program_analysis, ProgramAnalysis, ProgramAnalysis);
     artifact_getter!(dir_parsed, DirParsed, DirParsed);
     artifact_getter!(data, Data, Data);
@@ -453,16 +452,7 @@ impl ArtifactTable {
     artifact_getter!(dir_expanded, DirExpanded, DirExpanded);
     artifact_getter!(dir_exported, DirExported, DirExported);
     artifact_getter!(dir_resolved, DirResolved, DirResolved);
-    artifact_getter!(
-        dir_declared_component,
-        DirDeclaredComponent,
-        DirDeclaredComponent
-    );
-    artifact_getter!(
-        dir_checked_component,
-        DirCheckedComponent,
-        DirCheckedComponent
-    );
+    artifact_getter!(dir_declared, DirDeclared, DirDeclared);
     artifact_getter!(dir_checked, DirChecked, DirChecked);
     artifact_getter!(dir_materialized, DirMaterialized, DirMaterialized);
     artifact_getter!(mir_lowered, MirLowered, MirLowered);
@@ -471,11 +461,6 @@ impl ArtifactTable {
     artifact_getter!(mir_analyzed, MirAnalyzed, MirAnalyzed);
     artifact_getter!(mir_optimized, MirOptimized, MirOptimized);
     artifact_getter!(module_index, ModuleIndex, ModuleIndex);
-    artifact_getter!(
-        inference_component_index,
-        InferenceComponentIndex,
-        InferenceComponentIndex
-    );
     artifact_getter!(program_index, ProgramIndex, ProgramIndex);
     artifact_getter!(script, Script, Script);
     artifact_getter!(object, Object, Object);

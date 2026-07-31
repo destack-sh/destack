@@ -2,7 +2,7 @@ use std::slice;
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirCheckedModule, DirExpanded, DirExported, DirParsed, DirResolved,
+    DirBound, DirChecked, DirExpanded, DirExported, DirParsed, DirResolved,
 };
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -42,9 +42,9 @@ impl ModuleContext {
         expanded: Arc<DirExpanded>,
         exported: Arc<DirExported>,
         resolved: Arc<DirResolved>,
-        checked: Arc<DirCheckedModule>,
+        checked: Arc<DirChecked>,
     ) -> Result<Self, ContextError> {
-        let module = checked.module;
+        let module = checked.bindings.module_id;
         let artifact_modules = [
             bound.bindings.module_id,
             bound.types.module_id,

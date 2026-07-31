@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_dir as dir;
 use destack_serde::Reflect;
-use destack_source::{ComponentId, FileId, ModuleId};
+use destack_source::{FileId, ModuleId};
 use serde::{Deserialize, Serialize};
 
 use crate::{ArtifactProjectionFingerprint, DiagnosticControlTable};
@@ -184,20 +184,6 @@ impl DirExported {
             .reexport_modules()
             .chain(self.globals.reexport_modules())
     }
-
-    /// Return the fingerprint of exports that require inference.
-    pub(crate) fn inference_exports_fingerprint(&self) -> ArtifactProjectionFingerprint {
-        let mut symbols = self
-            .exports
-            .form_by_symbol
-            .iter()
-            .filter_map(|(symbol, form)| form.requires_inference().then_some(*symbol))
-            .collect::<Vec<_>>();
-        symbols.sort_unstable();
-        symbols.dedup();
-
-        ArtifactProjectionFingerprint::new(&symbols)
-    }
 }
 
 /// Resolved import targets for one module under one profile.
@@ -256,29 +242,9 @@ impl DirResolved {
     }
 }
 
-/// Declared DIR output for one reference component.
+/// Declared DIR for one module under one profile.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct DirDeclaredComponent {
-    /// The reference component id.
-    pub component: ComponentId,
-    /// The declared module outputs in stable module order.
-    pub modules: Vec<DirDeclaredModule>,
-}
-
-impl DirDeclaredComponent {
-    /// Return declared output for one module in this component.
-    pub fn module(&self, module: ModuleId) -> Option<&DirDeclaredModule> {
-        self.modules
-            .iter()
-            .find(|declared| declared.module == module)
-    }
-}
-
-/// Declared DIR prefix for one module under one profile.
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct DirDeclaredModule {
-    /// The declared module id.
-    pub module: ModuleId,
+pub struct DirDeclared {
     /// The stable fingerprint of this module's declared output.
     pub fingerprint: ArtifactProjectionFingerprint,
     /// Declared binding segment.
@@ -295,7 +261,7 @@ pub struct DirDeclaredModule {
     pub definitions: Arc<dir::DefinitionSegment>,
 }
 
-impl DirDeclaredModule {
+impl DirDeclared {
     /// Return the cumulative binding table for declared DIR.
     pub fn binding_table(
         &self,
@@ -342,27 +308,9 @@ impl DirDeclaredModule {
     }
 }
 
-/// Checked DIR output for one inference component.
+/// Checked DIR for one module under one profile.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct DirCheckedComponent {
-    /// The inference component id.
-    pub component: ComponentId,
-    /// The checked module outputs in stable module order.
-    pub modules: Vec<DirCheckedModule>,
-}
-
-impl DirCheckedComponent {
-    /// Return checked output for one module in this component.
-    pub fn module(&self, module: ModuleId) -> Option<&DirCheckedModule> {
-        self.modules.iter().find(|checked| checked.module == module)
-    }
-}
-
-/// Complete checked DIR for one module under one profile.
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct DirCheckedModule {
-    /// The checked module id.
-    pub module: ModuleId,
+pub struct DirChecked {
     /// The stable fingerprint of this module's checked output.
     pub fingerprint: ArtifactProjectionFingerprint,
     /// Checked binding segment.
@@ -389,16 +337,7 @@ pub struct DirCheckedModule {
     pub captures: Arc<dir::CaptureSegment>,
 }
 
-/// Facade artifact for one module checked inside an inference component.
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct DirChecked {
-    /// The inference component that owns this module's checked output.
-    pub component: ComponentId,
-    /// The selected module output fingerprint.
-    pub fingerprint: ArtifactProjectionFingerprint,
-}
-
-impl DirCheckedModule {
+impl DirChecked {
     /// Return the cumulative binding table for checked DIR.
     pub fn binding_table(
         &self,
@@ -512,7 +451,7 @@ impl DirMaterialized {
         &self,
         bound: &DirBound,
         expanded: &DirExpanded,
-        checked: &DirCheckedModule,
+        checked: &DirChecked,
     ) -> dir::TypeTable<'static> {
         dir::TypeTable::from_segments(vec![
             bound.types.clone(),
@@ -527,7 +466,7 @@ impl DirMaterialized {
         &self,
         bound: &DirBound,
         expanded: &DirExpanded,
-        checked: &DirCheckedModule,
+        checked: &DirChecked,
     ) -> dir::StaticTable<'static> {
         dir::StaticTable::from_segments(vec![
             bound.statics.clone(),
@@ -538,7 +477,7 @@ impl DirMaterialized {
     }
 
     /// Return the cumulative resolution table for materialized DIR.
-    pub fn resolution_table(&self, checked: &DirCheckedModule) -> dir::ResolutionTable<'static> {
+    pub fn resolution_table(&self, checked: &DirChecked) -> dir::ResolutionTable<'static> {
         dir::ResolutionTable::from_segments(vec![
             checked.resolutions.clone(),
             self.resolutions.clone(),
@@ -546,22 +485,22 @@ impl DirMaterialized {
     }
 
     /// Return the cumulative generic table for materialized DIR.
-    pub fn generic_table(&self, checked: &DirCheckedModule) -> dir::GenericTable<'static> {
+    pub fn generic_table(&self, checked: &DirChecked) -> dir::GenericTable<'static> {
         dir::GenericTable::from_segments(vec![checked.generics.clone(), self.generics.clone()])
     }
 
     /// Return the cumulative definition table for materialized DIR.
-    pub fn definition_table(&self, checked: &DirCheckedModule) -> dir::DefinitionTable<'static> {
+    pub fn definition_table(&self, checked: &DirChecked) -> dir::DefinitionTable<'static> {
         dir::DefinitionTable::from_segment(checked.definitions.clone())
     }
 
     /// Return the cumulative coercion table for materialized DIR.
-    pub fn coercion_table(&self, checked: &DirCheckedModule) -> dir::CoercionTable<'static> {
+    pub fn coercion_table(&self, checked: &DirChecked) -> dir::CoercionTable<'static> {
         dir::CoercionTable::from_segments(vec![checked.coercions.clone(), self.coercions.clone()])
     }
 
     /// Return the cumulative capture table for materialized DIR.
-    pub fn capture_table(&self, checked: &DirCheckedModule) -> dir::CaptureTable<'static> {
+    pub fn capture_table(&self, checked: &DirChecked) -> dir::CaptureTable<'static> {
         dir::CaptureTable::from_segments(vec![checked.captures.clone(), self.captures.clone()])
     }
 }

@@ -51,19 +51,13 @@ impl Linter {
                 return Ok(dependencies);
             };
 
-            // project the module and global root components
-            let graph_key = ArtifactKey::component_graph(profile);
+            // read the module graph
+            let graph_key = ArtifactKey::module_graph(profile);
             let mut roots = environment.globals.clone();
             roots.push(module);
             roots.sort_unstable();
             roots.dedup();
-            for root in roots.iter().copied() {
-                dependencies
-                    .require_projection(graph_key, ArtifactProjectionKey::ReferenceComponent(root));
-            }
-
-            // read the component graph
-            let graph = match artifacts.component_graph_reader(profile) {
+            let graph = match artifacts.module_graph_reader(profile) {
                 Ok(graph) => graph,
                 Err(ProviderError::Blocked { .. }) => {
                     dependencies.mark_partial();
@@ -74,21 +68,11 @@ impl Linter {
             };
 
             // project the reachable checked DIR modules
-            let components = graph.reachable_components(&roots)?;
-            let mut modules = Vec::new();
-            for component in components.iter().copied() {
-                dependencies.require_projection(
-                    graph_key,
-                    ArtifactProjectionKey::ReferenceMembers(component),
-                );
-                dependencies.require_projection(
-                    graph_key,
-                    ArtifactProjectionKey::ReferenceDependencies(component),
-                );
-                modules.extend(graph.reference_members(component)?.iter().copied());
+            let modules = graph.reachable(&roots)?;
+            for module in modules.iter().copied() {
+                dependencies
+                    .require_projection(graph_key, ArtifactProjectionKey::ModuleEdges(module));
             }
-            modules.sort_unstable();
-            modules.dedup();
             self.require_dir_modules(revision, &modules, profile, &mut dependencies)?;
         }
 
@@ -147,20 +131,14 @@ impl Linter {
         let revision = context.revision();
         let artifacts = self.artifact_reader(context);
         let environment = artifacts.global_environment(profile)?;
-        let graph = artifacts.component_graph_reader(profile)?;
+        let graph = artifacts.module_graph_reader(profile)?;
         let mut roots = environment.globals.clone();
         roots.push(module);
         roots.sort_unstable();
         roots.dedup();
 
         // collect the reachable checked DIR modules
-        let components = graph.reachable_components(&roots)?;
-        let mut modules = Vec::new();
-        for component in components {
-            modules.extend(graph.reference_members(component)?.iter().copied());
-        }
-        modules.sort_unstable();
-        modules.dedup();
+        let modules = graph.reachable(&roots)?;
 
         // load the reachable checked DIR modules
         let dir = Dir::load(

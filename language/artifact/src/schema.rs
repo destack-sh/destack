@@ -3,13 +3,12 @@ use destack_serde::SchemaRegistry;
 use crate::{
     ArtifactDependency, ArtifactEventLog, ArtifactKey, ArtifactPayload, ArtifactRecord,
     ArtifactReference, ArtifactSidecar, ArtifactVersion, Asset, Build, BuildLinkage, BuildManifest,
-    BuildProfile, Bundle, BundleFile, BundleMode, BundleSection, ComponentGraph, Data, DirBound,
-    DirChecked, DirCheckedComponent, DirDeclaredComponent, DirExpanded, DirExported, DirImported,
-    DirMaterialized, DirParsed, DirResolved, EmitFormat, GlobalEnvironment, Host,
-    InferenceComponentIndex, LanguageEnvironment, LanguageIntrinsics, MirAnalyzed, MirElaborated,
-    MirLowered, MirOptimized, MirVerified, ModuleEdges, ModuleIndex, ModuleLinted, Object,
-    ObjectFormat, Platform, Product, ProductTarget, ProgramAnalysis, ProgramIndex, ProgramLinted,
-    Runtime, Script, ScriptBody, ScriptLanguage, SourceMap,
+    BuildProfile, Bundle, BundleFile, BundleMode, BundleSection, Data, DirBound, DirChecked,
+    DirDeclared, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
+    EmitFormat, GlobalEnvironment, Host, LanguageEnvironment, LanguageIntrinsics, MirAnalyzed,
+    MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleEdges, ModuleGraph, ModuleIndex,
+    ModuleLinted, Object, ObjectFormat, Platform, Product, ProductTarget, ProgramAnalysis,
+    ProgramIndex, ProgramLinted, Runtime, Script, ScriptBody, ScriptLanguage, SourceMap,
 };
 
 /// Include public artifact schema roots.
@@ -31,7 +30,7 @@ pub fn schema(registry: &mut SchemaRegistry) {
 
     registry.register::<Data>();
     registry.register::<ModuleEdges>();
-    registry.register::<ComponentGraph>();
+    registry.register::<ModuleGraph>();
     registry.register::<LanguageEnvironment>();
     registry.register::<GlobalEnvironment>();
     registry.register::<LanguageIntrinsics>();
@@ -40,7 +39,6 @@ pub fn schema(registry: &mut SchemaRegistry) {
     registry.register::<ProgramLinted>();
     registry.register::<BuildManifest>();
     registry.register::<ModuleIndex>();
-    registry.register::<InferenceComponentIndex>();
     registry.register::<ProgramIndex>();
 
     registry.register::<DirParsed>();
@@ -49,8 +47,7 @@ pub fn schema(registry: &mut SchemaRegistry) {
     registry.register::<DirExpanded>();
     registry.register::<DirExported>();
     registry.register::<DirResolved>();
-    registry.register::<DirDeclaredComponent>();
-    registry.register::<DirCheckedComponent>();
+    registry.register::<DirDeclared>();
     registry.register::<DirChecked>();
     registry.register::<DirMaterialized>();
 

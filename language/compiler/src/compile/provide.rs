@@ -29,10 +29,7 @@ impl Compiler {
             ArtifactKey::GlobalEnvironment { profile } => {
                 self.collect_global_environment(profile, context)
             }
-            ArtifactKey::PackageGraph { .. } => self.collect_package_graph(context),
-            ArtifactKey::ComponentGraph { profile } => {
-                self.collect_component_graph(profile, context)
-            }
+            ArtifactKey::ModuleGraph { profile } => self.collect_module_graph(profile, context),
             ArtifactKey::ProgramAnalysis { profile, target } => {
                 self.collect_program_analysis(profile, target, context)
             }
@@ -49,13 +46,10 @@ impl Compiler {
                 self.collect_dir_exported(module, profile, context)
             }
             ArtifactKey::DirResolved { module, profile } => {
-                self.collect_dir_resolved(module, profile, context)
+                self.collect_dir_resolved(module, profile)
             }
-            ArtifactKey::DirDeclaredComponent { component, profile } => {
-                self.collect_dir_declared_component(component, profile, context)
-            }
-            ArtifactKey::DirCheckedComponent { component, profile } => {
-                self.collect_dir_checked_component(component, profile, context)
+            ArtifactKey::DirDeclared { module, profile } => {
+                self.collect_dir_declared(module, profile, context)
             }
             ArtifactKey::DirChecked { module, profile } => {
                 self.collect_dir_checked(module, profile, context)
@@ -145,10 +139,7 @@ impl Compiler {
             ArtifactKey::GlobalEnvironment { profile } => {
                 self.provide_global_environment(profile, context)
             }
-            ArtifactKey::PackageGraph { profile } => self.provide_package_graph(profile, context),
-            ArtifactKey::ComponentGraph { profile } => {
-                self.provide_component_graph(profile, context)
-            }
+            ArtifactKey::ModuleGraph { profile } => self.provide_module_graph(profile, context),
             ArtifactKey::ProgramAnalysis { profile, target } => {
                 self.provide_program_analysis(profile, target, context)
             }
@@ -167,11 +158,8 @@ impl Compiler {
             ArtifactKey::DirResolved { module, profile } => {
                 self.provide_dir_resolved(module, profile, context)
             }
-            ArtifactKey::DirDeclaredComponent { component, profile } => {
-                self.provide_dir_declared_component(component, profile, context)
-            }
-            ArtifactKey::DirCheckedComponent { component, profile } => {
-                self.provide_dir_checked_component(component, profile, context)
+            ArtifactKey::DirDeclared { module, profile } => {
+                self.provide_dir_declared(module, profile, context)
             }
             ArtifactKey::DirChecked { module, profile } => {
                 self.provide_dir_checked(module, profile, context)

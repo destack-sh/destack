@@ -157,36 +157,21 @@ impl CommandContext<'_> {
             .collect::<Vec<_>>();
         self.provide(revision, &root_keys)?;
 
-        // resolve the exact reference and inherent extension closure
+        // resolve the import closure from the roots and implicit globals
         let artifacts = ArtifactReader::new(self.repository.as_ref(), revision);
         let graph = artifacts
-            .component_graph_reader(profile)
+            .module_graph_reader(profile)
             .map_err(|error| error.to_string())?;
         let global = artifacts
             .global_environment(profile)
             .map_err(|error| error.to_string())?;
-        let implicit = global.implicit_modules().collect::<Vec<_>>();
-        let mut components = FxIndexSet::default();
-        for root in roots {
-            let component = graph
-                .reference_component(*root)
-                .map_err(|error| error.to_string())?
-                .ok_or_else(|| {
-                    CommandError::internal(format!("module {root:?} has no reference component"))
-                })?;
-            let external = graph
-                .external_reference_components(component, implicit.iter().copied())
-                .map_err(|error| error.to_string())?;
-            components.insert(component);
-            components.extend(external.components());
-        }
-        let mut modules = FxIndexSet::default();
-        for component in components {
-            let members = graph
-                .reference_members(component)
-                .map_err(|error| error.to_string())?;
-            modules.extend(members.iter().copied());
-        }
+        let mut walk_roots = roots.to_vec();
+        walk_roots.extend(global.implicit_modules());
+        let modules = graph
+            .reachable(&walk_roots)
+            .map_err(|error| error.to_string())?
+            .into_iter()
+            .collect::<FxIndexSet<_>>();
 
         // provide every checked artifact consumed by ModuleContext
         let keys = modules

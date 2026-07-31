@@ -61,14 +61,9 @@ impl LintProgram {
             )));
         }
 
-        // load the checked module graph and target components
-        let graph = artifacts.component_graph_reader(profile)?;
-        let components = graph.reachable_components(&roots)?;
-        let mut modules = Vec::new();
-        for component in components {
-            modules.extend(graph.reference_members(component)?.iter().copied());
-        }
-        modules.sort_unstable();
+        // load the module graph and the target's import closure
+        let graph = artifacts.module_graph_reader(profile)?;
+        let modules = graph.reachable(&roots)?;
 
         Ok(Some(Self {
             package,
@@ -115,16 +110,10 @@ impl Linter {
             return Ok(dependencies);
         }
 
-        // collect the target module graph
-        let graph_key = ArtifactKey::component_graph(profile);
-        for root in &roots {
-            dependencies
-                .require_projection(graph_key, ArtifactProjectionKey::ReferenceComponent(*root));
-        }
-
-        // resolve the projected components before declaring program inputs
+        // read the module graph before declaring program inputs
+        let graph_key = ArtifactKey::module_graph(profile);
         let artifacts = self.artifact_reader(context);
-        let graph = match artifacts.component_graph_reader(profile) {
+        let graph = match artifacts.module_graph_reader(profile) {
             Ok(graph) => graph,
             Err(ProviderError::Blocked { .. }) => {
                 dependencies.mark_partial();
@@ -134,25 +123,12 @@ impl Linter {
             Err(error) => return Err(error),
         };
 
-        // project the target components and collect their modules
-        let program_components = graph.reachable_components(&roots)?;
-        let mut program_modules = Vec::new();
-        for component in program_components.iter().copied() {
-            dependencies.require_projection(
-                graph_key,
-                ArtifactProjectionKey::ReferenceMembers(component),
-            );
-            dependencies.require_projection(
-                graph_key,
-                ArtifactProjectionKey::ReferenceDependencies(component),
-            );
-            program_modules.extend(graph.reference_members(component)?.iter().copied());
+        // project the program's import closure from the target roots
+        let program_modules = graph.reachable(&roots)?;
+        for module in program_modules.iter().copied() {
+            dependencies.require_projection(graph_key, ArtifactProjectionKey::ModuleEdges(module));
         }
-        program_modules.sort_unstable();
-        let mut components = program_components
-            .iter()
-            .copied()
-            .collect::<FxIndexSet<_>>();
+        let mut required = program_modules.iter().copied().collect::<FxIndexSet<_>>();
 
         // collect checked controls from package-owned code modules
         let mut control_tables = Vec::new();
@@ -195,29 +171,14 @@ impl Linter {
             graph_roots.sort_unstable();
             graph_roots.dedup();
 
-            // project components introduced by compiler globals
-            for root in environment.globals.iter().copied() {
-                dependencies
-                    .require_projection(graph_key, ArtifactProjectionKey::ReferenceComponent(root));
-            }
-            let dir_components = graph.reachable_components(&graph_roots)?;
-            let mut modules = Vec::new();
-
-            // project components introduced by the DIR program
-            for component in dir_components.iter().copied() {
-                if components.insert(component) {
-                    dependencies.require_projection(
-                        graph_key,
-                        ArtifactProjectionKey::ReferenceMembers(component),
-                    );
-                    dependencies.require_projection(
-                        graph_key,
-                        ArtifactProjectionKey::ReferenceDependencies(component),
-                    );
+            // project modules introduced by compiler globals
+            let modules = graph.reachable(&graph_roots)?;
+            for module in modules.iter().copied() {
+                if required.insert(module) {
+                    dependencies
+                        .require_projection(graph_key, ArtifactProjectionKey::ModuleEdges(module));
                 }
-                modules.extend(graph.reference_members(component)?.iter().copied());
             }
-            modules.sort_unstable();
 
             self.require_dir_modules(revision, &modules, profile, &mut dependencies)?;
         }
@@ -301,17 +262,12 @@ impl Linter {
         let artifacts = self.artifact_reader(context);
         let profile = program.profile.id();
         let environment = artifacts.global_environment(profile)?;
-        let graph = artifacts.component_graph_reader(profile)?;
+        let graph = artifacts.module_graph_reader(profile)?;
         let mut roots = program.roots.to_vec();
         roots.extend(environment.globals.iter().copied());
         roots.sort_unstable();
         roots.dedup();
-        let components = graph.reachable_components(&roots)?;
-        let mut module_ids = Vec::new();
-        for component in components {
-            module_ids.extend(graph.reference_members(component)?.iter().copied());
-        }
-        module_ids.sort_unstable();
+        let module_ids = graph.reachable(&roots)?;
         let program = DirProgram::load(
             self.repository.as_ref(),
             revision,

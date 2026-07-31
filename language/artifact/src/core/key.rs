@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use destack_source::{ComponentId, ModuleId, PackageId, ProductId, ProfileId, TargetId};
+use destack_source::{ModuleId, PackageId, ProductId, ProfileId, TargetId};
 
 use crate::IndexKind;
 
@@ -35,8 +35,8 @@ pub enum ArtifactKey {
 
     /// Explicit global environment for one profile.
     GlobalEnvironment { profile: ProfileId },
-    /// Strongly connected component partition for one profile.
-    ComponentGraph { profile: ProfileId },
+    /// Import graph over the modules of one profile.
+    ModuleGraph { profile: ProfileId },
     /// Whole-program analysis for one profile and target.
     ProgramAnalysis {
         profile: ProfileId,
@@ -68,17 +68,12 @@ pub enum ArtifactKey {
         module: ModuleId,
         profile: ProfileId,
     },
-    /// Declared DIR reference component.
-    DirDeclaredComponent {
-        component: ComponentId,
+    /// Declared DIR module.
+    DirDeclared {
+        module: ModuleId,
         profile: ProfileId,
     },
-    /// Checked DIR inference component.
-    DirCheckedComponent {
-        component: ComponentId,
-        profile: ProfileId,
-    },
-    /// Checked DIR facade.
+    /// Checked DIR module.
     DirChecked {
         module: ModuleId,
         profile: ProfileId,
@@ -123,12 +118,6 @@ pub enum ArtifactKey {
     /// One query index for a module profile.
     ModuleIndex {
         module: ModuleId,
-        profile: ProfileId,
-        kind: IndexKind,
-    },
-    /// One query index for a checked inference component.
-    InferenceComponentIndex {
-        component: ComponentId,
         profile: ProfileId,
         kind: IndexKind,
     },
@@ -242,15 +231,14 @@ impl ArtifactKey {
         match self {
             Self::DirParsed { .. } | Self::Data { .. } => ArtifactProvider::Loader,
             Self::GlobalEnvironment { .. }
-            | Self::ComponentGraph { .. }
+            | Self::ModuleGraph { .. }
             | Self::ProgramAnalysis { .. }
             | Self::DirBound { .. }
             | Self::DirImported { .. }
             | Self::DirExpanded { .. }
             | Self::DirExported { .. }
             | Self::DirResolved { .. }
-            | Self::DirDeclaredComponent { .. }
-            | Self::DirCheckedComponent { .. }
+            | Self::DirDeclared { .. }
             | Self::DirChecked { .. }
             | Self::DirMaterialized { .. }
             | Self::MirLowered { .. }
@@ -266,9 +254,7 @@ impl ArtifactKey {
             | Self::Program { .. }
             | Self::Product { .. } => ArtifactProvider::Compiler,
             Self::ModuleLinted { .. } | Self::ProgramLinted { .. } => ArtifactProvider::Linter,
-            Self::ModuleIndex { .. }
-            | Self::InferenceComponentIndex { .. }
-            | Self::ProgramIndex { .. } => ArtifactProvider::Index,
+            Self::ModuleIndex { .. } | Self::ProgramIndex { .. } => ArtifactProvider::Index,
         }
     }
 
@@ -291,8 +277,8 @@ impl ArtifactKey {
     }
 
     /// Build one component graph artifact key.
-    pub fn component_graph(profile: ProfileId) -> Self {
-        Self::ComponentGraph { profile }
+    pub fn module_graph(profile: ProfileId) -> Self {
+        Self::ModuleGraph { profile }
     }
 
     /// Build one whole-program analysis artifact key.
@@ -336,16 +322,11 @@ impl ArtifactKey {
     }
 
     /// Build one declared DIR component artifact key.
-    pub fn dir_declared_component(component: ComponentId, profile: ProfileId) -> Self {
-        Self::DirDeclaredComponent { component, profile }
+    pub fn dir_declared(module: ModuleId, profile: ProfileId) -> Self {
+        Self::DirDeclared { module, profile }
     }
 
-    /// Build one checked DIR component artifact key.
-    pub fn dir_checked_component(component: ComponentId, profile: ProfileId) -> Self {
-        Self::DirCheckedComponent { component, profile }
-    }
-
-    /// Build one checked DIR facade artifact key.
+    /// Build one checked DIR module artifact key.
     pub fn dir_checked(module: ModuleId, profile: ProfileId) -> Self {
         Self::DirChecked { module, profile }
     }
@@ -404,19 +385,6 @@ impl ArtifactKey {
     pub fn module_index(module: ModuleId, profile: ProfileId, kind: IndexKind) -> Self {
         Self::ModuleIndex {
             module,
-            profile,
-            kind,
-        }
-    }
-
-    /// Build one checked component query index artifact key.
-    pub fn inference_component_index(
-        component: ComponentId,
-        profile: ProfileId,
-        kind: IndexKind,
-    ) -> Self {
-        Self::InferenceComponentIndex {
-            component,
             profile,
             kind,
         }
@@ -484,11 +452,9 @@ impl ArtifactKey {
             Self::DirImported { .. } | Self::DirExported { .. } | Self::DirResolved { .. } => {
                 ArtifactStage::Resolve
             }
-            Self::ComponentGraph { .. } => ArtifactStage::Graph,
+            Self::ModuleGraph { .. } => ArtifactStage::Graph,
             Self::DirExpanded { .. } | Self::DirMaterialized { .. } => ArtifactStage::Macro,
-            Self::DirDeclaredComponent { .. }
-            | Self::DirCheckedComponent { .. }
-            | Self::DirChecked { .. } => ArtifactStage::Check,
+            Self::DirDeclared { .. } | Self::DirChecked { .. } => ArtifactStage::Check,
             Self::MirLowered { .. }
             | Self::MirVerified { .. }
             | Self::MirElaborated { .. }
@@ -501,9 +467,7 @@ impl ArtifactKey {
                 ArtifactStage::Link
             }
             Self::ModuleLinted { .. } | Self::ProgramLinted { .. } => ArtifactStage::Lint,
-            Self::ModuleIndex { .. }
-            | Self::InferenceComponentIndex { .. }
-            | Self::ProgramIndex { .. } => ArtifactStage::Index,
+            Self::ModuleIndex { .. } | Self::ProgramIndex { .. } => ArtifactStage::Index,
             Self::GlobalEnvironment { .. } => ArtifactStage::Init,
         }
     }
@@ -519,10 +483,9 @@ impl ArtifactKey {
             Self::DirExpanded { .. } => "dir.expand",
             Self::DirExported { .. } => "dir.export",
             Self::DirResolved { .. } => "dir.resolve",
-            Self::ComponentGraph { .. } => "component.graph",
+            Self::ModuleGraph { .. } => "module.graph",
             Self::ProgramAnalysis { .. } => "program.analyze",
-            Self::DirDeclaredComponent { .. } => "dir.declare.component",
-            Self::DirCheckedComponent { .. } => "dir.check.component",
+            Self::DirDeclared { .. } => "dir.declare",
             Self::DirChecked { .. } => "dir.check",
             Self::DirMaterialized { .. } => "dir.materialize",
             Self::MirLowered { .. } => "mir.lower",
@@ -531,7 +494,6 @@ impl ArtifactKey {
             Self::MirAnalyzed { .. } => "mir.analyze",
             Self::MirOptimized { .. } => "mir.optimize",
             Self::ModuleIndex { .. } => "module.index",
-            Self::InferenceComponentIndex { .. } => "inference.component.index",
             Self::ProgramIndex { .. } => "program.index",
             Self::Script { .. } => "script.emit",
             Self::Object { .. } => "object.emit",
@@ -556,10 +518,9 @@ impl ArtifactKey {
             Self::DirExpanded { .. } => "dir_expanded",
             Self::DirExported { .. } => "dir_exported",
             Self::DirResolved { .. } => "dir_resolved",
-            Self::ComponentGraph { .. } => "component_graph",
+            Self::ModuleGraph { .. } => "module_graph",
             Self::ProgramAnalysis { .. } => "program_analysis",
-            Self::DirDeclaredComponent { .. } => "dir_declared_component",
-            Self::DirCheckedComponent { .. } => "dir_checked_component",
+            Self::DirDeclared { .. } => "dir_declared",
             Self::DirChecked { .. } => "dir_checked",
             Self::DirMaterialized { .. } => "dir_materialized",
             Self::MirLowered { .. } => "mir_lowered",
@@ -568,7 +529,6 @@ impl ArtifactKey {
             Self::MirAnalyzed { .. } => "mir_analyzed",
             Self::MirOptimized { .. } => "mir_optimized",
             Self::ModuleIndex { .. } => "module_index",
-            Self::InferenceComponentIndex { .. } => "inference_component_index",
             Self::ProgramIndex { .. } => "program_index",
             Self::Script { .. } => "script",
             Self::Object { .. } => "object",
@@ -592,6 +552,7 @@ impl ArtifactKey {
             | Self::DirExpanded { module, .. }
             | Self::DirExported { module, .. }
             | Self::DirResolved { module, .. }
+            | Self::DirDeclared { module, .. }
             | Self::DirChecked { module, .. }
             | Self::DirMaterialized { module, .. }
             | Self::MirLowered { module, .. }
@@ -605,10 +566,7 @@ impl ArtifactKey {
             | Self::Asset { module, .. }
             | Self::ModuleLinted { module, .. } => Some(*module),
             Self::GlobalEnvironment { .. }
-            | Self::ComponentGraph { .. }
-            | Self::DirDeclaredComponent { .. }
-            | Self::DirCheckedComponent { .. }
-            | Self::InferenceComponentIndex { .. }
+            | Self::ModuleGraph { .. }
             | Self::ProgramAnalysis { .. }
             | Self::ProgramIndex { .. }
             | Self::Build { .. }
@@ -653,15 +611,14 @@ impl ArtifactKey {
     pub fn profile_id(&self) -> Option<ProfileId> {
         match self {
             Self::GlobalEnvironment { profile }
-            | Self::ComponentGraph { profile }
+            | Self::ModuleGraph { profile }
             | Self::ProgramAnalysis { profile, .. }
             | Self::DirBound { profile, .. }
             | Self::DirImported { profile, .. }
             | Self::DirExpanded { profile, .. }
             | Self::DirExported { profile, .. }
             | Self::DirResolved { profile, .. }
-            | Self::DirDeclaredComponent { profile, .. }
-            | Self::DirCheckedComponent { profile, .. }
+            | Self::DirDeclared { profile, .. }
             | Self::DirChecked { profile, .. }
             | Self::DirMaterialized { profile, .. }
             | Self::MirLowered { profile, .. }
@@ -670,7 +627,6 @@ impl ArtifactKey {
             | Self::MirAnalyzed { profile, .. }
             | Self::MirOptimized { profile, .. }
             | Self::ModuleIndex { profile, .. }
-            | Self::InferenceComponentIndex { profile, .. }
             | Self::ProgramIndex { profile, .. }
             | Self::ModuleLinted { profile, .. }
             | Self::ProgramLinted { profile, .. } => Some(*profile),

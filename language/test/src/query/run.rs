@@ -676,20 +676,8 @@ impl<'a> QueryRun<'a> {
         let expanded = artifacts
             .dir_expanded(symbol_id.module_id, profile_id)
             .map_err(|error| format!("failed to read expanded DIR for query symbol: {error}"))?;
-        let graph = artifacts
-            .component_graph_reader(profile_id)
-            .map_err(|error| format!("failed to read component graph for query symbol: {error}"))?;
-        let component = graph
-            .inference_component(symbol_id.module_id)
-            .map_err(|error| format!("failed to resolve query symbol component: {error}"))?
-            .ok_or_else(|| {
-                format!(
-                    "query symbol module is absent from component graph: {:?}",
-                    symbol_id.module_id
-                )
-            })?;
         let checked = artifacts
-            .dir_checked_module(component, symbol_id.module_id, profile_id)
+            .dir_checked(symbol_id.module_id, profile_id)
             .map_err(|error| format!("failed to read checked DIR for query symbol: {error}"))?;
         let bindings = checked.binding_table(&bound, &expanded);
         let symbol = bindings
