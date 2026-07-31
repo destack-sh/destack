@@ -147,11 +147,7 @@ impl ModuleQueryContext<'_> {
                 .ok_or(QueryError::missing(format!(
                     "inlay hint type: {global_symbol_id:?}"
                 )))?;
-            let type_text = Formatter::new(self, query)
-                .binding_type(declarator, type_id)?
-                .ok_or(QueryError::invalid(format!(
-                    "inlay hint type formatting: {type_id:?}"
-                )))?;
+            let type_text = Formatter::new(self, query).binding_type(declarator, type_id)?;
 
             hints.push(InlayHint::type_hint(name_span.end, type_text));
         }
@@ -168,9 +164,10 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<()> {
         // collect selected calls
         for (call, resolution) in self.resolutions().call_entries() {
-            // defer construct calls to their exact construct resolution
             if self.resolutions().construct_resolution(call).is_some() {
-                continue;
+                return Err(QueryError::conflict(format!(
+                    "inlay hint resolution columns: {call:?}"
+                )));
             }
 
             let call_span = self.node_span(self.view(), call.local_id)?;
@@ -178,8 +175,13 @@ impl ModuleQueryContext<'_> {
                 continue;
             }
 
+            // omit ambiguous hints when selected arms bind arguments differently
+            let Some(arguments) = resolution.shared_arguments() else {
+                continue;
+            };
+
             let names = self.call_parameter_names(query, call, resolution)?;
-            self.collect_argument_hints(call, &resolution.first().arguments, &names, range, hints)?;
+            self.collect_argument_hints(call, arguments, &names, range, hints)?;
         }
 
         // collect selected constructions
@@ -203,31 +205,27 @@ impl ModuleQueryContext<'_> {
         call: dir::GlobalNodeIdAny,
         resolution: &dir::CallResolution,
     ) -> QueryResult<Vec<Option<String>>> {
-        let selected_symbols = resolution.target_symbols();
-        if selected_symbols.is_empty() {
-            return self.expression_parameter_names(call);
-        }
-        let mut symbols = Vec::new();
-        for symbol in selected_symbols {
-            symbols.extend(query.canonical_symbols(symbol)?);
-        }
-        symbols.sort();
-        symbols.dedup();
-        if symbols.is_empty() {
-            return Err(QueryError::missing(format!(
-                "inlay hint parameters: {call:?}"
-            )));
-        }
+        let mut signatures = Vec::with_capacity(resolution.iter().len());
 
-        // read authored names for every exact selected declaration
-        let mut signatures = Vec::with_capacity(symbols.len());
-        for symbol in symbols {
-            let Some(signature) = query.symbol_parameter_names(symbol)? else {
-                return Err(QueryError::missing(format!(
-                    "inlay hint parameters: {call:?}"
-                )));
+        // read parameter names independently from every exact selected arm
+        for selected in resolution.iter() {
+            let names = match &selected.target {
+                dir::CallTarget::Symbol { function, .. } => {
+                    self.symbol_call_parameter_names(query, call, function.symbol)?
+                }
+                dir::CallTarget::Dynamic {
+                    function: dir::DynamicFunction::Symbol(symbol),
+                    ..
+                } => self.symbol_call_parameter_names(query, call, *symbol)?,
+                dir::CallTarget::Expression { .. } => self.expression_parameter_names(call)?,
+                dir::CallTarget::Dynamic { .. } => {
+                    // FUGU #Incomplete: retain declaration free call parameter names in DIR
+                    return Err(QueryError::missing(format!(
+                        "inlay hint parameters: {call:?}"
+                    )));
+                }
             };
-            signatures.push(signature);
+            signatures.push(names);
         }
 
         // retain a name only when every selected declaration agrees
@@ -241,17 +239,39 @@ impl ModuleQueryContext<'_> {
         let mut names = Vec::with_capacity(parameter_count);
         for index in 0..parameter_count {
             let name = first.get(index);
-            let name = name
-                .filter(|name| {
-                    signatures[1..]
-                        .iter()
-                        .all(|signature| signature.get(index) == Some(*name))
-                })
-                .cloned();
+            let is_shared = signatures[1..]
+                .iter()
+                .all(|signature| signature.get(index) == name);
+            let name = if is_shared {
+                name.cloned().flatten()
+            } else {
+                None
+            };
             names.push(name);
         }
 
         Ok(names)
+    }
+
+    /// Return authored parameter names for one exact declaration backed call arm.
+    fn symbol_call_parameter_names(
+        &self,
+        query: &ProgramQueryContext<'_>,
+        call: dir::GlobalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+    ) -> QueryResult<Vec<Option<String>>> {
+        let Some(symbol) = query.canonical_symbol(symbol)? else {
+            return Err(QueryError::missing(format!(
+                "inlay hint parameters: {call:?}"
+            )));
+        };
+        let Some(names) = query.symbol_parameter_names(symbol)? else {
+            return Err(QueryError::missing(format!(
+                "inlay hint parameters: {call:?}"
+            )));
+        };
+
+        Ok(names.into_iter().map(Some).collect())
     }
 
     /// Return authored parameter names for an expression backed call.
@@ -275,39 +295,39 @@ impl ModuleQueryContext<'_> {
         if let dir::Expression::Declaration(declaration_id) = self.view().get(*left)
             && let dir::Declaration::Function(function) = self.view().get(*declaration_id)
         {
-            return self.parameter_names(call, &function.signature.parameters);
+            return self.parameter_names(&function.signature.parameters);
         }
 
         // follow the exact symbol occurrence into its variable declaration
         let source = left.into_global_any(self.module_id());
-        let Some(symbols) = self.recorded_symbol_targets(source) else {
-            return Ok(Vec::new());
+        let Some(symbols) = self.recorded_symbol_targets(source)? else {
+            return Err(QueryError::missing(format!(
+                "inlay hint callable: {source:?}"
+            )));
         };
         let [symbol_id] = symbols.as_slice() else {
-            return Ok(Vec::new());
+            return Err(QueryError::conflict(format!(
+                "inlay hint callable: {source:?}"
+            )));
         };
         let Some(parameters) = self.variable_callable_parameters(*symbol_id) else {
-            return Ok(Vec::new());
+            return Err(QueryError::missing(format!(
+                "inlay hint callable parameters: {symbol_id:?}"
+            )));
         };
 
-        self.parameter_names(call, parameters)
+        self.parameter_names(parameters)
     }
 
     /// Return authored display names for one parameter list.
     fn parameter_names(
         &self,
-        call: dir::GlobalNodeIdAny,
         parameters: &[dir::LocalNodeId<dir::Parameter>],
     ) -> QueryResult<Vec<Option<String>>> {
         let names = parameters
             .iter()
             .map(|parameter_id| self.parameter_name(self.view().get(*parameter_id)))
-            .collect::<QueryResult<Vec<_>>>()?
-            .into_iter()
-            .collect::<Option<Vec<_>>>()
-            .ok_or(QueryError::missing(format!(
-                "inlay hint parameters: {call:?}"
-            )))?;
+            .collect::<QueryResult<Vec<_>>>()?;
 
         Ok(names.into_iter().map(Some).collect())
     }

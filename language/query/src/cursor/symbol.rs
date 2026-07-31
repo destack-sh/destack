@@ -204,7 +204,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // prefer the final checked use-site selection
-        if let Some(symbols) = self.recorded_symbol_targets(source) {
+        if let Some(symbols) = self.recorded_symbol_targets(source)? {
             return Ok(Some(SymbolOccurrence {
                 symbols,
                 type_id: self.types().get_node_type_id(source),
@@ -299,18 +299,32 @@ impl ModuleQueryContext<'_> {
             }));
         }
 
-        // use the checked selection authoritatively for call callees
+        // use the checked decorator selection for decorator targets
         if node_id.ty == dir::NodeType::Expression {
             let expression_id = dir::LocalNodeId::<dir::Expression>::new(node_id.id);
+            if let Some(application) = self.decorators().application_for_expression(expression_id) {
+                let symbol = match application.resolution.target {
+                    dir::DecoratorTarget::LanguageItem { symbol, .. }
+                    | dir::DecoratorTarget::Symbol { symbol } => symbol,
+                };
+
+                return Ok(Some(SymbolOccurrence {
+                    symbols: vec![symbol],
+                    type_id: Some(application.resolution.ty),
+                    span,
+                }));
+            }
+
+            // use the checked call selection for ordinary call callees
             if let Some(call_id) = self.callee_call(view, expression_id) {
-                let occurrence = self.selected_call_occurrence(call_id, span);
+                let occurrence = self.selected_call_occurrence(call_id, span)?;
 
                 return Ok(occurrence);
             }
         }
 
         // use sites return only the identities recorded by checking
-        if let Some(mut symbols) = self.recorded_symbol_targets(global_node_id) {
+        if let Some(mut symbols) = self.recorded_symbol_targets(global_node_id)? {
             if symbols.is_empty() {
                 return Ok(None);
             }
@@ -404,7 +418,7 @@ impl ModuleQueryContext<'_> {
         let targets = match reference {
             // the final bound segment receives the checker's selected declaration
             dir::Reference::Bound(_) if segment + 1 == segment_count => {
-                self.recorded_symbol_targets(source)
+                self.recorded_symbol_targets(source)?
             }
 
             // the bound prefix receives its exact projected base declaration
@@ -461,28 +475,40 @@ impl ModuleQueryContext<'_> {
         &self,
         call_id: dir::GlobalNodeIdAny,
         span: Span,
-    ) -> Option<SymbolOccurrence> {
+    ) -> QueryResult<Option<SymbolOccurrence>> {
+        let construct = self.resolutions().construct_resolution(call_id);
+        let call = self.resolutions().call_resolution(call_id);
+
+        // require one authoritative call selection
+        if construct.is_some() && call.is_some() {
+            return Err(QueryError::conflict(format!(
+                "call resolution columns: {call_id:?}"
+            )));
+        }
+
         // read nominal calls from their exact checked construction
-        if let Some(resolution) = self.resolutions().construct_resolution(call_id) {
-            return Some(SymbolOccurrence {
+        if let Some(resolution) = construct {
+            return Ok(Some(SymbolOccurrence {
                 symbols: vec![resolution.target.symbol()],
                 type_id: Some(resolution.return_type),
                 span,
-            });
+            }));
         }
 
         // otherwise read an ordinary checked call selection
-        let resolution = self.resolutions().call_resolution(call_id)?;
+        let Some(resolution) = call else {
+            return Ok(None);
+        };
         let symbols = resolution.target_symbols();
         if symbols.is_empty() {
-            return None;
+            return Ok(None);
         }
 
-        Some(SymbolOccurrence {
+        Ok(Some(SymbolOccurrence {
             symbols,
-            type_id: Some(resolution.first().callable_type),
+            type_id: resolution.shared_callable_type(),
             span,
-        })
+        }))
     }
 
     /// Return the recorded dependency symbol at one authored dependency name.

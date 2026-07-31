@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use crate::{ModuleQueryContext, QueryError, QueryResult};
 
+use super::Formatter;
 use super::literal::quote_string;
-use super::{Formatter, formatted};
 
 /// One syntactic position that may require a grouped type operand.
 #[derive(Debug, Clone, Copy)]
@@ -24,25 +24,29 @@ pub(super) enum TypeOperand {
 
 impl Formatter<'_, '_, '_> {
     /// Format one node type.
-    pub(crate) fn node_type(&self, node_id: dir::GlobalNodeIdAny) -> QueryResult<Option<String>> {
+    pub(crate) fn node_type(&self, node_id: dir::GlobalNodeIdAny) -> QueryResult<String> {
         let Some(type_id) = self.module.types().get_node_type_id(node_id) else {
-            return Ok(None);
+            return Err(QueryError::missing(format!("node type: {node_id:?}")));
         };
 
         self.global_type(type_id)
     }
 
     /// Format one global type id.
-    pub(crate) fn global_type(&self, type_id: dir::GlobalTypeId) -> QueryResult<Option<String>> {
+    pub(crate) fn global_type(&self, type_id: dir::GlobalTypeId) -> QueryResult<String> {
         self.query.read_type(type_id, |type_value, owner| {
+            if matches!(type_value, dir::Type::Error) {
+                return Err(QueryError::missing(format!("type formatting: {type_id:?}")));
+            }
+
             Formatter::new(owner, self.query).local_type(type_value)
         })
     }
 
     /// Format one type owned by this formatter's module.
-    pub(super) fn local_type(&self, type_value: &dir::Type) -> QueryResult<Option<String>> {
+    pub(super) fn local_type(&self, type_value: &dir::Type) -> QueryResult<String> {
         let text = match type_value {
-            dir::Type::Error => return Ok(None),
+            dir::Type::Error => return Err(QueryError::missing("type formatting")),
             dir::Type::Never => "never".to_string(),
             dir::Type::Any => "any".to_string(),
             dir::Type::Unknown => "unknown".to_string(),
@@ -59,33 +63,33 @@ impl Formatter<'_, '_, '_> {
             dir::Type::Member(member) => return self.member(*self.module.types().member(*member)),
             dir::Type::Refined(refined) => {
                 let refined = *self.module.types().refined(*refined);
-                let base = formatted!(self.type_operand(refined.base, TypeOperand::Postfix));
-                let key = formatted!(self.property_key(refined.key));
-                let value = formatted!(self.global_type(refined.value));
+                let base = self.type_operand(refined.base, TypeOperand::Postfix)?;
+                let key = self.property_key(refined.key)?;
+                let value = self.global_type(refined.value)?;
 
                 format!("{base}<type {key} = {value}>")
             }
             dir::Type::Variant(variant) => return self.symbol(variant.variant),
             dir::Type::Form(form) => return self.form(*form),
             dir::Type::Dynamic(dynamic) => {
-                let constraint = formatted!(self.global_type(dynamic.constraint));
+                let constraint = self.global_type(dynamic.constraint)?;
 
                 format!("Dynamic<{constraint}>")
             }
             dir::Type::Array(array) => {
-                let element = formatted!(self.type_operand(array.element, TypeOperand::Postfix));
+                let element = self.type_operand(array.element, TypeOperand::Postfix)?;
 
                 format!("{element}[]")
             }
             dir::Type::FixedArray(array) => {
-                let element = formatted!(self.global_type(array.element));
-                let count = formatted!(self.global_type(array.count));
+                let element = self.global_type(array.element)?;
+                let count = self.global_type(array.count)?;
 
                 format!("[{element}; {count}]")
             }
             dir::Type::Range(range) => return self.range(*range),
             dir::Type::Slice(slice) => {
-                let element = formatted!(self.global_type(slice.element));
+                let element = self.global_type(slice.element)?;
 
                 format!("[{element}]")
             }
@@ -118,7 +122,7 @@ impl Formatter<'_, '_, '_> {
             }
         };
 
-        Ok(Some(text))
+        Ok(text)
     }
 
     /// Format one primitive type.
@@ -152,37 +156,37 @@ impl Formatter<'_, '_, '_> {
     }
 
     /// Format one generic instance.
-    fn instance(&self, instance: dir::GenericApplication) -> QueryResult<Option<String>> {
-        let symbol = formatted!(self.symbol(instance.symbol));
+    fn instance(&self, instance: dir::GenericApplication) -> QueryResult<String> {
+        let symbol = self.symbol(instance.symbol)?;
         let arguments = self.module.types().type_ids(instance.arguments);
 
         if arguments.is_empty() {
-            return Ok(Some(symbol));
+            return Ok(symbol);
         }
 
-        let arguments = formatted!(self.join_types(arguments, ", "));
+        let arguments = self.join_types(arguments, ", ")?;
 
-        Ok(Some(format!("{symbol}<{arguments}>")))
+        Ok(format!("{symbol}<{arguments}>"))
     }
 
     /// Format one member type.
-    fn member(&self, member: dir::MemberType) -> QueryResult<Option<String>> {
-        let owner = formatted!(self.type_operand(member.owner, TypeOperand::Postfix));
-        let key = formatted!(self.member_key(member.key));
+    fn member(&self, member: dir::MemberType) -> QueryResult<String> {
+        let owner = self.type_operand(member.owner, TypeOperand::Postfix)?;
+        let key = self.member_key(member.key)?;
         let arguments = self.module.types().type_ids(member.arguments);
 
         if arguments.is_empty() {
-            return Ok(Some(format!("{owner}{key}")));
+            return Ok(format!("{owner}{key}"));
         }
 
-        let arguments = formatted!(self.join_types(arguments, ", "));
+        let arguments = self.join_types(arguments, ", ")?;
 
-        Ok(Some(format!("{owner}{key}<{arguments}>")))
+        Ok(format!("{owner}{key}<{arguments}>"))
     }
 
     /// Format one canonical memory form.
-    pub(super) fn form(&self, form: dir::FormType) -> QueryResult<Option<String>> {
-        let value = formatted!(self.type_operand(form.value, TypeOperand::Prefix));
+    pub(super) fn form(&self, form: dir::FormType) -> QueryResult<String> {
+        let value = self.type_operand(form.value, TypeOperand::Prefix)?;
         let text = match form.form {
             dir::Form::Managed => value,
             dir::Form::Owned => format!("^{value}"),
@@ -192,7 +196,7 @@ impl Formatter<'_, '_, '_> {
             dir::Form::Readonly => format!("readonly {value}"),
         };
 
-        Ok(Some(text))
+        Ok(text)
     }
 
     /// Format one borrowed form from its solved lifetime and access.
@@ -214,15 +218,9 @@ impl Formatter<'_, '_, '_> {
                 dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Static)) => {
                     Ok("'static ".to_string())
                 }
-                dir::Type::Parameter(_) => {
-                    let lifetime = Formatter::new(module, self.query)
-                        .local_type(type_value)?
-                        .ok_or_else(|| {
-                            QueryError::invalid(format!("borrow lifetime: {type_id:?}"))
-                        })?;
-                    let lifetime = lifetime.rsplit('.').next().ok_or_else(|| {
-                        QueryError::invalid(format!("borrow lifetime: {type_id:?}"))
-                    })?;
+                dir::Type::Parameter(parameter) => {
+                    let lifetime =
+                        Formatter::new(module, self.query).generic_parameter_type(*parameter)?;
                     if !lifetime.starts_with('\'') {
                         return Err(QueryError::invalid(format!("borrow lifetime: {type_id:?}")));
                     }
@@ -260,7 +258,7 @@ impl Formatter<'_, '_, '_> {
     }
 
     /// Format one scalar interval type.
-    fn range(&self, range: dir::RangeType) -> QueryResult<Option<String>> {
+    fn range(&self, range: dir::RangeType) -> QueryResult<String> {
         let start = match range.start {
             Some(literal) => self.literal(literal),
             None => String::new(),
@@ -271,16 +269,16 @@ impl Formatter<'_, '_, '_> {
         };
         let operator = if range.is_inclusive { "..=" } else { ".." };
 
-        Ok(Some(format!("{start}{operator}{end}")))
+        Ok(format!("{start}{operator}{end}"))
     }
 
     /// Format one tuple type.
-    fn tuple(&self, tuple: dir::TupleType) -> QueryResult<Option<String>> {
+    fn tuple(&self, tuple: dir::TupleType) -> QueryResult<String> {
         let elements = self.module.types().elements(tuple.elements);
         let is_singleton = elements.len() == 1;
         let mut formatted_elements = Vec::with_capacity(elements.len());
         for element in elements {
-            formatted_elements.push(formatted!(self.tuple_element(element)));
+            formatted_elements.push(self.tuple_element(element)?);
         }
         let mut elements = formatted_elements.join(", ");
         if is_singleton {
@@ -292,11 +290,11 @@ impl Formatter<'_, '_, '_> {
             dir::TupleForm::Array => format!("[{elements}]"),
         };
 
-        Ok(Some(text))
+        Ok(text)
     }
 
     /// Format one tuple element.
-    fn tuple_element(&self, element: &dir::TypeElement) -> QueryResult<Option<String>> {
+    fn tuple_element(&self, element: &dir::TypeElement) -> QueryResult<String> {
         let mut text = String::new();
 
         if element.is_readonly {
@@ -312,64 +310,62 @@ impl Formatter<'_, '_, '_> {
             }
             text.push_str(": ");
         }
-        let type_text = formatted!(self.global_type(element.ty));
+        let type_text = self.global_type(element.ty)?;
         text.push_str(&type_text);
 
-        Ok(Some(text))
+        Ok(text)
     }
 
     /// Format one structural shape type.
-    fn shape(&self, shape: dir::ShapeType) -> QueryResult<Option<String>> {
+    fn shape(&self, shape: dir::ShapeType) -> QueryResult<String> {
         let mut members = Vec::new();
 
         for property in self.module.types().properties(shape.properties) {
-            members.push(formatted!(self.property(property)));
+            members.push(self.property(property)?);
         }
         for signature in self.module.types().index_signatures(shape.index_signatures) {
-            members.push(formatted!(self.index_signature(signature)));
+            members.push(self.index_signature(signature)?);
         }
 
         if members.is_empty() {
-            Ok(Some("{}".to_string()))
+            Ok("{}".to_string())
         } else {
-            Ok(Some(format!("{{ {} }}", members.join("; "))))
+            Ok(format!("{{ {} }}", members.join("; ")))
         }
     }
 
     /// Format one structural property.
-    fn property(&self, property: &dir::TypeProperty) -> QueryResult<Option<String>> {
+    fn property(&self, property: &dir::TypeProperty) -> QueryResult<String> {
         let optional = if property.is_optional { "?" } else { "" };
-        let key = formatted!(self.property_key(property.key));
+        let key = self.property_key(property.key)?;
 
         match property.access {
             dir::PropertyAccess::Read(ty) => {
-                let ty = formatted!(self.global_type(ty));
+                let ty = self.global_type(ty)?;
 
-                Ok(Some(format!("readonly {key}{optional}: {ty}")))
+                Ok(format!("readonly {key}{optional}: {ty}"))
             }
             dir::PropertyAccess::Write(ty) => {
-                let ty = formatted!(self.global_type(ty));
+                let ty = self.global_type(ty)?;
 
-                Ok(Some(format!("set {key}(value: {ty})")))
+                Ok(format!("set {key}(value: {ty})"))
             }
             dir::PropertyAccess::ReadWrite { read, write } if read == write => {
-                let ty = formatted!(self.global_type(read));
+                let ty = self.global_type(read)?;
 
-                Ok(Some(format!("{key}{optional}: {ty}")))
+                Ok(format!("{key}{optional}: {ty}"))
             }
             dir::PropertyAccess::ReadWrite { read, write } => {
-                let read = formatted!(self.global_type(read));
-                let write = formatted!(self.global_type(write));
+                let read = self.global_type(read)?;
+                let write = self.global_type(write)?;
 
-                Ok(Some(format!(
-                    "get {key}(): {read}; set {key}(value: {write})"
-                )))
+                Ok(format!("get {key}(): {read}; set {key}(value: {write})"))
             }
         }
     }
 
     /// Format one index signature.
-    fn index_signature(&self, signature: &dir::TypeIndexSignature) -> QueryResult<Option<String>> {
+    fn index_signature(&self, signature: &dir::TypeIndexSignature) -> QueryResult<String> {
         let readonly = if signature.is_readonly {
             "readonly "
         } else {
@@ -377,12 +373,12 @@ impl Formatter<'_, '_, '_> {
         };
         let optional = if signature.is_optional { "?" } else { "" };
         let name = self.module.strings().get(signature.name);
-        let key_type = formatted!(self.global_type(signature.key_type));
-        let value_type = formatted!(self.global_type(signature.value_type));
+        let key_type = self.global_type(signature.key_type)?;
+        let value_type = self.global_type(signature.value_type)?;
 
-        Ok(Some(format!(
+        Ok(format!(
             "{readonly}[{name}: {key_type}]{optional}: {value_type}"
-        )))
+        ))
     }
 
     /// Format one list of type operands.
@@ -391,28 +387,24 @@ impl Formatter<'_, '_, '_> {
         list: dir::TypeListId,
         separator: &str,
         operand: TypeOperand,
-    ) -> QueryResult<Option<String>> {
+    ) -> QueryResult<String> {
         let types = self.module.types().type_ids(list);
         let mut formatted_types = Vec::with_capacity(types.len());
         for type_id in types {
-            formatted_types.push(formatted!(self.type_operand(*type_id, operand)));
+            formatted_types.push(self.type_operand(*type_id, operand)?);
         }
 
-        Ok(Some(formatted_types.join(separator)))
+        Ok(formatted_types.join(separator))
     }
 
     /// Format and join global type ids.
-    fn join_types(
-        &self,
-        types: &[dir::GlobalTypeId],
-        separator: &str,
-    ) -> QueryResult<Option<String>> {
+    fn join_types(&self, types: &[dir::GlobalTypeId], separator: &str) -> QueryResult<String> {
         let mut formatted_types = Vec::with_capacity(types.len());
         for type_id in types {
-            formatted_types.push(formatted!(self.global_type(*type_id)));
+            formatted_types.push(self.global_type(*type_id)?);
         }
 
-        Ok(Some(formatted_types.join(separator)))
+        Ok(formatted_types.join(separator))
     }
 
     /// Format one type operand with the grouping required by its parent.
@@ -420,21 +412,16 @@ impl Formatter<'_, '_, '_> {
         &self,
         type_id: dir::GlobalTypeId,
         operand: TypeOperand,
-    ) -> QueryResult<Option<String>> {
-        self.query.read_type(
-            type_id,
-            |type_value, module| -> QueryResult<Option<String>> {
-                let formatter = Formatter::new(module, self.query);
-                let Some(text) = formatter.local_type(type_value)? else {
-                    return Ok(None);
-                };
-                if type_needs_parentheses(type_value, operand, module) {
-                    Ok(Some(format!("({text})")))
-                } else {
-                    Ok(Some(text))
-                }
-            },
-        )
+    ) -> QueryResult<String> {
+        self.query.read_type(type_id, |type_value, module| {
+            let formatter = Formatter::new(module, self.query);
+            let text = formatter.local_type(type_value)?;
+            if type_needs_parentheses(type_value, operand, module) {
+                Ok(format!("({text})"))
+            } else {
+                Ok(text)
+            }
+        })
     }
 }
 

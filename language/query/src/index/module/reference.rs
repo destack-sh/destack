@@ -276,7 +276,6 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
             };
 
             // emit the authored remote name for every exact bound declaration
-            // FUGU #Incomplete: retain export selector chains for rename propagation
             for target in targets {
                 self.push_dependency(*target, *source, span);
             }

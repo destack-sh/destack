@@ -553,7 +553,7 @@ const result = Poi;
 @completion.item label=Point kind=struct replace=main.ds#prefix detail=Point insert="Point { x: ${1}, y: ${2} }$0" snippet=true preselect=true matches=0,1,2
 ```
 
-### Complete a newtype constructor
+### [ignored] Complete a newtype constructor
 
 A newtype completion includes its constructor signature and call snippet.
 

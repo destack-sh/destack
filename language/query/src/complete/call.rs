@@ -24,8 +24,8 @@ struct CallExpression<'a> {
 }
 
 impl CallSnippet {
-    /// Build a call insertion from one completion label and parameter list.
-    pub(super) fn new(function_name: &str, parameter_names: &[String]) -> Self {
+    /// Build a call insertion from named parameters.
+    pub(super) fn named(function_name: &str, parameter_names: &[String]) -> Self {
         if parameter_names.is_empty() {
             Self {
                 text: format!("{function_name}()"),
@@ -36,6 +36,26 @@ impl CallSnippet {
                 .iter()
                 .enumerate()
                 .map(|(index, parameter_name)| format!("${{{}:{}}}", index + 1, parameter_name))
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            Self {
+                text: format!("{function_name}({parameters})$0"),
+                is_snippet: true,
+            }
+        }
+    }
+
+    /// Build a call insertion from positional parameters.
+    pub(super) fn positional(function_name: &str, parameter_count: usize) -> Self {
+        if parameter_count == 0 {
+            Self {
+                text: format!("{function_name}()"),
+                is_snippet: false,
+            }
+        } else {
+            let parameters = (1..=parameter_count)
+                .map(|index| format!("${{{index}}}"))
                 .collect::<Vec<_>>()
                 .join(", ");
 
@@ -264,19 +284,39 @@ impl ModuleQueryContext<'_> {
             return Ok(None);
         };
         let call_id = expression_id.into_global_any(self.module_id());
-        let Some(resolution) = self.resolutions().call_resolution(call_id) else {
-            return Ok(None);
-        };
+        let call = self.resolutions().call_resolution(call_id);
+        let construct = self.resolutions().construct_resolution(call_id);
+        if call.is_some() && construct.is_some() {
+            return Err(QueryError::conflict(format!(
+                "completion resolution columns: {call_id:?}"
+            )));
+        }
         let argument = argument_id.into_global_any(self.module_id());
-        let binding = resolution
-            .iter()
-            .flat_map(|call| call.arguments.iter())
-            .find(|binding| binding.contains_argument(argument))
-            .ok_or(QueryError::missing(format!(
-                "completion argument binding: {call_id:?}, {argument:?}"
-            )))?;
+        let mut types = call
+            .into_iter()
+            .flat_map(dir::CallResolution::iter)
+            .flat_map(|selection| selection.arguments.iter())
+            .chain(
+                construct
+                    .into_iter()
+                    .flat_map(|selection| selection.arguments.iter()),
+            )
+            .filter(|binding| binding.contains_argument(argument))
+            .map(|binding| binding.ty)
+            .collect::<Vec<_>>();
+        if types.is_empty() && call.is_none() && construct.is_none() {
+            return Ok(None);
+        }
+        types.sort();
+        types.dedup();
 
-        Ok(Some(binding.ty))
+        match types.as_slice() {
+            [] => Err(QueryError::missing(format!(
+                "completion argument binding: {call_id:?}, {argument:?}"
+            ))),
+            [type_id] => Ok(Some(*type_id)),
+            _ => Ok(None),
+        }
     }
 }
 

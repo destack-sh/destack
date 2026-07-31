@@ -321,7 +321,7 @@ impl Indexer {
             let module =
                 self.module_index_context(&artifacts, module_id, profile_id, checked_module)?;
             let index = match kind {
-                IndexKind::Members => ModuleIndex::Members(MemberIndexer::build(&module)),
+                IndexKind::Members => ModuleIndex::Members(MemberIndexer::build(&module)?),
                 IndexKind::References => ModuleIndex::References(ReferenceIndexer::build(&module)?),
                 IndexKind::Calls => ModuleIndex::Calls(CallIndexer::build(&module)?),
                 IndexKind::Heritage => ModuleIndex::Heritage(HeritageIndexer::build(&module)?),

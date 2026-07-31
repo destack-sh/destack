@@ -208,7 +208,7 @@ impl ModuleQueryContext<'_> {
                 None => return Ok(None),
             };
         let range = self.node_span(view, declaration_id.into())?;
-        let detail = self.outline_declaration_detail(declaration_id, declaration, query)?;
+        let detail = self.outline_declaration_detail(declaration, query)?;
         let mut children = Vec::new();
 
         // preserve declaration member order
@@ -311,18 +311,12 @@ impl ModuleQueryContext<'_> {
     /// Return the concise detail for one declaration.
     fn outline_declaration_detail(
         &self,
-        declaration_id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::Declaration,
         query: &ProgramQueryContext<'_>,
     ) -> QueryResult<Option<String>> {
         match declaration {
             dir::Declaration::Function(declaration) => Ok(Some(
-                Formatter::new(self, query)
-                    .call_signature("", &declaration.signature, false)?
-                    .ok_or(QueryError::invalid(format!(
-                        "outline signature formatting: {:?}",
-                        declaration_id.into_global_any(self.module_id())
-                    )))?,
+                Formatter::new(self, query).call_signature("", &declaration.signature, false)?,
             )),
             dir::Declaration::Type(declaration) => Ok(Some(
                 self.outline_node_type(declaration.value.into(), query)?,
@@ -382,9 +376,7 @@ impl ModuleQueryContext<'_> {
                         .ok_or(QueryError::missing(format!(
                             "outline symbol type: {symbol_id:?}"
                         )))?;
-                let detail = Formatter::new(self, query).global_type(type_id)?.ok_or(
-                    QueryError::invalid(format!("outline type formatting: {type_id:?}")),
-                )?;
+                let detail = Formatter::new(self, query).global_type(type_id)?;
                 symbols.push(OutlineSymbol {
                     name: self.strings().get(name_id).to_string(),
                     detail: Some(detail),
@@ -477,12 +469,7 @@ impl ModuleQueryContext<'_> {
                     Some(name) => name,
                     None => return Ok(None),
                 };
-                let detail = Formatter::new(self, query)
-                    .method_signature(signature, *is_static)?
-                    .ok_or(QueryError::invalid(format!(
-                        "outline signature formatting: {:?}",
-                        member_id.into_global_any(self.module_id())
-                    )))?;
+                let detail = Formatter::new(self, query).method_signature(signature, *is_static)?;
 
                 (name, kind, Some(detail))
             }
@@ -541,12 +528,7 @@ impl ModuleQueryContext<'_> {
                 ..
             } => {
                 let name = self.outline_member_key(view, key)?;
-                let detail = Formatter::new(self, query)
-                    .method_signature(signature, *is_static)?
-                    .ok_or(QueryError::invalid(format!(
-                        "outline signature formatting: {:?}",
-                        member_id.into_global_any(self.module_id())
-                    )))?;
+                let detail = Formatter::new(self, query).method_signature(signature, *is_static)?;
 
                 (name, SymbolKind::Method, Some(detail))
             }
@@ -639,11 +621,7 @@ impl ModuleQueryContext<'_> {
             .get_node_type_id(node_id)
             .ok_or(QueryError::missing(format!("outline type: {node_id:?}")))?;
 
-        Formatter::new(self, query)
-            .global_type(type_id)?
-            .ok_or(QueryError::invalid(format!(
-                "outline type formatting: {type_id:?}"
-            )))
+        Formatter::new(self, query).global_type(type_id)
     }
 
     /// Return an explicit type annotation or the inferred owner type.

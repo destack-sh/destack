@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use crate::{QueryError, QueryResult};
 
-use super::{Formatter, formatted};
+use super::Formatter;
 
 /// One signature formatted from an exact call selection.
 pub(crate) struct AppliedSignature {
@@ -21,10 +21,10 @@ impl Formatter<'_, '_, '_> {
         parameter_names: &[Option<String>],
         bindings: &[dir::ArgumentBinding],
         return_type: dir::GlobalTypeId,
-    ) -> QueryResult<Option<AppliedSignature>> {
+    ) -> QueryResult<AppliedSignature> {
         let mut arguments = Vec::with_capacity(generic_arguments.len());
         for binding in generic_arguments {
-            let argument = formatted!(self.global_type(binding.argument));
+            let argument = self.global_type(binding.argument)?;
             arguments.push(argument);
         }
         let generics = if arguments.is_empty() {
@@ -52,7 +52,7 @@ impl Formatter<'_, '_, '_> {
                     binding.parameter
                 )));
             }
-            let type_text = formatted!(self.global_type(binding.ty));
+            let type_text = self.global_type(binding.ty)?;
             let label = match parameter_names[index].as_deref() {
                 Some(name) => format!("{name}: {type_text}"),
                 None => type_text,
@@ -61,35 +61,35 @@ impl Formatter<'_, '_, '_> {
         }
 
         // join the complete signature label
-        let return_type = formatted!(self.global_type(return_type));
+        let return_type = self.global_type(return_type)?;
         let parameter_text = parameters.join(", ");
         let label = format!("{name}{generics}({parameter_text}): {return_type}");
 
-        Ok(Some(AppliedSignature { label, parameters }))
+        Ok(AppliedSignature { label, parameters })
     }
 
     /// Format generic parameters.
     pub(super) fn generics(
         &self,
         generics: &[dir::LocalNodeId<dir::GenericParameter>],
-    ) -> QueryResult<Option<String>> {
+    ) -> QueryResult<String> {
         if generics.is_empty() {
-            return Ok(Some(String::new()));
+            return Ok(String::new());
         }
 
         let mut formatted = Vec::with_capacity(generics.len());
         for parameter_id in generics {
-            formatted.push(formatted!(self.generic_parameter(*parameter_id)));
+            formatted.push(self.generic_parameter(*parameter_id)?);
         }
 
-        Ok(Some(format!("<{}>", formatted.join(", "))))
+        Ok(format!("<{}>", formatted.join(", ")))
     }
 
     /// Format one generic parameter.
     fn generic_parameter(
         &self,
         parameter_id: dir::LocalNodeId<dir::GenericParameter>,
-    ) -> QueryResult<Option<String>> {
+    ) -> QueryResult<String> {
         let parameter = self.module.view().get(parameter_id);
         let strings = self.module.strings();
 
@@ -102,8 +102,8 @@ impl Formatter<'_, '_, '_> {
                 default,
             } => {
                 let prefix = type_parameter_prefix(*is_const, *variance, false);
-                let constraint = formatted!(self.type_bound(*constraint));
-                let default = formatted!(self.type_default(*default));
+                let constraint = self.type_bound(*constraint)?;
+                let default = self.type_default(*default)?;
 
                 format!("{prefix}{}{constraint}{default}", strings.get(*name))
             }
@@ -115,8 +115,8 @@ impl Formatter<'_, '_, '_> {
                 default,
             } => {
                 let prefix = type_parameter_prefix(*is_const, *variance, true);
-                let constraint = formatted!(self.type_bound(*constraint));
-                let default = formatted!(self.type_default(*default));
+                let constraint = self.type_bound(*constraint)?;
+                let default = self.type_default(*default)?;
 
                 format!("{prefix}{}{constraint}{default}", strings.get(*name))
             }
@@ -127,8 +127,8 @@ impl Formatter<'_, '_, '_> {
                 is_comptime,
             } => {
                 let prefix = value_parameter_prefix(*is_comptime, false);
-                let declared_type = formatted!(self.type_bound(*declared_type));
-                let default = formatted!(self.expression_default(*default));
+                let declared_type = self.type_bound(*declared_type)?;
+                let default = self.expression_default(*default)?;
 
                 format!("{prefix}{}{declared_type}{default}", strings.get(*name))
             }
@@ -139,16 +139,18 @@ impl Formatter<'_, '_, '_> {
                 is_comptime,
             } => {
                 let prefix = value_parameter_prefix(*is_comptime, true);
-                let declared_type = formatted!(self.type_bound(*declared_type));
-                let default = formatted!(self.expression_default(*default));
+                let declared_type = self.type_bound(*declared_type)?;
+                let default = self.expression_default(*default)?;
 
                 format!("{prefix}{}{declared_type}{default}", strings.get(*name))
             }
             dir::GenericParameter::Lifetime { name } => strings.get(*name).to_string(),
-            dir::GenericParameter::Error => return Ok(None),
+            dir::GenericParameter::Error => {
+                return Err(QueryError::missing("generic parameter formatting"));
+            }
         };
 
-        Ok(Some(text))
+        Ok(text)
     }
 
     /// Format parameter labels in declaration order.
@@ -156,99 +158,99 @@ impl Formatter<'_, '_, '_> {
         &self,
         this_parameter: Option<dir::LocalNodeId<dir::Parameter>>,
         parameters: &[dir::LocalNodeId<dir::Parameter>],
-    ) -> QueryResult<Option<Vec<String>>> {
+    ) -> QueryResult<Vec<String>> {
         let capacity = parameters.len() + usize::from(this_parameter.is_some());
         let mut formatted = Vec::with_capacity(capacity);
 
         if let Some(this_parameter) = this_parameter {
-            let this_text = formatted!(self.parameter(this_parameter));
+            let this_text = self.parameter(this_parameter)?;
             formatted.push(this_text);
         }
 
         for parameter_id in parameters {
-            formatted.push(formatted!(self.parameter(*parameter_id)));
+            formatted.push(self.parameter(*parameter_id)?);
         }
 
-        Ok(Some(formatted))
+        Ok(formatted)
     }
 
     /// Format one authored parameter.
     pub(super) fn parameter(
         &self,
         parameter_id: dir::LocalNodeId<dir::Parameter>,
-    ) -> QueryResult<Option<String>> {
+    ) -> QueryResult<String> {
         let parameter = self.module.view().get(parameter_id);
-        let Some(name) = self.module.parameter_name(parameter)? else {
-            return Ok(None);
-        };
+        let name = self.module.parameter_name(parameter)?;
         let optional = if parameter.is_optional() || parameter.default_value().is_some() {
             "?"
         } else {
             ""
         };
         let node_id = parameter_id.into_global_any(self.module.module_id());
-        let type_text = formatted!(self.node_type(node_id));
+        let type_text = self.node_type(node_id)?;
 
-        Ok(Some(format!("{name}{optional}: {type_text}")))
+        Ok(format!("{name}{optional}: {type_text}"))
     }
 
     /// Format one function type parameter.
     pub(super) fn parameter_type(
         &self,
         parameter: &dir::FunctionParameterType,
-        parameter_name: &str,
-    ) -> QueryResult<Option<String>> {
+        parameter_name: Option<&str>,
+    ) -> QueryResult<String> {
         let rest = if parameter.is_rest { "..." } else { "" };
         let optional = if parameter.is_optional { "?" } else { "" };
-        let type_text = formatted!(self.global_type(parameter.ty));
+        let type_text = self.global_type(parameter.ty)?;
+        let text = match parameter_name {
+            Some(parameter_name) => format!("{rest}{parameter_name}{optional}: {type_text}"),
+            None => format!("{rest}{type_text}{optional}"),
+        };
 
-        Ok(Some(format!(
-            "{rest}{parameter_name}{optional}: {type_text}"
-        )))
+        Ok(text)
     }
 
     /// Format one optional generic type bound.
     fn type_bound(
         &self,
         type_id: Option<dir::LocalNodeId<dir::TypeExpression>>,
-    ) -> QueryResult<Option<String>> {
+    ) -> QueryResult<String> {
         let Some(type_id) = type_id else {
-            return Ok(Some(String::new()));
+            return Ok(String::new());
         };
         let type_id = type_id.into_global_any(self.module.module_id());
-        let type_text = formatted!(self.node_type(type_id));
+        let type_text = self.node_type(type_id)?;
 
-        Ok(Some(format!(": {type_text}")))
+        Ok(format!(": {type_text}"))
     }
 
     /// Format one optional generic type default.
     fn type_default(
         &self,
         type_id: Option<dir::LocalNodeId<dir::TypeExpression>>,
-    ) -> QueryResult<Option<String>> {
+    ) -> QueryResult<String> {
         let Some(type_id) = type_id else {
-            return Ok(Some(String::new()));
+            return Ok(String::new());
         };
         let type_id = type_id.into_global_any(self.module.module_id());
-        let type_text = formatted!(self.node_type(type_id));
+        let type_text = self.node_type(type_id)?;
 
-        Ok(Some(format!(" = {type_text}")))
+        Ok(format!(" = {type_text}"))
     }
 
     /// Format one optional generic value default.
     fn expression_default(
         &self,
         expression: Option<dir::LocalNodeId<dir::Expression>>,
-    ) -> QueryResult<Option<String>> {
+    ) -> QueryResult<String> {
         let Some(expression) = expression else {
-            return Ok(Some(String::new()));
+            return Ok(String::new());
         };
         let span = self
             .module
             .node_span(self.module.view(), expression.into())?;
         let expression = self.module.source_text(span)?;
 
-        Ok(Some(format!(" = {expression}")))
+        Ok(format!(" = {expression}"))
     }
 }
 

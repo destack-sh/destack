@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_repository::{ProviderError, ProviderResult};
 
 use super::context::ModuleIndexContext;
 
@@ -14,23 +15,25 @@ impl<'context, 'index> MemberIndexer<'context, 'index> {
     /// Build the member index.
     pub(in crate::index) fn build(
         module: &'context ModuleIndexContext<'index>,
-    ) -> dir::MemberIndex {
+    ) -> ProviderResult<dir::MemberIndex> {
         let mut indexer = Self {
             module,
             entries: Vec::new(),
         };
 
         // collect checked definition members
-        indexer.collect_members();
+        indexer.collect_members()?;
 
-        dir::MemberIndex::new(indexer.entries)
+        Ok(dir::MemberIndex::new(indexer.entries))
     }
 
     /// Collect checked member index entries.
-    fn collect_members(&mut self) {
+    fn collect_members(&mut self) -> ProviderResult<()> {
         for (declaring_symbol, definition) in self.module.definitions().iter_definitions() {
-            self.collect_definition(declaring_symbol, definition);
+            self.collect_definition(declaring_symbol, definition)?;
         }
+
+        Ok(())
     }
 
     /// Collect members declared by one definition.
@@ -38,9 +41,9 @@ impl<'context, 'index> MemberIndexer<'context, 'index> {
         &mut self,
         declaring_symbol: dir::GlobalSymbolId,
         definition: &dir::Definition,
-    ) {
+    ) -> ProviderResult<()> {
         // resolve owner metadata shared by each member row
-        let owner_symbol = self.definition_member_owner(declaring_symbol, definition);
+        let owner_symbol = definition.member_owner(declaring_symbol);
         let origin = if matches!(definition, dir::Definition::Extension(_)) {
             dir::MemberOrigin::Extension
         } else {
@@ -56,29 +59,15 @@ impl<'context, 'index> MemberIndexer<'context, 'index> {
                 owner_name.as_deref(),
                 origin,
                 member,
-            ) else {
+            )?
+            else {
                 continue;
             };
 
             self.entries.push(entry);
         }
-    }
 
-    /// Return the member owner symbol for one checked definition.
-    fn definition_member_owner(
-        &self,
-        declaring_symbol: dir::GlobalSymbolId,
-        definition: &dir::Definition,
-    ) -> Option<dir::GlobalSymbolId> {
-        match definition {
-            dir::Definition::Extension(extension) => extension.target.root(),
-            dir::Definition::Struct(_)
-            | dir::Definition::Class(_)
-            | dir::Definition::Interface(_)
-            | dir::Definition::Enum(_)
-            | dir::Definition::TypeAlias(_)
-            | dir::Definition::Newtype(_) => Some(declaring_symbol),
-        }
+        Ok(())
     }
 
     /// Return the local symbol name for one declaring symbol.
@@ -101,25 +90,34 @@ impl<'context, 'index> MemberIndexer<'context, 'index> {
         owner_name: Option<&str>,
         origin: dir::MemberOrigin,
         member: &dir::DefinitionMember,
-    ) -> Option<dir::MemberEntry> {
+    ) -> ProviderResult<Option<dir::MemberEntry>> {
         // keep only member declarations owned by this module
         let source = member.source();
         if source.module_id != self.module.module_id() {
-            return None;
+            return Ok(None);
         }
 
         // resolve member metadata
-        let span = self.module.view().get_span_by_id(source.local_id.id)?;
+        let span = self
+            .module
+            .view()
+            .get_span_by_id(source.local_id.id)
+            .ok_or_else(|| {
+                ProviderError::internal(format!("definition member has no source span: {source:?}"))
+            })?;
         let selection = self
             .module
             .node_selection_span(self.module.view(), source.local_id);
-        let name = self.member_name(member)?;
+        // FUGU #Incomplete: retain static symbol member keys in MemberIndex
+        let name = member.name(self.module.strings()).ok_or_else(|| {
+            ProviderError::internal(format!("definition member has no indexed key: {source:?}"))
+        })?;
         let kind = Self::member_kind(member);
         let symbol = member.symbol();
-        let type_id = self.member_type(member, symbol);
+        let type_id = self.member_type(member)?;
 
         // emit member declaration row
-        Some(dir::MemberEntry {
+        Ok(Some(dir::MemberEntry {
             name,
             kind,
             owner: owner_symbol,
@@ -133,65 +131,30 @@ impl<'context, 'index> MemberIndexer<'context, 'index> {
             ty: type_id,
             origin,
             space: member.space(),
-        })
-    }
-
-    /// Return the searchable name for one checked member.
-    fn member_name(&self, member: &dir::DefinitionMember) -> Option<String> {
-        // prefer explicit static keys
-        if let Some(key) = member.key() {
-            return self.static_name(&key);
-        }
-
-        // name structural member signatures by their call form
-        match member {
-            dir::DefinitionMember::Method(method) => match method.slot {
-                dir::MemberSlot::Constructor => Some("constructor".to_string()),
-                dir::MemberSlot::New => Some("new".to_string()),
-                dir::MemberSlot::Call => Some("call".to_string()),
-                dir::MemberSlot::Key(_) => None,
-            },
-            dir::DefinitionMember::CallSignature(_) => Some("call".to_string()),
-            dir::DefinitionMember::ConstructSignature(_) => Some("new".to_string()),
-            dir::DefinitionMember::IndexSignature(_) => Some("[]".to_string()),
-            _ => None,
-        }
-    }
-
-    /// Return the searchable name for one static member key.
-    fn static_name(&self, key: &dir::StaticKey) -> Option<String> {
-        match key {
-            dir::StaticKey::Name(name) => Some(self.module.strings().get(*name).to_string()),
-            dir::StaticKey::Index(index) => Some(index.to_string()),
-            dir::StaticKey::Symbol(_) => None,
-        }
+        }))
     }
 
     /// Return the checked type attached to one definition member.
     fn member_type(
         &self,
         member: &dir::DefinitionMember,
-        symbol: Option<dir::GlobalSymbolId>,
-    ) -> Option<dir::GlobalTypeId> {
-        // prefer the checked type attached to the member symbol
-        if let Some(symbol) = symbol
-            && let Some(type_id) = self.module.types().get_symbol_type_id(symbol)
-        {
-            return Some(type_id);
+    ) -> ProviderResult<Option<dir::GlobalTypeId>> {
+        // require the checked type carried by symbol backed members
+        if let Some(symbol) = member.type_symbol() {
+            let type_id = self
+                .module
+                .types()
+                .get_symbol_type_id(symbol)
+                .ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "definition member has no checked type: {symbol:?}"
+                    ))
+                })?;
+
+            return Ok(Some(type_id));
         }
 
-        // read structural signature types without a symbol payload
-        match member {
-            dir::DefinitionMember::AssociatedType(member) => member.value,
-            dir::DefinitionMember::CallSignature(member)
-            | dir::DefinitionMember::ConstructSignature(member) => Some(member.ty),
-            dir::DefinitionMember::IndexSignature(member) => Some(member.value_type),
-            dir::DefinitionMember::Field(_)
-            | dir::DefinitionMember::Method(_)
-            | dir::DefinitionMember::AssociatedConst(_)
-            | dir::DefinitionMember::EnumVariant(_)
-            | dir::DefinitionMember::TaggedVariant(_) => None,
-        }
+        Ok(member.value_type())
     }
 
     /// Return the index kind for one checked definition member.

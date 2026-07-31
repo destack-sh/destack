@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::{EnclosingSpan, FileId, ModuleId, NodeSpanRegion};
 
 use crate::source::token_text;
-use crate::{ModuleQueryContext, QueryError, QueryResult, ScopeAtOffset, SymbolUse};
+use crate::{ModuleQueryContext, QueryError, QueryResult, SymbolUse};
 
 /// Describes the context for a completion request.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,41 +15,41 @@ pub(crate) enum CompletionContext {
     /// Type position context such as decorations or type expressions.
     TypePosition {
         /// The scope used for visible symbols.
-        scope: ScopeAtOffset,
+        scope: dir::LocalScope,
     },
     /// Value position context such as expressions and statements.
     ValuePosition {
         /// The scope used for visible symbols.
-        scope: ScopeAtOffset,
+        scope: dir::LocalScope,
     },
     /// Statement position context such as the start of a line in a block.
     StatementPosition {
         /// The scope used for visible symbols.
-        scope: ScopeAtOffset,
+        scope: dir::LocalScope,
     },
     /// Object literal key position.
     ObjectLiteralKey {
         /// Field names already present in the literal.
         existing_fields: Vec<String>,
         /// The scope used for visible symbols.
-        scope: ScopeAtOffset,
+        scope: dir::LocalScope,
     },
     /// Object literal value position.
     ObjectLiteralValue {
         /// The scope used for visible symbols.
-        scope: ScopeAtOffset,
+        scope: dir::LocalScope,
     },
     /// Call argument context inside `call(...)`.
     CallArgument {
         /// The scope used for visible symbols.
-        scope: ScopeAtOffset,
+        scope: dir::LocalScope,
         /// The selected parameter type.
         expected_type: Option<dir::GlobalTypeId>,
     },
     /// New expression context inside `new ...`.
     NewExpression {
         /// The scope used for visible symbols.
-        scope: ScopeAtOffset,
+        scope: dir::LocalScope,
     },
     /// Import path context inside string literals.
     ImportPath {
@@ -109,7 +109,7 @@ pub(crate) struct AutoImportSearch {
     /// The symbol namespace accepted by this position.
     pub(crate) symbol_use: SymbolUse,
     /// The lexical scope used to exclude visible names.
-    pub(crate) scope: ScopeAtOffset,
+    pub(crate) scope: dir::LocalScope,
     /// Whether candidates must be constructable.
     pub(crate) is_constructable_only: bool,
 }
@@ -371,7 +371,7 @@ impl ModuleQueryContext<'_> {
         &self,
         file_id: FileId,
         offset: u32,
-    ) -> QueryResult<Option<ScopeAtOffset>> {
+    ) -> QueryResult<Option<dir::LocalScope>> {
         let mut enclosing = self.enclosing_spans_at_cursor(file_id, offset);
         enclosing.sort_by_key(|enclosing_span| enclosing_span.length);
 

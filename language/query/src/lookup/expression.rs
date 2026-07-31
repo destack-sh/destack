@@ -1,56 +1,46 @@
 use destack_dir as dir;
 use destack_repository::{ProviderError, ProviderResult};
 
-use crate::ModuleQueryContext;
+use crate::{ModuleQueryContext, QueryError, QueryResult};
 
 impl ModuleQueryContext<'_> {
     /// Return every symbol target from one recorded use-site resolution.
     pub(crate) fn recorded_symbol_targets(
         &self,
         node_id: dir::GlobalNodeIdAny,
-    ) -> Option<Vec<dir::GlobalSymbolId>> {
-        // member resolutions distinguish declaration-backed and structural access
-        if let Some(symbols) = self.member_symbol_targets(node_id) {
-            return Some(symbols);
-        }
+    ) -> QueryResult<Option<Vec<dir::GlobalSymbolId>>> {
+        let mut selections = Vec::new();
 
-        // explicit instantiations record their selected declaration directly
+        // collect every exact symbol selection recorded for this node
+        if let Some(resolution) = self.resolutions().member_resolution(node_id) {
+            selections.push(resolution.target_symbols());
+        }
         if let Some(resolution) = self.resolutions().instantiation_resolution(node_id) {
-            return Some(vec![resolution.symbol]);
+            selections.push(vec![resolution.symbol]);
         }
-
-        // lexical and path resolutions retain every selected declaration
-        if let Some(symbols) = self.name_symbol_targets(node_id) {
-            return Some(symbols);
+        if let Some(resolution) = self.resolutions().name_resolution(node_id) {
+            selections.push(resolution.symbols().to_vec());
         }
-
-        // receiver expressions record the declaration introducing the receiver
         if let Some(resolution) = self.resolutions().receiver_resolution(node_id) {
-            return Some(vec![resolution.declaration]);
+            selections.push(vec![resolution.declaration]);
         }
-
         if let Some(resolution) = self.resolutions().label_resolution(node_id) {
             let symbols = match resolution {
                 dir::LabelResolution::Symbol(symbol) => vec![symbol],
                 dir::LabelResolution::Loop | dir::LabelResolution::Function => Vec::new(),
             };
 
-            return Some(symbols);
+            selections.push(symbols);
         }
 
-        None
-    }
+        // require one authoritative resolution column
+        if selections.len() > 1 {
+            return Err(QueryError::conflict(format!(
+                "symbol resolution columns: {node_id:?}"
+            )));
+        }
 
-    /// Return every symbol target from one recorded name resolution.
-    fn name_symbol_targets(
-        &self,
-        node_id: dir::GlobalNodeIdAny,
-    ) -> Option<Vec<dir::GlobalSymbolId>> {
-        let resolution = self.resolutions().name_resolution(node_id)?;
-
-        let symbols = resolution.symbols().to_vec();
-
-        Some(symbols)
+        Ok(selections.pop())
     }
 
     /// Return the recorded symbol targets for one dependency item.

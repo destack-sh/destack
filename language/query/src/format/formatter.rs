@@ -1,16 +1,5 @@
 use crate::{ModuleQueryContext, ProgramQueryContext};
 
-macro_rules! formatted {
-    ($expression:expr) => {
-        match $expression? {
-            Some(text) => text,
-            None => return Ok(None),
-        }
-    };
-}
-
-pub(super) use formatted;
-
 /// Formatter for query display text.
 pub(crate) struct Formatter<'owner, 'module, 'query> {
     /// The module that owns local ids read by the formatter.

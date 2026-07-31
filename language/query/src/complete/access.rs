@@ -211,7 +211,7 @@ impl CompletionReceiver {
             return Ok(Some(*module_id));
         }
 
-        let Some(symbols) = module.recorded_symbol_targets(receiver) else {
+        let Some(symbols) = module.recorded_symbol_targets(receiver)? else {
             return Ok(None);
         };
         let mut modules = Vec::new();

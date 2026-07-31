@@ -241,17 +241,6 @@ impl<'a> ProgramQueryContext<'a> {
         }
     }
 
-    /// Return member postings.
-    pub(crate) fn member_postings(&self) -> QueryResult<&dir::MemberPostings> {
-        match self.program_index(IndexKind::Members)? {
-            ProgramIndex::Members(postings) => Ok(postings),
-            index => Err(QueryError::invalid(format!(
-                "expected member index, found {:?}",
-                index.kind()
-            ))),
-        }
-    }
-
     /// Return reference postings.
     pub(crate) fn reference_postings(&self) -> QueryResult<&dir::ReferencePostings> {
         match self.program_index(IndexKind::References)? {
@@ -280,17 +269,6 @@ impl<'a> ProgramQueryContext<'a> {
             ProgramIndex::Heritage(postings) => Ok(postings),
             index => Err(QueryError::invalid(format!(
                 "expected heritage index, found {:?}",
-                index.kind()
-            ))),
-        }
-    }
-
-    /// Return extension postings.
-    pub(crate) fn extension_postings(&self) -> QueryResult<&dir::ExtensionPostings> {
-        match self.program_index(IndexKind::Extensions)? {
-            ProgramIndex::Extensions(postings) => Ok(postings),
-            index => Err(QueryError::invalid(format!(
-                "expected extension index, found {:?}",
                 index.kind()
             ))),
         }
@@ -349,19 +327,6 @@ impl<'a> ProgramQueryContext<'a> {
         Ok((module_id, index))
     }
 
-    /// Return one module member index selected by a program ordinal.
-    pub(crate) fn member_index_at(
-        &self,
-        ordinal: u32,
-    ) -> QueryResult<(ModuleId, &dir::MemberIndex)> {
-        let (module_id, index) = self.module_index_at(ordinal, IndexKind::Members)?;
-        let ModuleIndex::Members(index) = index else {
-            return Err(Self::unexpected_module_index(IndexKind::Members, index));
-        };
-
-        Ok((module_id, index))
-    }
-
     /// Return one module reference index selected by a program ordinal.
     pub(crate) fn reference_index_at(
         &self,
@@ -393,19 +358,6 @@ impl<'a> ProgramQueryContext<'a> {
         let (module_id, index) = self.module_index_at(ordinal, IndexKind::Heritage)?;
         let ModuleIndex::Heritage(index) = index else {
             return Err(Self::unexpected_module_index(IndexKind::Heritage, index));
-        };
-
-        Ok((module_id, index))
-    }
-
-    /// Return one module extension index selected by a program ordinal.
-    pub(crate) fn extension_index_at(
-        &self,
-        ordinal: u32,
-    ) -> QueryResult<(ModuleId, &dir::ExtensionIndex)> {
-        let (module_id, index) = self.module_index_at(ordinal, IndexKind::Extensions)?;
-        let ModuleIndex::Extensions(index) = index else {
-            return Err(Self::unexpected_module_index(IndexKind::Extensions, index));
         };
 
         Ok((module_id, index))

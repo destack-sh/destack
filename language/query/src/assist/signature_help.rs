@@ -79,29 +79,32 @@ impl ModuleQueryContext<'_> {
                 dir::Expression::Call {
                     left, arguments, ..
                 } => {
-                    if let Some(resolution) = self.resolutions().construct_resolution(global_id) {
-                        let signatures = self.construct_signature_items(query, resolution)?.ok_or(
-                            QueryError::missing(format!("signature help: {global_id:?}")),
-                        )?;
+                    let call = self.resolutions().call_resolution(global_id);
+                    let construct = self.resolutions().construct_resolution(global_id);
+                    if call.is_some() && construct.is_some() {
+                        return Err(QueryError::conflict(format!(
+                            "signature resolution columns: {global_id:?}"
+                        )));
+                    }
+
+                    if let Some(resolution) = construct {
+                        let signatures = self.construct_signature_items(query, resolution)?;
 
                         (
                             signatures,
                             arguments.as_slice(),
-                            resolution.arguments.as_slice(),
+                            Some(resolution.arguments.as_slice()),
                         )
                     } else {
-                        let Some(resolution) = self.resolutions().call_resolution(global_id) else {
-                            continue;
+                        let Some(resolution) = call else {
+                            return Ok(None);
                         };
-                        let signatures =
-                            self.call_signature_items(query, *left, resolution)?.ok_or(
-                                QueryError::missing(format!("signature help: {global_id:?}")),
-                            )?;
+                        let signatures = self.call_signature_items(query, *left, resolution)?;
 
                         (
                             signatures,
                             arguments.as_slice(),
-                            resolution.first().arguments.as_slice(),
+                            resolution.shared_arguments(),
                         )
                     }
                 }
@@ -109,22 +112,23 @@ impl ModuleQueryContext<'_> {
                 | dir::Expression::NewMaybe { arguments, .. } => {
                     let Some(resolution) = self.resolutions().construct_resolution(global_id)
                     else {
-                        continue;
+                        return Ok(None);
                     };
-                    let signatures = self.construct_signature_items(query, resolution)?.ok_or(
-                        QueryError::missing(format!("signature help: {global_id:?}")),
-                    )?;
+                    let signatures = self.construct_signature_items(query, resolution)?;
 
                     (
                         signatures,
                         arguments.as_slice(),
-                        resolution.arguments.as_slice(),
+                        Some(resolution.arguments.as_slice()),
                     )
                 }
                 _ => continue,
             };
 
-            let active_parameter = self.active_signature_parameter(arguments, bindings, offset)?;
+            let active_parameter = match bindings {
+                Some(bindings) => self.active_signature_parameter(arguments, bindings, offset)?,
+                None => None,
+            };
 
             return Ok(Some(SignatureHelp {
                 signatures,
@@ -142,7 +146,7 @@ impl ModuleQueryContext<'_> {
         query: &ProgramQueryContext<'_>,
         callee_id: dir::LocalNodeId<dir::Expression>,
         resolution: &dir::CallResolution,
-    ) -> QueryResult<Option<Vec<SignatureItem>>> {
+    ) -> QueryResult<Vec<SignatureItem>> {
         let mut signatures = Vec::new();
         for call in resolution.iter() {
             let signature = match &call.target {
@@ -164,7 +168,13 @@ impl ModuleQueryContext<'_> {
                     &call.arguments,
                     call.return_type,
                 )?,
-                dir::CallTarget::Dynamic { .. } => None,
+                dir::CallTarget::Dynamic { .. } => {
+                    // FUGU #Incomplete: format exact declaration free call selections
+                    return Err(QueryError::missing(format!(
+                        "dynamic call signature: {:?}",
+                        call.callable_type
+                    )));
+                }
                 dir::CallTarget::Expression { generic_arguments } => self
                     .expression_signature_item(
                         query,
@@ -174,16 +184,17 @@ impl ModuleQueryContext<'_> {
                         call.return_type,
                     )?,
             };
-            let Some(signature) = signature else {
-                return Ok(None);
-            };
             signatures.push(signature);
         }
 
         // retain one signature for repeated arm selections
         signatures.dedup();
 
-        Ok((!signatures.is_empty()).then_some(signatures))
+        if signatures.is_empty() {
+            return Err(QueryError::missing("selected call signatures"));
+        }
+
+        Ok(signatures)
     }
 
     /// Format one selected callable symbol from its recorded declaration.
@@ -194,19 +205,25 @@ impl ModuleQueryContext<'_> {
         generic_arguments: &[dir::GenericArgumentBinding],
         bindings: &[dir::ArgumentBinding],
         return_type: dir::GlobalTypeId,
-    ) -> QueryResult<Option<SignatureItem>> {
+    ) -> QueryResult<SignatureItem> {
         let Some(symbol_id) = query.canonical_symbol(symbol)? else {
-            return Ok(None);
+            return Err(QueryError::missing(format!(
+                "call signature declaration: {symbol:?}"
+            )));
         };
         let module = query.module(symbol_id.module_id)?;
         let symbols = module.symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
         let Some(name) = symbol.name() else {
-            return Ok(None);
+            return Err(QueryError::missing(format!(
+                "call signature name: {symbol_id:?}"
+            )));
         };
         let name = module.strings().get(name).to_string();
         let Some(parameters) = module.callable_parameters(symbol_id) else {
-            return Ok(None);
+            return Err(QueryError::missing(format!(
+                "call signature parameters: {symbol_id:?}"
+            )));
         };
 
         self.selected_signature_item(
@@ -229,21 +246,29 @@ impl ModuleQueryContext<'_> {
         generic_arguments: &[dir::GenericArgumentBinding],
         bindings: &[dir::ArgumentBinding],
         return_type: dir::GlobalTypeId,
-    ) -> QueryResult<Option<SignatureItem>> {
+    ) -> QueryResult<SignatureItem> {
         let source = callee_id.into_global_any(self.module_id());
-        let Some(symbols) = self.recorded_symbol_targets(source) else {
-            return Ok(None);
+        let Some(symbols) = self.recorded_symbol_targets(source)? else {
+            return Err(QueryError::missing(format!(
+                "expression call declaration: {source:?}"
+            )));
         };
         let [symbol_id] = symbols.as_slice() else {
-            return Ok(None);
+            return Err(QueryError::conflict(format!(
+                "expression call declarations: {source:?}, {symbols:?}"
+            )));
         };
         let symbol = self.symbols().get_symbol(symbol_id.local_id);
         let Some(name) = symbol.name() else {
-            return Ok(None);
+            return Err(QueryError::missing(format!(
+                "expression call name: {symbol_id:?}"
+            )));
         };
         let name = self.strings().get(name).to_string();
         let Some(parameters) = self.variable_callable_parameters(*symbol_id) else {
-            return Ok(None);
+            return Err(QueryError::missing(format!(
+                "expression call parameters: {symbol_id:?}"
+            )));
         };
 
         self.selected_signature_item(
@@ -269,16 +294,14 @@ impl ModuleQueryContext<'_> {
         generic_arguments: &[dir::GenericArgumentBinding],
         bindings: &[dir::ArgumentBinding],
         return_type: dir::GlobalTypeId,
-    ) -> QueryResult<Option<SignatureItem>> {
+    ) -> QueryResult<SignatureItem> {
         let mut names = Vec::with_capacity(declared_parameters.len());
         let mut documentation = Vec::with_capacity(declared_parameters.len());
 
         // retain authored parameter names and documentation
         for parameter_id in declared_parameters {
             let parameter = declaration_module.view().get(*parameter_id);
-            let Some(mut name) = declaration_module.parameter_name(parameter)? else {
-                return Ok(None);
-            };
+            let mut name = declaration_module.parameter_name(parameter)?;
             if parameter.is_optional() {
                 name.push('?');
             }
@@ -313,23 +336,22 @@ impl ModuleQueryContext<'_> {
         &self,
         query: &ProgramQueryContext<'_>,
         resolution: &dir::ConstructResolution,
-    ) -> QueryResult<Option<Vec<SignatureItem>>> {
+    ) -> QueryResult<Vec<SignatureItem>> {
         let item = match &resolution.target {
             dir::ConstructTarget::Class(candidate) => {
-                let Some(item) = self.class_signature_item(query, candidate, resolution)? else {
-                    return Ok(None);
-                };
-
-                item
+                self.class_signature_item(query, candidate, resolution)?
             }
             dir::ConstructTarget::Newtype(candidate) => {
                 let Some(name) = query.symbol_name(candidate.symbol)? else {
-                    return Ok(None);
+                    return Err(QueryError::missing(format!(
+                        "newtype constructor name: {:?}",
+                        candidate.symbol
+                    )));
                 };
                 let parameter_names = vec![None; resolution.arguments.len()];
                 let parameter_documentation = vec![None; resolution.arguments.len()];
 
-                let Some(item) = self.signature_item(
+                self.signature_item(
                     query,
                     candidate.symbol,
                     &name,
@@ -339,22 +361,18 @@ impl ModuleQueryContext<'_> {
                     &resolution.arguments,
                     resolution.return_type,
                 )?
-                else {
-                    return Ok(None);
-                };
-
-                item
             }
             dir::ConstructTarget::Variant(candidate) => {
                 let symbol_id = candidate.case.variant;
                 let module = query.module(symbol_id.module_id)?;
-                let (declaring, definition, member) =
-                    module
-                        .definition_member(symbol_id)
-                        .ok_or(QueryError::missing(format!(
-                            "signature member: {symbol_id:?}"
-                        )))?;
-                let owner = ModuleQueryContext::definition_member_owner(declaring, definition)
+                let (declaring, definition, member) = module
+                    .definitions()
+                    .member(symbol_id)
+                    .ok_or(QueryError::missing(format!(
+                        "signature member: {symbol_id:?}"
+                    )))?;
+                let owner = definition
+                    .member_owner(declaring)
                     .ok_or(QueryError::missing(format!(
                         "signature member owner: {symbol_id:?}"
                     )))?;
@@ -364,8 +382,8 @@ impl ModuleQueryContext<'_> {
                         "signature member owner name: {owner:?}"
                     )))?;
                 let member_name =
-                    module
-                        .definition_member_name(member)
+                    member
+                        .name(module.strings())
                         .ok_or(QueryError::missing(format!(
                             "signature member name: {symbol_id:?}"
                         )))?;
@@ -373,7 +391,7 @@ impl ModuleQueryContext<'_> {
                 let parameter_names = vec![None; resolution.arguments.len()];
                 let parameter_documentation = vec![None; resolution.arguments.len()];
 
-                let Some(item) = self.signature_item(
+                self.signature_item(
                     query,
                     symbol_id,
                     &name,
@@ -383,15 +401,10 @@ impl ModuleQueryContext<'_> {
                     &resolution.arguments,
                     resolution.return_type,
                 )?
-                else {
-                    return Ok(None);
-                };
-
-                item
             }
         };
 
-        Ok(Some(vec![item]))
+        Ok(vec![item])
     }
 
     /// Format one selected class constructor.
@@ -400,9 +413,12 @@ impl ModuleQueryContext<'_> {
         query: &ProgramQueryContext<'_>,
         candidate: &dir::ClassConstructCandidate,
         resolution: &dir::ConstructResolution,
-    ) -> QueryResult<Option<SignatureItem>> {
+    ) -> QueryResult<SignatureItem> {
         let Some(name) = query.symbol_name(candidate.symbol)? else {
-            return Ok(None);
+            return Err(QueryError::missing(format!(
+                "class constructor name: {:?}",
+                candidate.symbol
+            )));
         };
         let Some(constructor_symbol) = candidate.constructor.call_symbol() else {
             return self.signature_item(
@@ -418,11 +434,15 @@ impl ModuleQueryContext<'_> {
         };
 
         let Some(constructor_symbol) = query.canonical_symbol(constructor_symbol)? else {
-            return Ok(None);
+            return Err(QueryError::missing(format!(
+                "class constructor declaration: {constructor_symbol:?}"
+            )));
         };
         let module = query.module(constructor_symbol.module_id)?;
         let Some(parameters) = module.callable_parameters(constructor_symbol) else {
-            return Ok(None);
+            return Err(QueryError::missing(format!(
+                "class constructor parameters: {constructor_symbol:?}"
+            )));
         };
 
         self.selected_signature_item(
@@ -448,17 +468,14 @@ impl ModuleQueryContext<'_> {
         parameter_documentation: &[Option<String>],
         bindings: &[dir::ArgumentBinding],
         return_type: dir::GlobalTypeId,
-    ) -> QueryResult<Option<SignatureItem>> {
-        let Some(formatted) = Formatter::new(self, query).applied_signature(
+    ) -> QueryResult<SignatureItem> {
+        let formatted = Formatter::new(self, query).applied_signature(
             name,
             generic_arguments,
             parameter_names,
             bindings,
             return_type,
-        )?
-        else {
-            return Ok(None);
-        };
+        )?;
         let AppliedSignature { label, parameters } = formatted;
         if parameters.len() != parameter_documentation.len() {
             return Err(QueryError::invalid(format!(
@@ -476,11 +493,11 @@ impl ModuleQueryContext<'_> {
             })
             .collect();
 
-        Ok(Some(SignatureItem {
+        Ok(SignatureItem {
             label,
             documentation: query.symbol_documentation(symbol_id)?,
             parameters,
-        }))
+        })
     }
 
     /// Return the selected parameter at one cursor position.

@@ -1,4 +1,3 @@
-use destack_artifact::GlobalEnvironment;
 use destack_dir as dir;
 use destack_serde::Reflect;
 use destack_source::{FileId, Patch, Span};
@@ -96,6 +95,7 @@ impl From<dir::SymbolKind> for CompletionItemKind {
     /// Convert a symbol type into a completion kind.
     fn from(symbol_kind: dir::SymbolKind) -> Self {
         match symbol_kind {
+            // FUGU #Incomplete: retain callable parameter symbol kinds in DIR
             dir::SymbolKind::Variable => CompletionItemKind::Variable,
             dir::SymbolKind::AssociatedConst => CompletionItemKind::AssociatedConst,
             dir::SymbolKind::GenericValueParameter => CompletionItemKind::ValueParameter,
@@ -197,8 +197,6 @@ pub(crate) struct CompletionCandidate {
     pub(crate) origin: CompletionOrigin,
     /// The structured import ordering key for ranking.
     pub(crate) import_order: Option<ImportOrder>,
-    /// Whether this member comes from one extension lookup.
-    pub(crate) is_extension_member: bool,
     /// The exact checked value type when this candidate denotes one.
     pub(crate) type_id: Option<dir::GlobalTypeId>,
 }
@@ -247,7 +245,6 @@ impl ModuleQueryContext<'_> {
     pub fn completion(
         &self,
         program: &ProgramQueryContext<'_>,
-        environment: &GlobalEnvironment,
         file_id: FileId,
         offset: u32,
         trigger: CompletionTrigger,
@@ -261,7 +258,7 @@ impl ModuleQueryContext<'_> {
                 is_incomplete: false,
             });
         };
-        let builder = CompletionBuilder::new(self, program, environment, file_id)?;
+        let builder = CompletionBuilder::new(self, program, file_id)?;
         let completions = builder.build(trigger, &context, token.as_ref(), include_auto_imports)?;
 
         let replacement_start = token.as_ref().map_or(offset, |token| token.start);
@@ -302,7 +299,6 @@ impl CompletionCandidate {
             match_positions: Vec::new(),
             origin,
             import_order: None,
-            is_extension_member: false,
             type_id: None,
         }
     }
@@ -352,12 +348,6 @@ impl CompletionCandidate {
     /// Set the structured import sort key.
     pub(crate) fn with_import_order(mut self, order: ImportOrder) -> Self {
         self.import_order = Some(order);
-        self
-    }
-
-    /// Mark the item as one extension member.
-    pub(crate) fn with_extension_member(mut self) -> Self {
-        self.is_extension_member = true;
         self
     }
 

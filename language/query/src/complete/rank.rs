@@ -20,8 +20,6 @@ struct CompletionScore {
     semantic_order: u8,
     /// The producer order bucket.
     producer_order: u32,
-    /// The direct-member preference order bucket.
-    member_order: u8,
     /// The deprecated order bucket.
     deprecated_order: u8,
 }
@@ -78,7 +76,6 @@ impl CompletionScore {
             origin_order: scorer.origin_order(completion),
             semantic_order: scorer.semantic_order(completion),
             producer_order: completion.producer_order,
-            member_order: scorer.member_order(completion),
             deprecated_order: u8::from(completion.is_deprecated),
         }
     }
@@ -123,7 +120,6 @@ impl CompletionScorer<'_> {
             .then(left.score.producer_order.cmp(&right.score.producer_order))
             .then_with(|| self.compare_auto_imports(left, right))
             .then(right.score.lexical.score.cmp(&left.score.lexical.score))
-            .then(left.score.member_order.cmp(&right.score.member_order))
             .then(
                 left.score
                     .deprecated_order
@@ -190,15 +186,6 @@ impl CompletionScorer<'_> {
             CompletionOrigin::AutoImport => 3,
             CompletionOrigin::Keyword => 4,
         }
-    }
-
-    /// Return the member-source order for this completion.
-    fn member_order(&self, completion: &CompletionCandidate) -> u8 {
-        if !matches!(self.context, CompletionContext::MemberAccess { .. }) {
-            return 0;
-        }
-
-        u8::from(completion.is_extension_member)
     }
 
     /// Return the context-fit order for this completion.

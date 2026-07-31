@@ -2,23 +2,23 @@ use destack_dir as dir;
 
 use crate::QueryResult;
 
+use super::Formatter;
 use super::literal::quote_string;
-use super::{Formatter, formatted};
 
 impl Formatter<'_, '_, '_> {
     /// Format one exact static key type.
-    pub(super) fn key_type(&self, key: dir::StaticKey) -> QueryResult<Option<String>> {
+    pub(super) fn key_type(&self, key: dir::StaticKey) -> QueryResult<String> {
         let text = match key {
             dir::StaticKey::Name(name) => quote_string(self.module.strings().get(name)),
             dir::StaticKey::Index(index) => index.to_string(),
-            dir::StaticKey::Symbol(symbol) => formatted!(self.symbol_key(symbol)),
+            dir::StaticKey::Symbol(symbol) => self.symbol_key(symbol)?,
         };
 
-        Ok(Some(text))
+        Ok(text)
     }
 
     /// Format one static key in a property declaration.
-    pub(super) fn property_key(&self, key: dir::StaticKey) -> QueryResult<Option<String>> {
+    pub(super) fn property_key(&self, key: dir::StaticKey) -> QueryResult<String> {
         let text = match key {
             dir::StaticKey::Name(name) => {
                 let name = self.module.strings().get(name);
@@ -30,17 +30,17 @@ impl Formatter<'_, '_, '_> {
             }
             dir::StaticKey::Index(index) => index.to_string(),
             dir::StaticKey::Symbol(symbol) => {
-                let symbol = formatted!(self.symbol_key(symbol));
+                let symbol = self.symbol_key(symbol)?;
 
                 format!("[{symbol}]")
             }
         };
 
-        Ok(Some(text))
+        Ok(text)
     }
 
     /// Format one static key as a member access suffix.
-    pub(super) fn member_key(&self, key: dir::StaticKey) -> QueryResult<Option<String>> {
+    pub(super) fn member_key(&self, key: dir::StaticKey) -> QueryResult<String> {
         let text = match key {
             dir::StaticKey::Name(name) => {
                 let name = self.module.strings().get(name);
@@ -52,19 +52,19 @@ impl Formatter<'_, '_, '_> {
             }
             dir::StaticKey::Index(index) => format!("[{index}]"),
             dir::StaticKey::Symbol(symbol) => {
-                let symbol = formatted!(self.symbol_key(symbol));
+                let symbol = self.symbol_key(symbol)?;
 
                 format!("[{symbol}]")
             }
         };
 
-        Ok(Some(text))
+        Ok(text)
     }
 
     /// Format one static symbol key expression.
-    fn symbol_key(&self, key: dir::SymbolKey) -> QueryResult<Option<String>> {
+    fn symbol_key(&self, key: dir::SymbolKey) -> QueryResult<String> {
         let text = match key {
-            dir::SymbolKey::Unique(symbol) => formatted!(self.unique_symbol(symbol)),
+            dir::SymbolKey::Unique(symbol) => self.unique_symbol(symbol)?,
             dir::SymbolKey::Registry(name) => {
                 let name = quote_string(self.module.strings().get(name));
 
@@ -72,6 +72,6 @@ impl Formatter<'_, '_, '_> {
             }
         };
 
-        Ok(Some(text))
+        Ok(text)
     }
 }

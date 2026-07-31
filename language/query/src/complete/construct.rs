@@ -14,21 +14,28 @@ impl CompletionBuilder<'_, '_, '_> {
         name: &str,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Vec<CompletionCandidate>> {
-        let definition =
-            self.module
-                .definitions()
-                .definition(symbol_id)
+        let declaration_id =
+            self.program
+                .canonical_symbol(symbol_id)?
                 .ok_or(QueryError::missing(format!(
-                    "completion definition: {symbol_id:?}"
+                    "completion declaration: {symbol_id:?}"
+                )))?;
+        let declaration = self.program.module(declaration_id.module_id)?;
+        let definition =
+            declaration
+                .definitions()
+                .definition(declaration_id)
+                .ok_or(QueryError::missing(format!(
+                    "completion definition: {declaration_id:?}"
                 )))?;
         let dir::Definition::Class(definition) = definition else {
             return Err(QueryError::invalid(format!(
-                "completion definition: {symbol_id:?}"
+                "completion definition: {declaration_id:?}"
             )));
         };
         if definition.constructors.is_empty() {
             return Err(QueryError::missing(format!(
-                "completion constructor: {symbol_id:?}"
+                "completion constructor: {declaration_id:?}"
             )));
         }
         let mut completions = Vec::with_capacity(definition.constructors.len());
@@ -44,13 +51,9 @@ impl CompletionBuilder<'_, '_, '_> {
                     )))?,
                 None => Vec::new(),
             };
-            let signature = Formatter::new(self.module, self.program)
-                .callable_type(constructor.ty, &parameter_names)?
-                .ok_or(QueryError::invalid(format!(
-                    "completion type formatting: {:?}",
-                    constructor.ty
-                )))?;
-            let snippet = CallSnippet::new(name, &parameter_names);
+            let signature = Formatter::new(&declaration, self.program)
+                .callable_type(constructor.ty, Some(&parameter_names))?;
+            let snippet = CallSnippet::named(name, &parameter_names);
             let completion = CompletionCandidate::new(
                 name,
                 CompletionItemKind::Class,
@@ -76,16 +79,23 @@ impl CompletionBuilder<'_, '_, '_> {
         name: &str,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<CompletionCandidate> {
-        let definition =
-            self.module
-                .definitions()
-                .definition(symbol_id)
+        let declaration_id =
+            self.program
+                .canonical_symbol(symbol_id)?
                 .ok_or(QueryError::missing(format!(
-                    "completion definition: {symbol_id:?}"
+                    "completion declaration: {symbol_id:?}"
+                )))?;
+        let declaration = self.program.module(declaration_id.module_id)?;
+        let definition =
+            declaration
+                .definitions()
+                .definition(declaration_id)
+                .ok_or(QueryError::missing(format!(
+                    "completion definition: {declaration_id:?}"
                 )))?;
         let dir::Definition::Struct(definition) = definition else {
             return Err(QueryError::invalid(format!(
-                "completion definition: {symbol_id:?}"
+                "completion definition: {declaration_id:?}"
             )));
         };
         let mut fields = Vec::new();
@@ -108,7 +118,7 @@ impl CompletionBuilder<'_, '_, '_> {
                     field.symbol
                 )));
             };
-            fields.push(self.module.strings().get(field_name).to_string());
+            fields.push(declaration.strings().get(field_name).to_string());
         }
 
         let insert_text = if fields.is_empty() {
@@ -140,14 +150,72 @@ impl CompletionBuilder<'_, '_, '_> {
         self.attach_symbol_completion(completion, symbol_id)
     }
 
-    /// Build one nominal backing constructor completion.
+    /// Build completion candidates for one newtype constructor family.
     pub(super) fn complete_newtype(
         &self,
+        name: &str,
         symbol_id: dir::GlobalSymbolId,
-    ) -> QueryResult<CompletionCandidate> {
-        // FUGU #Incomplete: retain newtype constructor signatures in DIR
-        Err(QueryError::missing(format!(
-            "newtype constructor signature: {symbol_id:?}"
-        )))
+    ) -> QueryResult<Vec<CompletionCandidate>> {
+        let declaration_id =
+            self.program
+                .canonical_symbol(symbol_id)?
+                .ok_or(QueryError::missing(format!(
+                    "completion declaration: {symbol_id:?}"
+                )))?;
+        let declaration = self.program.module(declaration_id.module_id)?;
+        let definition =
+            declaration
+                .definitions()
+                .definition(declaration_id)
+                .ok_or(QueryError::missing(format!(
+                    "completion definition: {declaration_id:?}"
+                )))?;
+        let dir::Definition::Newtype(definition) = definition else {
+            return Err(QueryError::invalid(format!(
+                "completion definition: {declaration_id:?}"
+            )));
+        };
+        if definition.constructors.is_empty() {
+            // FUGU #Incomplete: populate checked newtype constructor candidates
+            return Err(QueryError::missing(format!(
+                "newtype constructor candidates: {declaration_id:?}"
+            )));
+        }
+        let mut completions = Vec::with_capacity(definition.constructors.len());
+
+        // preserve each constructor alternative in selection order
+        for constructor in &definition.constructors {
+            let detail =
+                Formatter::new(&declaration, self.program).callable_type(constructor.ty, None)?;
+            let parameter_count = self
+                .program
+                .read_type(constructor.ty, |ty, owner| match ty {
+                    dir::Type::FunctionSignature(signature) => Ok(owner
+                        .types()
+                        .parameters(owner.types().signature(*signature).parameters)
+                        .len()),
+                    _ => Err(QueryError::invalid(format!(
+                        "completion constructor type: {:?}",
+                        constructor.ty
+                    ))),
+                })?;
+            let snippet = CallSnippet::positional(name, parameter_count);
+            let completion = CompletionCandidate::new(
+                name,
+                CompletionItemKind::Constructor,
+                CompletionOrigin::Local,
+                SORT_LOCAL_SYMBOL,
+            )
+            .with_detail(detail)
+            .with_insert_text(snippet.text);
+            let completion = if snippet.is_snippet {
+                completion.with_snippet()
+            } else {
+                completion
+            };
+            completions.push(self.attach_symbol_completion(completion, symbol_id)?);
+        }
+
+        Ok(completions)
     }
 }

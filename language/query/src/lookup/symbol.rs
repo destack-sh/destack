@@ -62,11 +62,13 @@ impl ProgramQueryContext<'_> {
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<dir::GlobalSymbolId>> {
         let symbols = self.canonical_symbols(symbol_id)?;
-        let [symbol_id] = symbols.as_slice() else {
-            return Ok(None);
-        };
-
-        Ok(Some(*symbol_id))
+        match symbols.as_slice() {
+            [] => Ok(None),
+            [symbol_id] => Ok(Some(*symbol_id)),
+            _ => Err(QueryError::conflict(format!(
+                "canonical symbol group: {symbol_id:?}"
+            ))),
+        }
     }
 
     /// Collect canonical symbols through one exact dependency path.
@@ -169,20 +171,6 @@ impl ProgramQueryContext<'_> {
 }
 
 impl ModuleQueryContext<'_> {
-    /// Return the named owner of one local symbol's scope.
-    pub(crate) fn local_symbol_container_name(
-        &self,
-        symbol_id: dir::LocalSymbolId,
-    ) -> Option<String> {
-        let symbols = self.symbols();
-        let symbol = symbols.get_symbol(symbol_id);
-        let scope = symbols.get_scope_by_id(symbol.scope.id);
-        let owner_id = scope.owner?;
-        let owner = symbols.get_symbol(owner_id);
-        let name_id = owner.name()?;
-
-        Some(self.strings().get(name_id).to_string())
-    }
     /// Return the local definition span of a symbol without canonical expansion.
     pub(crate) fn symbol_local_definition_span(
         &self,

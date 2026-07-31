@@ -4,8 +4,7 @@ use destack_source::{FileId, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Formatter, ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult,
-    Target,
+    Formatter, ModuleQueryContext, ProgramQueryContext, QueryPosition, QueryResult, Target,
 };
 
 /// Hover content for one declaration.
@@ -114,21 +113,14 @@ impl ModuleQueryContext<'_> {
 
         let formatter = Formatter::new(self, query);
         let text = match parameter_names {
-            Some(parameter_names) => formatter.callable_type(type_id, &parameter_names)?,
+            Some(parameter_names) => formatter.callable_type(type_id, Some(&parameter_names))?,
             None => formatter.global_type(type_id)?,
-        }
-        .ok_or(QueryError::invalid(format!(
-            "hover type formatting: {type_id:?}"
-        )))?;
+        };
 
         // omit a type already represented by a declaration
         for symbol_id in symbols {
             let module = query.module(symbol_id.module_id)?;
-            let declared_text = Formatter::new(&module, query)
-                .symbol_type(*symbol_id)?
-                .ok_or(QueryError::invalid(format!(
-                    "hover type formatting: {symbol_id:?}"
-                )))?;
+            let declared_text = Formatter::new(&module, query).symbol_type(*symbol_id)?;
             if declared_text == text {
                 return Ok(None);
             }

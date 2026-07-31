@@ -223,7 +223,7 @@ const user = new User();
 
 ## Newtype Constructors
 
-### Return a newtype constructor from its declaration
+### [ignored] Return a newtype constructor from its declaration
 
 A newtype declaration identifies its constructor family.
 

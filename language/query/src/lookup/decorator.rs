@@ -1,19 +1,6 @@
 use destack_dir as dir;
 
-use crate::{ModuleQueryContext, ProgramQueryContext, QueryResult};
-
-impl ModuleQueryContext<'_> {
-    /// Return the checked application for one authored decorator.
-    pub(crate) fn decorator_application(
-        &self,
-        decorator: dir::LocalNodeId<dir::Decorator>,
-    ) -> Option<&dir::DecoratorApplication> {
-        self.decorators()
-            .iter_applications()
-            .map(|(_, application)| application)
-            .find(|application| application.source.local_id == decorator)
-    }
-}
+use crate::{ProgramQueryContext, QueryResult};
 
 impl ProgramQueryContext<'_> {
     /// Return whether one exact symbol declaration is deprecated.

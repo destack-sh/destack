@@ -1,6 +1,6 @@
 use destack_lsp_types as lsp;
 
-use super::tests::{TestServer, range};
+use super::tests::{TestServer, markdown, position, range};
 
 /// Function index in the advertised semantic token legend.
 const FUNCTION_TOKEN: u32 = 11;
@@ -127,6 +127,64 @@ async fn test_return_resolved_document_links() {
     }]);
     server
         .assert_request::<lsp::request::DocumentLinkRequest>(document.links(), Ok(expected))
+        .await;
+}
+
+/// Resolve intrinsic declarations exported through the builtin global provider.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_hover_builtin_intrinsics() {
+    let source = r#"@languageItem("test.Value")
+export newtype Value = string;
+
+@intrinsic("test.value")
+export declare function value(): int32;
+"#;
+    let mut server = TestServer::new("builtin-intrinsic-hover");
+    let document = server.write("main.ds", source);
+    server
+        .initialize(lsp::ClientCapabilities::default(), None)
+        .await
+        .unwrap();
+    server.initialized().await;
+
+    // follow both intrinsic decorator references to their library declarations
+    server.open(&document, 1, source).await;
+    let params = document.hover(position(0, 1));
+    let expected = lsp::Hover {
+        contents: lsp::HoverContents::Markup(markdown(
+            "**Signature**\n\n```ds\nexport newtype languageItem = (string,) | ()\n```\n\n\
+             **Location**\n\n`destack://decorator/intrinsic.ds:17:16`",
+        )),
+        range: Some(range(0, 1, 0, 13)),
+    };
+    server
+        .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
+        .await;
+
+    let params = document.hover(position(3, 1));
+    let expected = lsp::Hover {
+        contents: lsp::HoverContents::Markup(markdown(
+            "**Signature**\n\n```ds\nexport newtype intrinsic = (string,) | ()\n```\n\n\
+             **Location**\n\n`destack://decorator/intrinsic.ds:8:16`",
+        )),
+        range: Some(range(3, 1, 3, 10)),
+    };
+    server
+        .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
+        .await;
+
+    // retain the ordinary declaration identity of an intrinsic function
+    let params = document.hover(position(4, 25));
+    let location = format!("{}:5:25", document.uri().as_str());
+    let expected = lsp::Hover {
+        contents: lsp::HoverContents::Markup(markdown(format!(
+            "**Signature**\n\n```ds\nexport declare function value(): int32\n```\n\n\
+             **Location**\n\n`{location}`"
+        ))),
+        range: Some(range(4, 24, 4, 29)),
+    };
+    server
+        .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
         .await;
 }
 

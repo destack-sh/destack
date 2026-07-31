@@ -42,8 +42,6 @@ struct InlineValue {
     precedence: dir::OperatorPrecedence,
     /// Whether postfix use requires explicit grouping.
     needs_postfix_group: bool,
-    /// Whether the value can be evaluated repeatedly.
-    is_repeatable: bool,
 }
 
 /// One exact indexed reference selected for replacement.
@@ -128,14 +126,13 @@ impl ModuleQueryContext<'_> {
         }
 
         // preserve evaluation count and order
-        if !value.is_repeatable
-            && (references.len() != 1
-                || !target.single_use_preserves_evaluation(
-                    references[0].expression,
-                    source,
-                    self,
-                )?)
-        {
+        if references.len() > 1 {
+            // FUGU #Incomplete: retain expression duplication effects in checked DIR
+            return Err(QueryError::missing(format!(
+                "inline expression duplication: {:?}",
+                target.value.into_global_any(self.module_id())
+            )));
+        } else if !target.single_use_preserves_evaluation(references[0].expression, source, self)? {
             return Ok(None);
         }
 
@@ -284,7 +281,7 @@ impl ModuleQueryContext<'_> {
                 continue;
             }
             let source = expression.into_global_any(self.module_id());
-            let Some(targets) = self.recorded_symbol_targets(source) else {
+            let Some(targets) = self.recorded_symbol_targets(source)? else {
                 return Err(QueryError::missing(format!("inline capture: {source:?}")));
             };
             let targets = canonical_symbols(program, targets)?;
@@ -432,11 +429,8 @@ impl InlineTarget {
             return Ok(None);
         }
 
-        // classify the authored initializer
-        let Some(mut value) = InlineValue::from_expression(text.to_string(), self.value, module)?
-        else {
-            return Ok(None);
-        };
+        // retain the authored initializer shape
+        let mut value = InlineValue::new(text.to_string(), self.value, module);
 
         // append the exact destructuring projection
         if let (Some(field), Some(object)) = (self.field, self.object) {
@@ -618,23 +612,19 @@ impl InlineTarget {
 }
 
 impl InlineValue {
-    /// Classify one initializer for safe movement and duplication.
-    fn from_expression(
+    /// Build one inline value from its authored expression.
+    fn new(
         text: String,
         expression: dir::LocalNodeId<dir::Expression>,
         module: &ModuleQueryContext<'_>,
-    ) -> QueryResult<Option<Self>> {
-        let Some(is_repeatable) = expression_repeatability(expression, module)? else {
-            return Ok(None);
-        };
+    ) -> Self {
         let node = module.view().get(expression);
 
-        Ok(Some(Self {
+        Self {
             text,
-            precedence: expression_precedence(node),
+            precedence: node.precedence(),
             needs_postfix_group: matches!(node, dir::Expression::ObjectExpression { .. }),
-            is_repeatable,
-        }))
+        }
     }
 }
 
@@ -730,133 +720,6 @@ impl InlineRemoval {
             statement.start,
             removal_end as u32,
         ))
-    }
-}
-
-/// Return whether one expression can be moved and whether it can be repeated.
-fn expression_repeatability(
-    expression: dir::LocalNodeId<dir::Expression>,
-    module: &ModuleQueryContext<'_>,
-) -> QueryResult<Option<bool>> {
-    let view = module.view();
-    let node = view.get(expression);
-
-    let repeatability = match node {
-        // scalar values have no evaluation identity
-        dir::Expression::ScalarLiteral(_) | dir::Expression::This => Some(true),
-
-        // stable bindings can be read repeatedly
-        dir::Expression::Identifier { .. } => {
-            let source = expression.into_global_any(module.module_id());
-            let Some(targets) = module.recorded_symbol_targets(source) else {
-                return Err(QueryError::missing(format!("inline capture: {source:?}")));
-            };
-            let is_repeatable = targets.into_iter().all(|target| {
-                target.module_id != module.module_id() || !module.symbol_is_assigned(target)
-            });
-
-            Some(is_repeatable)
-        }
-
-        // builtin operators preserve operand evaluation behavior
-        dir::Expression::Binary { left, right, .. } => {
-            let source = expression.into_global_any(module.module_id());
-            let Some(resolution) = module.resolutions().operator_resolution(source) else {
-                return Err(QueryError::missing(format!("inline operator: {source:?}")));
-            };
-            let left = expression_repeatability(*left, module)?;
-            let right = expression_repeatability(*right, module)?;
-            match (resolution.is_builtin(), left, right) {
-                (true, Some(true), Some(true)) => Some(true),
-                (_, Some(_), Some(_)) => Some(false),
-                (_, None, _) | (_, _, None) => None,
-            }
-        }
-
-        // unary builtin operators preserve operand evaluation behavior
-        dir::Expression::Unary { right, .. } => {
-            let source = expression.into_global_any(module.module_id());
-            let Some(resolution) = module.resolutions().operator_resolution(source) else {
-                return Err(QueryError::missing(format!("inline operator: {source:?}")));
-            };
-            let right = expression_repeatability(*right, module)?;
-            match (resolution.is_builtin(), right) {
-                (true, Some(is_repeatable)) => Some(is_repeatable),
-                (false, Some(_)) => Some(false),
-                (_, None) => None,
-            }
-        }
-
-        // calls are movable once when their subexpressions are understood
-        dir::Expression::Call {
-            left, arguments, ..
-        } => {
-            let source = expression.into_global_any(module.module_id());
-            if module.resolutions().call_resolution(source).is_none() {
-                return Err(QueryError::missing(format!("inline call: {source:?}")));
-            }
-            let mut is_supported = expression_repeatability(*left, module)?.is_some();
-            for argument in arguments {
-                let argument = view.get(*argument);
-                let Some(value) = argument.value() else {
-                    is_supported = false;
-                    continue;
-                };
-                is_supported &= expression_repeatability(value, module)?.is_some();
-            }
-
-            is_supported.then_some(false)
-        }
-
-        // object allocation is movable once when every field value is understood
-        dir::Expression::ObjectExpression { properties } => {
-            let mut is_supported = true;
-            for property in properties {
-                let dir::Property::Field { value, .. } = view.get(*property) else {
-                    is_supported = false;
-                    continue;
-                };
-                is_supported &= expression_repeatability(*value, module)?.is_some();
-            }
-
-            is_supported.then_some(false)
-        }
-
-        _ => None,
-    };
-
-    Ok(repeatability)
-}
-
-/// Return one expression's source precedence.
-fn expression_precedence(expression: &dir::Expression) -> dir::OperatorPrecedence {
-    match expression {
-        dir::Expression::Call { .. }
-        | dir::Expression::Member { .. }
-        | dir::Expression::Index { .. }
-        | dir::Expression::Instantiation { .. }
-        | dir::Expression::Maybe { .. }
-        | dir::Expression::Must { .. } => dir::OperatorPrecedence::Postfix,
-        dir::Expression::Unary { operator, .. } => operator.precedence(),
-        dir::Expression::Await { .. }
-        | dir::Expression::AwaitMaybe { .. }
-        | dir::Expression::AwaitMust { .. }
-        | dir::Expression::Comptime { .. }
-        | dir::Expression::Yield { .. }
-        | dir::Expression::BorrowOf { .. }
-        | dir::Expression::Throw { .. }
-        | dir::Expression::Return { .. } => dir::OperatorPrecedence::Prefix,
-        dir::Expression::Binary { operator, .. } => operator.precedence(),
-        dir::Expression::As { .. }
-        | dir::Expression::Satisfies { .. }
-        | dir::Expression::Is { .. }
-        | dir::Expression::InstanceOf { .. } => dir::OperatorPrecedence::Comparison,
-        dir::Expression::Assign { operator, .. } => operator.precedence(),
-        dir::Expression::If {
-            form: dir::IfForm::Ternary,
-            ..
-        } => dir::OperatorPrecedence::Conditional,
-        _ => dir::OperatorPrecedence::Primary,
     }
 }
 

@@ -62,7 +62,7 @@ impl ProgramQueryContext<'_> {
         }
 
         entries.sort();
-        entries.dedup_by(|left, right| left.0 == right.0);
+        entries.dedup();
 
         Ok(entries)
     }
@@ -180,44 +180,6 @@ impl ProgramQueryContext<'_> {
         Ok(entries)
     }
 
-    /// Collect members declared on one owner symbol.
-    pub(crate) fn owner_members(
-        &self,
-        owner_symbol: dir::GlobalSymbolId,
-    ) -> QueryResult<Vec<dir::MemberEntry>> {
-        let mut entries = Vec::new();
-
-        // collect owner members from modules reached by the owner symbol
-        for ordinal in self.member_postings()?.owners.get(&owner_symbol) {
-            let (_, index) = self.member_index_at(*ordinal)?;
-            entries.extend(index.owner_entries(owner_symbol).cloned());
-        }
-
-        entries.sort_by(dir::MemberEntry::compare_by_source);
-        entries.dedup();
-
-        Ok(entries)
-    }
-
-    /// Collect members contained in one declaring symbol.
-    pub(crate) fn declaring_members(
-        &self,
-        declaring_symbol: dir::GlobalSymbolId,
-    ) -> QueryResult<Vec<dir::MemberEntry>> {
-        let mut entries = Vec::new();
-
-        // collect declaration members from modules reached by the declaring symbol
-        for ordinal in self.member_postings()?.declaring.get(&declaring_symbol) {
-            let (_, index) = self.member_index_at(*ordinal)?;
-            entries.extend(index.declaring_entries(declaring_symbol).cloned());
-        }
-
-        entries.sort_by(dir::MemberEntry::compare_by_source);
-        entries.dedup();
-
-        Ok(entries)
-    }
-
     /// Search decorator candidates across indexed modules.
     pub(crate) fn search_decorator_candidates(
         &self,
@@ -310,56 +272,6 @@ impl ProgramQueryContext<'_> {
                 entry.kind,
                 entry.base,
                 entry.declaration,
-            )
-        });
-        entries.dedup();
-
-        Ok(entries)
-    }
-
-    /// Collect extension index entries for one root symbol.
-    pub(crate) fn root_extensions(
-        &self,
-        root_symbol: dir::GlobalSymbolId,
-    ) -> QueryResult<Vec<dir::ExtensionEntry>> {
-        let mut entries = Vec::new();
-
-        // collect extension declarations from modules reached by the root symbol
-        for ordinal in self.extension_postings()?.roots.get(&root_symbol) {
-            let (_, index) = self.extension_index_at(*ordinal)?;
-            entries.extend(index.root_entries(root_symbol).copied());
-        }
-        entries.sort_by_key(|entry| {
-            (
-                entry.root,
-                entry.declaration,
-                entry.file,
-                entry.span.start,
-                entry.span.end,
-                entry.ty,
-            )
-        });
-        entries.dedup();
-
-        Ok(entries)
-    }
-
-    /// Collect blanket extension index entries.
-    pub(crate) fn blanket_extensions(&self) -> QueryResult<Vec<dir::ExtensionEntry>> {
-        let mut entries = Vec::new();
-
-        // collect blanket declarations from every indexed blanket module
-        for ordinal in &self.extension_postings()?.blankets {
-            let (_, index) = self.extension_index_at(*ordinal)?;
-            entries.extend(index.blanket_entries().copied());
-        }
-        entries.sort_by_key(|entry| {
-            (
-                entry.declaration,
-                entry.file,
-                entry.span.start,
-                entry.span.end,
-                entry.ty,
             )
         });
         entries.dedup();

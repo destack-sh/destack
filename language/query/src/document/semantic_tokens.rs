@@ -425,7 +425,6 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
                 dir::Expression::Break { label: Some(_), .. }
                 | dir::Expression::Continue { label: Some(_) } => {
                     let node_id = expression_id.into_global_any(self.module.module_id());
-                    // FUGU #Incomplete: retain explicit label targets in DIR
                     let (token_type, modifiers) = self
                         .reference_token(node_id)?
                         .ok_or(QueryError::missing(format!("label target: {node_id:?}")))?;
@@ -503,10 +502,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
         &self,
         resolution: &dir::MemberResolution,
     ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
-        let mut symbols = Vec::new();
-        for access in resolution.iter() {
-            access.target.collect_symbols(&mut symbols);
-        }
+        let symbols = resolution.target_symbols();
         if !symbols.is_empty() {
             return self.symbol_targets_token(&symbols);
         }
@@ -561,7 +557,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
         }
 
         // classify remaining references from their recorded symbol identities
-        let Some(symbols) = self.module.recorded_symbol_targets(node_id) else {
+        let Some(symbols) = self.module.recorded_symbol_targets(node_id)? else {
             return Ok(None);
         };
 
@@ -714,9 +710,13 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
         &self,
         node_id: dir::LocalNodeIdAny,
     ) -> QueryResult<SemanticTokenModifiers> {
-        let Some(symbol_id) = self.module.global_node_symbol(node_id) else {
-            return Ok(SemanticTokenModifiers::NONE);
-        };
+        let symbol_id = self
+            .module
+            .global_node_symbol(node_id)
+            .ok_or(QueryError::missing(format!(
+                "semantic token declaration symbol: {:?}",
+                node_id.into_global(self.module.module_id())
+            )))?;
 
         self.symbol_modifiers(symbol_id)
     }
@@ -789,12 +789,11 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
         // collect fields, methods, and associated items
         for (member_id, member) in view.iter_nodes_of_type::<dir::Member>() {
-            let source_node_id = view.get_source(member_id);
-            let Some(main_span) = self.main_span(source_node_id)? else {
+            let Some((token_type, modifiers)) = Self::member_token(member) else {
                 continue;
             };
-
-            let Some((token_type, modifiers)) = Self::member_token(member) else {
+            let source_node_id = view.get_source(member_id);
+            let Some(main_span) = self.main_span(source_node_id)? else {
                 continue;
             };
             let modifiers = modifiers.union(self.node_symbol_modifiers(member_id.into_any())?);
@@ -855,23 +854,11 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
         // collect interface and shape member declarations
         for (member_id, member) in view.iter_nodes_of_type::<dir::TypeMember>() {
-            // FUGU #Incomplete: retain implicit interface abstraction in DIR
-            if let dir::TypeMember::Method { signature, .. } = member
-                && !signature.is_abstract
-                && self.is_interface_type_member(view, member_id)?
-            {
-                let source = member_id.into_global_any(self.module.module_id());
-
-                return Err(QueryError::missing(format!(
-                    "interface member abstraction: {source:?}"
-                )));
-            }
-
-            let source_node_id = view.get_source(member_id);
-            let Some(main_span) = self.main_span(source_node_id)? else {
+            let Some((token_type, modifiers)) = self.type_member_token(member_id, member)? else {
                 continue;
             };
-            let Some((token_type, modifiers)) = Self::type_member_token(member) else {
+            let source_node_id = view.get_source(member_id);
+            let Some(main_span) = self.main_span(source_node_id)? else {
                 continue;
             };
             let modifiers = modifiers.union(self.node_symbol_modifiers(member_id.into_any())?);
@@ -883,38 +870,15 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
         Ok(())
     }
 
-    /// Return whether one type member belongs to an interface declaration.
-    fn is_interface_type_member(
-        &self,
-        view: dir::View<'_>,
-        member_id: dir::LocalNodeId<dir::TypeMember>,
-    ) -> QueryResult<bool> {
-        let Some(parent) = view.get_parent_for(member_id) else {
-            return Err(QueryError::missing(format!(
-                "type member parent: {:?}",
-                member_id.into_global_any(self.module.module_id())
-            )));
-        };
-        if parent.ty != dir::NodeType::Declaration {
-            return Ok(false);
-        }
-        let declaration_id = parent
-            .try_into_typed::<dir::Declaration>()
-            .map_err(|_| QueryError::invalid(format!("type member parent: {parent:?}")))?;
-
-        Ok(matches!(
-            view.get(declaration_id),
-            dir::Declaration::Interface(_)
-        ))
-    }
-
     /// Return the token classification for one type member.
     fn type_member_token(
+        &self,
+        member_id: dir::LocalNodeId<dir::TypeMember>,
         member: &dir::TypeMember,
-    ) -> Option<(SemanticTokenType, SemanticTokenModifiers)> {
+    ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
         let declaration = SemanticTokenModifiers::DECLARATION;
 
-        match member {
+        let token = match member {
             dir::TypeMember::Field {
                 is_static,
                 is_readonly,
@@ -934,11 +898,30 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
                 is_static,
                 ..
             } => {
+                let symbol_id = self.module.global_node_symbol(member_id.into_any()).ok_or(
+                    QueryError::missing(format!(
+                        "semantic token member symbol: {:?}",
+                        member_id.into_global_any(self.module.module_id())
+                    )),
+                )?;
+                let (_, _, definition) =
+                    self.module
+                        .definitions()
+                        .member(symbol_id)
+                        .ok_or(QueryError::missing(format!(
+                            "semantic token member definition: {symbol_id:?}"
+                        )))?;
+                let dir::DefinitionMember::Method(definition) = definition else {
+                    return Err(QueryError::invalid(format!(
+                        "semantic token member definition: {symbol_id:?}"
+                    )));
+                };
+                let is_abstract = definition.implementation == dir::MethodImplementation::Required;
                 let mut modifiers = declaration.union(SemanticTokenModifiers::member(
                     false,
                     false,
                     *is_static,
-                    signature.is_abstract,
+                    is_abstract,
                 ));
                 if signature.asynchrony == dir::Asynchrony::Async {
                     modifiers = modifiers.union(SemanticTokenModifiers::ASYNC);
@@ -968,7 +951,9 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
             | dir::TypeMember::ConstructSignature { .. }
             | dir::TypeMember::IndexSignature { .. }
             | dir::TypeMember::Error => None,
-        }
+        };
+
+        Ok(token)
     }
 
     /// Collect enum field tokens.
@@ -1114,12 +1099,13 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
                 .ok_or(QueryError::missing(format!(
                     "semantic token span: {decorator_node:?}"
                 )))?;
-            let application =
-                self.module
-                    .decorator_application(decorator_id)
-                    .ok_or(QueryError::missing(format!(
-                        "semantic token decorator: {decorator_node:?}"
-                    )))?;
+            let application = self
+                .module
+                .decorators()
+                .application_for_decorator(decorator_id)
+                .ok_or(QueryError::missing(format!(
+                    "semantic token decorator: {decorator_node:?}"
+                )))?;
             let modifiers = match application.resolution.target {
                 dir::DecoratorTarget::LanguageItem { symbol, .. }
                 | dir::DecoratorTarget::Symbol { symbol } => self.symbol_modifiers(symbol),

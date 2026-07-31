@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
-use crate::QueryResult;
+use crate::{QueryError, QueryResult};
 
-use super::{Formatter, formatted};
+use super::Formatter;
 
 impl Formatter<'_, '_, '_> {
     /// Format one binding type.
@@ -10,7 +10,7 @@ impl Formatter<'_, '_, '_> {
         &self,
         declarator: &dir::Declarator,
         type_id: dir::GlobalTypeId,
-    ) -> QueryResult<Option<String>> {
+    ) -> QueryResult<String> {
         let Some(value_id) = declarator.value else {
             return self.global_type(type_id);
         };
@@ -33,14 +33,9 @@ impl Formatter<'_, '_, '_> {
                 self.module
                     .parameter_name(self.module.view().get(*parameter_id))
             })
-            .collect::<QueryResult<Vec<_>>>()?
-            .into_iter()
-            .collect::<Option<Vec<_>>>();
-        let Some(parameter_names) = parameter_names else {
-            return self.global_type(type_id);
-        };
+            .collect::<QueryResult<Vec<_>>>()?;
 
-        self.callable_type(type_id, &parameter_names)
+        self.callable_type(type_id, Some(&parameter_names))
     }
 
     /// Format one field type with its declaration modifiers.
@@ -60,9 +55,9 @@ impl Formatter<'_, '_, '_> {
     pub(super) fn declaration_signature(
         &self,
         declaration: &dir::Declaration,
-    ) -> QueryResult<Option<String>> {
+    ) -> QueryResult<String> {
         let Some(name) = self.module.declaration_display_name(declaration) else {
-            return Ok(None);
+            return Err(QueryError::missing("declaration signature name"));
         };
         let prefix = declaration_prefix(declaration);
 
@@ -73,17 +68,17 @@ impl Formatter<'_, '_, '_> {
             dir::Declaration::Global(_) => format!("{prefix}global"),
             dir::Declaration::Module(_) => format!("{prefix}module"),
             dir::Declaration::Struct(declaration) => {
-                let generics = formatted!(self.generics(&declaration.generic_parameters));
+                let generics = self.generics(&declaration.generic_parameters)?;
 
                 format!("{prefix}struct {name}{generics}")
             }
             dir::Declaration::Class(declaration) => {
-                let generics = formatted!(self.generics(&declaration.generic_parameters));
+                let generics = self.generics(&declaration.generic_parameters)?;
 
                 format!("{prefix}class {name}{generics}")
             }
             dir::Declaration::Interface(declaration) => {
-                let generics = formatted!(self.generics(&declaration.generic_parameters));
+                let generics = self.generics(&declaration.generic_parameters)?;
                 let keyword = if declaration.is_nominal {
                     "newtype interface"
                 } else {
@@ -94,9 +89,9 @@ impl Formatter<'_, '_, '_> {
             }
             dir::Declaration::Enum(_) => format!("{prefix}enum {name}"),
             dir::Declaration::Type(declaration) => {
-                let generics = formatted!(self.generics(&declaration.generic_parameters));
+                let generics = self.generics(&declaration.generic_parameters)?;
                 let value_id = declaration.value.into_global_any(self.module.module_id());
-                let value = formatted!(self.node_type(value_id));
+                let value = self.node_type(value_id)?;
                 let keyword = if declaration.is_nominal {
                     "newtype"
                 } else {
@@ -108,7 +103,7 @@ impl Formatter<'_, '_, '_> {
             dir::Declaration::Extension(_) => format!("{prefix}extension {name}"),
         };
 
-        Ok(Some(text))
+        Ok(text)
     }
 }
 

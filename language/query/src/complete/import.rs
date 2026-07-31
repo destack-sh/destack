@@ -9,7 +9,7 @@ use crate::{
     CompletionCandidate, CompletionCandidates, CompletionItemKind, CompletionOrigin,
     ExportDeclaration, ImportCandidate, ImportOrder, MatchOrder, MatchQuality, ModuleQueryContext,
     ProgramQueryContext, QueryError, QueryResult, SORT_BUILTIN, SORT_DEFAULT, SORT_LOCAL_SYMBOL,
-    ScopeAtOffset, SymbolUse, match_quality, visible_symbols,
+    SymbolUse, match_quality,
 };
 
 use super::CompletionContext;
@@ -238,7 +238,7 @@ impl CompletionBuilder<'_, '_, '_> {
                 if kind == CompletionItemKind::Function
                     && let Some(parameter_names) = self.program.symbol_parameter_names(symbol)?
                 {
-                    let snippet = CallSnippet::new(&completion.label, &parameter_names);
+                    let snippet = CallSnippet::named(&completion.label, &parameter_names);
                     completion = completion.with_insert_text(snippet.text);
                     if snippet.is_snippet {
                         completion = completion.with_snippet();
@@ -257,7 +257,7 @@ impl CompletionBuilder<'_, '_, '_> {
         &self,
         prefix: &str,
         use_filter: Option<SymbolUse>,
-        scope: ScopeAtOffset,
+        scope: dir::LocalScope,
         allow_short_prefix: bool,
     ) -> QueryResult<CompletionCandidates> {
         let mut completions = self.complete_auto_imports(prefix, use_filter, allow_short_prefix)?;
@@ -324,13 +324,15 @@ impl CompletionBuilder<'_, '_, '_> {
     /// Collect visible symbol names for a scope and use.
     fn collect_visible_names(
         &self,
-        scope: ScopeAtOffset,
+        scope: dir::LocalScope,
         use_filter: Option<SymbolUse>,
     ) -> FxHashSet<String> {
         let symbols = self.module.symbols();
 
         let mut names = FxHashSet::default();
-        for visible in visible_symbols(symbols, scope.scope_id, scope.scope_mark, use_filter) {
+        for visible in symbols.visible_bindings(scope).filter(|binding| {
+            use_filter.is_none_or(|symbol_use| symbol_use.accepts_symbol_kind(binding.symbol.kind))
+        }) {
             let dir::StaticKey::Name(name_id) = visible.key else {
                 continue;
             };

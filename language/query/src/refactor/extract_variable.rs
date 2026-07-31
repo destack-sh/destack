@@ -4,9 +4,7 @@ use destack_source::{FilePatch, Patch, PatchSet, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::source::{is_simple_identifier, offset_line_start};
-use crate::{
-    ModuleQueryContext, ProgramQueryContext, QueryError, QueryRange, QueryResult, visible_symbols,
-};
+use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryRange, QueryResult};
 
 /// Request payload for extract variable queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -249,7 +247,7 @@ fn extraction_name_is_available(
     let strings = module.strings();
 
     // reject every binding in the local scope, including later declarations
-    let local = symbols.get_scope_by_id(scope.scope_id);
+    let local = symbols.get_scope(scope);
     let has_local = local.bindings.iter().any(|binding| {
         let Some(dir::StaticKey::Name(name_id)) = binding.key else {
             return false;
@@ -262,14 +260,13 @@ fn extraction_name_is_available(
     }
 
     // reject visible names inherited from enclosing scopes
-    let has_visible =
-        visible_symbols(symbols, scope.scope_id, scope.scope_mark, None).any(|visible| {
-            let dir::StaticKey::Name(name_id) = visible.key else {
-                return false;
-            };
+    let has_visible = symbols.visible_bindings(scope).any(|visible| {
+        let dir::StaticKey::Name(name_id) = visible.key else {
+            return false;
+        };
 
-            strings.get(name_id) == name
-        });
+        strings.get(name_id) == name
+    });
 
     Ok(!has_visible)
 }
@@ -315,7 +312,7 @@ fn extraction_statement(
 
                 return Ok(Some((span, None)));
             }
-            if expression_evaluates_first(parent_value, current_id, view) {
+            if expression_evaluates_first(parent_value, current_id) {
                 current = parent;
                 continue;
             }
@@ -394,7 +391,6 @@ fn expression_statement_owns(
 fn expression_evaluates_first(
     parent: &dir::Expression,
     child: dir::LocalNodeId<dir::Expression>,
-    view: dir::View<'_>,
 ) -> bool {
     match parent {
         dir::Expression::Await { expression }
@@ -419,18 +415,6 @@ fn expression_evaluates_first(
         dir::Expression::Is { value, .. } => *value == child,
         dir::Expression::InstanceOf { value, .. } => *value == child,
         dir::Expression::If { condition, .. } => condition.as_expression() == Some(child),
-        dir::Expression::Call { left, .. } => *left == child && stable_call_head(*left, view),
-        _ => false,
-    }
-}
-
-/// Return whether evaluating one call head has no authored side effects.
-fn stable_call_head(expression: dir::LocalNodeId<dir::Expression>, view: dir::View<'_>) -> bool {
-    match view.get(expression) {
-        dir::Expression::Identifier { .. } | dir::Expression::This | dir::Expression::Super => true,
-        dir::Expression::Member { left, .. } | dir::Expression::Instantiation { left, .. } => {
-            stable_call_head(*left, view)
-        }
         _ => false,
     }
 }
@@ -454,9 +438,6 @@ fn first_argument_owner(
         .try_into_typed::<dir::Expression>()
         .map_err(|_| invalid_extraction_node(parent, module))?;
     let is_first = match view.get(owner) {
-        dir::Expression::Call {
-            left, arguments, ..
-        } => arguments.first() == Some(&argument) && stable_call_head(*left, view),
         dir::Expression::New { arguments, .. } | dir::Expression::NewMaybe { arguments, .. } => {
             arguments.first() == Some(&argument)
         }

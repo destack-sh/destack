@@ -141,7 +141,7 @@ impl RenameSelection {
                 )));
             }
 
-            // derive the exact edit form from authored shorthand structure
+            // read the exact edit form from authored shorthand structure
             let shorthands = match shorthands_by_module.entry(occurrence.module.module_id) {
                 btree_map::Entry::Occupied(entry) => entry.into_mut(),
                 btree_map::Entry::Vacant(entry) => {
@@ -423,6 +423,14 @@ impl ModuleQueryContext<'_> {
             } else {
                 for reference in program.symbol_program_references(*symbol)? {
                     let entry = reference.entry;
+
+                    // FUGU #Incomplete: retain dependency selector chains in DIR
+                    if entry.source.local_id.ty == dir::NodeType::DependencyItem {
+                        return Err(QueryError::missing(format!(
+                            "rename dependency selector chain: {:?}",
+                            entry.source
+                        )));
+                    }
                     if entry.is_import_alias {
                         continue;
                     }

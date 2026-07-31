@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use destack_artifact::GlobalEnvironment;
 use destack_dir as dir;
 use destack_source::{File, FileId};
 use rustc_hash::FxHashSet;
@@ -10,8 +9,8 @@ use super::call::CallSnippet;
 use super::{AutoImportSearch, CompletionContext, CompletionReceiver, CursorToken};
 use crate::{
     CompletionCandidate, CompletionCandidates, CompletionItemKind, CompletionOrigin,
-    CompletionTrigger, ModuleQueryContext, ProgramQueryContext, QueryResult, SORT_LOCAL_SYMBOL,
-    ScopeAtOffset, SymbolUse, visible_symbols,
+    CompletionTrigger, ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult,
+    SORT_LOCAL_SYMBOL, SymbolUse,
 };
 
 /// The repository-bound builder for completion candidates.
@@ -20,8 +19,6 @@ pub(crate) struct CompletionBuilder<'owner, 'module, 'program> {
     pub(super) module: &'owner ModuleQueryContext<'module>,
     /// The program query context.
     pub(super) program: &'owner ProgramQueryContext<'program>,
-    /// The active profile language environment.
-    pub(super) environment: &'owner GlobalEnvironment,
     /// The source file being completed.
     pub(super) file_id: FileId,
     /// The source file contents.
@@ -33,7 +30,6 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
     pub(crate) fn new(
         module: &'owner ModuleQueryContext<'module>,
         program: &'owner ProgramQueryContext<'program>,
-        environment: &'owner GlobalEnvironment,
         file_id: FileId,
     ) -> QueryResult<Self> {
         let file = module.read_file(file_id)?;
@@ -41,7 +37,6 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
         Ok(Self {
             module,
             program,
-            environment,
             file_id,
             file,
         })
@@ -57,7 +52,10 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
     ) -> QueryResult<CompletionCandidates> {
         // collect query shaping inputs once up front
         let prefix = token.map_or("", |token| token.text.as_str());
-        let allow_short_prefix = matches!(trigger, CompletionTrigger::Invoked);
+        let allow_short_prefix = matches!(
+            trigger,
+            CompletionTrigger::Invoked | CompletionTrigger::Incomplete
+        );
 
         // dispatch the primary context-specific candidate builder
         let mut items = match context {
@@ -79,11 +77,17 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
             CompletionContext::ObjectLiteralKey {
                 existing_fields,
                 scope,
-            } => self.complete_object_literal_shorthands(existing_fields, *scope)?,
+            } => {
+                // FUGU #Incomplete: complete missing fields from the checked expected type
+                self.complete_object_literal_shorthands(existing_fields, *scope)?
+            }
             CompletionContext::ObjectLiteralValue { scope } => {
                 self.complete_values(*scope, false)?
             }
-            CompletionContext::CallArgument { scope, .. } => self.complete_values(*scope, false)?,
+            CompletionContext::CallArgument { scope, .. } => {
+                // FUGU #Incomplete: complete unused named parameters from checked bindings
+                self.complete_values(*scope, false)?
+            }
             CompletionContext::NewExpression { scope } => self.complete_new_expression(*scope)?,
             CompletionContext::ImportPath { partial_path } => {
                 self.complete_import_paths(partial_path)?
@@ -122,20 +126,17 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
     }
 
     /// Complete types in type position.
-    fn complete_types(&self, scope: ScopeAtOffset) -> QueryResult<Vec<CompletionCandidate>> {
+    fn complete_types(&self, scope: dir::LocalScope) -> QueryResult<Vec<CompletionCandidate>> {
         let symbols = self.module.symbols();
-        let view = self.module.view();
 
         let mut results = Vec::new();
         let mut seen_names = FxHashSet::default();
 
         // collect visible type names first
-        for visible in visible_symbols(
-            symbols,
-            scope.scope_id,
-            scope.scope_mark,
-            Some(SymbolUse::Type),
-        ) {
+        for visible in symbols
+            .visible_bindings(scope)
+            .filter(|binding| SymbolUse::Type.accepts_symbol_kind(binding.symbol.kind))
+        {
             let dir::StaticKey::Name(name_id) = visible.key else {
                 continue;
             };
@@ -145,47 +146,12 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
                 continue;
             }
 
-            let Some(kind) = self.completion_symbol_kind(visible.id)? else {
-                continue;
-            };
+            let kind = self.completion_symbol_kind(visible.symbol_id)?;
             let completion =
                 CompletionCandidate::new(name, kind, CompletionOrigin::Local, SORT_LOCAL_SYMBOL);
             let symbol_id = dir::GlobalSymbolId {
                 module_id: self.module.module_id(),
-                local_id: visible.id,
-            };
-
-            results.push(self.attach_symbol_completion(completion, symbol_id)?);
-        }
-
-        // then include exported dependency items usable as types
-        for (item_id, _) in view.iter_nodes_of_type::<dir::DependencyItem>() {
-            let Some(symbol_id) = self.module.node_symbol(item_id.into()) else {
-                continue;
-            };
-
-            let symbol = symbols.get_symbol(symbol_id);
-            if !symbol.kind.can_be_used_as_type() {
-                continue;
-            }
-
-            let Some(name_id) = symbol.name() else {
-                continue;
-            };
-
-            let name = self.module.strings().get(name_id).to_string();
-            if !seen_names.insert(name.clone()) {
-                continue;
-            }
-
-            let Some(kind) = self.completion_symbol_kind(symbol_id)? else {
-                continue;
-            };
-            let completion =
-                CompletionCandidate::new(name, kind, CompletionOrigin::Local, SORT_LOCAL_SYMBOL);
-            let symbol_id = dir::GlobalSymbolId {
-                module_id: self.module.module_id(),
-                local_id: symbol_id,
+                local_id: visible.symbol_id,
             };
 
             results.push(self.attach_symbol_completion(completion, symbol_id)?);
@@ -201,38 +167,27 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
     fn completion_symbol_kind(
         &self,
         symbol_id: dir::LocalSymbolId,
-    ) -> QueryResult<Option<CompletionItemKind>> {
+    ) -> QueryResult<CompletionItemKind> {
         let global_id = dir::GlobalSymbolId {
             module_id: self.module.module_id(),
             local_id: symbol_id,
         };
         let Some(canonical_id) = self.program.canonical_symbol(global_id)? else {
-            return Ok(None);
+            return Err(QueryError::missing(format!(
+                "completion declaration: {global_id:?}"
+            )));
         };
         let canonical_module = self.program.module(canonical_id.module_id)?;
         let symbols = canonical_module.symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
 
-        // distinguish value parameters from ordinary variable bindings
-        if let Some(declaration) = symbol.declaration {
-            let view = canonical_module.view();
-            let is_parameter = declaration.local_id.ty == dir::NodeType::Parameter
-                || (declaration.local_id.ty == dir::NodeType::Pattern
-                    && view
-                        .get_parent_any(declaration.local_id)
-                        .is_some_and(|parent| parent.ty == dir::NodeType::Parameter));
-            if is_parameter {
-                return Ok(Some(CompletionItemKind::ValueParameter));
-            }
-        }
-
-        Ok(Some(symbol.into()))
+        Ok(symbol.into())
     }
 
     /// Complete values in expression position.
     fn complete_values(
         &self,
-        scope: ScopeAtOffset,
+        scope: dir::LocalScope,
         include_keywords: bool,
     ) -> QueryResult<Vec<CompletionCandidate>> {
         let module_id = self.module.module_id();
@@ -245,12 +200,10 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
             let mut candidates = Vec::new();
             let mut seen_names = FxHashSet::default();
 
-            for visible in visible_symbols(
-                symbols,
-                scope.scope_id,
-                scope.scope_mark,
-                Some(SymbolUse::Value),
-            ) {
+            for visible in symbols
+                .visible_bindings(scope)
+                .filter(|binding| SymbolUse::Value.accepts_symbol_kind(binding.symbol.kind))
+            {
                 let dir::StaticKey::Name(name_id) = visible.key else {
                     continue;
                 };
@@ -260,11 +213,9 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
                     continue;
                 }
 
-                let Some(kind) = self.completion_symbol_kind(visible.id)? else {
-                    continue;
-                };
+                let kind = self.completion_symbol_kind(visible.symbol_id)?;
 
-                candidates.push((visible.id, name, kind));
+                candidates.push((visible.symbol_id, name, kind));
             }
 
             candidates
@@ -281,7 +232,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
                 continue;
             }
             if kind == CompletionItemKind::Newtype {
-                results.push(self.complete_newtype(symbol_id)?);
+                results.extend(self.complete_newtype(&name, symbol_id)?);
                 continue;
             }
 
@@ -291,7 +242,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
             if kind == CompletionItemKind::Function
                 && let Some(parameter_names) = self.program.symbol_parameter_names(symbol_id)?
             {
-                let snippet = CallSnippet::new(&name, &parameter_names);
+                let snippet = CallSnippet::named(&name, &parameter_names);
                 completion = completion.with_insert_text(snippet.text);
                 if snippet.is_snippet {
                     completion = completion.with_snippet();
@@ -313,7 +264,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
     /// Complete constructable symbols for a new expression.
     fn complete_new_expression(
         &self,
-        scope: ScopeAtOffset,
+        scope: dir::LocalScope,
     ) -> QueryResult<Vec<CompletionCandidate>> {
         let symbols = self.module.symbols();
 
@@ -321,14 +272,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
         let mut seen = FxHashSet::default();
 
         // collect visible constructable names from the active scope
-        for visible in visible_symbols(symbols, scope.scope_id, scope.scope_mark, None) {
-            if !matches!(
-                visible.symbol.kind,
-                dir::SymbolKind::Class | dir::SymbolKind::Struct
-            ) {
-                continue;
-            }
-
+        for visible in symbols.visible_bindings(scope) {
             let dir::StaticKey::Name(name_id) = visible.key else {
                 continue;
             };
@@ -338,10 +282,13 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
                 continue;
             }
 
-            let kind = CompletionItemKind::from(visible.symbol);
+            let kind = self.completion_symbol_kind(visible.symbol_id)?;
+            if !matches!(kind, CompletionItemKind::Class | CompletionItemKind::Struct) {
+                continue;
+            }
             let symbol_id = dir::GlobalSymbolId {
                 module_id: self.module.module_id(),
-                local_id: visible.id,
+                local_id: visible.symbol_id,
             };
             if kind == CompletionItemKind::Class {
                 results.extend(self.complete_class(&name, symbol_id)?);

@@ -1,30 +1,30 @@
 use destack_dir as dir;
 
-use crate::{ModuleQueryContext, ProgramQueryContext, QueryResult};
+use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
 
 impl ModuleQueryContext<'_> {
     /// Return the exact display name for one parameter.
-    pub(crate) fn parameter_name(&self, parameter: &dir::Parameter) -> QueryResult<Option<String>> {
+    pub(crate) fn parameter_name(&self, parameter: &dir::Parameter) -> QueryResult<String> {
         match parameter {
-            dir::Parameter::Named { name, .. } => Ok(Some(self.strings().get(*name).to_string())),
+            dir::Parameter::Named { name, .. } => Ok(self.strings().get(*name).to_string()),
             dir::Parameter::Pattern { pattern, .. } => {
                 let span = self.node_span(self.view(), (*pattern).into())?;
                 let pattern = self.source_text(span)?;
 
-                Ok(Some(pattern))
+                Ok(pattern)
             }
             dir::Parameter::VariadicNamed { name, .. } => {
                 let name = self.strings().get(*name);
 
-                Ok(Some(format!("...{name}")))
+                Ok(format!("...{name}"))
             }
             dir::Parameter::VariadicPattern { pattern, .. } => {
                 let span = self.node_span(self.view(), (*pattern).into())?;
                 let pattern = self.source_text(span)?;
 
-                Ok(Some(format!("...{pattern}")))
+                Ok(format!("...{pattern}"))
             }
-            dir::Parameter::Error => Ok(None),
+            dir::Parameter::Error => Err(QueryError::missing("parameter name")),
         }
     }
 
@@ -130,10 +130,8 @@ impl ProgramQueryContext<'_> {
         let names = parameters
             .iter()
             .map(|parameter_id| module.parameter_name(view.get(*parameter_id)))
-            .collect::<QueryResult<Vec<_>>>()?
-            .into_iter()
-            .collect::<Option<Vec<_>>>();
+            .collect::<QueryResult<Vec<_>>>()?;
 
-        Ok(names)
+        Ok(Some(names))
     }
 }
