@@ -119,6 +119,22 @@ impl<'a> FunctionBuilder<'a> {
         self.load(pointer, global_ty)
     }
 
+    /// Store one global value through its address.
+    pub fn store_global(&mut self, global: LocalNodeId<Global>, value: Value) {
+        let global_ty = self.tree.get(global).ty;
+        let global_space = self.tree.get(global).space;
+        let global_pointer = self.reference_type(
+            ReferenceKind::Raw,
+            global_ty,
+            Access::Mutable,
+            global_space,
+            Nullability::None,
+        );
+        let pointer = self.global_addr(global, global_pointer);
+
+        self.store(pointer, value);
+    }
+
     /// Load from a pointer.
     pub fn load(&mut self, pointer_value: Value, result_type: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();

@@ -93,8 +93,15 @@ impl ModuleBuilder {
     }
 
     /// Create a dynamic erased value type.
-    pub fn type_dynamic(&mut self, constraint: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.tree.intern_type(Type::Dynamic { constraint })
+    pub fn type_dynamic(
+        &mut self,
+        constraint: LocalNodeId<Type>,
+        nullability: Nullability,
+    ) -> LocalNodeId<Type> {
+        self.tree.intern_type(Type::Dynamic {
+            constraint,
+            nullability,
+        })
     }
 
     /// Create a reference type.

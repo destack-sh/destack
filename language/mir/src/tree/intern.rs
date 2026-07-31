@@ -161,8 +161,12 @@ impl Tree {
             Type::Atomic { value } => Type::Atomic {
                 value: self.intern_representation(value),
             },
-            Type::Dynamic { constraint } => Type::Dynamic {
+            Type::Dynamic {
+                constraint,
+                nullability,
+            } => Type::Dynamic {
                 constraint: self.intern_representation(constraint),
+                nullability,
             },
             Type::Uninit { value } => Type::Uninit {
                 value: self.intern_representation(value),
@@ -357,8 +361,12 @@ impl Tree {
             Type::Atomic { value } => Type::Atomic {
                 value: self.instantiate_type_lifetimes(value, arguments),
             },
-            Type::Dynamic { constraint } => Type::Dynamic {
+            Type::Dynamic {
+                constraint,
+                nullability,
+            } => Type::Dynamic {
                 constraint: self.instantiate_type_lifetimes(constraint, arguments),
+                nullability,
             },
             Type::Uninit { value } => Type::Uninit {
                 value: self.instantiate_type_lifetimes(value, arguments),

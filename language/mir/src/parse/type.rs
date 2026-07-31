@@ -462,9 +462,13 @@ impl Parser {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
         let (constraint, _) = self.parse_type_use_part()?;
+        let nullability = self.parse_nullability()?.unwrap_or(Nullability::None);
         self.eat_token(TokenType::GreaterThan)?;
 
-        Ok(Type::Dynamic { constraint })
+        Ok(Type::Dynamic {
+            constraint,
+            nullability,
+        })
     }
 
     /// Parse a linear uninitialized allocation token type.

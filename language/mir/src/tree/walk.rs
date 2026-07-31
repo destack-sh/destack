@@ -316,7 +316,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         Type::Atomic { value } => {
             walk_type_id(visitor, tree, value);
         }
-        Type::Dynamic { constraint } => {
+        Type::Dynamic { constraint, .. } => {
             walk_type_id(visitor, tree, constraint);
         }
         Type::WithLifetimes { base, .. } => {

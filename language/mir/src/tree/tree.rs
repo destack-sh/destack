@@ -367,7 +367,7 @@ impl Tree {
                 .filter(|lifetime| !lifetime.is_empty())
             }
             Type::Newtype { inner, .. } => self.type_lifetime_inner(*inner, lifetime_args, visited),
-            Type::Dynamic { constraint } => {
+            Type::Dynamic { constraint, .. } => {
                 self.type_lifetime_inner(*constraint, lifetime_args, visited)
             }
             Type::WithLifetimes { base, lifetimes } => {
@@ -430,7 +430,7 @@ impl Tree {
                 self.type_contains_borrowed_refs(field.ty)
             }),
             Type::Newtype { inner, .. } => self.type_contains_borrowed_refs(*inner),
-            Type::Dynamic { constraint } => self.type_contains_borrowed_refs(*constraint),
+            Type::Dynamic { constraint, .. } => self.type_contains_borrowed_refs(*constraint),
             Type::WithLifetimes { base, .. } => self.type_contains_borrowed_refs(*base),
             Type::Uninit { value } => self.type_contains_borrowed_refs(*value),
             Type::Variant {
@@ -564,7 +564,9 @@ impl Tree {
             }
             // descend through transparent storage wrappers
             Type::Newtype { inner, .. }
-            | Type::Dynamic { constraint: inner }
+            | Type::Dynamic {
+                constraint: inner, ..
+            }
             | Type::Uninit { value: inner }
             | Type::Atomic { value: inner } => {
                 self.collect_type_borrowed_paths(

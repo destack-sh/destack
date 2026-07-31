@@ -346,6 +346,8 @@ pub enum Type {
     Dynamic {
         /// The lowered dynamic constraint type.
         constraint: TypeId,
+        /// The nullish values allowed by this erased value.
+        nullability: Nullability,
     },
     /// Type use with applied lifetime arguments.
     WithLifetimes {
