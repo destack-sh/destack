@@ -1,11 +1,11 @@
 use destack_artifact as artifact;
 use destack_mir as mir;
 use destack_program::{
-    ElementLayout, FunctionLayoutBuilder, LayoutField, LayoutShapeBuilder, NewtypeLayout,
-    ObjectLayoutBuilder, ReferenceFlags, ReferenceLayout, ScalarFormat, SignatureId, SliceLayout,
-    TensorDimension, TensorLayoutBuilder, TensorShardingAxis, TensorShardingBuilder,
-    TensorViewLayoutBuilder, TypeDescriptorBuilder, TypeFingerprint, TypeId, TypeTableBuilder,
-    VariantCaseLayout, VariantLayoutBuilder,
+    DynamicLayout, ElementLayout, FunctionLayout, LayoutField, LayoutShapeBuilder, NewtypeLayout,
+    ObjectLayoutBuilder, ReferenceLayout, ScalarFormat, SignatureId, SliceLayout, TensorDimension,
+    TensorLayoutBuilder, TensorShardingAxis, TensorShardingBuilder, TensorViewLayoutBuilder,
+    TypeDescriptorBuilder, TypeFingerprint, TypeId, TypeTableBuilder, VariantCaseLayout,
+    VariantLayoutBuilder,
 };
 use destack_source::ModuleId;
 
@@ -169,13 +169,28 @@ impl<'a> ObjectTypes<'a> {
                 LayoutShapeBuilder::Vector(self.element_layout(layout))
             }
             mir::LayoutShape::Tensor(layout) => {
-                let mir::Type::Tensor { space, shape, .. } = type_shape else {
+                let mir::Type::Tensor {
+                    kind,
+                    storage,
+                    access,
+                    element,
+                    shape,
+                    nullability,
+                    ..
+                } = type_shape
+                else {
                     return None;
                 };
+                let reference = ReferenceLayout::new(
+                    self.type_id(*element),
+                    *kind,
+                    *storage,
+                    *access,
+                    *nullability,
+                );
                 LayoutShapeBuilder::Tensor(
                     TensorLayoutBuilder::new(
-                        *space,
-                        self.type_id(layout.element),
+                        reference,
                         layout.format,
                         shape.iter().map(Self::tensor_dimension),
                     )
@@ -208,7 +223,7 @@ impl<'a> ObjectTypes<'a> {
 
                 LayoutShapeBuilder::Object(object)
             }
-            mir::LayoutShape::Dynamic => LayoutShapeBuilder::Dynamic,
+            mir::LayoutShape::Dynamic => self.dynamic_layout_shape(type_shape)?,
             mir::LayoutShape::Function => self.function_layout_shape(type_shape)?,
             mir::LayoutShape::Newtype(layout) => {
                 let backing_type = self.type_id(layout.backing_type);
@@ -220,6 +235,22 @@ impl<'a> ObjectTypes<'a> {
                 })
             }
         })
+    }
+
+    /// Project one MIR dynamic type into a program layout shape.
+    fn dynamic_layout_shape(&self, type_shape: &mir::Type) -> Option<LayoutShapeBuilder> {
+        let mir::Type::Dynamic {
+            constraint,
+            nullability,
+            ..
+        } = type_shape
+        else {
+            return None;
+        };
+        Some(LayoutShapeBuilder::Dynamic(DynamicLayout {
+            constraint: self.type_id(*constraint),
+            nullability: *nullability,
+        }))
     }
 
     /// Return the program type id for one MIR type.
@@ -270,7 +301,7 @@ impl<'a> ObjectTypes<'a> {
     ) -> mir::LocalNodeId<mir::Type> {
         loop {
             match self.get(ty) {
-                mir::Type::WithLifetimes { base, .. }
+                mir::Type::Application { base, .. }
                 | mir::Type::Uninit { value: base }
                 | mir::Type::Atomic { value: base }
                 | mir::Type::ManuallyDrop { value: base } => {
@@ -317,10 +348,13 @@ impl<'a> ObjectTypes<'a> {
                 pointee,
                 nullability,
                 ..
-            } => Some(LayoutShapeBuilder::Reference(ReferenceLayout {
-                pointee: self.type_id(*pointee),
-                flags: ReferenceFlags::new(*kind, *storage, *access, *nullability),
-            })),
+            } => Some(LayoutShapeBuilder::Reference(ReferenceLayout::new(
+                self.type_id(*pointee),
+                *kind,
+                *storage,
+                *access,
+                *nullability,
+            ))),
             mir::Type::FunctionPointer { signature } => Some(LayoutShapeBuilder::FunctionPointer(
                 self.signature(*signature)?,
             )),
@@ -342,12 +376,15 @@ impl<'a> ObjectTypes<'a> {
             return None;
         };
 
-        Some(LayoutShapeBuilder::Slice(SliceLayout {
-            reference: ReferenceLayout {
-                pointee: self.type_id(*element),
-                flags: ReferenceFlags::new(*kind, *storage, *access, *nullability),
-            },
-        }))
+        let reference = ReferenceLayout::new(
+            self.type_id(*element),
+            *kind,
+            *storage,
+            *access,
+            *nullability,
+        );
+
+        Some(LayoutShapeBuilder::Slice(SliceLayout { reference }))
     }
 
     /// Project one MIR tensor view into its executable descriptor layout.
@@ -368,13 +405,15 @@ impl<'a> ObjectTypes<'a> {
         else {
             return None;
         };
-        let reference = ReferenceLayout {
-            pointee: self.type_id(*element),
-            flags: ReferenceFlags::new(*kind, *storage, *access, *nullability),
-        };
+        let reference = ReferenceLayout::new(
+            self.type_id(*element),
+            *kind,
+            *storage,
+            *access,
+            *nullability,
+        );
         let layout = TensorViewLayoutBuilder::new(
             reference,
-            self.type_id(layout.element),
             layout.format,
             shape.iter().map(Self::tensor_dimension),
         )
@@ -397,16 +436,16 @@ impl<'a> ObjectTypes<'a> {
     fn function_layout_shape(&self, type_shape: &mir::Type) -> Option<LayoutShapeBuilder> {
         let mir::Type::Function {
             signature,
-            environment,
+            nullability,
+            ..
         } = type_shape
         else {
             return None;
         };
-
-        Some(LayoutShapeBuilder::Function(FunctionLayoutBuilder::new(
-            self.signature(*signature)?,
-            self.type_id(*environment),
-        )))
+        Some(LayoutShapeBuilder::Function(FunctionLayout {
+            signature: self.signature(*signature)?,
+            nullability: *nullability,
+        }))
     }
 
     /// Project one MIR element layout.
