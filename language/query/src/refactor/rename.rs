@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::source::is_simple_identifier;
 use crate::{
-    Module, ModuleQueryContext, ProgramQueryContext, QueryContext, QueryError, QueryPosition,
-    QueryResult, SymbolOccurrence,
+    Module, ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult,
+    SymbolOccurrence,
 };
 
 /// Request rename edits at a cursor position.
@@ -145,7 +145,7 @@ impl RenameSelection {
             let shorthands = match shorthands_by_module.entry(occurrence.module.module_id) {
                 btree_map::Entry::Occupied(entry) => entry.into_mut(),
                 btree_map::Entry::Vacant(entry) => {
-                    let shorthands = RenameShorthands::build(module)?;
+                    let shorthands = RenameShorthands::build(&module)?;
 
                     entry.insert(shorthands)
                 }
@@ -329,7 +329,7 @@ impl ModuleQueryContext<'_> {
     /// Resolve the symbol targeted by rename at a file offset.
     pub(crate) fn resolve_rename_target(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<RenameSelection>> {

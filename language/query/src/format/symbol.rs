@@ -18,7 +18,7 @@ impl Formatter<'_, '_, '_> {
         let Some(type_id) = module.types().get_symbol_type_id(symbol_id) else {
             return Ok(None);
         };
-        let formatter = Formatter::new(module, self.query);
+        let formatter = Formatter::new(&module, self.query);
 
         // retain authored parameter names on callable types
         if let Some(parameter_names) = self.query.symbol_parameter_names(symbol_id)? {
@@ -143,7 +143,7 @@ impl Formatter<'_, '_, '_> {
     /// Format one symbol from its exact declaration.
     pub(crate) fn symbol_signature(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<String> {
         let module = self.query.module(symbol_id.module_id)?;
-        let formatter = Formatter::new(module, self.query);
+        let formatter = Formatter::new(&module, self.query);
         let symbols = module.symbols();
         let symbol = symbols.get_symbol(symbol_id.into_local());
         let declaration = symbol.declaration.ok_or(QueryError::missing(format!(
@@ -403,7 +403,7 @@ impl Formatter<'_, '_, '_> {
             .ok_or(QueryError::invalid(format!(
                 "type item symbol: {symbol_id:?}"
             )))?;
-        let formatted = Formatter::new(module, self.query)
+        let formatted = Formatter::new(&module, self.query)
             .generics(parameters)?
             .ok_or(QueryError::invalid(format!(
                 "type item formatting: {symbol_id:?}"

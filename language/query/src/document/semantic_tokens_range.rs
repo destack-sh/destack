@@ -2,7 +2,7 @@ use destack_serde::Reflect;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
-use crate::{ModuleQueryContext, QueryContext, QueryRange, QueryResult, SemanticToken};
+use crate::{ModuleQueryContext, ProgramQueryContext, QueryRange, QueryResult, SemanticToken};
 
 /// Request semantic tokens for a document range.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -22,7 +22,7 @@ impl ModuleQueryContext<'_> {
     /// Return semantic tokens wholly contained by a source range.
     pub fn semantic_tokens_range(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         range: Span,
     ) -> QueryResult<Vec<SemanticToken>> {
         let tokens = self.semantic_tokens(query, range.file)?;

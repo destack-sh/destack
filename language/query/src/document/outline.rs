@@ -4,7 +4,7 @@ use destack_source::{FileId, NodeSpanRegion, NodeSpanType, Span};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
-use crate::{Formatter, Module, ModuleQueryContext, QueryContext, QueryError, QueryResult};
+use crate::{Formatter, Module, ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
 
 /// An editor-facing declaration kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
@@ -115,7 +115,7 @@ impl ModuleQueryContext<'_> {
     /// Return the ordered symbol outline for one source file.
     pub fn outline(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         file_id: FileId,
     ) -> QueryResult<Vec<OutlineSymbol>> {
         let view = self.view();
@@ -129,7 +129,7 @@ impl ModuleQueryContext<'_> {
         &self,
         view: dir::View<'_>,
         expression_ids: &[dir::LocalNodeId<dir::Expression>],
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
     ) -> QueryResult<Vec<OutlineSymbol>> {
         let mut symbols = Vec::new();
 
@@ -176,7 +176,7 @@ impl ModuleQueryContext<'_> {
         &self,
         view: dir::View<'_>,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
     ) -> QueryResult<Option<OutlineSymbol>> {
         let declaration = view.get::<dir::Declaration>(declaration_id);
         let block = match declaration {
@@ -254,7 +254,7 @@ impl ModuleQueryContext<'_> {
         name: &str,
         kind: SymbolKind,
         expressions: &[dir::LocalNodeId<dir::Expression>],
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
     ) -> QueryResult<OutlineSymbol> {
         let node = declaration_id.into_global_any(self.module_id());
         let selection_range = self
@@ -313,7 +313,7 @@ impl ModuleQueryContext<'_> {
         &self,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::Declaration,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
     ) -> QueryResult<Option<String>> {
         match declaration {
             dir::Declaration::Function(declaration) => Ok(Some(
@@ -344,7 +344,7 @@ impl ModuleQueryContext<'_> {
         root_id: dir::LocalNodeId<dir::Expression>,
         declarators: &[dir::LocalNodeId<dir::Declarator>],
         mutability: dir::Mutability,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
     ) -> QueryResult<Vec<OutlineSymbol>> {
         let range = self.node_span(view, root_id.into())?;
         let kind = match mutability {
@@ -404,7 +404,7 @@ impl ModuleQueryContext<'_> {
         &self,
         view: dir::View<'_>,
         member_id: dir::LocalNodeId<dir::Member>,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
     ) -> QueryResult<Option<OutlineSymbol>> {
         let member = view.get::<dir::Member>(member_id);
         if matches!(
@@ -506,7 +506,7 @@ impl ModuleQueryContext<'_> {
         &self,
         view: dir::View<'_>,
         member_id: dir::LocalNodeId<dir::TypeMember>,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
     ) -> QueryResult<Option<OutlineSymbol>> {
         let member = view.get::<dir::TypeMember>(member_id);
         if matches!(member, dir::TypeMember::Error) {
@@ -631,7 +631,7 @@ impl ModuleQueryContext<'_> {
     fn outline_node_type(
         &self,
         node_id: dir::LocalNodeIdAny,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
     ) -> QueryResult<String> {
         let node_id = node_id.into_global(self.module_id());
         let type_id = self
@@ -651,7 +651,7 @@ impl ModuleQueryContext<'_> {
         &self,
         declared_type: Option<dir::LocalNodeId<dir::TypeExpression>>,
         owner_id: dir::LocalNodeIdAny,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
     ) -> QueryResult<String> {
         match declared_type {
             Some(type_id) => self.outline_node_type(type_id.into(), query),

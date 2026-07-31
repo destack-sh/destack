@@ -7,8 +7,8 @@ use destack_repository::{ProviderError, RepositoryError};
 /// A semantic query failure.
 #[derive(Debug)]
 pub enum QueryError {
-    /// An artifact could not be provided.
-    Artifact(ProviderError),
+    /// Artifact access failed.
+    Artifact(Box<dyn Error + Send + Sync>),
     /// Repository state could not be read.
     Repository(RepositoryError),
     /// Query source input or output failed.
@@ -18,6 +18,11 @@ pub enum QueryError {
 }
 
 impl QueryError {
+    /// Build an artifact access error.
+    pub fn artifact(error: impl Error + Send + Sync + 'static) -> Self {
+        Self::Artifact(Box::new(error))
+    }
+
     /// Build a missing-state error.
     pub(crate) fn missing(message: impl Into<String>) -> Self {
         Self::invalid(format!("missing {}", message.into()))
@@ -53,7 +58,7 @@ impl Display for QueryError {
 impl Error for QueryError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            Self::Artifact(error) => Some(error),
+            Self::Artifact(error) => Some(error.as_ref()),
             Self::Repository(error) => Some(error),
             Self::Io(error) => Some(error),
             Self::Invalid(_) => None,
@@ -64,14 +69,14 @@ impl Error for QueryError {
 impl From<ProviderError> for QueryError {
     /// Convert an artifact provider failure into a query failure.
     fn from(error: ProviderError) -> Self {
-        Self::Artifact(error)
+        Self::artifact(error)
     }
 }
 
 impl From<Box<ProviderError>> for QueryError {
     /// Convert a boxed artifact provider failure into a query failure.
     fn from(error: Box<ProviderError>) -> Self {
-        Self::Artifact(*error)
+        Self::Artifact(error)
     }
 }
 

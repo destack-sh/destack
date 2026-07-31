@@ -3,7 +3,7 @@ use destack_serde::Reflect;
 use destack_source::{FileId, NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
 use serde::{Deserialize, Serialize};
 
-use crate::{Module, ModuleQueryContext, QueryContext, QueryError, QueryResult};
+use crate::{Module, ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
 
 /// Semantic token type for LSP semantic highlighting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -190,7 +190,7 @@ impl ModuleQueryContext<'_> {
     /// Return semantic tokens for a module file.
     pub fn semantic_tokens(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         file_id: FileId,
     ) -> QueryResult<Vec<SemanticToken>> {
         SemanticTokens::collect(self, query, file_id)
@@ -202,7 +202,7 @@ struct SemanticTokens<'owner, 'module, 'query> {
     /// The queried module.
     module: &'owner ModuleQueryContext<'module>,
     /// The shared query context.
-    query: &'owner QueryContext<'query>,
+    query: &'owner ProgramQueryContext<'query>,
     /// The queried source file.
     file_id: FileId,
     /// The collected tokens.
@@ -213,7 +213,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
     /// Collect semantic tokens for one source file.
     fn collect(
         module: &'owner ModuleQueryContext<'module>,
-        query: &'owner QueryContext<'query>,
+        query: &'owner ProgramQueryContext<'query>,
         file_id: FileId,
     ) -> QueryResult<Vec<SemanticToken>> {
         let mut semantic_tokens = Self {
@@ -649,7 +649,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
         let token_type = SemanticTokenType::symbol_kind(symbol.kind);
         let source_modifiers = match symbol.declaration {
-            Some(declaration) => Self::declaration_reference_modifiers(symbol_module, declaration),
+            Some(declaration) => Self::declaration_reference_modifiers(&symbol_module, declaration),
             None => SemanticTokenModifiers::NONE,
         };
         let modifiers = match symbol.kind {

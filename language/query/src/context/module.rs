@@ -8,7 +8,7 @@ use destack_artifact::{
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProviderResult, Repository, Revision};
-use destack_source::{File, FileId, ModuleId, ProfileId, SourceIndex, Span};
+use destack_source::{ComponentId, File, FileId, ModuleId, ProfileId, SourceIndex, Span};
 
 use crate::{Module, QueryError, QueryResult};
 
@@ -71,14 +71,17 @@ impl ModuleArtifacts {
         reader: &ArtifactReader<'_>,
         module_id: ModuleId,
         profile_id: ProfileId,
+        component: ComponentId,
     ) -> ProviderResult<Self> {
+        let checked = reader.dir_checked_module(component, module_id, profile_id)?;
+
         Ok(Self {
             parsed: reader.dir_parsed(module_id)?,
             bound: reader.dir_bound(module_id, profile_id)?,
             imported: reader.dir_imported(module_id, profile_id)?,
             expanded: reader.dir_expanded(module_id, profile_id)?,
             resolved: reader.dir_resolved(module_id, profile_id)?,
-            checked: reader.dir_checked(module_id, profile_id)?,
+            checked,
         })
     }
 }
@@ -129,14 +132,14 @@ impl<'a> ModuleQueryContext<'a> {
     }
 
     /// Return the artifact roots for one module query context.
-    pub fn artifact_roots(module_id: ModuleId, profile_id: ProfileId) -> [ArtifactKey; 6] {
+    pub fn initial_roots(module_id: ModuleId, profile_id: ProfileId) -> [ArtifactKey; 6] {
         [
             ArtifactKey::dir_parsed(module_id),
             ArtifactKey::dir_bound(module_id, profile_id),
             ArtifactKey::dir_imported(module_id, profile_id),
             ArtifactKey::dir_expanded(module_id, profile_id),
             ArtifactKey::dir_resolved(module_id, profile_id),
-            ArtifactKey::dir_checked(module_id, profile_id),
+            ArtifactKey::component_graph(profile_id),
         ]
     }
 
@@ -146,10 +149,25 @@ impl<'a> ModuleQueryContext<'a> {
         revision: Revision,
         module_id: ModuleId,
         profile_id: ProfileId,
-    ) -> ProviderResult<Self> {
-        // read exact dependency-backed artifact payloads
+        require_artifacts: &dyn Fn(&[ArtifactKey]) -> QueryResult<()>,
+    ) -> QueryResult<Self> {
+        // require the module roots and resolve its inference component
+        let roots = Self::initial_roots(module_id, profile_id);
+        require_artifacts(&roots)?;
         let reader = ArtifactReader::new(repository, revision);
-        let artifacts = ModuleArtifacts::read(&reader, module_id, profile_id)?;
+        let graph = reader.component_graph_reader(profile_id)?;
+        let component = graph.inference_component(module_id)?.ok_or_else(|| {
+            QueryError::invalid(format!(
+                "module is absent from component graph: {module_id:?}"
+            ))
+        })?;
+
+        // require the exact checked component selected by the graph
+        let checked = ArtifactKey::dir_checked_component(component, profile_id);
+        require_artifacts(&[checked])?;
+
+        // read exact dependency-backed artifact payloads
+        let artifacts = ModuleArtifacts::read(&reader, module_id, profile_id, component)?;
 
         Ok(Self::from_artifacts(
             repository, revision, module_id, profile_id, artifacts,

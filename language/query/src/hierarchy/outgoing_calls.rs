@@ -60,7 +60,7 @@ impl ProgramQueryContext<'_> {
                 .map(|entry| entry.source)
                 .ok_or(QueryError::missing(format!("outgoing call: {callee:?}")))?;
             let module = self.module(first_source.module_id)?;
-            let to = CallItem::from_call(module, self, first_source.local_id, callee)?.ok_or(
+            let to = CallItem::from_call(&module, self, first_source.local_id, callee)?.ok_or(
                 QueryError::invalid(format!("call hierarchy symbol: {callee:?}")),
             )?;
 
@@ -68,7 +68,7 @@ impl ProgramQueryContext<'_> {
             for entry in &entries[1..] {
                 let source = entry.source;
                 let module = self.module(source.module_id)?;
-                let selected = CallItem::from_call(module, self, source.local_id, callee)?.ok_or(
+                let selected = CallItem::from_call(&module, self, source.local_id, callee)?.ok_or(
                     QueryError::invalid(format!("call hierarchy symbol: {callee:?}")),
                 )?;
                 if selected != to {

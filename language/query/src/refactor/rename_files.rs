@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
 use std::path::PathBuf;
 
+use destack_artifact::ArtifactKey;
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, Repository, Revision};
 use destack_serde::Reflect;
@@ -40,6 +41,7 @@ pub fn rename_files(
     revision: Revision,
     modules: &[Module],
     renames: &[FileRename],
+    require_artifacts: &dyn Fn(&[ArtifactKey]) -> QueryResult<()>,
 ) -> QueryResult<Option<PatchSet>> {
     let workspace_root = repository.path().to_path_buf().normalize();
 
@@ -78,6 +80,12 @@ pub fn rename_files(
     for selected in modules {
         // read the source module and the DIR artifacts used by specifier resolution
         let module_id = selected.module_id;
+        let roots = [
+            ArtifactKey::dir_parsed(module_id),
+            ArtifactKey::dir_imported(module_id, selected.profile_id),
+            ArtifactKey::dir_expanded(module_id, selected.profile_id),
+        ];
+        require_artifacts(&roots)?;
         let source_module = repository
             .module(revision, module_id)?
             .ok_or_else(|| QueryError::missing(format!("repository module {module_id:?}")))?;

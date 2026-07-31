@@ -1269,6 +1269,7 @@ dependencies = [
  "destack_repository",
  "destack_serde",
  "destack_source",
+ "parking_lot",
  "rustc-hash 2.1.2",
  "serde",
 ]

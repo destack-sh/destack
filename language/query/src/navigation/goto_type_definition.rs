@@ -4,8 +4,8 @@ use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ModuleQueryContext, NavigationTarget, QueryContext, QueryError, QueryPosition, QueryRange,
-    QueryResult, sort_and_dedup_navigation_targets,
+    ModuleQueryContext, NavigationTarget, ProgramQueryContext, QueryError, QueryPosition,
+    QueryRange, QueryResult, sort_and_dedup_navigation_targets,
 };
 
 /// Request goto type definition at a cursor position.
@@ -26,7 +26,7 @@ impl ModuleQueryContext<'_> {
     /// Find the type definition of the symbol at one position.
     pub fn goto_type_definition(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Vec<NavigationTarget>> {
@@ -86,7 +86,7 @@ impl ModuleQueryContext<'_> {
     /// Return nominal declarations beneath checked type forms.
     fn type_definition_symbols(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         type_id: dir::GlobalTypeId,
     ) -> QueryResult<Vec<dir::GlobalSymbolId>> {
         let (mut symbols, nested) = query.read_type(type_id, |type_value, module| {

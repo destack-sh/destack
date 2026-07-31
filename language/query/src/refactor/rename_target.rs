@@ -3,7 +3,7 @@ use destack_serde::Reflect;
 use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
-use crate::{ModuleQueryContext, QueryContext, QueryPosition, QueryResult, Target};
+use crate::{ModuleQueryContext, ProgramQueryContext, QueryPosition, QueryResult, Target};
 
 /// Target of a rename query.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -34,7 +34,7 @@ impl ModuleQueryContext<'_> {
     /// Return the rename target at the given position.
     pub fn rename_target(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<RenameTarget>> {

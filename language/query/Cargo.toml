@@ -21,6 +21,7 @@ destack_serde = { workspace = true }
 destack_repository = { path = "../repository", default-features = false }
 
 # general
+parking_lot = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 

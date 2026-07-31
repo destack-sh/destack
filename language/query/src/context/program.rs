@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use std::sync::{Arc, OnceLock};
 
 use destack_artifact::{
@@ -8,14 +7,25 @@ use destack_artifact::{
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProviderError, Repository, RepositoryError, Revision};
 use destack_source::{ModuleId, ProfileId};
+use parking_lot::Mutex;
+use rustc_hash::FxHashMap;
 
-use crate::{Module, QueryContext, QueryError, QueryMethod, QueryResult};
+use crate::{Module, ModuleQueryContext, QueryError, QueryMethod, QueryResult};
 
 /// Query context anchored to a program revision.
-#[derive(Debug)]
 pub struct ProgramQueryContext<'a> {
-    /// Shared semantic access for this program.
-    query: QueryContext<'a>,
+    /// The repository used for this query.
+    repository: &'a Repository,
+    /// The revision used for this query.
+    revision: Revision,
+    /// The profile used for module artifacts.
+    profile_id: ProfileId,
+    /// Module ids in stable program order.
+    module_ids: Box<[ModuleId]>,
+    /// Module contexts read by this query.
+    modules: Mutex<FxHashMap<ModuleId, Arc<ModuleQueryContext<'a>>>>,
+    /// Exact artifact requirements for actual query reads.
+    require_artifacts: &'a dyn Fn(&[ArtifactKey]) -> QueryResult<()>,
     /// Lazily read package graph for import completion.
     package_graph: OnceLock<Result<Arc<PackageGraph>, ProviderError>>,
     /// Lazily read component graph for semantic index families.
@@ -23,8 +33,9 @@ pub struct ProgramQueryContext<'a> {
     /// Lazily read program indexes by family.
     program_indexes: [OnceLock<Result<Arc<ProgramIndex>, ProviderError>>; IndexKind::ALL.len()],
     /// Lazily read module indexes by module and family.
-    module_indexes:
+    module_indexes: OnceLock<
         Box<[[OnceLock<Result<Arc<ModuleIndex>, ProviderError>>; IndexKind::MODULE_COUNT]]>,
+    >,
     /// Lazily read component indexes by component and family.
     component_indexes: OnceLock<
         Box<
@@ -34,9 +45,22 @@ pub struct ProgramQueryContext<'a> {
     >,
 }
 
+impl std::fmt::Debug for ProgramQueryContext<'_> {
+    /// Format the visible program query state.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ProgramQueryContext")
+            .field("revision", &self.revision)
+            .field("profile_id", &self.profile_id)
+            .field("module_count", &self.module_ids.len())
+            .field("loaded_modules", &self.modules.lock().len())
+            .finish_non_exhaustive()
+    }
+}
+
 impl<'a> ProgramQueryContext<'a> {
-    /// Return the artifact roots read by one program query.
-    pub fn artifact_roots(
+    /// Return the artifact roots scheduled before one program query.
+    pub fn initial_roots(
         repository: &Repository,
         revision: Revision,
         profile_id: ProfileId,
@@ -54,7 +78,7 @@ impl<'a> ProgramQueryContext<'a> {
             artifacts.push(ArtifactKey::program_index(profile_id, *kind));
         }
 
-        // provide import resolution for every module read by file renames
+        // schedule import resolution for every module read by file renames
         if method == QueryMethod::RenameFiles {
             for module_id in Self::authored_module_ids(repository, revision)? {
                 artifacts.extend([
@@ -70,10 +94,76 @@ impl<'a> ProgramQueryContext<'a> {
 
     /// Iterate over the exact modules covered by this program context.
     pub fn modules(&self) -> impl Iterator<Item = Module> + '_ {
-        self.module_ids().iter().map(move |module_id| Module {
+        self.module_ids.iter().map(move |module_id| Module {
             module_id: *module_id,
-            profile_id: self.profile_id(),
+            profile_id: self.profile_id,
         })
+    }
+
+    /// Return the repository for this query.
+    pub fn repository(&self) -> &'a Repository {
+        self.repository
+    }
+
+    /// Return the exact revision for this query.
+    pub fn revision(&self) -> Revision {
+        self.revision
+    }
+
+    /// Return the profile used for module artifacts.
+    pub fn profile_id(&self) -> ProfileId {
+        self.profile_id
+    }
+
+    /// Return module ids in stable program order.
+    pub(crate) fn module_ids(&self) -> &[ModuleId] {
+        &self.module_ids
+    }
+
+    /// Return one module context at this revision.
+    pub fn module(&self, module_id: ModuleId) -> QueryResult<Arc<ModuleQueryContext<'a>>> {
+        self.module_ordinal(module_id)?;
+        if let Some(context) = self.modules.lock().get(&module_id) {
+            return Ok(context.clone());
+        }
+
+        // require and compose the module only after its first actual read
+        let context = ModuleQueryContext::new(
+            self.repository,
+            self.revision,
+            module_id,
+            self.profile_id,
+            self.require_artifacts,
+        )?;
+        let context = Arc::new(context);
+        let mut modules = self.modules.lock();
+        let context = modules.entry(module_id).or_insert(context);
+
+        Ok(context.clone())
+    }
+
+    /// Read one global type with its owning module.
+    pub(crate) fn read_type<R>(
+        &self,
+        type_id: dir::GlobalTypeId,
+        read: impl FnOnce(&dir::Type, &ModuleQueryContext<'_>) -> QueryResult<R>,
+    ) -> QueryResult<R> {
+        let module = self.module(type_id.module_id)?;
+        let type_value = module.types().get_type(type_id.local_id);
+
+        read(&type_value, &module)
+    }
+
+    /// Return whether one module belongs to authored workspace source.
+    pub(crate) fn is_authored_module(&self, module_id: ModuleId) -> QueryResult<bool> {
+        let package_id = module_id.package_id;
+        let package = self.repository.package(self.revision, package_id)?.ok_or(
+            RepositoryError::MissingPackage {
+                package: package_id,
+            },
+        )?;
+
+        Ok(package.kind.is_authored())
     }
 
     /// Return the authored modules covered by this program context.
@@ -115,6 +205,8 @@ impl<'a> ProgramQueryContext<'a> {
 
     /// Read the active package graph for this program.
     pub(crate) fn package_graph(&self) -> QueryResult<&PackageGraph> {
+        let artifact = ArtifactKey::package_graph(self.profile_id());
+        (self.require_artifacts)(&[artifact])?;
         let graph = self.package_graph.get_or_init(|| {
             let artifacts = ArtifactReader::new(self.repository(), self.revision());
 
@@ -337,25 +429,30 @@ impl<'a> ProgramQueryContext<'a> {
         repository: &'a Repository,
         revision: Revision,
         profile_id: ProfileId,
+        require_artifacts: &'a dyn Fn(&[ArtifactKey]) -> QueryResult<()>,
     ) -> QueryResult<Self> {
-        let query = QueryContext::new(repository, revision, profile_id)?;
-        let module_indexes = (0..query.module_ids().len())
-            .map(|_| std::array::from_fn(|_| OnceLock::new()))
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
-
+        let mut module_ids = repository.module_ids(revision)?;
+        module_ids.sort_unstable();
+        module_ids.dedup();
         Ok(Self {
-            query,
+            repository,
+            revision,
+            profile_id,
+            module_ids: module_ids.into_boxed_slice(),
+            modules: Mutex::new(FxHashMap::default()),
+            require_artifacts,
             package_graph: OnceLock::new(),
             component_graph: OnceLock::new(),
             program_indexes: std::array::from_fn(|_| OnceLock::new()),
-            module_indexes,
+            module_indexes: OnceLock::new(),
             component_indexes: OnceLock::new(),
         })
     }
 
     /// Read one exact program index artifact.
     fn program_index(&self, kind: IndexKind) -> QueryResult<&ProgramIndex> {
+        let artifact = ArtifactKey::program_index(self.profile_id(), kind);
+        (self.require_artifacts)(&[artifact])?;
         let index = self.program_indexes[kind.program_index_ordinal()].get_or_init(|| {
             let artifacts = ArtifactReader::new(self.repository(), self.revision());
 
@@ -374,11 +471,20 @@ impl<'a> ProgramQueryContext<'a> {
             return self.component_module_index(module_id, kind);
         }
 
+        // require the exact module index before reading its payload
+        let artifact = ArtifactKey::module_index(module_id, self.profile_id(), kind);
+        (self.require_artifacts)(&[artifact])?;
         let kind_ordinal = kind
             .module_index_ordinal()
             .ok_or_else(|| QueryError::invalid(format!("non-module index family: {kind:?}")))?;
         let ordinal = self.module_ordinal(module_id)?;
-        let index = self.module_indexes[ordinal][kind_ordinal].get_or_init(|| {
+        let module_indexes = self.module_indexes.get_or_init(|| {
+            (0..self.module_ids.len())
+                .map(|_| std::array::from_fn(|_| OnceLock::new()))
+                .collect::<Vec<_>>()
+                .into_boxed_slice()
+        });
+        let index = module_indexes[ordinal][kind_ordinal].get_or_init(|| {
             let artifacts = ArtifactReader::new(self.repository(), self.revision());
 
             artifacts.module_index(module_id, self.profile_id(), kind)
@@ -407,6 +513,8 @@ impl<'a> ProgramQueryContext<'a> {
         let kind_ordinal = kind
             .inference_component_index_ordinal()
             .ok_or_else(|| QueryError::invalid(format!("non-component index family: {kind:?}")))?;
+        let artifact = ArtifactKey::inference_component_index(component, self.profile_id(), kind);
+        (self.require_artifacts)(&[artifact])?;
         let component_indexes = self.component_indexes.get_or_init(|| {
             (0..graph.inference_components().len())
                 .map(|_| std::array::from_fn(|_| OnceLock::new()))
@@ -436,6 +544,8 @@ impl<'a> ProgramQueryContext<'a> {
 
     /// Read the exact component graph artifact.
     fn component_graph(&self) -> QueryResult<&ComponentGraph> {
+        let artifact = ArtifactKey::component_graph(self.profile_id());
+        (self.require_artifacts)(&[artifact])?;
         let graph = self.component_graph.get_or_init(|| {
             let artifacts = ArtifactReader::new(self.repository(), self.revision());
 
@@ -456,7 +566,7 @@ impl<'a> ProgramQueryContext<'a> {
     ) -> QueryResult<(ModuleId, &ModuleIndex)> {
         let ordinal = ordinal as usize;
         let module_id = *self
-            .module_ids()
+            .module_ids
             .get(ordinal)
             .ok_or(QueryError::invalid(format!("program ordinal: {ordinal:?}")))?;
         let index = self.module_index(module_id, kind)?;
@@ -506,7 +616,7 @@ impl<'a> ProgramQueryContext<'a> {
 
     /// Return the ordinal for one indexed module.
     fn module_ordinal(&self, module_id: ModuleId) -> QueryResult<usize> {
-        self.module_ids()
+        self.module_ids
             .binary_search(&module_id)
             .map_err(|_| QueryError::missing(format!("program module: {module_id:?}")))
     }
@@ -517,14 +627,5 @@ impl<'a> ProgramQueryContext<'a> {
             "expected {expected:?} module index, found {:?}",
             index.kind()
         ))
-    }
-}
-
-impl<'a> Deref for ProgramQueryContext<'a> {
-    type Target = QueryContext<'a>;
-
-    /// Return shared semantic access for this program.
-    fn deref(&self) -> &Self::Target {
-        &self.query
     }
 }

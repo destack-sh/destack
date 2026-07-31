@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::{ModuleQueryContext, QueryContext, QueryResult};
+use crate::{ModuleQueryContext, ProgramQueryContext, QueryResult};
 
 impl ModuleQueryContext<'_> {
     /// Return the checked application for one authored decorator.
@@ -15,7 +15,7 @@ impl ModuleQueryContext<'_> {
     }
 }
 
-impl QueryContext<'_> {
+impl ProgramQueryContext<'_> {
     /// Return whether one exact symbol declaration is deprecated.
     pub(crate) fn symbol_is_deprecated(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<bool> {
         let module = self.module(symbol_id.module_id)?;

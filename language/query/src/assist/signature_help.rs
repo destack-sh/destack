@@ -4,8 +4,8 @@ use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AppliedSignature, Formatter, ModuleQueryContext, QueryContext, QueryError, QueryPosition,
-    QueryResult,
+    AppliedSignature, Formatter, ModuleQueryContext, ProgramQueryContext, QueryError,
+    QueryPosition, QueryResult,
 };
 
 /// One parameter shown by signature help.
@@ -57,7 +57,7 @@ impl ModuleQueryContext<'_> {
     /// Return signature help for the innermost selected call at one offset.
     pub fn signature_help(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<SignatureHelp>> {
@@ -139,7 +139,7 @@ impl ModuleQueryContext<'_> {
     /// Format every statically selected symbol call target.
     fn call_signature_items(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         callee_id: dir::LocalNodeId<dir::Expression>,
         resolution: &dir::CallResolution,
     ) -> QueryResult<Option<Vec<SignatureItem>>> {
@@ -189,7 +189,7 @@ impl ModuleQueryContext<'_> {
     /// Format one selected callable symbol from its recorded declaration.
     fn call_signature_item(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         symbol: dir::GlobalSymbolId,
         generic_arguments: &[dir::GenericArgumentBinding],
         bindings: &[dir::ArgumentBinding],
@@ -211,7 +211,7 @@ impl ModuleQueryContext<'_> {
 
         self.selected_signature_item(
             query,
-            module,
+            &module,
             symbol_id,
             &name,
             parameters,
@@ -224,7 +224,7 @@ impl ModuleQueryContext<'_> {
     /// Format one expression-backed callable selection.
     fn expression_signature_item(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         callee_id: dir::LocalNodeId<dir::Expression>,
         generic_arguments: &[dir::GenericArgumentBinding],
         bindings: &[dir::ArgumentBinding],
@@ -261,7 +261,7 @@ impl ModuleQueryContext<'_> {
     /// Format one selected declaration signature with applied call types.
     fn selected_signature_item(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         declaration_module: &ModuleQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
         name: &str,
@@ -311,7 +311,7 @@ impl ModuleQueryContext<'_> {
     /// Format the exact constructor selected by checking.
     fn construct_signature_items(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         resolution: &dir::ConstructResolution,
     ) -> QueryResult<Option<Vec<SignatureItem>>> {
         let item = match &resolution.target {
@@ -397,7 +397,7 @@ impl ModuleQueryContext<'_> {
     /// Format one selected class constructor.
     fn class_signature_item(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         candidate: &dir::ClassConstructCandidate,
         resolution: &dir::ConstructResolution,
     ) -> QueryResult<Option<SignatureItem>> {
@@ -427,7 +427,7 @@ impl ModuleQueryContext<'_> {
 
         self.selected_signature_item(
             query,
-            module,
+            &module,
             constructor_symbol,
             &name,
             parameters,
@@ -440,7 +440,7 @@ impl ModuleQueryContext<'_> {
     /// Build one signature help item from a selected call signature.
     fn signature_item(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
         name: &str,
         generic_arguments: &[dir::GenericArgumentBinding],

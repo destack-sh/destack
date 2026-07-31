@@ -4,7 +4,8 @@ use destack_source::{FileId, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Formatter, ModuleQueryContext, QueryContext, QueryError, QueryPosition, QueryResult, Target,
+    Formatter, ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult,
+    Target,
 };
 
 /// Hover content for one declaration.
@@ -47,7 +48,7 @@ impl ModuleQueryContext<'_> {
     /// Return hover content for the symbol at the given position.
     pub fn hover(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<Hover>> {
@@ -67,7 +68,7 @@ impl ModuleQueryContext<'_> {
         let mut items = Vec::new();
         for symbol in symbols {
             let module = query.module(symbol.module_id)?;
-            let signature = Formatter::new(module, query).symbol_signature(symbol)?;
+            let signature = Formatter::new(&module, query).symbol_signature(symbol)?;
             let documentation = query.symbol_documentation(symbol)?;
             let target = module.symbol_target(symbol)?;
 
@@ -91,7 +92,7 @@ impl ModuleQueryContext<'_> {
     /// Format an occurrence type when it differs from every declaration type.
     fn format_distinct_type(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         type_id: Option<dir::GlobalTypeId>,
         symbols: &[dir::GlobalSymbolId],
     ) -> QueryResult<Option<String>> {
@@ -123,7 +124,7 @@ impl ModuleQueryContext<'_> {
         // omit a type already represented by a declaration
         for symbol_id in symbols {
             let module = query.module(symbol_id.module_id)?;
-            let declared_text = Formatter::new(module, query)
+            let declared_text = Formatter::new(&module, query)
                 .symbol_type(*symbol_id)?
                 .ok_or(QueryError::invalid(format!(
                     "hover type formatting: {symbol_id:?}"

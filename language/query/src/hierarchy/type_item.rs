@@ -4,7 +4,7 @@ use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Formatter, ModuleQueryContext, QueryContext, QueryError, QueryPosition, QueryResult,
+    Formatter, ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult,
     SymbolKind, Target,
 };
 
@@ -59,7 +59,7 @@ pub(crate) struct TypeItemOrder<'a> {
 impl TypeItem {
     /// Build the hierarchy item for one type symbol.
     pub(crate) fn from_symbol(
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<Self>> {
         let Some(canonical_id) = query.canonical_symbol(symbol_id)? else {
@@ -98,7 +98,7 @@ impl TypeItem {
                 )))?;
 
         let target = Target::new(module.module(), range).with_selection_span(selection_range)?;
-        let detail = Formatter::new(module, query).symbol_generics(canonical_id)?;
+        let detail = Formatter::new(&module, query).symbol_generics(canonical_id)?;
 
         Ok(Some(Self {
             name,
@@ -127,7 +127,7 @@ impl ModuleQueryContext<'_> {
     /// Return a type item at the given position.
     pub fn type_item(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<TypeItem>> {

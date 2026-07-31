@@ -3,7 +3,9 @@ use destack_serde::Reflect;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
-use crate::{Formatter, ModuleQueryContext, QueryContext, QueryError, QueryRange, QueryResult};
+use crate::{
+    Formatter, ModuleQueryContext, ProgramQueryContext, QueryError, QueryRange, QueryResult,
+};
 
 /// Kind of inlay hint.
 #[derive(
@@ -77,7 +79,7 @@ impl ModuleQueryContext<'_> {
     /// Return inlay hints for a range in a file.
     pub fn inlay_hints(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         range: Span,
         type_hints: bool,
         parameter_hints: bool,
@@ -106,7 +108,7 @@ impl ModuleQueryContext<'_> {
     /// Collect inferred type inlay hints.
     fn collect_type_inlay_hints(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         range: Span,
         hints: &mut Vec<InlayHint>,
     ) -> QueryResult<()> {
@@ -160,7 +162,7 @@ impl ModuleQueryContext<'_> {
     /// Collect parameter hints from selected call and construction bindings.
     fn collect_parameter_inlay_hints(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         range: Span,
         hints: &mut Vec<InlayHint>,
     ) -> QueryResult<()> {
@@ -197,7 +199,7 @@ impl ModuleQueryContext<'_> {
     /// Return parameter names for one selected call.
     fn call_parameter_names(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         call: dir::GlobalNodeIdAny,
         resolution: &dir::CallResolution,
     ) -> QueryResult<Vec<Option<String>>> {
@@ -313,7 +315,7 @@ impl ModuleQueryContext<'_> {
     /// Return parameter names for one selected construction.
     fn construct_parameter_names(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         call: dir::GlobalNodeIdAny,
         resolution: &dir::ConstructResolution,
     ) -> QueryResult<Vec<Option<String>>> {

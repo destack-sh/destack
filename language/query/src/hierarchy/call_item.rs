@@ -4,7 +4,8 @@ use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Formatter, ModuleQueryContext, QueryContext, QueryError, QueryPosition, QueryResult, Target,
+    Formatter, ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult,
+    Target,
 };
 
 /// One callable item.
@@ -53,7 +54,7 @@ impl ModuleQueryContext<'_> {
     /// Return a call item at one offset.
     pub fn call_item(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<CallItem>> {
@@ -76,7 +77,7 @@ impl ModuleQueryContext<'_> {
     /// Return the exact call item selected at an authored call head.
     pub(crate) fn selected_call_item(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<CallItem>> {
@@ -156,7 +157,7 @@ impl<'a> ConstructorCall<'a> {
 impl CallItem {
     /// Build one hierarchy item from a callable symbol.
     pub(crate) fn from_symbol(
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<Self>> {
         // follow exact import bindings to their declared symbol
@@ -184,7 +185,7 @@ impl CallItem {
     /// Build one exact callee item from a selected call expression.
     pub(crate) fn from_call(
         source_module: &ModuleQueryContext<'_>,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         source: dir::LocalNodeId<dir::Expression>,
         callee: dir::GlobalSymbolId,
     ) -> QueryResult<Option<Self>> {
@@ -230,7 +231,7 @@ impl CallItem {
 
     /// Build one hierarchy item from an exact callable selection.
     fn from_selection(
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         selection: CallableSelection<'_>,
     ) -> QueryResult<Option<Self>> {
         match selection {
@@ -389,7 +390,7 @@ impl ModuleQueryContext<'_> {
     /// Build one function, method, or declared constructor item.
     fn function_call_item(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
         symbol: &dir::Symbol,
     ) -> QueryResult<Option<CallItem>> {
@@ -411,7 +412,7 @@ impl ModuleQueryContext<'_> {
     /// Build one free function item.
     fn function_declaration_call_item(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
         source: dir::LocalNodeIdAny,
     ) -> QueryResult<Option<CallItem>> {
@@ -445,7 +446,7 @@ impl ModuleQueryContext<'_> {
     /// Build one method or declared constructor item.
     fn method_call_item(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<CallItem>> {
         let (declaring, definition, method) = self.method_definition(symbol_id)?;
@@ -500,7 +501,7 @@ impl ModuleQueryContext<'_> {
     /// Build one implicit class constructor item.
     fn class_call_item(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<CallItem>> {
         let Some(definition) = self.definitions().definition(symbol_id) else {
@@ -550,7 +551,7 @@ impl ModuleQueryContext<'_> {
     /// Build one nominal newtype constructor item.
     fn newtype_call_item(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
         call: Option<ConstructorCall<'_>>,
     ) -> QueryResult<Option<CallItem>> {
@@ -626,7 +627,7 @@ impl ModuleQueryContext<'_> {
     /// Format one exact generated constructor call.
     fn construct_call_signature(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
         name: &str,
         call: ConstructorCall<'_>,
@@ -696,7 +697,7 @@ impl ModuleQueryContext<'_> {
     /// Return the display name for one call item container.
     fn call_item_container(
         &self,
-        query: &QueryContext<'_>,
+        query: &ProgramQueryContext<'_>,
         declaring: dir::GlobalSymbolId,
         definition: &dir::Definition,
     ) -> QueryResult<Option<String>> {
