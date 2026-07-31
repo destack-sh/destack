@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::worker::scheduler::RunnableId;
+use crate::scheduler::RunnableId;
 
 /// Currently running task or microtask.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

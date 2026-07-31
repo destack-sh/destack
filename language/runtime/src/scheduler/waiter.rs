@@ -1,4 +1,5 @@
 use destack_heap as heap;
+use destack_memory::MemoryMap;
 use destack_program as program;
 use serde::{Deserialize, Serialize};
 
@@ -30,9 +31,9 @@ struct WaiterSlot {
 
 impl WaiterTable {
     /// Fork this waiter table for one forked World.
-    pub(super) fn fork(&self) -> Self {
+    pub(super) fn inherit(&self) -> Self {
         Self {
-            slots: self.slots.iter().map(WaiterSlot::fork).collect(),
+            slots: self.slots.iter().map(WaiterSlot::inherit).collect(),
             vacant: self.vacant.clone(),
             len: self.len,
         }
@@ -83,6 +84,20 @@ impl WaiterTable {
         Some((continuation, task))
     }
 
+    /// Borrow one live waiter's task owner and continuation.
+    pub(super) fn get(
+        &self,
+        waiter: program::Waiter,
+    ) -> Option<(Option<program::Task>, &program::Continuation)> {
+        let slot = self.slots.get(waiter.index() as usize)?;
+        if slot.generation != waiter.generation() {
+            return None;
+        }
+        let continuation = slot.continuation.as_ref()?;
+
+        Some((slot.task, continuation))
+    }
+
     /// Return whether one waiter names a live suspended continuation.
     pub(super) fn contains(&self, waiter: program::Waiter) -> bool {
         self.slots.get(waiter.index() as usize).is_some_and(|slot| {
@@ -114,6 +129,7 @@ impl WaiterTable {
     pub(super) fn visit_root_slots(
         &mut self,
         program: &program::Program,
+        memory: &MemoryMap,
         visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
     ) -> RuntimeResult<()> {
         for slot in &mut self.slots {
@@ -121,8 +137,30 @@ impl WaiterTable {
                 continue;
             };
             program
-                .visit_continuation_root_slots(continuation, visit)
+                .visit_continuation_root_slots(memory, continuation, visit)
                 .map_err(Box::<RuntimeError>::from)?;
+        }
+
+        Ok(())
+    }
+
+    /// Release every suspended continuation retained by this table.
+    pub(super) fn release(self, memory: &MemoryMap) -> program::Result<()> {
+        let mut error = None;
+
+        for slot in self.slots {
+            let Some(continuation) = slot.continuation else {
+                continue;
+            };
+            if let Err(current) = continuation.release(memory)
+                && error.is_none()
+            {
+                error = Some(current);
+            }
+        }
+
+        if let Some(error) = error {
+            return Err(error);
         }
 
         Ok(())
@@ -131,10 +169,13 @@ impl WaiterTable {
 
 impl WaiterSlot {
     /// Fork this waiter slot for one forked World.
-    fn fork(&self) -> Self {
+    fn inherit(&self) -> Self {
         Self {
             generation: self.generation,
-            continuation: self.continuation.as_ref().map(program::Continuation::fork),
+            continuation: self
+                .continuation
+                .as_ref()
+                .map(program::Continuation::inherit),
             task: self.task,
         }
     }
@@ -142,18 +183,18 @@ impl WaiterSlot {
 
 impl EventLoop {
     /// Add one waiter for a timer resource.
-    pub fn add_timer_waiter(&mut self, resource_id: ResourceId, callback: Callback) {
+    pub(crate) fn add_timer_waiter(&mut self, resource_id: ResourceId, callback: Callback) {
         self.wake_waiters
             .insert(WakeKey::Timer(resource_id), callback);
     }
 
     /// Remove the callback registered for one timer resource.
-    pub fn remove_timer_waiter(&mut self, resource_id: ResourceId) -> Option<Callback> {
+    pub(crate) fn remove_timer_waiter(&mut self, resource_id: ResourceId) -> Option<Callback> {
         self.wake_waiters.remove(&WakeKey::Timer(resource_id))
     }
 
     /// Add one waiter for one resource readiness.
-    pub fn add_resource_waiter(
+    pub(crate) fn add_resource_waiter(
         &mut self,
         resource_id: ResourceId,
         readiness: Readiness,
@@ -169,7 +210,11 @@ impl EventLoop {
     }
 
     /// Return whether one waiter is registered for one resource readiness.
-    pub fn has_resource_waiter(&self, resource_id: ResourceId, readiness: Readiness) -> bool {
+    pub(crate) fn has_resource_waiter(
+        &self,
+        resource_id: ResourceId,
+        readiness: Readiness,
+    ) -> bool {
         self.wake_waiters.contains_key(&WakeKey::Resource {
             resource_id,
             readiness,
@@ -177,17 +222,17 @@ impl EventLoop {
     }
 
     /// Add one waiter for a host event kind.
-    pub fn add_host_waiter(&mut self, kind: HostEventKind, callback: Callback) {
+    pub(crate) fn add_host_waiter(&mut self, kind: HostEventKind, callback: Callback) {
         self.wake_waiters.insert(WakeKey::Host(kind), callback);
     }
 
     /// Return whether one waiter is registered for the given host event kind.
-    pub fn has_host_waiter(&self, kind: HostEventKind) -> bool {
+    pub(crate) fn has_host_waiter(&self, kind: HostEventKind) -> bool {
         self.wake_waiters.contains_key(&WakeKey::Host(kind))
     }
 
     /// Dispatch one wake into the task queue.
-    pub fn dispatch(&mut self, wake: Wake) -> Option<RunnableId> {
+    pub(crate) fn dispatch(&mut self, wake: Wake) -> Option<RunnableId> {
         let key = wake.key();
         let is_inactive_timer = matches!(key, WakeKey::Timer(resource_id) if !self.timers.has_active_timer(resource_id));
         let invocation = if is_inactive_timer {
@@ -210,12 +255,15 @@ impl EventLoop {
         waiter: program::Waiter,
         value: program::Value,
     ) -> program::Result<bool> {
-        let Some((continuation, task)) = self.waiters.take(waiter) else {
+        let Some((task, _)) = self.waiters.get(waiter) else {
             return Ok(false);
         };
         if let Some(task) = task {
             self.task_table.ready(task, false)?;
         }
+        let Some((continuation, task)) = self.waiters.take(waiter) else {
+            unreachable!("validated waiter disappeared before queueing");
+        };
         let invocation = Invocation::resume(task, continuation, value);
         self.enqueue_microtask(invocation);
 
@@ -224,12 +272,15 @@ impl EventLoop {
 
     /// Attempt to queue one waiter cancellation as a microtask.
     pub(crate) fn cancel_waiter(&mut self, waiter: program::Waiter) -> program::Result<bool> {
-        let Some((continuation, task)) = self.waiters.take(waiter) else {
+        let Some((task, _)) = self.waiters.get(waiter) else {
             return Ok(false);
         };
         if let Some(task) = task {
             self.task_table.ready(task, true)?;
         }
+        let Some((continuation, task)) = self.waiters.take(waiter) else {
+            unreachable!("validated waiter disappeared before cancellation");
+        };
         let invocation = Invocation::cancel(task, continuation);
         self.enqueue_microtask(invocation);
 

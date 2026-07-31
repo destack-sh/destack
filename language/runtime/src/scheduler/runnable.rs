@@ -1,4 +1,5 @@
 use destack_heap as heap;
+use destack_memory::MemoryMap;
 use destack_program as program;
 use serde::{Deserialize, Serialize};
 
@@ -62,17 +63,17 @@ pub struct Runnable {
     pub invocation: Invocation,
 }
 
-/// Runnable stopped at one runtime stop point.
+/// Runnable retained across one runtime handshake or debugger stop.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct StoppedRunnable {
+pub struct RetainedRunnable {
     /// Runnable identifier used for ordering and logging.
     pub id: RunnableId,
     /// Runnable scope active when execution stopped.
     pub scope: RunnableScope,
     /// Task settled by this execution when present.
     pub task: Option<program::Task>,
-    /// Reason the runnable stopped.
-    pub reason: program::StopReason,
+    /// Debugger stop reason when execution is externally paused.
+    pub reason: Option<program::StopReason>,
 }
 
 /// Opaque runnable identifier used by the event loop.
@@ -119,7 +120,7 @@ impl Invocation {
     }
 
     /// Fork this invocation for one forked World.
-    pub fn fork(&self) -> Self {
+    pub fn inherit(&self) -> Self {
         match self {
             Self::Function {
                 function,
@@ -136,19 +137,19 @@ impl Invocation {
                 value,
             } => Self::Resume {
                 task: *task,
-                continuation: continuation.fork(),
+                continuation: continuation.inherit(),
                 value: value.fork(),
             },
             Self::Complete {
                 continuation,
                 value,
             } => Self::Complete {
-                continuation: continuation.fork(),
+                continuation: continuation.inherit(),
                 value: value.fork(),
             },
             Self::Cancel { task, continuation } => Self::Cancel {
                 task: *task,
-                continuation: continuation.fork(),
+                continuation: continuation.inherit(),
             },
         }
     }
@@ -171,10 +172,28 @@ impl Invocation {
         }
     }
 
+    /// Release the suspended continuation owned by this invocation when present.
+    pub(crate) fn release(self, memory: &MemoryMap) -> RuntimeResult<()> {
+        let continuation = match self {
+            Self::Resume { continuation, .. }
+            | Self::Complete { continuation, .. }
+            | Self::Cancel { continuation, .. } => Some(continuation),
+            Self::Function { .. } => None,
+        };
+
+        continuation
+            .map(|continuation| continuation.release(memory))
+            .transpose()
+            .map_err(Box::<RuntimeError>::from)?;
+
+        Ok(())
+    }
+
     /// Visit mutable heap root slots retained by this runnable.
     pub(crate) fn visit_root_slots(
         &mut self,
         program: &program::Program,
+        memory: &MemoryMap,
         visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
     ) -> RuntimeResult<()> {
         match self {
@@ -207,7 +226,7 @@ impl Invocation {
                 value,
             } => {
                 program
-                    .visit_continuation_root_slots(continuation, visit)
+                    .visit_continuation_root_slots(memory, continuation, visit)
                     .map_err(Box::<RuntimeError>::from)?;
                 program
                     .visit_value_root_slots(value, visit)
@@ -216,7 +235,7 @@ impl Invocation {
             // suspended call chain
             Self::Cancel { continuation, .. } => {
                 program
-                    .visit_continuation_root_slots(continuation, visit)
+                    .visit_continuation_root_slots(memory, continuation, visit)
                     .map_err(Box::<RuntimeError>::from)?;
             }
         }
@@ -285,10 +304,10 @@ impl Runnable {
     }
 
     /// Fork this runnable for one forked World.
-    pub(super) fn fork(&self) -> Self {
+    pub(super) fn inherit(&self) -> Self {
         Self {
             id: self.id,
-            invocation: self.invocation.fork(),
+            invocation: self.invocation.inherit(),
         }
     }
 
@@ -296,19 +315,25 @@ impl Runnable {
     pub(crate) fn visit_root_slots(
         &mut self,
         program: &program::Program,
+        memory: &MemoryMap,
         visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
     ) -> RuntimeResult<()> {
-        self.invocation.visit_root_slots(program, visit)
+        self.invocation.visit_root_slots(program, memory, visit)
+    }
+
+    /// Release the suspended continuation owned by this runnable when present.
+    pub(crate) fn release(self, memory: &MemoryMap) -> RuntimeResult<()> {
+        self.invocation.release(memory)
     }
 }
 
-impl StoppedRunnable {
-    /// Create one stopped runnable.
+impl RetainedRunnable {
+    /// Create one retained runnable.
     pub const fn new(
         id: RunnableId,
         scope: RunnableScope,
         task: Option<program::Task>,
-        reason: program::StopReason,
+        reason: Option<program::StopReason>,
     ) -> Self {
         Self {
             id,

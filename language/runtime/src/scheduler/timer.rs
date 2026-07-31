@@ -60,6 +60,7 @@ pub(super) struct TimerQueue {
     next_generation: u64,
 }
 
+#[allow(dead_code)]
 impl TimerQueue {
     /// Fork this timer queue from its deterministic active timer image.
     pub(super) fn fork(&self) -> RuntimeResult<Self> {
@@ -400,6 +401,7 @@ impl PartialOrd for TimerEntry {
     }
 }
 
+#[allow(dead_code)]
 impl EventLoop {
     /// Normalize one timer deadline using scheduler options.
     pub(super) fn normalize_deadline(&self, deadline: Nanos) -> Nanos {
@@ -407,7 +409,7 @@ impl EventLoop {
     }
 
     /// Schedule a timer in the runtime queue.
-    pub fn schedule_timer(&mut self, timer: ScheduledTimer) -> RuntimeResult<()> {
+    pub(crate) fn schedule_timer(&mut self, timer: ScheduledTimer) -> RuntimeResult<()> {
         let deadline = TimerDeadline {
             clock: timer.deadline.clock,
             at: self.normalize_deadline(timer.deadline.at),
@@ -434,13 +436,13 @@ impl EventLoop {
     }
 
     /// Cancel a timer by resource id.
-    pub fn cancel_timer(&mut self, resource_id: ResourceId) -> RuntimeResult<()> {
+    pub(crate) fn cancel_timer(&mut self, resource_id: ResourceId) -> RuntimeResult<()> {
         self.timers.cancel(resource_id);
         Ok(())
     }
 
     /// Pop one timer that is ready at the given time.
-    pub fn pop_ready_timer(
+    pub(crate) fn pop_ready_timer(
         &mut self,
         wall_now: Nanos,
         mono_now: Nanos,

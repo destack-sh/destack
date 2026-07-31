@@ -1,17 +1,17 @@
 use std::collections::{BTreeMap, VecDeque};
 
+use destack_memory::MemoryMap;
 use destack_program as program;
 
 use super::task::TaskTable;
 use super::timer::TimerQueue;
 use super::waiter::WaiterTable;
 use super::{Callback, Invocation, Runnable, RunnableId, Wake, WakeKey};
-use crate::host::HostEvent;
-use crate::host::poller::PollerEvent;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 
 /// Event loop for tasks, microtasks, timers, waiters, and wakes.
 #[derive(Debug, Default)]
-pub struct EventLoop {
+pub(crate) struct EventLoop {
     /// Pending tasks.
     pub(super) tasks: VecDeque<Runnable>,
     /// Pending microtasks that drain before tasks.
@@ -34,7 +34,7 @@ pub struct EventLoop {
 
 impl EventLoop {
     /// Enqueue a task for execution.
-    pub fn enqueue_task(&mut self, invocation: Invocation) -> RunnableId {
+    pub(crate) fn enqueue_task(&mut self, invocation: Invocation) -> RunnableId {
         let runnable = self.identify(invocation);
         let id = runnable.id;
         self.tasks.push_back(runnable);
@@ -43,7 +43,7 @@ impl EventLoop {
     }
 
     /// Enqueue a microtask for execution.
-    pub fn enqueue_microtask(&mut self, invocation: Invocation) -> RunnableId {
+    pub(crate) fn enqueue_microtask(&mut self, invocation: Invocation) -> RunnableId {
         let runnable = self.identify(invocation);
         let id = runnable.id;
         self.microtasks.push_back(runnable);
@@ -52,35 +52,17 @@ impl EventLoop {
     }
 
     /// Enqueue one wake.
-    pub fn enqueue_wake(&mut self, wake: Wake) {
+    pub(crate) fn enqueue_wake(&mut self, wake: Wake) {
         self.wakes.push_back(wake);
     }
 
-    /// Enqueue poller wakes.
-    pub fn enqueue_poller_wakes(&mut self, events: Vec<PollerEvent>) {
-        let mut events = events;
-        self.sort_poller_wakes(&mut events);
-        self.wakes.extend(
-            events
-                .into_iter()
-                .map(super::ResourceWake::poller)
-                .map(Wake::Resource),
-        );
-    }
-
-    /// Enqueue host wakes.
-    pub fn enqueue_host_wakes(&mut self, events: Vec<HostEvent>) {
-        self.wakes
-            .extend(events.into_iter().map(super::HostWake::new).map(Wake::Host));
-    }
-
     /// Pop the next microtask if available.
-    pub fn pop_microtask(&mut self) -> Option<Runnable> {
+    pub(crate) fn pop_microtask(&mut self) -> Option<Runnable> {
         self.microtasks.pop_front()
     }
 
     /// Pop the next task if available.
-    pub fn pop_task(&mut self) -> Option<Runnable> {
+    pub(crate) fn pop_task(&mut self) -> Option<Runnable> {
         self.tasks.pop_front()
     }
 
@@ -94,9 +76,40 @@ impl EventLoop {
         self.drops.push(value);
     }
 
-    /// Report whether any microtasks are pending.
-    pub fn has_microtasks(&self) -> bool {
-        !self.microtasks.is_empty()
+    /// Clear scheduler state and release every suspended continuation.
+    pub(crate) fn clear(&mut self, memory: &MemoryMap) -> RuntimeResult<()> {
+        let tasks = std::mem::take(&mut self.tasks);
+        let microtasks = std::mem::take(&mut self.microtasks);
+        let waiters = std::mem::take(&mut self.waiters);
+
+        // clear scheduler state before releasing its continuation ranges
+        self.timers = TimerQueue::default();
+        self.wakes.clear();
+        self.wake_waiters.clear();
+        self.task_table = TaskTable::default();
+        self.drops.clear();
+        self.next_runnable_id = 0;
+
+        // release every queued and parked continuation even when one release fails
+        let mut error = None;
+        for runnable in tasks.into_iter().chain(microtasks) {
+            if let Err(current) = runnable.release(memory)
+                && error.is_none()
+            {
+                error = Some(current);
+            }
+        }
+        if let Err(current) = waiters.release(memory).map_err(Box::<RuntimeError>::from)
+            && error.is_none()
+        {
+            error = Some(current);
+        }
+
+        if let Some(error) = error {
+            return Err(error);
+        }
+
+        Ok(())
     }
 
     /// Identify one function invocation for queue execution.

@@ -134,6 +134,31 @@ impl TaskTable {
             .ok_or(program::Error::UndefinedTask { task })
     }
 
+    /// Borrow one live task state.
+    fn state(&self, task: program::Task) -> program::Result<&TaskState> {
+        let Some(slot) = self.slots.get(task.index() as usize) else {
+            return Err(program::Error::UndefinedTask { task });
+        };
+        if slot.generation != task.generation() {
+            return Err(program::Error::UndefinedTask { task });
+        }
+
+        slot.state
+            .as_ref()
+            .ok_or(program::Error::UndefinedTask { task })
+    }
+
+    /// Require one running task that may enter suspension.
+    fn require_suspension(&self, task: program::Task) -> program::Result<()> {
+        match self.state(task)? {
+            TaskState::Running {
+                is_cancelled: false,
+                ..
+            } => Ok(()),
+            _ => Err(program::Error::InvalidTaskState { task }),
+        }
+    }
+
     /// Take one live task state for one immediate transition.
     fn take(&mut self, task: program::Task) -> program::Result<TaskState> {
         let Some(slot) = self.slots.get_mut(task.index() as usize) else {
@@ -531,19 +556,18 @@ impl EventLoop {
         })
     }
 
-    /// Suspend one running task and return its runtime waiter.
+    /// Suspend one running task or return its continuation unchanged.
     pub(crate) fn suspend_task(
         &mut self,
         task: program::Task,
         continuation: program::Continuation,
-    ) -> program::Result<program::Waiter> {
+    ) -> Result<program::Waiter, (program::Error, program::Continuation)> {
+        if let Err(error) = self.task_table.require_suspension(task) {
+            return Err((error, continuation));
+        }
         let waiter = self.waiters.insert(continuation, Some(task));
-        if let Err(error) = self.task_table.suspend(task, waiter) {
-            let Some(_) = self.waiters.take(waiter) else {
-                return Err(program::Error::UndefinedWaiter { waiter });
-            };
-
-            return Err(error);
+        if self.task_table.suspend(task, waiter).is_err() {
+            unreachable!("validated task changed before suspension");
         }
 
         Ok(waiter)

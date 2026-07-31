@@ -9,7 +9,7 @@ mod waiter;
 mod wake;
 
 pub use image::*;
-pub use r#loop::*;
+pub(crate) use r#loop::*;
 pub use runnable::*;
 pub use timer::*;
 pub use wake::*;

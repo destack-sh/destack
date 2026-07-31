@@ -6,10 +6,11 @@ use crate::host::poller::{
 };
 use crate::host::time::TimerClock;
 use crate::host::{HostEvent, LifecycleEvent, LifecycleSourceKind, LifecycleState, ResourceId};
-use crate::worker::WorkerId;
-use crate::worker::scheduler::{
-    Callback, EventLoop, Invocation, Readiness, ResourceWake, ScheduledTimer, TimerDeadline, Wake,
+use crate::scheduler::{
+    Callback, EventLoop, HostWake, Invocation, Readiness, ResourceWake, ScheduledTimer,
+    TimerDeadline, Wake,
 };
+use crate::worker::WorkerId;
 use crate::world::time::Nanos;
 
 /// Dequeues microtasks before tasks.
@@ -35,14 +36,7 @@ fn test_event_loop_drains_microtasks_before_tasks() {
 fn test_event_loop_fork_preserves_pending_state() {
     // one queued resource wake and one ready timer
     let mut event_loop = EventLoop::default();
-    event_loop.enqueue_poller_wakes(vec![PollerEvent {
-        resource_id: resource_id(61),
-        source: PollerEventSource::Io,
-        mask: PollerEventMask::READABLE,
-        flags: PollerEventFlags::NONE,
-        token: PollerToken(991),
-        payload: PollerEventPayload::Io { data: 7 },
-    }]);
+    event_loop.enqueue_wake(resource_wake(61, 991));
     event_loop
         .schedule_timer(ScheduledTimer {
             resource_id: resource_id(62),
@@ -145,19 +139,12 @@ fn test_event_loop_identifies_repeated_dispatches() {
 #[test]
 fn test_event_loop_dequeues_wakes_in_ingress_order() {
     let mut event_loop = EventLoop::default();
-    event_loop.enqueue_poller_wakes(vec![PollerEvent {
-        resource_id: resource_id(702),
-        source: PollerEventSource::Io,
-        mask: PollerEventMask::READABLE,
-        flags: PollerEventFlags::NONE,
-        token: PollerToken(8),
-        payload: PollerEventPayload::Io { data: 0 },
-    }]);
+    event_loop.enqueue_wake(resource_wake(702, 8));
     let event = HostEvent::Lifecycle(LifecycleEvent {
         source_kind: LifecycleSourceKind::Application,
         state: LifecycleState::Running,
     });
-    event_loop.enqueue_host_wakes(vec![event.clone()]);
+    event_loop.enqueue_wake(Wake::Host(HostWake::new(event.clone())));
 
     let first = event_loop
         .next_wake(Nanos::new(0), Nanos::new(0))
@@ -177,14 +164,7 @@ fn test_event_loop_dequeues_wakes_in_ingress_order() {
 #[test]
 fn test_event_loop_prioritizes_due_timers() {
     let mut event_loop = EventLoop::default();
-    event_loop.enqueue_poller_wakes(vec![PollerEvent {
-        resource_id: resource_id(703),
-        source: PollerEventSource::Io,
-        mask: PollerEventMask::READABLE,
-        flags: PollerEventFlags::NONE,
-        token: PollerToken(9),
-        payload: PollerEventPayload::Io { data: 0 },
-    }]);
+    event_loop.enqueue_wake(resource_wake(703, 9));
     event_loop
         .schedule_timer(ScheduledTimer {
             resource_id: resource_id(704),
@@ -208,6 +188,18 @@ fn test_event_loop_prioritizes_due_timers() {
         second,
         Some(Wake::Resource(wake)) if wake.readiness == Readiness::Readable
     ));
+}
+
+/// Build one readable scheduler resource wake.
+fn resource_wake(local_id: u64, token: u64) -> Wake {
+    Wake::Resource(ResourceWake::poller(PollerEvent {
+        resource_id: resource_id(local_id),
+        source: PollerEventSource::Io,
+        mask: PollerEventMask::READABLE,
+        flags: PollerEventFlags::NONE,
+        token: PollerToken(token),
+        payload: PollerEventPayload::Io { data: 0 },
+    }))
 }
 
 /// Build one scheduler test resource id.

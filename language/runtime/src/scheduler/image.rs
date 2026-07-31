@@ -1,8 +1,10 @@
 use destack_core::{Capture, CaptureMode};
+use destack_memory::MemoryMap;
 use destack_program as program;
 use serde::{Deserialize, Serialize};
 
 use super::task::TaskTable;
+use super::timer::TimerQueue;
 use super::waiter::WaiterTable;
 use super::{Callback, EventLoop, Runnable, ScheduledTimer, Wake, WakeKey};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -42,17 +44,17 @@ impl Clone for EventLoopImage {
     fn clone(&self) -> Self {
         Self {
             next_runnable_id: self.next_runnable_id,
-            active: self.active.as_ref().map(|image| Box::new(image.fork())),
+            active: self.active.as_ref().map(|image| Box::new(image.inherit())),
         }
     }
 }
 
 impl EventLoopActiveImage {
     /// Fork this active image through explicit COW value sharing.
-    fn fork(&self) -> Self {
+    fn inherit(&self) -> Self {
         Self {
-            tasks: self.tasks.iter().map(Runnable::fork).collect(),
-            microtasks: self.microtasks.iter().map(Runnable::fork).collect(),
+            tasks: self.tasks.iter().map(Runnable::inherit).collect(),
+            microtasks: self.microtasks.iter().map(Runnable::inherit).collect(),
             wakes: self.wakes.clone(),
             timers: self.timers.clone(),
             wake_waiters: self
@@ -60,7 +62,7 @@ impl EventLoopActiveImage {
                 .iter()
                 .map(|(key, callback)| (*key, callback.fork()))
                 .collect(),
-            waiters: self.waiters.fork(),
+            waiters: self.waiters.inherit(),
             task_table: self.task_table.fork(),
             drops: self.drops.iter().map(program::Value::fork).collect(),
         }
@@ -77,17 +79,19 @@ impl EventLoopActiveImage {
 impl EventLoop {
     /// Fork one event loop for one child worker.
     pub(crate) fn fork(&self) -> RuntimeResult<Self> {
+        let timers = self.timers.fork()?;
+
         Ok(Self {
-            tasks: self.tasks.iter().map(Runnable::fork).collect(),
-            microtasks: self.microtasks.iter().map(Runnable::fork).collect(),
-            timers: self.timers.fork()?,
+            tasks: self.tasks.iter().map(Runnable::inherit).collect(),
+            microtasks: self.microtasks.iter().map(Runnable::inherit).collect(),
+            timers,
             wakes: self.wakes.clone(),
             wake_waiters: self
                 .wake_waiters
                 .iter()
                 .map(|(key, callback)| (*key, callback.fork()))
                 .collect(),
-            waiters: self.waiters.fork(),
+            waiters: self.waiters.inherit(),
             task_table: self.task_table.fork(),
             drops: self.drops.iter().map(program::Value::fork).collect(),
             next_runnable_id: self.next_runnable_id,
@@ -97,11 +101,11 @@ impl EventLoop {
     /// Capture one durable event-loop image.
     pub(crate) fn image(&self) -> RuntimeResult<EventLoopImage> {
         // capture queued invocations
-        let tasks = self.tasks.iter().map(Runnable::fork).collect::<Vec<_>>();
+        let tasks = self.tasks.iter().map(Runnable::inherit).collect::<Vec<_>>();
         let microtasks = self
             .microtasks
             .iter()
-            .map(Runnable::fork)
+            .map(Runnable::inherit)
             .collect::<Vec<_>>();
 
         // capture wake waiters
@@ -136,7 +140,7 @@ impl EventLoop {
                 wakes: self.wakes.iter().cloned().collect(),
                 timers,
                 wake_waiters,
-                waiters: self.waiters.fork(),
+                waiters: self.waiters.inherit(),
                 task_table: self.task_table.fork(),
                 drops: self.drops.iter().map(program::Value::fork).collect(),
             })),
@@ -144,39 +148,42 @@ impl EventLoop {
     }
 
     /// Restore one durable event-loop image.
-    pub(crate) fn restore(&mut self, image: &EventLoopImage) -> RuntimeResult<()> {
-        // clear dynamic state before rebuilding the image
-        self.tasks.clear();
-        self.microtasks.clear();
-        self.wakes.clear();
-        self.timers.restore_image(&[])?;
-        self.wake_waiters.clear();
-        self.waiters = WaiterTable::default();
-        self.task_table = TaskTable::default();
-        self.drops.clear();
-        self.next_runnable_id = image.next_runnable_id;
-
+    pub(crate) fn restore(
+        &mut self,
+        image: &EventLoopImage,
+        memory: &MemoryMap,
+    ) -> RuntimeResult<()> {
+        let next_runnable_id = image.next_runnable_id;
         let Some(image) = image.active() else {
+            self.clear(memory)?;
+            self.next_runnable_id = next_runnable_id;
+
             return Ok(());
         };
 
-        // rebuild queued invocations
-        let tasks = image.tasks.iter().map(Runnable::fork);
-        let microtasks = image.microtasks.iter().map(Runnable::fork);
+        // rebuild fallible scheduler state before inheriting continuation ownership
+        let mut timers = TimerQueue::default();
+        timers.restore_image(&image.timers)?;
+
+        // release current ownership before rebuilding the image
+        self.clear(memory)?;
+
+        // inherit queued invocations and callbacks
+        let tasks = image.tasks.iter().map(Runnable::inherit);
+        let microtasks = image.microtasks.iter().map(Runnable::inherit);
         let wake_waiters = image
             .wake_waiters
             .iter()
             .map(|(key, callback)| (*key, callback.fork()));
 
-        // restore queue payloads
+        // restore scheduler state without further failure points
+        self.next_runnable_id = next_runnable_id;
         self.tasks.extend(tasks);
         self.microtasks.extend(microtasks);
         self.wakes.extend(image.wakes.iter().cloned());
-        self.timers.restore_image(&image.timers)?;
-
-        // restore waiters
+        self.timers = timers;
         self.wake_waiters.extend(wake_waiters);
-        self.waiters = image.waiters.fork();
+        self.waiters = image.waiters.inherit();
         self.task_table = image.task_table.fork();
         self.drops
             .extend(image.drops.iter().map(program::Value::fork));
@@ -189,7 +196,7 @@ impl Capture for EventLoop {
     type Image = EventLoopImage;
     type Error = Box<RuntimeError>;
     type CaptureContext<'a> = ();
-    type RestoreContext<'a> = ();
+    type RestoreContext<'a> = &'a MemoryMap;
 
     /// Capture one event-loop image.
     fn capture_image(
@@ -204,9 +211,9 @@ impl Capture for EventLoop {
     fn restore_image(
         &mut self,
         image: &Self::Image,
-        _context: Self::RestoreContext<'_>,
+        memory: Self::RestoreContext<'_>,
     ) -> Result<(), Self::Error> {
-        self.restore(image)
+        self.restore(image, memory)
     }
 }
 

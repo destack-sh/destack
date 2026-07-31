@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::host::ResourceId;
+use crate::scheduler::RunnableId;
 use crate::worker::WorkerId;
-use crate::worker::scheduler::RunnableId;
 use crate::world::policy::RuleId;
 use crate::world::time::Instant;
 use crate::world::topology::{EdgeId, EdgeKind, EntityId, EntityKind};

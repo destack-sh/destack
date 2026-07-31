@@ -1,4 +1,5 @@
 use destack_heap as heap;
+use destack_memory::MemoryMap;
 use destack_program as program;
 
 use super::EventLoop;
@@ -9,16 +10,17 @@ impl EventLoop {
     pub(crate) fn visit_root_slots(
         &mut self,
         program: &program::Program,
+        memory: &MemoryMap,
         visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
     ) -> RuntimeResult<()> {
         // queued tasks
         for runnable in &mut self.tasks {
-            runnable.visit_root_slots(program, visit)?;
+            runnable.visit_root_slots(program, memory, visit)?;
         }
 
         // queued microtasks
         for runnable in &mut self.microtasks {
-            runnable.visit_root_slots(program, visit)?;
+            runnable.visit_root_slots(program, memory, visit)?;
         }
 
         // external wake waiters
@@ -27,7 +29,7 @@ impl EventLoop {
         }
 
         // language waiters
-        self.waiters.visit_root_slots(program, visit)?;
+        self.waiters.visit_root_slots(program, memory, visit)?;
 
         // completed task results
         self.task_table.visit_root_slots(program, visit)?;
