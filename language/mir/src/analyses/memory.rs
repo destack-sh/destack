@@ -642,30 +642,19 @@ impl<'a> MemoryRegionBuilder<'a> {
     fn parameter_region(&self, index: usize, parameter: &mir::FunctionParameter) -> MemoryRegion {
         let ty = self.tree.get(parameter.ty);
 
-        match ty {
-            mir::Type::Reference {
-                kind,
-                storage,
-                access,
-                ..
+        match (
+            ty.reference_kind(),
+            ty.reference_storage(),
+            ty.reference_access(),
+        ) {
+            (Some(kind), Some(storage), Some(access)) => {
+                MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Parameter {
+                    index: index as u32,
+                    storage,
+                    kind,
+                    access,
+                }))
             }
-            | mir::Type::Slice {
-                kind,
-                storage,
-                access,
-                ..
-            }
-            | mir::Type::TensorView {
-                kind,
-                storage,
-                access,
-                ..
-            } => MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Parameter {
-                index: index as u32,
-                storage: *storage,
-                kind: *kind,
-                access: *access,
-            })),
             _ => MemoryRegion::any(),
         }
     }
@@ -679,18 +668,16 @@ impl<'a> MemoryRegionBuilder<'a> {
         let ty_id = self.value_type(reference);
         let ty = self.tree.get(ty_id);
 
-        match ty {
-            mir::Type::Reference { kind, storage, .. }
-            | mir::Type::Slice { kind, storage, .. }
-            | mir::Type::TensorView { kind, storage, .. } => {
+        match (ty.reference_kind(), ty.reference_storage()) {
+            (Some(kind), Some(storage)) => {
                 let mir::Storage::Heap(space) = storage else {
-                    return MemoryRegion::any_storage(*storage);
+                    return MemoryRegion::any_storage(storage);
                 };
 
                 MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Allocation {
                     instruction,
-                    space: *space,
-                    kind: *kind,
+                    space,
+                    kind,
                 }))
             }
             _ => MemoryRegion::any(),
@@ -702,12 +689,8 @@ impl<'a> MemoryRegionBuilder<'a> {
         let ty_id = self.value_type(reference);
         let ty = self.tree.get(ty_id);
 
-        match ty {
-            mir::Type::Reference { storage, .. }
-            | mir::Type::Slice { storage, .. }
-            | mir::Type::TensorView { storage, .. } => MemoryRegion::any_storage(*storage),
-            _ => MemoryRegion::any(),
-        }
+        ty.reference_storage()
+            .map_or_else(MemoryRegion::any, MemoryRegion::any_storage)
     }
 
     /// Return the value type for an SSA value.

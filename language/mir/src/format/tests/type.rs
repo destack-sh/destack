@@ -181,8 +181,8 @@ entry(v0: slice<int32, borrowed, 'L0, readonly>, v1: tensorView<int32, borrowed,
 fn test_format_tensor_shapes_and_formats() {
     assert_format(
         r#"
-function tensors<'L0>(v0: tensor<float32, shared, (batch, dynamic, 64), format(dense(columnMajor))>, v1: tensorView<float32, borrowed, 'L0, readonly, (batch, dynamic, 64), format(strided)>): void {
-entry(v0: tensor<float32, shared, (batch, dynamic, 64), format(dense(columnMajor))>, v1: tensorView<float32, borrowed, 'L0, readonly, (batch, dynamic, 64), format(strided)>):
+function tensors<'L0>(v0: tensor<float32, managed, mutable, shared, (batch, dynamic, 64), format(dense(columnMajor))>, v1: tensorView<float32, borrowed, 'L0, readonly, (batch, dynamic, 64), format(strided)>): void {
+entry(v0: tensor<float32, managed, mutable, shared, (batch, dynamic, 64), format(dense(columnMajor))>, v1: tensorView<float32, borrowed, 'L0, readonly, (batch, dynamic, 64), format(strided)>):
     return
 }
 "#,

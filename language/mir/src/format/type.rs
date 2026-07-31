@@ -123,8 +123,7 @@ fn type_copy(ty: &Type) -> Option<Copy> {
         | Type::Struct { copy, .. }
         | Type::Newtype { copy, .. }
         | Type::Variant { copy, .. }
-        | Type::Vector { copy, .. }
-        | Type::Tensor { copy, .. } => Some(*copy),
+        | Type::Vector { copy, .. } => Some(*copy),
         _ => None,
     }
 }
@@ -450,24 +449,18 @@ fn format_type_inner<'a>(
             )
         }
         Type::Tensor {
+            kind,
+            lifetime,
+            storage,
+            access,
             element,
-            space: memory_space,
             shape,
             format,
             sharding,
-            copy: _,
+            nullability,
         } => {
-            write!(
-                f,
-                [
-                    token("tensor"),
-                    token("<"),
-                    FormatTypeId(*element),
-                    token(","),
-                    space()
-                ]
-            )?;
-            write!(f, [token(memory_space.label())])?;
+            write!(f, [token("tensor"), token("<")])?;
+            format_view_header(*kind, lifetime, *storage, *access, *nullability, element, f)?;
             write!(f, [token(","), space()])?;
             format_shape(shape, f)?;
             if *format != TensorFormat::dense_row_major() {

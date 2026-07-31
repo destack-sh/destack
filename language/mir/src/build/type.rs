@@ -3,7 +3,7 @@ use destack_core::StringId;
 use crate::build::ModuleBuilder;
 use crate::{
     Access, Constant, Copy, Field, FloatType, Lifetime, LocalNodeId, Nullability, ReferenceKind,
-    Space, Storage, TensorDimension, TensorFormat, TensorSharding, TensorViewFormat, Type, TypeId,
+    Storage, TensorDimension, TensorFormat, TensorSharding, TensorViewFormat, Type, TypeId,
     VariantCase,
 };
 
@@ -114,20 +114,26 @@ impl ModuleBuilder {
     /// Create a tensor type.
     pub fn type_tensor(
         &mut self,
+        kind: ReferenceKind,
+        lifetime: Lifetime,
         element: LocalNodeId<Type>,
-        space: Space,
+        access: Access,
+        storage: Storage,
         shape: Vec<TensorDimension>,
         format: TensorFormat,
         sharding: TensorSharding,
-        copy: Copy,
+        nullability: Nullability,
     ) -> LocalNodeId<Type> {
         self.tree.intern_type(Type::Tensor {
+            kind,
+            lifetime,
+            storage,
+            access,
             element,
-            space,
             shape,
             format,
             sharding,
-            copy,
+            nullability,
         })
     }
 

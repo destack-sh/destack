@@ -930,7 +930,7 @@ impl Parser {
         self.eat_token(TokenType::LessThan)?;
         let (element, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::Comma)?;
-        let space = self.parse_space()?;
+        let qualifiers = self.parse_reference_qualifiers(Nullability::None)?;
         self.eat_token(TokenType::Comma)?;
         let shape = self.parse_tensor_shape()?;
         let mut format = TensorFormat::dense_row_major();
@@ -939,12 +939,15 @@ impl Parser {
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Tensor {
+            kind: qualifiers.kind,
+            lifetime: qualifiers.lifetime,
+            storage: qualifiers.storage,
+            access: qualifiers.access,
             element,
-            space,
             shape,
             format,
             sharding,
-            copy: Copy::No,
+            nullability: qualifiers.nullability,
         })
     }
 
@@ -1088,20 +1091,6 @@ impl Parser {
         self.bump();
 
         Ok(Some(nullability))
-    }
-
-    /// Parse one required memory space.
-    fn parse_space(&mut self) -> ParseResult<Space> {
-        let token = self
-            .peek()
-            .ok_or_else(|| ParseError::unexpected_end("space", self.pos()))?;
-        let text = self.tree.source_text(token.span);
-        let space = Space::from_name(text).ok_or_else(|| {
-            ParseError::invalid_with_length("space", token.start(), token.span.len() as usize)
-        })?;
-        self.bump();
-
-        Ok(space)
     }
 
     /// Parse one optional reference storage.

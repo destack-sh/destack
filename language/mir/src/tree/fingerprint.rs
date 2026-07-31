@@ -312,20 +312,26 @@ impl TypeHasher {
                 self.hash_copy(*copy);
             }
             Type::Tensor {
+                kind,
+                lifetime,
+                storage,
+                access,
                 element,
-                space,
                 shape,
                 format,
                 sharding,
-                copy,
+                nullability,
             } => {
                 self.hasher.write_u8(23);
+                self.hash_reference_kind(*kind);
+                self.hash_lifetime(lifetime);
+                self.hash_storage(*storage);
+                self.hash_access(*access);
                 self.hash_type(*element, tree);
-                self.hash_space(*space);
                 self.hash_tensor_shape(shape);
                 self.hash_tensor_format(*format);
                 self.hash_tensor_sharding(sharding);
-                self.hash_copy(*copy);
+                self.hash_nullability(*nullability);
             }
             Type::TensorView {
                 kind,
@@ -705,7 +711,7 @@ impl TypeHasher {
         self.hasher.write_u8(tag);
     }
 
-    /// Hash one owning tensor format.
+    /// Hash one tensor format.
     fn hash_tensor_format(&mut self, format: TensorFormat) {
         match format {
             TensorFormat::Dense { order } => {

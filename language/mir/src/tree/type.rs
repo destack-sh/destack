@@ -315,7 +315,7 @@ pub enum TensorDimensionOrder {
     ColumnMajor,
 }
 
-/// Format for an owning tensor value.
+/// Format for a tensor value.
 #[repr(C, u32)]
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
@@ -591,20 +591,26 @@ pub enum Type {
         /// Copy of this vector type.
         copy: Copy,
     },
-    /// Ranked tensor value with static or dynamic shape.
+    /// Reference-backed tensor value with static or dynamic shape.
     Tensor {
+        /// The reference kind of the tensor storage.
+        kind: ReferenceKind,
+        /// Lifetime roots for borrowed tensor storage.
+        lifetime: Lifetime,
+        /// The backing tensor storage.
+        storage: Storage,
+        /// The access exposed through the tensor storage.
+        access: Access,
         /// The element type.
         element: TypeId,
-        /// The tensor allocation space.
-        space: Space,
         /// The static shape.
         shape: Vec<TensorDimension>,
         /// The tensor format.
         format: TensorFormat,
         /// The tensor placement.
         sharding: TensorSharding,
-        /// Copy of this tensor type.
-        copy: Copy,
+        /// The nullish values allowed by this tensor handle.
+        nullability: Nullability,
     },
     /// Reference-like view into tensor-shaped memory.
     TensorView {
@@ -869,24 +875,19 @@ impl Type {
 
     /// Whether this type owns unique storage.
     pub fn is_unique_storage(&self) -> bool {
+        self.reference_kind() == Some(ReferenceKind::Unique)
+    }
+
+    /// Return whether this type carries a reference as its intrinsic representation.
+    pub fn is_reference_carrier(&self) -> bool {
         matches!(
             self,
-            Type::Reference {
-                kind: ReferenceKind::Unique,
-                ..
-            } | Type::Dynamic {
-                kind: ReferenceKind::Unique,
-                ..
-            } | Type::Slice {
-                kind: ReferenceKind::Unique,
-                ..
-            } | Type::TensorView {
-                kind: ReferenceKind::Unique,
-                ..
-            } | Type::Function {
-                kind: ReferenceKind::Unique,
-                ..
-            }
+            Type::Dynamic { .. }
+                | Type::Reference { .. }
+                | Type::Slice { .. }
+                | Type::Tensor { .. }
+                | Type::TensorView { .. }
+                | Type::Function { .. }
         )
     }
 
@@ -896,6 +897,7 @@ impl Type {
             Type::Dynamic { kind, .. }
             | Type::Reference { kind, .. }
             | Type::Slice { kind, .. }
+            | Type::Tensor { kind, .. }
             | Type::TensorView { kind, .. }
             | Type::Function { kind, .. } => Some(*kind),
             _ => None,
@@ -908,6 +910,7 @@ impl Type {
             Type::Dynamic { lifetime, .. }
             | Type::Reference { lifetime, .. }
             | Type::Slice { lifetime, .. }
+            | Type::Tensor { lifetime, .. }
             | Type::TensorView { lifetime, .. }
             | Type::Function { lifetime, .. } => Some(lifetime),
             _ => None,
@@ -920,6 +923,7 @@ impl Type {
             Type::Dynamic { access, .. }
             | Type::Reference { access, .. }
             | Type::Slice { access, .. }
+            | Type::Tensor { access, .. }
             | Type::TensorView { access, .. }
             | Type::Function { access, .. } => Some(*access),
             _ => None,
@@ -932,6 +936,7 @@ impl Type {
             Type::Dynamic { storage, .. }
             | Type::Reference { storage, .. }
             | Type::Slice { storage, .. }
+            | Type::Tensor { storage, .. }
             | Type::TensorView { storage, .. }
             | Type::Function { storage, .. } => Some(*storage),
             _ => None,
@@ -944,6 +949,7 @@ impl Type {
             Type::Dynamic { nullability, .. }
             | Type::Reference { nullability, .. }
             | Type::Slice { nullability, .. }
+            | Type::Tensor { nullability, .. }
             | Type::TensorView { nullability, .. }
             | Type::Function { nullability, .. } => Some(*nullability),
             _ => None,
@@ -956,6 +962,7 @@ impl Type {
             Type::Dynamic { nullability, .. }
             | Type::Reference { nullability, .. }
             | Type::Slice { nullability, .. }
+            | Type::Tensor { nullability, .. }
             | Type::TensorView { nullability, .. }
             | Type::Function { nullability, .. } => nullability,
             _ => return false,
@@ -1045,6 +1052,7 @@ impl Type {
             Type::Dynamic { kind, .. }
             | Type::Reference { kind, .. }
             | Type::Slice { kind, .. }
+            | Type::Tensor { kind, .. }
             | Type::TensorView { kind, .. }
             | Type::Function { kind, .. } => match kind {
                 ReferenceKind::Unique => Copy::No,
@@ -1057,8 +1065,7 @@ impl Type {
             | Type::Struct { copy, .. }
             | Type::Newtype { copy, .. }
             | Type::Variant { copy, .. }
-            | Type::Vector { copy, .. }
-            | Type::Tensor { copy, .. } => *copy,
+            | Type::Vector { copy, .. } => *copy,
 
             // signatures and thin function pointers contain no captured storage
             Type::FunctionSignature { .. } | Type::FunctionPointer { .. } => Copy::Yes,

@@ -278,6 +278,27 @@ impl Tree {
                 access,
                 nullability,
             },
+            Type::Tensor {
+                kind,
+                lifetime: _,
+                storage,
+                access,
+                element,
+                shape,
+                format,
+                sharding,
+                nullability,
+            } => Type::Tensor {
+                kind,
+                lifetime: Lifetime::empty(),
+                storage,
+                access,
+                element: self.intern_representation(element),
+                shape,
+                format,
+                sharding,
+                nullability,
+            },
             Type::TensorView {
                 kind,
                 lifetime: _,
@@ -354,22 +375,6 @@ impl Tree {
                 lanes,
                 copy,
             },
-            Type::Tensor {
-                element,
-                space,
-                shape,
-                format,
-                sharding,
-                copy,
-            } => Type::Tensor {
-                element: self.intern_representation(element),
-                space,
-                shape,
-                format,
-                sharding,
-                copy,
-            },
-
             // erase lifetime binders
             Type::FunctionSignature {
                 lifetimes: _,
@@ -502,6 +507,27 @@ impl Tree {
                 access,
                 nullability,
             },
+            Type::Tensor {
+                kind,
+                lifetime,
+                storage,
+                access,
+                element,
+                shape,
+                format,
+                sharding,
+                nullability,
+            } => Type::Tensor {
+                kind,
+                lifetime: self.substitute_lifetime(&lifetime, arguments),
+                storage,
+                access,
+                element: self.instantiate_type_lifetimes(element, arguments),
+                shape,
+                format,
+                sharding,
+                nullability,
+            },
             Type::TensorView {
                 kind,
                 lifetime,
@@ -588,22 +614,6 @@ impl Tree {
                 lanes,
                 copy,
             },
-            Type::Tensor {
-                element,
-                space,
-                shape,
-                format,
-                sharding,
-                copy,
-            } => Type::Tensor {
-                element: self.instantiate_type_lifetimes(element, arguments),
-                space,
-                shape,
-                format,
-                sharding,
-                copy,
-            },
-
             // preserve signature-local binders, otherwise instantiate captured lifetimes
             Type::FunctionSignature { lifetimes, .. } if !lifetimes.is_empty() => return id,
             Type::FunctionSignature {

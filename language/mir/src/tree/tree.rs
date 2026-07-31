@@ -278,6 +278,11 @@ impl Tree {
                 lifetime,
                 ..
             }
+            | Type::Tensor {
+                kind: ReferenceKind::Borrowed,
+                lifetime,
+                ..
+            }
             | Type::TensorView {
                 kind: ReferenceKind::Borrowed,
                 lifetime,
@@ -439,6 +444,11 @@ impl Tree {
                 ..
             }
             | Type::Slice {
+                kind: ReferenceKind::Borrowed,
+                lifetime,
+                ..
+            }
+            | Type::Tensor {
                 kind: ReferenceKind::Borrowed,
                 lifetime,
                 ..

@@ -352,10 +352,9 @@ impl<'a> FunctionEffectBuilder<'a> {
     fn storage_set_for_type(&self, ty: &mir::TypeId) -> mir::StorageSet {
         match self.tree.get(*ty) {
             mir::Type::Uninit { value } => self.storage_set_for_type(value),
-            mir::Type::Reference { storage, .. }
-            | mir::Type::Slice { storage, .. }
-            | mir::Type::TensorView { storage, .. } => storage.storage_set(),
-            _ => mir::StorageSet::ANY,
+            ty => ty
+                .reference_storage()
+                .map_or(mir::StorageSet::ANY, mir::Storage::storage_set),
         }
     }
 

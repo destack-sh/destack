@@ -718,8 +718,7 @@ fn set_type_copy(ty: &mut Type, copy: Copy, position: usize) -> ParseResult<()> 
         | Type::Struct { copy: target, .. }
         | Type::Newtype { copy: target, .. }
         | Type::Variant { copy: target, .. }
-        | Type::Vector { copy: target, .. }
-        | Type::Tensor { copy: target, .. } => {
+        | Type::Vector { copy: target, .. } => {
             *target = copy;
             Ok(())
         }

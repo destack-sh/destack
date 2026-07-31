@@ -424,8 +424,9 @@ impl ValueTypes {
         let type_id = self.expect_value_type(reference);
         match tree.get(type_id) {
             mir::Type::Reference { pointee, .. } => Some(*pointee),
-            mir::Type::Slice { element, .. } => Some(*element),
-            mir::Type::TensorView { element, .. } => Some(*element),
+            mir::Type::Slice { element, .. }
+            | mir::Type::Tensor { element, .. }
+            | mir::Type::TensorView { element, .. } => Some(*element),
             _ => None,
         }
     }
@@ -437,12 +438,7 @@ impl ValueTypes {
         tree: &mir::Tree,
     ) -> Option<mir::Storage> {
         let type_id = self.expect_value_type(reference);
-        match tree.get(type_id) {
-            mir::Type::Reference { storage, .. } => Some(*storage),
-            mir::Type::Slice { storage, .. } => Some(*storage),
-            mir::Type::TensorView { storage, .. } => Some(*storage),
-            _ => None,
-        }
+        tree.get(type_id).reference_storage()
     }
 
     /// Resolve a reference's kind when statically known.
@@ -452,12 +448,7 @@ impl ValueTypes {
         tree: &mir::Tree,
     ) -> Option<mir::ReferenceKind> {
         let type_id = self.expect_value_type(reference);
-        match tree.get(type_id) {
-            mir::Type::Reference { kind, .. } => Some(*kind),
-            mir::Type::Slice { kind, .. } => Some(*kind),
-            mir::Type::TensorView { kind, .. } => Some(*kind),
-            _ => None,
-        }
+        tree.get(type_id).reference_kind()
     }
 
     /// Return the unsigned integer width for a value when it is known.
