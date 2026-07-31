@@ -27,7 +27,7 @@ impl PollerToken {
 /// Opaque host handle for poller registration.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct HostHandle(
+pub(crate) struct HostHandle(
     /// Raw handle value.
     pub u64,
 );
@@ -35,12 +35,12 @@ pub struct HostHandle(
 #[cfg(unix)]
 impl HostHandle {
     /// Create a host handle from a raw file descriptor.
-    pub fn from_raw_fd(fd: std::os::unix::io::RawFd) -> Self {
+    pub(crate) fn from_raw_fd(fd: std::os::unix::io::RawFd) -> Self {
         Self(fd as u64)
     }
 
     /// Return the raw file descriptor for this handle.
-    pub fn as_raw_fd(self) -> std::os::unix::io::RawFd {
+    pub(crate) fn as_raw_fd(self) -> std::os::unix::io::RawFd {
         self.0 as std::os::unix::io::RawFd
     }
 }
@@ -64,26 +64,19 @@ impl HostHandle {
 /// Other events are emitted based on the resource type.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PollInterest(
+pub(crate) struct PollInterest(
     /// Raw interest mask.
     pub u32,
 );
 
 impl PollInterest {
-    /// No interests.
-    pub const NONE: Self = Self(0);
     /// Interested in readable events.
-    pub const READABLE: Self = Self(1 << 0);
+    pub(crate) const READABLE: Self = Self(1 << 0);
     /// Interested in writable events.
-    pub const WRITABLE: Self = Self(1 << 1);
-
-    /// Return whether the interest mask is empty.
-    pub const fn is_empty(self) -> bool {
-        self.0 == 0
-    }
+    pub(crate) const WRITABLE: Self = Self(1 << 1);
 
     /// Return whether the interest mask contains the given flags.
-    pub const fn contains(self, other: Self) -> bool {
+    pub(crate) const fn contains(self, other: Self) -> bool {
         (self.0 & other.0) == other.0
     }
 }
@@ -105,28 +98,23 @@ impl std::ops::BitOrAssign for PollInterest {
 /// Poller configuration flags.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct HostPollerFlags(
+pub(crate) struct HostPollerFlags(
     /// Raw poller flag bits.
     pub u32,
 );
 
 impl HostPollerFlags {
     /// No flags.
-    pub const NONE: Self = Self(0);
+    pub(crate) const NONE: Self = Self(0);
     /// Use edge triggered semantics.
-    pub const EDGE: Self = Self(1 << 0);
+    pub(crate) const EDGE: Self = Self(1 << 0);
     /// Use oneshot semantics.
-    pub const ONESHOT: Self = Self(1 << 1);
+    pub(crate) const ONESHOT: Self = Self(1 << 1);
     /// Prefer priority events.
-    pub const PRIORITY: Self = Self(1 << 2);
-
-    /// Return whether the flag set is empty.
-    pub const fn is_empty(self) -> bool {
-        self.0 == 0
-    }
+    pub(crate) const PRIORITY: Self = Self(1 << 2);
 
     /// Return whether the flag set contains the given flags.
-    pub const fn contains(self, other: Self) -> bool {
+    pub(crate) const fn contains(self, other: Self) -> bool {
         (self.0 & other.0) == other.0
     }
 }
@@ -146,13 +134,13 @@ impl std::ops::BitOrAssign for HostPollerFlags {
 }
 
 /// Shared wake handle for out-of-band poller wakeups.
-pub trait PollerWakeHandle: Send + Sync {
+pub(crate) trait PollerWakeHandle: Send + Sync {
     /// Wake the poller if it is blocked.
     fn wake(&self) -> RuntimeResult<()>;
 }
 
 /// Host poller interface for OS-level events.
-pub trait HostPoller: Send {
+pub(crate) trait HostPoller: Send {
     /// Register a resource handle with the poller.
     fn register(
         &mut self,

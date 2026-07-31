@@ -12,7 +12,6 @@ use destack_runtime::binding::BindingTable;
 use destack_runtime::diagnostic::DiagnosticStore;
 use destack_runtime::host::resource::ResourceTable;
 use destack_runtime::runtime::Runtime;
-use destack_runtime::worker::scheduler::EventLoop;
 use destack_runtime::worker::{RunnableScope, Worker};
 use destack_runtime::world::observation::{
     Observation, ObservationEntry, ObservationLog, ObservationScope,
@@ -63,7 +62,6 @@ fn print_type_sizes() {
         ("runtime", "Runtime", size_of::<Runtime>()),
         ("runtime", "Worker", size_of::<Worker>()),
         ("runtime", "RunnableScope", size_of::<RunnableScope>()),
-        ("runtime", "EventLoop", size_of::<EventLoop>()),
         ("runtime", "Random", size_of::<Random>()),
         ("host", "ResourceTable", size_of::<ResourceTable>()),
         ("host", "BindingTable", size_of::<BindingTable>()),
@@ -100,7 +98,6 @@ fn print_component_sizes() {
         ("heap", "SharedMarkWorker", size_of::<SharedMarkWorker>()),
         ("host", "ResourceTable", size_of::<ResourceTable>()),
         ("host", "BindingTable", size_of::<BindingTable>()),
-        ("runtime", "EventLoop", size_of::<EventLoop>()),
         ("machine", "StaticSpace", size_of::<StaticSpace>()),
     ];
 

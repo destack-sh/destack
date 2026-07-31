@@ -61,7 +61,7 @@ entry(v0: int32):
         frames.next().is_none(),
         "stopped worker should retain one frame"
     );
-    assert_eq!(frame.source, FrameSource::Stopped { runnable_id });
+    assert_eq!(frame.source, FrameSource::Retained { runnable_id });
     let program = view
         .program(frame.runtime_id)
         .expect("stopped runtime should retain its program");

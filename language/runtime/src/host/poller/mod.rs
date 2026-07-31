@@ -1,9 +1,21 @@
 mod event;
 mod host;
+#[allow(
+    dead_code,
+    reason = "registration is consumed by generated host bindings"
+)]
 mod poller;
 #[cfg(unix)]
+#[allow(
+    dead_code,
+    reason = "registration is consumed by generated host bindings"
+)]
 mod unix;
 #[cfg(windows)]
+#[allow(
+    dead_code,
+    reason = "registration is consumed by generated host bindings"
+)]
 mod windows;
 
 pub(crate) use event::*;

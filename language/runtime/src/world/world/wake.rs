@@ -1,5 +1,5 @@
+use crate::scheduler::Wake;
 use crate::worker::WorkerId;
-use crate::worker::scheduler::Wake;
 use crate::world::RuntimeId;
 
 /// Wake addressed to one worker in one runtime.

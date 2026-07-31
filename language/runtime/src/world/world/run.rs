@@ -7,7 +7,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::poller::HostPoller;
 use crate::host::time::TimerClock;
 use crate::runtime::RuntimeRunOutcome;
-use crate::worker::scheduler::{ScheduledTimer, TimerWake, Wake};
+use crate::scheduler::{ScheduledTimer, TimerWake, Wake};
 use crate::worker::{RunnableProgress, WorkerId};
 use crate::world::observation::Observation;
 use crate::world::time::{ClockSource, Instant};
@@ -335,12 +335,12 @@ impl World {
             }
         }
 
-        // scan idle worker safepoints after the scheduler cursor
+        // scan idle worker GC work after the scheduler cursor
         for (runtime_index, (runtime_id, runtime)) in
             self.runtimes.iter_mut().enumerate().skip(start_index)
         {
             if let Some((worker_id, advance)) =
-                runtime.run_safepoint(world, self.host.as_ref(), &self.host_queue)?
+                runtime.advance_gc(world, self.host.as_ref(), &self.host_queue)?
             {
                 if !world.observe_gc_advance(*runtime_id, Some(worker_id), advance)? {
                     continue;
@@ -351,12 +351,12 @@ impl World {
             }
         }
 
-        // wrap idle worker safepoints around to runtimes before the scheduler cursor
+        // wrap idle worker GC work around to runtimes before the scheduler cursor
         for (runtime_index, (runtime_id, runtime)) in
             self.runtimes.iter_mut().enumerate().take(start_index)
         {
             if let Some((worker_id, advance)) =
-                runtime.run_safepoint(world, self.host.as_ref(), &self.host_queue)?
+                runtime.advance_gc(world, self.host.as_ref(), &self.host_queue)?
             {
                 if !world.observe_gc_advance(*runtime_id, Some(worker_id), advance)? {
                     continue;

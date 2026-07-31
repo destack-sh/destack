@@ -192,6 +192,8 @@ pub enum RuntimeFailure {
     ExecutionStopped,
     /// Coroutine suspension escaped its language-level owner.
     SuspensionEscaped,
+    /// Execution was terminated by a worker handshake.
+    Terminated,
 }
 
 /// Runtime memory failure reason.
@@ -415,6 +417,7 @@ impl RuntimeFailure {
             Self::HostTimeAdvance => 137,
             Self::ExecutionStopped => 147,
             Self::SuspensionEscaped => 148,
+            Self::Terminated => 150,
         }
     }
 
@@ -438,6 +441,7 @@ impl RuntimeFailure {
             Self::SuspensionEscaped => {
                 "coroutine suspension escaped its language-level owner".to_string()
             }
+            Self::Terminated => "execution terminated by runtime request".to_string(),
         }
     }
 }
@@ -767,6 +771,13 @@ impl RuntimeError {
     pub fn suspension_escaped() -> Self {
         Self::Runtime {
             reason: RuntimeFailure::SuspensionEscaped,
+        }
+    }
+
+    /// Return an execution-terminated error.
+    pub fn execution_terminated() -> Self {
+        Self::Runtime {
+            reason: RuntimeFailure::Terminated,
         }
     }
 

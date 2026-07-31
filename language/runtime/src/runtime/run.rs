@@ -6,7 +6,7 @@ use crate::host::poller::PollerEvent;
 use crate::host::{Host, HostEvent, HostQueue};
 use crate::machine::Entry;
 use crate::runtime::Runtime;
-use crate::worker::scheduler::{HostWake, Readiness, ResourceWake, ScheduledTimer, Wake};
+use crate::scheduler::{HostWake, Readiness, ResourceWake, ScheduledTimer, Wake};
 use crate::worker::{RunnableProgress, WorkerId, WorkerRunOutcome};
 use crate::world::time::Instant;
 use crate::world::{RuntimeId, WorkerWake, WorldState};
@@ -71,7 +71,7 @@ impl Runtime {
             .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())?;
         worker.run_entrypoint(
             world,
-            &self.heap,
+            &self.shared_collection,
             &mut self.shared_static,
             &self.constant_space,
             host,
@@ -95,7 +95,7 @@ impl Runtime {
         } else {
             self.next_worker_cursor % worker_count
         };
-        let shared = &self.heap;
+        let collection = &self.shared_collection;
         let shared_static = &mut self.shared_static;
         let constant_space = &self.constant_space;
         let workers = &mut self.workers;
@@ -103,7 +103,7 @@ impl Runtime {
         for (worker_index, worker) in workers.values_mut().enumerate().skip(start_index) {
             let outcome = worker.run_microtask(
                 world,
-                shared,
+                collection,
                 shared_static,
                 constant_space,
                 host,
@@ -119,7 +119,7 @@ impl Runtime {
         for (worker_index, worker) in workers.values_mut().enumerate().take(start_index) {
             let outcome = worker.run_microtask(
                 world,
-                shared,
+                collection,
                 shared_static,
                 constant_space,
                 host,
@@ -147,7 +147,7 @@ impl Runtime {
             return Ok(RuntimeRunOutcome::Idle);
         }
         let start_index = self.next_worker_cursor % worker_count;
-        let shared = &self.heap;
+        let collection = &self.shared_collection;
         let shared_static = &mut self.shared_static;
         let constant_space = &self.constant_space;
         let workers = &mut self.workers;
@@ -157,7 +157,7 @@ impl Runtime {
         {
             let outcome = worker.continue_stop(
                 world,
-                shared,
+                collection,
                 shared_static,
                 constant_space,
                 host,
@@ -176,7 +176,7 @@ impl Runtime {
         {
             let outcome = worker.continue_stop(
                 world,
-                shared,
+                collection,
                 shared_static,
                 constant_space,
                 host,
@@ -207,7 +207,7 @@ impl Runtime {
         } else {
             self.next_worker_cursor % worker_count
         };
-        let shared = &self.heap;
+        let collection = &self.shared_collection;
         let shared_static = &mut self.shared_static;
         let constant_space = &self.constant_space;
         let workers = &mut self.workers;
@@ -216,7 +216,7 @@ impl Runtime {
         {
             let outcome = worker.run_task(
                 world,
-                shared,
+                collection,
                 shared_static,
                 constant_space,
                 host,
@@ -233,7 +233,7 @@ impl Runtime {
         {
             let outcome = worker.run_task(
                 world,
-                shared,
+                collection,
                 shared_static,
                 constant_space,
                 host,
@@ -249,8 +249,8 @@ impl Runtime {
         Ok(RuntimeRunOutcome::Idle)
     }
 
-    /// Run one idle worker safepoint in stable scheduler order.
-    pub(crate) fn run_safepoint(
+    /// Advance idle worker GC in stable scheduler order.
+    pub(crate) fn advance_gc(
         &mut self,
         world: &mut WorldState,
         host: &dyn Host,
@@ -263,7 +263,7 @@ impl Runtime {
         }
 
         let start_index = self.next_worker_cursor % worker_count;
-        let shared = &self.heap;
+        let collection = &self.shared_collection;
         let shared_static = &mut self.shared_static;
         let constant_space = &self.constant_space;
 
@@ -271,9 +271,9 @@ impl Runtime {
         for (worker_index, (worker_id, worker)) in
             self.workers.iter_mut().enumerate().skip(start_index)
         {
-            if let Some(progress) = worker.run_safepoint(
+            if let Some(progress) = worker.advance_gc_once(
                 world,
-                shared,
+                collection,
                 shared_static,
                 constant_space,
                 host,
@@ -289,9 +289,9 @@ impl Runtime {
         for (worker_index, (worker_id, worker)) in
             self.workers.iter_mut().enumerate().take(start_index)
         {
-            if let Some(progress) = worker.run_safepoint(
+            if let Some(progress) = worker.advance_gc_once(
                 world,
-                shared,
+                collection,
                 shared_static,
                 constant_space,
                 host,
@@ -343,7 +343,7 @@ impl Runtime {
         poller_events: &[PollerEvent],
     ) -> RuntimeResult<bool> {
         let mut handled_any = false;
-        let is_marking_shared = self.heap.is_marking();
+        let is_marking_shared = self.shared_heap.gc_phase() == heap::GcPhase::Mark;
 
         // host events
         for event in host_events {
@@ -369,7 +369,7 @@ impl Runtime {
         is_marking_shared: bool,
     ) -> RuntimeResult<bool> {
         let kind = event.kind();
-        let shared = &self.heap;
+        let collection = &self.shared_collection;
         let mut handled_any = false;
 
         for (worker_id, worker) in &mut self.workers {
@@ -384,7 +384,7 @@ impl Runtime {
 
             // shared mark: events can change direct worker roots between worker runs
             if is_marking_shared {
-                shared.queue_root_scan(*worker_id);
+                collection.queue_root_scan(*worker_id);
             }
         }
 
@@ -398,7 +398,7 @@ impl Runtime {
         is_marking_shared: bool,
     ) -> RuntimeResult<bool> {
         let readiness = Readiness::from_poller_mask(event.mask);
-        let shared = &self.heap;
+        let collection = &self.shared_collection;
         let mut handled_any = false;
 
         for (worker_id, worker) in &mut self.workers {
@@ -416,7 +416,7 @@ impl Runtime {
 
             // shared mark: events can change direct worker roots between worker runs
             if is_marking_shared {
-                shared.queue_root_scan(*worker_id);
+                collection.queue_root_scan(*worker_id);
             }
         }
 
