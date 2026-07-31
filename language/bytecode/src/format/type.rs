@@ -143,35 +143,26 @@ impl<'a> BytecodeFormatContext<'a> {
             "tensorView"
         };
 
+        let reference = ty.tensor_reference().ok_or(FormatError::SyntaxError {
+            message: "tensor value has no backing reference",
+        })?;
+        let kind = reference.kind().name().ok_or(FormatError::SyntaxError {
+            message: "tensor value has invalid reference ownership",
+        })?;
+        let storage = reference.storage().name().ok_or(FormatError::SyntaxError {
+            message: "tensor value has invalid storage",
+        })?;
         if ty.tag() == ValueTag::TENSOR_VIEW {
-            let reference = ty.tensor_reference().ok_or(FormatError::SyntaxError {
-                message: "tensor view has no backing reference",
-            })?;
-            let kind = reference.kind().name().ok_or(FormatError::SyntaxError {
-                message: "tensor view has invalid reference ownership",
-            })?;
-            let storage = reference.storage().name().ok_or(FormatError::SyntaxError {
-                message: "tensor view has invalid storage",
-            })?;
-
             Ok(format!(
                 "{constructor}<{name}, {}, {kind}, {storage}, {}>",
                 scalar.name(),
                 ty.word_count()
             ))
         } else {
-            let reference = ty.tensor_reference().ok_or(FormatError::SyntaxError {
-                message: "tensor value has no storage reference",
-            })?;
-            let space = reference
-                .storage()
-                .heap_space()
-                .and_then(|space| space.name())
-                .ok_or(FormatError::SyntaxError {
-                    message: "tensor value has invalid space",
-                })?;
-
-            Ok(format!("{constructor}<{name}, {}, {space}>", scalar.name()))
+            Ok(format!(
+                "{constructor}<{name}, {}, {kind}, {storage}>",
+                scalar.name()
+            ))
         }
     }
 }

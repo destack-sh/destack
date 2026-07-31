@@ -1,8 +1,8 @@
 use destack_source::Span;
 
 use crate::{
-    LayoutId, ParseError, ParseResult, Parser, ReferenceKind, ReferenceType, Scalar, Space,
-    Storage, TokenType, TypeId, ValueType, VectorType,
+    LayoutId, ParseError, ParseResult, Parser, ReferenceKind, ReferenceType, Scalar, Storage,
+    TokenType, TypeId, ValueType, VectorType,
 };
 
 impl Parser<'_> {
@@ -51,9 +51,9 @@ impl Parser<'_> {
                 Ok(ValueType::dynamic(constraint, reference))
             }
             "tensor" => {
-                let (ty, scalar, space) = self.parse_tensor_type()?;
+                let (ty, scalar, reference) = self.parse_tensor_type()?;
 
-                Ok(ValueType::tensor(scalar, ty, space))
+                Ok(ValueType::tensor(scalar, ty, reference))
             }
             "tensorView" => {
                 self.eat_token(TokenType::LessThan)?;
@@ -122,16 +122,18 @@ impl Parser<'_> {
     }
 
     /// Parse one tensor element representation and runtime type.
-    fn parse_tensor_type(&mut self) -> ParseResult<(TypeId, Scalar, Space)> {
+    fn parse_tensor_type(&mut self) -> ParseResult<(TypeId, Scalar, ReferenceType)> {
         self.eat_token(TokenType::LessThan)?;
         let ty = self.parse_type_id()?;
         self.eat_token(TokenType::Comma)?;
         let scalar = self.parse_scalar_name()?;
         self.eat_token(TokenType::Comma)?;
-        let space = self.parse_space()?;
+        let kind = self.parse_reference_kind()?;
+        self.eat_token(TokenType::Comma)?;
+        let storage = self.parse_storage()?;
         self.eat_token(TokenType::GreaterThan)?;
 
-        Ok((ty, scalar, space))
+        Ok((ty, scalar, ReferenceType::new(kind, storage)))
     }
 
     /// Parse one reference ownership and storage argument list.
@@ -151,15 +153,6 @@ impl Parser<'_> {
 
         ReferenceKind::from_name(self.text(kind))
             .ok_or_else(|| ParseError::new("expected reference kind", kind.span))
-    }
-
-    /// Parse one heap ownership domain.
-    fn parse_space(&mut self) -> ParseResult<Space> {
-        let space = self.eat_token(TokenType::Identifier)?;
-        let space = Space::from_name(self.text(space))
-            .ok_or_else(|| ParseError::new("expected local or shared space", space.span))?;
-
-        Ok(space)
     }
 
     /// Parse one reference storage.

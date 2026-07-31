@@ -292,7 +292,7 @@ impl ValueTag {
     pub const UNINIT_SLICE: Self = Self(10);
     /// One erased payload and dynamic dispatch table.
     pub const DYNAMIC: Self = Self(11);
-    /// One owning tensor handle.
+    /// One tensor handle.
     pub const TENSOR: Self = Self(12);
     /// One inline tensor view descriptor.
     pub const TENSOR_VIEW: Self = Self(13);
@@ -394,12 +394,12 @@ impl ValueType {
         }
     }
 
-    /// Create one owning tensor handle value type.
-    pub const fn tensor(scalar: Scalar, ty: TypeId, space: Space) -> Self {
+    /// Create one tensor handle value type.
+    pub const fn tensor(scalar: Scalar, ty: TypeId, reference: ReferenceType) -> Self {
         Self {
             tag: ValueTag::TENSOR,
             scalar: scalar.code(),
-            reference: ReferenceType::new(ReferenceKind::MANAGED, Storage::heap(space)),
+            reference,
             word_count: 1,
             lane_count: 0,
             type_id: ty.0,
@@ -691,7 +691,7 @@ impl ValueType {
         Ok(Self { type_id, ..self })
     }
 
-    /// Return whether this is an owning tensor handle.
+    /// Return whether this is a tensor handle.
     pub const fn is_tensor(self) -> bool {
         self.tag.0 == ValueTag::TENSOR.0
     }
@@ -752,7 +752,6 @@ impl ValueType {
                 self.tensor_scalar().is_some()
                     && self.word_count == 1
                     && self.reference.is_defined()
-                    && self.reference.kind().0 == ReferenceKind::MANAGED.0
                     && self.lane_count == 0
             }
             ValueTag::TENSOR_VIEW => {
