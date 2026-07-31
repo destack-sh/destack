@@ -201,6 +201,22 @@ declare const user: UserId;
 @hover.item index=0 signature="newtype UserId = int64" location=main.ds:1:1-1:23 selection=main.ds:1:9-1:15 range=main.ds#reference
 ```
 
+### Hover over an intrinsic newtype
+
+An intrinsic value remains part of the authored declaration signature.
+
+```ds main.ds
+export newtype Address<T> = intrinsic;
+               ^^^^^^^ definition
+
+declare const address: Address<uint8>;
+                       ^^^^^^^ reference
+```
+
+```query hover main.ds#reference
+@hover.item index=0 signature="export newtype Address<T> = intrinsic" type="Address<uint8>" location=main.ds:1:1-1:38 selection=main.ds#definition range=main.ds#reference
+```
+
 ### Hover over every remaining nominal declaration kind
 
 Structs, enums, and nominal interfaces report distinct declaration signatures.
@@ -560,6 +576,77 @@ const message = library.greet("Destack");
 
 ```query hover main.ds#reference
 @hover.item index=0 signature="export function greet(name: string): string" location=library.ds:1:1-3:2 selection=library.ds:1:17-1:22 range=main.ds#reference
+```
+
+## Globals
+
+### Hover over global type and value references
+
+Global exports retain their defining declarations across modules.
+
+```json destack.json
+{
+  "name": "@test/query",
+  "compiler": {
+    "globals": ["global.ds"]
+  },
+  "targets": {
+    "default": {
+      "include": ["**/*.ds"]
+    }
+  },
+  "defaultTarget": "default"
+}
+```
+
+```ds library.ds
+export type BuiltinType = string;
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ type_declaration
+            ^^^^^^^^^^^ type_definition
+export const builtinValue: int32 = 1;
+             ^^^^^^^^^^^^ value_definition
+```
+
+```ds global.ds
+global {
+    export { BuiltinType, builtinValue } from "./library.ds";
+}
+```
+
+```ds main.ds
+declare const typed: BuiltinType;
+                     ^^^^^^^^^^^ type_reference
+
+const used = builtinValue;
+             ^^^^^^^^^^^^ value_reference
+```
+
+```query hover main.ds#type_reference
+@hover.item index=0 signature="export type BuiltinType = string" type=BuiltinType location=library.ds:1:1-1:33 selection=library.ds#type_definition range=main.ds#type_reference
+```
+
+```query hover main.ds#value_reference
+@hover.item index=0 signature="const builtinValue: int32" location=library.ds#value_definition range=main.ds#value_reference
+```
+
+## Decorators
+
+### Hover over a decorator reference
+
+A decorator target reports its newtype declaration.
+
+```ds main.ds
+newtype marker = (string,);
+^^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration
+        ^^^^^^ definition
+
+@marker("value")
+ ^^^^^^ reference
+function run(): void {}
+```
+
+```query hover main.ds#reference
+@hover.item index=0 signature="newtype marker = (string,)" location=main.ds:1:1-1:27 selection=main.ds#definition range=main.ds#reference
 ```
 
 ## Empty Results

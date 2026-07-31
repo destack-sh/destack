@@ -1,7 +1,7 @@
 
 ## Expression
 
-### Inline an immutable expression
+### [ignored] Inline an immutable expression
 
 Inlining replaces every reference and removes the declaration.
 

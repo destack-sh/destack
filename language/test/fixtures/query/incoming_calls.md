@@ -281,7 +281,7 @@ function create(): User {
 @incoming_calls.site call=0 range=main.ds#call
 ```
 
-### [ignored] Find callers of a newtype constructor
+### Find callers of a newtype constructor
 
 Newtype construction is attributed to the nominal newtype declaration.
 

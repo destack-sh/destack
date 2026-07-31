@@ -139,6 +139,37 @@ class Counter {
 @outline.symbol depth=1 name=create kind=method detail="static (): Counter" range=main.ds#create_range selection=main.ds#create_selection
 ```
 
+### Outline a method with a compile-time default
+
+Generic method details include their complete parameter header.
+
+```ds main.ds
+type Access = "readonly" | "exclusive";
+
+struct List<T> {
+    value: T;
+}
+
+extension<T> of List<T> {
+^ extension_range:start
+    read<comptime A: Access = "readonly">(): T {
+    ^ read_range:start
+    ^^^^ read_selection
+        return this.value;
+    }
+    ^ read_range:end
+}
+^ extension_range:end
+```
+
+```query outline main.ds
+@outline.symbol depth=0 name=Access kind=type_alias detail="\"readonly\" | \"exclusive\"" range=main.ds:1:1-1:39 selection=main.ds:1:6-1:12
+@outline.symbol depth=0 name=List kind=struct range=main.ds:3:1-5:2 selection=main.ds:3:8-3:12
+@outline.symbol depth=1 name=value kind=field detail=T range=main.ds:4:5-4:13 selection=main.ds:4:5-4:10
+@outline.symbol depth=0 name="extension of List<T>" kind=extension range=main.ds#extension_range selection=main.ds:7:17-7:24
+@outline.symbol depth=1 name=read kind=method detail="<comptime A: Access = \"readonly\">(): T" range=main.ds#read_range selection=main.ds#read_selection
+```
+
 ## Enum Members
 
 ### Outline enum members
@@ -237,6 +268,20 @@ type UserId = string;
 @outline.symbol depth=0 name=Drawable kind=interface range=main.ds#drawable_range selection=main.ds#drawable_selection
 @outline.symbol depth=1 name=draw kind=method detail="(): void" range=main.ds#draw_range selection=main.ds#draw_selection
 @outline.symbol depth=0 name=UserId kind=type_alias detail=string range=main.ds#type_range selection=main.ds#type_selection
+```
+
+### Outline an intrinsic newtype
+
+The outline shows the authored intrinsic value.
+
+```ds main.ds
+newtype Buffer<T> = intrinsic;
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ buffer_range
+        ^^^^^^ buffer_selection
+```
+
+```query outline main.ds
+@outline.symbol depth=0 name=Buffer kind=newtype detail=intrinsic range=main.ds#buffer_range selection=main.ds#buffer_selection
 ```
 
 ### Outline nominal types and extensions

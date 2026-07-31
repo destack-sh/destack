@@ -553,7 +553,7 @@ const result = Poi;
 @completion.item label=Point kind=struct replace=main.ds#prefix detail=Point insert="Point { x: ${1}, y: ${2} }$0" snippet=true preselect=true matches=0,1,2
 ```
 
-### [ignored] Complete a newtype constructor
+### Complete a newtype constructor
 
 A newtype completion includes its constructor signature and call snippet.
 
@@ -777,7 +777,7 @@ function main(): void {
 @completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
 ```
 
-### [ignored] Refresh an incomplete completion list
+### Refresh an incomplete completion list
 
 A retriggered request continues the candidate family returned by the incomplete list.
 

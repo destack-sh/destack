@@ -49,7 +49,7 @@ enum Color {
 @semantic_tokens.token range=main.ds#red type=enum_member modifiers=declaration,readonly
 ```
 
-### [ignored] Classify implicit interface member abstraction
+### Classify implicit interface member abstraction
 
 An interface method is abstract even when it omits an explicit modifier.
 
@@ -64,6 +64,25 @@ interface Drawable {
 ```query semantic_tokens main.ds
 @semantic_tokens.token range=main.ds#drawable type=interface modifiers=declaration
 @semantic_tokens.token range=main.ds#method type=method modifiers=declaration,abstract
+```
+
+### Omit unnamed interface signatures
+
+Call signatures do not introduce a semantic symbol.
+
+```ds main.ds
+interface Callable {
+          ^^^^^^^^ callable
+    (value: string): string;
+    named(): void;
+    ^^^^^ named
+}
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#callable type=interface modifiers=declaration
+@semantic_tokens.token range=main.ds:2:6-2:11 type=parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#named type=method modifiers=declaration,abstract
 ```
 
 ### Classify every nominal declaration kind
