@@ -110,7 +110,7 @@
         ],
         "languages": [
             {
-                "id": "destack",
+                "id": "destack-ds",
                 "aliases": [
                     "Destack",
                     "ds"
@@ -122,7 +122,7 @@
                 "configuration": "./destack-ds.json"
             },
             {
-                "id": "destack-mir",
+                "id": "destack-dsm",
                 "aliases": [
                     "Destack MIR",
                     "dsm"
@@ -133,7 +133,7 @@
                 "configuration": "./destack-dsm.json"
             },
             {
-                "id": "destack-bytecode",
+                "id": "destack-dsa",
                 "aliases": [
                     "Destack Bytecode Assembly",
                     "dsa"
@@ -146,17 +146,17 @@
         ],
         "grammars": [
             {
-                "language": "destack",
+                "language": "destack-ds",
                 "scopeName": "source.ds",
                 "path": "./destack-ds.tmLanguage.json"
             },
             {
-                "language": "destack-mir",
+                "language": "destack-dsm",
                 "scopeName": "source.dsm",
                 "path": "./destack-dsm.tmLanguage.json"
             },
             {
-                "language": "destack-bytecode",
+                "language": "destack-dsa",
                 "scopeName": "source.dsa",
                 "path": "./destack-dsa.tmLanguage.json"
             }
