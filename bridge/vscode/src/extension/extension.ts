@@ -35,7 +35,7 @@ export class DestackExtension {
     async start(): Promise<void> {
         this.registerCommands();
         this.registerRestart();
-        await this.restart();
+        await this.report("start Destack", () => this.restart());
     }
 
     /** Stop the active language client. */
@@ -228,7 +228,13 @@ export class DestackExtension {
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             this.log.error(`failed to ${action}: ${message}`);
-            await vscode.window.showErrorMessage(`Failed to ${action}: ${message}`);
+            const selection = await vscode.window.showErrorMessage(
+                `Failed to ${action}: ${message}`,
+                "Show Logs",
+            );
+            if (selection === "Show Logs") {
+                this.log.show(true);
+            }
         }
     }
 }
