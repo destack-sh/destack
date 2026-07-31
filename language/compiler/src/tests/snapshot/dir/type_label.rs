@@ -25,7 +25,6 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Void => "void".to_string(),
             dir::Type::Null => "null".to_string(),
             dir::Type::Undefined => "undefined".to_string(),
-            dir::Type::Object => "object".to_string(),
             dir::Type::Primitive(primitive) => Self::primitive_type_label(*primitive),
             dir::Type::Literal(literal) => self.scalar_literal_label(literal),
             dir::Type::Key(key) => self.key_type_label(*key),
@@ -59,7 +58,9 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Range(range) => self.range_type_label(range),
             dir::Type::Slice(slice) => self.slice_type_label(types, slice),
             dir::Type::Tuple(tuple) => self.tuple_type_label(types, tuple),
-            dir::Type::Shape(shape) => self.shape_type_label(types, shape),
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
+                self.shape_type_label(types, shape)
+            }
             dir::Type::FunctionSignature(function) => {
                 self.function_type_label(types, types.signature(*function))
             }
@@ -342,6 +343,7 @@ impl DirSnapshotBuilder<'_> {
             dir::Form::Managed => format!("Managed<{value}>"),
             dir::Form::Owned => format!("Owned<{value}>"),
             dir::Form::Borrowed(borrow) => {
+                let _row = *borrow;
                 let borrow = types.borrow_form(*borrow);
                 let lifetime = self.type_id_label(types, borrow.lifetime);
                 let access = self.type_id_label(types, borrow.access);

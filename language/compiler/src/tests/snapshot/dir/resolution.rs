@@ -1348,10 +1348,7 @@ fn add_tree_resolution_row(
 }
 
 /// Return the label of one tree literal's selected call.
-fn tree_call_label(
-    builder: &DirSnapshotBuilder<'_>,
-    call: &dir::CallResolution,
-) -> Option<String> {
+fn tree_call_label(builder: &DirSnapshotBuilder<'_>, call: &dir::CallResolution) -> Option<String> {
     let dir::OperationResolution::One(call) = call else {
         return None;
     };

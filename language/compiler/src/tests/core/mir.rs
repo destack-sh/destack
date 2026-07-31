@@ -55,6 +55,7 @@ impl TestProgram {
                 memory,
                 effects,
                 profile,
+                initializer: None,
             },
             strings,
             provider: TestMirProvider { file },

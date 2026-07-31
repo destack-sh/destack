@@ -2,9 +2,7 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Debug;
 
-use destack_artifact::{
-    DirBound, DirCheckedModule, DirExpanded, DirExported, DirImported, DirResolved,
-};
+use destack_artifact::{DirBound, DirChecked, DirExpanded, DirExported, DirImported, DirResolved};
 use destack_core::{StringId, StringPool};
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -255,7 +253,7 @@ impl<'a> DirSnapshotBuilder<'a> {
         selection: DirRows,
         bound: &DirBound,
         expanded: &DirExpanded,
-        checked: &DirCheckedModule,
+        checked: &DirChecked,
     ) {
         self.summaries = selection.summaries;
         self.type_nodes = selection.type_nodes;

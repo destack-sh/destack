@@ -5,9 +5,9 @@ use std::sync::{Arc, OnceLock};
 use std::{env, thread};
 
 use destack_artifact::{
-    ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion, BuildId, ComponentGraph,
-    DirBound, DirCheckedModule, DirExpanded, DirExported, DirImported, DirParsed, DirResolved,
-    MemoryBlobStore, NullArtifactStore,
+    ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion, DirBound, DirChecked,
+    DirDeclared, DirExpanded, DirExported, DirImported, DirParsed, DirResolved, MemoryBlobStore,
+    ModuleGraph, NullArtifactStore,
 };
 use destack_dir as dir;
 use destack_mir::{MirFormatContext, MirFormatOptions, format_mir};
@@ -240,18 +240,6 @@ impl TestSession {
         let target = TargetId::new(entry.module.package_id, "native");
 
         ArtifactKey::mir_lowered(entry.module.id, entry.profile, target)
-    }
-
-    /// Return the checked component key for one module.
-    pub(crate) fn dir_checked_component_key(&self, path: &str) -> ArtifactKey {
-        let entry = self.module_entry(path);
-        let version = self.require_artifact(self.dir_checked_key(path));
-        let checked = self
-            .artifacts()
-            .dir_checked(&version)
-            .expect("test checked facade should exist");
-
-        ArtifactKey::dir_checked_component(checked.component, entry.profile)
     }
 
     /// Render diagnostics produced by one artifact key.
@@ -648,7 +636,7 @@ impl TestSession {
         expected_diagnostics: &str,
     ) {
         let dir = self.render_dir_snapshots(&[path], rows, true);
-        let diagnostics = self.diagnostic_snapshot(self.dir_checked_component_key(path));
+        let diagnostics = self.diagnostic_snapshot(self.dir_checked_key(path));
         self.print_trace_if_requested(path);
 
         assert_snapshot(dir, expected_dir);
@@ -691,7 +679,7 @@ impl TestSession {
     /// Assert checked DIR diagnostics for one module.
     #[track_caller]
     pub(crate) fn assert_dir_checked_diagnostics(&self, path: &str, expected: &str) {
-        self.assert_diagnostics(self.dir_checked_component_key(path), expected);
+        self.assert_diagnostics(self.dir_checked_key(path), expected);
     }
 
     /// Assert resolved DIR diagnostics for one module.
@@ -706,6 +694,9 @@ impl TestSession {
     #[track_caller]
     pub(crate) fn assert_diagnostics(&self, key: ArtifactKey, expected: &str) {
         self.print_trace_if_requested("diagnostics");
+
+        // diagnostics read stored collections, so the artifact builds first
+        self.require_artifact(key);
 
         assert_snapshot(self.diagnostic_snapshot(key), expected);
     }
@@ -936,7 +927,7 @@ impl TestSession {
         // require artifacts without diagnostics by default
         for path in paths {
             let key = if is_checked {
-                self.dir_checked_component_key(path)
+                self.dir_checked_key(path)
             } else {
                 artifact_key(self, path)
             };
@@ -1065,7 +1056,7 @@ impl TestSession {
 
     /// Return the annotated source render for one checked module.
     fn annotated_snapshot(&self, path: &str, entry: &TestModule) -> String {
-        let key = self.dir_checked_component_key(path);
+        let key = self.dir_checked_key(path);
         let labels = BTreeMap::from([
             ("phase".to_string(), "check".to_string()),
             ("module".to_string(), entry.module.uri.to_string()),
@@ -1137,29 +1128,28 @@ impl TestSession {
     }
 
     /// Return checked DIR for one module entry.
-    fn dir_checked(&self, entry: &TestModule) -> Arc<DirCheckedModule> {
+    fn dir_checked(&self, entry: &TestModule) -> Arc<DirChecked> {
         self.dir_checked_module(entry.module.id, entry.profile)
     }
 
     /// Return checked DIR for one module id.
-    fn dir_checked_module(&self, module_id: ModuleId, profile: ProfileId) -> Arc<DirCheckedModule> {
+    fn dir_checked_module(&self, module_id: ModuleId, profile: ProfileId) -> Arc<DirChecked> {
         let key = ArtifactKey::dir_checked(module_id, profile);
         let version = self.require_artifact(key);
-        let checked = self
-            .artifacts()
-            .dir_checked(&version)
-            .expect("test checked facade should exist");
-        let component_key = ArtifactKey::dir_checked_component(checked.component, profile);
-        let component_version = self.require_artifact(component_key);
-        let component = self
-            .artifacts()
-            .dir_checked_component(&component_version)
-            .expect("test checked component should exist");
-        let entry = component
-            .module(module_id)
-            .expect("test checked component should contain module");
 
-        Arc::new(entry.clone())
+        self.artifacts()
+            .dir_checked(&version)
+            .expect("test checked module should exist")
+    }
+
+    /// Return declared DIR for one module id.
+    fn dir_declared_module(&self, module_id: ModuleId, profile: ProfileId) -> Arc<DirDeclared> {
+        let key = ArtifactKey::dir_declared(module_id, profile);
+        let version = self.require_artifact(key);
+
+        self.artifacts()
+            .dir_declared(&version)
+            .expect("test declared module should exist")
     }
 
     /// Require one artifact through the production session.
@@ -1222,45 +1212,6 @@ impl TestSession {
                     .flatten()
             };
 
-            // describe component artifacts through their member modules
-            let component = match key {
-                ArtifactKey::DirDeclaredComponent { component, profile } => {
-                    Some((*component, *profile, false))
-                }
-                ArtifactKey::DirCheckedComponent { component, profile } => {
-                    Some((*component, *profile, true))
-                }
-                _ => None,
-            };
-            if let Some((component, profile, is_inference)) = component {
-                let graph_key = ArtifactKey::component_graph(profile);
-                let graph = self
-                    .repository
-                    .artifact_version(self.revision, &graph_key)
-                    .ok()
-                    .flatten()
-                    .and_then(|version| self.artifacts().component_graph(&version));
-                if let Some(graph) = graph {
-                    let members = if is_inference {
-                        graph.inference_members(component)
-                    } else {
-                        graph.reference_members(component)
-                    }
-                    .unwrap_or_else(|| {
-                        panic!("trace component {component} is absent from its component graph")
-                    });
-                    if let Some(display) =
-                        members.first().and_then(|module| module_display(*module))
-                    {
-                        if members.len() > 1 {
-                            return Some(format!("{display} (+{} modules)", members.len() - 1));
-                        }
-
-                        return Some(display);
-                    }
-                }
-            }
-
             key.module_id().and_then(module_display)
         };
 
@@ -1311,7 +1262,7 @@ impl TestSession {
             "import" => self.dir_imported_key(path),
             "export" => self.dir_exported_key(path),
             "resolve" => self.dir_resolved_key(path),
-            "check" => self.dir_checked_component_key(path),
+            "check" => self.dir_checked_key(path),
             _ => panic!("unsupported sidecar phase `{phase}`"),
         }
     }
@@ -1384,7 +1335,7 @@ impl TestSession {
         dir::TypeTable<'static>,
         dir::StaticTable<'static>,
     )> {
-        // load checked tables for exactly the entry component's externals
+        // foreign ids name declared surfaces, the cross-module currency
         let externals = self.entry_external_modules(entry);
 
         externals
@@ -1402,75 +1353,45 @@ impl TestSession {
                     .artifacts()
                     .dir_expanded(&expanded_version)
                     .expect("test external expanded artifact should exist");
-                let checked = self.dir_checked_module(module_id, entry.profile);
-                let generics = checked.generic_table();
-                let definitions = dir::DefinitionTable::from_segment(checked.definitions.clone());
-                let types = checked.type_table(&bound, &expanded);
-                let statics = checked.static_table(&bound, &expanded);
+                let declared = self.dir_declared_module(module_id, entry.profile);
+                let generics = declared.generic_table();
+                let definitions = declared.definition_table();
+                let types = declared.type_table(&bound, &expanded);
+                let statics = declared.static_table(&bound, &expanded);
 
                 (Some(generics), definitions, types, statics)
             })
             .collect()
     }
 
-    /// Return the transitive external modules of one entry's component.
+    /// Return the transitive external modules of one entry module.
     fn entry_external_modules(&self, entry: &TestModule) -> Vec<ModuleId> {
-        let graph = self.component_graph(entry.profile);
-        let component = graph
-            .reference_component(entry.module.id)
-            .unwrap_or_else(|| panic!("component graph misses entry module {:?}", entry.module.id));
-
-        // walk the condensation forward, collecting external members
-        let mut externals = Vec::new();
-        let mut seen = BTreeSet::new();
-        let mut pending = graph
-            .reference_dependencies(component)
-            .unwrap_or_else(|| panic!("component graph misses reference component {component}"))
-            .to_vec();
+        let graph = self.module_graph(entry.profile);
+        let mut roots = vec![entry.module.id];
 
         // include the ambient extension layer the checked output references
-        for extension in graph.cross_component_extensions() {
-            let extension = graph
-                .reference_component(extension.symbol.module_id)
-                .unwrap_or_else(|| {
-                    panic!(
-                        "component graph misses extension module {:?}",
-                        extension.symbol.module_id
-                    )
-                });
-            if extension != component {
-                pending.push(extension);
-            }
+        for extension in graph.cross_module_extensions() {
+            roots.push(extension.symbol.module_id);
         }
 
-        while let Some(dependency) = pending.pop() {
-            if !seen.insert(dependency) {
-                continue;
-            }
-            let members = graph.reference_members(dependency).unwrap_or_else(|| {
-                panic!("component graph misses reference component {dependency}")
-            });
-            let dependencies = graph.reference_dependencies(dependency).unwrap_or_else(|| {
-                panic!("component graph misses reference dependencies for {dependency}")
-            });
-            externals.extend(members.iter().copied());
-            pending.extend(dependencies.iter().copied());
-        }
-
-        externals
+        graph
+            .reachable(&roots)
+            .into_iter()
+            .filter(|module| *module != entry.module.id)
+            .collect()
     }
 
-    /// Read the component graph for one profile.
-    pub(crate) fn component_graph(&self, profile: ProfileId) -> Arc<ComponentGraph> {
-        let version = self.require_artifact(ArtifactKey::component_graph(profile));
+    /// Read the module graph for one profile.
+    pub(crate) fn module_graph(&self, profile: ProfileId) -> Arc<ModuleGraph> {
+        let version = self.require_artifact(ArtifactKey::module_graph(profile));
         self.artifacts()
-            .component_graph(&version)
-            .expect("test component graph should exist")
+            .module_graph(&version)
+            .expect("test module graph should exist")
     }
 
     /// Assert the component graph induced by selected source modules.
     #[track_caller]
-    pub(crate) fn assert_component_graph(&self, paths: &[&str], expected: &str) {
+    pub(crate) fn assert_module_graph(&self, paths: &[&str], expected: &str) {
         let Some(first) = paths.first() else {
             panic!("component graph snapshot needs at least one module");
         };
@@ -1491,57 +1412,16 @@ impl TestSession {
             .iter()
             .map(|(path, module)| (*module, *path))
             .collect::<BTreeMap<_, _>>();
-        let graph = self.component_graph(profile);
+        let graph = self.module_graph(profile);
 
-        // group selected modules by reference component
-        let mut reference_components = BTreeMap::new();
-        for (path, module) in &modules {
-            let component = graph
-                .reference_component(*module)
-                .unwrap_or_else(|| panic!("component graph misses {module:?}"));
-            reference_components
-                .entry(component)
-                .or_insert_with(Vec::new)
-                .push(*path);
-        }
-        let mut reference_components = reference_components.into_values().collect::<Vec<_>>();
-        sort_components(&mut reference_components);
-
-        // group selected modules by inference component
-        let mut inference_components = BTreeMap::new();
-        for (path, module) in &modules {
-            let component = graph
-                .inference_component(*module)
-                .unwrap_or_else(|| panic!("component graph misses inference for {module:?}"));
-            inference_components
-                .entry(component)
-                .or_insert_with(Vec::new)
-                .push(*path);
-        }
-        let mut inference_components = inference_components.into_values().collect::<Vec<_>>();
-        sort_components(&mut inference_components);
-
-        // render component memberships before exact selected edge rows
+        // render exact selected edge rows
         let mut snapshot = String::new();
-        for members in reference_components {
-            snapshot.push_str(&format!("reference-component [{}]\n", members.join(", ")));
-        }
-        for members in inference_components {
-            snapshot.push_str(&format!("inference-component [{}]\n", members.join(", ")));
-        }
         for (path, module) in &modules {
             let edges = graph
-                .reference_edges(*module)
-                .unwrap_or_else(|| panic!("component graph misses reference edges for {module:?}"));
+                .edges(*module)
+                .unwrap_or_else(|| panic!("module graph misses edges for {module:?}"));
             let targets = selected_paths(edges, &paths_by_module);
-            snapshot.push_str(&format!("reference {path} -> [{}]\n", targets.join(", ")));
-        }
-        for (path, module) in &modules {
-            let edges = graph
-                .inference_edges(*module)
-                .unwrap_or_else(|| panic!("component graph misses inference edges for {module:?}"));
-            let targets = selected_paths(edges, &paths_by_module);
-            snapshot.push_str(&format!("inference {path} -> [{}]\n", targets.join(", ")));
+            snapshot.push_str(&format!("module {path} -> [{}]\n", targets.join(", ")));
         }
 
         assert_snapshot(snapshot, expected);
@@ -1553,14 +1433,6 @@ impl TestSession {
             .get(path)
             .unwrap_or_else(|| panic!("missing test module path '{path}'"))
     }
-}
-
-/// Sort component members and components for stable snapshots.
-fn sort_components(components: &mut [Vec<&str>]) {
-    for members in components.iter_mut() {
-        members.sort_unstable();
-    }
-    components.sort_unstable();
 }
 
 /// Return selected paths targeted by one module edge row.
