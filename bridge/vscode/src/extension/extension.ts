@@ -105,27 +105,11 @@ export class DestackExtension {
         return pendingClientChange;
     }
 
-    /** Ask the server to reload every workspace root. */
-    private async reload(): Promise<void> {
-        const client = this.client;
-        if (!client) {
-            throw new Error("Destack language server is not running");
-        }
-
-        await client.sendRequest("workspace/executeCommand", {
-            command: "destack.reload",
-            arguments: [],
-        });
-    }
-
-    /** Register public and server-issued editor commands. */
+    /** Register commands implemented by the extension. */
     private registerCommands(): void {
         this.context.subscriptions.push(
             vscode.commands.registerCommand("destack.restart", async () => {
                 await this.report("restart Destack", () => this.restart());
-            }),
-            vscode.commands.registerCommand("destack.reload", async () => {
-                await this.report("reload the Destack workspace", () => this.reload());
             }),
             vscode.commands.registerCommand("destack.showLogs", () => {
                 this.log.show(true);
