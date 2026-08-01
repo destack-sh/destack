@@ -600,6 +600,12 @@ pub struct TypeSegment {
     /// The value hash per owned type, parallel to `types`.
     #[serde(skip)]
     hashes: Vec<u64>,
+    /// The sealed segment beneath this tail, interning reuses its types.
+    #[serde(skip)]
+    sealed: Option<Arc<TypeSegment>>,
+    /// The intern index over the sealed segment's types.
+    #[serde(skip)]
+    sealed_index: FxHashMap<u64, SmallVec<[LocalTypeId; 1]>>,
 
     /// Effective checked type keyed by DIR node occurrence.
     pub(crate) node_types: IndexMap<GlobalNodeIdAny, GlobalTypeId>,
@@ -664,6 +670,8 @@ impl TypeSegment {
             borrows: ValuePool::new(0),
             index: FxHashMap::default(),
             hashes: Vec::new(),
+            sealed: None,
+            sealed_index: FxHashMap::default(),
             node_types: IndexMap::new(),
             symbol_types: IndexMap::new(),
             reduced_types: IndexMap::new(),
@@ -690,17 +698,46 @@ impl TypeSegment {
             borrows: ValuePool::new(base.borrows.count()),
             index: FxHashMap::default(),
             hashes: Vec::new(),
+            sealed: None,
+            sealed_index: FxHashMap::default(),
             node_types: IndexMap::new(),
             symbol_types: IndexMap::new(),
             reduced_types: IndexMap::new(),
         }
     }
 
+    /// Create an empty tail whose interning reuses one sealed segment's types.
+    pub fn from_sealed_base(base: Arc<TypeSegment>) -> Self {
+        let mut tail = Self::from_base(&base);
+
+        // index the sealed types so identical structures reuse their ids
+        let mut sealed_index = FxHashMap::<u64, SmallVec<[LocalTypeId; 1]>>::default();
+        for (slot, ty) in base.types.iter().enumerate() {
+            let id = LocalTypeId::new(base.first_type_id + slot as u32);
+            sealed_index.entry(fx_hash(ty)).or_default().push(id);
+        }
+        tail.sealed = Some(base);
+        tail.sealed_index = sealed_index;
+
+        tail
+    }
+
     /// Intern one type whose payload lists are already interned.
     /// The caller supplies the joined structural flags of every child type.
     pub fn intern_type(&mut self, ty: Type, child_flags: TypeFlags) -> LocalTypeId {
-        // probe the index for an existing structural hit
+        // probe the sealed segment beneath this tail first
         let hash = fx_hash(&ty);
+        if let Some(sealed) = &self.sealed
+            && let Some(slots) = self.sealed_index.get(&hash)
+        {
+            for slot in slots {
+                if sealed.get_type_maybe(*slot).as_ref() == Some(&ty) {
+                    return *slot;
+                }
+            }
+        }
+
+        // probe the index for an existing structural hit
         if let Some(slots) = self.index.get(&hash) {
             for slot in slots {
                 if self.owned_type(*slot) == &ty {
@@ -722,6 +759,13 @@ impl TypeSegment {
 
     /// Intern one type operation payload.
     pub fn intern_operation(&mut self, operation: TypeOperation) -> TypeOperationId {
+        // reuse what the sealed segment beneath this tail already interned
+        if let Some(sealed) = &self.sealed
+            && let Some(id) = sealed.operations.find(&operation)
+        {
+            return id;
+        }
+
         self.operations.intern(operation)
     }
 
@@ -737,6 +781,13 @@ impl TypeSegment {
 
     /// Intern one function signature payload.
     pub fn intern_signature(&mut self, signature: FunctionSignatureType) -> FunctionSignatureId {
+        // reuse what the sealed segment beneath this tail already interned
+        if let Some(sealed) = &self.sealed
+            && let Some(id) = sealed.signatures.find(&signature)
+        {
+            return id;
+        }
+
         self.signatures.intern(signature)
     }
 
@@ -752,6 +803,13 @@ impl TypeSegment {
 
     /// Intern one member projection payload.
     pub fn intern_member(&mut self, member: MemberType) -> MemberTypeId {
+        // reuse what the sealed segment beneath this tail already interned
+        if let Some(sealed) = &self.sealed
+            && let Some(id) = sealed.members.find(&member)
+        {
+            return id;
+        }
+
         self.members.intern(member)
     }
 
@@ -767,6 +825,13 @@ impl TypeSegment {
 
     /// Intern one refined application payload.
     pub fn intern_refined(&mut self, refined: RefinedType) -> RefinedTypeId {
+        // reuse what the sealed segment beneath this tail already interned
+        if let Some(sealed) = &self.sealed
+            && let Some(id) = sealed.refinements.find(&refined)
+        {
+            return id;
+        }
+
         self.refinements.intern(refined)
     }
 
@@ -782,6 +847,13 @@ impl TypeSegment {
 
     /// Intern one borrow form payload.
     pub fn intern_borrow(&mut self, borrow: BorrowForm) -> BorrowFormId {
+        // reuse what the sealed segment beneath this tail already interned
+        if let Some(sealed) = &self.sealed
+            && let Some(id) = sealed.borrows.find(&borrow)
+        {
+            return id;
+        }
+
         self.borrows.intern(borrow)
     }
 
@@ -797,31 +869,73 @@ impl TypeSegment {
 
     /// Intern one type id list.
     pub fn intern_type_ids(&mut self, values: &[GlobalTypeId]) -> TypeListId {
+        // reuse what the sealed segment beneath this tail already interned
+        if let Some(sealed) = &self.sealed
+            && let Some(list) = sealed.type_ids.find(values)
+        {
+            return list;
+        }
+
         self.type_ids.intern(values)
     }
 
     /// Intern one tuple element list.
     pub fn intern_elements(&mut self, values: &[TypeElement]) -> TypeListId {
+        // reuse what the sealed segment beneath this tail already interned
+        if let Some(sealed) = &self.sealed
+            && let Some(list) = sealed.elements.find(values)
+        {
+            return list;
+        }
+
         self.elements.intern(values)
     }
 
     /// Intern one shape property list.
     pub fn intern_properties(&mut self, values: &[TypeProperty]) -> TypeListId {
+        // reuse what the sealed segment beneath this tail already interned
+        if let Some(sealed) = &self.sealed
+            && let Some(list) = sealed.properties.find(values)
+        {
+            return list;
+        }
+
         self.properties.intern(values)
     }
 
     /// Intern one function parameter list.
     pub fn intern_parameters(&mut self, values: &[FunctionParameterType]) -> TypeListId {
+        // reuse what the sealed segment beneath this tail already interned
+        if let Some(sealed) = &self.sealed
+            && let Some(list) = sealed.parameters.find(values)
+        {
+            return list;
+        }
+
         self.parameters.intern(values)
     }
 
     /// Intern one index signature list.
     pub fn intern_index_signatures(&mut self, values: &[TypeIndexSignature]) -> TypeListId {
+        // reuse what the sealed segment beneath this tail already interned
+        if let Some(sealed) = &self.sealed
+            && let Some(list) = sealed.index_signatures.find(values)
+        {
+            return list;
+        }
+
         self.index_signatures.intern(values)
     }
 
     /// Intern one string list.
     pub fn intern_strings(&mut self, values: &[StringId]) -> TypeListId {
+        // reuse what the sealed segment beneath this tail already interned
+        if let Some(sealed) = &self.sealed
+            && let Some(list) = sealed.strings.find(values)
+        {
+            return list;
+        }
+
         self.strings.intern(values)
     }
 
@@ -1096,6 +1210,23 @@ impl<T> ListPool<T> {
 }
 
 impl<T: Copy + Eq + Hash> ListPool<T> {
+    /// Find one already-interned list without allocating.
+    fn find(&self, values: &[T]) -> Option<TypeListId> {
+        // canonicalize the empty list without touching storage
+        if values.is_empty() {
+            return Some(TypeListId::EMPTY);
+        }
+
+        // probe the index for an existing content hit
+        let hash = fx_hash(&values);
+        let lists = self.index.get(&hash)?;
+
+        lists
+            .iter()
+            .find(|list| self.get(**list) == values)
+            .copied()
+    }
+
     /// Intern one list.
     fn intern(&mut self, values: &[T]) -> TypeListId {
         // canonicalize the empty list without touching storage

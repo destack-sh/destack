@@ -338,6 +338,44 @@ pub struct ResolutionSegment {
     pub(crate) assign_patterns: IndexMap<GlobalNodeIdAny, AssignPatternResolution, FxBuildHasher>,
 }
 
+impl ResolutionSegment {
+    /// Drop every resolution an earlier sealed segment already carries identically.
+    pub fn drop_carried(&mut self, sealed: &ResolutionSegment) {
+        self.names
+            .retain(|node, resolution| sealed.names.get(node) != Some(resolution));
+        self.instantiations
+            .retain(|node, resolution| sealed.instantiations.get(node) != Some(resolution));
+        self.labels
+            .retain(|node, resolution| sealed.labels.get(node) != Some(resolution));
+        self.receivers
+            .retain(|node, resolution| sealed.receivers.get(node) != Some(resolution));
+        self.accesses
+            .retain(|node, resolution| sealed.accesses.get(node) != Some(resolution));
+        self.places
+            .retain(|node, resolution| sealed.places.get(node) != Some(resolution));
+        self.members
+            .retain(|node, resolution| sealed.members.get(node) != Some(resolution));
+        self.operators
+            .retain(|node, resolution| sealed.operators.get(node) != Some(resolution));
+        self.calls
+            .retain(|node, resolution| sealed.calls.get(node) != Some(resolution));
+        self.subscripts
+            .retain(|node, resolution| sealed.subscripts.get(node) != Some(resolution));
+        self.assignments
+            .retain(|node, resolution| sealed.assignments.get(node) != Some(resolution));
+        self.guards
+            .retain(|node, resolution| sealed.guards.get(node) != Some(resolution));
+        self.constructs
+            .retain(|node, resolution| sealed.constructs.get(node) != Some(resolution));
+        self.trees
+            .retain(|node, resolution| sealed.trees.get(node) != Some(resolution));
+        self.patterns
+            .retain(|node, resolution| sealed.patterns.get(node) != Some(resolution));
+        self.assign_patterns
+            .retain(|node, resolution| sealed.assign_patterns.get(node) != Some(resolution));
+    }
+}
+
 /// Per-kind resolution counts marking one segment position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ResolutionMark {
