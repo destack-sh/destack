@@ -229,14 +229,14 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         target_instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<bool>> {
-        // accept opaque foreign applications while declaring,
-        //  checking relates them against loaded kinds
-        let Some(target_kind) = self.symbol_kind_maybe(target_instance.symbol)? else {
-            return Ok(Answer::Ready(true));
-        };
-        if self.is_declaration() && self.symbol_kind_maybe(source_instance.symbol)?.is_none() {
+        // accept applications whose definitions are not readable yet,
+        //  checking relates them against loaded declarations
+        if self.definition(target_instance.symbol)?.is_none()
+            || self.definition(source_instance.symbol)?.is_none()
+        {
             return Ok(Answer::Ready(true));
         }
+        let target_kind = self.symbol_kind(target_instance.symbol)?;
 
         // interface targets select one implementation path
         if target_kind.is_interface() {

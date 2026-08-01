@@ -63,8 +63,8 @@ impl Protocol {
                 check.template_substitution(template, &self.arguments)?;
             }
             None if self.arguments.is_empty() => {}
-            // skip unloaded foreign templates while declaring
-            None if check.is_declaration() => {}
+            // keep unloaded foreign templates symbolic
+            None if !check.is_loaded_module(self.symbol.module_id) => {}
             None => {
                 return Err(CompilerError::Internal {
                     message: format!(
@@ -138,9 +138,8 @@ impl CheckState<'_> {
                 substitution.arguments().collect()
             }
             None if written.is_empty() => Vec::new(),
-            // carry the written arguments while declaring, the
-            //  foreign template loads only when checking
-            None if self.is_declaration() => written,
+            // carry the written arguments of unloaded foreign templates
+            None if !self.is_loaded_module(symbol.module_id) => written,
             None => {
                 return Err(CompilerError::Internal {
                     message: format!(
@@ -172,9 +171,8 @@ impl BodyState<'_, '_> {
                 return Ok(Answer::Ready(Protocol::new(symbol, Vec::new())));
             }
 
-            // carry the written arguments while declaring, the
-            //  foreign template loads only when checking
-            if self.is_declaration() {
+            // carry the written arguments of unloaded foreign templates
+            if !self.is_loaded_module(symbol.module_id) {
                 return Ok(Answer::Ready(Protocol::new(symbol, written.to_vec())));
             }
 

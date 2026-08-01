@@ -700,13 +700,6 @@ impl CheckState<'_> {
 
     /// Format one symbol by its declared name.
     pub(in crate::check) fn format_symbol(&self, symbol: dir::GlobalSymbolId) -> String {
-        // unloaded foreign modules render as opaque identities
-        if !self.is_own_module(symbol.module_id)
-            && !self.external_modules.contains_key(&symbol.module_id)
-        {
-            return format!("<{:?}>", symbol.local_id);
-        }
-
         let bindings = self.binding_table(symbol.module_id);
         let key = bindings.get_symbol(symbol.local_id).key;
 

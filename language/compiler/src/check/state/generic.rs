@@ -79,6 +79,24 @@ impl GenericIndex {
         self.parameters_by_symbol.get(&symbol).copied()
     }
 
+    /// Index one declared template by its declaring symbol.
+    pub(in crate::check) fn index_template_symbol(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        id: GenericTemplateId,
+    ) {
+        self.templates_by_symbol.insert(symbol, id);
+    }
+
+    /// Index one declared parameter by its declaring symbol.
+    pub(in crate::check) fn index_parameter(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        id: GenericParameterId,
+    ) {
+        self.parameters_by_symbol.insert(symbol, id);
+    }
+
     /// Push one induced parameter site.
     pub(in crate::check) fn push_induced_parameter_site(&mut self, site: InducedParameterSite) {
         self.induced_parameter_sites.push(site);
@@ -117,8 +135,22 @@ impl CheckState<'_> {
         let template = self
             .definition(symbol)?
             .and_then(|definition| definition.template());
+        if let Some(template) = template {
+            return Ok(Some(template.into_global(symbol.module_id)));
+        }
 
-        Ok(template.map(|template| template.into_global(symbol.module_id)))
+        // read the template of a declared-stage signature
+        let is_declared_stage = self
+            .module_maybe(symbol.module_id)
+            .is_some_and(|module| module.declared.is_some());
+        if is_declared_stage
+            && let Some(ty) = self.symbol_type_maybe(symbol)
+            && let Some(head) = self.signature_head(ty)?
+        {
+            return Ok(head.template);
+        }
+
+        Ok(None)
     }
 
     /// Return one symbol's already loaded template, without importing.
@@ -130,7 +162,7 @@ impl CheckState<'_> {
             return Some(template);
         }
 
-        let template = self.definintion_maybe(symbol)?.template()?;
+        let template = self.definition_maybe(symbol)?.template()?;
 
         Some(template.into_global(symbol.module_id))
     }
@@ -140,11 +172,17 @@ impl CheckState<'_> {
         &self,
         id: GenericTemplateId,
     ) -> Option<&dir::GenericTemplate> {
-        // read working component templates first
-        if let Some(module) = self.module_maybe(id.module_id)
-            && let Some(template) = module.generics.get_local_template(id.local_id)
-        {
-            return Some(template);
+        // read working templates before declared-stage templates
+        if let Some(module) = self.module_maybe(id.module_id) {
+            if let Some(template) = module.generics.get_local_template(id.local_id) {
+                return Some(template);
+            }
+
+            if let Some(declared) = &module.declared
+                && let Some(template) = declared.generics.get_local_template(id.local_id)
+            {
+                return Some(template);
+            }
         }
 
         // read external committed templates
@@ -160,11 +198,17 @@ impl CheckState<'_> {
         &self,
         id: GenericParameterId,
     ) -> Option<&dir::GenericParameterBinding> {
-        // read working component parameters first
-        if let Some(module) = self.module_maybe(id.module_id)
-            && let Some(parameter) = module.generics.get_local_parameter(id.local_id)
-        {
-            return Some(parameter);
+        // read working parameters before declared-stage parameters
+        if let Some(module) = self.module_maybe(id.module_id) {
+            if let Some(parameter) = module.generics.get_local_parameter(id.local_id) {
+                return Some(parameter);
+            }
+
+            if let Some(declared) = &module.declared
+                && let Some(parameter) = declared.generics.get_local_parameter(id.local_id)
+            {
+                return Some(parameter);
+            }
         }
 
         // read external committed parameters
@@ -643,10 +687,9 @@ impl CheckState<'_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check module {module:?} has no working generics"),
             })?;
+        // skip parameters the declared stage sealed, they keep their constraints
         let Some(binding) = working.generics.get_local_parameter_mut(parameter.local_id) else {
-            return Err(CompilerError::Internal {
-                message: format!("generic parameter {parameter:?} is not in its working segment"),
-            });
+            return Ok(());
         };
         binding.constraint = constraint;
         binding.default = default;
@@ -669,10 +712,9 @@ impl CheckState<'_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check module {module:?} has no working generics"),
             })?;
+        // skip templates the declared stage sealed, they keep their predicates
         let Some(declared) = working.generics.get_local_template_mut(template.local_id) else {
-            return Err(CompilerError::Internal {
-                message: format!("generic template {template:?} is not in its working segment"),
-            });
+            return Ok(());
         };
 
         // skip predicates the declaration pass already recorded
@@ -834,9 +876,8 @@ impl CheckState<'_> {
                 return Ok(TypeSubstitution::default());
             }
 
-            // keep foreign applications symbolic while declaring,
-            //  their templates load only when checking
-            if self.is_declaration() && !self.is_own_module(instance.symbol.module_id) {
+            // keep unloaded foreign applications symbolic
+            if !self.is_loaded_module(instance.symbol.module_id) {
                 return Ok(TypeSubstitution::default());
             }
 
@@ -1028,7 +1069,14 @@ impl CheckState<'_> {
         for current in bindings.scope_ancestors(template.scope) {
             let parent = if self.is_own_module(template_id.module_id) {
                 self.module_maybe(template_id.module_id)
-                    .and_then(|module| module.generics.template_by_scope(current.id))
+                    .and_then(|module| {
+                        // read the working template before the declared-stage one
+                        module.generics.template_by_scope(current.id).or_else(|| {
+                            module.declared.as_ref().and_then(|declared| {
+                                declared.generics.template_by_scope(current.id)
+                            })
+                        })
+                    })
                     .map(|id| id.into_global(template_id.module_id))
             } else {
                 self.external_module(template_id.module_id)

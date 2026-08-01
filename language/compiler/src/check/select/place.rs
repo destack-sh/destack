@@ -293,6 +293,11 @@ impl BodyState<'_, '_> {
                 return Ok(());
             }
 
+            // keep the first resolution, lifetimes are proof-only
+            if previous.placement == place.placement && previous.access == place.access {
+                return Ok(());
+            }
+
             return Err(CompilerError::Internal {
                 message: format!(
                     "check node {} selected two places: previous = {previous:?}, new = {place:?}",

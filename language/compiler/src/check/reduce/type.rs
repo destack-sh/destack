@@ -430,15 +430,24 @@ impl CheckState<'_> {
 
             // transparent alias references expand to their substituted bodies
             dir::Type::Application(instance) => {
-                // close foreign applications unreduced while declaring
-                if self.is_declaration() && !self.is_own_module(instance.symbol.module_id) {
-                    return Ok(HeadReduction::Closed(id));
+                // follow import binders to their target declarations
+                if let Some(target) = self.import_binder_target(instance.symbol)? {
+                    if !self.is_own_module(target.module_id) {
+                        self.import_external_module(target.module_id)?;
+                    }
+
+                    // rebuild the application over the target declaration
+                    let rebuilt =
+                        self.intern_type(dir::Type::Application(dir::GenericApplication {
+                            symbol: target,
+                            arguments: instance.arguments,
+                        }))?;
+
+                    return self.head_reduction(origin, rebuilt);
                 }
 
                 // written applications complete their elided arguments
-                if !self.is_declaration()
-                    && let Some(filled) = self.fill_elided_application(id.module_id, &instance)?
-                {
+                if let Some(filled) = self.fill_elided_application(id.module_id, &instance)? {
                     return self.head_reduction(origin, filled);
                 }
 
@@ -748,14 +757,22 @@ impl CheckState<'_> {
     }
 
     /// Complete one under-applied application with its elided arguments.
-    ///
-    /// Written types elide defaulted and lifetime arguments, so canonicalization completes them:
-    /// defaults substitute against the arguments so far and elided lifetimes take the frame.
     pub(in crate::check) fn fill_elided_application(
         &mut self,
         module: ModuleId,
         instance: &dir::GenericApplication,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // resolve binder symbols to their declaring targets
+        let symbol = self.resolve_symbol_alias(instance.symbol)?;
+        let symbol = match self.import_binder_target(symbol)? {
+            Some(target) => target,
+            None => symbol,
+        };
+        let instance = dir::GenericApplication {
+            symbol,
+            arguments: instance.arguments,
+        };
+
         let Some(template) = self.symbol_template(instance.symbol)? else {
             return Ok(None);
         };
@@ -765,7 +782,7 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
-        let substitution = self.instance_substitution(module, instance)?;
+        let substitution = self.instance_substitution(module, &instance)?;
         let arguments = substitution
             .bindings
             .iter()

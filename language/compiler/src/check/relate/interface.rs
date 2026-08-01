@@ -222,21 +222,25 @@ impl CheckState<'_> {
 
             // matching binds open parameters; the relation judges below
             let mut scratch = substitution.clone();
-            let seeded = self.substitute_type(heritage.ty, &scratch)?;
+            let matched = self.substitute_type(heritage.ty, &scratch)?;
             let _ = self.extend_generic_substitution(
                 origin,
                 parameters,
                 &mut scratch,
-                &[(seeded, interface_type)],
+                &[(matched, interface_type)],
             )?;
             let implemented = self.substitute_type(heritage.ty, &scratch)?;
 
-            // written rows complete their elided arguments
+            // written rows complete their elided arguments, and filled
+            //  defaults substitute through the implementation context
             let implemented = self.settled_root(implemented)?;
             let implemented = match self.ty(implemented)? {
-                dir::Type::Application(instance) => self
-                    .fill_elided_application(implemented.module_id, &instance)?
-                    .unwrap_or(implemented),
+                dir::Type::Application(instance) => {
+                    match self.fill_elided_application(implemented.module_id, &instance)? {
+                        Some(filled) => self.substitute_type(filled, &scratch)?,
+                        None => implemented,
+                    }
+                }
                 _ => implemented,
             };
 
