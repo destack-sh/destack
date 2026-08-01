@@ -1,7 +1,7 @@
 //! This module defines s390x-specific machine instruction types.
 
 use crate::binemit::{Addend, CodeOffset, Reloc};
-use crate::ir::{ExternalName, MemFlags, Type, types};
+use crate::ir::{ExternalName, MemFlagsData, Type, types};
 use crate::isa::s390x::abi::S390xMachineDeps;
 use crate::isa::{CallConv, FunctionAlignment};
 use crate::machinst::*;
@@ -1263,6 +1263,10 @@ impl MachInst for Inst {
         // to account for them here (otherwise the worst case would be 2^31 * 4, clearly not
         // feasible for other reasons).
         44
+    }
+
+    fn worst_case_island_growth() -> CodeOffset {
+        0
     }
 
     fn ref_type_regclass(_: &settings::Flags) -> RegClass {
@@ -3544,12 +3548,12 @@ impl Inst {
                     4 => "lxaq",
                     _ => unreachable!(),
                 };
-                let flags = MemFlags::trusted();
+                let flags = MemFlagsData::trusted();
                 let mem = MemArg::BXD20 {
                     base,
                     index,
                     disp: offset,
-                    flags,
+                    flags: flags.into(),
                 };
                 let mem = mem.pretty_print_default();
                 format!("{op} {rd}, {mem}")
@@ -3569,12 +3573,12 @@ impl Inst {
                     4 => "llxaq",
                     _ => unreachable!(),
                 };
-                let flags = MemFlags::trusted();
+                let flags = MemFlagsData::trusted();
                 let mem = MemArg::BXD20 {
                     base,
                     index,
                     disp: offset,
-                    flags,
+                    flags: flags.into(),
                 };
                 let mem = mem.pretty_print_default();
                 format!("{op} {rd}, {mem}")

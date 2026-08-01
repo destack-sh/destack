@@ -14,9 +14,8 @@ use crate::machinst::{
 };
 use crate::result::CodegenResult;
 use crate::settings as shared_settings;
-use alloc::boxed::Box;
 use alloc::string::String;
-use alloc::vec::Vec;
+use alloc::{boxed::Box, vec::Vec};
 use core::fmt;
 use cranelift_control::ControlPlane;
 use target_lexicon::{Aarch64Architecture, Architecture, Triple};
@@ -126,7 +125,8 @@ impl TargetIsa for AArch64Backend {
         result: &CompiledCode,
         kind: crate::isa::unwind::UnwindInfoKind,
     ) -> CodegenResult<Option<crate::isa::unwind::UnwindInfo>> {
-        use crate::isa::unwind::{UnwindInfo, UnwindInfoKind};
+        use crate::isa::unwind::UnwindInfo;
+        use crate::isa::unwind::UnwindInfoKind;
         Ok(match kind {
             UnwindInfoKind::SystemV => {
                 let mapper = self::inst::unwind::systemv::RegisterMapper;

@@ -606,6 +606,17 @@ impl StackSlots {
 pub(super) struct SafepointSpiller {
     liveness: LivenessAnalysis,
     stack_slots: StackSlots,
+
+    /// Optional embedder callback used to assign an alias region to the loads
+    /// and stores emitted when spilling and reloading values that are live
+    /// across safepoints.
+    pub(super) make_alias_region: Option<
+        Box<
+            dyn Fn(&mut ir::AliasRegionSet, ir::Type, ir::StackSlot, u32) -> Option<ir::AliasRegion>
+                + Send
+                + Sync,
+        >,
+    >,
 }
 
 impl SafepointSpiller {
@@ -615,6 +626,7 @@ impl SafepointSpiller {
         let SafepointSpiller {
             liveness,
             stack_slots,
+            make_alias_region: _,
         } = self;
         liveness.clear();
         stack_slots.clear();
@@ -623,7 +635,12 @@ impl SafepointSpiller {
     /// Identify needs-stack-map values that are live across safepoints, and
     /// rewrite the function's instructions to spill and reload them as
     /// necessary.
-    pub fn run(&mut self, func: &mut Function, stack_map_values: &EntitySet<ir::Value>) {
+    pub fn run(
+        &mut self,
+        func: &mut Function,
+        stack_map_values: &EntitySet<ir::Value>,
+        pointer_type: ir::Type,
+    ) {
         log::trace!("values needing inclusion in stack maps: {stack_map_values:?}");
         log::trace!(
             "before inserting safepoint spills and reloads:\n{}",
@@ -632,7 +649,7 @@ impl SafepointSpiller {
 
         self.clear();
         self.liveness.run(func, stack_map_values);
-        self.rewrite(func);
+        self.rewrite(func, pointer_type);
 
         log::trace!(
             "after inserting safepoint spills and reloads:\n{}",
@@ -644,18 +661,30 @@ impl SafepointSpiller {
     /// included in stack maps and is live across any safepoints.
     ///
     /// The given cursor must point just after this value's definition.
-    fn rewrite_def(&mut self, pos: &mut FuncCursor<'_>, val: ir::Value) {
+    fn rewrite_def(&mut self, pos: &mut FuncCursor<'_>, val: ir::Value, pointer_type: ir::Type) {
         debug_assert!(!pos.func.dfg.value_is_alias(val));
         if let Some(slot) = self.stack_slots.get(val) {
-            let i = pos.ins().stack_store(val, slot, 0);
+            let ty = pos.func.dfg.value_type(val);
+
+            let mut flags = ir::MemFlagsData::trusted();
+            flags.set_notrap();
+            if let Some(make_alias_region) = &self.make_alias_region {
+                if let Some(region) =
+                    make_alias_region(&mut pos.func.dfg.alias_regions, ty, slot, 0)
+                {
+                    flags.set_alias_region(Some(region));
+                }
+            }
+
+            let addr = pos.ins().stack_addr(pointer_type, slot, 0);
+            let inst = pos.ins().store(flags, val, addr, 0);
             log::trace!(
                 "rewriting:   spilling {val:?} to {slot:?}: {}",
-                pos.func.dfg.display_inst(i)
+                pos.func.dfg.display_inst(inst)
             );
 
             // Now that we've defined this value, there cannot be any more uses
             // of it, and therefore this stack slot is now available for reuse.
-            let ty = pos.func.dfg.value_type(val);
             let size = SlotSize::try_from(ty).unwrap();
             self.stack_slots.free_stack_slot(size, slot);
         }
@@ -708,7 +737,12 @@ impl SafepointSpiller {
     ///
     /// The given cursor must point just before the use of the value that we are
     /// replacing.
-    fn rewrite_use(&mut self, pos: &mut FuncCursor<'_>, val: &mut ir::Value) -> bool {
+    fn rewrite_use(
+        &mut self,
+        pos: &mut FuncCursor<'_>,
+        val: &mut ir::Value,
+        pointer_type: ir::Type,
+    ) -> bool {
         debug_assert!(!pos.func.dfg.value_is_alias(*val));
         if !self.liveness.live_across_any_safepoint.contains(*val) {
             return false;
@@ -719,7 +753,17 @@ impl SafepointSpiller {
 
         let ty = pos.func.dfg.value_type(*val);
         let slot = self.stack_slots.get_or_create_stack_slot(pos.func, *val);
-        *val = pos.ins().stack_load(ty, slot, 0);
+
+        let mut flags = ir::MemFlagsData::trusted();
+        flags.set_notrap();
+        if let Some(make_alias_region) = &self.make_alias_region {
+            if let Some(region) = make_alias_region(&mut pos.func.dfg.alias_regions, ty, slot, 0) {
+                flags.set_alias_region(Some(region));
+            }
+        }
+
+        let addr = pos.ins().stack_addr(pointer_type, slot, 0);
+        *val = pos.ins().load(ty, flags, addr, 0);
 
         log::trace!(
             "rewriting:     reloading {old_val:?}: {}",
@@ -743,7 +787,7 @@ impl SafepointSpiller {
     ///
     /// 3. Uses of needs-stack-map values that have been spilled to a stack slot
     ///    need to be replaced with reloads from the slot.
-    fn rewrite(&mut self, func: &mut Function) {
+    fn rewrite(&mut self, func: &mut Function, pointer_type: ir::Type) {
         // Shared temporary storage for operand and result lists.
         let mut vals: SmallVec<[_; 8]> = Default::default();
 
@@ -757,6 +801,22 @@ impl SafepointSpiller {
             let block = self.liveness.post_order[block_index];
             log::trace!("rewriting: processing {block:?}");
 
+            // Eagerly allocate all stack slots for values that are live-out in
+            // this block. This reserves a loop-invariant value's stack slot
+            // across the whole loop, rather than just at the first use site we
+            // see within the loop, which could otherwise lead to incorrect
+            // stack slot reuse.
+            vals.extend(
+                self.liveness.live_outs[block_index]
+                    .iter()
+                    .copied()
+                    .filter(|val| self.liveness.live_across_any_safepoint.contains(*val)),
+            );
+            vals.sort_unstable();
+            for val in vals.drain(..) {
+                self.stack_slots.get_or_create_stack_slot(func, val);
+            }
+
             let mut option_inst = func.layout.last_inst(block);
             while let Some(inst) = option_inst {
                 // If this instruction defines a needs-stack-map value that is
@@ -765,7 +825,7 @@ impl SafepointSpiller {
                 let mut pos = FuncCursor::new(func).after_inst(inst);
                 vals.extend_from_slice(pos.func.dfg.inst_results(inst));
                 for val in vals.drain(..) {
-                    self.rewrite_def(&mut pos, val);
+                    self.rewrite_def(&mut pos, val, pointer_type);
                 }
 
                 // If this instruction is a safepoint, then we must add stack
@@ -782,7 +842,7 @@ impl SafepointSpiller {
                 let mut replaced_any = false;
                 for val in &mut vals {
                     *val = pos.func.dfg.resolve_aliases(*val);
-                    replaced_any |= self.rewrite_use(&mut pos, val);
+                    replaced_any |= self.rewrite_use(&mut pos, val, pointer_type);
                 }
                 if replaced_any {
                     pos.func.dfg.overwrite_inst_values(inst, vals.drain(..));
@@ -804,7 +864,7 @@ impl SafepointSpiller {
             vals.clear();
             vals.extend_from_slice(pos.func.dfg.block_params(block));
             for val in vals.drain(..) {
-                self.rewrite_def(&mut pos, val);
+                self.rewrite_def(&mut pos, val, pointer_type);
             }
         }
     }
@@ -815,7 +875,15 @@ mod tests {
     use super::*;
     use alloc::string::ToString;
     use cranelift_codegen::ir::{BlockCall, ExceptionTableData};
-    use cranelift_codegen::isa::CallConv;
+    use cranelift_codegen::isa::{CallConv, TargetFrontendConfig};
+
+    fn systemv_frontend_config() -> TargetFrontendConfig {
+        TargetFrontendConfig {
+            default_call_conv: CallConv::SystemV,
+            pointer_width: target_lexicon::PointerWidth::U64,
+            page_size_align_log2: 12,
+        }
+    }
 
     #[test]
     fn needs_stack_map_and_loop() {
@@ -860,7 +928,7 @@ mod tests {
         builder.ins().call(func_ref, &[a]);
         builder.ins().jump(block0, &[a.into(), b.into()]);
         builder.seal_all_blocks();
-        builder.finalize();
+        builder.finalize(systemv_frontend_config());
 
         assert_eq_output!(
             func.display().to_string(),
@@ -871,14 +939,19 @@ function %sample(i32, i32) system_v {
     sig0 = (i32) system_v
     fn0 = colocated u0:0 sig0
 
-b0(v0: i32, v1: i32):
-    stack_store v0, ss0
-    stack_store v1, ss1
-    v4 = stack_load.i32 ss0
-    call fn0(v4), stack_map=[i32 @ ss0+0, i32 @ ss1+0]
-    v2 = stack_load.i32 ss0
-    v3 = stack_load.i32 ss1
-    jump b0(v2, v3)
+block0(v0: i32, v1: i32):
+    v8 = stack_addr.i64 ss0
+    store notrap aligned v0, v8
+    v9 = stack_addr.i64 ss1
+    store notrap aligned v1, v9
+    v6 = stack_addr.i64 ss0
+    v7 = load.i32 notrap aligned v6
+    call fn0(v7), stack_map=[i32 @ ss0+0, i32 @ ss1+0]
+    v2 = stack_addr.i64 ss0
+    v3 = load.i32 notrap aligned v2
+    v4 = stack_addr.i64 ss1
+    v5 = load.i32 notrap aligned v4
+    jump block0(v3, v5)
 }
             "#
         );
@@ -945,7 +1018,7 @@ b0(v0: i32, v1: i32):
         builder.ins().call(func_ref, &[v2]);
         builder.ins().return_(&[]);
         builder.seal_all_blocks();
-        builder.finalize();
+        builder.finalize(systemv_frontend_config());
 
         assert_eq_output!(
             func.display().to_string(),
@@ -957,21 +1030,27 @@ function %sample() system_v {
     sig0 = (i32) system_v
     fn0 = colocated u0:0 sig0
 
-b0:
+block0:
     v0 = iconst.i32 0
-    stack_store v0, ss2  ; v0 = 0
+    v12 = stack_addr.i64 ss2
+    store notrap aligned v0, v12  ; v0 = 0
     v1 = iconst.i32 1
-    stack_store v1, ss1  ; v1 = 1
+    v11 = stack_addr.i64 ss1
+    store notrap aligned v1, v11  ; v1 = 1
     v2 = iconst.i32 2
-    stack_store v2, ss0  ; v2 = 2
+    v10 = stack_addr.i64 ss0
+    store notrap aligned v2, v10  ; v2 = 2
     v3 = iconst.i32 3
     call fn0(v3), stack_map=[i32 @ ss2+0, i32 @ ss1+0, i32 @ ss0+0]  ; v3 = 3
-    v6 = stack_load.i32 ss2
-    call fn0(v6), stack_map=[i32 @ ss1+0, i32 @ ss0+0]
-    v5 = stack_load.i32 ss1
-    call fn0(v5), stack_map=[i32 @ ss0+0]
-    v4 = stack_load.i32 ss0
-    call fn0(v4)
+    v8 = stack_addr.i64 ss2
+    v9 = load.i32 notrap aligned v8
+    call fn0(v9), stack_map=[i32 @ ss1+0, i32 @ ss0+0]
+    v6 = stack_addr.i64 ss1
+    v7 = load.i32 notrap aligned v6
+    call fn0(v7), stack_map=[i32 @ ss0+0]
+    v4 = stack_addr.i64 ss0
+    v5 = load.i32 notrap aligned v4
+    call fn0(v5)
     return
 }
             "#
@@ -1049,11 +1128,11 @@ b0:
         // a value as keeping it live, regardless if the use has side effects or
         // is otherwise itself live, so an `iadd_imm` suffices to keep `v1` live
         // here.
-        builder.ins().iadd_imm(v1, 0);
+        builder.ins().iadd_imm_s(v1, 0);
         builder.ins().return_(&[]);
 
         builder.seal_all_blocks();
-        builder.finalize();
+        builder.finalize(systemv_frontend_config());
 
         assert_eq_output!(
             func.display().to_string(),
@@ -1062,19 +1141,20 @@ function %sample(i32) system_v {
     sig0 = () system_v
     fn0 = colocated u0:0 sig0
 
-b0(v0: i32):
-    brif v0, b1, b2
+block0(v0: i32):
+    brif v0, block1, block2
 
-b1:
+block1:
     v1 = iconst.i64 0x1234_5678
-    jump b3
+    jump block3
 
-b2:
+block2:
     call fn0()
     return
 
-b3:
-    v2 = iadd_imm.i64 v1, 0  ; v1 = 0x1234_5678
+block3:
+    v2 = iconst.i64 0
+    v3 = iadd.i64 v1, v2  ; v1 = 0x1234_5678, v2 = 0
     return
 }
             "#
@@ -1140,11 +1220,11 @@ b3:
         // a value as keeping it live, regardless if the use has side effects or
         // is otherwise itself live, so an `iadd_imm` suffices to keep `v1` live
         // here.
-        builder.ins().iadd_imm(v1, 0);
+        builder.ins().iadd_imm_s(v1, 0);
         builder.ins().return_(&[]);
 
         builder.seal_all_blocks();
-        builder.finalize();
+        builder.finalize(systemv_frontend_config());
 
         assert_eq_output!(
             func.display().to_string(),
@@ -1153,16 +1233,17 @@ function %sample(i32) system_v {
     sig0 = () system_v
     fn0 = colocated u0:0 sig0
 
-b0(v0: i32):
+block0(v0: i32):
     v1 = iconst.i64 0x1234_5678
-    brif v0, b1, b2
+    brif v0, block1, block2
 
-b1:
+block1:
     call fn0()
     return
 
-b2:
-    v2 = iadd_imm.i64 v1, 0  ; v1 = 0x1234_5678
+block2:
+    v2 = iconst.i64 0
+    v3 = iadd.i64 v1, v2  ; v1 = 0x1234_5678, v2 = 0
     return
 }
             "#
@@ -1208,7 +1289,7 @@ b2:
         builder.ins().brif(v0, block1, &[], block2, &[]);
 
         builder.switch_to_block(block1);
-        builder.ins().iadd_imm(v1, 0);
+        builder.ins().iadd_imm_s(v1, 0);
         builder.ins().return_(&[]);
 
         builder.switch_to_block(block2);
@@ -1216,7 +1297,7 @@ b2:
         builder.ins().return_(&[]);
 
         builder.seal_all_blocks();
-        builder.finalize();
+        builder.finalize(systemv_frontend_config());
 
         assert_eq_output!(
             func.display().to_string(),
@@ -1225,15 +1306,16 @@ function u0:0(i32) system_v {
     sig0 = () system_v
     fn0 = colocated u0:0 sig0
 
-b0(v0: i32):
+block0(v0: i32):
     v1 = iconst.i64 0x1234_5678
-    brif v0, b1, b2
+    brif v0, block1, block2
 
-b1:
-    v2 = iadd_imm.i64 v1, 0  ; v1 = 0x1234_5678
+block1:
+    v2 = iconst.i64 0
+    v3 = iadd.i64 v1, v2  ; v1 = 0x1234_5678, v2 = 0
     return
 
-b2:
+block2:
     call fn0()
     return
 }
@@ -1299,11 +1381,11 @@ b2:
         // a value as keeping it live, regardless if the use has side effects or
         // is otherwise itself live, so an `iadd_imm` suffices to keep `v1` live
         // here.
-        builder.ins().iadd_imm(v1, 0);
+        builder.ins().iadd_imm_s(v1, 0);
         builder.ins().return_(&[]);
 
         builder.seal_all_blocks();
-        builder.finalize();
+        builder.finalize(systemv_frontend_config());
 
         assert_eq_output!(
             func.display().to_string(),
@@ -1312,15 +1394,16 @@ function %sample(i32) system_v {
     sig0 = () system_v
     fn0 = colocated u0:0 sig0
 
-b0(v0: i32):
+block0(v0: i32):
     v1 = iconst.i64 0x1234_5678
-    brif v0, b1, b2
+    brif v0, block1, block2
 
-b1:
+block1:
     return_call fn0()
 
-b2:
-    v2 = iadd_imm.i64 v1, 0  ; v1 = 0x1234_5678
+block2:
+    v2 = iconst.i64 0
+    v3 = iadd.i64 v1, v2  ; v1 = 0x1234_5678, v2 = 0
     return
 }
             "#
@@ -1366,14 +1449,14 @@ b2:
         builder.ins().brif(v0, block1, &[], block2, &[]);
 
         builder.switch_to_block(block1);
-        builder.ins().iadd_imm(v1, 0);
+        builder.ins().iadd_imm_s(v1, 0);
         builder.ins().return_(&[]);
 
         builder.switch_to_block(block2);
         builder.ins().return_call(func_ref, &[]);
 
         builder.seal_all_blocks();
-        builder.finalize();
+        builder.finalize(systemv_frontend_config());
 
         assert_eq_output!(
             func.display().to_string(),
@@ -1382,15 +1465,16 @@ function u0:0(i32) system_v {
     sig0 = () system_v
     fn0 = colocated u0:0 sig0
 
-b0(v0: i32):
+block0(v0: i32):
     v1 = iconst.i64 0x1234_5678
-    brif v0, b1, b2
+    brif v0, block1, block2
 
-b1:
-    v2 = iadd_imm.i64 v1, 0  ; v1 = 0x1234_5678
+block1:
+    v2 = iconst.i64 0
+    v3 = iadd.i64 v1, v2  ; v1 = 0x1234_5678, v2 = 0
     return
 
-b2:
+block2:
     return_call fn0()
 }
             "#
@@ -1477,11 +1561,11 @@ b2:
         // a value as keeping it live, regardless if the use has side effects or
         // is otherwise itself live, so an `iadd_imm` suffices to keep `v1` live
         // here.
-        builder.ins().iadd_imm(v1, 0);
+        builder.ins().iadd_imm_s(v1, 0);
         builder.ins().return_(&[]);
 
         builder.seal_all_blocks();
-        builder.finalize();
+        builder.finalize(systemv_frontend_config());
 
         assert_eq_output!(
             func.display().to_string(),
@@ -1492,32 +1576,41 @@ function %sample(i32) system_v {
     sig0 = () system_v
     fn0 = colocated u0:0 sig0
 
-b0(v0: i32):
-    brif v0, b1, b2
+block0(v0: i32):
+    brif v0, block1, block2
 
-b1:
+block1:
     v1 = iconst.i64 1
-    stack_store v1, ss0  ; v1 = 1
+    v16 = stack_addr.i64 ss0
+    store notrap aligned v1, v16  ; v1 = 1
     v2 = iconst.i64 2
-    stack_store v2, ss1  ; v2 = 2
+    v15 = stack_addr.i64 ss1
+    store notrap aligned v2, v15  ; v2 = 2
     call fn0(), stack_map=[i64 @ ss0+0, i64 @ ss1+0]
-    v9 = stack_load.i64 ss0
-    v10 = stack_load.i64 ss1
-    jump b3(v9, v10)
+    v11 = stack_addr.i64 ss0
+    v12 = load.i64 notrap aligned v11
+    v13 = stack_addr.i64 ss1
+    v14 = load.i64 notrap aligned v13
+    jump block3(v12, v14)
 
-b2:
+block2:
     v3 = iconst.i64 3
-    stack_store v3, ss0  ; v3 = 3
+    v21 = stack_addr.i64 ss0
+    store notrap aligned v3, v21  ; v3 = 3
     v4 = iconst.i64 4
     call fn0(), stack_map=[i64 @ ss0+0, i64 @ ss0+0]
-    v11 = stack_load.i64 ss0
-    v12 = stack_load.i64 ss0
-    jump b3(v11, v12)
+    v17 = stack_addr.i64 ss0
+    v18 = load.i64 notrap aligned v17
+    v19 = stack_addr.i64 ss0
+    v20 = load.i64 notrap aligned v19
+    jump block3(v18, v20)
 
-b3(v5: i64, v6: i64):
+block3(v5: i64, v6: i64):
     call fn0(), stack_map=[i64 @ ss0+0]
-    v8 = stack_load.i64 ss0
-    v7 = iadd_imm v8, 0
+    v7 = iconst.i64 0
+    v9 = stack_addr.i64 ss0
+    v10 = load.i64 notrap aligned v9
+    v8 = iadd v10, v7  ; v7 = 0
     return
 }
             "#
@@ -1582,7 +1675,7 @@ b3(v5: i64, v6: i64):
         builder.ins().return_(&params);
 
         builder.seal_all_blocks();
-        builder.finalize();
+        builder.finalize(systemv_frontend_config());
 
         assert_eq_output!(
             func.display().to_string(),
@@ -1600,27 +1693,45 @@ function %sample(i8, i16, i32, i64, i128, f32, f64, i8x16, i16x8) -> i8, i16, i3
     sig0 = () system_v
     fn0 = colocated u0:0 sig0
 
-b0(v0: i8, v1: i16, v2: i32, v3: i64, v4: i128, v5: f32, v6: f64, v7: i8x16, v8: i16x8):
-    stack_store v0, ss0
-    stack_store v1, ss1
-    stack_store v2, ss2
-    stack_store v3, ss3
-    stack_store v4, ss4
-    stack_store v5, ss5
-    stack_store v6, ss6
-    stack_store v7, ss7
-    stack_store v8, ss8
+block0(v0: i8, v1: i16, v2: i32, v3: i64, v4: i128, v5: f32, v6: f64, v7: i8x16, v8: i16x8):
+    v27 = stack_addr.i64 ss0
+    store notrap aligned v0, v27
+    v28 = stack_addr.i64 ss1
+    store notrap aligned v1, v28
+    v29 = stack_addr.i64 ss2
+    store notrap aligned v2, v29
+    v30 = stack_addr.i64 ss3
+    store notrap aligned v3, v30
+    v31 = stack_addr.i64 ss4
+    store notrap aligned v4, v31
+    v32 = stack_addr.i64 ss5
+    store notrap aligned v5, v32
+    v33 = stack_addr.i64 ss6
+    store notrap aligned v6, v33
+    v34 = stack_addr.i64 ss7
+    store notrap aligned v7, v34
+    v35 = stack_addr.i64 ss8
+    store notrap aligned v8, v35
     call fn0(), stack_map=[i8 @ ss0+0, i16 @ ss1+0, i32 @ ss2+0, i64 @ ss3+0, i128 @ ss4+0, f32 @ ss5+0, f64 @ ss6+0, i8x16 @ ss7+0, i16x8 @ ss8+0]
-    v9 = stack_load.i8 ss0
-    v10 = stack_load.i16 ss1
-    v11 = stack_load.i32 ss2
-    v12 = stack_load.i64 ss3
-    v13 = stack_load.i128 ss4
-    v14 = stack_load.f32 ss5
-    v15 = stack_load.f64 ss6
-    v16 = stack_load.i8x16 ss7
-    v17 = stack_load.i16x8 ss8
-    return v9, v10, v11, v12, v13, v14, v15, v16, v17
+    v9 = stack_addr.i64 ss0
+    v10 = load.i8 notrap aligned v9
+    v11 = stack_addr.i64 ss1
+    v12 = load.i16 notrap aligned v11
+    v13 = stack_addr.i64 ss2
+    v14 = load.i32 notrap aligned v13
+    v15 = stack_addr.i64 ss3
+    v16 = load.i64 notrap aligned v15
+    v17 = stack_addr.i64 ss4
+    v18 = load.i128 notrap aligned v17
+    v19 = stack_addr.i64 ss5
+    v20 = load.f32 notrap aligned v19
+    v21 = stack_addr.i64 ss6
+    v22 = load.f64 notrap aligned v21
+    v23 = stack_addr.i64 ss7
+    v24 = load.i8x16 notrap aligned v23
+    v25 = stack_addr.i64 ss8
+    v26 = load.i16x8 notrap aligned v25
+    return v10, v12, v14, v16, v18, v20, v22, v24, v26
 }
             "#
         );
@@ -1705,7 +1816,7 @@ b0(v0: i8, v1: i16, v2: i32, v3: i64, v4: i128, v5: f32, v6: f64, v7: i8x16, v8:
         builder.ins().call(consume_func_ref, &[v3]);
         builder.ins().return_(&[]);
         builder.seal_all_blocks();
-        builder.finalize();
+        builder.finalize(systemv_frontend_config());
 
         assert_eq_output!(
             func.display().to_string(),
@@ -1717,27 +1828,35 @@ function %sample() system_v {
     fn0 = colocated u0:0 sig0
     fn1 = colocated u0:1 sig1
 
-b0:
+block0:
     v0 = iconst.i32 0
-    stack_store v0, ss0  ; v0 = 0
+    v15 = stack_addr.i64 ss0
+    store notrap aligned v0, v15  ; v0 = 0
     call fn0(), stack_map=[i32 @ ss0+0]
-    v7 = stack_load.i32 ss0
-    call fn1(v7)
+    v13 = stack_addr.i64 ss0
+    v14 = load.i32 notrap aligned v13
+    call fn1(v14)
     v1 = iconst.i32 1
-    stack_store v1, ss0  ; v1 = 1
+    v12 = stack_addr.i64 ss0
+    store notrap aligned v1, v12  ; v1 = 1
     call fn0(), stack_map=[i32 @ ss0+0]
-    v6 = stack_load.i32 ss0
-    call fn1(v6)
+    v10 = stack_addr.i64 ss0
+    v11 = load.i32 notrap aligned v10
+    call fn1(v11)
     v2 = iconst.i32 2
-    stack_store v2, ss0  ; v2 = 2
+    v9 = stack_addr.i64 ss0
+    store notrap aligned v2, v9  ; v2 = 2
     call fn0(), stack_map=[i32 @ ss0+0]
-    v5 = stack_load.i32 ss0
-    call fn1(v5)
+    v7 = stack_addr.i64 ss0
+    v8 = load.i32 notrap aligned v7
+    call fn1(v8)
     v3 = iconst.i32 3
-    stack_store v3, ss0  ; v3 = 3
+    v6 = stack_addr.i64 ss0
+    store notrap aligned v3, v6  ; v3 = 3
     call fn0(), stack_map=[i32 @ ss0+0]
-    v4 = stack_load.i32 ss0
-    call fn1(v4)
+    v4 = stack_addr.i64 ss0
+    v5 = load.i32 notrap aligned v4
+    call fn1(v5)
     return
 }
             "#
@@ -1849,7 +1968,7 @@ b0:
         builder.ins().return_(&[x]);
 
         builder.seal_all_blocks();
-        builder.finalize();
+        builder.finalize(systemv_frontend_config());
 
         assert_eq_output!(
             func.display().to_string(),
@@ -1860,45 +1979,60 @@ function %sample(i32) -> i32 system_v {
     sig0 = (i32) system_v
     fn0 = colocated u0:0 sig0
 
-b0(v0: i32):
+block0(v0: i32):
     v1 = iconst.i32 42
     v2 -> v1
     v4 -> v1
-    stack_store v1, ss0  ; v1 = 42
-    v17 = stack_load.i32 ss0
-    call fn0(v17), stack_map=[i32 @ ss0+0]
-    brif v0, b1, b2
+    v32 = stack_addr.i64 ss0
+    store notrap aligned v1, v32  ; v1 = 42
+    v30 = stack_addr.i64 ss0
+    v31 = load.i32 notrap aligned v30
+    call fn0(v31), stack_map=[i32 @ ss0+0]
+    brif v0, block1, block2
 
-b1:
-    v12 = stack_load.i32 ss0
-    call fn0(v12), stack_map=[i32 @ ss0+0]
-    v11 = stack_load.i32 ss0
-    call fn0(v11)
+block1:
+    v19 = stack_addr.i64 ss0
+    v20 = load.i32 notrap aligned v19
+    call fn0(v20), stack_map=[i32 @ ss0+0]
+    v17 = stack_addr.i64 ss0
+    v18 = load.i32 notrap aligned v17
+    call fn0(v18)
     v3 = iconst.i32 36
-    stack_store v3, ss0  ; v3 = 36
-    v10 = stack_load.i32 ss0
-    call fn0(v10), stack_map=[i32 @ ss0+0]
-    v9 = stack_load.i32 ss0
-    jump b3(v9)
+    v16 = stack_addr.i64 ss0
+    store notrap aligned v3, v16  ; v3 = 36
+    v14 = stack_addr.i64 ss0
+    v15 = load.i32 notrap aligned v14
+    call fn0(v15), stack_map=[i32 @ ss0+0]
+    v12 = stack_addr.i64 ss0
+    v13 = load.i32 notrap aligned v12
+    jump block3(v13)
 
-b2:
-    v16 = stack_load.i32 ss0
-    call fn0(v16), stack_map=[i32 @ ss0+0]
-    v15 = stack_load.i32 ss0
-    call fn0(v15)
+block2:
+    v28 = stack_addr.i64 ss0
+    v29 = load.i32 notrap aligned v28
+    call fn0(v29), stack_map=[i32 @ ss0+0]
+    v26 = stack_addr.i64 ss0
+    v27 = load.i32 notrap aligned v26
+    call fn0(v27)
     v5 = iconst.i32 36
-    stack_store v5, ss1  ; v5 = 36
-    v14 = stack_load.i32 ss1
-    call fn0(v14), stack_map=[i32 @ ss1+0]
-    v13 = stack_load.i32 ss1
-    jump b3(v13)
+    v25 = stack_addr.i64 ss1
+    store notrap aligned v5, v25  ; v5 = 36
+    v23 = stack_addr.i64 ss1
+    v24 = load.i32 notrap aligned v23
+    call fn0(v24), stack_map=[i32 @ ss1+0]
+    v21 = stack_addr.i64 ss1
+    v22 = load.i32 notrap aligned v21
+    jump block3(v22)
 
-b3(v6: i32):
-    stack_store v6, ss0
-    v8 = stack_load.i32 ss0
-    call fn0(v8), stack_map=[i32 @ ss0+0]
-    v7 = stack_load.i32 ss0
-    return v7
+block3(v6: i32):
+    v11 = stack_addr.i64 ss0
+    store notrap aligned v6, v11
+    v9 = stack_addr.i64 ss0
+    v10 = load.i32 notrap aligned v9
+    call fn0(v10), stack_map=[i32 @ ss0+0]
+    v7 = stack_addr.i64 ss0
+    v8 = load.i32 notrap aligned v7
+    return v8
 }
             "#
         );
@@ -1948,7 +2082,7 @@ b3(v6: i32):
         builder.ins().return_(&[val]);
 
         builder.seal_all_blocks();
-        builder.finalize();
+        builder.finalize(systemv_frontend_config());
 
         assert_eq_output!(
             func.display().to_string(),
@@ -1958,11 +2092,13 @@ function %sample(i32) -> i32 system_v {
     sig0 = () system_v
     fn0 = colocated u0:0 sig0
 
-b0(v0: i32):
-    stack_store v0, ss0
+block0(v0: i32):
+    v3 = stack_addr.i64 ss0
+    store notrap aligned v0, v3
     call fn0(), stack_map=[i32 @ ss0+0]
-    v1 = stack_load.i32 ss0
-    return v1
+    v1 = stack_addr.i64 ss0
+    v2 = load.i32 notrap aligned v1
+    return v2
 }
             "#
         );
@@ -2024,7 +2160,7 @@ b0(v0: i32):
         builder.ins().return_(&[arg, val]);
 
         builder.seal_all_blocks();
-        builder.finalize();
+        builder.finalize(systemv_frontend_config());
 
         assert_eq_output!(
             func.display().to_string(),
@@ -2035,14 +2171,18 @@ function %sample(i32) -> i32, i32 system_v {
     sig0 = () system_v
     fn0 = colocated u0:0 sig0
 
-b0(v0: i32):
-    stack_store v0, ss0
+block0(v0: i32):
+    v7 = stack_addr.i64 ss0
+    store notrap aligned v0, v7
     v1 = iconst.i32 42
-    stack_store v1, ss1  ; v1 = 42
+    v6 = stack_addr.i64 ss1
+    store notrap aligned v1, v6  ; v1 = 42
     call fn0(), stack_map=[i32 @ ss0+0, i32 @ ss1+0]
-    v2 = stack_load.i32 ss0
-    v3 = stack_load.i32 ss1
-    return v2, v3
+    v2 = stack_addr.i64 ss0
+    v3 = load.i32 notrap aligned v2
+    v4 = stack_addr.i64 ss1
+    v5 = load.i32 notrap aligned v4
+    return v3, v5
 }
             "#
         );
@@ -2122,7 +2262,7 @@ b0(v0: i32):
         builder.ins().jump(block1, &[]);
 
         builder.seal_all_blocks();
-        builder.finalize();
+        builder.finalize(systemv_frontend_config());
 
         assert_eq_output!(
             func.display().to_string(),
@@ -2134,16 +2274,18 @@ function %sample(i32) system_v {
     fn0 = colocated u0:0 sig0
     fn1 = colocated u1:1 sig1
 
-b0(v0: i32):
-    stack_store v0, ss0
-    jump b1
+block0(v0: i32):
+    v3 = stack_addr.i64 ss0
+    store notrap aligned v0, v3
+    jump block1
 
-b1:
+block1:
     call fn0(), stack_map=[i32 @ ss0+0]
-    v1 = stack_load.i32 ss0
-    call fn1(v1), stack_map=[i32 @ ss0+0]
+    v1 = stack_addr.i64 ss0
+    v2 = load.i32 notrap aligned v1
+    call fn1(v2), stack_map=[i32 @ ss0+0]
     call fn0(), stack_map=[i32 @ ss0+0]
-    jump b1
+    jump block1
 }
             "#,
         );
@@ -2248,7 +2390,7 @@ b1:
         builder.ins().jump(block1, &[]);
 
         builder.seal_all_blocks();
-        builder.finalize();
+        builder.finalize(systemv_frontend_config());
 
         assert_eq_output!(
             func.display().to_string(),
@@ -2260,29 +2402,32 @@ function %sample(i32, i32) system_v {
     fn0 = colocated u0:0 sig0
     fn1 = colocated u1:1 sig1
 
-b0(v0: i32, v1: i32):
-    stack_store v1, ss0
-    brif v0, b1, b2
+block0(v0: i32, v1: i32):
+    v6 = stack_addr.i64 ss0
+    store notrap aligned v1, v6
+    brif v0, block1, block2
 
-b1:
-    jump b3
+block1:
+    jump block3
 
-b2:
-    jump b4
+block2:
+    jump block4
 
-b3:
+block3:
     call fn0(), stack_map=[i32 @ ss0+0]
-    v3 = stack_load.i32 ss0
+    v4 = stack_addr.i64 ss0
+    v5 = load.i32 notrap aligned v4
+    call fn1(v5), stack_map=[i32 @ ss0+0]
+    call fn0(), stack_map=[i32 @ ss0+0]
+    jump block2
+
+block4:
+    call fn0(), stack_map=[i32 @ ss0+0]
+    v2 = stack_addr.i64 ss0
+    v3 = load.i32 notrap aligned v2
     call fn1(v3), stack_map=[i32 @ ss0+0]
     call fn0(), stack_map=[i32 @ ss0+0]
-    jump b2
-
-b4:
-    call fn0(), stack_map=[i32 @ ss0+0]
-    v2 = stack_load.i32 ss0
-    call fn1(v2), stack_map=[i32 @ ss0+0]
-    call fn0(), stack_map=[i32 @ ss0+0]
-    jump b1
+    jump block1
 }
             "#,
         );
@@ -2390,7 +2535,7 @@ b4:
         builder.ins().call(foo_func_ref, &[]);
         builder.ins().call(bar_func_ref, &[v1]);
         builder.ins().call(foo_func_ref, &[]);
-        let v5 = builder.ins().iadd_imm(v4, -1);
+        let v5 = builder.ins().iadd_imm_s(v4, -1);
         builder.ins().brif(v4, block1, &[v5.into()], block3, &[]);
 
         builder.switch_to_block(block3);
@@ -2400,7 +2545,7 @@ b4:
         builder.ins().jump(block2, &[]);
 
         builder.seal_all_blocks();
-        builder.finalize();
+        builder.finalize(systemv_frontend_config());
 
         assert_eq_output!(
             func.display().to_string(),
@@ -2414,33 +2559,40 @@ function %sample(i32, i32, i32, i32) system_v {
     fn0 = colocated u0:0 sig0
     fn1 = colocated u1:1 sig1
 
-b0(v0: i32, v1: i32, v2: i32, v3: i32):
-    stack_store v0, ss0
-    stack_store v1, ss1
-    stack_store v2, ss2
-    jump b1(v3)
+block0(v0: i32, v1: i32, v2: i32, v3: i32):
+    v13 = stack_addr.i64 ss0
+    store notrap aligned v0, v13
+    v14 = stack_addr.i64 ss1
+    store notrap aligned v1, v14
+    v15 = stack_addr.i64 ss2
+    store notrap aligned v2, v15
+    jump block1(v3)
 
-b1(v4: i32):
+block1(v4: i32):
     call fn0(), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
-    v8 = stack_load.i32 ss0
+    v11 = stack_addr.i64 ss0
+    v12 = load.i32 notrap aligned v11
+    call fn1(v12), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
+    call fn0(), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
+    jump block2
+
+block2:
+    call fn0(), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
+    v9 = stack_addr.i64 ss1
+    v10 = load.i32 notrap aligned v9
+    call fn1(v10), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
+    call fn0(), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
+    v5 = iconst.i32 -1
+    v6 = iadd.i32 v4, v5  ; v5 = -1
+    brif.i32 v4, block1(v6), block3
+
+block3:
+    call fn0(), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
+    v7 = stack_addr.i64 ss2
+    v8 = load.i32 notrap aligned v7
     call fn1(v8), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
     call fn0(), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
-    jump b2
-
-b2:
-    call fn0(), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
-    v7 = stack_load.i32 ss1
-    call fn1(v7), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
-    call fn0(), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
-    v5 = iadd_imm.i32 v4, -1
-    brif.i32 v4, b1(v5), b3
-
-b3:
-    call fn0(), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
-    v6 = stack_load.i32 ss2
-    call fn1(v6), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
-    call fn0(), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
-    jump b2
+    jump block2
 }
             "#,
         );
@@ -2700,7 +2852,7 @@ b3:
         builder.seal_block(block_return);
         builder.ins().return_(&[]);
 
-        builder.finalize();
+        builder.finalize(systemv_frontend_config());
         assert_eq_output!(
             func.display().to_string(),
             r#"
@@ -2727,73 +2879,85 @@ function %f() system_v {
     fn7 = colocated u0:7 sig7
     fn8 = colocated u0:8 sig8
 
-b0:
+block0:
     v0 = call fn0()
-    jump b1(v0)
+    jump block1(v0)
 
-b1(v22: i32):
+block1(v22: i32):
     v21 -> v22
-    stack_store v22, ss1
+    v44 = stack_addr.i64 ss1
+    store notrap aligned v22, v44
     v1 = call fn1(), stack_map=[i32 @ ss1+0]
     v8 -> v1
     v18 -> v1
-    stack_store v1, ss0
+    v43 = stack_addr.i64 ss0
+    store notrap aligned v1, v43
     v2 = iconst.i32 0
-    jump b2(v2)  ; v2 = 0
+    jump block2(v2)  ; v2 = 0
 
-b2(v3: i32):
+block2(v3: i32):
     v4 = iconst.i32 1
     v5 = icmp ult v3, v4  ; v4 = 1
-    brif v5, b3, b4
+    brif v5, block3, block4
 
-b3:
-    v24 = stack_load.i32 ss0
-    call fn2(v24, v4), stack_map=[i32 @ ss0+0, i32 @ ss1+0]  ; v4 = 1
+block3:
+    v24 = stack_addr.i64 ss0
+    v25 = load.i32 notrap aligned v24
+    call fn2(v25, v4), stack_map=[i32 @ ss0+0, i32 @ ss1+0]  ; v4 = 1
     v6 = iconst.i32 1
     v7 = iadd.i32 v4, v6  ; v4 = 1, v6 = 1
-    jump b2(v7)
+    jump block2(v7)
 
-b4:
-    v32 = stack_load.i32 ss1
-    jump b5(v32)
+block4:
+    v41 = stack_addr.i64 ss1
+    v42 = load.i32 notrap aligned v41
+    jump block5(v42)
 
-b5(v20: i32):
+block5(v20: i32):
     v19 -> v20
-    stack_store v20, ss2
+    v40 = stack_addr.i64 ss2
+    store notrap aligned v20, v40
     v9 = iconst.i32 0
-    v31 = stack_load.i32 ss0
-    v10 = icmp eq v31, v9  ; v9 = 0
-    brif v10, b8(v9), b6  ; v9 = 0
+    v38 = stack_addr.i64 ss0
+    v39 = load.i32 notrap aligned v38
+    v10 = icmp eq v39, v9  ; v9 = 0
+    brif v10, block8(v9), block6  ; v9 = 0
 
-b6:
-    v30 = stack_load.i32 ss0
-    v11 = call fn3(v30), stack_map=[i32 @ ss0+0, i32 @ ss2+0]
+block6:
+    v36 = stack_addr.i64 ss0
+    v37 = load.i32 notrap aligned v36
+    v11 = call fn3(v37), stack_map=[i32 @ ss0+0, i32 @ ss2+0]
     v12 = iconst.i32 -1091584273
     v13 = icmp eq v11, v12  ; v12 = -1091584273
     v14 = iconst.i32 1
-    brif v13, b8(v14), b7  ; v14 = 1
+    brif v13, block8(v14), block7  ; v14 = 1
 
-b7:
-    v29 = stack_load.i32 ss0
-    v15 = call fn4(v29, v12), stack_map=[i32 @ ss0+0, i32 @ ss2+0]  ; v12 = -1091584273
-    jump b8(v15)
+block7:
+    v34 = stack_addr.i64 ss0
+    v35 = load.i32 notrap aligned v34
+    v15 = call fn4(v35, v12), stack_map=[i32 @ ss0+0, i32 @ ss2+0]  ; v12 = -1091584273
+    jump block8(v15)
 
-b8(v16: i32):
+block8(v16: i32):
     trapz v16, user1
-    v28 = stack_load.i32 ss0
-    call fn5(v28), stack_map=[i32 @ ss0+0, i32 @ ss2+0]
+    v32 = stack_addr.i64 ss0
+    v33 = load.i32 notrap aligned v32
+    call fn5(v33), stack_map=[i32 @ ss0+0, i32 @ ss2+0]
     v17 = call fn6(), stack_map=[i32 @ ss0+0, i32 @ ss2+0]
-    v27 = stack_load.i32 ss2
-    brif v17, b5(v27), b9
+    v30 = stack_addr.i64 ss2
+    v31 = load.i32 notrap aligned v30
+    brif v17, block5(v31), block9
 
-b9:
-    v26 = stack_load.i32 ss2
-    call fn7(v26), stack_map=[i32 @ ss2+0]
+block9:
+    v28 = stack_addr.i64 ss2
+    v29 = load.i32 notrap aligned v28
+    call fn7(v29), stack_map=[i32 @ ss2+0]
     v23 = call fn8(), stack_map=[i32 @ ss2+0]
-    v25 = stack_load.i32 ss2
-    brif v23, b10, b1(v25)
+    v26 = stack_addr.i64 ss2
+    v27 = load.i32 notrap aligned v26
+    brif v23, block10, block1(v27)
 
-b10:
+block10:
     return
 }
             "#,
@@ -2893,7 +3057,7 @@ b10:
         builder.ins().return_(&[]);
 
         builder.seal_all_blocks();
-        builder.finalize();
+        builder.finalize(systemv_frontend_config());
 
         // The try_call should have a stack_map with v0 (and v1 should NOT
         // be in it since v1 is not used after the try_call).
@@ -2978,7 +3142,7 @@ b10:
 
         builder.seal_all_blocks();
 
-        builder.finalize();
+        builder.finalize(systemv_frontend_config());
 
         // The SSA construction / `Variable` infrastructure makes this value
         // into an alias. But it is also an alias of a value that needs
@@ -2996,23 +3160,322 @@ function %sample(i32) system_v {
     fn0 = colocated u0:0 sig0
     fn1 = colocated u0:1 sig1
 
-b0(v0: i32):
+block0(v0: i32):
     v1 = call fn0()
     v2 -> v1
-    stack_store v1, ss0
-    brif v0, b1, b2
+    v7 = stack_addr.i64 ss0
+    store notrap aligned v1, v7
+    brif v0, block1, block2
 
-b1:
-    jump b2
+block1:
+    jump block2
 
-b2:
-    v4 = stack_load.i32 ss0
-    call fn1(v4), stack_map=[i32 @ ss0+0]
-    v3 = stack_load.i32 ss0
-    call fn1(v3)
+block2:
+    v5 = stack_addr.i64 ss0
+    v6 = load.i32 notrap aligned v5
+    call fn1(v6), stack_map=[i32 @ ss0+0]
+    v3 = stack_addr.i64 ss0
+    v4 = load.i32 notrap aligned v3
+    call fn1(v4)
     return
 }
             "#,
+        );
+    }
+
+    /// Regression test for a missed stack-map slot when a stack-map
+    /// variable is re-defined in the same block while an earlier SSA
+    /// value bound to it is still live across a safepoint.
+    ///
+    /// Previously, `SSABuilder::variables` stored only the *latest*
+    /// `Value` per `(Variable, Block)`, and `values_for_var` iterated
+    /// that map, so the earlier `Value` was dropped from the set the
+    /// safepoint pass propagates stack-map flags onto. The expected
+    /// output below requires `v1` to be spilled and listed in the
+    /// `call` instruction's stack map alongside `v2`.
+    #[test]
+    fn var_redefined_in_same_block_keeps_earlier_value_in_stack_map() {
+        let mut sig = Signature::new(CallConv::SystemV);
+        sig.returns
+            .push(AbiParam::new(cranelift_codegen::ir::types::I32));
+        sig.returns
+            .push(AbiParam::new(cranelift_codegen::ir::types::I32));
+
+        let mut fn_ctx = FunctionBuilderContext::new();
+        let mut func = Function::with_name_signature(ir::UserFuncName::testcase("sample"), sig);
+        let mut builder = FunctionBuilder::new(&mut func, &mut fn_ctx);
+
+        let var = builder.declare_var(cranelift_codegen::ir::types::I32);
+        builder.declare_var_needs_stack_map(var);
+
+        let name = builder
+            .func
+            .declare_imported_user_function(ir::UserExternalName {
+                namespace: 0,
+                index: 0,
+            });
+        let signature = builder
+            .func
+            .import_signature(Signature::new(CallConv::SystemV));
+        let func_ref = builder.import_function(ir::ExtFuncData {
+            name: ir::ExternalName::user(name),
+            signature,
+            colocated: true,
+            patchable: false,
+        });
+
+        let block0 = builder.create_block();
+        builder.switch_to_block(block0);
+
+        // First definition of `var`. Read it out (giving us an SSA
+        // value `v1` that we'll keep live across the safepoint below).
+        let v1 = builder.ins().iconst(ir::types::I32, 11);
+        builder.def_var(var, v1);
+        let v1_use = builder.use_var(var);
+
+        // Re-define `var` to a different SSA value within the same
+        // block. Without the fix, this overwrites the only place
+        // `v1` was recorded, so `values_for_var(var)` no longer
+        // returns it and the safepoint pass omits it from the
+        // upcoming stack map.
+        let v2 = builder.ins().iconst(ir::types::I32, 22);
+        builder.def_var(var, v2);
+        let v2_use = builder.use_var(var);
+
+        // Safepoint at which both `v1_use` (= v1) and `v2_use` (= v2)
+        // must be live and listed in the stack map.
+        builder.ins().call(func_ref, &[]);
+
+        builder.ins().return_(&[v1_use, v2_use]);
+
+        builder.seal_all_blocks();
+        builder.finalize(systemv_frontend_config());
+
+        assert_eq_output!(
+            func.display().to_string(),
+            r#"
+function %sample() -> i32, i32 system_v {
+    ss0 = explicit_slot 4, align = 4
+    ss1 = explicit_slot 4, align = 4
+    sig0 = () system_v
+    fn0 = colocated u0:0 sig0
+
+block0:
+    v0 = iconst.i32 11
+    v7 = stack_addr.i64 ss0
+    store notrap aligned v0, v7  ; v0 = 11
+    v1 = iconst.i32 22
+    v6 = stack_addr.i64 ss1
+    store notrap aligned v1, v6  ; v1 = 22
+    call fn0(), stack_map=[i32 @ ss0+0, i32 @ ss1+0]
+    v2 = stack_addr.i64 ss0
+    v3 = load.i32 notrap aligned v2
+    v4 = stack_addr.i64 ss1
+    v5 = load.i32 notrap aligned v4
+    return v3, v5
+}
+            "#
+        );
+    }
+
+    #[test]
+    fn loop_invariant_value_needs_stack_map() {
+        let sig = Signature::new(CallConv::SystemV);
+        let mut fn_ctx = FunctionBuilderContext::new();
+        let mut func = Function::with_name_signature(ir::UserFuncName::testcase("sample"), sig);
+        let mut builder = FunctionBuilder::new(&mut func, &mut fn_ctx);
+
+        // alloc: () -> i32
+        let alloc_name = builder
+            .func
+            .declare_imported_user_function(ir::UserExternalName {
+                namespace: 0,
+                index: 1,
+            });
+        let mut sig = Signature::new(CallConv::SystemV);
+        sig.returns.push(AbiParam::new(ir::types::I32));
+        let signature = builder.func.import_signature(sig);
+        let alloc = builder.import_function(ir::ExtFuncData {
+            name: ir::ExternalName::user(alloc_name),
+            signature,
+            colocated: true,
+            patchable: false,
+        });
+
+        // observe: (i32) -> ()
+        let observe_name = builder
+            .func
+            .declare_imported_user_function(ir::UserExternalName {
+                namespace: 0,
+                index: 1,
+            });
+        let mut sig = Signature::new(CallConv::SystemV);
+        sig.params.push(AbiParam::new(ir::types::I32));
+        let signature = builder.func.import_signature(sig);
+        let observe = builder.import_function(ir::ExtFuncData {
+            name: ir::ExternalName::user(observe_name),
+            signature,
+            colocated: true,
+            patchable: false,
+        });
+
+        let block0 = builder.create_block();
+        let block1 = builder.create_block();
+        let block2 = builder.create_block();
+
+        // block0: Allocate a GC reference, then enter the loop.
+        builder.switch_to_block(block0);
+        let call_inst = builder.ins().call(alloc, &[]);
+        let v0 = builder.func.dfg.first_result(call_inst);
+        builder.declare_value_needs_stack_map(v0);
+        builder.ins().jump(block1, &[]);
+
+        // block1: A loop that uses the loop-invariant GC ref and then allocates
+        // another GC ref. The two GC refs' live ranges are overlapping (since
+        // `v0` is live across the whole loop) even if they "don't" overlap
+        // within a single loop iteration.
+        builder.switch_to_block(block1);
+        builder.ins().call(observe, &[v0]);
+        let call_inst = builder.ins().call(alloc, &[]);
+        let v1 = builder.func.dfg.first_result(call_inst);
+        builder.declare_value_needs_stack_map(v1);
+        // This call should have stack map entries for both `v0` and `v1`.
+        builder.ins().call(observe, &[v1]);
+        builder.ins().brif(v1, block2, &[], block1, &[]);
+
+        // block2: Keep `v1` alive across a safepoint and return.
+        builder.switch_to_block(block2);
+        builder.ins().call(observe, &[v1]);
+        builder.ins().call(observe, &[v1]);
+        builder.ins().return_(&[]);
+
+        builder.seal_all_blocks();
+        builder.finalize(systemv_frontend_config());
+
+        // `v0` and `v1` should be spilled and reloaded from different stack
+        // slots.
+        assert_eq_output!(
+            func.display().to_string(),
+            r#"
+function %sample() system_v {
+    ss0 = explicit_slot 4, align = 4
+    ss1 = explicit_slot 4, align = 4
+    sig0 = () -> i32 system_v
+    sig1 = (i32) system_v
+    fn0 = colocated u0:1 sig0
+    fn1 = colocated u0:1 sig1
+
+block0:
+    v0 = call fn0()
+    v13 = stack_addr.i64 ss1
+    store notrap aligned v0, v13
+    jump block1
+
+block1:
+    v11 = stack_addr.i64 ss1
+    v12 = load.i32 notrap aligned v11
+    call fn1(v12), stack_map=[i32 @ ss1+0]
+    v1 = call fn0(), stack_map=[i32 @ ss1+0]
+    v10 = stack_addr.i64 ss0
+    store notrap aligned v1, v10
+    v8 = stack_addr.i64 ss0
+    v9 = load.i32 notrap aligned v8
+    call fn1(v9), stack_map=[i32 @ ss1+0, i32 @ ss0+0]
+    v6 = stack_addr.i64 ss0
+    v7 = load.i32 notrap aligned v6
+    brif v7, block2, block1
+
+block2:
+    v4 = stack_addr.i64 ss0
+    v5 = load.i32 notrap aligned v4
+    call fn1(v5), stack_map=[i32 @ ss0+0]
+    v2 = stack_addr.i64 ss0
+    v3 = load.i32 notrap aligned v2
+    call fn1(v3)
+    return
+}
+            "#
+        );
+    }
+
+    #[test]
+    fn stack_map_alias_region() {
+        let _ = env_logger::try_init();
+
+        let sig = Signature::new(CallConv::SystemV);
+
+        let mut fn_ctx = FunctionBuilderContext::new();
+        let mut func = Function::with_name_signature(ir::UserFuncName::testcase("sample"), sig);
+        let mut builder = FunctionBuilder::new(&mut func, &mut fn_ctx);
+
+        // Place every safepoint spill and reload into a single deduplicated
+        // alias region.
+        builder.make_stack_map_alias_region(Box::new(|regions, _ty, _slot, _offset| {
+            Some(regions.insert(ir::AliasRegionData {
+                user_id: 0,
+                description: "stack map".into(),
+            }))
+        }));
+
+        let name = builder
+            .func
+            .declare_imported_user_function(ir::UserExternalName {
+                namespace: 0,
+                index: 0,
+            });
+        let mut sig = Signature::new(CallConv::SystemV);
+        sig.params.push(AbiParam::new(ir::types::I32));
+        let signature = builder.func.import_signature(sig);
+        let func_ref = builder.import_function(ir::ExtFuncData {
+            name: ir::ExternalName::user(name),
+            signature,
+            colocated: true,
+            patchable: false,
+        });
+
+        // `v0` is live across the first `call` safepoint (it is used again by
+        // the second call), so it is spilled at its definition and reloaded at
+        // each use. The spill `store` and reload `load`s should all be tagged
+        // with the configured alias region.
+        //
+        //     block0:
+        //       v0 = iconst.i32 42  ; needs stack map
+        //       call $foo(v0)
+        //       call $foo(v0)
+        //       return
+        let block0 = builder.create_block();
+        builder.append_block_params_for_function_params(block0);
+        builder.switch_to_block(block0);
+        let v0 = builder.ins().iconst(ir::types::I32, 42);
+        builder.declare_value_needs_stack_map(v0);
+        builder.ins().call(func_ref, &[v0]);
+        builder.ins().call(func_ref, &[v0]);
+        builder.ins().return_(&[]);
+        builder.seal_all_blocks();
+        builder.finalize(systemv_frontend_config());
+
+        assert_eq_output!(
+            func.display().to_string(),
+            r#"
+function %sample() system_v {
+    ss0 = explicit_slot 4, align = 4
+    region0 = 0 "stack map"
+    sig0 = (i32) system_v
+    fn0 = colocated u0:0 sig0
+
+block0:
+    v0 = iconst.i32 42
+    v5 = stack_addr.i64 ss0
+    store notrap aligned region0 v0, v5  ; v0 = 42
+    v3 = stack_addr.i64 ss0
+    v4 = load.i32 notrap aligned region0 v3
+    call fn0(v4), stack_map=[i32 @ ss0+0]
+    v1 = stack_addr.i64 ss0
+    v2 = load.i32 notrap aligned region0 v1
+    call fn0(v2)
+    return
+}
+            "#
         );
     }
 }

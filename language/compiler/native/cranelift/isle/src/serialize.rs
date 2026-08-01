@@ -422,7 +422,10 @@ impl<'a> Decomposition<'a> {
             // type of control flow, in `make_control_flow`.
             if matches!(
                 binding,
-                Binding::Iterator { .. } | Binding::MatchVariant { .. } | Binding::MatchSome { .. }
+                Binding::Iterator { .. }
+                    | Binding::MatchVariant { .. }
+                    | Binding::ExtractStruct { .. }
+                    | Binding::MatchSome { .. }
             ) {
                 continue;
             }
@@ -521,7 +524,9 @@ impl<'a> Decomposition<'a> {
                 // Only let-bind variant constructors if they have some fields.
                 // Building a variant with no fields is cheap, but don't
                 // duplicate more complex expressions.
-                Binding::MakeVariant { fields, .. } => !fields.is_empty(),
+                Binding::MakeVariant { fields, .. } | Binding::MakeStruct { fields, .. } => {
+                    !fields.is_empty()
+                }
 
                 // By default, do let-bind: that's always safe.
                 _ => true,
@@ -824,8 +829,8 @@ fn group_by_mut<T: Eq>(
             None
         } else {
             let mid = xs
-                .windows(2)
-                .position(|w| !pred(&w[0], &w[1]))
+                .array_windows()
+                .position(|[a, b]| !pred(a, b))
                 .map_or(xs.len(), |x| x + 1);
             let slice = std::mem::take(&mut xs);
             let (group, rest) = slice.split_at_mut(mid);

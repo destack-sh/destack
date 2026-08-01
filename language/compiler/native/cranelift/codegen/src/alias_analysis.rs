@@ -2,33 +2,34 @@
 //! values" pass. These two passes operate as one fused pass, and so
 //! are implemented together here.
 //!
-//! We partition memory state into several *disjoint pieces* of
-//! "abstract state". There are a finite number of such pieces:
-//! currently, we call them "heap", "table", "vmctx", and "other".Any
-//! given address in memory belongs to exactly one disjoint piece.
+//! We partition memory state into several *disjoint regions* of
+//! "abstract state". These regions are defined by `ir::AliasRegion`
+//! and may correspond to distinct linear memories in Wasm, different
+//! types (or fields) that cannot alias each other (known as
+//! type-based alias analysis, or TBAA), unique stack slots,
+//! etc... Any given address in memory belongs to at most one region.
 //!
-//! One never tracks which piece a concrete address belongs to at
+//! We never track which piece a concrete address belongs to at
 //! runtime; this is a purely static concept. Instead, all
-//! memory-accessing instructions (loads and stores) are labeled with
-//! one of these four categories in the `MemFlags`. It is forbidden
-//! for a load or store to access memory under one category and a
-//! later load or store to access the same memory under a different
-//! category. This is ensured to be true by construction during
-//! frontend translation into CLIF and during legalization.
+//! memory-accessing instructions (loads and stores) are tagged with
+//! one of these regions in their `ir::MemFlagsData`. It is forbidden
+//! for one instruction tagged with region `R` to access a memory
+//! location `L` and then for another instruction tagged with region
+//! `S` to access the same memory location `L`. This invariant must be
+//! provided by the CLIF-producing frontend.
 //!
-//! Given that this non-aliasing property is ensured by the producer
-//! of CLIF, we can compute a *may-alias* property: one load or store
-//! may-alias another load or store if both access the same category
-//! of abstract state.
+//! Given that this non-aliasing property is provided by the CLIF
+//! producer, we can compute a *may-alias* property: one load or store
+//! may-alias another load or store if both access the same region.
 //!
 //! The "last store" pass helps to compute this aliasing: it scans the
 //! code, finding at each program point the last instruction that
-//! *might have* written to a given part of abstract state.
+//! *might have* written to a given region.
 //!
 //! We can't say for sure that the "last store" *did* actually write
-//! that state, but we know for sure that no instruction *later* than
-//! it (up to the current instruction) did. However, we can get a
-//! must-alias property from this: if at a given load or store, we
+//! that region, but we know for sure that no instruction *later* than
+//! it (up to the current instruction) did. However, we can derive a
+//! *must-alias* property from this: if at a given load or store, we
 //! look backward to the "last store", *AND* we find that it has
 //! exactly the same address expression and type, then we know that
 //! the current instruction's access *must* be to the same memory
@@ -52,7 +53,7 @@
 //!
 //! In theory we could also do *dead-store elimination*, where if a
 //! store overwrites a key in the table, *and* if no other load/store
-//! to the abstract state category occurred, *and* no other trapping
+//! to the abstract region occurred, *and* no other trapping
 //! instruction occurred (at which point we need an up-to-date memory
 //! state because post-trap-termination memory state can be observed),
 //! *and* we can prove the original store could not have trapped, then
@@ -61,47 +62,56 @@
 //! must be correct likely reduce the potential benefit, we don't yet
 //! do this.
 
-use crate::cursor::{Cursor, FuncCursor};
-use crate::dominator_tree::DominatorTree;
-use crate::inst_predicates::{
-    has_memory_fence_semantics, inst_addr_offset_type, inst_store_data, visit_block_succs,
+use crate::{FxHashMap, FxHashSet};
+use crate::{
+    cursor::{Cursor, FuncCursor},
+    dominator_tree::DominatorTree,
+    inst_predicates::{
+        has_memory_fence_semantics, inst_addr_offset_type, inst_store_data, visit_block_succs,
+    },
+    ir::{AliasRegion, Block, Function, Inst, Opcode, Type, Value, immediates::Offset32},
+    trace,
 };
-use crate::ir::immediates::Offset32;
-use crate::ir::{AliasRegion, Block, Function, Inst, Opcode, Type, Value};
-use crate::{FxHashMap, FxHashSet, trace};
-use cranelift_entity::EntityRef;
-use cranelift_entity::packed_option::PackedOption;
+use cranelift_entity::{EntityRef, SecondaryMap, packed_option::PackedOption};
 
 /// For a given program point, the vector of last-store instruction
 /// indices for each disjoint category of abstract state.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct LastStores {
-    heap: PackedOption<Inst>,
-    table: PackedOption<Inst>,
-    vmctx: PackedOption<Inst>,
+    /// Last store for each named alias region.
+    regions: SecondaryMap<AliasRegion, PackedOption<Inst>>,
+    /// Last store for memory accesses with no alias region.
     other: PackedOption<Inst>,
+    /// Last instruction with fence semantics. This applies to ALL regions,
+    /// including ones not yet in the `regions` map.
+    last_fence: PackedOption<Inst>,
 }
 
 impl LastStores {
     fn update(&mut self, func: &Function, inst: Inst) {
         let opcode = func.dfg.insts[inst].opcode();
         if has_memory_fence_semantics(opcode) {
-            self.heap = inst.into();
-            self.table = inst.into();
-            self.vmctx = inst.into();
+            self.regions.clear();
+            self.last_fence = inst.into();
             self.other = inst.into();
         } else if opcode.can_store() {
             if let Some(memflags) = func.dfg.insts[inst].memflags() {
-                match memflags.alias_region() {
-                    None => self.other = inst.into(),
-                    Some(AliasRegion::Heap) => self.heap = inst.into(),
-                    Some(AliasRegion::Table) => self.table = inst.into(),
-                    Some(AliasRegion::Vmctx) => self.vmctx = inst.into(),
+                match func.dfg.mem_flags[memflags].alias_region() {
+                    Some(region) => self.regions[region] = inst.into(),
+                    None => {
+                        // A store with no alias region may alias any region, so
+                        // treat it like a fence: clear all regions and update
+                        // `last_fence` so that subsequent region-tagged loads don't
+                        // forward stale values past this store.
+                        self.regions.clear();
+                        self.last_fence = inst.into();
+                        self.other = inst.into();
+                    }
                 }
             } else {
-                self.heap = inst.into();
-                self.table = inst.into();
-                self.vmctx = inst.into();
+                // Store with no memflags: must clobber everything.
+                self.regions.clear();
+                self.last_fence = inst.into();
                 self.other = inst.into();
             }
         }
@@ -109,11 +119,18 @@ impl LastStores {
 
     fn get_last_store(&self, func: &Function, inst: Inst) -> PackedOption<Inst> {
         if let Some(memflags) = func.dfg.insts[inst].memflags() {
-            match memflags.alias_region() {
+            match func.dfg.mem_flags[memflags].alias_region() {
                 None => self.other,
-                Some(AliasRegion::Heap) => self.heap,
-                Some(AliasRegion::Table) => self.table,
-                Some(AliasRegion::Vmctx) => self.vmctx,
+                Some(region) => {
+                    let region_store = self.regions[region];
+                    // If the region has never been explicitly stored to,
+                    // fall back to the last fence (which affects all regions).
+                    if region_store.is_none() {
+                        self.last_fence
+                    } else {
+                        region_store
+                    }
+                }
             }
         } else if func.dfg.insts[inst].opcode().can_load()
             || func.dfg.insts[inst].opcode().can_store()
@@ -124,21 +141,31 @@ impl LastStores {
         }
     }
 
-    fn meet_from(&mut self, other: &LastStores, loc: Inst) {
-        let meet = |a: PackedOption<Inst>, b: PackedOption<Inst>| -> PackedOption<Inst> {
-            match (a.into(), b.into()) {
-                (None, None) => None.into(),
-                (Some(a), None) => a,
-                (None, Some(b)) => b,
-                (Some(a), Some(b)) if a == b => a,
-                _ => loc.into(),
-            }
+    /// Meet `self` with `other` and place the result in `self`.
+    ///
+    /// Returns `true` if `self` changed, `false` otherwise.
+    fn meet_from(&mut self, other: &LastStores, loc: Inst) -> bool {
+        let meet = |a: &mut PackedOption<Inst>, b: PackedOption<Inst>| -> bool {
+            let old = a.expand();
+            let new = match (old, b.expand()) {
+                (None, None) => None,
+                (Some(a), Some(b)) if a == b => Some(a),
+                _ => Some(loc),
+            };
+            *a = new.into();
+            old != new
         };
 
-        self.heap = meet(self.heap, other.heap);
-        self.table = meet(self.table, other.table);
-        self.vmctx = meet(self.vmctx, other.vmctx);
-        self.other = meet(self.other, other.other);
+        // Meet all region slots.
+        let mut changed = false;
+        let max_len = core::cmp::max(self.regions.keys().len(), other.regions.keys().len());
+        for i in 0..max_len {
+            let ar = AliasRegion::new(i);
+            changed |= meet(&mut self.regions[ar], other.regions[ar]);
+        }
+        changed |= meet(&mut self.other, other.other);
+        changed |= meet(&mut self.last_fence, other.last_fence);
+        changed
     }
 }
 
@@ -221,10 +248,11 @@ impl<'a> AliasAnalysis<'a> {
 
         while let Some(block) = queue.pop() {
             queue_set.remove(&block);
-            let mut state = *self
+            let mut state = self
                 .block_input
                 .entry(block)
-                .or_insert_with(|| LastStores::default());
+                .or_insert_with(|| LastStores::default())
+                .clone();
 
             trace!(
                 "alias analysis: input to block{} is {:?}",
@@ -240,13 +268,9 @@ impl<'a> AliasAnalysis<'a> {
             visit_block_succs(func, block, |_inst, succ, _from_table| {
                 let succ_first_inst = func.layout.block_insts(succ).next().unwrap();
                 let updated = match self.block_input.get_mut(&succ) {
-                    Some(succ_state) => {
-                        let old = *succ_state;
-                        succ_state.meet_from(&state, succ_first_inst);
-                        *succ_state != old
-                    }
+                    Some(succ_state) => succ_state.meet_from(&state, succ_first_inst),
                     None => {
-                        self.block_input.insert(succ, state);
+                        self.block_input.insert(succ, state.clone());
                         true
                     }
                 };

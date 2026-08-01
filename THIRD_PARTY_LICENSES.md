@@ -11,7 +11,8 @@ These components are used under their respective licenses as noted below.
 **Authors:** The Cranelift Project Developers
 **Source:** https://github.com/bytecodealliance/wasmtime
 **Location:** `language/compiler/native/cranelift/`
-**Modifications:** This copy has been modified for Destack.
+**Version:** Wasmtime `v47.0.3`, Cranelift `0.134.3`
+**Modifications:** Source is unmodified; Cargo manifests are adapted to the Destack workspace.
 
 ---
 
@@ -31,7 +32,8 @@ These components are used under their respective licenses as noted below.
 **Authors:** The Wasmtime Project Developers
 **Source:** https://github.com/bytecodealliance/wasmtime
 **Location:** `language/compiler/native/wasmtime-core/`
-**Modifications:** This copy has been modified for Destack.
+**Version:** Wasmtime `v47.0.3`
+**Modifications:** Source is unmodified; Cargo manifests are adapted to the Destack workspace.
 
 ---
 
@@ -41,7 +43,8 @@ These components are used under their respective licenses as noted below.
 **Authors:** The Pulley Project Developers
 **Source:** https://github.com/bytecodealliance/wasmtime
 **Location:** `language/compiler/native/pulley/`
-**Modifications:** This copy has been modified for Destack.
+**Version:** Wasmtime `v47.0.3`
+**Modifications:** Source is unmodified; Cargo manifests are adapted to the Destack workspace.
 
 ---
 

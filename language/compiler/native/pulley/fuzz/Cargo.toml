@@ -5,6 +5,9 @@ publish = false
 edition.workspace = true
 rust-version.workspace = true
 
+[lints.clippy]
+all = { level = "allow", priority = -1 }
+
 [dependencies]
 pulley-interpreter = { path = "..", features = ["encode", "decode", "disas", "interp", "arbitrary"] }
 env_logger = { workspace = true }

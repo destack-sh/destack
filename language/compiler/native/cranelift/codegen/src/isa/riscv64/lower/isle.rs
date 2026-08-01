@@ -6,21 +6,20 @@ use generated_code::MInst;
 
 // Types that the generated ISLE code uses via `use super::*`.
 use self::generated_code::{FpuOPWidth, VecAluOpRR, VecLmul};
-use crate::ir::immediates::*;
-use crate::ir::types::*;
-use crate::ir::{
-    AtomicRmwOp, BlockCall, ExternalName, Inst, InstructionData, MemFlags, Opcode, TrapCode, Value,
-    ValueList,
-};
 use crate::isa::riscv64::Riscv64Backend;
-use crate::isa::riscv64::inst::*;
 use crate::isa::riscv64::lower::args::{
     FReg, VReg, WritableFReg, WritableVReg, WritableXReg, XReg,
 };
-use crate::machinst::isle::*;
-use crate::machinst::{
-    ArgPair, CallArgList, CallInfo, CallRetList, InstOutput, MachInst, Reg, VCodeConstant,
-    VCodeConstantData,
+use crate::machinst::Reg;
+use crate::machinst::{CallInfo, MachInst, isle::*};
+use crate::machinst::{VCodeConstant, VCodeConstantData};
+use crate::{
+    ir::{
+        AtomicRmwOp, BlockCall, ExternalName, Inst, InstructionData, MemFlagsData, Opcode,
+        TrapCode, Value, ValueList, immediates::*, types::*,
+    },
+    isa::riscv64::inst::*,
+    machinst::{ArgPair, CallArgList, CallRetList, InstOutput},
 };
 use alloc::boxed::Box;
 use alloc::vec::Vec;
@@ -287,7 +286,7 @@ impl generated_code::Context for RV64IsleContext<'_, '_, MInst, Riscv64Backend> 
             self.emit(&MInst::Load {
                 rd: tmp,
                 op: LoadOP::Ld,
-                flags: MemFlags::trusted(),
+                flags: MemFlagsData::trusted(),
                 from: AMode::FPOffset(8),
             });
             tmp.to_reg()
@@ -526,6 +525,10 @@ impl generated_code::Context for RV64IsleContext<'_, '_, MInst, Riscv64Backend> 
         self.backend.isa_flags.has_zicond()
     }
 
+    fn has_zvbb(&mut self) -> bool {
+        self.backend.isa_flags.has_zvbb()
+    }
+
     fn gen_reg_offset_amode(&mut self, base: Reg, offset: i64) -> AMode {
         AMode::RegOffset(base, offset)
     }
@@ -617,6 +620,10 @@ impl generated_code::Context for RV64IsleContext<'_, '_, MInst, Riscv64Backend> 
             rs1: rs1.to_reg(),
             rs2: rs2.to_reg(),
         }
+    }
+
+    fn int_compare_inverse(&mut self, c: IntegerCompare) -> IntegerCompare {
+        c.inverse()
     }
 
     #[inline]

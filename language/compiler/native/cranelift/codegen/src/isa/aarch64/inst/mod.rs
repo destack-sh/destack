@@ -2,7 +2,7 @@
 
 use crate::binemit::{Addend, CodeOffset, Reloc};
 use crate::ir::types::{F16, F32, F64, F128, I8, I8X16, I16, I32, I64, I128};
-use crate::ir::{MemFlags, Type, types};
+use crate::ir::{MemFlagsData, Type, types};
 use crate::isa::{CallConv, FunctionAlignment};
 use crate::machinst::*;
 use crate::{CodegenError, CodegenResult, settings};
@@ -16,7 +16,7 @@ use core::slice;
 use smallvec::{SmallVec, smallvec};
 
 pub(crate) mod regs;
-pub(crate) use self::regs::*;
+pub use self::regs::*;
 pub mod imms;
 pub use self::imms::*;
 pub mod args;
@@ -206,7 +206,7 @@ impl Inst {
     }
 
     /// Generic constructor for a load (zero-extending where appropriate).
-    pub fn gen_load(into_reg: Writable<Reg>, mem: AMode, ty: Type, flags: MemFlags) -> Inst {
+    pub fn gen_load(into_reg: Writable<Reg>, mem: AMode, ty: Type, flags: MemFlagsData) -> Inst {
         match ty {
             I8 => Inst::ULoad8 {
                 rd: into_reg,
@@ -248,7 +248,7 @@ impl Inst {
     }
 
     /// Generic constructor for a store.
-    pub fn gen_store(mem: AMode, from_reg: Reg, ty: Type, flags: MemFlags) -> Inst {
+    pub fn gen_store(mem: AMode, from_reg: Reg, ty: Type, flags: MemFlagsData) -> Inst {
         match ty {
             I8 => Inst::Store8 {
                 rd: from_reg,
@@ -1166,6 +1166,19 @@ impl MachInst for Inst {
         44
     }
 
+    fn worst_case_island_growth() -> CodeOffset {
+        // A single `Inst` may add to the buffer's pending-island state:
+        //
+        // - Up to three 8-byte constants (the saturating int-to-float sequence
+        //   noted above); count alignment padding into each.
+        // - Up to one deferred trap (TrapIf and similar), 4 bytes.
+        // - Up to one fixup per emitted instruction word, each contributing at
+        //   most `worst_case_veneer_size()` (= 20) bytes of veneer.
+        //
+        // We pick a conservative bound that comfortably covers these.
+        128
+    }
+
     fn ref_type_regclass(_: &settings::Flags) -> RegClass {
         RegClass::Int
     }
@@ -1220,7 +1233,11 @@ fn pretty_print_try_call(info: &TryCallInfo) -> String {
 }
 
 impl Inst {
-    fn print_with_state(&self, state: &mut EmitState) -> String {
+    #[expect(
+        missing_docs,
+        reason = "exposed for cranelift-isle/veri pretty-printing"
+    )]
+    pub fn print_with_state(&self, state: &mut EmitState) -> String {
         fn op_name(alu_op: ALUOp) -> &'static str {
             match alu_op {
                 ALUOp::Add => "add",
@@ -2274,6 +2291,9 @@ impl Inst {
                     VecALUModOp::Bsl => ("bsl", VectorSize::Size8x16),
                     VecALUModOp::Fmla => ("fmla", size),
                     VecALUModOp::Fmls => ("fmls", size),
+                    // Note: the real operand arrangement is .4s, .16b, .16b;
+                    // this debug print renders all lanes as .4s.
+                    VecALUModOp::Sdot => ("sdot", VectorSize::Size32x4),
                 };
                 let rd = pretty_print_vreg_vector(rd.to_reg(), size);
                 let ri = pretty_print_vreg_vector(ri, size);
@@ -3106,11 +3126,6 @@ mod tests {
     fn inst_size_test() {
         // This test will help with unintentionally growing the size
         // of the Inst enum.
-        let expected = if cfg!(target_pointer_width = "32") && !cfg!(target_arch = "arm") {
-            28
-        } else {
-            32
-        };
-        assert_eq!(expected, core::mem::size_of::<Inst>());
+        assert_eq!(32, core::mem::size_of::<Inst>());
     }
 }

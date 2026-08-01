@@ -3,11 +3,13 @@ use super::context::ContextError;
 use super::ptr::{MutPtr, OwnedPtr, SharedPtr};
 use super::vtable::Vtable;
 use crate::error::{OutOfMemory, Result};
-use core::any::TypeId;
-use core::fmt::{self, Debug};
-use core::iter::FusedIterator;
-use core::mem;
-use core::ptr::NonNull;
+use core::{
+    any::TypeId,
+    fmt::{self, Debug},
+    iter::FusedIterator,
+    mem,
+    ptr::NonNull,
+};
 #[cfg(feature = "backtrace")]
 use std::backtrace::{Backtrace, BacktraceStatus};
 use std_alloc::boxed::Box;
@@ -1507,7 +1509,7 @@ pub(crate) enum OomOrDynErrorMut<'a> {
 #[repr(transparent)]
 pub(crate) struct OomOrDynError {
     // Safety: this must always be the casted-to-`u8` version of either (a)
-    // `0x1`, or (b) a valid `DynError` pointer. (Note that these cases
+    // `0x1`, or (b) a valid, owned `DynError` pointer. (Note that these cases
     // cannot overlap because `DynError`'s alignment is greater than `0x1`.)
     inner: NonNull<u8>,
 }

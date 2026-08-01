@@ -4,11 +4,11 @@ use core::marker::PhantomData;
 
 use crate::binemit::{Addend, CodeOffset, Reloc};
 use crate::ir::types::{self, F32, F64, I8, I8X16, I16, I32, I64, I128};
-use crate::ir::{self, MemFlags, Type};
+use crate::ir::{self, MemFlagsData, Type};
 use crate::isa::FunctionAlignment;
 use crate::isa::pulley_shared::abi::PulleyMachineDeps;
-use crate::machinst::*;
-use crate::{CodegenError, CodegenResult, settings, trace};
+use crate::{CodegenError, CodegenResult, settings};
+use crate::{machinst::*, trace};
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
@@ -25,7 +25,8 @@ pub use self::emit::*;
 //=============================================================================
 // Instructions (top level): definition
 
-pub use crate::isa::pulley_shared::lower::isle::generated_code::{MInst as Inst, RawInst};
+pub use crate::isa::pulley_shared::lower::isle::generated_code::MInst as Inst;
+pub use crate::isa::pulley_shared::lower::isle::generated_code::RawInst;
 
 impl From<RawInst> for Inst {
     fn from(raw: RawInst) -> Inst {
@@ -58,7 +59,7 @@ pub struct ReturnCallInfo<T> {
 
 impl Inst {
     /// Generic constructor for a load (zero-extending where appropriate).
-    pub fn gen_load(dst: Writable<Reg>, mem: Amode, ty: Type, flags: MemFlags) -> Inst {
+    pub fn gen_load(dst: Writable<Reg>, mem: Amode, ty: Type, flags: MemFlagsData) -> Inst {
         if ty.is_vector() {
             assert_eq!(ty.bytes(), 16);
             Inst::VLoad {
@@ -86,7 +87,7 @@ impl Inst {
     }
 
     /// Generic constructor for a store.
-    pub fn gen_store(mem: Amode, from_reg: Reg, ty: Type, flags: MemFlags) -> Inst {
+    pub fn gen_store(mem: Amode, from_reg: Reg, ty: Type, flags: MemFlagsData) -> Inst {
         if ty.is_vector() {
             assert_eq!(ty.bytes(), 16);
             Inst::VStore {
@@ -588,6 +589,14 @@ where
         // dst, src1, src2
         // 16-byte immediate
         22
+    }
+
+    fn worst_case_island_growth() -> CodeOffset {
+        // A single instruction may add an embedded constant, a deferred
+        // trap, and a few fixup records. Pulley's label-uses all have
+        // ~2 GiB range and don't support veneers, so this just covers
+        // constants and trap bytes; we pick a conservative bound.
+        32
     }
 
     fn ref_type_regclass(_settings: &settings::Flags) -> RegClass {

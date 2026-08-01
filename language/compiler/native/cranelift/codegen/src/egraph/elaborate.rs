@@ -10,11 +10,11 @@ use crate::inst_predicates::is_pure_for_egraph;
 use crate::ir::{Block, Function, Inst, Value, ValueDef};
 use crate::loop_analysis::{Loop, LoopAnalysis};
 use crate::scoped_hash_map::ScopedHashMap;
-use crate::{FxHashMap, FxHashSet, trace};
+use crate::trace;
+use crate::{FxHashMap, FxHashSet};
 use alloc::vec::Vec;
 use cranelift_control::ControlPlane;
-use cranelift_entity::packed_option::ReservedValue;
-use cranelift_entity::{EntitySet, SecondaryMap};
+use cranelift_entity::{EntitySet, SecondaryMap, packed_option::ReservedValue};
 use smallvec::{SmallVec, smallvec};
 
 pub(crate) struct Elaborator<'a> {

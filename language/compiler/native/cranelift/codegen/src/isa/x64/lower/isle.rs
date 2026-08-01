@@ -2,7 +2,7 @@
 
 // Pull in the ISLE generated code.
 pub(crate) mod generated_code;
-use crate::ir::{AtomicRmwOp, types};
+use crate::{ir::AtomicRmwOp, ir::types};
 use generated_code::{AssemblerOutputs, Context, MInst, RegisterClass};
 
 // Types that the generated ISLE code uses via `use super::*`.
@@ -11,12 +11,9 @@ use super::{MergeableLoadSize, is_int_or_ref_ty, is_mergeable_load, lower_to_amo
 use crate::ir::condcodes::{FloatCC, IntCC};
 use crate::ir::immediates::*;
 use crate::ir::types::*;
-use crate::ir::{
-    BlockCall, Inst, InstructionData, LibCall, MemFlags, Opcode, TrapCode, Value, ValueList,
-};
+use crate::ir::{BlockCall, Inst, InstructionData, LibCall, Opcode, TrapCode, Value, ValueList};
 use crate::isa::x64::X64Backend;
-use crate::isa::x64::inst::args::*;
-use crate::isa::x64::inst::{ReturnCallInfo, regs};
+use crate::isa::x64::inst::{ReturnCallInfo, args::*, regs};
 use crate::isa::x64::lower::{InsnInput, emit_vm_call};
 use crate::machinst::isle::*;
 use crate::machinst::{
@@ -1667,7 +1664,7 @@ impl Context for IsleContext<'_, '_, MInst, X64Backend> {
     fn palignr_imm_from_immediate(&mut self, imm: Immediate) -> Option<u8> {
         let bytes = self.lower_ctx.get_immediate_data(imm).as_slice();
 
-        if bytes.windows(2).all(|a| a[0] + 1 == a[1]) {
+        if bytes.array_windows().all(|[a, b]| *a + 1 == *b) {
             Some(bytes[0])
         } else {
             None

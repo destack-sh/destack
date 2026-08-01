@@ -9,25 +9,27 @@ use super::{
     ASIMDFPModImm, ASIMDMovModImm, BranchTarget, CallInfo, Cond, CondBrKind, ExtendOp, FPUOpRI,
     FPUOpRIMod, FloatCC, Imm12, ImmLogic, ImmShift, Inst as MInst, IntCC, MachLabel, MemLabel,
     MoveWideConst, MoveWideOp, NZCV, Opcode, OperandSize, Reg, SImm9, ScalarSize, ShiftOpAndAmt,
-    UImm5, UImm12Scaled, VecMisc2, VectorSize, fp_reg, lower_condcode, lower_fp_condcode,
-    stack_reg, writable_link_reg, writable_zero_reg, zero_reg,
+    UImm5, UImm12Scaled, VecMisc2, VectorSize, fp_reg, lower_condcode, stack_reg,
+    writable_link_reg, writable_zero_reg, zero_reg,
 };
-use crate::binemit::CodeOffset;
-use crate::ir::immediates::*;
-use crate::ir::types::*;
-use crate::ir::{
-    ArgumentExtension, AtomicRmwOp, BlockCall, ExternalName, Inst, InstructionData, MemFlags,
-    TrapCode, Value, ValueList, condcodes,
-};
+use crate::ir::{ArgumentExtension, condcodes};
 use crate::isa;
 use crate::isa::aarch64::AArch64Backend;
-use crate::isa::aarch64::abi::AArch64MachineDeps;
-use crate::isa::aarch64::inst::args::{ShiftOp, ShiftOpShiftImm};
-use crate::isa::aarch64::inst::{FPULeftShiftImm, FPURightShiftImm, ReturnCallInfo, SImm7Scaled};
-use crate::machinst::abi::ArgPair;
+use crate::isa::aarch64::inst::{FPULeftShiftImm, FPURightShiftImm, ReturnCallInfo};
 use crate::machinst::isle::*;
-use crate::machinst::{
-    CallArgList, CallRetList, InstOutput, MachInst, VCodeConstant, VCodeConstantData, ty_bits,
+use crate::{
+    binemit::CodeOffset,
+    ir::{
+        AtomicRmwOp, BlockCall, ExternalName, Inst, InstructionData, MemFlagsData, TrapCode, Value,
+        ValueList, immediates::*, types::*,
+    },
+    isa::aarch64::abi::AArch64MachineDeps,
+    isa::aarch64::inst::SImm7Scaled,
+    isa::aarch64::inst::args::{ShiftOp, ShiftOpShiftImm},
+    machinst::{
+        CallArgList, CallRetList, InstOutput, MachInst, VCodeConstant, VCodeConstantData,
+        abi::ArgPair, ty_bits,
+    },
 };
 use alloc::boxed::Box;
 use alloc::vec::Vec;
@@ -171,6 +173,14 @@ impl Context for IsleContext<'_, '_, MInst, AArch64Backend> {
 
     fn use_lse(&mut self, _: Inst) -> Option<()> {
         if self.backend.isa_flags.has_lse() {
+            Some(())
+        } else {
+            None
+        }
+    }
+
+    fn use_dotprod(&mut self, _: Inst) -> Option<()> {
+        if self.backend.isa_flags.has_dotprod() {
             Some(())
         } else {
             None
@@ -580,10 +590,6 @@ impl Context for IsleContext<'_, '_, MInst, AArch64Backend> {
         }
     }
 
-    fn fp_cond_code(&mut self, cc: &condcodes::FloatCC) -> Cond {
-        lower_fp_condcode(*cc)
-    }
-
     fn cond_code(&mut self, cc: &condcodes::IntCC) -> Cond {
         lower_condcode(*cc)
     }
@@ -745,7 +751,7 @@ impl Context for IsleContext<'_, '_, MInst, AArch64Backend> {
     fn vec_extract_imm4_from_immediate(&mut self, imm: Immediate) -> Option<u8> {
         let bytes = self.lower_ctx.get_immediate_data(imm).as_slice();
 
-        if bytes.windows(2).all(|a| a[0] + 1 == a[1]) && bytes[0] < 16 {
+        if bytes.array_windows().all(|[a, b]| *a + 1 == *b) && bytes[0] < 16 {
             Some(bytes[0])
         } else {
             None

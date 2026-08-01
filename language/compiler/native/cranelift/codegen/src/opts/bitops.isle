@@ -114,7 +114,7 @@
 ;; (ne ty (iconst 0) v) is also canonicalized into this form via another rule
 (rule (simplify (ne cty v (iconst_u _ 0)))
       (if-let c (truthy v))
-      (if-let (value_type (ty_int_ref_scalar_64 ty)) c)
+      (if-let (value_type (ty_int_ref_scalar_64_extract ty)) c)
       (ne cty c (iconst_u ty 0)))
 
 
@@ -534,6 +534,42 @@
 (rule (simplify (bor ty (band ty (bnot ty y) x) y)) (bor ty y x))
 (rule (simplify (bor ty y (band ty x (bnot ty y)))) (bor ty y x))
 (rule (simplify (bor ty (band ty x (bnot ty y)) y)) (bor ty y x))
+
+;; ((x & ~y) - (x & y)) --> ((x ^ y) - y)
+(rule (simplify (isub ty (band ty x (bnot ty y)) (band ty x y))) (isub ty (bxor ty x y) y))
+(rule (simplify (isub ty (band ty x (bnot ty y)) (band ty y x))) (isub ty (bxor ty x y) y))
+(rule (simplify (isub ty (band ty (bnot ty y) x) (band ty x y))) (isub ty (bxor ty x y) y))
+(rule (simplify (isub ty (band ty (bnot ty y) x) (band ty y x))) (isub ty (bxor ty x y) y))
+(rule (simplify (isub ty (band ty x y) (band ty x (bnot ty y)))) (isub ty y (bxor ty x y)))
+(rule (simplify (isub ty (band ty x y) (band ty (bnot ty y) x))) (isub ty y (bxor ty x y)))
+(rule (simplify (isub ty (band ty y x) (band ty x (bnot ty y)))) (isub ty y (bxor ty x y)))
+(rule (simplify (isub ty (band ty y x) (band ty (bnot ty y) x))) (isub ty y (bxor ty x y)))
+
+;; (x & ~y) | (~x & y) --> (x ^ y)
+(rule (simplify (bor ty (band ty x (bnot ty y)) (band ty (bnot ty x) y))) (bxor ty x y))
+(rule (simplify (bor ty (band ty (bnot ty x) y) (band ty x (bnot ty y)))) (bxor ty x y))
+(rule (simplify (bor ty (band ty x (bnot ty y)) (band ty y (bnot ty x)))) (bxor ty x y))
+(rule (simplify (bor ty (band ty y (bnot ty x)) (band ty x (bnot ty y)))) (bxor ty x y))
+(rule (simplify (bor ty (band ty (bnot ty y) x) (band ty (bnot ty x) y))) (bxor ty x y))
+(rule (simplify (bor ty (band ty (bnot ty x) y) (band ty (bnot ty y) x))) (bxor ty x y))
+(rule (simplify (bor ty (band ty (bnot ty y) x) (band ty y (bnot ty x)))) (bxor ty x y))
+(rule (simplify (bor ty (band ty y (bnot ty x)) (band ty (bnot ty y) x))) (bxor ty x y))
+
+;; (x & ~y) | (x ^ y) --> (x ^ y)
+(rule (simplify (bor ty (band ty x (bnot ty y)) (bxor ty x y))) (bxor ty x y))
+(rule (simplify (bor ty (bxor ty x y) (band ty x (bnot ty y)))) (bxor ty x y))
+(rule (simplify (bor ty (band ty x (bnot ty y)) (bxor ty y x))) (bxor ty x y))
+(rule (simplify (bor ty (bxor ty y x) (band ty x (bnot ty y)))) (bxor ty x y))
+(rule (simplify (bor ty (band ty (bnot ty y) x) (bxor ty x y))) (bxor ty x y))
+(rule (simplify (bor ty (bxor ty x y) (band ty (bnot ty y) x))) (bxor ty x y))
+(rule (simplify (bor ty (band ty (bnot ty y) x) (bxor ty y x))) (bxor ty x y))
+(rule (simplify (bor ty (bxor ty y x) (band ty (bnot ty y) x))) (bxor ty x y))
+
+;; (x & ~y) ^ ~x --> ~(x & y)
+(rule (simplify (bxor ty (band ty x (bnot ty y)) (bnot ty x))) (bnot ty (band ty x y)))
+(rule (simplify (bxor ty (bnot ty x) (band ty x (bnot ty y)))) (bnot ty (band ty x y)))
+(rule (simplify (bxor ty (band ty (bnot ty y) x) (bnot ty x))) (bnot ty (band ty x y)))
+(rule (simplify (bxor ty (bnot ty x) (band ty (bnot ty y) x))) (bnot ty (band ty x y)))
 
 ;; (~x & y) ^ x --> x | y
 (rule (simplify (bxor ty (band ty (bnot ty x) y) x)) (bor ty x y))

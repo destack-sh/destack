@@ -1,10 +1,9 @@
 //! Pulley registers.
 
 use crate::U6;
-use core::fmt;
 use core::hash::Hash;
 use core::marker::PhantomData;
-use core::ops::Range;
+use core::{fmt, ops::Range};
 
 use cranelift_bitset::ScalarBitSet;
 

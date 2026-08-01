@@ -26,10 +26,10 @@ use core::hash::{Hash, Hasher};
 use crate::alloc::vec::Vec;
 use crate::ir::Function;
 use crate::ir::function::{FunctionStencil, VersionMarker};
-use crate::isa::TargetIsa;
 use crate::machinst::{CompiledCode, CompiledCodeStencil};
 use crate::result::CompileResult;
-use crate::{CompileError, Context, timing, trace};
+use crate::{CompileError, Context, trace};
+use crate::{isa::TargetIsa, timing};
 use alloc::borrow::Cow;
 use cranelift_control::ControlPlane;
 
@@ -193,12 +193,12 @@ pub fn compute_cache_key(isa: &dyn TargetIsa, func: &Function) -> CacheKeyHash {
 /// of the function call. The value is left untouched.
 pub fn serialize_compiled(
     result: CompiledCodeStencil,
-) -> (CompiledCodeStencil, Result<Vec<u8>, destack_serde::Error>) {
+) -> (CompiledCodeStencil, Result<Vec<u8>, postcard::Error>) {
     let cached = CachedFunc {
         version_marker: VersionMarker,
         stencil: result,
     };
-    let result = destack_serde::to_vec(&cached);
+    let result = postcard::to_allocvec(&cached);
     (cached.stencil, result)
 }
 
@@ -208,7 +208,7 @@ pub enum RecompileError {
     /// The version embedded in the cache entry isn't the same as cranelift's current version.
     VersionMismatch,
     /// An error occurred while deserializing the cache entry.
-    Deserialize(destack_serde::Error),
+    Deserialize(postcard::Error),
 }
 
 impl fmt::Display for RecompileError {
@@ -216,7 +216,7 @@ impl fmt::Display for RecompileError {
         match self {
             RecompileError::VersionMismatch => write!(f, "cranelift version mismatch",),
             RecompileError::Deserialize(err) => {
-                write!(f, "destack serde failed during deserialization: {err}")
+                write!(f, "postcard failed during deserialization: {err}")
             }
         }
     }
@@ -228,7 +228,7 @@ impl fmt::Display for RecompileError {
 /// Precondition: the bytes must have retrieved from a cache store entry which hash value
 /// is strictly the same as the `Function`'s computed hash retrieved from `compute_cache_key`.
 pub fn try_finish_recompile(func: &Function, bytes: &[u8]) -> Result<CompiledCode, RecompileError> {
-    match destack_serde::from_slice::<CachedFunc>(bytes) {
+    match postcard::from_bytes::<CachedFunc>(bytes) {
         Ok(result) => {
             if result.version_marker != func.stencil.version_marker {
                 Err(RecompileError::VersionMismatch)

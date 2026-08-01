@@ -9,18 +9,19 @@ use crate::entity::SecondaryMap;
 use crate::inst_predicates::{has_lowering_side_effect, is_constant_64bit};
 use crate::ir::{
     ArgumentPurpose, Block, BlockArg, Constant, ConstantData, DataFlowGraph, ExternalName,
-    Function, GlobalValue, GlobalValueData, Immediate, Inst, InstructionData, MemFlags,
-    RelSourceLoc, SigRef, Signature, Type, Value, ValueDef, ValueLabelAssignments, ValueLabelStart,
+    Function, GlobalValue, GlobalValueData, Immediate, Inst, InstructionData, RelSourceLoc, SigRef,
+    Signature, Type, Value, ValueDef, ValueLabelAssignments, ValueLabelStart,
 };
 use crate::machinst::valueregs::InvalidSentinel;
 use crate::machinst::{
     ABIMachineSpec, BackwardsInsnIndex, BlockIndex, BlockLoweringOrder, CallArgList, CallInfo,
-    CallRetList, Callee, InsnIndex, LoweredBlock, MachLabel, Reg, Sig, SigSet, TryCallInfo, VCode,
-    VCodeBuilder, VCodeConstant, VCodeConstantData, VCodeConstants, VCodeInst, ValueRegs, Writable,
-    writable_value_regs,
+    CallRetList, Callee, InsnIndex, LoweredBlock, MachLabel, MachMemFlags, Reg, Sig, SigSet,
+    TryCallInfo, VCode, VCodeBuilder, VCodeConstant, VCodeConstantData, VCodeConstants, VCodeInst,
+    ValueRegs, Writable, writable_value_regs,
 };
 use crate::settings::Flags;
-use crate::{CodegenError, CodegenResult, FxHashMap, FxHashSet, trace};
+use crate::{CodegenError, CodegenResult, trace};
+use crate::{FxHashMap, FxHashSet};
 use alloc::vec::Vec;
 use core::fmt::Debug;
 use cranelift_control::ControlPlane;
@@ -1419,14 +1420,16 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
     }
 
     /// Returns the memory flags of a given memory access.
-    pub fn memflags(&self, ir_inst: Inst) -> Option<MemFlags> {
+    pub fn memflags(&self, ir_inst: Inst) -> Option<MachMemFlags> {
         match &self.f.dfg.insts[ir_inst] {
-            &InstructionData::AtomicCas { flags, .. } => Some(flags),
-            &InstructionData::AtomicRmw { flags, .. } => Some(flags),
+            &InstructionData::AtomicCas { flags, .. } => Some(self.f.dfg.mem_flags[flags].into()),
+            &InstructionData::AtomicRmw { flags, .. } => Some(self.f.dfg.mem_flags[flags].into()),
             &InstructionData::Load { flags, .. }
             | &InstructionData::LoadNoOffset { flags, .. }
-            | &InstructionData::Store { flags, .. } => Some(flags),
-            &InstructionData::StoreNoOffset { flags, .. } => Some(flags),
+            | &InstructionData::Store { flags, .. } => Some(self.f.dfg.mem_flags[flags].into()),
+            &InstructionData::StoreNoOffset { flags, .. } => {
+                Some(self.f.dfg.mem_flags[flags].into())
+            }
             _ => None,
         }
     }
@@ -1620,6 +1623,13 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
     }
 
     /// Increment the reference count for the Value, ensuring that it gets lowered.
+    #[cfg(any(
+        feature = "x86",
+        feature = "arm64",
+        feature = "riscv64",
+        feature = "s390x",
+        feature = "pulley"
+    ))]
     pub fn increment_lowered_uses(&mut self, val: Value) {
         self.value_lowered_uses[val] += 1
     }
@@ -1707,7 +1717,8 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
 mod tests {
     use super::ValueUseState;
     use crate::cursor::{Cursor, FuncCursor};
-    use crate::ir::{Function, InstBuilder, types};
+    use crate::ir::types;
+    use crate::ir::{Function, InstBuilder};
 
     #[test]
     fn multi_result_use_once() {

@@ -1,14 +1,15 @@
 //! Implementation of the standard x64 ABI.
 
-use crate::ir::types::*;
-use crate::ir::{self, ExternalName, LibCall, MemFlags, Signature, TrapCode, types};
-use crate::isa::unwind::UnwindInst;
-use crate::isa::x64::inst::*;
-use crate::isa::x64::settings as x64_settings;
-use crate::isa::{CallConv, winch};
+use crate::CodegenResult;
+use crate::ir::MemFlagsData;
+use crate::ir::{self, LibCall, Signature, TrapCode, types};
+use crate::ir::{ExternalName, types::*};
+use crate::isa;
+use crate::isa::winch;
+use crate::isa::{CallConv, unwind::UnwindInst, x64::inst::*, x64::settings as x64_settings};
 use crate::machinst::abi::*;
 use crate::machinst::*;
-use crate::{CodegenResult, isa, settings};
+use crate::settings;
 use alloc::borrow::ToOwned;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
@@ -1011,7 +1012,7 @@ impl From<StackAMode> for SyntheticAmode {
                 SyntheticAmode::Real(Amode::ImmReg {
                     simm32: off,
                     base: regs::rsp(),
-                    flags: MemFlags::trusted(),
+                    flags: MemFlagsData::trusted(),
                 })
             }
         }

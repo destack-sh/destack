@@ -23,11 +23,11 @@ pub type StackSize = u32;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "enable-serde", derive(Serialize, Deserialize))]
 pub enum StackSlotKind {
-    /// An explicit stack slot. This is a chunk of stack memory for use by the `stack_load`
-    /// and `stack_store` instructions.
+    /// An explicit stack slot. This is a chunk of stack memory for use by the
+    /// `stack_addr` instruction.
     ExplicitSlot,
-    /// An explicit stack slot for dynamic vector types. This is a chunk of stack memory
-    /// for use by the `dynamic_stack_load` and `dynamic_stack_store` instructions.
+    /// An explicit stack slot for dynamic vector types. This is a chunk of
+    /// stack memory for use by the `dynamic_stack_addr` instruction.
     ExplicitDynamicSlot,
 }
 
@@ -186,8 +186,9 @@ pub type DynamicStackSlots = PrimaryMap<DynamicStackSlot, DynamicStackSlotData>;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ir::Function;
     use crate::ir::types::*;
-    use crate::ir::{DynamicTypeData, Function, GlobalValueData};
+    use crate::ir::{DynamicTypeData, GlobalValueData};
     use alloc::string::ToString;
 
     #[test]

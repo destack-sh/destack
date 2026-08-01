@@ -1,11 +1,11 @@
 //! Interpreter tests.
 
 use interp::Val;
-use pulley_interpreter::interp::{DoneReason, Vm};
-use pulley_interpreter::*;
-use std::cell::UnsafeCell;
-use std::fmt::Debug;
-use std::ptr::NonNull;
+use pulley_interpreter::{
+    interp::{DoneReason, Vm},
+    *,
+};
+use std::{cell::UnsafeCell, fmt::Debug, ptr::NonNull};
 
 fn encoded(ops: &[Op]) -> Vec<u8> {
     let mut encoded = vec![];

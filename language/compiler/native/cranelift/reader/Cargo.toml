@@ -1,7 +1,7 @@
 [package]
 authors = ["The Cranelift Project Developers"]
 name = "cranelift-reader"
-version = "0.132.1"
+version = "0.134.3"
 description = "Cranelift textual IR reader"
 license = "Apache-2.0 WITH LLVM-exception"
 documentation = "https://docs.rs/cranelift-reader"
@@ -9,6 +9,9 @@ repository = "https://github.com/bytecodealliance/wasmtime"
 readme = "README.md"
 edition.workspace = true
 rust-version.workspace = true
+
+[lints.clippy]
+all = { level = "allow", priority = -1 }
 
 [dependencies]
 anyhow = { workspace = true, features = ['std'] }
@@ -19,6 +22,3 @@ target-lexicon = { workspace = true, features = ['std'] }
 [dev-dependencies]
 # Some tests require that the x86_64 target parses for the target specification.
 cranelift-codegen = { workspace = true, features = ['x86'] }
-
-[lints.clippy]
-all = { level = "allow", priority = -1 }

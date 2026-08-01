@@ -2,7 +2,9 @@
 //! and parent in the loop tree.
 
 use crate::dominator_tree::DominatorTree;
-use crate::entity::{Keys, PrimaryMap, SecondaryMap, entity_impl};
+use crate::entity::SecondaryMap;
+use crate::entity::entity_impl;
+use crate::entity::{Keys, PrimaryMap};
 use crate::flowgraph::ControlFlowGraph;
 use crate::ir::{Block, Function};
 use crate::packed_option::PackedOption;

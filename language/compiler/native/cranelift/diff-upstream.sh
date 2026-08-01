@@ -3,24 +3,24 @@
 # diff vendored cranelift against upstream wasmtime
 #
 # examples:
-#   ./diff-upstream.sh                    # diff code changes against v45.0.1
+#   ./diff-upstream.sh                    # diff code changes against v47.0.3
 #   ./diff-upstream.sh --stat             # summary of code changes
 #   ./diff-upstream.sh --list             # list changed code files
 #   ./diff-upstream.sh --all              # include Cargo.toml changes
 #   ./diff-upstream.sh --crate codegen    # diff only codegen crate
-#   ./diff-upstream.sh --no-format        # diff without formatting either side
+#   ./diff-upstream.sh --format           # normalize Rust formatting before diffing
 #   ./diff-upstream.sh v41.0.0            # diff against different version
 
 set -e
 
 # defaults
-UPSTREAM_TAG="v45.0.1"
+UPSTREAM_TAG="v47.0.3"
 MODE="diff"
 INCLUDE_BUILD_FILES=false
 CRATE_FILTER=""
 COLOR="auto"
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/cranelift-diff"
-FORMAT=true
+FORMAT=false
 
 usage() {
     cat <<EOF
@@ -36,7 +36,7 @@ Options:
   --list          List changed files only
   --all           Include Cargo.toml and other build files
   --crate NAME    Filter to specific crate (e.g., codegen, frontend)
-  --no-format     Don't format upstream and local Rust sources before diffing
+  --format        Normalize upstream and local Rust sources before diffing
   --no-cache      Don't cache upstream clone
   --clear-cache   Clear cached upstream clones
   --no-color      Disable colored output
@@ -69,7 +69,7 @@ while [[ $# -gt 0 ]]; do
         --list)         MODE="list"; shift ;;
         --all)          INCLUDE_BUILD_FILES=true; shift ;;
         --crate)        CRATE_FILTER="$2"; shift 2 ;;
-        --no-format)    FORMAT=false; shift ;;
+        --format)       FORMAT=true; shift ;;
         --no-cache)     USE_CACHE=false; shift ;;
         --clear-cache)  rm -rf "$CACHE_DIR"; echo "Cache cleared."; exit 0 ;;
         --no-color)     COLOR="never"; shift ;;

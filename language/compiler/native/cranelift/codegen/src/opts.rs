@@ -9,11 +9,12 @@ pub use crate::ir::immediates::{Ieee16, Ieee32, Ieee64, Ieee128, Imm64, Offset32
 use crate::ir::instructions::InstructionFormat;
 pub use crate::ir::types::*;
 pub use crate::ir::{
-    AtomicRmwOp, BlockCall, Constant, DynamicStackSlot, FuncRef, GlobalValue, Immediate,
-    InstructionData, MemFlags, Opcode, StackSlot, TrapCode, Type, Value,
+    AtomicRmwOp, Block, BlockCall, Constant, DynamicStackSlot, FuncRef, GlobalValue, Immediate,
+    InstructionData, JumpTable, MemFlagsData, Opcode, StackSlot, TrapCode, Type, Value,
 };
+use crate::isle_common_prelude_methods;
 use crate::machinst::isle::*;
-use crate::{isle_common_prelude_methods, trace};
+use crate::trace;
 use core::marker::PhantomData;
 use cranelift_entity::packed_option::ReservedValue;
 use smallvec::{SmallVec, smallvec};
@@ -102,6 +103,17 @@ where
                     continue;
                 }
                 ValueDef::Result(inst, _) if ctx.ctx.func.dfg.inst_results(inst).len() == 1 => {
+                    // Charge one unit of fuel per yielded match. When
+                    // fuel is exhausted, terminate iteration early:
+                    // returning no matches is always semantically valid
+                    // (we just skip would-be rewrites) and bounds work
+                    // per top-level ISLE invocation.
+                    if ctx.ctx.extractor_fuel == 0 {
+                        ctx.ctx.stats.rewrite_fuel_exhausted += 1;
+                        trace!(" -> rewrite fuel exhausted");
+                        return None;
+                    }
+                    ctx.ctx.extractor_fuel -= 1;
                     let ty = ctx.ctx.func.dfg.value_type(value);
                     trace!(" -> value of type {}", ty);
                     return Some((ty, ctx.ctx.func.dfg.insts[inst]));
@@ -237,6 +249,28 @@ impl<'a, 'b, 'c> generated_code::Context for IsleContext<'a, 'b, 'c> {
     #[inline]
     fn value_type(&mut self, val: Value) -> Type {
         self.ctx.func.dfg.value_type(val)
+    }
+
+    fn resolve_jump_table_entry(&mut self, table: JumpTable, index: u64) -> BlockCall {
+        let jt_data = &self.ctx.func.dfg.jump_tables[table];
+        let entries = jt_data.as_slice();
+        if let Ok(index) = usize::try_from(index)
+            && index < entries.len()
+        {
+            entries[index]
+        } else {
+            jt_data.default_block()
+        }
+    }
+
+    fn block_call_block(&mut self, block_call: BlockCall) -> Block {
+        block_call.block(&self.ctx.func.dfg.value_lists)
+    }
+
+    fn just_trap_block(&mut self, block: &Block) -> Option<TrapCode> {
+        self.ctx
+            .branch_to_trap_analysis
+            .analyze_block(self.ctx.func, *block)
     }
 
     fn iconst_sextend_etor(

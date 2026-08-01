@@ -1,13 +1,16 @@
 [package]
 authors = ["The Cranelift Project Developers"]
 name = "cranelift-bitset"
-version = "0.132.1"
+version = "0.134.3"
 description = "Various bitset stuff for use inside Cranelift"
 license = "Apache-2.0 WITH LLVM-exception"
 documentation = "https://docs.rs/cranelift-bitset"
 repository = "https://github.com/bytecodealliance/wasmtime"
 edition.workspace = true
 rust-version.workspace = true
+
+[lints.clippy]
+all = { level = "allow", priority = -1 }
 
 [dependencies]
 arbitrary = { workspace = true, optional = true }
@@ -18,6 +21,3 @@ wasmtime-core = { workspace = true }
 [features]
 enable-serde = ["dep:serde", "dep:serde_derive"]
 arbitrary = ["dep:arbitrary"]
-
-[lints.clippy]
-all = { level = "allow", priority = -1 }

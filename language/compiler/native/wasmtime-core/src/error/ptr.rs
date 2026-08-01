@@ -2,11 +2,10 @@
 //! various places instead of safe references because our type-punning would
 //! trigger UB otherwise.
 
-use core::marker::PhantomData;
-use core::ptr::NonNull;
+use core::{marker::PhantomData, ptr::NonNull};
 use std_alloc::boxed::Box;
 
-/// A raw pointer.
+/// A raw, owned pointer.
 ///
 /// You are required to call `T`'s `Drop` and deallocate the pointer, this won't
 /// automatically do it for you like `Box`.

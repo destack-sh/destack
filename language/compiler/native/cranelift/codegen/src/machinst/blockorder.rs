@@ -64,8 +64,8 @@ use crate::dominator_tree::DominatorTree;
 use crate::entity::SecondaryMap;
 use crate::inst_predicates::visit_block_succs;
 use crate::ir::{Block, Function, Inst, Opcode};
-use crate::machinst::*;
-use crate::{FxHashMap, FxHashSet, trace};
+use crate::{FxHashMap, FxHashSet};
+use crate::{machinst::*, trace};
 
 /// Mapping from CLIF BBs to VCode BBs.
 #[derive(Debug)]
@@ -257,7 +257,7 @@ impl BlockLoweringOrder {
                         lowered_succ_indices
                             .extend(block_succs[range].iter().map(|lb| lb_to_bindex[lb]));
 
-                        if f.layout.is_cold(block) {
+                        if f.is_effectively_cold(block) {
                             cold_blocks.insert(bindex);
                         }
 
@@ -282,7 +282,7 @@ impl BlockLoweringOrder {
                         // Edges inherit indirect branch and cold block metadata from their
                         // successor.
 
-                        if f.layout.is_cold(succ) {
+                        if f.is_effectively_cold(succ) {
                             cold_blocks.insert(bindex);
                         }
 
@@ -347,8 +347,9 @@ mod test {
     use super::*;
     use crate::cursor::{Cursor, FuncCursor};
     use crate::flowgraph::ControlFlowGraph;
+    use crate::ir::UserFuncName;
     use crate::ir::types::*;
-    use crate::ir::{AbiParam, InstBuilder, Signature, UserFuncName};
+    use crate::ir::{AbiParam, InstBuilder, Signature};
     use crate::isa::CallConv;
 
     fn build_test_func(n_blocks: usize, edges: &[(usize, usize)]) -> BlockLoweringOrder {

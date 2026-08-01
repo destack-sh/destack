@@ -6,21 +6,20 @@ use generated_code::MInst;
 use inst::InstAndKind;
 
 // Types that the generated ISLE code uses via `use super::*`.
-use crate::ir::condcodes::*;
-use crate::ir::immediates::*;
-use crate::ir::types::*;
-use crate::ir::*;
+use crate::ir::{condcodes::*, immediates::*, types::*, *};
 use crate::isa::CallConv;
-use crate::isa::pulley_shared::inst::{
-    FReg, OperandSize, PulleyCall, ReturnCallInfo, VReg, WritableFReg, WritableVReg, WritableXReg,
-    XReg,
+use crate::isa::pulley_shared::{
+    inst::{
+        FReg, OperandSize, PulleyCall, ReturnCallInfo, VReg, WritableFReg, WritableVReg,
+        WritableXReg, XReg,
+    },
+    lower::{Cond, regs},
+    *,
 };
-use crate::isa::pulley_shared::lower::{Cond, regs};
-use crate::isa::pulley_shared::*;
-use crate::machinst::abi::{ArgPair, RetPair, StackAMode};
-use crate::machinst::isle::*;
 use crate::machinst::{
     CallArgList, CallInfo, CallRetList, MachInst, Reg, VCodeConstant, VCodeConstantData,
+    abi::{ArgPair, RetPair, StackAMode},
+    isle::*,
 };
 use alloc::boxed::Box;
 use pulley_interpreter::U6;
@@ -261,7 +260,7 @@ where
         U6::new(imm)
     }
 
-    fn endianness(&mut self, flags: MemFlags) -> Endianness {
+    fn endianness(&mut self, flags: MemFlagsData) -> Endianness {
         flags.endianness(self.backend.isa_flags.endianness())
     }
 
@@ -273,11 +272,15 @@ where
         P::pointer_width()
     }
 
-    fn memflags_nontrapping(&mut self, flags: MemFlags) -> bool {
+    fn memflags_nontrapping(&mut self, flags: MemFlagsData) -> bool {
         flags.trap_code().is_none()
     }
 
-    fn memflags_is_wasm(&mut self, flags: MemFlags) -> bool {
+    fn memflags_trapping(&mut self, flags: MemFlagsData) -> Option<TrapCode> {
+        flags.trap_code()
+    }
+
+    fn memflags_is_wasm(&mut self, flags: MemFlagsData) -> bool {
         flags.trap_code() == Some(TrapCode::HEAP_OUT_OF_BOUNDS)
             && self.endianness(flags) == Endianness::Little
     }

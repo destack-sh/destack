@@ -2,8 +2,7 @@
 
 use cranelift_control::ControlPlane;
 
-use crate::ir::types::*;
-use crate::ir::{self};
+use crate::ir::{self, types::*};
 use crate::isa::aarch64;
 use crate::isa::aarch64::inst::*;
 use crate::trace;
@@ -2765,6 +2764,11 @@ impl MachInstEmit for Inst {
                     VecALUModOp::Fmls => {
                         (0b000_01110_10_1 | (size.enc_float_size() << 1), 0b110011)
                     }
+                    // SDOT Vd.4S, Vn.16B, Vm.16B (FEAT_DotProd). The size/element
+                    // field (bits 23:22 = 0b10) is part of the dot-product opcode,
+                    // so it is baked into top11; only Q (from `size`) is variable.
+                    // top11 (Q=0) | q<<9 with bit15_10 yields 0x4E809400 for .4S/.16B.
+                    VecALUModOp::Sdot => (0b000_01110_10_0, 0b100101),
                 };
                 sink.put4(enc_vec_rrr(top11 | q << 9, rm, bit15_10, rn, rd));
             }
@@ -3210,7 +3214,7 @@ impl MachInstEmit for Inst {
                         rtmp2.to_reg(),
                         ExtendOp::UXTW,
                     ),
-                    flags: MemFlags::trusted(),
+                    flags: MemFlagsData::trusted(),
                 };
                 inst.emit(sink, emit_info, state);
                 // Add base of jump table to jump-table-sourced block offset
@@ -3264,7 +3268,7 @@ impl MachInstEmit for Inst {
                 let inst = Inst::ULoad64 {
                     rd,
                     mem: AMode::reg(rd.to_reg()),
-                    flags: MemFlags::trusted(),
+                    flags: MemFlagsData::trusted(),
                 };
                 inst.emit(sink, emit_info, state);
             }
@@ -3313,7 +3317,7 @@ impl MachInstEmit for Inst {
                     mem: AMode::Label {
                         label: MemLabel::PCRel(8),
                     },
-                    flags: MemFlags::trusted(),
+                    flags: MemFlagsData::trusted(),
                 };
                 inst.emit(sink, emit_info, state);
                 let inst = Inst::Jump {
@@ -3467,7 +3471,7 @@ impl MachInstEmit for Inst {
                 Inst::ULoad64 {
                     rd: tmp,
                     mem: AMode::reg(rd.to_reg()),
-                    flags: MemFlags::trusted(),
+                    flags: MemFlagsData::trusted(),
                 }
                 .emit(sink, emit_info, state);
 
@@ -3531,7 +3535,7 @@ impl MachInstEmit for Inst {
                 Inst::ULoad64 {
                     rd: rtmp,
                     mem: AMode::reg(rd.to_reg()),
-                    flags: MemFlags::trusted(),
+                    flags: MemFlagsData::trusted(),
                 }
                 .emit(sink, emit_info, state);
 
@@ -3608,7 +3612,7 @@ impl MachInstEmit for Inst {
                         rn: regs::stack_reg(),
                         rm: start.to_reg(),
                     },
-                    flags: MemFlags::trusted(),
+                    flags: MemFlagsData::trusted(),
                 }
                 .emit(sink, emit_info, state);
                 Inst::AluRRR {
@@ -3678,7 +3682,7 @@ fn emit_return_call_common_sequence<T>(
                 // https://developer.arm.com/documentation/ddi0596/2020-12/Base-Instructions/LDP--Load-Pair-of-Registers-
                 simm7: SImm7Scaled::maybe_from_i64(i64::from(setup_area_size), types::I64).unwrap(),
             },
-            flags: MemFlags::trusted(),
+            flags: MemFlagsData::trusted(),
         }
         .emit(sink, emit_info, state);
     }

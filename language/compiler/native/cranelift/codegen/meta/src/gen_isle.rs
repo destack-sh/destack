@@ -2,9 +2,7 @@ use crate::cdsl::formats::InstructionFormat;
 use crate::cdsl::instructions::AllInstructions;
 use crate::error;
 use cranelift_srcgen::{Formatter, Language, fmtln};
-use std::borrow::Cow;
-use std::cmp::Ordering;
-use std::rc::Rc;
+use std::{borrow::Cow, cmp::Ordering, rc::Rc};
 
 /// Which ISLE target are we generating code for?
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -63,6 +61,10 @@ fn gen_common_isle(
     for ty in others.keys() {
         fmtln!(fmt, "(type {} (primitive {}))", ty, ty);
     }
+    // Also declare the MemFlagsData type, which is the resolved form of MemFlags.
+    // MemFlags is an entity index into the DFG's MemFlagsSet, while MemFlagsData
+    // contains the actual flag bits. Backend MachInst types use MemFlagsData.
+    fmt.line("(type MemFlagsData (primitive MemFlagsData))");
     fmt.empty_line();
 
     // Generate the `enum` immediates, expanding all of the available variants
@@ -339,19 +341,6 @@ fn gen_common_isle(
                 .unwrap();
             }
 
-            // Immediates.
-            let imm_operands: Vec<_> = inst
-                .operands_in
-                .iter()
-                .filter(|o| {
-                    !o.is_value() && !o.is_varargs() && !o.kind.is_block() && !o.kind.is_raw_block()
-                })
-                .collect();
-            assert_eq!(imm_operands.len(), inst.format.imm_fields.len(),);
-            for op in imm_operands {
-                write!(&mut s, " {}", op.name).unwrap();
-            }
-
             // Blocks.
             let block_operands: Vec<_> = inst
                 .operands_in
@@ -383,6 +372,19 @@ fn gen_common_isle(
                     write!(&mut s, " block").unwrap();
                 }
                 _ => panic!("Too many raw block arguments"),
+            }
+
+            // Immediates.
+            let imm_operands: Vec<_> = inst
+                .operands_in
+                .iter()
+                .filter(|o| {
+                    !o.is_value() && !o.is_varargs() && !o.kind.is_block() && !o.kind.is_raw_block()
+                })
+                .collect();
+            assert_eq!(imm_operands.len(), inst.format.imm_fields.len(),);
+            for op in imm_operands {
+                write!(&mut s, " {}", op.name).unwrap();
             }
 
             s.push_str("))");

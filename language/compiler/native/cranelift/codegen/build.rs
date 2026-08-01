@@ -18,9 +18,10 @@ use cranelift_codegen_meta as meta;
 use cranelift_isle::error::Errors;
 use meta::isle::IsleCompilation;
 
+use std::env;
 use std::io::Read;
+use std::process;
 use std::time::Instant;
-use std::{env, process};
 
 fn main() {
     let start_time = Instant::now();
@@ -160,14 +161,14 @@ fn build_isle(
 
     let mut had_error = false;
     for compilation in &isle_compilations.items {
-        for file in &compilation.inputs {
+        for file in &compilation.tracked_inputs {
             println!("cargo:rerun-if-changed={}", file.display());
         }
 
         if let Err(e) = run_compilation(compilation) {
             had_error = true;
             eprintln!("Error building ISLE files:");
-            eprintln!("{e:?}");
+            eprintln!("{e}");
             #[cfg(not(feature = "isle-errors"))]
             {
                 eprintln!("To see a more detailed error report, run: ");
@@ -198,9 +199,8 @@ fn run_compilation(compilation: &IsleCompilation) -> Result<(), Errors> {
 
     let code = {
         let file_paths = compilation
-            .inputs
-            .iter()
-            .chain(compilation.untracked_inputs.iter());
+            .paths()
+            .map_err(|e| Errors::from_io(e, "list isle compilation file paths"))?;
 
         let mut options = isle::codegen::CodegenOptions::default();
         // Because we include!() the generated ISLE source, we cannot

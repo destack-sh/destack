@@ -1,7 +1,9 @@
 use std::cell::RefCell;
 use std::collections::BTreeSet;
+use std::fmt;
+use std::hash;
+use std::ops;
 use std::rc::Rc;
-use std::{fmt, hash, ops};
 
 use crate::cdsl::types::{LaneType, ValueType};
 

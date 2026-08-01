@@ -1,11 +1,11 @@
 [package]
 description = "Internal pulley macros"
-edition = "2024"
-rust-version = "1.93.0"
+edition.workspace = true
+rust-version.workspace = true
 license = "Apache-2.0 WITH LLVM-exception"
 name = "pulley-macros"
 repository = "https://github.com/bytecodealliance/wasmtime/tree/main/pulley/macros"
-version = "45.0.1"
+version = "47.0.3"
 
 [dependencies]
 syn = { workspace = true, features = ['full'] }
@@ -14,6 +14,3 @@ proc-macro2 = { workspace = true }
 
 [lib]
 proc-macro = true
-
-[lints.clippy]
-all = { level = "allow", priority = -1 }

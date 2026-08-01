@@ -132,13 +132,18 @@
 //!   (low address)
 //! ```
 
+use crate::CodegenResult;
+use crate::ir;
+use crate::ir::MemFlagsData;
+use crate::ir::Signature;
+use crate::ir::Type;
 use crate::ir::condcodes::IntCC;
-use crate::ir::{MemFlags, Signature, Type, types};
-use crate::isa::s390x::inst::*;
-use crate::isa::s390x::settings as s390x_settings;
+use crate::ir::types;
+use crate::isa;
+use crate::isa::s390x::{inst::*, settings as s390x_settings};
 use crate::isa::unwind::UnwindInst;
 use crate::machinst::*;
-use crate::{CodegenResult, ir, isa, settings};
+use crate::settings;
 use alloc::borrow::ToOwned;
 use alloc::vec::Vec;
 use regalloc2::{MachineEnv, PRegSet};
@@ -521,7 +526,7 @@ impl ABIMachineSpec for S390xMachineDeps {
                     base: from_reg,
                     index: zero_reg(),
                     disp: imm,
-                    flags: MemFlags::trusted(),
+                    flags: MemFlagsData::trusted().into(),
                 },
             });
         } else if let Some(imm) = SImm20::maybe_from_i64(imm as i64) {
@@ -531,7 +536,7 @@ impl ABIMachineSpec for S390xMachineDeps {
                     base: from_reg,
                     index: zero_reg(),
                     disp: imm,
-                    flags: MemFlags::trusted(),
+                    flags: MemFlagsData::trusted().into(),
                 },
             });
         } else {
@@ -570,12 +575,12 @@ impl ABIMachineSpec for S390xMachineDeps {
     }
 
     fn gen_load_base_offset(into_reg: Writable<Reg>, base: Reg, offset: i32, ty: Type) -> Inst {
-        let mem = MemArg::reg_plus_off(base, offset.into(), MemFlags::trusted());
+        let mem = MemArg::reg_plus_off(base, offset.into(), MemFlagsData::trusted());
         Inst::gen_load(into_reg, mem, ty)
     }
 
     fn gen_store_base_offset(base: Reg, offset: i32, from_reg: Reg, ty: Type) -> Inst {
-        let mem = MemArg::reg_plus_off(base, offset.into(), MemFlags::trusted());
+        let mem = MemArg::reg_plus_off(base, offset.into(), MemFlagsData::trusted());
         Inst::gen_store(mem, from_reg, ty)
     }
 
@@ -657,7 +662,7 @@ impl ABIMachineSpec for S390xMachineDeps {
 
                 insts.push(Inst::StoreImm8 {
                     imm: 0,
-                    mem: MemArg::reg(stack_reg(), MemFlags::trusted()),
+                    mem: MemArg::reg(stack_reg(), MemFlagsData::trusted()),
                 });
             }
         } else {
@@ -724,7 +729,7 @@ impl ABIMachineSpec for S390xMachineDeps {
             insts.push(Inst::StoreMultiple64 {
                 rt: gpr(first_clobbered_gpr),
                 rt2: gpr(last_clobbered_gpr),
-                mem: MemArg::reg_plus_off(stack_reg(), offset, MemFlags::trusted()),
+                mem: MemArg::reg_plus_off(stack_reg(), offset, MemFlagsData::trusted()),
             });
             if flags.unwind_info() {
                 // Normally, we instruct the unwinder to restore the stack pointer
@@ -784,7 +789,7 @@ impl ABIMachineSpec for S390xMachineDeps {
         if flags.preserve_frame_pointers() {
             insts.push(Inst::Store64 {
                 rd: gpr(1),
-                mem: MemArg::reg_plus_off(stack_reg(), 0, MemFlags::trusted()),
+                mem: MemArg::reg_plus_off(stack_reg(), 0, MemFlagsData::trusted()),
             });
         }
 
@@ -807,7 +812,7 @@ impl ABIMachineSpec for S390xMachineDeps {
                                 + (i as i64) * 16
                                 + frame_layout.outgoing_args_size as i64
                                 + frame_layout.fixed_frame_storage_size as i64,
-                            MemFlags::trusted(),
+                            MemFlagsData::trusted(),
                         ),
                     });
                 }
@@ -818,7 +823,7 @@ impl ABIMachineSpec for S390xMachineDeps {
                         stack_reg(),
                         frame_layout.outgoing_args_size as i64
                             + frame_layout.fixed_frame_storage_size as i64,
-                        MemFlags::trusted(),
+                        MemFlagsData::trusted(),
                     ),
                 });
             }
@@ -833,7 +838,7 @@ impl ABIMachineSpec for S390xMachineDeps {
                             (i * 8) as i64
                                 + frame_layout.outgoing_args_size as i64
                                 + frame_layout.fixed_frame_storage_size as i64,
-                            MemFlags::trusted(),
+                            MemFlagsData::trusted(),
                         ),
                         lane_imm: 0,
                     });
@@ -1257,7 +1262,7 @@ fn gen_restore_gprs(
         insts.push(Inst::LoadMultiple64 {
             rt: writable_gpr(first),
             rt2: writable_gpr(last),
-            mem: MemArg::reg_plus_off(reg, offset, MemFlags::trusted()),
+            mem: MemArg::reg_plus_off(reg, offset, MemFlagsData::trusted()),
         });
     }
 
@@ -1281,7 +1286,7 @@ fn gen_restore_fprs(frame_layout: &FrameLayout) -> SmallVec<[Inst; 16]> {
                 (i * 8) as i64
                     + frame_layout.outgoing_args_size as i64
                     + frame_layout.fixed_frame_storage_size as i64,
-                MemFlags::trusted(),
+                MemFlagsData::trusted(),
             ),
             lane_imm: 0,
         });
@@ -1302,7 +1307,7 @@ fn gen_restore_patchable(frame_layout: &FrameLayout) -> SmallVec<[Inst; 16]> {
                     + (i as i64) * 16
                     + frame_layout.outgoing_args_size as i64
                     + frame_layout.fixed_frame_storage_size as i64,
-                MemFlags::trusted(),
+                MemFlagsData::trusted(),
             ),
         });
     }
@@ -1312,7 +1317,7 @@ fn gen_restore_patchable(frame_layout: &FrameLayout) -> SmallVec<[Inst; 16]> {
         mem: MemArg::reg_plus_off(
             stack_reg(),
             frame_layout.outgoing_args_size as i64 + frame_layout.fixed_frame_storage_size as i64,
-            MemFlags::trusted(),
+            MemFlagsData::trusted(),
         ),
     });
 

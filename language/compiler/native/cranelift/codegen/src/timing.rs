@@ -121,8 +121,9 @@ mod enabled {
     use alloc::boxed::Box;
     use core::any::Any;
     use core::cell::{Cell, RefCell};
+    use core::fmt;
+    use core::mem;
     use core::time::Duration;
-    use core::{fmt, mem};
     use std::time::Instant;
 
     // Information about passes in a single thread.

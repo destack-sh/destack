@@ -8,8 +8,7 @@
 //! to represent `None`.
 
 use core::{fmt, mem};
-use wasmtime_core::alloc::TryClone;
-use wasmtime_core::error::OutOfMemory;
+use wasmtime_core::{alloc::TryClone, error::OutOfMemory};
 
 #[cfg(feature = "enable-serde")]
 use serde_derive::{Deserialize, Serialize};
@@ -41,6 +40,14 @@ where
 }
 
 impl<T: ReservedValue> PackedOption<T> {
+    /// Const constructor wrapping a raw `T`.
+    ///
+    /// To create `None`, pass `T::reserved_value()`. To create `Some(val)`,
+    /// pass a non-reserved `val`.
+    pub const fn new(val: T) -> Self {
+        Self(val)
+    }
+
     /// Returns `true` if the packed option is a `None` value.
     pub fn is_none(&self) -> bool {
         self.0.is_reserved_value()

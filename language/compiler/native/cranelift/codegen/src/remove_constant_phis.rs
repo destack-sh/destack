@@ -1,8 +1,11 @@
 //! A Constant-Phi-Node removal pass.
 
 use crate::dominator_tree::DominatorTree;
-use crate::ir::{Block, BlockArg, BlockCall, Function, Inst, Value};
-use crate::{FxHashMap, FxHashSet, ir, timing};
+use crate::ir;
+use crate::ir::Function;
+use crate::ir::{Block, BlockArg, BlockCall, Inst, Value};
+use crate::timing;
+use crate::{FxHashMap, FxHashSet};
 use bumpalo::Bump;
 use cranelift_entity::SecondaryMap;
 use smallvec::SmallVec;

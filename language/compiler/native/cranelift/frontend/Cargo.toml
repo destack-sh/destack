@@ -1,7 +1,7 @@
 [package]
 authors = ["The Cranelift Project Developers"]
 name = "cranelift-frontend"
-version = "0.132.1"
+version = "0.134.3"
 description = "Cranelift IR builder helper"
 license = "Apache-2.0 WITH LLVM-exception"
 documentation = "https://docs.rs/cranelift-frontend"
@@ -11,11 +11,14 @@ readme = "README.md"
 edition.workspace = true
 rust-version.workspace = true
 
+[lints.clippy]
+all = { level = "allow", priority = -1 }
+
 [dependencies]
 cranelift-codegen = { workspace = true }
 target-lexicon = { workspace = true }
 log = { workspace = true }
-hashbrown = { workspace = true, optional = true }
+hashbrown = { workspace = true }
 smallvec = { workspace = true }
 
 [dev-dependencies]
@@ -26,7 +29,4 @@ cranelift-codegen = { workspace = true, features = ['x86'] }
 [features]
 default = ["std"]
 std = ["cranelift-codegen/std"]
-core = ["hashbrown", "cranelift-codegen/core"]
-
-[lints.clippy]
-all = { level = "allow", priority = -1 }
+core = ["cranelift-codegen/core"]

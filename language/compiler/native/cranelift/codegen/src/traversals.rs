@@ -168,8 +168,7 @@ impl Iterator for DfsPostOrderIter<'_> {
 mod tests {
     use super::*;
     use crate::cursor::{Cursor, FuncCursor};
-    use crate::ir::types::I32;
-    use crate::ir::{Function, InstBuilder, TrapCode};
+    use crate::ir::{Function, InstBuilder, TrapCode, types::I32};
 
     #[test]
     fn test_dfs_traversal() {

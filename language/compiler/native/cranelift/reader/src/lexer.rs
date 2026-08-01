@@ -1,7 +1,8 @@
 //! Lexical analysis for .clif files.
 
 use crate::error::Location;
-use cranelift_codegen::ir::{Block, Value, types};
+use cranelift_codegen::ir::types;
+use cranelift_codegen::ir::{Block, Value};
 use std::str::CharIndices;
 use std::u16;
 
@@ -48,6 +49,7 @@ pub enum Token<'a> {
     UserNameRef(u32),       // userextname345
     ExceptionTableRef(u32), // ex123
     ExceptionTag(u32),      // tag123
+    AliasRegion(u32),       // region0
     TryCallRet(u32),        // ret123
     TryCallExn(u32),        // exn123
     Name(&'a str),          // %9arbitrary_alphanum, %x3, %0, %function ...
@@ -356,6 +358,7 @@ impl<'a> Lexer<'a> {
             "userextname" => Some(Token::UserNameRef(number)),
             "extable" => Some(Token::ExceptionTableRef(number)),
             "tag" => Some(Token::ExceptionTag(number)),
+            "region" => Some(Token::AliasRegion(number)),
             "ret" => Some(Token::TryCallRet(number)),
             "exn" => Some(Token::TryCallExn(number)),
             _ => None,
