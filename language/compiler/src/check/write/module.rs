@@ -20,16 +20,36 @@ impl CheckState<'_> {
         let reduced_types = self.resolved_reduced_types(module, &node_types, &symbol_types)?;
         let symbol_literals = self.static_symbol_literals(module)?;
 
-        // record inferred types and checked reduced types
+        // record inferred types the declared stage does not already carry
         let state = self.module_mut(module);
+        let declared = state.declared.clone();
+        let declared_types = declared.as_ref().map(|declared| &declared.types);
+
+        // write the node types this pass inferred
         for (node, ty) in node_types {
-            state.types_tail.set_node_type(node, ty);
+            let carried =
+                declared_types.is_some_and(|types| types.get_node_type_id(node) == Some(ty));
+            if !carried {
+                state.types_tail.set_node_type(node, ty);
+            }
         }
+
+        // write the symbol types this pass inferred
         for (symbol, ty) in symbol_types {
-            state.types_tail.set_symbol_type(symbol, ty);
+            let carried =
+                declared_types.is_some_and(|types| types.get_symbol_type_id(symbol) == Some(ty));
+            if !carried {
+                state.types_tail.set_symbol_type(symbol, ty);
+            }
         }
+
+        // write the type reductions this pass solved
         for (source, target) in reduced_types {
-            state.types_tail.set_type_reduction(source, target);
+            let carried = declared_types
+                .is_some_and(|types| types.get_reduced_type_id(source) == Some(target));
+            if !carried {
+                state.types_tail.set_type_reduction(source, target);
+            }
         }
 
         // write symbol values as final statics
@@ -42,6 +62,27 @@ impl CheckState<'_> {
                 .set_symbol_static(symbol, id.into_global(module));
         }
 
+        // write identity values, like unique symbol keys, as type statics
+        let identities = self
+            .module(module)
+            .static_values
+            .iter()
+            .map(|(symbol, value)| (*symbol, *value))
+            .collect::<Vec<_>>();
+        for (symbol, value) in identities {
+            let value = self.settled_root(value)?;
+            let value = self.close_type(value, failed_applications, &mut sealed)?;
+            let state = self.module_mut(module);
+            if state.statics.get_symbol_static_id(symbol).is_some() {
+                continue;
+            }
+            let id = state
+                .statics
+                .push_static(dir::StaticTerm::Type { ty: value });
+            state
+                .statics
+                .set_symbol_static(symbol, id.into_global(module));
+        }
         // store evaluable module constants beside the literal statics
         let constants = self.static_module_constants(module)?;
         let state = self.module_mut(module);

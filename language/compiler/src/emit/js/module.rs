@@ -29,6 +29,9 @@ impl Compiler {
         let expanded = artifacts
             .dir_expanded(module_id, profile)
             .map_err(CompilerError::from)?;
+        let declared = artifacts
+            .dir_declared(module_id, profile)
+            .map_err(CompilerError::from)?;
         let checked = artifacts
             .dir_checked(module_id, profile)
             .map_err(CompilerError::from)?;
@@ -40,6 +43,7 @@ impl Compiler {
             bound.clone(),
             imported,
             expanded,
+            declared,
             checked,
             self.repository.string_pool().clone(),
             target,

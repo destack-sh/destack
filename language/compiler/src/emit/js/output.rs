@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirCheckedModule, DirExpanded, DirImported, DirParsed, EmitFormat, Script,
-    ScriptBody, ScriptLanguage,
+    DirBound, DirChecked, DirDeclared, DirExpanded, DirImported, DirParsed, EmitFormat, Script, ScriptBody,
+    ScriptLanguage,
 };
 use destack_core::StringPool;
 use destack_repository::{Module, Target};
@@ -24,8 +24,10 @@ pub(crate) struct ScriptGenerator<'a> {
     imported: Arc<DirImported>,
     /// The current expanded DIR artifact.
     expanded: Arc<DirExpanded>,
+    /// The current declared DIR artifact.
+    declared: Arc<DirDeclared>,
     /// The current checked DIR artifact.
-    checked: Arc<DirCheckedModule>,
+    checked: Arc<DirChecked>,
     /// The shared string pool.
     strings: Arc<StringPool>,
     /// The target configuration.
@@ -40,7 +42,8 @@ impl<'a> ScriptGenerator<'a> {
         bound: Arc<DirBound>,
         imported: Arc<DirImported>,
         expanded: Arc<DirExpanded>,
-        checked: Arc<DirCheckedModule>,
+        declared: Arc<DirDeclared>,
+        checked: Arc<DirChecked>,
         strings: Arc<StringPool>,
         target: &'a Target,
     ) -> Self {
@@ -50,6 +53,7 @@ impl<'a> ScriptGenerator<'a> {
             bound,
             imported,
             expanded,
+            declared,
             checked,
             strings,
             target,
@@ -69,6 +73,7 @@ impl<'a> ScriptGenerator<'a> {
         let bound = self.bound.as_ref();
         let imported = self.imported.as_ref();
         let expanded = self.expanded.as_ref();
+        let declared = self.declared.as_ref();
         let checked = self.checked.as_ref();
 
         // asset modules are linked directly in the JS linker
@@ -87,6 +92,7 @@ impl<'a> ScriptGenerator<'a> {
             bound,
             imported,
             expanded,
+            declared,
             checked,
         )?;
         let errors = lower.errors;

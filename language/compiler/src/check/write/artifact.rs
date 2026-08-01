@@ -1,8 +1,8 @@
 use destack_artifact::{DirChecked, DirDeclared};
 use destack_source::{DiagnosticCollection, ModuleId};
 
-use crate::CompilerResult;
 use crate::check::CheckState;
+use crate::CompilerResult;
 
 use super::CheckModuleSegments;
 
@@ -11,11 +11,12 @@ impl CheckState<'_> {
     pub(in crate::check) fn write_declared(
         mut self,
         module: ModuleId,
-    ) -> CompilerResult<DirDeclared> {
+    ) -> CompilerResult<(DirDeclared, DiagnosticCollection)> {
         self.close_modules(&[module])?;
+        let diagnostics = self.collect_diagnostics()?;
         let segments = CheckModuleSegments::from_state(self.module);
 
-        segments.into_declared(module)
+        Ok((segments.into_declared(module)?, diagnostics))
     }
 
     /// Write solved inference state into one checked DIR artifact.
@@ -25,6 +26,12 @@ impl CheckState<'_> {
     ) -> CompilerResult<(DirChecked, DiagnosticCollection)> {
         self.close_modules(&[module])?;
         let diagnostics = self.collect_diagnostics()?;
+
+        // keep only resolutions the declared stage already carries
+        if let Some(stage) = self.module.declared.clone() {
+            self.module.resolutions.drop_carried(&stage.resolutions);
+        }
+
         let segments = CheckModuleSegments::from_state(self.module);
 
         Ok((segments.into_checked(module)?, diagnostics))

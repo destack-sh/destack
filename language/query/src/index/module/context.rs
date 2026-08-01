@@ -1,7 +1,7 @@
 use std::slice;
 use std::sync::Arc;
 
-use destack_artifact::{DirBound, DirChecked, DirExpanded, DirParsed, DirResolved};
+use destack_artifact::{DirBound, DirChecked, DirDeclared, DirExpanded, DirParsed, DirResolved};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::{ModuleId, SourceIndex, Span};
@@ -40,10 +40,11 @@ impl<'a> ModuleIndexContext<'a> {
         bound: &DirBound,
         expanded: Arc<DirExpanded>,
         resolved: Arc<DirResolved>,
+        declared: &DirDeclared,
         checked: &DirChecked,
     ) -> Self {
-        let bindings = checked.binding_table(bound, &expanded);
-        let types = checked.type_table(bound, &expanded);
+        let bindings = checked.binding_table(bound, &expanded, declared);
+        let types = checked.type_table(bound, &expanded, declared);
 
         Self {
             module_id,
@@ -51,9 +52,9 @@ impl<'a> ModuleIndexContext<'a> {
             expanded,
             bindings,
             types,
-            decorators: checked.decorator_table(),
-            definitions: checked.definition_table(),
-            resolutions: checked.resolution_table(),
+            decorators: checked.decorator_table(declared),
+            definitions: checked.definition_table(declared),
+            resolutions: checked.resolution_table(declared),
             resolved,
             strings,
         }

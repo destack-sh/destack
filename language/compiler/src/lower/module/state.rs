@@ -1,80 +1,81 @@
 use std::sync::Arc;
 
-use destack_artifact::{DirBound, DirCheckedModule, DirExpanded, DirMaterialized, DirParsed};
+use destack_artifact::{DirBound, DirChecked, DirDeclared, DirExpanded, DirMaterialized, DirParsed};
 use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::lower::ModuleLowerer;
 use crate::{CompilerError, CompilerResult};
 
-/// The sealed check output of one module, read during lowering.
+/// The state of one module, read during lowering.
 pub(crate) struct LowerModuleState {
-    /// The parsed DIR artifact holding the tree.
+    /// The artifact holding the expression tree.
     parsed: Arc<DirParsed>,
-    /// The DIR roots.
+    /// The module roots.
     pub(in crate::lower) roots: Vec<dir::LocalNodeId<dir::Expression>>,
-    /// The checked type table.
+    /// The type table.
     pub(in crate::lower) types: dir::TypeTable<'static>,
-    /// The checked resolution table.
+    /// The resolution table.
     pub(in crate::lower) resolutions: dir::ResolutionTable<'static>,
-    /// The checked binding table.
+    /// The binding table.
     pub(in crate::lower) bindings: dir::BindingTable<'static>,
-    /// The checked coercion table.
+    /// The coercion table.
     pub(in crate::lower) coercions: dir::CoercionTable<'static>,
-    /// The checked definition table.
+    /// The definition table.
     pub(in crate::lower) definitions: dir::DefinitionTable<'static>,
-    /// The checked static table.
+    /// The static table.
     pub(in crate::lower) statics: dir::StaticTable<'static>,
-    /// The checked generic table.
+    /// The generic table.
     pub(in crate::lower) generics: dir::GenericTable<'static>,
-    /// The checked decorator table.
+    /// The decorator table.
     pub(in crate::lower) decorators: dir::DecoratorTable<'static>,
     /// The canonical symbol path of the module.
     pub(in crate::lower) path: String,
 }
 
 impl LowerModuleState {
-    /// Load the sealed check output of one module.
+    /// Load the state of one module.
     pub(crate) fn new(
         parsed: Arc<DirParsed>,
         bound: &DirBound,
         expanded: &DirExpanded,
-        checked: &DirCheckedModule,
+        declared: &DirDeclared,
+        checked: &DirChecked,
         materialized: &DirMaterialized,
         path: String,
     ) -> Self {
         Self {
             roots: materialized.roots.to_vec(),
-            types: materialized.type_table(bound, expanded, checked),
-            resolutions: materialized.resolution_table(checked),
+            types: materialized.type_table(bound, expanded, declared, checked),
+            resolutions: materialized.resolution_table(declared, checked),
             bindings: materialized.binding_table(bound, expanded),
             coercions: materialized.coercion_table(checked),
-            definitions: materialized.definition_table(checked),
-            statics: materialized.static_table(bound, expanded, checked),
-            generics: materialized.generic_table(checked),
-            decorators: checked.decorator_table(),
+            definitions: materialized.definition_table(declared, checked),
+            statics: materialized.static_table(bound, expanded, declared, checked),
+            generics: materialized.generic_table(declared, checked),
+            decorators: checked.decorator_table(declared),
             path,
             parsed,
         }
     }
 
-    /// Return the DIR tree.
+    /// Return the expression tree.
     pub(in crate::lower) fn tree(&self) -> &dir::Tree {
         &self.parsed.tree
     }
 }
 
 impl ModuleLowerer<'_> {
-    /// Return the checked output of one loaded module.
+    /// Return the state of one loaded module.
     pub(in crate::lower) fn state(&self, module: ModuleId) -> CompilerResult<&LowerModuleState> {
         self.modules
             .get(&module)
             .ok_or_else(|| CompilerError::Internal {
-                message: format!("checked DIR referenced the unloaded module {module:?}"),
+                message: format!("reference to the unloaded module {module:?}"),
             })
     }
 
-    /// Return the checked output of the module being lowered.
+    /// Return the state of the module being lowered.
     pub(in crate::lower) fn local(&self) -> &LowerModuleState {
         match self.modules.get(&self.module) {
             Some(state) => state,

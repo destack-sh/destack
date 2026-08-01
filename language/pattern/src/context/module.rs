@@ -2,7 +2,7 @@ use std::slice;
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirChecked, DirExpanded, DirExported, DirParsed, DirResolved,
+    DirBound, DirChecked, DirDeclared, DirExpanded, DirExported, DirParsed, DirResolved,
 };
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -42,6 +42,7 @@ impl ModuleContext {
         expanded: Arc<DirExpanded>,
         exported: Arc<DirExported>,
         resolved: Arc<DirResolved>,
+        declared: Arc<DirDeclared>,
         checked: Arc<DirChecked>,
     ) -> Result<Self, ContextError> {
         let module = checked.bindings.module_id;
@@ -77,11 +78,11 @@ impl ModuleContext {
         }
 
         // compose cumulative checked tables once
-        let bindings = checked.binding_table(&bound, &expanded);
-        let types = checked.type_table(&bound, &expanded);
-        let statics = checked.static_table(&bound, &expanded);
-        let resolutions = checked.resolution_table();
-        let generics = checked.generic_table();
+        let bindings = checked.binding_table(&bound, &expanded, &declared);
+        let types = checked.type_table(&bound, &expanded, &declared);
+        let statics = checked.static_table(&bound, &expanded, &declared);
+        let resolutions = checked.resolution_table(&declared);
+        let generics = checked.generic_table(&declared);
 
         Ok(Self {
             parsed,

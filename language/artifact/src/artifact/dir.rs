@@ -259,6 +259,8 @@ pub struct DirDeclared {
     pub generics: Arc<dir::GenericSegment>,
     /// Declared definitions.
     pub definitions: Arc<dir::DefinitionSegment>,
+    /// Declared node resolutions.
+    pub resolutions: Arc<dir::ResolutionSegment>,
 }
 
 impl DirDeclared {
@@ -343,17 +345,22 @@ impl DirChecked {
         &self,
         bound: &DirBound,
         expanded: &DirExpanded,
+        declared: &DirDeclared,
     ) -> dir::BindingTable<'static> {
         dir::BindingTable::from_segments(vec![
             bound.bindings.clone(),
             expanded.bindings.clone(),
+            declared.bindings.clone(),
             self.bindings.clone(),
         ])
     }
 
     /// Return the cumulative decorator table for checked DIR.
-    pub fn decorator_table(&self) -> dir::DecoratorTable<'static> {
-        dir::DecoratorTable::from_segment(self.decorators.clone())
+    pub fn decorator_table(&self, declared: &DirDeclared) -> dir::DecoratorTable<'static> {
+        dir::DecoratorTable::from_segments(vec![
+            declared.decorators.clone(),
+            self.decorators.clone(),
+        ])
     }
 
     /// Return the cumulative auto implementation table for checked DIR.
@@ -362,10 +369,16 @@ impl DirChecked {
     }
 
     /// Return the cumulative type table for checked DIR.
-    pub fn type_table(&self, bound: &DirBound, expanded: &DirExpanded) -> dir::TypeTable<'static> {
+    pub fn type_table(
+        &self,
+        bound: &DirBound,
+        expanded: &DirExpanded,
+        declared: &DirDeclared,
+    ) -> dir::TypeTable<'static> {
         dir::TypeTable::from_segments(vec![
             bound.types.clone(),
             expanded.types.clone(),
+            declared.types.clone(),
             self.types.clone(),
         ])
     }
@@ -375,27 +388,38 @@ impl DirChecked {
         &self,
         bound: &DirBound,
         expanded: &DirExpanded,
+        declared: &DirDeclared,
     ) -> dir::StaticTable<'static> {
         dir::StaticTable::from_segments(vec![
             bound.statics.clone(),
             expanded.statics.clone(),
+            declared.statics.clone(),
             self.statics.clone(),
         ])
     }
 
     /// Return the cumulative resolution table for checked DIR.
-    pub fn resolution_table(&self) -> dir::ResolutionTable<'static> {
-        dir::ResolutionTable::from_segment(self.resolutions.clone())
+    pub fn resolution_table(&self, declared: &DirDeclared) -> dir::ResolutionTable<'static> {
+        dir::ResolutionTable::from_segments(vec![
+            declared.resolutions.clone(),
+            self.resolutions.clone(),
+        ])
     }
 
     /// Return the cumulative generic table for checked DIR.
-    pub fn generic_table(&self) -> dir::GenericTable<'static> {
-        dir::GenericTable::from_segment(self.generics.clone())
+    pub fn generic_table(&self, declared: &DirDeclared) -> dir::GenericTable<'static> {
+        dir::GenericTable::from_segments(vec![
+            declared.generics.clone(),
+            self.generics.clone(),
+        ])
     }
 
     /// Return the cumulative definition table for checked DIR.
-    pub fn definition_table(&self) -> dir::DefinitionTable<'static> {
-        dir::DefinitionTable::from_segment(self.definitions.clone())
+    pub fn definition_table(&self, declared: &DirDeclared) -> dir::DefinitionTable<'static> {
+        dir::DefinitionTable::from_segments(vec![
+            declared.definitions.clone(),
+            self.definitions.clone(),
+        ])
     }
 
     /// Return the cumulative coercion table for checked DIR.
@@ -451,11 +475,13 @@ impl DirMaterialized {
         &self,
         bound: &DirBound,
         expanded: &DirExpanded,
+        declared: &DirDeclared,
         checked: &DirChecked,
     ) -> dir::TypeTable<'static> {
         dir::TypeTable::from_segments(vec![
             bound.types.clone(),
             expanded.types.clone(),
+            declared.types.clone(),
             checked.types.clone(),
             self.types.clone(),
         ])
@@ -466,32 +492,54 @@ impl DirMaterialized {
         &self,
         bound: &DirBound,
         expanded: &DirExpanded,
+        declared: &DirDeclared,
         checked: &DirChecked,
     ) -> dir::StaticTable<'static> {
         dir::StaticTable::from_segments(vec![
             bound.statics.clone(),
             expanded.statics.clone(),
+            declared.statics.clone(),
             checked.statics.clone(),
             self.statics.clone(),
         ])
     }
 
     /// Return the cumulative resolution table for materialized DIR.
-    pub fn resolution_table(&self, checked: &DirChecked) -> dir::ResolutionTable<'static> {
+    pub fn resolution_table(
+        &self,
+        declared: &DirDeclared,
+        checked: &DirChecked,
+    ) -> dir::ResolutionTable<'static> {
         dir::ResolutionTable::from_segments(vec![
+            declared.resolutions.clone(),
             checked.resolutions.clone(),
             self.resolutions.clone(),
         ])
     }
 
     /// Return the cumulative generic table for materialized DIR.
-    pub fn generic_table(&self, checked: &DirChecked) -> dir::GenericTable<'static> {
-        dir::GenericTable::from_segments(vec![checked.generics.clone(), self.generics.clone()])
+    pub fn generic_table(
+        &self,
+        declared: &DirDeclared,
+        checked: &DirChecked,
+    ) -> dir::GenericTable<'static> {
+        dir::GenericTable::from_segments(vec![
+            declared.generics.clone(),
+            checked.generics.clone(),
+            self.generics.clone(),
+        ])
     }
 
     /// Return the cumulative definition table for materialized DIR.
-    pub fn definition_table(&self, checked: &DirChecked) -> dir::DefinitionTable<'static> {
-        dir::DefinitionTable::from_segment(checked.definitions.clone())
+    pub fn definition_table(
+        &self,
+        declared: &DirDeclared,
+        checked: &DirChecked,
+    ) -> dir::DefinitionTable<'static> {
+        dir::DefinitionTable::from_segments(vec![
+            declared.definitions.clone(),
+            checked.definitions.clone(),
+        ])
     }
 
     /// Return the cumulative coercion table for materialized DIR.

@@ -11,6 +11,32 @@ use destack_source::{Content, ModuleId};
 use crate::check::{AnnotatedSource, CheckState};
 use crate::{Compiler, CompilerError, CompilerResult};
 
+
+/// Return the modules one module references, or None while their resolve
+/// stages are still building.
+fn referenced_modules(
+    artifacts: &destack_repository::ArtifactReader<'_>,
+    module: ModuleId,
+    profile: ProfileId,
+) -> CompilerResult<Option<FxIndexSet<ModuleId>>> {
+    let resolved = match artifacts.dir_resolved(module, profile) {
+        Ok(resolved) => resolved,
+        Err(ProviderError::Blocked { .. }) => return Ok(None),
+        Err(error) => return Err(error.into()),
+    };
+    let global = match artifacts.global_environment(profile) {
+        Ok(global) => global,
+        Err(ProviderError::Blocked { .. }) => return Ok(None),
+        Err(error) => return Err(error.into()),
+    };
+
+    let mut references = resolved.target_modules().collect::<FxIndexSet<_>>();
+    references.extend(global.implicit_modules());
+    references.shift_remove(&module);
+
+    Ok(Some(references))
+}
+
 impl Compiler {
     /// Collect inputs for one declared DIR module.
     pub(crate) fn collect_dir_declared(
@@ -26,6 +52,19 @@ impl Compiler {
         // observe package config for check options
         let repository_module = self.module(context.revision(), module)?;
         self.observe_package_config(context, repository_module.package_id, &mut dependencies)?;
+
+        // require the surface stages of referenced modules
+        let artifacts = self.artifact_reader(context);
+        let Some(references) = referenced_modules(&artifacts, module, profile)? else {
+            dependencies.mark_partial();
+
+            return Ok(dependencies);
+        };
+        for reference in references {
+            dependencies.require(ArtifactKey::dir_bound(reference, profile));
+            dependencies.require(ArtifactKey::dir_expanded(reference, profile));
+            dependencies.require(ArtifactKey::dir_resolved(reference, profile));
+        }
 
         Ok(dependencies)
     }
@@ -65,8 +104,9 @@ impl Compiler {
         context.emit_counter("solve.constraints", stats.constraints as u64);
         context.emit_counter("solve.types", stats.types as u64);
 
-        // write the module's declared artifact
-        let declared = check.write_declared(module)?;
+        // write declared DIR tables and report the pass's diagnostics
+        let (declared, diagnostics) = check.write_declared(module)?;
+        context.emit_diagnostics(diagnostics);
 
         Ok(ArtifactPayload::DirDeclared(Arc::new(declared)))
     }
@@ -82,36 +122,21 @@ impl Compiler {
         self.require_own_stages(module, profile, &mut dependencies);
         dependencies.require(ArtifactKey::global_environment(profile));
 
+        // seed the checking pass from the module's own declared artifact
+        dependencies.require(ArtifactKey::dir_declared(module, profile));
+
         // observe package config for check options
         let repository_module = self.module(context.revision(), module)?;
         self.observe_package_config(context, repository_module.package_id, &mut dependencies)?;
 
-        // read direct imports and implicit globals before naming their artifacts
-        let artifacts = self.artifact_reader(context);
-        let resolved = match artifacts.dir_resolved(module, profile) {
-            Ok(resolved) => resolved,
-            Err(ProviderError::Blocked { .. }) => {
-                dependencies.mark_partial();
-
-                return Ok(dependencies);
-            }
-            Err(error) => return Err(error.into()),
-        };
-        let global = match artifacts.global_environment(profile) {
-            Ok(global) => global,
-            Err(ProviderError::Blocked { .. }) => {
-                dependencies.mark_partial();
-
-                return Ok(dependencies);
-            }
-            Err(error) => return Err(error.into()),
-        };
-
         // require declared artifacts of direct imports and implicit globals
-        let mut surfaces = resolved.target_modules().collect::<FxIndexSet<_>>();
-        surfaces.extend(global.implicit_modules());
-        surfaces.shift_remove(&module);
-        for import in surfaces {
+        let artifacts = self.artifact_reader(context);
+        let Some(references) = referenced_modules(&artifacts, module, profile)? else {
+            dependencies.mark_partial();
+
+            return Ok(dependencies);
+        };
+        for import in references {
             dependencies.require_projection(
                 ArtifactKey::dir_declared(import, profile),
                 ArtifactProjectionKey::Declared,
@@ -175,7 +200,7 @@ impl Compiler {
             context.emit_sidecar(check_sidecar("events", events.render()));
         }
 
-        // write checked DIR tables and diagnostics
+        // write checked DIR tables and report the pass's diagnostics
         let (checked, diagnostics) = check.write_checked(module)?;
         context.emit_diagnostics(diagnostics);
 

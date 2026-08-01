@@ -1,4 +1,4 @@
-use destack_artifact::{DirBound, DirCheckedModule, DirExpanded, DirImported, DirParsed};
+use destack_artifact::{DirBound, DirChecked, DirDeclared, DirExpanded, DirImported, DirParsed};
 use destack_core::StringPool;
 use destack_js as js;
 use destack_repository::Module;
@@ -24,13 +24,14 @@ pub(in crate::emit::js) fn lower_module(
     bound: &DirBound,
     imported: &DirImported,
     expanded: &DirExpanded,
-    checked: &DirCheckedModule,
+    declared: &DirDeclared,
+    checked: &DirChecked,
 ) -> Result<ModuleLowerOutput, EmitError> {
     let bindings = expanded.binding_table(bound);
     let modules = expanded.module_table(imported);
-    let types = checked.type_table(bound, expanded);
-    let statics = checked.static_table(bound, expanded);
-    let generics = checked.generic_table();
+    let types = checked.type_table(bound, expanded, declared);
+    let statics = checked.static_table(bound, expanded, declared);
+    let generics = checked.generic_table(declared);
     let mut lowerer = ModuleLowerer::new(
         module, parsed, strings, bound, bindings, &types, &statics, &generics, modules,
     );

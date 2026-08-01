@@ -11,7 +11,7 @@ use crate::lower::{LowerModuleState, ModuleLowerer};
 use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
-    /// Collect inputs for MIR of one module and target.
+    /// Collect the lowering inputs for one module and target.
     pub(crate) fn collect_mir(
         &self,
         module: ModuleId,
@@ -26,7 +26,7 @@ impl Compiler {
         dependencies.require(ArtifactKey::dir_checked(module, profile));
         dependencies.require(ArtifactKey::dir_materialized(module, profile));
 
-        // require the sealed stacks of every reachable module
+        // require the artifact stack of every reachable module
         for reachable in self.reachable_modules(module, profile, context, &mut dependencies)? {
             dependencies.require(ArtifactKey::dir_parsed(reachable));
             dependencies.require(ArtifactKey::dir_bound(reachable, profile));
@@ -49,12 +49,10 @@ impl Compiler {
         context: &dyn ProviderContext,
         dependencies: &mut ArtifactDependencySet,
     ) -> CompilerResult<Vec<ModuleId>> {
-        // project the component membership around this module
-        let graph_key = ArtifactKey::component_graph(profile);
-        dependencies
-            .require_projection(graph_key, ArtifactProjectionKey::ReferenceComponent(module));
+        // walk the import closure read by lowering
+        let graph_key = ArtifactKey::module_graph(profile);
         let artifacts = self.artifact_reader(context);
-        let graph = match artifacts.component_graph_reader(profile) {
+        let graph = match artifacts.module_graph_reader(profile) {
             Ok(graph) => graph,
             Err(ProviderError::Blocked { .. }) => {
                 dependencies.mark_partial();
@@ -63,39 +61,21 @@ impl Compiler {
             }
             Err(error) => return Err(error.into()),
         };
-        let component =
-            graph
-                .reference_component(module)?
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("module {module:?} is absent from the component graph"),
-                })?;
-
-        // project the reference closure read by lowering
-        let mut components = vec![component];
-        components.extend(graph.transitive_reference_dependencies(component)?);
-        for current in components.iter().copied() {
-            dependencies
-                .require_projection(graph_key, ArtifactProjectionKey::ReferenceMembers(current));
-            dependencies.require_projection(
-                graph_key,
-                ArtifactProjectionKey::ReferenceDependencies(current),
-            );
+        let reachable = graph.reachable(&[module])?;
+        for current in reachable.iter().copied() {
+            dependencies.require_projection(graph_key, ArtifactProjectionKey::ModuleEdges(current));
         }
 
-        let modules = components
-            .iter()
-            .map(|component| graph.reference_members(*component))
-            .collect::<Result<Vec<_>, _>>()?
+        // collect every reachable module other than this one
+        let modules = reachable
             .into_iter()
-            .flatten()
-            .copied()
             .filter(|reachable| *reachable != module)
             .collect();
 
         Ok(modules)
     }
 
-    /// Provide MIR for one module and target.
+    /// Lower one module for one target.
     pub(crate) fn provide_mir(
         &self,
         module: ModuleId,
@@ -125,6 +105,9 @@ impl Compiler {
         let expanded = artifacts
             .dir_expanded(module, profile)
             .map_err(CompilerError::from)?;
+        let declared = artifacts
+            .dir_declared(module, profile)
+            .map_err(CompilerError::from)?;
         let checked = artifacts
             .dir_checked(module, profile)
             .map_err(CompilerError::from)?;
@@ -132,24 +115,13 @@ impl Compiler {
             .dir_materialized(module, profile)
             .map_err(CompilerError::from)?;
 
-        // resolve this module's reference closure
+        // resolve this module's import closure
         let graph = artifacts
-            .component_graph_reader(profile)
+            .module_graph_reader(profile)
             .map_err(CompilerError::from)?;
-        let component =
-            graph
-                .reference_component(module)?
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("module {module:?} is absent from the component graph"),
-                })?;
-        let mut components = vec![component];
-        components.extend(graph.transitive_reference_dependencies(component)?);
-        let mut reachable = Vec::new();
-        for component in components {
-            reachable.extend(graph.reference_members(component)?.iter().copied());
-        }
+        let reachable = graph.reachable(&[module])?;
 
-        // load the sealed check output of every other reachable module
+        // load the state of every other reachable module
         let mut modules = FxIndexMap::default();
         for reachable in reachable {
             if reachable == module {
@@ -165,6 +137,9 @@ impl Compiler {
             let expanded = artifacts
                 .dir_expanded(reachable, profile)
                 .map_err(CompilerError::from)?;
+            let declared = artifacts
+                .dir_declared(reachable, profile)
+                .map_err(CompilerError::from)?;
             let checked = artifacts
                 .dir_checked(reachable, profile)
                 .map_err(CompilerError::from)?;
@@ -174,7 +149,15 @@ impl Compiler {
             let path = self.module_symbol_path(context, reachable)?;
             modules.insert(
                 reachable,
-                LowerModuleState::new(parsed, &bound, &expanded, &checked, &materialized, path),
+                LowerModuleState::new(
+                    parsed,
+                    &bound,
+                    &expanded,
+                    &declared,
+                    &checked,
+                    &materialized,
+                    path,
+                ),
             );
         }
 
@@ -183,7 +166,15 @@ impl Compiler {
         let path = self.module_symbol_path(context, module)?;
         modules.insert(
             module,
-            LowerModuleState::new(parsed, &bound, &expanded, &checked, &materialized, path),
+            LowerModuleState::new(
+                parsed,
+                &bound,
+                &expanded,
+                &declared,
+                &checked,
+                &materialized,
+                path,
+            ),
         );
         let mut lowerer = ModuleLowerer::new(module, strings, modules);
         let (lowered, mut errors) = lowerer.lower(pointer_bytes)?;

@@ -2,7 +2,7 @@ use std::slice;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactKey, DirBound, DirChecked, DirExpanded, DirImported, DirParsed, DirParsedFile,
+    ArtifactKey, DirBound, DirChecked, DirDeclared, DirExpanded, DirImported, DirParsed, DirParsedFile,
     DirResolved,
 };
 use destack_core::StringPool;
@@ -61,6 +61,8 @@ struct ModuleArtifacts {
     expanded: Arc<DirExpanded>,
     /// The resolved import and source-reference artifact.
     resolved: Arc<DirResolved>,
+    /// The declared module artifact.
+    declared: Arc<DirDeclared>,
     /// The checked module artifact.
     checked: Arc<DirChecked>,
 }
@@ -79,6 +81,7 @@ impl ModuleArtifacts {
             imported: reader.dir_imported(module_id, profile_id)?,
             expanded: reader.dir_expanded(module_id, profile_id)?,
             resolved: reader.dir_resolved(module_id, profile_id)?,
+            declared: reader.dir_declared(module_id, profile_id)?,
             checked: reader.dir_checked(module_id, profile_id)?,
         })
     }
@@ -94,20 +97,24 @@ impl<'a> ModuleQueryContext<'a> {
         artifacts: ModuleArtifacts,
     ) -> Self {
         // compose imported and checked table views
-        let bindings = artifacts
-            .checked
-            .binding_table(&artifacts.bound, &artifacts.expanded);
+        let bindings = artifacts.checked.binding_table(
+            &artifacts.bound,
+            &artifacts.expanded,
+            &artifacts.declared,
+        );
         let modules = artifacts.expanded.module_table(&artifacts.imported);
         let namespace_scope = artifacts.bound.namespace_scope;
 
         // compose remaining checked table views
-        let types = artifacts
-            .checked
-            .type_table(&artifacts.bound, &artifacts.expanded);
-        let decorators = artifacts.checked.decorator_table();
-        let generics = artifacts.checked.generic_table();
-        let definitions = artifacts.checked.definition_table();
-        let resolutions = artifacts.checked.resolution_table();
+        let types = artifacts.checked.type_table(
+            &artifacts.bound,
+            &artifacts.expanded,
+            &artifacts.declared,
+        );
+        let decorators = artifacts.checked.decorator_table(&artifacts.declared);
+        let generics = artifacts.checked.generic_table(&artifacts.declared);
+        let definitions = artifacts.checked.definition_table(&artifacts.declared);
+        let resolutions = artifacts.checked.resolution_table(&artifacts.declared);
 
         Self {
             repository,

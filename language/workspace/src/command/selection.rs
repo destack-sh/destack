@@ -209,11 +209,14 @@ impl CommandContext<'_> {
                 let resolved = artifacts
                     .dir_resolved(module, profile)
                     .map_err(|error| error.to_string())?;
+                let declared = artifacts
+                    .dir_declared(module, profile)
+                    .map_err(|error| error.to_string())?;
                 let checked = artifacts
                     .dir_checked(module, profile)
                     .map_err(|error| error.to_string())?;
 
-                ModuleContext::new(parsed, bound, expanded, exported, resolved, checked)
+                ModuleContext::new(parsed, bound, expanded, exported, resolved, declared, checked)
                     .map_err(|error| error.to_string().into())
             })
             .collect::<CommandResult<Vec<_>>>()?;

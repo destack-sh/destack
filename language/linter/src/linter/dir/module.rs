@@ -297,6 +297,7 @@ impl DirModuleStorage {
         let expanded = artifacts.dir_expanded(module_id, profile)?;
         let exported = artifacts.dir_exported(module_id, profile)?;
         let checked = artifacts.dir_checked(module_id, profile)?;
+        let declared = artifacts.dir_declared(module_id, profile)?;
         let expected_files = module
             .files
             .iter()
@@ -330,15 +331,15 @@ impl DirModuleStorage {
         }
 
         // compose the checked tables
-        let bindings = checked.binding_table(&bound, &expanded);
+        let bindings = checked.binding_table(&bound, &expanded, &declared);
         let modules = expanded.module_table(&imported);
-        let types = checked.type_table(&bound, &expanded);
-        let statics = checked.static_table(&bound, &expanded);
-        let decorators = checked.decorator_table();
+        let types = checked.type_table(&bound, &expanded, &declared);
+        let statics = checked.static_table(&bound, &expanded, &declared);
+        let decorators = checked.decorator_table(&declared);
         let auto = checked.auto_table();
-        let resolutions = checked.resolution_table();
-        let generics = checked.generic_table();
-        let definitions = checked.definition_table();
+        let resolutions = checked.resolution_table(&declared);
+        let generics = checked.generic_table(&declared);
+        let definitions = checked.definition_table(&declared);
         let coercions = checked.coercion_table();
         let captures = checked.capture_table();
         let roots = expanded.roots.clone();

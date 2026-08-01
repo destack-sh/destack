@@ -76,11 +76,14 @@ impl TestProgram {
                 let resolved = artifacts
                     .dir_resolved(*module, *profile)
                     .expect("read resolved test DIR");
+                let declared = artifacts
+                    .dir_declared(*module, *profile)
+                    .expect("read declared test DIR");
                 let checked = artifacts
                     .dir_checked(*module, *profile)
                     .expect("read checked test DIR");
 
-                ModuleContext::new(parsed, bound, expanded, exported, resolved, checked)
+                ModuleContext::new(parsed, bound, expanded, exported, resolved, declared, checked)
                     .expect("build checked test module")
             })
             .collect::<Vec<_>>();
