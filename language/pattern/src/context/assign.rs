@@ -68,6 +68,21 @@ impl ModuleContext {
             return Ok(true);
         }
 
+        // dynamic storage relates as its constraint
+        if let dir::Type::Dynamic(dynamic) = source_type {
+            let is_assignable = self.is_checked_assignable_to_parsed(
+                candidate,
+                dynamic.constraint,
+                tree,
+                target,
+                active,
+                program,
+            )?;
+            active.pop();
+
+            return Ok(is_assignable);
+        }
+
         // every union source member must fit the same target
         if let dir::Type::Union(union) = source_type {
             let elements = program.type_ids(source.module_id, union.elements)?;

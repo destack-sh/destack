@@ -14,6 +14,7 @@ use crate::{ModuleContext, ProgramContext};
 
 /// The minimal package manifest used by checked pattern fixtures.
 const TEST_MANIFEST: &str = r#"{
+  "name": "test",
   "targets": {
     "default": {
       "include": ["**/*.ds"]
@@ -83,8 +84,10 @@ impl TestProgram {
                     .dir_checked(*module, *profile)
                     .expect("read checked test DIR");
 
-                ModuleContext::new(parsed, bound, expanded, exported, resolved, declared, checked)
-                    .expect("build checked test module")
+                ModuleContext::new(
+                    parsed, bound, expanded, exported, resolved, declared, checked,
+                )
+                .expect("build checked test module")
             })
             .collect::<Vec<_>>();
         let context = ProgramContext::new(contexts).expect("build checked test program");
