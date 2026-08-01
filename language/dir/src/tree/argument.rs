@@ -143,6 +143,14 @@ impl Parameter {
         }
     }
 
+    /// Return the destructuring pattern attached to this parameter when present.
+    pub fn pattern(&self) -> Option<LocalNodeId<Pattern>> {
+        match self {
+            Self::Pattern { pattern, .. } | Self::VariadicPattern { pattern, .. } => Some(*pattern),
+            Self::Named { .. } | Self::VariadicNamed { .. } | Self::Error => None,
+        }
+    }
+
     /// Return the default value attached to this parameter when present.
     pub fn default_value(&self) -> Option<LocalNodeId<Expression>> {
         match self {

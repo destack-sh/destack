@@ -705,6 +705,8 @@ pub struct NewtypeDefinition {
     pub backing: GlobalTypeId,
     /// Whether the newtype declares a Tagged derivation.
     pub is_tagged: bool,
+    /// The written Tagged derive options, recorded while declaring.
+    pub tagged_options: Option<TaggedOptionsDefinition>,
     /// The property discriminating derived Tagged variants, filled while checking.
     pub discriminator: Option<StaticKey>,
     /// The members in declaration order.
@@ -987,6 +989,17 @@ pub struct EnumVariantDefinition {
     pub key: StaticKey,
     /// The resolved scalar value.
     pub value: EnumVariantValue,
+}
+
+/// Written Tagged derive options recorded on a declared newtype.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct TaggedOptionsDefinition {
+    /// The explicitly selected discriminator property.
+    pub discriminator: Option<StaticKey>,
+    /// The written constructor naming convention text.
+    pub case: Option<StringId>,
+    /// Explicit constructor names keyed by discriminant text.
+    pub names: Vec<(StringId, StringId)>,
 }
 
 /// One declared tagged newtype variant identity.

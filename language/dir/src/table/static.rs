@@ -2,7 +2,7 @@ use destack_serde::Reflect;
 use std::sync::Arc;
 
 use destack_source::ModuleId;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -116,6 +116,13 @@ impl<'a> StaticTable<'a> {
             .any(|segment| segment.contains_absent_root(node))
     }
 
+    /// Return one node's static gate decision.
+    pub fn presence(&self, node: LocalNodeIdAny) -> Option<StaticPresence> {
+        self.segments
+            .iter()
+            .find_map(|segment| segment.presence(node))
+    }
+
     /// Find one exact static value by shape.
     pub fn find_static(&self, expected: &StaticTerm) -> Option<LocalStaticId> {
         self.iter_static_ids()
@@ -154,6 +161,15 @@ impl<'a> StaticTable<'a> {
     }
 }
 
+/// Source presence decided by one closed static gate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum StaticPresence {
+    /// The node is absent.
+    Absent,
+    /// The node is present.
+    Present,
+}
+
 /// Static values added by one DIR phase.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct StaticSegment {
@@ -165,8 +181,8 @@ pub struct StaticSegment {
     pub(crate) statics: Arena<StaticTerm>,
     /// Checked static value keyed by symbol.
     pub(crate) static_by_symbol_id: IndexMap<GlobalSymbolId, GlobalStaticId>,
-    /// Subtree roots removed by closed static conditions.
-    pub(crate) absent_roots: IndexSet<LocalNodeIdAny>,
+    /// Gate decisions by decorated node.
+    pub(crate) gates: IndexMap<LocalNodeIdAny, StaticPresence>,
 }
 
 impl StaticSegment {
@@ -177,7 +193,7 @@ impl StaticSegment {
             first_static_id: 0,
             statics: Arena::new(),
             static_by_symbol_id: IndexMap::new(),
-            absent_roots: IndexSet::new(),
+            gates: IndexMap::new(),
         }
     }
 
@@ -188,7 +204,7 @@ impl StaticSegment {
             first_static_id: base.static_count(),
             statics: Arena::new(),
             static_by_symbol_id: IndexMap::new(),
-            absent_roots: IndexSet::new(),
+            gates: IndexMap::new(),
         }
     }
 
@@ -205,14 +221,19 @@ impl StaticSegment {
         self.static_by_symbol_id.insert(symbol_id, static_id);
     }
 
-    /// Insert one subtree root removed by a closed static condition.
-    pub fn insert_absent_root(&mut self, node: LocalNodeIdAny) {
-        self.absent_roots.insert(node);
+    /// Record one node's static gate decision.
+    pub fn record_presence(&mut self, node: LocalNodeIdAny, gate: StaticPresence) {
+        self.gates.insert(node, gate);
+    }
+
+    /// Return one node's static gate decision.
+    pub fn presence(&self, node: LocalNodeIdAny) -> Option<StaticPresence> {
+        self.gates.get(&node).copied()
     }
 
     /// Return whether one node roots a subtree removed by a closed static condition.
     pub fn contains_absent_root(&self, node: LocalNodeIdAny) -> bool {
-        self.absent_roots.contains(&node)
+        self.presence(node) == Some(StaticPresence::Absent)
     }
 
     /// Iterate static values keyed by symbol.
@@ -260,9 +281,7 @@ impl StaticSegment {
 
     /// Return true when this segment has no entries.
     pub fn is_empty(&self) -> bool {
-        self.statics.is_empty()
-            && self.static_by_symbol_id.is_empty()
-            && self.absent_roots.is_empty()
+        self.statics.is_empty() && self.static_by_symbol_id.is_empty() && self.gates.is_empty()
     }
 
     /// Apply one mapping to every type id stored in this segment.

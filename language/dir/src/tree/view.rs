@@ -173,6 +173,21 @@ impl<'a> View<'a> {
         self.get_parent_any(node_id.into_any())
     }
 
+    /// Return whether one node sits inside another's subtree.
+    pub fn is_inside(&self, node: LocalNodeIdAny, ancestor: LocalNodeIdAny) -> bool {
+        // climb parents until the ancestor or the root
+        let mut current = node;
+        loop {
+            if current == ancestor {
+                return true;
+            }
+            match self.get_parent_any(current) {
+                Some(parent) => current = parent,
+                None => return false,
+            }
+        }
+    }
+
     /// Get the visible parent for one erased node id.
     pub fn get_parent_any(&self, node_id: LocalNodeIdAny) -> Option<LocalNodeIdAny> {
         let (tree, node_id) = self.visible_node(node_id)?;
