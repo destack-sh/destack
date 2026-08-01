@@ -57,7 +57,9 @@ export class DestackExtension {
     /** Start a newly resolved language client. */
     private async startClient(): Promise<void> {
         const command = await ServerCommand.resolve(this.context);
-        this.log.info(`starting ${command.command}`);
+        this.log.info(
+            `event=server.start executable=${JSON.stringify(command.command)}`,
+        );
 
         const client = new LanguageClient(
             "destack",
@@ -211,7 +213,9 @@ export class DestackExtension {
             await run();
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            this.log.error(`failed to ${action}: ${message}`);
+            this.log.error(
+                `event=extension.operation.failed operation=${JSON.stringify(action)} error=${JSON.stringify(message)}`,
+            );
             const selection = await vscode.window.showErrorMessage(
                 `Failed to ${action}: ${message}`,
                 "Show Logs",

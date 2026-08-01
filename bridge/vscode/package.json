@@ -85,7 +85,7 @@
                         "verbose"
                     ],
                     "default": "off",
-                    "description": "Trace language server queries and artifact execution in the Destack output."
+                    "description": "Trace structured language server messages. Verbose tracing also includes message bodies and detailed artifact timings."
                 },
                 "destack.completion.autoImports": {
                     "type": "boolean",
