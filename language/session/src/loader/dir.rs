@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependencySet, ArtifactPayload, DirParsed, DirParsedFile};
+use destack_artifact::{
+    ArtifactDependencySet, ArtifactPayload, DiagnosticRecord, DirParsed, DirParsedFile,
+};
 use destack_dir::{Expression, ScalarLiteral, Tree};
 use destack_parser::{CommentRetention, Parser};
 use destack_repository::{Module, ModuleFile, ProviderContext};
@@ -131,7 +133,13 @@ impl SessionState {
             tree_in,
         );
         let roots = parser.parse();
-        attempt.emit_diagnostics(parser.diagnostics());
+        let records = parser
+            .diagnostics()
+            .diagnostics
+            .iter()
+            .map(DiagnosticRecord::from)
+            .collect();
+        attempt.emit_diagnostics(records);
 
         // publish parsed strings to the repository
         parser.publish_strings();

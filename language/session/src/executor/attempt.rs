@@ -2,14 +2,13 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactKey, ArtifactSidecar, DiagnosticAnchor, DiagnosticContext,
-    DiagnosticDisplay, DiagnosticError, DiagnosticLike,
+    DiagnosticDisplay, DiagnosticError, DiagnosticLike, DiagnosticRecord,
 };
 use destack_repository::{
     ArtifactAttemptRecorder, ArtifactBase, ProviderContext, Repository, Revision,
 };
 use destack_source::{
-    ContentId, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, FileId, ModuleId,
-    PackageId, Span,
+    ContentId, DiagnosticLabel, DiagnosticTarget, FileId, ModuleId, PackageId, Span,
 };
 use parking_lot::Mutex;
 
@@ -27,7 +26,7 @@ pub(crate) struct ProviderAttempt {
     /// The frozen dependency observations for provider execution.
     dependencies: Option<Arc<[ArtifactDependency]>>,
     /// The diagnostics produced by this attempt.
-    diagnostics: Mutex<DiagnosticCollection>,
+    diagnostics: Mutex<Vec<DiagnosticRecord>>,
     /// The sidecars produced by this attempt.
     sidecars: Mutex<Vec<ArtifactSidecar>>,
     /// The dependencies read during provider execution.
@@ -45,7 +44,7 @@ impl ProviderAttempt {
             key,
             base: None,
             dependencies: None,
-            diagnostics: Mutex::new(DiagnosticCollection::new()),
+            diagnostics: Mutex::new(Vec::new()),
             sidecars: Mutex::new(Vec::new()),
             reads: Mutex::new(Vec::new()),
             recorder: None,
@@ -94,7 +93,7 @@ impl ProviderAttempt {
     }
 
     /// Return diagnostics produced by this attempt.
-    pub(super) fn diagnostics(&self) -> DiagnosticCollection {
+    pub(super) fn diagnostics(&self) -> Vec<DiagnosticRecord> {
         self.diagnostics.lock().clone()
     }
 
@@ -133,6 +132,12 @@ impl ProviderAttempt {
     ) -> Result<DiagnosticTarget, DiagnosticError> {
         let target = match anchor {
             DiagnosticAnchor::Span(span) => DiagnosticTarget::Span(*span),
+            // symbol anchors resolve at read, never at emit
+            DiagnosticAnchor::Symbol(symbol) => {
+                return Err(Self::invalid_anchor(format!(
+                    "symbol anchor {symbol:?} resolves when its record is read"
+                )));
+            }
             DiagnosticAnchor::File(file) => DiagnosticTarget::File(*file),
             DiagnosticAnchor::Module(module) => {
                 DiagnosticTarget::File(self.module_file_id(*module)?)
@@ -294,13 +299,13 @@ impl ProviderContext for ProviderAttempt {
         self.dependencies.as_deref()
     }
 
-    /// Add an already-final diagnostic collection produced by this attempt.
-    fn emit_diagnostics(&self, diagnostics: DiagnosticCollection) {
+    /// Add already-recorded diagnostics produced by this attempt.
+    fn emit_diagnostics(&self, diagnostics: Vec<DiagnosticRecord>) {
         if diagnostics.is_empty() {
             return;
         }
 
-        self.diagnostics.lock().merge_from(&diagnostics);
+        self.diagnostics.lock().extend(diagnostics);
     }
 
     /// Add one sidecar produced by this attempt.
@@ -310,10 +315,8 @@ impl ProviderContext for ProviderAttempt {
 
     /// Add one diagnostic produced by this attempt.
     fn emit(&self, diagnostic: &dyn DiagnosticLike) -> Result<(), DiagnosticError> {
-        let diagnostic = diagnostic.to_diagnostic(self)?;
-        let diagnostics = DiagnosticCollection::from_diagnostics(vec![diagnostic]);
-
-        self.emit_diagnostics(diagnostics);
+        let record = DiagnosticRecord::new(diagnostic.to_diagnostic(self)?);
+        self.emit_diagnostics(vec![record]);
 
         Ok(())
     }

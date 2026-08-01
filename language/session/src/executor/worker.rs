@@ -4,13 +4,12 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactDependencySet, ArtifactFailure, ArtifactKey, ArtifactOutcome,
-    ArtifactPayload, ArtifactProvider, ArtifactSidecar,
+    ArtifactPayload, ArtifactProvider, ArtifactSidecar, DiagnosticRecord,
 };
 use destack_repository::{
     ArtifactAttemptOutcome, ArtifactAttemptRecorder, ArtifactBase, ArtifactPlan, ProviderError,
     ProviderResult, Repository, Revision,
 };
-use destack_source::DiagnosticCollection;
 
 use super::attempt::ProviderAttempt;
 use super::run::{ArtifactRunId, ArtifactRunState};
@@ -151,7 +150,7 @@ impl Worker {
                 ..
             }) => {
                 let failure = ArtifactFailure::requirement(failed_dependency);
-                let diagnostics = DiagnosticCollection::new();
+                let diagnostics = Vec::new();
                 let result = recorder.span("commit", || {
                     self.fail(
                         run.id(),
@@ -350,7 +349,7 @@ impl Worker {
         run: ArtifactRunId,
         task: Task,
         dependencies: Arc<[ArtifactDependency]>,
-        diagnostics: DiagnosticCollection,
+        diagnostics: Vec<DiagnosticRecord>,
         sidecars: Vec<ArtifactSidecar>,
         failure: ArtifactFailure,
     ) -> Result<(), SessionError> {
