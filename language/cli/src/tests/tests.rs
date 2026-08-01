@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use destack_artifact::MemoryBlobStore;
+use destack_artifact::{BuildId, MemoryBlobStore};
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Host, Ref, Repository, Revision,
     Settings,
@@ -45,7 +45,12 @@ impl TestProgram {
             &DestackLayoutOverride::default(),
             None,
         );
-        let host = Host::new(environment, fs.clone(), Arc::new(MemoryBlobStore::new()));
+        let host = Host::new(
+            BuildId::test(),
+            environment,
+            fs.clone(),
+            Arc::new(MemoryBlobStore::new()),
+        );
         let repository = Repository::new(root.clone(), host, Settings::default(), layout);
         let repository = Arc::new(repository);
 

@@ -252,9 +252,9 @@ mod tests {
 
     use destack_artifact::{
         ArtifactDependency, ArtifactKey, ArtifactPayload, ArtifactProjection,
-        ArtifactProjectionKey, ArtifactVersion, Bundle, BundleFile, BundleMode, BundleSection,
-        ComponentGraph, DiskBlobStore, EmitFormat, GlobalEnvironment, LanguageEnvironment,
-        SourceDependency,
+        ArtifactProjectionKey, ArtifactVersion, BuildId, Bundle, BundleFile, BundleMode,
+        BundleSection, ComponentGraph, DiskBlobStore, EmitFormat, GlobalEnvironment,
+        LanguageEnvironment, SourceDependency,
     };
     use destack_dir::{GlobalSymbolId, LocalSymbolId};
     use destack_source::{
@@ -279,7 +279,12 @@ mod tests {
             None,
         );
 
-        let host = Host::new(environment, file_system, Arc::new(DiskBlobStore::new()));
+        let host = Host::new(
+            BuildId::test(),
+            environment,
+            file_system,
+            Arc::new(DiskBlobStore::new()),
+        );
 
         Repository::new(root.to_path_buf(), host, Settings::default(), layout)
     }
@@ -300,7 +305,12 @@ mod tests {
             &DestackLayoutOverride::default(),
             None,
         );
-        let host = Host::new(environment, file_system, Arc::new(DiskBlobStore::new()));
+        let host = Host::new(
+            BuildId::test(),
+            environment,
+            file_system,
+            Arc::new(DiskBlobStore::new()),
+        );
         let repository = Arc::new(Repository::new(
             root.clone(),
             host,
@@ -394,7 +404,7 @@ mod tests {
             )],
         );
         let key = ArtifactKey::bundle(package, target);
-        let version = ArtifactVersion::new(key, repository.build_fingerprint(), []);
+        let version = ArtifactVersion::new(key, repository.host().build_id(), []);
         repository
             .complete_artifact(
                 revision,
@@ -450,7 +460,7 @@ mod tests {
             global_targets_by_key: IndexMap::new(),
         };
         let key = ArtifactKey::global_environment(profile);
-        let version = ArtifactVersion::new(key, repository.build_fingerprint(), []);
+        let version = ArtifactVersion::new(key, repository.host().build_id(), []);
         repository
             .complete_artifact(
                 revision,
@@ -511,7 +521,12 @@ mod tests {
             &DestackLayoutOverride::default(),
             None,
         );
-        let host = Host::new(environment, file_system, Arc::new(DiskBlobStore::new()));
+        let host = Host::new(
+            BuildId::test(),
+            environment,
+            file_system,
+            Arc::new(DiskBlobStore::new()),
+        );
         let repository = Arc::new(Repository::new(
             root.clone(),
             host,
@@ -597,7 +612,7 @@ mod tests {
         let key = ArtifactKey::bundle(package, target);
         let first_version = ArtifactVersion::new(
             key,
-            repository.build_fingerprint(),
+            repository.host().build_id(),
             first_dependencies.clone(),
         );
         repository
@@ -632,7 +647,7 @@ mod tests {
         ))];
         let second_version = ArtifactVersion::new(
             key,
-            repository.build_fingerprint(),
+            repository.host().build_id(),
             second_dependencies.clone(),
         );
         repository
@@ -704,7 +719,7 @@ mod tests {
         ))];
         let third_version = ArtifactVersion::new(
             key,
-            repository.build_fingerprint(),
+            repository.host().build_id(),
             third_dependencies.clone(),
         );
         repository
@@ -785,7 +800,7 @@ mod tests {
         let owner_key = ArtifactKey::component_graph(profile);
         let first_owner = ArtifactVersion::new(
             owner_key,
-            repository.build_fingerprint(),
+            repository.host().build_id(),
             first_owner_dependencies.clone(),
         );
         repository
@@ -810,7 +825,7 @@ mod tests {
         let dependent_key = ArtifactKey::global_environment(profile);
         let dependent = ArtifactVersion::new(
             dependent_key,
-            repository.build_fingerprint(),
+            repository.host().build_id(),
             [first_dependency.clone()],
         );
         repository
@@ -840,7 +855,7 @@ mod tests {
         )];
         let second_owner = ArtifactVersion::new(
             owner_key,
-            repository.build_fingerprint(),
+            repository.host().build_id(),
             second_owner_dependencies.clone(),
         );
         assert_ne!(first_owner, second_owner);
@@ -923,7 +938,7 @@ mod tests {
             )],
         );
         let key = ArtifactKey::bundle(package, target);
-        let version = ArtifactVersion::new(key, repository.build_fingerprint(), []);
+        let version = ArtifactVersion::new(key, repository.host().build_id(), []);
         repository
             .complete_artifact(
                 revision,

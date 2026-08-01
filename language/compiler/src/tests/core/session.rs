@@ -5,8 +5,8 @@ use std::sync::{Arc, OnceLock};
 use std::{env, thread};
 
 use destack_artifact::{
-    ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion, ComponentGraph, DirBound,
-    DirCheckedModule, DirExpanded, DirExported, DirImported, DirParsed, DirResolved,
+    ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion, BuildId, ComponentGraph,
+    DirBound, DirCheckedModule, DirExpanded, DirExported, DirImported, DirParsed, DirResolved,
     MemoryBlobStore, NullArtifactStore,
 };
 use destack_dir as dir;
@@ -709,7 +709,7 @@ impl TestSession {
             let key = ArtifactKey::dir_parsed(entry.module.id);
             let version = ArtifactVersion::new(
                 key,
-                repository.build_fingerprint(),
+                repository.host().build_id(),
                 dependencies.iter().cloned(),
             );
 
@@ -1550,6 +1550,7 @@ fn shared_repository_revision() -> &'static (Arc<Repository>, Revision) {
             None,
         );
         let host = Host::new(
+            BuildId::test(),
             environment,
             Arc::new(MemoryFileSystem::new()),
             shared_blob_store(),

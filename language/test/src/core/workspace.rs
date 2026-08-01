@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use destack_artifact::{ArtifactKey, MemoryBlobStore};
+use destack_artifact::{ArtifactKey, BuildId, MemoryBlobStore};
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, FormatterOptions, Host, LinterOptions,
     Ref, Repository, Revision, Settings,
@@ -42,7 +42,12 @@ impl SharedMemoryWorkspace {
             &DestackLayoutOverride::default(),
             None,
         );
-        let host = Host::new(environment, fs.clone(), Arc::new(MemoryBlobStore::new()));
+        let host = Host::new(
+            BuildId::test(),
+            environment,
+            fs.clone(),
+            Arc::new(MemoryBlobStore::new()),
+        );
         let repository = Arc::new(Repository::new(
             root.clone(),
             host,
@@ -101,7 +106,12 @@ pub fn open_repository_with_options(
         &DestackLayoutOverride::default(),
         None,
     );
-    let host = Host::new(environment, fs, Arc::new(MemoryBlobStore::new()));
+    let host = Host::new(
+        BuildId::test(),
+        environment,
+        fs,
+        Arc::new(MemoryBlobStore::new()),
+    );
     let repository = Arc::new(Repository::new(root, host, Settings::default(), layout));
     let root = repository.path().to_path_buf();
     materialize_workspace_root(repository.clone(), &root);

@@ -512,7 +512,7 @@ impl Repository {
             });
         }
         let payload = record
-            .decode(self.build_fingerprint(), self.string_pool())
+            .decode(self.host().build_id(), self.string_pool())
             .map_err(|error| RepositoryError::ArtifactStore {
                 message: error.to_string(),
             })?;

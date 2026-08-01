@@ -237,7 +237,7 @@ impl Worker {
         let version = recorder.span("version", || {
             ArtifactVersion::new(
                 task.key,
-                repository.build_fingerprint(),
+                repository.host().build_id(),
                 dependencies.iter().cloned(),
             )
         });

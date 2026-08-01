@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use clap::{Args, ValueEnum};
-use destack_artifact::MemoryBlobStore;
+use destack_artifact::{BuildId, MemoryBlobStore};
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Environment, FormatterOptions, Host, Ref, Repository,
     Settings, default_blob_store, open_repository,
@@ -301,7 +301,10 @@ impl ProgramArgs {
         } else {
             default_blob_store()
         };
-        let host = Host::new(environment, fs.clone(), blob_store);
+        let build_id = BuildId::current().map_err(|error| {
+            ConsoleError::message(format!("failed to identify Destack build: {error}"))
+        })?;
+        let host = Host::new(build_id, environment, fs.clone(), blob_store);
         let repository = open_repository(workspace_root, host, settings, layout_override)
             .map_err(|error| ConsoleError::message(format!("failed to open workspace: {error}")))?;
 

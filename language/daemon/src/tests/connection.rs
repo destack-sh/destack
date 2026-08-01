@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::Duration;
 
-use destack_artifact::DiskBlobStore;
+use destack_artifact::{BuildId, DiskBlobStore};
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Environment, Host, Repository, Settings,
 };
@@ -149,7 +149,12 @@ impl TestDaemonServer {
             &overrides,
             None,
         );
-        let host = Host::new(environment, file_system, Arc::new(DiskBlobStore::new()));
+        let host = Host::new(
+            BuildId::test(),
+            environment,
+            file_system,
+            Arc::new(DiskBlobStore::new()),
+        );
         let repository = Arc::new(Repository::new(
             root.root().to_path_buf(),
             host,

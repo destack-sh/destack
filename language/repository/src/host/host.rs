@@ -1,17 +1,19 @@
 use std::sync::Arc;
 
-use destack_artifact::BlobStore;
 #[cfg(any(not(target_arch = "wasm32"), target_os = "wasi"))]
 use destack_artifact::DiskBlobStore;
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 use destack_artifact::MemoryBlobStore;
+use destack_artifact::{BlobStore, BuildId};
 use destack_source::FileSystem;
 
 use super::{Clock, Environment};
 
-/// Host capabilities available to the repository toolchain.
+/// Host capabilities available to repository operations.
 #[derive(Debug, Clone)]
 pub struct Host {
+    /// The Destack build producing derived artifacts.
+    build_id: BuildId,
     /// Captured invocation environment.
     environment: Environment,
     /// File system backing repository discovery and loads.
@@ -27,17 +29,24 @@ pub struct Host {
 impl Host {
     /// Create one host from explicit capabilities.
     pub fn new(
+        build_id: BuildId,
         environment: Environment,
         files: Arc<dyn FileSystem>,
         blob_store: Arc<dyn BlobStore>,
     ) -> Self {
         Self {
+            build_id,
             environment,
             files,
             blob_store,
             clock: Clock::default(),
             execution: Execution::default(),
         }
+    }
+
+    /// Return the Destack build producing derived artifacts.
+    pub fn build_id(&self) -> BuildId {
+        self.build_id
     }
 
     /// Return this host with one clock capability.

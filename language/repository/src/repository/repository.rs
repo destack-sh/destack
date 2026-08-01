@@ -15,8 +15,6 @@ use crate::repository::{
 };
 use crate::{ArtifactBindingTable, DestackLayout, Host, Root, RootKind, Settings};
 
-const BUILD_FINGERPRINT: &str = include_str!("../../../../VERSION.txt");
-
 /// Content-addressed store for revision source state and derived artifacts.
 #[derive(Debug)]
 pub struct Repository {
@@ -30,8 +28,6 @@ pub struct Repository {
 
     /// Host capabilities available to repository tooling.
     pub(crate) host: Host,
-    /// Toolchain identity used to version derived artifacts.
-    pub(crate) build: String,
     /// Resolved storage layout for this repository.
     pub(crate) layout: DestackLayout,
     /// Machine-local settings used to open this repository.
@@ -66,7 +62,7 @@ impl Repository {
         let artifact_store = Arc::new(SegmentedArtifactStore::new(
             Arc::clone(host.blob_store()),
             Self::repository_store_layout_for(&root, &layout),
-            BUILD_FINGERPRINT.trim(),
+            host.build_id(),
         ));
 
         let repository = Self {
@@ -82,7 +78,6 @@ impl Repository {
             mounts: DashMap::new(),
             embedded_builtin: EmbeddedBuiltinPackage::new(),
             strings: Arc::new(StringPool::new()),
-            build: BUILD_FINGERPRINT.trim().to_owned(),
             layout,
             settings,
         };
@@ -108,7 +103,7 @@ impl Repository {
         let artifact_store = Arc::new(SegmentedArtifactStore::new(
             Arc::clone(&blob_store),
             self.repository_store_layout(),
-            self.build.clone(),
+            self.host.build_id(),
         ));
 
         self.host.set_blob_store(blob_store);
@@ -201,11 +196,6 @@ impl Repository {
     /// Resolve the repository cache directory.
     pub fn cache_directory(&self) -> PathBuf {
         self.layout.workspace_cache.clone()
-    }
-
-    /// Return the build fingerprint used to version derived artifacts.
-    pub fn build_fingerprint(&self) -> &str {
-        &self.build
     }
 
     /// Build one persisted repository store layout.

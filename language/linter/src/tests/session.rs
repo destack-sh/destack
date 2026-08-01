@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
-use destack_artifact::{ArtifactKey, MemoryBlobStore, NullArtifactStore};
+use destack_artifact::{ArtifactKey, BuildId, MemoryBlobStore, NullArtifactStore};
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Ref, Repository,
     Revision, Settings,
@@ -254,6 +254,7 @@ pub(super) fn shared_repository() -> &'static (Arc<Repository>, Revision) {
             None,
         );
         let host = Host::new(
+            BuildId::test(),
             environment,
             Arc::new(MemoryFileSystem::new()),
             Arc::new(MemoryBlobStore::new()),

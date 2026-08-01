@@ -1,6 +1,6 @@
 use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use destack_artifact::{ArtifactKey, DiskBlobStore};
+use destack_artifact::{ArtifactKey, BuildId, DiskBlobStore};
 use destack_core::FxIndexSet;
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Host, Ref, Repository, Settings,
@@ -126,7 +126,14 @@ fn build_workspace(workspace_root: &Path, sources: &[SourceFile]) -> (Arc<Sessio
         &DestackLayoutOverride::default(),
         None,
     );
-    let host = Host::new(environment, file_system, Arc::new(DiskBlobStore::new()));
+    let build_id = BuildId::current()
+        .unwrap_or_else(|error| panic!("failed to identify compiler benchmark build: {error}"));
+    let host = Host::new(
+        build_id,
+        environment,
+        file_system,
+        Arc::new(DiskBlobStore::new()),
+    );
     let repository = Arc::new(Repository::new(
         workspace_root.clone(),
         host,

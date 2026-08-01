@@ -3,7 +3,7 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::{BlobStore, MemoryBlobStore};
+use destack_artifact::{BlobStore, BuildId, MemoryBlobStore};
 use destack_source::{
     Content, ContentId, File, FileId, FileMetadata, FilePatch, FileSystem, FileType,
     MemoryFileSystem, Patch, Span, TextPatch, Uri, apply_file_patch, matches as glob_matches,
@@ -23,7 +23,10 @@ pub fn open_repository_from_fs(
     layout_override: DestackLayoutOverride,
 ) -> Result<Repository, RepositoryError> {
     let blob_store = default_blob_store();
-    let host = Host::new(environment, file_system, blob_store);
+    let build_id = BuildId::current().map_err(|error| RepositoryError::ArtifactStore {
+        message: format!("failed to identify Destack build: {error}"),
+    })?;
+    let host = Host::new(build_id, environment, file_system, blob_store);
 
     open_repository(path, host, settings, layout_override)
 }
@@ -41,7 +44,10 @@ pub fn open_repository_from_memory(
 
     // keep memory repositories fully in memory
     let blob_store: Arc<dyn BlobStore> = Arc::new(MemoryBlobStore::new());
-    let host = Host::new(environment, file_system, blob_store);
+    let build_id = BuildId::current().map_err(|error| RepositoryError::ArtifactStore {
+        message: format!("failed to identify Destack build: {error}"),
+    })?;
+    let host = Host::new(build_id, environment, file_system, blob_store);
 
     open_repository(root, host, settings, layout_override)
 }

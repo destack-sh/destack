@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, MemoryBlobStore};
+use destack_artifact::{ArtifactKey, BuildId, MemoryBlobStore};
 use destack_core::StringPool;
 use destack_repository::{
     ArtifactReader, DestackLayout, DestackLayoutOverride, Edit, Environment, Host, Ref, Repository,
@@ -112,7 +112,12 @@ impl TestProgram {
             &DestackLayoutOverride::default(),
             None,
         );
-        let host = Host::new(environment, files, Arc::new(MemoryBlobStore::new()));
+        let host = Host::new(
+            BuildId::test(),
+            environment,
+            files,
+            Arc::new(MemoryBlobStore::new()),
+        );
         let repository = Arc::new(Repository::new(
             root.clone(),
             host,

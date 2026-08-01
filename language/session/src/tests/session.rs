@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, ArtifactVersion, MemoryBlobStore};
+use destack_artifact::{ArtifactKey, ArtifactVersion, BuildId, MemoryBlobStore};
 use destack_repository::{
     DestackLayoutOverride, Environment, Execution, Host, Ref, Repository, Revision, Settings,
     TraceSnapshot, TraceView, open_repository,
@@ -79,6 +79,7 @@ impl TestSession {
         }
 
         let host = Host::new(
+            BuildId::test(),
             Environment::default(),
             fs.clone(),
             Arc::new(MemoryBlobStore::new()),
