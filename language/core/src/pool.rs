@@ -67,6 +67,16 @@ impl<I: PoolId, T: Copy + Eq + Hash> ValuePool<I, T> {
         id
     }
 
+    /// Find one already-interned value without allocating.
+    pub fn find(&self, value: &T) -> Option<I> {
+        let hash = FxBuildHasher.hash_one(*value);
+        let slots = self.index.get(&hash)?;
+        slots
+            .iter()
+            .find(|slot| self.values.get(slot.raw() - self.first_id) == value)
+            .copied()
+    }
+
     /// Return the number of values owned up to and including this pool.
     pub fn count(&self) -> u32 {
         self.first_id + self.values.len() as u32
