@@ -52,8 +52,8 @@ pub struct Object {
     /// Explicit profile sample sites.
     pub(super) samples: Vec<SampleSite>,
 
-    /// Relocatable bytecode for this module.
-    pub(super) bytecode: bytecode::Object,
+    /// Relocatable bytecode when emitted for this module.
+    pub(super) bytecode: Option<bytecode::Object>,
     /// Relocatable native code when emitted for this module.
     pub(super) native: Option<native::Object>,
     /// Relocatable WebAssembly when emitted for this module.
@@ -188,9 +188,9 @@ impl Object {
         &self.samples
     }
 
-    /// Return relocatable bytecode.
-    pub const fn bytecode(&self) -> &bytecode::Object {
-        &self.bytecode
+    /// Return relocatable bytecode when present.
+    pub const fn bytecode(&self) -> Option<&bytecode::Object> {
+        self.bytecode.as_ref()
     }
 
     /// Return relocatable native code when present.

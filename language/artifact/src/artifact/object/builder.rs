@@ -50,6 +50,8 @@ pub struct ObjectBuilder {
     /// Explicit profile sample sites.
     samples: Vec<SampleSite>,
 
+    /// Relocatable bytecode when emitted for this module.
+    bytecode: Option<bytecode::Object>,
     /// Relocatable native code when emitted for this module.
     native: Option<native::Object>,
     /// Relocatable WebAssembly when emitted for this module.
@@ -77,6 +79,7 @@ impl ObjectBuilder {
             suspensions: Vec::new(),
             counters: Vec::new(),
             samples: Vec::new(),
+            bytecode: None,
             native: None,
             wasm: None,
         }
@@ -196,6 +199,13 @@ impl ObjectBuilder {
         self
     }
 
+    /// Set relocatable bytecode.
+    pub fn bytecode(mut self, bytecode: bytecode::Object) -> Self {
+        self.bytecode = Some(bytecode);
+
+        self
+    }
+
     /// Set relocatable native code.
     pub fn native(mut self, native: native::Object) -> Self {
         self.native = Some(native);
@@ -210,8 +220,8 @@ impl ObjectBuilder {
         self
     }
 
-    /// Build the relocatable object with required bytecode.
-    pub fn build(self, bytecode: bytecode::Object) -> Object {
+    /// Build the relocatable object.
+    pub fn build(self) -> Object {
         Object {
             dependencies: self.dependencies,
             target: self.target,
@@ -230,7 +240,7 @@ impl ObjectBuilder {
             suspensions: self.suspensions,
             counters: self.counters,
             samples: self.samples,
-            bytecode,
+            bytecode: self.bytecode,
             native: self.native,
             wasm: self.wasm,
         }
