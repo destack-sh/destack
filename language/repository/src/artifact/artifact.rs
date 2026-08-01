@@ -8,9 +8,13 @@ use crate::{ArtifactBase, ArtifactBindingState, ArtifactResolution};
 use destack_artifact::{
     ArtifactBinding, ArtifactBindingId, ArtifactBindingPin, ArtifactDependency, ArtifactFailure,
     ArtifactFlush, ArtifactKey, ArtifactOutcome, ArtifactPayload, ArtifactRecord, ArtifactSidecar,
-    ArtifactVersion,
+    ArtifactVersion, DeclarationReference, DiagnosticRecord,
 };
-use destack_source::DiagnosticCollection;
+use destack_dir::LocalSymbolId;
+use destack_source::{
+    ContentId, Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, File, ModuleId,
+    ProfileId, Span,
+};
 use rustc_hash::FxHashSet;
 
 impl Repository {
@@ -213,7 +217,7 @@ impl Repository {
         key: ArtifactKey,
         payload: ArtifactPayload,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
-        diagnostics: DiagnosticCollection,
+        diagnostics: Vec<DiagnosticRecord>,
         sidecars: Vec<ArtifactSidecar>,
         recorder: Option<&ArtifactAttemptRecorder>,
     ) -> Result<(), RepositoryError> {
@@ -295,7 +299,7 @@ impl Repository {
         revision: Revision,
         key: ArtifactKey,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
-        diagnostics: DiagnosticCollection,
+        diagnostics: Vec<DiagnosticRecord>,
         sidecars: Vec<ArtifactSidecar>,
         failure: ArtifactFailure,
     ) -> Result<(), RepositoryError> {
@@ -327,8 +331,7 @@ impl Repository {
             let Some(version) = self.artifact_version(revision, &artifact_key)? else {
                 return Ok(diagnostics);
             };
-            let artifact_diagnostics = self.artifact_diagnostics(version)?;
-            diagnostics.merge_from(artifact_diagnostics.as_ref());
+            self.merge_resolved_diagnostics(revision, version, &mut diagnostics)?;
 
             return Ok(diagnostics);
         }
@@ -356,8 +359,7 @@ impl Repository {
                 continue;
             }
 
-            let artifact_diagnostics = self.artifact_diagnostics(version)?;
-            diagnostics.merge_from(artifact_diagnostics.as_ref());
+            self.merge_resolved_diagnostics(revision, version, &mut diagnostics)?;
         }
 
         Ok(diagnostics)
@@ -387,8 +389,7 @@ impl Repository {
                 continue;
             };
             if merged.insert(version) {
-                let artifact_diagnostics = self.artifact_diagnostics(version)?;
-                diagnostics.merge_from(artifact_diagnostics.as_ref());
+                self.merge_resolved_diagnostics(revision, version, &mut diagnostics)?;
             }
 
             let binding = self
@@ -505,7 +506,7 @@ impl Repository {
         version: ArtifactVersion,
         payload: ArtifactPayload,
         dependencies: Arc<[ArtifactDependency]>,
-        diagnostics: DiagnosticCollection,
+        diagnostics: Vec<DiagnosticRecord>,
         sidecars: Vec<ArtifactSidecar>,
         recorder: Option<&ArtifactAttemptRecorder>,
     ) -> Result<ArtifactBindingPin, RepositoryError> {
@@ -572,9 +573,169 @@ impl Repository {
     fn artifact_diagnostics(
         &self,
         version: ArtifactVersion,
-    ) -> Result<Arc<DiagnosticCollection>, RepositoryError> {
+    ) -> Result<Arc<[DiagnosticRecord]>, RepositoryError> {
         self.artifact_table()
             .diagnostics(&version)
             .ok_or(RepositoryError::MissingArtifact { version })
+    }
+
+    /// Merge one artifact's diagnostics, resolved onto current sources.
+    fn merge_resolved_diagnostics(
+        &self,
+        revision: Revision,
+        version: ArtifactVersion,
+        diagnostics: &mut DiagnosticCollection,
+    ) -> Result<(), RepositoryError> {
+        let records = self.artifact_diagnostics(version)?;
+        for record in records.iter() {
+            let resolved = self.resolve_record(revision, &version, record)?;
+            diagnostics.diagnostics.push(resolved);
+        }
+
+        Ok(())
+    }
+
+    /// Resolve one stored diagnostic record onto current sources.
+    fn resolve_record(
+        &self,
+        revision: Revision,
+        version: &ArtifactVersion,
+        record: &DiagnosticRecord,
+    ) -> Result<Diagnostic, RepositoryError> {
+        let mut diagnostic = record.diagnostic.clone();
+
+        // append each declaration reference as a resolved label
+        for reference in &record.references {
+            let label = self.resolve_reference(revision, version, reference)?;
+            diagnostic = diagnostic.label(label);
+        }
+
+        Ok(diagnostic)
+    }
+
+    /// Resolve one declaration reference onto its current declaration span.
+    fn resolve_reference(
+        &self,
+        revision: Revision,
+        version: &ArtifactVersion,
+        reference: &DeclarationReference,
+    ) -> Result<DiagnosticLabel, RepositoryError> {
+        let symbol = reference.symbol;
+        let message = reference.message.clone();
+
+        // resolve precisely only while the observed declaration set holds
+        let span = version.key.profile_id().filter(|profile| {
+            self.declared_observation_holds(revision, version, symbol.module_id, *profile)
+        });
+        let span = span.and_then(|profile| {
+            self.symbol_declaration_span(revision, symbol.module_id, profile, symbol.local_id.id)
+        });
+
+        match span {
+            Some((span, content)) => Ok(DiagnosticLabel {
+                content,
+                target: DiagnosticTarget::Span(span),
+                message,
+            }),
+            // stale references degrade to their module's file
+            None => self.module_label(revision, symbol.module_id, message),
+        }
+    }
+
+    /// Return whether one artifact's observed declared projection still holds.
+    fn declared_observation_holds(
+        &self,
+        revision: Revision,
+        version: &ArtifactVersion,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> bool {
+        let declared_key = ArtifactKey::dir_declared(module, profile);
+        let Ok(Some(binding)) = self.artifact_binding(revision, &version.key) else {
+            return false;
+        };
+
+        // find the observed declared projection for the referenced module
+        for dependency in binding.dependencies.iter() {
+            let ArtifactDependency::Projection(projection) = dependency else {
+                continue;
+            };
+            if projection.version().key != declared_key {
+                continue;
+            }
+
+            // compare the observation against the current declared value
+            let Ok(Some(current)) = self.artifact_version(revision, &declared_key) else {
+                return false;
+            };
+            let current_fingerprint = self
+                .artifact_table()
+                .projection_fingerprint(&current, &projection.projection());
+
+            return current_fingerprint == Some(projection.fingerprint());
+        }
+
+        false
+    }
+
+    /// Return one module's first file as a label.
+    fn module_label(
+        &self,
+        revision: Revision,
+        module: ModuleId,
+        message: Option<String>,
+    ) -> Result<DiagnosticLabel, RepositoryError> {
+        let file = self
+            .module_root_file(revision, module)?
+            .ok_or(RepositoryError::MissingModule { module })?;
+
+        Ok(DiagnosticLabel {
+            content: file.content_id(),
+            target: DiagnosticTarget::File(file.id),
+            message,
+        })
+    }
+
+    /// Return one symbol's current declaration span and file content.
+    fn symbol_declaration_span(
+        &self,
+        revision: Revision,
+        module: ModuleId,
+        profile: ProfileId,
+        symbol: u32,
+    ) -> Option<(Span, ContentId)> {
+        // resolve the declaration's local symbol row
+        let bound_key = ArtifactKey::dir_bound(module, profile);
+        let bound_version = self.artifact_version(revision, &bound_key).ok()??;
+        let bound = self.artifact_table().dir_bound(&bound_version)?;
+        let row = bound
+            .bindings
+            .get_symbol_maybe(LocalSymbolId { id: symbol })?;
+        let declaration = row.declaration?;
+
+        // resolve the declaration's span in the parsed tree
+        let parsed_key = ArtifactKey::dir_parsed(module);
+        let parsed_version = self.artifact_version(revision, &parsed_key).ok()??;
+        let parsed = self.artifact_table().dir_parsed(&parsed_version)?;
+        let span = parsed.tree.get_main_span_by_id(declaration.local_id.id)?;
+        let content = self.file(revision, span.file).ok()??.content_id();
+
+        Some((span, content))
+    }
+
+    /// Return the first source file of one module.
+    fn module_root_file(
+        &self,
+        revision: Revision,
+        module: ModuleId,
+    ) -> Result<Option<Arc<File>>, RepositoryError> {
+        let Some(module) = self.module(revision, module)? else {
+            return Ok(None);
+        };
+        let Some(entry) = module.files.first() else {
+            return Ok(None);
+        };
+
+        self.file(revision, entry.file_id)
     }
 }

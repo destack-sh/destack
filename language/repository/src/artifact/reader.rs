@@ -302,6 +302,89 @@ impl<'a> ArtifactReader<'a> {
         Ok(payload)
     }
 
+    /// Read one artifact through its content projection.
+    ///
+    /// The read depends on the payload's content fingerprint, so rebuilds
+    /// that reproduce identical payloads leave dependents current.
+    fn read_content<T>(
+        &self,
+        artifact_key: ArtifactKey,
+        get: impl FnOnce(&ArtifactTable, &ArtifactVersion) -> Option<Arc<T>>,
+    ) -> Result<Arc<T>, ProviderError> {
+        let projection = ArtifactProjection::new(artifact_key, ArtifactProjectionKey::Content);
+        let version = self.projection_version(projection)?;
+        let payload = get(self.repository.artifact_table(), &version)
+            .ok_or(ProviderError::Corrupt { version })?;
+
+        Ok(payload)
+    }
+
+    /// Read one declared DIR artifact through its declared projection.
+    pub fn dir_declared_projected(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirDeclared>, ProviderError> {
+        let key = ArtifactKey::dir_declared(module, profile);
+        let projection = ArtifactProjection::new(key, ArtifactProjectionKey::Declared);
+        let version = self.projection_version(projection)?;
+        let payload = self
+            .repository
+            .artifact_table()
+            .dir_declared(&version)
+            .ok_or(ProviderError::Corrupt { version })?;
+
+        Ok(payload)
+    }
+
+    /// Read one bound DIR artifact through its content projection.
+    pub fn dir_bound_content(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirBound>, ProviderError> {
+        self.read_content(
+            ArtifactKey::dir_bound(module, profile),
+            ArtifactTable::dir_bound,
+        )
+    }
+
+    /// Read one expanded DIR artifact through its content projection.
+    pub fn dir_expanded_content(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirExpanded>, ProviderError> {
+        self.read_content(
+            ArtifactKey::dir_expanded(module, profile),
+            ArtifactTable::dir_expanded,
+        )
+    }
+
+    /// Read one resolved DIR artifact through its content projection.
+    pub fn dir_resolved_content(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirResolved>, ProviderError> {
+        self.read_content(
+            ArtifactKey::dir_resolved(module, profile),
+            ArtifactTable::dir_resolved,
+        )
+    }
+
+    /// Read one exported DIR artifact through its content projection.
+    pub fn dir_exported_content(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirExported>, ProviderError> {
+        self.read_content(
+            ArtifactKey::dir_exported(module, profile),
+            ArtifactTable::dir_exported,
+        )
+    }
+
     /// Read one parsed DIR artifact.
     pub fn dir_parsed(&self, module: ModuleId) -> Result<Arc<DirParsed>, ProviderError> {
         self.read(ArtifactKey::dir_parsed(module), ArtifactTable::dir_parsed)
@@ -318,6 +401,17 @@ impl<'a> ArtifactReader<'a> {
         profile: ProfileId,
     ) -> Result<Arc<GlobalEnvironment>, ProviderError> {
         self.read(
+            ArtifactKey::global_environment(profile),
+            ArtifactTable::global_environment,
+        )
+    }
+
+    /// Read one global environment artifact through its content projection.
+    pub fn global_environment_content(
+        &self,
+        profile: ProfileId,
+    ) -> Result<Arc<GlobalEnvironment>, ProviderError> {
+        self.read_content(
             ArtifactKey::global_environment(profile),
             ArtifactTable::global_environment,
         )

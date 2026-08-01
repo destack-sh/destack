@@ -903,7 +903,7 @@ pub struct TraceCriticalArtifactSnapshot {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use destack_source::{ComponentId, ModuleId, PackageId, ProfileId};
+    use destack_source::{ModuleId, PackageId, ProfileId};
 
     /// Build one deterministic attempt for work and span tests.
     fn attempt(
@@ -950,7 +950,7 @@ mod tests {
         let bind = ArtifactKey::dir_bound(module, profile);
         let resolve = ArtifactKey::dir_resolved(module, profile);
         let export = ArtifactKey::dir_exported(module, profile);
-        let check = ArtifactKey::dir_checked_component(ComponentId::new(1), profile);
+        let check = ArtifactKey::dir_checked(module, profile);
         let attempts = vec![
             attempt(parse, ArtifactAttemptOutcome::Built, 2, Some(Vec::new())),
             attempt(bind, ArtifactAttemptOutcome::Built, 3, Some(vec![parse])),
@@ -996,7 +996,7 @@ mod tests {
                 ("dir.parse", 2, 2, 0, 1),
                 ("dir.bind", 3, 5, 1, 2),
                 ("dir.export", 11, 16, 1, 1),
-                ("dir.check.component", 1, 17, 2, 0),
+                ("dir.check", 1, 17, 2, 0),
             ]
         );
     }

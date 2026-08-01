@@ -2,9 +2,8 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactKey, ArtifactSidecar, ArtifactVersion, DiagnosticContext,
-    DiagnosticError, DiagnosticLike,
+    DiagnosticError, DiagnosticLike, DiagnosticRecord,
 };
-use destack_source::DiagnosticCollection;
 use smallvec::SmallVec;
 
 use crate::{ArtifactAttemptRecorder, Moment, Revision};
@@ -91,8 +90,8 @@ pub trait ProviderContext: DiagnosticContext {
     /// Record one dependency read during provider execution.
     fn observe(&self, _dependency: ArtifactDependency) {}
 
-    /// Add an already-final diagnostic collection produced by this attempt.
-    fn emit_diagnostics(&self, diagnostics: DiagnosticCollection);
+    /// Add already-recorded diagnostics produced by this attempt.
+    fn emit_diagnostics(&self, diagnostics: Vec<DiagnosticRecord>);
 
     /// Add one sidecar produced by this attempt.
     fn emit_sidecar(&self, sidecar: ArtifactSidecar);

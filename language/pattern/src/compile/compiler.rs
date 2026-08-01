@@ -474,7 +474,9 @@ impl DiagnosticContext for Compiler {
         let target = match anchor {
             DiagnosticAnchor::Span(span) => DiagnosticTarget::Span(*span),
             DiagnosticAnchor::File(file) => DiagnosticTarget::File(*file),
-            DiagnosticAnchor::Module(_) | DiagnosticAnchor::Package(_) => {
+            DiagnosticAnchor::Symbol(_)
+            | DiagnosticAnchor::Module(_)
+            | DiagnosticAnchor::Package(_) => {
                 return Err(DiagnosticError::InvalidAnchor {
                     message: "pattern diagnostics require file or span anchors".to_string(),
                 });

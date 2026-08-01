@@ -252,14 +252,14 @@ mod tests {
 
     use destack_artifact::{
         ArtifactDependency, ArtifactKey, ArtifactPayload, ArtifactProjection,
-        ArtifactProjectionKey, ArtifactVersion, BuildId, Bundle, BundleFile, BundleMode,
-        BundleSection, ComponentGraph, DiskBlobStore, EmitFormat, GlobalEnvironment,
-        LanguageEnvironment, SourceDependency,
+        ArtifactProjectionKey, ArtifactVersion, Bundle, BundleFile, BundleMode, BundleSection,
+        DirExported, DiskBlobStore, EmitFormat, GlobalEnvironment, LanguageEnvironment,
+        SourceDependency,
     };
     use destack_dir::{GlobalSymbolId, LocalSymbolId};
     use destack_source::{
-        Content, DiagnosticCollection, FileSystem, FileType, ModuleId, PackageId,
-        PhysicalFileSystem, ProfileId, TargetId, Uri,
+        Content, FileSystem, FileType, ModuleId, PackageId, PhysicalFileSystem, ProfileId,
+        TargetId, Uri,
     };
     use indexmap::IndexMap;
 
@@ -410,7 +410,7 @@ mod tests {
                 key,
                 output.into(),
                 Vec::new(),
-                DiagnosticCollection::new(),
+                Vec::new(),
                 Vec::new(),
                 None,
             )
@@ -467,7 +467,7 @@ mod tests {
                 key,
                 output.into(),
                 Vec::new(),
-                DiagnosticCollection::new(),
+                Vec::new(),
                 Vec::new(),
                 None,
             )
@@ -622,7 +622,7 @@ mod tests {
                 key,
                 output.clone().into(),
                 first_dependencies,
-                DiagnosticCollection::new(),
+                Vec::new(),
                 Vec::new(),
                 None,
             )
@@ -657,7 +657,7 @@ mod tests {
                 key,
                 output.clone().into(),
                 second_dependencies,
-                DiagnosticCollection::new(),
+                Vec::new(),
                 Vec::new(),
                 None,
             )
@@ -729,7 +729,7 @@ mod tests {
                 key,
                 output.into(),
                 third_dependencies,
-                DiagnosticCollection::new(),
+                Vec::new(),
                 Vec::new(),
                 None,
             )
@@ -795,10 +795,12 @@ mod tests {
         let first_owner_dependencies = vec![ArtifactDependency::Source(
             SourceDependency::file_content(file, first_content),
         )];
-        let edges = IndexMap::from([(module, Arc::from([]))]);
-        let owner = ComponentGraph::from_edges(profile, edges.clone(), edges, Vec::new())
-            .expect("component graph should build");
-        let owner_key = ArtifactKey::component_graph(profile);
+        let owner = DirExported {
+            exports: destack_dir::ExportTable::new(module),
+            globals: destack_dir::GlobalTable::new(module),
+            locals: Vec::new(),
+        };
+        let owner_key = ArtifactKey::dir_exported(module, profile);
         let first_owner = ArtifactVersion::new(
             owner_key,
             repository.host().build_id(),
@@ -810,13 +812,12 @@ mod tests {
                 owner_key,
                 owner.clone().into(),
                 first_owner_dependencies,
-                DiagnosticCollection::new(),
+                Vec::new(),
                 Vec::new(),
                 None,
             )
             .expect("first component graph should publish");
-        let projection =
-            ArtifactProjection::new(owner_key, ArtifactProjectionKey::ReferenceComponent(module));
+        let projection = ArtifactProjection::new(owner_key, ArtifactProjectionKey::Content);
         let fingerprint = repository
             .artifact_table()
             .projection_fingerprint(&first_owner, &projection)
@@ -835,7 +836,7 @@ mod tests {
                 dependent_key,
                 GlobalEnvironment::default().into(),
                 vec![first_dependency],
-                DiagnosticCollection::new(),
+                Vec::new(),
                 Vec::new(),
                 None,
             )
@@ -866,7 +867,7 @@ mod tests {
                 owner_key,
                 owner.into(),
                 second_owner_dependencies,
-                DiagnosticCollection::new(),
+                Vec::new(),
                 Vec::new(),
                 None,
             )
@@ -945,7 +946,7 @@ mod tests {
                 key,
                 output.into(),
                 Vec::new(),
-                DiagnosticCollection::new(),
+                Vec::new(),
                 Vec::new(),
                 None,
             )

@@ -1,6 +1,8 @@
 use std::borrow::Cow;
 
-use destack_artifact::{DiagnosticAnchor, DiagnosticContext, DiagnosticError, ToDiagnostic};
+use destack_artifact::{
+    DiagnosticAnchor, DiagnosticContext, DiagnosticError, DiagnosticRecord, ToDiagnostic,
+};
 use destack_source::{Diagnostic, DiagnosticSeverity};
 
 use crate::Lint;
@@ -36,6 +38,16 @@ impl LinterDiagnostic {
     /// Set the severity.
     pub(crate) fn set_severity(&mut self, severity: Option<DiagnosticSeverity>) {
         self.severity = severity;
+    }
+}
+
+impl LinterDiagnostic {
+    /// Convert the lint diagnostic into a stored diagnostic record.
+    pub fn to_record(
+        &self,
+        context: &dyn DiagnosticContext,
+    ) -> Result<DiagnosticRecord, DiagnosticError> {
+        Ok(DiagnosticRecord::new(self.to_diagnostic(context)?))
     }
 }
 
