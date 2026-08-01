@@ -96,6 +96,7 @@ impl Parser {
         &mut self,
         function: FunctionContext,
     ) -> ParserResult<LocalNodeId<SwitchCase>> {
+        let documentation = self.parse_documentation();
         let decorators = if self.peek_is(TokenType::At) {
             self.parse_decorators(function)
         } else {
@@ -151,11 +152,10 @@ impl Parser {
             self.range_since(&body_start),
         );
 
-        // retain the case and its decorators
+        // attach case documentation and decorators
         let case = self.insert_node(SwitchCase { selector, body }, self.range_since(&start));
-        if !decorators.is_empty() {
-            self.attach_decorators(case.id, decorators);
-        }
+        self.attach_documentation(case, documentation);
+        self.attach_decorators(case.id, decorators);
 
         Ok(case)
     }

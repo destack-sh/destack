@@ -1248,7 +1248,7 @@ fn test_parse_root_import_named_binding_from_source() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::Import { target, items, .. } => {
         assert_import_target_string(&parser, *target, "a");
@@ -1263,7 +1263,7 @@ fn test_parse_root_import_default_and_namespace() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::Import { target, items, .. } => {
         assert_import_target_string(&parser, *target, "a");
@@ -1278,7 +1278,7 @@ fn test_parse_root_empty_type_import() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::Import { form, target, items, .. } => {
         assert_eq!(*form, DependencyForm::Type);
@@ -1293,7 +1293,7 @@ fn test_parse_root_export_named_binding_from_source() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::Export { target, items, .. } => {
         assert!(target.is_some());

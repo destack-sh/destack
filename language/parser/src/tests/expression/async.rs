@@ -54,7 +54,7 @@ fn test_parse_async_generic_false_positive() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 2);
 
     assert_node!(parser.tree, expressions[0], Expression::Binary { left, operator, right } => {

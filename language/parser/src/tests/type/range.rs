@@ -32,7 +32,7 @@ fn test_parse_half_open_range_type() {
             });
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -55,7 +55,7 @@ fn test_parse_inclusive_range_type() {
             });
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -108,7 +108,7 @@ type Full = ..
             });
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -132,7 +132,7 @@ type Other = Value
             });
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]

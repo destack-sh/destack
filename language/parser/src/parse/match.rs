@@ -83,6 +83,7 @@ impl Parser {
         &mut self,
         function: FunctionContext,
     ) -> ParserResult<LocalNodeId<MatchArm>> {
+        let documentation = self.parse_documentation();
         let decorators = if self.peek_is(TokenType::At) {
             self.parse_decorators(function)
         } else {
@@ -121,7 +122,7 @@ impl Parser {
         };
         let arm = self.insert_node(arm, self.range_since(&start));
 
-        // retain the optional guard clause and decorators
+        // retain the optional guard clause, documentation and decorators
         if let Some(guard) = guard {
             self.tree.set_side_range(
                 arm,
@@ -130,9 +131,9 @@ impl Parser {
             );
         }
 
-        if !decorators.is_empty() {
-            self.attach_decorators(arm.id, decorators);
-        }
+        self.attach_documentation(arm, documentation);
+        self.attach_decorators(arm.id, decorators);
+
         Ok(arm)
     }
 

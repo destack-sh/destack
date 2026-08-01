@@ -165,7 +165,7 @@ try {
 
     let _try_id = parser.parse_try(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -192,7 +192,7 @@ async function errorCase(): Promise<int32> {
 
     parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse branch tails as value expressions inside try branches.

@@ -16,7 +16,7 @@ fn test_parse_member_definite_field() {
     let mut parser = test.prepare();
 
     let member = parser.parse_member(Default::default()).unwrap();
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), is_definite, .. } => {
         assert_string!(parser, *name, "prop");
@@ -31,7 +31,7 @@ fn test_parse_member_definite_accessor() {
     let mut parser = test.prepare();
 
     let member = parser.parse_member(Default::default()).unwrap();
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), is_accessor, is_definite, .. } => {
         assert_string!(parser, *name, "a");
@@ -198,7 +198,7 @@ fn test_parse_member_method_parameter_type_then_default_value() {
     });
 
     // this signature parses without recovery diagnostics
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -498,7 +498,7 @@ foo(): string;"#,
         assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value: TypeLiteral::String });
     });
     assert_eq!(parser.peek_token_type(), TokenType::Semicolon);
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -587,7 +587,7 @@ fn test_parse_member_type_keyword_as_field_key() {
         assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -611,7 +611,7 @@ comptime: number"#,
         assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -677,7 +677,7 @@ override comptime const Rows: number = 4
         });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -732,7 +732,7 @@ fn test_parse_properties_recover_unkeyed_value_field() {
     let mut parser = test.prepare();
     let properties = parser.parse_object_properties(Default::default()).unwrap();
 
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(
             Some(NodeType::Property),
@@ -757,7 +757,7 @@ fn test_parse_properties_recover_unkeyed_default_field() {
     let mut parser = test.prepare();
     let properties = parser.parse_object_properties(Default::default()).unwrap();
 
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(
             Some(NodeType::Property),
@@ -1182,7 +1182,7 @@ fn test_parse_member_associated_comptime_const_type_relation_default() {
         });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]

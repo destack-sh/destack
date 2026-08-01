@@ -526,6 +526,7 @@ impl Parser {
         };
 
         if can_start_default_item {
+            let documentation = self.parse_documentation();
             let start = self.mark_parse_start();
             let (alias, alias_range) = self.eat_identifier_with_range()?;
 
@@ -547,11 +548,13 @@ impl Parser {
             };
             let item_id = self.insert_node(item, self.range_since(&start));
             self.tree.set_main_range(item_id, alias_range);
+            self.attach_documentation(item_id, documentation);
             items.push(item_id);
         }
 
         // `* as foo` (can follow a default import)
         if self.peek_is(TokenType::Multiply) && self.peek_next_keyword() == Some(Keyword::As) {
+            let documentation = self.parse_documentation();
             let start = self.mark_parse_start();
             self.bump();
             self.bump();
@@ -569,6 +572,7 @@ impl Parser {
             };
             let item_id = self.insert_node(item, self.range_since(&start));
             self.tree.set_main_range(item_id, alias_range);
+            self.attach_documentation(item_id, documentation);
             items.push(item_id);
         }
 
@@ -578,6 +582,7 @@ impl Parser {
 
             while !self.peek_is(TokenType::CloseBrace) {
                 let item_start = self.mark_parse_start();
+                let documentation = self.parse_documentation();
                 let decorators = self.parse_decorators(function);
 
                 let item =
@@ -593,6 +598,9 @@ impl Parser {
                             self.insert_node(DependencyItem::Error, self.range_since(&item_start))
                         }
                     };
+                if !matches!(self.tree.get(item), DependencyItem::Error) {
+                    self.attach_documentation(item, documentation);
+                }
                 self.attach_decorators(item.id, decorators);
 
                 items.push(item);

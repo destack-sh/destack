@@ -270,7 +270,7 @@ fn test_parse_fixed_array_literal_recovers_missing_value() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, ";")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, ";")]);
     assert_node!(parser.tree, expression_id, Expression::FixedArrayExpression { value, length } => {
         assert_node!(parser.tree, *value, Expression::Missing);
         assert_node!(parser.tree, *length, Expression::ScalarLiteral(ScalarLiteral::Integer(32)));
@@ -284,7 +284,7 @@ fn test_parse_fixed_array_literal_recovers_missing_length() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "]")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "]")]);
     assert_node!(parser.tree, expression_id, Expression::FixedArrayExpression { value, length } => {
         assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
         assert_node!(parser.tree, *length, Expression::Missing);
@@ -298,7 +298,7 @@ fn test_parse_fixed_array_literal_recovers_missing_close_bracket() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(
             Some(NodeType::Expression),
@@ -472,7 +472,7 @@ fn test_parse_struct_literal_path() {
         }
     );
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse an inferred struct literal as a typed value hole.
@@ -499,7 +499,7 @@ fn test_parse_struct_literal_infer_hole() {
         }
     );
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse a struct literal with generic parameters and two fields.
@@ -534,7 +534,7 @@ geom.Mesh<2, 4> {
         }
     );
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse boolean identifier-name property keys and accessors.

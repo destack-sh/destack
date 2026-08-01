@@ -16,7 +16,7 @@ fn test_reject_match_arm_placeholder_in_destack_grammar() {
     let mut parser = test.prepare();
     parser.parse();
 
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[
             (
@@ -37,7 +37,7 @@ fn test_parse_pattern_branch_placeholders() {
     let mut parser = test.prepare_pattern();
     let roots = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_node!(parser.tree, roots[0], Expression::Match { arms, .. } => {
         assert_eq!(arms.len(), 1);
         assert_node!(parser.tree, arms[0], MatchArm::Expression { pattern, body, .. } => {
@@ -50,7 +50,7 @@ fn test_parse_pattern_branch_placeholders() {
     let mut parser = test.prepare_pattern();
     let roots = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_node!(parser.tree, roots[0], Expression::Switch { cases, .. } => {
         assert_eq!(cases.len(), 1);
         assert_node!(parser.tree, cases[0], SwitchCase {
@@ -138,7 +138,7 @@ match (shape) {
     let mut parser = test.prepare();
     let match_id = parser.parse_match(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, match_id, Expression::Match { arms, .. } => {
         assert_eq!(arms.len(), 2);
@@ -654,7 +654,7 @@ fn test_parse_switch_case_body_recovers_at_eof() {
         });
     });
 
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(
             Some(NodeType::SwitchCase),

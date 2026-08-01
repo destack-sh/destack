@@ -80,7 +80,7 @@ fn test_parse_parameter_missing_type_expression() {
     let parameter_id = parser.parse_parameter(Default::default()).unwrap();
 
     // diagnostics
-    TestParser::assert_errors(&parser, &[(Some(NodeType::Parameter), None, None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Parameter), None, None, "")]);
 
     // x:
     assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type: Some(declared_type), default: None, .. } => {
@@ -451,7 +451,7 @@ fn test_parse_generic_parameters_default_before_shifted_close() {
         .parse_generic_parameter_list(true, Default::default())
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_eq!(generic_parameters.len(), 2);
     assert_node!(parser.tree, generic_parameters[1], GenericParameter::Type { default: Some(default), .. } => {
@@ -493,7 +493,7 @@ fn test_parse_generic_parameters_missing_close_angle() {
         .unwrap();
 
     // diagnostics
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(
             Some(NodeType::Expression),
@@ -520,7 +520,7 @@ fn test_parse_generic_arguments_missing_close_angle_in_type_context() {
         .unwrap();
 
     // diagnostics
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(
             Some(NodeType::Expression),
@@ -549,7 +549,7 @@ fn test_parse_generic_arguments_explicit_type_argument() {
         .parse_generic_argument_list(Default::default())
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_eq!(arguments.len(), 1);
     assert_node!(parser.tree, arguments[0], GenericArgument::Type { value } => {
@@ -568,7 +568,7 @@ fn test_parse_generic_arguments_object_shape_prefers_type_in_type_context() {
         .parse_type_generic_arguments(Default::default())
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(arguments.len(), 1);
     assert_node!(parser.tree, arguments[0], GenericArgument::Type { value } => {
         assert_node!(parser.tree, *value, TypeExpression::Object { members } => {
@@ -599,7 +599,7 @@ fn test_parse_generic_arguments_empty_in_type_context_recovers_error_slot() {
         .unwrap();
 
     // diagnostics
-    TestParser::assert_errors(&parser, &[(None, None, Some(TokenType::Identifier), "<")]);
+    test.assert_errors(&parser, &[(None, None, Some(TokenType::Identifier), "<")]);
 
     // <>
     assert_eq!(arguments.len(), 1);
@@ -663,7 +663,7 @@ fn test_parse_spread_type_generic_argument() {
         .parse_type_generic_arguments(Default::default())
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_eq!(arguments.len(), 1);
     assert_node!(parser.tree, arguments[0], GenericArgument::SpreadType { value } => {
@@ -683,7 +683,7 @@ fn test_parse_spread_value_generic_argument() {
         .parse_generic_argument_list(Default::default())
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_eq!(arguments.len(), 1);
     assert_node!(parser.tree, arguments[0], GenericArgument::SpreadValue { value } => {
@@ -708,7 +708,7 @@ fn test_parse_variadic_type_generic_parameter() {
         .parse_generic_parameter_list(true, Default::default())
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_eq!(parameters.len(), 2);
     assert_node!(parser.tree, parameters[0], GenericParameter::VariadicType { name, constraint, default, .. } => {
@@ -732,7 +732,7 @@ fn test_parse_variadic_value_generic_parameter() {
         .parse_generic_parameter_list(true, Default::default())
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_eq!(parameters.len(), 1);
     assert_node!(parser.tree, parameters[0], GenericParameter::VariadicValue { name, declared_type, default, is_comptime } => {
@@ -804,7 +804,7 @@ class Test {
     let expressions = parser.parse();
 
     assert_eq!(expressions.len(), 1);
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // class Test { ... }
     let expression_id = parser.unwrap_label_expression(expressions[0]);
@@ -899,7 +899,7 @@ class Test {
     let expressions = parser.parse();
 
     assert_eq!(expressions.len(), 1);
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -1103,7 +1103,7 @@ fn test_parse_dynamic_parameters_recover_error_slot() {
     let parameters = parser.parse_dynamic_parameters(Default::default()).unwrap();
 
     // diagnostics
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(
             Some(NodeType::Parameter),
@@ -1132,7 +1132,7 @@ fn test_parse_dynamic_arguments_recover_error_slot() {
     let arguments = parser.parse_argument_list(Default::default()).unwrap();
 
     // diagnostics
-    TestParser::assert_errors(&parser, &[(None, Some(TokenType::Comma), None, ",")]);
+    test.assert_errors(&parser, &[(None, Some(TokenType::Comma), None, ",")]);
 
     // (1, , 3)
     assert_eq!(arguments.len(), 3);
@@ -1154,7 +1154,7 @@ fn test_parse_dynamic_arguments_recover_missing_close_before_next_statement() {
     let arguments = parser.parse_argument_list(Default::default()).unwrap();
 
     // diagnostics
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(
             Some(NodeType::Expression),
@@ -1192,7 +1192,7 @@ fn test_parse_dynamic_arguments_recover_trailing_spread_error_slot() {
     let arguments = parser.parse_argument_list(Default::default()).unwrap();
 
     // diagnostics
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(None, Some(TokenType::CloseParenthesis), None, ")")],
     );
@@ -1214,7 +1214,7 @@ fn test_parse_dynamic_arguments_recover_missing_close_before_semicolon() {
     let arguments = parser.parse_argument_list(Default::default()).unwrap();
 
     // diagnostics
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(
             Some(NodeType::Expression),
@@ -1252,7 +1252,7 @@ fn test_parse_dynamic_arguments_recover_leading_empty_slots() {
     let arguments = parser.parse_argument_list(Default::default()).unwrap();
 
     // diagnostics
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[
             (None, Some(TokenType::Comma), None, ","),
@@ -1276,7 +1276,7 @@ fn test_parse_malformed_call_statement_missing_close_keeps_call_shape() {
     let expressions = parser.parse();
 
     // diagnostics
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(
             Some(NodeType::Expression),
@@ -1301,7 +1301,7 @@ fn test_parse_malformed_call_statement_before_const_keeps_call_shape() {
     let expressions = parser.parse();
 
     // diagnostics
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[
             (
@@ -1335,7 +1335,7 @@ fn test_parse_malformed_call_statement_with_leading_empty_slots_keeps_call_shape
     let expressions = parser.parse();
 
     // diagnostics
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[
             (None, Some(TokenType::Comma), None, ","),
@@ -1360,7 +1360,7 @@ fn test_parse_malformed_call_statement_with_trailing_spread_keeps_call_shape() {
     let expressions = parser.parse();
 
     // diagnostics
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(None, Some(TokenType::CloseParenthesis), None, ")")],
     );
@@ -1385,7 +1385,7 @@ foo (,,b);
     let expressions = parser.parse();
 
     // diagnostics
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[
             (
@@ -1434,7 +1434,7 @@ foo (a, ...);
     let expressions = parser.parse();
 
     // diagnostics
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[
             (
@@ -1482,7 +1482,7 @@ bar();
     let expressions = parser.parse();
 
     // diagnostics
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[
             (None, Some(TokenType::Comma), None, ","),
@@ -1522,7 +1522,7 @@ const value = 1;
     let expressions = parser.parse();
 
     // diagnostics
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[
             (None, Some(TokenType::Comma), None, ","),

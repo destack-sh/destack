@@ -700,7 +700,7 @@ fn test_recover_tree_attribute_missing_value() {
     let mut parser = test.prepare();
     let expression = parser.parse_tree_literal(Default::default()).unwrap();
 
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(
             Some(NodeType::TreeAttribute),
@@ -727,7 +727,7 @@ fn test_recover_tree_spread_attribute_missing_value() {
     let mut parser = test.prepare();
     let expression = parser.parse_tree_literal(Default::default()).unwrap();
 
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(
             Some(NodeType::TreeAttribute),
@@ -753,7 +753,7 @@ fn test_recover_tree_expression_child() {
     let mut parser = test.prepare();
     let expression = parser.parse_tree_literal(Default::default()).unwrap();
 
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(Some(NodeType::TreeChild), Some(TokenType::Comma), None, ",")],
     );
@@ -774,7 +774,7 @@ fn test_recover_unterminated_tree_expression_child() {
     let mut parser = test.prepare();
     let expression = parser.parse_tree_literal(Default::default()).unwrap();
 
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[
             (Some(NodeType::Expression), None, None, ";"),
@@ -800,7 +800,7 @@ fn test_recover_tree_ancestor_closing_tag() {
     let mut parser = test.prepare();
     let expression = parser.parse_tree_literal(Default::default()).unwrap();
 
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(Some(NodeType::Expression), None, None, "</Panel>")],
     );
@@ -823,7 +823,7 @@ fn test_recover_tree_opening_at_ancestor_closing_tag() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[
             (
@@ -852,7 +852,7 @@ fn test_recover_tree_mismatched_closing_tag() {
     let mut parser = test.prepare();
     let expression = parser.parse_tree_literal(Default::default()).unwrap();
 
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(Some(NodeType::TreeChild), None, None, "</Other>")],
     );
@@ -873,7 +873,7 @@ fn test_recover_tree_closing_tag_at_eof() {
     let mut parser = test.prepare();
     let expression = parser.parse_tree_literal(Default::default()).unwrap();
 
-    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
     assert_node!(parser.tree, expression, Expression::TreeExpression { children: Some(children), .. } => {
         assert_eq!(children.len(), 1);
         assert_node!(parser.tree, children[0], TreeChild::Tree { value } => {
@@ -1999,7 +1999,7 @@ fn test_parse_tree_fragment_text_with_equals_prefix() {
     let test = TestParser::new(r#"<>=x</>"#);
     let mut parser = test.prepare();
     let expression = parser.parse_tree_literal(Default::default()).unwrap();
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression, Expression::TreeExpression { children, .. } => {
         let children = children.as_ref().expect("expected children");
@@ -2021,7 +2021,7 @@ fn test_parse_nested_tree_fragment_text_with_equals_prefix() {
     let test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::TreeExpression { left, children, .. } => {
@@ -2049,7 +2049,7 @@ fn test_parse_tree_fragment_followed_by_greater_than_or_equal() {
     let test = TestParser::new(r#"<>x</>>=1"#);
     let mut parser = test.prepare();
     let expression = parser.parse_expression(Default::default()).unwrap();
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression, Expression::Binary { left, operator, right } => {
         assert_eq!(*operator, BinaryOperator::GreaterThanOrEqual);
@@ -2064,7 +2064,7 @@ fn test_parse_tree_element_followed_by_greater_than_or_equal() {
     let test = TestParser::new(r#"<span>x</span>>=1"#);
     let mut parser = test.prepare();
     let expression = parser.parse_expression(Default::default()).unwrap();
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression, Expression::Binary { left, operator, right } => {
         assert_eq!(*operator, BinaryOperator::GreaterThanOrEqual);
@@ -2085,7 +2085,7 @@ fn test_parse_tree_text_and_greater_than_or_equal_sequence() {
     let test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_eq!(expressions.len(), 4);
     assert_node!(
@@ -2388,7 +2388,7 @@ function x() {
     let test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -2414,7 +2414,7 @@ class Foo {}
     let test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // ensure fragments after classes parse with multiple children
     assert_eq!(expressions.len(), 2);
@@ -2460,7 +2460,7 @@ class Foo {}
     let test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_eq!(expressions.len(), 13);
     assert_node!(parser.tree, expressions[0], Expression::Let { .. });

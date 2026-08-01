@@ -46,7 +46,7 @@ fn test_parse_shared_enum_declaration() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -64,7 +64,7 @@ fn test_parse_local_const_enum_declaration() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -91,7 +91,7 @@ enum A;
     assert_eq!(expressions.len(), 2);
     assert_node!(parser.tree, expressions[0], Expression::Error);
     assert_node!(parser.tree, expressions[1], Expression::Error);
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[
             (

@@ -32,7 +32,7 @@ fn test_parse_local_newtype_declaration() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -274,7 +274,7 @@ fn test_parse_type_alias_parenthesized_missing_close_parenthesis() {
         })
         .unwrap();
 
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(
             Some(NodeType::TypeExpression),
@@ -377,7 +377,7 @@ fn test_parse_borrowed_reference_type_chain_compact() {
         });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse readonly borrowed reference types in a type alias.

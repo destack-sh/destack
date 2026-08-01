@@ -231,6 +231,7 @@ impl Parser {
             _ => return Err(ParserError::unexpected(self.peek_token_span())),
         };
 
+        // attach decorators to the exact declaration owner
         let owner = match self.tree.get(expression) {
             Expression::Declaration(declaration) => declaration.id,
             _ => expression.id,

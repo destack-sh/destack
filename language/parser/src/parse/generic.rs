@@ -221,6 +221,7 @@ impl Parser {
         &mut self,
         function: FunctionContext,
     ) -> ParserResult<LocalNodeId<GenericParameter>> {
+        let documentation = self.parse_documentation();
         let start = self.mark_parse_start();
         let parameter_context = ParameterContext {
             function,
@@ -283,6 +284,7 @@ impl Parser {
             self.bump();
             let parameter_id = self.insert_node(GenericParameter::Lifetime { name }, range);
             self.tree.set_main_range(parameter_id, range);
+            self.attach_documentation(parameter_id, documentation);
 
             return Ok(parameter_id);
         }
@@ -398,6 +400,7 @@ impl Parser {
                 range,
             );
         }
+        self.attach_documentation(parameter_id, documentation);
 
         Ok(parameter_id)
     }
@@ -590,7 +593,8 @@ impl Parser {
                 break;
             }
 
-            // eat one argument
+            // parse one argument
+            let documentation = self.parse_documentation();
             let argument_start = self.mark_parse_start();
             let mut is_recovered_argument = false;
             let argument_id = match self.parse_generic_argument(context, &argument_start) {
@@ -607,6 +611,9 @@ impl Parser {
                 }
             };
             self.set_node_leading_range(argument_id, next_argument_leading_start);
+            if !matches!(self.tree.get(argument_id), GenericArgument::Error) {
+                self.attach_documentation(argument_id, documentation);
+            }
 
             arguments.push(argument_id);
 

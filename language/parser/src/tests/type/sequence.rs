@@ -13,7 +13,7 @@ fn test_parse_pattern_tuple_element_placeholder() {
     let mut parser = test.prepare_pattern();
     let roots = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_node!(parser.tree, roots[0], Expression::Declaration(value) => {
         assert_node!(parser.tree, *value, Declaration::Type(declaration) => {
             assert_node!(parser.tree, declaration.value, TypeExpression::Tuple { elements, .. } => {
@@ -29,7 +29,7 @@ fn test_parse_array_tuple_type() {
     let mut parser = test.prepare();
     let ty = parser.parse_type(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_node!(parser.tree, ty, TypeExpression::Tuple { form, elements } => {
         assert_eq!(*form, TupleForm::Array);
         assert_eq!(elements.len(), 2);
@@ -42,7 +42,7 @@ fn test_parse_singleton_array_tuple_type() {
     let mut parser = test.prepare();
     let ty = parser.parse_type(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_node!(parser.tree, ty, TypeExpression::Tuple { form, elements } => {
         assert_eq!(*form, TupleForm::Array);
         assert_eq!(elements.len(), 1);
@@ -55,7 +55,7 @@ fn test_parse_empty_array_tuple_type() {
     let mut parser = test.prepare();
     let ty = parser.parse_type(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_node!(parser.tree, ty, TypeExpression::Tuple { form, elements } => {
         assert_eq!(*form, TupleForm::Array);
         assert!(elements.is_empty());
@@ -205,7 +205,7 @@ fn test_parse_fixed_array_type_recovers_missing_length_expression() {
             });
         });
     });
-    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "]")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "]")]);
 }
 
 #[test]
@@ -283,7 +283,7 @@ fn test_parse_labeled_tuple_type_with_spread_payload() {
         })
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // type T = (keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES")
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -544,7 +544,7 @@ fn test_record_labeled_tuple_main_spans() {
         })
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // read both regular and spread tuple labels
     assert_node!(parser.tree, expression, Expression::Declaration(declaration) => {
@@ -598,7 +598,7 @@ fn test_recover_slice_type_missing_close_bracket() {
         })
         .unwrap();
 
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(
             Some(NodeType::TypeExpression),
@@ -631,7 +631,7 @@ fn test_parse_tuple_type_missing_first_element() {
         })
         .unwrap();
 
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(Some(NodeType::TypeExpression), None, None, ",")],
     );

@@ -54,6 +54,8 @@ impl Parser {
         &mut self,
         context: ExpressionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
+        let documentation = self.parse_documentation();
+
         // parse decorators only at their owning expression level
         let decorators =
             if context.decorator == DecoratorContext::None && self.peek_is(TokenType::At) {
@@ -70,13 +72,22 @@ impl Parser {
         };
         let expression = self.parse_expression_tail_after_descent(first, context)?;
 
-        // attach decorators to declarations rather than their expression wrappers
-        if let Some(decorators) = decorators {
-            let owner = match self.tree.get(expression) {
-                Expression::Declaration(declaration) => declaration.id,
-                _ => expression.id,
-            };
-            self.attach_decorators(owner, decorators);
+        // attach documentation and decorators to the complete expression owner
+        match self.tree.get(expression) {
+            Expression::Declaration(declaration) => {
+                let declaration = *declaration;
+                self.attach_documentation(declaration, documentation);
+                if let Some(decorators) = decorators {
+                    self.attach_decorators(declaration.id, decorators);
+                }
+            }
+            Expression::Missing | Expression::Error => {}
+            _ => {
+                self.attach_documentation(expression, documentation);
+                if let Some(decorators) = decorators {
+                    self.attach_decorators(expression.id, decorators);
+                }
+            }
         }
 
         Ok(expression)

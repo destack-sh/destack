@@ -106,7 +106,7 @@ fn test_parse_local_class_declaration() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -123,7 +123,7 @@ fn test_parse_exported_local_class_declaration() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -141,7 +141,7 @@ fn test_parse_export_default_local_class_declaration() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -159,7 +159,7 @@ fn test_parse_shared_struct_declaration() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -185,7 +185,7 @@ fn test_parse_struct_comptime_forms() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -322,7 +322,7 @@ fn test_parse_class_member_method_parameter_type_then_default_value() {
     });
 
     // this class parses without recovery diagnostics
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -352,7 +352,7 @@ fn test_parse_class_superclass_boundary_comment_on_super_type() {
     assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "extends-tail");
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -634,7 +634,7 @@ fn test_parse_struct_negative_implements_type() {
         )
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, struct_id, Declaration::Struct(StructDeclaration { implements_types, .. }) => {
         assert_eq!(implements_types.len(), 1);

@@ -74,7 +74,7 @@ fn test_parse_parenthesized_unary_exponent_operands() {
     let test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_eq!(expressions.len(), 6);
     for expression in expressions {
@@ -232,7 +232,7 @@ fn test_parse_reference_chain_compact() {
         });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse a reference to a member call.
@@ -294,7 +294,7 @@ fn test_recover_delete_expression() {
 
     let expressions = parser.parse();
 
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(
             Some(NodeType::Expression),

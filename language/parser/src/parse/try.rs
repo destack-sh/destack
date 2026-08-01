@@ -72,6 +72,7 @@ impl Parser {
             return Ok(None);
         }
 
+        let documentation = self.parse_documentation();
         let start = self.mark_parse_start();
         self.bump();
 
@@ -86,6 +87,7 @@ impl Parser {
                 },
                 self.range_since(&start),
             );
+            self.attach_documentation(catch, documentation);
 
             return Ok(Some(catch));
         }
@@ -128,6 +130,7 @@ impl Parser {
             },
             self.range_since(&start),
         );
+        self.attach_documentation(catch, documentation);
 
         Ok(Some(catch))
     }

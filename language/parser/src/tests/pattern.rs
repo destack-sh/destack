@@ -49,7 +49,7 @@ fn test_parse_deeply_nested_tuple_pattern() {
     let mut parser = test.prepare();
     let pattern_id = parser.parse_pattern(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields } => {
         assert_eq!(fields.len(), 1);
     });
@@ -132,7 +132,7 @@ fn test_parse_pattern_reference_chain_compact() {
         });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -172,7 +172,7 @@ fn test_parse_pattern_dereference_binding() {
             assert_string!(parser, *name, "value");
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -184,7 +184,7 @@ fn test_parse_pattern_dereference_wildcard() {
     assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
         assert_node!(parser.tree, *right, Pattern::Wildcard);
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -198,7 +198,7 @@ fn test_parse_pattern_dereference_literal() {
             assert_integer_expression(&parser.tree, *value, 42);
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -214,7 +214,7 @@ fn test_parse_pattern_dereference_range() {
             assert_integer_expression(&parser.tree, *end, 10);
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -238,7 +238,7 @@ fn test_parse_pattern_dereference_tuple() {
             });
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -262,7 +262,7 @@ fn test_parse_pattern_dereference_sequence() {
             });
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -282,7 +282,7 @@ fn test_parse_pattern_dereference_object() {
             });
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -304,7 +304,7 @@ fn test_parse_pattern_dereference_tagged_tuple() {
             });
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -327,7 +327,7 @@ fn test_parse_pattern_dereference_tagged_object() {
             });
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -344,7 +344,7 @@ fn test_parse_pattern_dereference_before_borrow() {
             });
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -361,7 +361,7 @@ fn test_parse_pattern_dereference_before_move() {
             });
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -395,7 +395,7 @@ fn test_parse_pattern_range_half_open() {
         assert_integer_expression(&parser.tree, *start, 0);
         assert_integer_expression(&parser.tree, *end, 10);
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -409,7 +409,7 @@ fn test_parse_pattern_range_inclusive() {
         assert_integer_expression(&parser.tree, *start, 0);
         assert_integer_expression(&parser.tree, *end, 10);
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -422,7 +422,7 @@ fn test_parse_pattern_range_open_ended() {
         assert_eq!(*end_kind, RangeEnd::Open);
         assert_integer_expression(&parser.tree, *start, 0);
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -435,7 +435,7 @@ fn test_parse_pattern_range_startless() {
         assert_eq!(*end_kind, RangeEnd::Open);
         assert_integer_expression(&parser.tree, *end, 10);
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -448,7 +448,7 @@ fn test_parse_pattern_range_startless_inclusive() {
         assert_eq!(*end_kind, RangeEnd::Inclusive);
         assert_integer_expression(&parser.tree, *end, 10);
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -466,7 +466,7 @@ fn test_parse_pattern_range_identifier_bounds() {
             assert_string!(parser, *name, "MAX");
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -480,7 +480,7 @@ fn test_parse_pattern_range_path_bounds() {
         assert_expression_path!(parser, parser.tree.get(*start), "Limits.Min");
         assert_expression_path!(parser, parser.tree.get(*end), "Limits.Max");
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -502,7 +502,7 @@ fn test_parse_pattern_range_union() {
             assert_integer_expression(&parser.tree, *end, 30);
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -995,7 +995,7 @@ fn test_parse_pattern_unbound_middle_rest() {
         });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse a rest field with a sequence pattern.

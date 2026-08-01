@@ -41,7 +41,7 @@ fn test_parse_constrained_generic_arrow_before_tree() {
         });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -49,7 +49,7 @@ fn test_parse_parenthesized_tree_callback_body() {
     let test = TestParser::new("items.map((item) => (<option>{item}</option>))");
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "items.map");
@@ -108,7 +108,7 @@ fn test_recover_generic_arrow_without_tree_disambiguator() {
     let mut parser = test.prepare();
     let expression = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), children: Some(children), .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "R");
         assert_eq!(children.len(), 2);
@@ -130,7 +130,7 @@ fn test_recover_generic_arrow_constraint_member() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_errors(&parser, &[(Some(NodeType::TypeMember), None, None, ";")]);
+    test.assert_errors(&parser, &[(Some(NodeType::TypeMember), None, None, ";")]);
     assert_eq!(expressions.len(), 2);
     assert_node!(parser.tree, expressions[1], Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
@@ -156,7 +156,7 @@ fn test_parse_generic_arrow_with_trailing_comma() {
             });
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -177,7 +177,7 @@ fn test_parse_generic_arrow_with_extends_disambiguator() {
             });
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -198,7 +198,7 @@ fn test_parse_generic_arrow_with_default_disambiguator() {
             });
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse a trailing comma as a generic arrow tree disambiguator.
@@ -233,7 +233,7 @@ fn test_parse_generic_arrow_with_trailing_comma_disambiguator() {
         });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -345,7 +345,7 @@ fn test_parse_tree_attribute_fixed_array_expression_value() {
     let test = TestParser::new("<Buffer data={[0; count]} />");
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { attributes, .. } => {
         let attributes = attributes.as_ref().expect("expected tree attributes");
@@ -368,7 +368,7 @@ fn test_parse_tree_attribute_fixed_array_expression_value_recovers_missing_lengt
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "]")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "]")]);
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { attributes, .. } => {
         let attributes = attributes.as_ref().expect("expected tree attributes");
         assert_eq!(attributes.len(), 2);
@@ -519,7 +519,7 @@ fn test_parse_tree_text_after_comment_expression_container() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { left: Some(left), children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "test");

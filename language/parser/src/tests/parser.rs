@@ -1,5 +1,5 @@
 use destack_dir::{
-    AssignPattern, Block, Expression, LocalNodeId, NodeType, TokenLiteral, TokenType,
+    AssignPattern, Block, Expression, LocalNodeId, Node, NodeType, TokenLiteral, TokenType,
     TypeExpression, normalize_comment_payload,
 };
 use std::sync::Arc;
@@ -69,8 +69,19 @@ impl TestParser {
         )
     }
 
+    /// Parse one complete source file without parser errors.
+    pub(crate) fn parse(&self) -> (Parser, Vec<LocalNodeId<Expression>>) {
+        let mut parser = self.prepare();
+        let roots = parser.parse();
+
+        self.assert_no_errors(&parser);
+
+        (parser, roots)
+    }
+
     /// Assert parser errors by node type, actual token, expected token, and source text.
     pub(crate) fn assert_errors(
+        &self,
         parser: &Parser,
         expected_errors: &[(Option<NodeType>, Option<TokenType>, Option<TokenType>, &str)],
     ) {
@@ -97,8 +108,20 @@ impl TestParser {
     }
 
     /// Assert that the parser produced no diagnostics.
-    pub(crate) fn assert_no_errors(parser: &Parser) {
+    pub(crate) fn assert_no_errors(&self, parser: &Parser) {
         assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+    }
+
+    /// Return normalized documentation attached to one parsed node.
+    pub(crate) fn documentation<'a, T: Node>(
+        &self,
+        parser: &'a Parser,
+        node_id: LocalNodeId<T>,
+    ) -> Option<&'a str> {
+        parser
+            .tree
+            .get_documentation(node_id.id)
+            .map(|documentation| parser.strings.get(documentation.text))
     }
 }
 
@@ -159,7 +182,7 @@ fn test_take_tokens_materializes_splits() {
             (TokenType::End, ""),
         ]
     );
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Materialize one contextually reclassified regex token after parsing.
@@ -189,7 +212,7 @@ fn test_take_tokens_materializes_regex() {
             (TokenType::End, None, ""),
         ]
     );
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Materialize contextually tokenized tree names and text after parsing.
@@ -235,7 +258,7 @@ fn test_take_tokens_materializes_tree() {
             (TokenType::End, None, ""),
         ]
     );
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Return EOF for lookahead offsets beyond the physical end of source.

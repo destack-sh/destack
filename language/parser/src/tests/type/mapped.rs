@@ -259,7 +259,7 @@ fn test_parse_type_mapped_expression_without_value_type_with_character_keys() {
     let expressions = parser.parse();
 
     assert_eq!(expressions.len(), 2);
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_node!(parser.tree, expressions[1], Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { readonly, optional, value, .. } => {
@@ -282,7 +282,7 @@ fn test_parse_type_mapped_expression_without_value_type() {
         })
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // type A = { [K in "a" | "b"] }
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
@@ -309,7 +309,7 @@ fn test_parse_type_mapped_expression_without_value_type_with_modifiers() {
     let expressions = parser.parse();
 
     assert_eq!(expressions.len(), 2);
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -390,7 +390,7 @@ fn test_parse_type_mapped_expression_with_parenthesized_conditional_generic_valu
             ..ExpressionContext::default()
         })
         .unwrap();
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -472,7 +472,7 @@ fn test_parse_type_mapped_expression_with_conditional_infer_constraint() {
         })
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // type T = { [P in infer U extends keyof Source ? 1 : 0]: Value }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {

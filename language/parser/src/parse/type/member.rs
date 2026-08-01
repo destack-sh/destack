@@ -3,12 +3,10 @@ use destack_dir::{
 };
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
-use super::super::Decorators;
 use crate::parse::context::{ExpressionContext, FunctionContext, ParameterSpace, TypeContext};
 use crate::parse::member::{Method, MethodContext, MethodRoleGrammar};
 use crate::parse::{BindingModifiers, RecoveryPoint};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
-use std::mem;
 
 /// The kind of type member container being parsed.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -701,7 +699,6 @@ impl Parser {
         function: FunctionContext,
     ) -> ParserResult<Vec<LocalNodeId<TypeMember>>> {
         let mut members: Vec<LocalNodeId<TypeMember>> = Vec::new();
-        let mut pending_member_decorators = Decorators::new();
         let mut previous_member_had_error = false;
         let recovery_point = RecoveryPoint::TypeMemberDeclaration(container_kind);
 
@@ -710,21 +707,7 @@ impl Parser {
 
             // close the member list
             if matches!(token_type, TokenType::CloseBrace | TokenType::End) {
-                if !pending_member_decorators.is_empty() {
-                    let error = ParserError::unexpected(self.peek_token_span());
-                    self.report_error(error);
-                    pending_member_decorators.clear();
-                }
-
                 break;
-            }
-            // collect decorators for the next member
-            else if token_type == TokenType::At {
-                let decorators = self.parse_decorators(function);
-                pending_member_decorators.extend(decorators);
-                previous_member_had_error = false;
-
-                continue;
             }
             // skip item separators
             else if token_type == TokenType::Comma {
@@ -756,14 +739,32 @@ impl Parser {
                 break;
             }
 
+            // parse documentation, decorators and one member
+            let documentation = self.parse_documentation();
+            let decorators = self.parse_decorators(function);
+
+            // reject decorator prefixes without an owner
+            if !decorators.is_empty()
+                && matches!(
+                    self.peek_token_type(),
+                    TokenType::CloseBrace | TokenType::End
+                )
+            {
+                let error = ParserError::unexpected(self.peek_token_span());
+                self.report_error(error);
+
+                break;
+            }
+
             let error_count = self.errors.len();
             let member_id = self.parse_type_member_or_recover(container_kind, function);
             previous_member_had_error = self.errors.len() > error_count
                 || matches!(self.tree.get(member_id), TypeMember::Error);
 
-            if !pending_member_decorators.is_empty() {
-                self.attach_decorators(member_id.id, mem::take(&mut pending_member_decorators));
+            if !matches!(self.tree.get(member_id), TypeMember::Error) {
+                self.attach_documentation(member_id, documentation);
             }
+            self.attach_decorators(member_id.id, decorators);
 
             members.push(member_id);
         }

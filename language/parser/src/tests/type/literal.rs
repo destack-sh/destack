@@ -630,7 +630,7 @@ fn test_parse_typeof_query_with_readonly_identifier() {
         })
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // type T = typeof readonly
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -654,7 +654,7 @@ fn test_parse_typeof_query_with_type_identifier() {
         })
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // type T = typeof type
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -678,7 +678,7 @@ fn test_parse_typeof_query_with_instantiation() {
         })
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // type A<U> = InstanceType<typeof Array<U>>
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -713,7 +713,7 @@ fn test_parse_typeof_query_instantiation_in_generic_argument() {
         })
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // type T = Callback<typeof something<Type1, Type2>>
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -749,7 +749,7 @@ fn test_parse_typeof_query_with_member_instantiation() {
         })
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // type T<U> = typeof namespace.Factory<U>
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -781,7 +781,7 @@ fn test_parse_typeof_query_missing_operand() {
         })
         .unwrap();
 
-    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // type T = typeof
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -805,7 +805,7 @@ fn test_parse_keyof_query_missing_operand() {
         })
         .unwrap();
 
-    TestParser::assert_errors(&parser, &[(Some(NodeType::TypeExpression), None, None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::TypeExpression), None, None, "")]);
 
     // type T = keyof
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -1117,7 +1117,7 @@ fn test_parse_intrinsic_type_alias() {
         })
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // type Uppercase<S extends string> = intrinsic
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -1138,7 +1138,7 @@ fn test_parse_intrinsic_type_alias_keeps_non_bare_intrinsic_as_reference() {
         })
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // type Uppercase<S extends string> = intrinsic<string>
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -1274,7 +1274,7 @@ fn test_parse_nested_generic_reference_with_literal_argument() {
         })
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // type T = MismatchArgs<StrictEqual<DeepPick<Actual, Expected>, Expected>, true>
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -1308,7 +1308,7 @@ fn test_parse_type_member_generic_arrow_nested_parameter_type() {
         })
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // type T = { method: <Expected>(...) => true }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -1372,7 +1372,7 @@ fn test_parse_generic_parameter_nested_conditional_constraint_with_trailing_comm
         .parse_generic_parameter_list(false, Default::default())
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // <Expected extends IsUnion<Expected> extends true ? ...>
     assert_eq!(generic_parameters.len(), 1);
@@ -1407,7 +1407,7 @@ fn test_parse_function_type_nested_conditional_constraint() {
         })
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // type T = <Expected extends ...>(...MISMATCH) => true
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -1467,7 +1467,7 @@ fn test_parse_type_member_generic_arrow_nested_conditional_constraint() {
         })
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // type Expect<Actual> = { toMatchObjectType: <...>(...) => true }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -1537,7 +1537,7 @@ fn test_parse_type_member_generic_arrow_constraint_before_parameter_list() {
         })
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // type T = { f: <U extends A<B>>(x: U) => true }
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -1609,7 +1609,7 @@ fn test_parse_type_member_generic_arrow_conditional_constraint_before_parameter_
         })
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // type T = { f: <U extends A<B> extends true ? unknown : C<D>>(x: U) => true }
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {

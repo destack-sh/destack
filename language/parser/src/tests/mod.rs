@@ -2,6 +2,7 @@ mod argument;
 mod block;
 mod corpus;
 mod dependency;
+mod documentation;
 mod r#enum;
 mod expression;
 mod extension;

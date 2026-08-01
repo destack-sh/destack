@@ -16,7 +16,7 @@ fn test_parse_type_keyword_symbolic_prefix_values() {
     let mut parser = test.prepare();
     let expression = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_node!(parser.tree, expression, Expression::TupleExpression { elements } => {
         assert_eq!(elements.len(), 4);
 
@@ -84,7 +84,7 @@ let value = do {
         });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse an if extends condition without consuming the block.
@@ -119,7 +119,7 @@ fn test_parse_if_extends_type_reference() {
         });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse a static conditional type as a value expression.
@@ -143,7 +143,7 @@ fn test_parse_type_relation_ternary_value_condition() {
         });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse an if instanceof condition inside parentheses.
@@ -176,7 +176,7 @@ fn test_parse_if_instanceof_type_reference() {
         });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse `value is string` as one runtime guard expression.
@@ -215,7 +215,7 @@ if (value is string) {
         });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse runtime type guard comments into expression and target boundaries.
@@ -255,7 +255,7 @@ fn test_parse_if_is_type_guard_comment_boundaries() {
 
     assert_comment!(parser, 0, CommentKind::SingleLineBlock, " checked value");
     assert_comment!(parser, 1, CommentKind::SingleLineBlock, " expected type");
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse `export { bar, baz } from foo`.
@@ -393,7 +393,7 @@ fn test_parse_export_default_abstract_class_with_decorator_prefixes() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
     let expression_id = expressions[0];
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -512,7 +512,7 @@ fn test_parse_abstract_newline_as_identifier_then_class() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 2);
     assert_expression_path!(parser, parser.tree.get(expressions[0]), "abstract");
     assert_node!(parser.tree, expressions[1], Expression::Declaration(declaration_id) => {
@@ -529,7 +529,7 @@ fn test_parse_type_newline_as_identifier_then_assignment() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 2);
     assert_expression_path!(parser, parser.tree.get(expressions[0]), "type");
     assert_node!(parser.tree, expressions[1], Expression::Assign { left, operator, right, .. } => {
@@ -555,7 +555,7 @@ fn test_parse_callback_parameter_named_type() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "avplay.setListener");
         assert_eq!(arguments.len(), 1);

@@ -65,7 +65,7 @@ fn test_parse_optional_arrow_parameter_without_type() {
             });
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse relational and shift expressions in arrow parameter defaults.
@@ -101,7 +101,7 @@ fn test_parse_arrow_parameter_defaults_with_angle_operators() {
                 });
             });
         });
-        TestParser::assert_no_errors(&parser);
+        test.assert_no_errors(&parser);
     }
 }
 
@@ -123,7 +123,7 @@ fn test_parse_typed_arrow_parameter_default() {
             });
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -146,7 +146,7 @@ fn test_parse_parenthesized_optional_arrow_parameter_without_type_call() {
             });
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -207,7 +207,7 @@ fn test_parse_comptime_function() {
         });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -764,7 +764,7 @@ fn test_recover_reserved_formal_parameter_bindings() {
             });
         });
         assert_node!(parser.tree, expressions[1], Expression::Let { .. });
-        TestParser::assert_errors(
+        test.assert_errors(
             &parser,
             &[(None, Some(TokenType::Identifier), None, binding)],
         );
@@ -804,7 +804,7 @@ fn test_recover_forbidden_formal_parameter_default_expressions() {
             });
         });
         assert_node!(parser.tree, expressions[1], Expression::Let { .. });
-        TestParser::assert_errors(
+        test.assert_errors(
             &parser,
             &[(
                 Some(NodeType::Parameter),
@@ -1267,7 +1267,7 @@ function main() {
     let expressions = parser.parse();
 
     // diagnostics
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[
             (None, Some(TokenType::CloseBrace), None, "}"),
@@ -1454,7 +1454,7 @@ fn test_recover_function_generator_delegate_before_following_const() {
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // diagnostics
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(Some(NodeType::Expression), None, None, "const")],
     );

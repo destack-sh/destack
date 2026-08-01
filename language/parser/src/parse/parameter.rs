@@ -160,6 +160,8 @@ impl Parser {
         &mut self,
         context: ParameterContext,
     ) -> ParserResult<LocalNodeId<Parameter>> {
+        let documentation = self.parse_documentation();
+
         // collect runtime decorators so validation can check placement
         let decorators = if context.space == ParameterSpace::Value {
             self.parse_decorators(context.function)
@@ -171,6 +173,9 @@ impl Parser {
 
         // receiver shorthand
         if let Some(parameter) = self.parse_this_parameter(&start, context)? {
+            self.attach_documentation(parameter, documentation);
+            self.attach_decorators(parameter.id, decorators);
+
             return Ok(parameter);
         }
 
@@ -311,6 +316,7 @@ impl Parser {
         }
 
         // attach decorators to the parameter node
+        self.attach_documentation(parameter_id, documentation);
         self.attach_decorators(parameter_id.id, decorators);
 
         Ok(parameter_id)

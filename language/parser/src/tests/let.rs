@@ -62,7 +62,7 @@ shared const registry: Registry = new Registry();
 
     let roots = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(roots.len(), 2);
 
     assert_node!(parser.tree, roots[1], Expression::Let { kind, place, declarators, .. } => {
@@ -200,7 +200,7 @@ fn test_recover_malformed_declarator_punctuation() {
         assert_eq!(expressions.len(), 2);
         assert_node!(parser.tree, expressions[0], Expression::Error);
         assert_node!(parser.tree, expressions[1], Expression::Let { .. });
-        TestParser::assert_errors(
+        test.assert_errors(
             &parser,
             &[(
                 Some(NodeType::Expression),

@@ -273,7 +273,7 @@ fn test_parse_new_type_arguments_with_spaces_in_statement() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_statement(Default::default());
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
         assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {
             assert_path!(parser, *path, "A");

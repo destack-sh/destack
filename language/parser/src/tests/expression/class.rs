@@ -13,7 +13,7 @@ fn test_parse_class_expression_with_implements() {
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { implements_types, .. }) => {
@@ -30,7 +30,7 @@ fn test_parse_final_class_expression() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { name, is_final, .. }) => {
@@ -47,7 +47,7 @@ fn test_parse_class_expression_with_newline_implements() {
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { implements_types, .. }) => {
@@ -64,7 +64,7 @@ fn test_parse_class_expression_with_newline_extends() {
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { extends_type, .. }) => {
@@ -87,7 +87,7 @@ fn test_parse_unparenthesized_class_expression_with_extends() {
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { extends_type, .. }) => {
@@ -104,7 +104,7 @@ fn test_parse_object_property_named_class_expression_value() {
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::ObjectExpression { properties, .. } => {
         assert_eq!(properties.len(), 1);

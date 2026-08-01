@@ -5,13 +5,11 @@ use destack_dir::{
 };
 use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
-use super::Decorators;
 use crate::parse::context::{
     ExpressionContext, FunctionContext, ParameterContext, ParameterSpace, TypeContext,
 };
 use crate::parse::{BindingModifierGrammar, BindingModifiers};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
-use std::mem;
 
 /// The shared head of one property or member.
 #[derive(Debug)]
@@ -862,18 +860,12 @@ impl Parser {
         function: FunctionContext,
     ) -> ParserResult<Vec<LocalNodeId<Member>>> {
         let mut members: Vec<LocalNodeId<Member>> = Vec::new();
-        let mut pending_member_decorators = Decorators::new();
         while self.has_more_tokens() {
             // read the current token once per iteration
             let token_type = self.peek_token_type();
 
             // stop on closing brace
             if matches!(token_type, TokenType::CloseBrace | TokenType::End) {
-                if !pending_member_decorators.is_empty() {
-                    let error = ParserError::unexpected(self.peek_token_span());
-                    self.report_error(error);
-                    pending_member_decorators.clear();
-                }
                 break;
             }
             // consume any stop
@@ -884,18 +876,29 @@ impl Parser {
                 self.eat_any_stop()?;
                 continue;
             }
-            // consume decorator prefixes
-            else if token_type == TokenType::At {
-                let decorators = self.parse_decorators(function);
-                pending_member_decorators.extend(decorators);
-                continue;
-            }
-            // parse and recover one member
+            // parse documentation, decorators and one member
             else {
-                let member_id = self.parse_member_or_recover(function);
-                if !pending_member_decorators.is_empty() {
-                    self.attach_decorators(member_id.id, mem::take(&mut pending_member_decorators));
+                let documentation = self.parse_documentation();
+                let decorators = self.parse_decorators(function);
+
+                // reject decorator prefixes without an owner
+                if !decorators.is_empty()
+                    && matches!(
+                        self.peek_token_type(),
+                        TokenType::CloseBrace | TokenType::End
+                    )
+                {
+                    let error = ParserError::unexpected(self.peek_token_span());
+                    self.report_error(error);
+
+                    break;
                 }
+
+                let member_id = self.parse_member_or_recover(function);
+                if !matches!(self.tree.get(member_id), Member::Error) {
+                    self.attach_documentation(member_id, documentation);
+                }
+                self.attach_decorators(member_id.id, decorators);
                 members.push(member_id);
             }
         }

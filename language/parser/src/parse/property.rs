@@ -122,7 +122,8 @@ impl Parser {
         &mut self,
         function: FunctionContext,
     ) -> LocalNodeId<Property> {
-        match self.parse_object_property(function) {
+        let documentation = self.parse_documentation();
+        let property_id = match self.parse_object_property(function) {
             Ok(property_id) => property_id,
             Err(error) => {
                 let error = error.in_node(NodeType::Property);
@@ -130,7 +131,12 @@ impl Parser {
 
                 self.insert_node(Property::Error, recovered_range)
             }
+        };
+        if !matches!(self.tree.get(property_id), Property::Error) {
+            self.attach_documentation(property_id, documentation);
         }
+
+        property_id
     }
 
     /// Parse one object literal property.

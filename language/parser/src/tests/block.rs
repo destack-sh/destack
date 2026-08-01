@@ -31,7 +31,7 @@ fn test_parse_arrow_expression_statement() {
         )
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
@@ -61,7 +61,7 @@ fn test_parse_generic_arrow_expression_statement() {
             assert!(signature.parameters.is_empty());
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -86,7 +86,7 @@ fn test_parse_ternary_arrow_block_expression_statement() {
             });
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -399,7 +399,7 @@ fn test_recover_yield_star_without_operand() {
     let yield_id = parser.parse_yield(Default::default()).unwrap();
 
     // diagnostics
-    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // yield*
     assert_node!(parser.tree, yield_id, Expression::Yield { cardinality, value } => {
@@ -439,7 +439,7 @@ fn test_recover_throw_expression_with_block_comment_newline() {
     let throw_id = parser.parse_throw(Default::default()).unwrap();
 
     // diagnostics
-    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "e")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "e")]);
 
     // throw /*\n*/
     assert_node!(parser.tree, throw_id, Expression::Throw { value } => {
@@ -459,7 +459,7 @@ fn test_recover_throw_expression_with_line_separator_comment() {
     let throw_id = parser.parse_throw(Default::default()).unwrap();
 
     // diagnostics
-    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "e")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "e")]);
 
     // throw /* \u{2028} */
     assert_node!(parser.tree, throw_id, Expression::Throw { value } => {
@@ -477,7 +477,7 @@ fn test_parse_throw_without_value_recovers_missing_expression() {
     let throw_id = parser.parse_throw(Default::default()).unwrap();
 
     // diagnostics
-    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // throw
     assert_node!(parser.tree, throw_id, Expression::Throw { value } => {
@@ -497,7 +497,7 @@ next()
     let expressions = parser.parse();
 
     // diagnostics
-    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "next")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "next")]);
 
     // statements
     assert_eq!(expressions.len(), 2);
@@ -527,7 +527,7 @@ const value = 1
     let expressions = parser.parse();
 
     // diagnostics
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(Some(NodeType::Expression), None, None, "const")],
     );
@@ -707,7 +707,7 @@ function next(value: number): IteratorResult<number> {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // function next(...) { drop(value); { done: true, value } }
     assert_eq!(expressions.len(), 1);
@@ -761,7 +761,7 @@ function apply(result: Result): IteratorResult<number> {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // function apply(...) { match (...) { ... } }
     assert_eq!(expressions.len(), 1);
@@ -1056,7 +1056,7 @@ fn test_parse_new_without_receiver_as_statement_recovers_missing_constructor() {
     let expressions = parser.parse();
 
     // diagnostics
-    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // top level statements
     assert_eq!(expressions.len(), 1);
@@ -1083,7 +1083,7 @@ new
     let expressions = parser.parse();
 
     // diagnostics
-    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // top level statements
     assert_eq!(expressions.len(), 1);
@@ -1111,7 +1111,7 @@ next()
     let expressions = parser.parse();
 
     // diagnostics
-    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "next")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "next")]);
 
     // statements
     assert_eq!(expressions.len(), 2);
@@ -1142,7 +1142,7 @@ const value = 1
     let expressions = parser.parse();
 
     // diagnostics
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(Some(NodeType::Expression), None, None, "const")],
     );
@@ -1314,7 +1314,7 @@ fn test_parse_deeply_nested_if_statement() {
     let expressions = parser.parse();
 
     assert_eq!(expressions.len(), 1);
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse excessive statement nesting without overflowing the parser stack.
@@ -1326,7 +1326,7 @@ fn test_parse_excessively_nested_if_statement() {
     let expressions = parser.parse();
 
     assert_eq!(expressions.len(), 1);
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse deeply nested unbraced if statements without overflowing the parser stack.
@@ -1338,7 +1338,7 @@ fn test_parse_deeply_nested_unbraced_if_statement() {
     let expressions = parser.parse();
 
     assert_eq!(expressions.len(), 1);
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse deeply nested unbraced while statements without overflowing the parser stack.
@@ -1350,5 +1350,5 @@ fn test_parse_deeply_nested_unbraced_while_statement() {
     let expressions = parser.parse();
 
     assert_eq!(expressions.len(), 1);
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }

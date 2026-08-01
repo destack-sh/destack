@@ -320,6 +320,7 @@ impl Parser {
         function: FunctionContext,
         value: DeclaratorValue,
     ) -> ParserResult<LocalNodeId<Declarator>> {
+        let documentation = self.parse_documentation();
         let start = self.mark_parse_start();
 
         // recognize identifier heads that cannot continue into richer patterns
@@ -439,6 +440,8 @@ impl Parser {
         if let Some(range) = value_operator_range {
             self.tree.set_main_range(declarator_id, range);
         }
+
+        self.attach_documentation(declarator_id, documentation);
 
         Ok(declarator_id)
     }

@@ -47,6 +47,7 @@ impl Parser {
         &mut self,
         context: PatternContext,
     ) -> ParserResult<LocalNodeId<Pattern>> {
+        let documentation = self.parse_documentation();
         let start = self.mark_parse_start();
 
         // preserve contextually reserved bindings for recovery while reporting them
@@ -308,7 +309,7 @@ impl Parser {
             pattern_id = self.insert_node(pattern, self.range_since(&start));
         }
         // collect a union at the current level
-        if self.peek_is(TokenType::ElementwiseOr) && !context.stops_at_union {
+        let pattern_id = if self.peek_is(TokenType::ElementwiseOr) && !context.stops_at_union {
             // eat all union "fields" (just unnamed patterns)
             let mut patterns: Vec<LocalNodeId<Pattern>> = vec![pattern_id];
             while self.peek_is(TokenType::ElementwiseOr) {
@@ -320,13 +321,15 @@ impl Parser {
                 patterns.push(field_pattern_id);
             }
             let pattern = Pattern::Union { patterns };
-            let pattern_id = self.insert_node(pattern, self.range_since(&start));
-            Ok(pattern_id)
+            self.insert_node(pattern, self.range_since(&start))
         }
         // return the single pattern
         else {
-            Ok(pattern_id)
-        }
+            pattern_id
+        };
+        self.attach_documentation(pattern_id, documentation);
+
+        Ok(pattern_id)
     }
 
     /// Return the range end kind when the next token continues a pattern range.
@@ -463,6 +466,7 @@ impl Parser {
             }
 
             // parse one field
+            let documentation = self.parse_documentation();
             let field_start = self.mark_parse_start();
             let (pattern_field, name_range) = self.parse_pattern_field(
                 separator,
@@ -475,6 +479,7 @@ impl Parser {
             if let Some(name_range) = name_range {
                 self.tree.set_main_range(pattern_field_id, name_range);
             }
+            self.attach_documentation(pattern_field_id, documentation);
             fields.push(pattern_field_id);
 
             // consume an explicit separator

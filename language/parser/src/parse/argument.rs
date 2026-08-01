@@ -61,6 +61,8 @@ impl Parser {
         &mut self,
         context: ExpressionContext,
     ) -> ParserResult<LocalNodeId<Argument>> {
+        let documentation = self.parse_documentation();
+
         // parse plain values without decorator or spread state
         if !self.peek_is(TokenType::At) && !self.peek_is(TokenType::Spread) {
             // recover empty arguments as list errors, not expression errors
@@ -71,6 +73,8 @@ impl Parser {
             let value = self.parse_expression(context.nested())?;
             let value_range = self.tree.get_range(value);
             let argument_id = self.insert_node(Argument::Positional { value }, value_range);
+            self.attach_documentation(argument_id, documentation);
+
             return Ok(argument_id);
         }
 
@@ -87,7 +91,9 @@ impl Parser {
                 Argument::Spread { label: None, value },
                 self.range_since(&start),
             );
+            self.attach_documentation(argument_id, documentation);
             self.attach_decorators(argument_id.id, decorators);
+
             return Ok(argument_id);
         }
 
@@ -97,7 +103,9 @@ impl Parser {
         // insert the positional argument
         let argument_id =
             self.insert_node(Argument::Positional { value }, self.range_since(&start));
+        self.attach_documentation(argument_id, documentation);
         self.attach_decorators(argument_id.id, decorators);
+
         Ok(argument_id)
     }
 
@@ -119,6 +127,7 @@ impl Parser {
 
         // named argument (name: value)
         if self.peek_name_start() && self.peek_token_type_at(1) == TokenType::Colon {
+            let documentation = self.parse_documentation();
             let (name, name_range) = self.eat_name_with_range().in_node(NodeType::Argument)?;
             self.bump();
 
@@ -127,6 +136,7 @@ impl Parser {
             let argument_id =
                 self.insert_node(Argument::Named { name, value }, self.range_since(&start));
             self.tree.set_main_range(argument_id, name_range);
+            self.attach_documentation(argument_id, documentation);
 
             return Ok(argument_id);
         }

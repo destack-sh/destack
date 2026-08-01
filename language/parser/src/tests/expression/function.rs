@@ -16,7 +16,7 @@ fn test_parse_lambda_function_empty_type() {
     let mut parser = test.prepare();
     let type_expression_id = parser.parse_type(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, type_expression_id, TypeExpression::Function(function) => {
         assert_eq!(function.parameters.len(), 0);
@@ -33,7 +33,7 @@ fn test_parse_lambda_function_type() {
     let mut parser = test.prepare();
     let type_expression_id = parser.parse_type(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, type_expression_id, TypeExpression::Function(function) => {
         // a: int32
@@ -66,7 +66,7 @@ fn test_parse_lambda_function_type_container_spans_with_comments() {
     let mut parser = test.prepare();
     let type_expression_id = parser.parse_type(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, type_expression_id, TypeExpression::Function(function) => {
         let parameter_type_span = parser
@@ -96,7 +96,7 @@ fn test_parse_lambda_function_value() {
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
@@ -125,7 +125,7 @@ fn test_parse_lambda_struct_literal_body() {
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
@@ -158,7 +158,7 @@ add satisfies (a: number, b: number) => number;"#,
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 2);
 
     // const add = (a: number, b: number): number => a + b
@@ -204,7 +204,7 @@ fn test_parse_call_with_function_expression_newline_before_body() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // defer(function nextTick_callback() { ... });
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
@@ -255,7 +255,7 @@ fn test_recover_anonymous_function_argument() {
         assert_node!(parser.tree, arguments[0], Argument::Error);
     });
     assert_node!(parser.tree, expressions[1], Expression::Let { .. });
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(None, Some(TokenType::Identifier), None, "function")],
     );
@@ -268,7 +268,7 @@ fn test_parse_generic_lambda_function_value() {
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
@@ -408,7 +408,7 @@ fn test_parse_lambda_parameter_with_mapped_object_type() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
@@ -444,7 +444,7 @@ fn test_parse_lambda_pattern_parameter_with_object_type() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {

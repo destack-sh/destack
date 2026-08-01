@@ -40,7 +40,7 @@ fn test_parse_ternary_false_branch_assignment() {
         });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Keep statement-position identifier and array ternaries out of object parsing.
@@ -50,7 +50,7 @@ fn test_parse_statement_position_ternaries() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Block(block_id) => {
@@ -90,7 +90,7 @@ fn test_parse_ternary_arrow_else_expression() {
             });
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse multiline `true ? 1 : 2`.
@@ -241,7 +241,7 @@ fn test_parse_long_ternary_ladder() {
 
     assert_node!(parser.tree, expression_id, Expression::If { .. });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse `x ? () : ()`.

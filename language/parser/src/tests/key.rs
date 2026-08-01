@@ -60,7 +60,7 @@ fn test_parse_key_integer_index() {
     let (key, _span) = parser.eat_key_with_range(Default::default()).unwrap();
 
     assert_eq!(key, Key::Name(Name::Index(2)));
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse computed keys with ternaries.

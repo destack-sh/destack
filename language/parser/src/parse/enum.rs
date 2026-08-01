@@ -1,4 +1,3 @@
-use super::Decorators;
 use crate::parse::DeclarationHeader;
 use crate::parse::context::{ExpressionContext, FunctionContext};
 use crate::parse::error::ParserResultExt;
@@ -9,7 +8,6 @@ use destack_dir::{
     NodeType, TemplateLiteral, TokenLiteral, TokenType,
 };
 use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
-use std::mem;
 
 /// The fields and members of one enum body.
 struct EnumBody {
@@ -119,47 +117,49 @@ impl Parser {
         // collect fields and associated members
         let mut fields: Vec<LocalNodeId<EnumField>> = Vec::new();
         let mut members: Vec<LocalNodeId<Member>> = Vec::new();
-        let mut pending_decorators = Decorators::new();
 
         while self.has_more_tokens() {
             let token_type = self.peek_token_type();
 
             // stop on closing brace
             if token_type == TokenType::CloseBrace {
-                if !pending_decorators.is_empty() {
-                    let error = ParserError::unexpected(self.peek_token_span());
-                    self.report_error(error);
-                    pending_decorators.clear();
-                }
-
                 break;
             }
             // consume any stop
             else if Self::is_any_stop_token(token_type) {
                 self.eat_any_stop()?;
             }
-            // consume decorator prefixes
-            else if token_type == TokenType::At {
-                let decorators = self.parse_decorators(function);
-                pending_decorators.extend(decorators);
-            }
-            // enum field
-            else if self.peek_enum_field() {
-                let field = self
-                    .parse_enum_field(function)
-                    .in_node(NodeType::EnumField)?;
-                if !pending_decorators.is_empty() {
-                    self.attach_decorators(field.id, mem::take(&mut pending_decorators));
-                }
-                fields.push(field);
-            }
-            // (static) members
+            // parse documentation, decorators and one field or member
             else {
-                let member_id = self.parse_member_or_recover(function);
-                if !pending_decorators.is_empty() {
-                    self.attach_decorators(member_id.id, mem::take(&mut pending_decorators));
+                let documentation = self.parse_documentation();
+                let decorators = self.parse_decorators(function);
+
+                // reject decorator prefixes without an owner
+                if !decorators.is_empty() && self.peek_is(TokenType::CloseBrace) {
+                    let error = ParserError::unexpected(self.peek_token_span());
+                    self.report_error(error);
+
+                    break;
                 }
-                members.push(member_id);
+
+                // enum field
+                if self.peek_enum_field() {
+                    let field = self
+                        .parse_enum_field(function)
+                        .in_node(NodeType::EnumField)?;
+                    self.attach_documentation(field, documentation);
+                    self.attach_decorators(field.id, decorators);
+                    fields.push(field);
+                }
+                // associated member
+                else {
+                    let member_id = self.parse_member_or_recover(function);
+                    if !matches!(self.tree.get(member_id), Member::Error) {
+                        self.attach_documentation(member_id, documentation);
+                    }
+                    self.attach_decorators(member_id.id, decorators);
+                    members.push(member_id);
+                }
             }
         }
 

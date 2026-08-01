@@ -720,7 +720,7 @@ fn test_parse_do_while_block_with_semicolons() {
         assert_node!(parser.tree, *body, Block { .. });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]

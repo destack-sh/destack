@@ -61,7 +61,7 @@ fn test_parse_type_conditional_tuple_then_branch() {
         });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse conditional types where infer-extends is a constraint inside parentheses.
@@ -579,7 +579,7 @@ fn test_parse_long_type_conditional_ladder() {
         });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse extends with readonly array types.

@@ -34,7 +34,7 @@ shared?.nested.ok satisfies boolean;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_eq!(expressions.len(), 3);
     assert_node!(parser.tree, expressions[0], Expression::Satisfies { expression, target_type } => {
@@ -191,7 +191,7 @@ fn test_parse_member_expression_with_line_comment_before_dot() {
     let expression_id = parser.parse_expression(Default::default()).unwrap();
     parser.finalize_comments();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_node!(
         parser.tree,
         expression_id,
@@ -237,7 +237,7 @@ fn test_parse_function_member_comment_boundary_before_dot() {
     let _ = parser.parse_expression(Default::default()).unwrap();
     parser.finalize_comments();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(parser.comments().len(), 1);
     let comment = parser.comments()[0];
     assert_comment!(parser, 0, CommentKind::Line, "marker");
@@ -271,7 +271,7 @@ fn test_parse_parenthesized_member_comment_attaches_to_dot_boundary() {
     let _ = parser.parse_expression(Default::default()).unwrap();
     parser.finalize_comments();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(parser.comments().len(), 1);
 
     let comment = parser.comments()[0];
@@ -317,7 +317,7 @@ fn test_parse_destack_double_dot_as_range() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::RangeExpression { start, end, end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Open);

@@ -30,7 +30,7 @@ fn test_parse_instantiation_expression_with_index() {
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Instantiation { left, generic_arguments } => {
         assert_eq!(generic_arguments.len(), 1);
@@ -57,7 +57,7 @@ fn test_parse_instantiation_expression_parenthesized() {
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Instantiation { left, generic_arguments } => {
         assert_eq!(generic_arguments.len(), 1);
@@ -88,7 +88,7 @@ fn test_parse_parenthesized_instantiation_expression_statement() {
     let mut parser = test.prepare_with_comment_retention(CommentRetention::All);
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Instantiation { left, generic_arguments } => {
@@ -107,7 +107,7 @@ fn test_parse_generic_call_with_parenthesized_instantiation_callee() {
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Call { left, generic_arguments, arguments, .. } => {
         assert_eq!(generic_arguments.len(), 1);
@@ -133,7 +133,7 @@ fn test_parse_optional_chain_generic_argument_call() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::Chain { expression } => {
         assert_node!(parser.tree, *expression, Expression::Call { left, generic_arguments, arguments, is_optional, .. } => {
@@ -161,7 +161,7 @@ const addSpanOperationAttributes = addSpanAttributes("gen_ai.operation", String.
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 2);
 
     assert_node!(parser.tree, expressions[0], Expression::Let { declarators, .. } => {
@@ -374,7 +374,7 @@ fn test_parse_call_with_nested_value_generic_arguments() {
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Call { left, generic_arguments, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "fn");
@@ -403,7 +403,7 @@ fn test_parse_instantiation_before_compound_greater_than() {
     let mut parser = test.prepare();
     let expression = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression, Expression::Binary { left, operator, right } => {
         assert_eq!(*operator, BinaryOperator::GreaterThan);
@@ -423,7 +423,7 @@ fn test_parse_nested_instantiation_before_compound_greater_than() {
     let mut parser = test.prepare();
     let expression = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression, Expression::Binary { left, operator, right } => {
         assert_eq!(*operator, BinaryOperator::GreaterThan);
@@ -481,7 +481,7 @@ fn test_parse_relational_expression_before_semicolon() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
         assert_eq!(*operator, BinaryOperator::LessThan);
@@ -589,7 +589,7 @@ fn test_parse_instantiation_expression_unparenthesized_index_access() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Index { left, index, position, .. } => {
         assert_eq!(*position, PostfixPosition::Direct);
@@ -611,7 +611,7 @@ fn test_parse_instantiation_expression_unparenthesized_member_access() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
         assert_string!(parser, *name, "value");
@@ -629,7 +629,7 @@ fn test_parse_optional_call_after_instantiation_expression() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Chain { expression } => {
         assert_node!(parser.tree, *expression, Expression::Call { left, generic_arguments, arguments, position, is_optional } => {
@@ -652,7 +652,7 @@ fn test_parse_optional_call_after_function_type_instantiation_expression() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Chain { expression } => {
         assert_node!(parser.tree, *expression, Expression::Call { left, generic_arguments, arguments, position, is_optional } => {
@@ -680,7 +680,7 @@ fn test_parse_instantiation_expression_before_newline_binary_operator() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
         assert_eq!(*operator, BinaryOperator::Coalesce);
@@ -698,7 +698,7 @@ fn test_parse_instantiation_expression_before_newline_division_operator() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
         assert_eq!(*operator, BinaryOperator::Divide);
@@ -716,7 +716,7 @@ fn test_parse_relational_expression_before_newline_prefix_expression() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
         assert_eq!(*operator, BinaryOperator::GreaterThan);

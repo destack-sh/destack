@@ -468,7 +468,7 @@ fn test_recover_newline_before_assertion_operator() {
 
         parser.parse();
 
-        TestParser::assert_errors(
+        test.assert_errors(
             &parser,
             &[
                 (
@@ -586,7 +586,7 @@ fn test_recover_arrow_parameter_cast_tails() {
             });
         });
         assert_node!(parser.tree, expressions[1], Expression::Let { .. });
-        TestParser::assert_errors(
+        test.assert_errors(
             &parser,
             &[(
                 Some(NodeType::Parameter),

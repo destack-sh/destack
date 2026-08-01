@@ -15,7 +15,7 @@ fn test_parse_conditional_type_alias_with_generics() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2
     assert_eq!(expressions.len(), 1);
@@ -63,7 +63,7 @@ fn test_parse_type_alias_records_generic_parameter_container_range() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -86,7 +86,7 @@ fn test_parse_type_declaration_conditional_object_infer_after_newline() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -110,7 +110,7 @@ fn test_parse_type_declaration_generic_default_before_shifted_close() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -140,7 +140,7 @@ fn test_parse_conditional_type_alias_with_generics_through_expression_entry() {
         })
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     // type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -209,5 +209,5 @@ fn test_parse_type_expression_with_indexed_generic_argument_after_type_keyword()
         });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }

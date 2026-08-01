@@ -123,6 +123,7 @@ impl Parser {
     /// [P in keyof Model as P]
     /// ```
     fn parse_mapped_type_head(&mut self, context: TypeContext) -> ParserResult<MappedTypeHead> {
+        let documentation = self.parse_documentation();
         let start = self.mark_parse_start();
         self.eat_token(TokenType::OpenBracket)?;
 
@@ -143,6 +144,7 @@ impl Parser {
             range,
         );
         self.tree.set_main_range(parameter, name_range);
+        self.attach_documentation(parameter, documentation);
 
         Ok(MappedTypeHead {
             parameter,

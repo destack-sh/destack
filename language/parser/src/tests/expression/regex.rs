@@ -16,7 +16,7 @@ fn test_parse_regex_non_ascii_body() {
         assert_string!(parser, *content, "café");
         assert_string!(parser, flags.unwrap(), "u");
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse regex literals inside template interpolation expressions.

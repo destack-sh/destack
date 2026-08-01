@@ -17,7 +17,7 @@ fn test_parse_half_open_range_expression() {
             assert_eq!(*value, 10);
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -35,7 +35,7 @@ fn test_parse_inclusive_range_expression() {
             assert_eq!(*value, 10);
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -71,7 +71,7 @@ fn test_parse_open_ended_range_expressions() {
         assert!(start.is_none());
         assert!(end.is_none());
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -89,7 +89,7 @@ fn test_parse_range_expression_precedence() {
             assert_eq!(*operator, BinaryOperator::Multiply);
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -105,7 +105,7 @@ fn test_parse_negative_range_start_expression() {
             assert_eq!(*value, 3);
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -128,7 +128,7 @@ fn test_parse_range_index_expression() {
             });
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -184,7 +184,7 @@ fn test_parse_range_index_expression_forms() {
             assert!(end.is_none());
         });
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -202,7 +202,7 @@ fn test_parse_full_range_expression_before_newline() {
     assert_node!(parser.tree, expressions[1], Expression::Identifier { name } => {
         assert_string!(parser, *name, "value");
     });
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]

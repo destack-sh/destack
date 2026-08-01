@@ -81,7 +81,7 @@ foo -= bar;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_eq!(expressions.len(), 8);
     for expression in expressions {
@@ -97,7 +97,7 @@ fn test_parse_deeply_nested_assignment_sequence_pattern() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_node!(parser.tree, expression_id, Expression::Assign { left, .. } => {
         assert_node!(parser.tree, *left, AssignPattern::Sequence { fields } => {
             assert_eq!(fields.len(), 1);
@@ -120,7 +120,7 @@ a['b'] = c[d] = "test"
     let test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_eq!(expressions.len(), 8);
     assert_node!(parser.tree, expressions[0], Expression::Assign { .. });
@@ -146,7 +146,7 @@ fn test_parse_long_assignment_chain() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     let mut expression_id = expression_id;
     for index in 0..depth {
@@ -538,7 +538,7 @@ fn test_parse_precedence_is_before_logical_and() {
         }
     );
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Runtime `instanceof` guards bind before logical and.
@@ -566,7 +566,7 @@ fn test_parse_precedence_instanceof_before_logical_and() {
         }
     );
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse multiline `instanceof` guards in expression position.
@@ -586,7 +586,7 @@ fn test_parse_newline_before_instanceof_in_expression_position() {
         });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Unary prefix has higher precedence than multiplication.
@@ -719,7 +719,7 @@ fn test_parse_computed_assignment() {
     let mut parser = test.prepare();
     let expression = parser.parse_expression(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_node!(parser.tree, expression, Expression::Assign { operator, left, right } => {
         assert_eq!(*operator, AssignOperator::AddAssign);
         assert_node!(parser.tree, *left, AssignPattern::Place { expression: place } => {

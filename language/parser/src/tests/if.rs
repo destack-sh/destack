@@ -577,7 +577,7 @@ fn test_parse_if_logical_condition_as_expression() {
         assert_node!(parser.tree, *then_expression, Expression::Block(_));
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -646,7 +646,7 @@ fn test_parse_if_condition_chain_after_comparison() {
         assert_node!(parser.tree, *then_expression, Expression::Block(_));
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]

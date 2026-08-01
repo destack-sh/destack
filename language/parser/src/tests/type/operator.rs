@@ -102,7 +102,7 @@ fn test_parse_static_value_call_type_expression() {
         });
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -416,7 +416,7 @@ fn test_parse_type_expression_stops_before_in() {
 
     let next_span = parser.peek_token_span().span;
     assert_eq!(parser.span_str(next_span), "in");
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -436,5 +436,5 @@ fn test_parse_type_expression_stops_before_instanceof() {
     assert_eq!(parser.span_str(next_span), "instanceof");
 
     // no implicit recovery
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }

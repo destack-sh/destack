@@ -93,6 +93,8 @@ impl Parser {
         &mut self,
         function: FunctionContext,
     ) -> ParserResult<LocalNodeId<WhereClause>> {
+        let documentation = self.parse_documentation();
+
         // retain one repeated Pattern placeholder as a complete clause
         if self.peek_repeated_pattern_marker() {
             let range = self.peek_token().range();
@@ -107,6 +109,7 @@ impl Parser {
                 range,
             );
             self.bump();
+            self.attach_documentation(clause, documentation);
 
             return Ok(clause);
         }
@@ -177,6 +180,7 @@ impl Parser {
             NodeSpanType::Region(NodeSpanRegion::Type),
             self.range_since(&type_start),
         );
+        self.attach_documentation(clause, documentation);
 
         Ok(clause)
     }

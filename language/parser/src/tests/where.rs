@@ -13,7 +13,7 @@ fn test_parse_pattern_where_clause_placeholder() {
     let mut parser = test.prepare_pattern();
     let roots = parser.parse();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
     assert_node!(parser.tree, roots[0], Expression::Declaration(value) => {
         assert_node!(parser.tree, *value, Declaration::Function(declaration) => {
             let clauses = &declaration.signature.where_clauses;
@@ -53,7 +53,7 @@ fn test_parse_where_negative_capability() {
     let mut parser = test.prepare();
     let clauses = parser.parse_where(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_eq!(clauses.len(), 1);
     assert_node!(parser.tree, clauses[0], WhereClause { relation: _, left, right } => {
@@ -72,7 +72,7 @@ fn test_parse_where_equality_constraint() {
     let mut parser = test.prepare();
     let clauses = parser.parse_where(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_eq!(clauses.len(), 1);
     assert_node!(parser.tree, clauses[0], WhereClause { relation, left, right } => {
@@ -156,7 +156,7 @@ fn test_parse_parenthesized_where_with_missing_close_parenthesis() {
     let mut parser = test.prepare();
     let clauses = parser.parse_where(Default::default()).unwrap();
 
-    TestParser::assert_errors(
+    test.assert_errors(
         &parser,
         &[(
             Some(NodeType::WhereClause),
@@ -243,7 +243,7 @@ fn test_parse_where_type_expression_left() {
     let mut parser = test.prepare();
     let clauses = parser.parse_where(Default::default()).unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_eq!(clauses.len(), 1);
     assert_node!(parser.tree, clauses[0], WhereClause { relation: _, left, right } => {

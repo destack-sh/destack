@@ -44,6 +44,8 @@ impl Parser {
         &mut self,
         context: TypeContext,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
+        let documentation = self.parse_documentation();
+
         // parse decorators only at their owning type level
         let decorators =
             if context.decorator == DecoratorContext::None && self.peek_is(TokenType::At) {
@@ -56,7 +58,13 @@ impl Parser {
         let first = self.parse_type_operand(context)?;
         let ty = self.parse_type_tail_after_descent(first, context)?;
 
-        // attach decorators after the complete type is known
+        // attach documentation and decorators after the complete type is known
+        if !matches!(
+            self.tree.get(ty),
+            TypeExpression::Missing | TypeExpression::Error
+        ) {
+            self.attach_documentation(ty, documentation);
+        }
         if let Some(decorators) = decorators {
             self.attach_decorators(ty.id, decorators);
         }

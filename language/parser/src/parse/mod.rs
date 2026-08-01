@@ -52,7 +52,6 @@ pub(crate) use context::*;
 pub(crate) use cursor::TokenMode;
 pub use declaration::{DECLARATION_START_TOKENS, PATTERN_START_TOKENS};
 pub(crate) use declaration::{DeclarationHeader, TypeKeywordHeader};
-pub(crate) use decorator::Decorators;
 pub use error::*;
 pub use parser::*;
 pub(crate) use path::{PathGrammar, RangedPath};

@@ -85,10 +85,11 @@ impl Parser {
         context: TypeContext,
         close: TokenType,
     ) -> ParserResult<LocalNodeId<TupleElement>> {
+        let documentation = self.parse_documentation();
         let start = self.mark_parse_start();
 
-        // spread element
-        if self.peek_is(TokenType::Spread) {
+        // parse a spread element
+        let element = if self.peek_is(TokenType::Spread) {
             self.bump();
             let label = if self.peek_labeled_tuple() {
                 Some(self.parse_tuple_label()?)
@@ -96,24 +97,25 @@ impl Parser {
                 None
             };
 
-            return self.parse_tuple_rest_element(&start, label, context);
+            self.parse_tuple_rest_element(&start, label, context)?
         }
-
-        // parse an optional label
-        let label = if self.peek_labeled_tuple() {
-            Some(self.parse_tuple_label()?)
-        } else {
-            None
+        // parse a regular or labeled rest element
+        else {
+            let label = if self.peek_labeled_tuple() {
+                Some(self.parse_tuple_label()?)
+            } else {
+                None
+            };
+            if label.is_some() && self.peek_is(TokenType::Spread) {
+                self.bump();
+                self.parse_tuple_rest_element(&start, label, context)?
+            } else {
+                self.parse_tuple_element(&start, label, context, close)?
+            }
         };
+        self.attach_documentation(element, documentation);
 
-        // named rest payload
-        if label.is_some() && self.peek_is(TokenType::Spread) {
-            self.bump();
-
-            return self.parse_tuple_rest_element(&start, label, context);
-        }
-
-        self.parse_tuple_element(&start, label, context, close)
+        Ok(element)
     }
 
     /// Parse one tuple rest element after its spread token.
@@ -220,6 +222,9 @@ impl Parser {
             },
             self.range_since(start),
         );
+        if let Some(documentation) = self.tree.take_documentation(value.id) {
+            self.tree.set_documentation(first_element.id, documentation);
+        }
 
         // remaining elements
         let mut elements = vec![first_element];

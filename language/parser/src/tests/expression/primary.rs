@@ -103,7 +103,7 @@ fn test_parse_contextual_type_literal_name_member_expression() {
         assert_string!(parser, name.expect("expected member name"), "property");
     });
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 }
 
 /// Parse a type unary reference as a qualified reference.
@@ -306,7 +306,7 @@ fn test_parse_typed_object_method_in_decorator_argument() {
         })
         .unwrap();
 
-    TestParser::assert_no_errors(&parser);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "connect");
