@@ -368,10 +368,8 @@ impl BodyState<'_, '_> {
             });
         };
 
-        // report foreign value reads while deriving exported types
-        if (self.is_declaration() || self.check.deriving_export)
-            && !self.is_own_module(symbol.module_id)
-        {
+        // report foreign value reads while declaring
+        if self.is_declaration() && !self.is_own_module(symbol.module_id) {
             self.report_export_type_not_derivable(site.node.module_id, site.node.local_id);
             // checking still records the runtime access path
             if self.symbol_kind_maybe(*symbol)? == Some(dir::SymbolKind::Variable) {
@@ -383,7 +381,13 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(()));
         }
 
-        let ty = match self.static_value(*symbol) {
+        // identity statics read as their declaration keys, other names
+        //  read their declared symbol types
+        let identity = match self.static_value(*symbol) {
+            Some(value) if matches!(self.ty(value)?, dir::Type::Key(_)) => Some(value),
+            _ => None,
+        };
+        let ty = match identity {
             Some(value) => value,
             // type alias and class names as their written declaration reference
             None if matches!(

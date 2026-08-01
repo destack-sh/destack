@@ -201,8 +201,17 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         module_id: ModuleId,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
     ) -> CompilerResult<()> {
+        // declared templates index by symbol, anonymous ones by source
         let source = declaration_id.into_global_any(module_id);
-        let Some(template) = self.check.generics.template_by_source(source) else {
+        let symbol = self
+            .check
+            .module(module_id)
+            .declaration_symbol(declaration_id.into_any());
+        let template = match symbol {
+            Some(symbol) => self.check.generics.template_by_symbol(symbol),
+            None => self.check.generics.template_by_source(source),
+        };
+        let Some(template) = template else {
             return Ok(());
         };
         let Some(template) = self.check.generic_template(template) else {
