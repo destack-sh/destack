@@ -13,7 +13,7 @@ pub struct Memory<'a> {
     /// Runtime allocation plans indexed by Program allocation site id.
     pub allocation_plans: &'a [Option<AllocationPlan>],
     /// Worker heap.
-    pub heap: &'a mut Heap,
+    pub local_heap: &'a mut Heap,
     /// Runtime heap.
     pub shared_heap: &'a SharedHeap,
     /// Worker-local shared allocation cache.
@@ -21,11 +21,11 @@ pub struct Memory<'a> {
     /// Shared heap mark worker.
     pub shared_mark_worker: &'a SharedMarkWorker,
     /// Local static memory.
-    pub local_static: &'a mut StaticSpace,
+    pub local_statics: &'a mut StaticSpace,
     /// Shared static memory.
-    pub shared_static: &'a mut StaticSpace,
+    pub shared_statics: &'a mut StaticSpace,
     /// Program constant memory.
-    pub constant_space: &'a StaticImage,
+    pub constants: &'a StaticImage,
 }
 
 impl Memory<'_> {
@@ -33,13 +33,13 @@ impl Memory<'_> {
     pub fn reborrow(&mut self) -> Memory<'_> {
         Memory {
             allocation_plans: self.allocation_plans,
-            heap: self.heap,
+            local_heap: self.local_heap,
             shared_heap: self.shared_heap,
             shared_cache: self.shared_cache,
             shared_mark_worker: self.shared_mark_worker,
-            local_static: self.local_static,
-            shared_static: self.shared_static,
-            constant_space: self.constant_space,
+            local_statics: self.local_statics,
+            shared_statics: self.shared_statics,
+            constants: self.constants,
         }
     }
 
@@ -52,7 +52,7 @@ impl Memory<'_> {
     /// Build one dynamically sized allocation plan for the selected heap.
     pub fn plan_allocation(&self, space: Space, shape: &AllocationShape) -> AllocationPlan {
         match space {
-            Space::Local => self.heap.options().allocation_plan(shape),
+            Space::Local => self.local_heap.options().allocation_plan(shape),
             Space::Shared => self.shared_heap.options().allocation_plan(shape),
         }
     }
@@ -74,7 +74,7 @@ impl Memory<'_> {
     /// Resolve one stable heap edge into an ephemeral native address.
     pub fn address(&self, edge: HeapEdge) -> usize {
         match edge {
-            HeapEdge::Local(reference) => self.heap.heap_base_address() + reference.offset(),
+            HeapEdge::Local(reference) => self.local_heap.heap_base_address() + reference.offset(),
             HeapEdge::Shared(reference) => {
                 self.shared_heap.heap_base_address() + reference.offset()
             }
@@ -84,7 +84,7 @@ impl Memory<'_> {
     /// Return one heap address as an offset within its selected space.
     pub fn heap_offset(&self, space: Space, address: usize) -> Option<usize> {
         match space {
-            Space::Local => address.checked_sub(self.heap.heap_base_address()),
+            Space::Local => address.checked_sub(self.local_heap.heap_base_address()),
             Space::Shared => address.checked_sub(self.shared_heap.heap_base_address()),
         }
     }
@@ -92,7 +92,7 @@ impl Memory<'_> {
     /// Free one uniquely owned heap allocation.
     pub fn free(&mut self, edge: HeapEdge) -> HeapResult<()> {
         match edge {
-            HeapEdge::Local(reference) => self.heap.free(reference),
+            HeapEdge::Local(reference) => self.local_heap.free(reference),
             HeapEdge::Shared(reference) => self.shared_heap.free(self.shared_cache, reference),
         }
     }
@@ -100,7 +100,7 @@ impl Memory<'_> {
     /// Pin one managed heap allocation against movement.
     pub fn pin(&mut self, edge: HeapEdge) -> HeapResult<HeapEdge> {
         match edge {
-            HeapEdge::Local(reference) => self.heap.pin(reference).map(HeapEdge::Local),
+            HeapEdge::Local(reference) => self.local_heap.pin(reference).map(HeapEdge::Local),
             HeapEdge::Shared(reference) => Ok(HeapEdge::Shared(reference)),
         }
     }
@@ -108,7 +108,7 @@ impl Memory<'_> {
     /// Release one managed heap pin.
     pub fn unpin(&mut self, edge: HeapEdge) -> HeapResult<()> {
         match edge {
-            HeapEdge::Local(reference) => self.heap.unpin(reference),
+            HeapEdge::Local(reference) => self.local_heap.unpin(reference),
             HeapEdge::Shared(_) => Ok(()),
         }
     }
@@ -123,7 +123,7 @@ impl Memory<'_> {
     ) -> HeapResult<()> {
         match edge {
             HeapEdge::Local(reference) => self
-                .heap
+                .local_heap
                 .write_barrier(reference, start, byte_len, trace_view),
             HeapEdge::Shared(reference) => self
                 .shared_heap
@@ -143,15 +143,15 @@ impl Memory<'_> {
             && let Some(small) = plan.small_allocation()
         {
             let reference = if plan.is_noscan() {
-                self.heap.reserve_small_noscan(small)
+                self.local_heap.reserve_small_noscan(small)
             } else if plan.has_shared_reference() {
-                self.heap.reserve_small_shared_edge(small)
+                self.local_heap.reserve_small_shared_edge(small)
             } else {
-                self.heap.reserve_small_scan(small)
+                self.local_heap.reserve_small_scan(small)
             };
             if let Some(reference) = reference {
                 if payload == Payload::Zeroed {
-                    self.heap.zero(reference, plan.byte_len())?;
+                    self.local_heap.zero(reference, plan.byte_len())?;
                 }
 
                 return Ok(HeapEdge::Local(reference));
@@ -161,9 +161,9 @@ impl Memory<'_> {
         // materialize trace rows only on the cold allocation path
         let trace_map = plan.trace_map(trace_view)?;
         let reference = match payload {
-            Payload::Bytes(bytes) => self.heap.allocate_bytes(plan, &trace_map, bytes)?,
-            Payload::Zeroed => self.heap.allocate_zeroed(plan, &trace_map)?,
-            Payload::Uninit => self.heap.allocate_uninit(plan, &trace_map)?,
+            Payload::Bytes(bytes) => self.local_heap.allocate_bytes(plan, &trace_map, bytes)?,
+            Payload::Zeroed => self.local_heap.allocate_zeroed(plan, &trace_map)?,
+            Payload::Uninit => self.local_heap.allocate_uninit(plan, &trace_map)?,
         };
 
         Ok(HeapEdge::Local(reference))
@@ -226,13 +226,13 @@ impl fmt::Debug for Memory<'_> {
         formatter
             .debug_struct("Memory")
             .field("allocation_plan_count", &self.allocation_plans.len())
-            .field("heap", &"<heap>")
+            .field("local_heap", &"<local heap>")
             .field("shared_heap", &"<shared heap>")
             .field("shared_cache", &"<shared allocation cache>")
             .field("shared_mark_worker", &"<shared mark worker>")
-            .field("local_static", &self.local_static.byte_len())
-            .field("shared_static", &self.shared_static.byte_len())
-            .field("constant_space", &"<constant image>")
+            .field("local_statics", &self.local_statics.byte_len())
+            .field("shared_statics", &self.shared_statics.byte_len())
+            .field("constants", &"<constant image>")
             .finish()
     }
 }

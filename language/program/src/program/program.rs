@@ -59,11 +59,11 @@ pub struct Program {
     pub(crate) info: Option<ProgramInfo>,
 
     /// Immutable constant storage owned by this program.
-    pub(crate) constant_space: StaticImage,
+    pub(crate) constants: StaticImage,
     /// Initial shared static storage for each runtime.
-    pub(crate) shared_static_space: StaticImage,
+    pub(crate) shared_statics: StaticImage,
     /// Initial local static storage for each worker.
-    pub(crate) local_static_space: StaticImage,
+    pub(crate) local_statics: StaticImage,
 
     /// Bytecode used for interpretation and deoptimization when included.
     pub(crate) bytecode: Option<bytecode::Code>,
@@ -297,7 +297,7 @@ impl Program {
 
     /// Return immutable constant storage owned by this program.
     pub fn constants(&self) -> &StaticImage {
-        &self.constant_space
+        &self.constants
     }
 
     /// Return linked bytecode when this program carries it.
@@ -317,23 +317,22 @@ impl Program {
 
     /// Return initial shared static storage for new runtimes.
     pub fn shared_statics(&self) -> &StaticImage {
-        &self.shared_static_space
+        &self.shared_statics
     }
 
     /// Return initial local static storage for new workers.
     pub fn local_statics(&self) -> &StaticImage {
-        &self.local_static_space
+        &self.local_statics
     }
 
     /// Materialize initial shared static storage.
     pub fn materialize_shared_statics(&self, memory: Arc<MemoryMap>) -> MemoryResult<StaticSpace> {
-        self.shared_static_space
-            .materialize(self.sections(), memory)
+        self.shared_statics.materialize(self.sections(), memory)
     }
 
     /// Materialize initial local static storage.
     pub fn materialize_local_statics(&self, memory: Arc<MemoryMap>) -> MemoryResult<StaticSpace> {
-        self.local_static_space.materialize(self.sections(), memory)
+        self.local_statics.materialize(self.sections(), memory)
     }
 
     /// Resolve one function id by source name.
@@ -479,8 +478,7 @@ impl Program {
             return None;
         }
 
-        self.constant_space
-            .address(sections, global, address, byte_len)
+        self.constants.address(sections, global, address, byte_len)
     }
 
     /// Return whether constants own one byte range.
@@ -496,7 +494,7 @@ impl Program {
             return false;
         }
 
-        self.constant_space
+        self.constants
             .owns_address_range(sections, global, address, byte_len)
     }
 

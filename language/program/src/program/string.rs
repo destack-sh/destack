@@ -47,9 +47,18 @@ impl StringTable {
     /// Return whether every entry names valid UTF-8 inside the byte column.
     pub(super) fn entries_fit(&self, sections: SectionImage<'_>) -> bool {
         let bytes = sections.entries(self.bytes);
+        let entries = sections.entries(self.entries);
+
+        // require strict identity order for binary search
+        if !entries
+            .windows(2)
+            .all(|entries| entries[0].id < entries[1].id)
+        {
+            return false;
+        }
 
         // check every byte range before normal lookup becomes infallible
-        sections.entries(self.entries).iter().all(|entry| {
+        entries.iter().all(|entry| {
             let start = entry.offset as usize;
             let Some(end) = start.checked_add(entry.byte_len as usize) else {
                 return false;

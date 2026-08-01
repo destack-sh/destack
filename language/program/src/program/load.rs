@@ -20,7 +20,7 @@ use crate::{
 };
 
 const PROGRAM_MAGIC: u32 = u32::from_le_bytes(*b"DSPG");
-const PROGRAM_VERSION: u16 = 8;
+const PROGRAM_VERSION: u16 = 9;
 
 /// Program image load failure.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,6 +31,8 @@ pub enum ProgramLoadError {
     InvalidMagic,
     /// The program version is not supported.
     UnsupportedVersion(u16),
+    /// The native runtime ABI version is not supported.
+    UnsupportedNativeAbi(u32),
     /// The recorded image length does not match the supplied storage.
     InvalidLength,
     /// One relative range lies outside its sibling column.
@@ -47,6 +49,9 @@ impl fmt::Display for ProgramLoadError {
             Self::InvalidMagic => formatter.write_str("invalid program image magic"),
             Self::UnsupportedVersion(version) => {
                 write!(formatter, "unsupported program image version {version}")
+            }
+            Self::UnsupportedNativeAbi(version) => {
+                write!(formatter, "unsupported native ABI version {version}")
             }
             Self::InvalidLength => formatter.write_str("invalid program image length"),
             Self::InvalidRange => formatter.write_str("invalid program image range"),
@@ -98,11 +103,11 @@ pub struct ProgramBuilder {
     info: Option<ProgramInfoBuilder>,
 
     /// Immutable constant bytes.
-    constant_space: Vec<u8>,
+    constants: Vec<u8>,
     /// Initial shared static bytes.
-    shared_static_space: Vec<u8>,
+    shared_statics: Vec<u8>,
     /// Initial local static bytes.
-    local_static_space: Vec<u8>,
+    local_statics: Vec<u8>,
 
     /// Optional linked bytecode.
     bytecode: Option<CodeBuilder>,
@@ -115,7 +120,7 @@ pub struct ProgramBuilder {
 /// Fixed header stored at byte zero of every Program image.
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, SectionEntry)]
-struct ObjectHeader {
+struct ProgramHeader {
     /// Stable Program format marker.
     magic: u32,
     /// Stable Program format version.
@@ -154,11 +159,11 @@ struct ObjectHeader {
     info: Optional<ProgramInfo>,
 
     /// Immutable constant storage.
-    constant_space: StaticImage,
+    constants: StaticImage,
     /// Initial shared static storage.
-    shared_static_space: StaticImage,
+    shared_statics: StaticImage,
     /// Initial local static storage.
-    local_static_space: StaticImage,
+    local_statics: StaticImage,
 
     /// Optional linked bytecode.
     bytecode: Optional<Code>,
@@ -168,7 +173,7 @@ struct ObjectHeader {
     wasm: Optional<wasm::Code>,
 }
 
-impl ObjectHeader {
+impl ProgramHeader {
     /// Create one empty Program header for a target layout.
     fn new(target_layout: TargetLayout) -> Self {
         Self {
@@ -189,17 +194,24 @@ impl ObjectHeader {
             traces: TraceTable::default(),
             globals: GlobalTable::default(),
             info: Optional::none(),
-            constant_space: StaticImage::default(),
-            shared_static_space: StaticImage::default(),
-            local_static_space: StaticImage::default(),
+            constants: StaticImage::default(),
+            shared_statics: StaticImage::default(),
+            local_statics: StaticImage::default(),
             bytecode: Optional::none(),
             native: Optional::none(),
             wasm: Optional::none(),
         }
     }
 
-    /// Check every relationship required by infallible Program navigation.
-    fn check(&self, sections: SectionImage<'_>) -> Result<(), ProgramLoadError> {
+    /// Validate every relationship required by infallible Program navigation.
+    fn validate(&self, sections: SectionImage<'_>) -> Result<(), ProgramLoadError> {
+        // reject native code built for a different runtime ABI
+        if let Some(native) = self.native.get()
+            && native.abi_version != native::abi::VERSION
+        {
+            return Err(ProgramLoadError::UnsupportedNativeAbi(native.abi_version));
+        }
+
         // reject strings that cannot be borrowed without repeated decoding
         if !self.strings.entries_fit(sections) {
             return Err(ProgramLoadError::InvalidString);
@@ -230,8 +242,34 @@ impl ObjectHeader {
             && self
                 .native
                 .get()
-                .is_none_or(|code| code.ranges_fit(sections))
+                .is_none_or(|code| self.native_fits(sections, code))
             && self.wasm.get().is_none_or(|code| code.ranges_fit(sections))
+    }
+
+    /// Return whether linked native code agrees with the authoritative Program tables.
+    fn native_fits(&self, sections: SectionImage<'_>, code: native::Code) -> bool {
+        if !code.ranges_fit(sections) {
+            return false;
+        }
+
+        let functions = self.functions.entries(sections).len();
+        let frames = self.frames.states(sections).len();
+        let frame_maps = code.map().frames(sections);
+
+        // require dense physical entry columns and resolvable native strings
+        let target_fits = self.strings.string(sections, code.target).is_some();
+        let features = code.features(sections);
+        let features_fit = features.windows(2).all(|pair| pair[0] < pair[1])
+            && features
+                .iter()
+                .all(|feature| self.strings.string(sections, *feature).is_some());
+        let frame_maps_fit = frame_maps
+            .iter()
+            .all(|frame| (frame.state as usize) < frames);
+        let columns_fit =
+            code.functions(sections).len() == functions && code.resumes(sections).len() == frames;
+
+        columns_fit && target_fits && features_fit && frame_maps_fit
     }
 }
 
@@ -253,9 +291,9 @@ impl ProgramBuilder {
             traces: mir::TraceTable::default(),
             globals: GlobalTableBuilder::default(),
             info: None,
-            constant_space: Vec::new(),
-            shared_static_space: Vec::new(),
-            local_static_space: Vec::new(),
+            constants: Vec::new(),
+            shared_statics: Vec::new(),
+            local_statics: Vec::new(),
             bytecode: None,
             native: None,
             wasm: None,
@@ -376,22 +414,22 @@ impl ProgramBuilder {
     }
 
     /// Set immutable constant storage.
-    pub fn constant_space(mut self, bytes: impl Into<Vec<u8>>) -> Self {
-        self.constant_space = bytes.into();
+    pub fn constants(mut self, bytes: impl Into<Vec<u8>>) -> Self {
+        self.constants = bytes.into();
 
         self
     }
 
     /// Set initial shared static storage.
-    pub fn shared_static_space(mut self, bytes: impl Into<Vec<u8>>) -> Self {
-        self.shared_static_space = bytes.into();
+    pub fn shared_statics(mut self, bytes: impl Into<Vec<u8>>) -> Self {
+        self.shared_statics = bytes.into();
 
         self
     }
 
     /// Set initial local static storage.
-    pub fn local_static_space(mut self, bytes: impl Into<Vec<u8>>) -> Self {
-        self.local_static_space = bytes.into();
+    pub fn local_statics(mut self, bytes: impl Into<Vec<u8>>) -> Self {
+        self.local_statics = bytes.into();
 
         self
     }
@@ -413,7 +451,7 @@ impl ProgramBuilder {
     /// Build one immutable Program image.
     pub fn build(self) -> Program {
         let mut sections = SectionBuilder::new();
-        let mut header = ObjectHeader::new(self.target_layout);
+        let mut header = ProgramHeader::new(self.target_layout);
         let header_section = sections.insert([header]);
 
         // pack runtime tables in canonical order
@@ -433,9 +471,9 @@ impl ProgramBuilder {
         }
 
         // pack immutable storage in canonical order
-        header.constant_space = StaticImage::pack(&mut sections, self.constant_space);
-        header.shared_static_space = StaticImage::pack(&mut sections, self.shared_static_space);
-        header.local_static_space = StaticImage::pack(&mut sections, self.local_static_space);
+        header.constants = StaticImage::pack(&mut sections, self.constants);
+        header.shared_statics = StaticImage::pack(&mut sections, self.shared_statics);
+        header.local_statics = StaticImage::pack(&mut sections, self.local_statics);
 
         // pack executable code in canonical order
         if let Some(bytecode) = self.bytecode {
@@ -461,7 +499,7 @@ impl Program {
     /// Load one Program from retained aligned image storage.
     pub fn load(storage: SectionStorage) -> Result<Self, ProgramLoadError> {
         let loader = SectionLoader::new(&storage)?;
-        let header = loader.header::<ObjectHeader>()?;
+        let header = loader.header::<ProgramHeader>()?;
         if header.magic != PROGRAM_MAGIC {
             return Err(ProgramLoadError::InvalidMagic);
         }
@@ -474,7 +512,7 @@ impl Program {
 
         // SAFETY: SectionLoader validated every absolute section reachable from the header.
         let sections = unsafe { SectionImage::new(&storage) };
-        header.check(sections)?;
+        header.validate(sections)?;
 
         Ok(Self::from_header(*header, storage))
     }
@@ -485,7 +523,7 @@ impl Program {
     }
 
     /// Create one Program from its fixed header and retained section storage.
-    fn from_header(header: ObjectHeader, storage: SectionStorage) -> Self {
+    fn from_header(header: ProgramHeader, storage: SectionStorage) -> Self {
         Self {
             target_layout: header.target_layout,
             strings: header.strings,
@@ -500,9 +538,9 @@ impl Program {
             traces: header.traces,
             globals: header.globals,
             info: header.info.get(),
-            constant_space: header.constant_space,
-            shared_static_space: header.shared_static_space,
-            local_static_space: header.local_static_space,
+            constants: header.constants,
+            shared_statics: header.shared_statics,
+            local_statics: header.local_statics,
             bytecode: header.bytecode.get(),
             native: header.native.get(),
             wasm: header.wasm.get(),
@@ -511,4 +549,4 @@ impl Program {
     }
 }
 
-const _: () = assert!(align_of::<ObjectHeader>() == 16);
+const _: () = assert!(align_of::<ProgramHeader>() == 16);
