@@ -206,12 +206,10 @@ export local class Promise<T: Copy> implements Awaitable<T> {
 
     /// Observe this fulfilled promise.
     private observe(): T {
-        // require the normalized result owner
-        if (this.state.kind != "fulfilled") {
-            trap("promise does not own a fulfilled value")
+        match (this.state) {
+            PromiseFulfilled { value } => value
+            _ => trap("promise does not own a fulfilled value")
         }
-
-        return this.state.value;
     }
 
     /// Add one reaction.
