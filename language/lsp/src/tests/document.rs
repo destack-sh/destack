@@ -188,6 +188,42 @@ export declare function value(): int32;
         .await;
 }
 
+/// Return documentation attached directly to an authored expression.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_hover_expression_documentation() {
+    let source = r#"const result =
+    /// Computed value.
+    42;
+"#;
+    let mut server = TestServer::new("expression-documentation-hover");
+    let document = server.write("main.ds", source);
+    server
+        .initialize(lsp::ClientCapabilities::default(), None)
+        .await
+        .unwrap();
+    server.initialized().await;
+
+    // return the expression documentation without a symbol declaration
+    server.open(&document, 1, source).await;
+    server
+        .assert_notification::<lsp::notification::PublishDiagnostics>(
+            lsp::PublishDiagnosticsParams {
+                uri: document.uri().clone(),
+                diagnostics: Vec::new(),
+                version: Some(1),
+            },
+        )
+        .await;
+    let params = document.hover(position(2, 4));
+    let expected = lsp::Hover {
+        contents: lsp::HoverContents::Markup(markdown("Computed value.")),
+        range: Some(range(2, 4, 2, 6)),
+    };
+    server
+        .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
+        .await;
+}
+
 /// Complete concurrent semantic document requests over shared artifacts.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_run_concurrent_document_queries() {

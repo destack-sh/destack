@@ -352,12 +352,18 @@ impl Document {
 }
 
 impl DocumentSet {
-    /// Render hover items as LSP Markdown.
-    pub(crate) fn render_hover(&self, items: &[query::HoverItem]) -> jsonrpc::Result<String> {
-        let mut markdown = Vec::with_capacity(items.len());
+    /// Render hover content as LSP Markdown.
+    pub(crate) fn render_hover(&self, hover: &query::Hover) -> jsonrpc::Result<String> {
+        let mut markdown =
+            Vec::with_capacity(hover.items.len() + usize::from(hover.documentation.is_some()));
+
+        // render documentation attached directly to the authored node
+        if let Some(documentation) = &hover.documentation {
+            markdown.push(documentation.clone());
+        }
 
         // format declaration targets
-        for item in items {
+        for item in &hover.items {
             markdown.push(self.render_hover_item(item)?);
         }
 

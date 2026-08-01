@@ -1375,7 +1375,7 @@ impl LanguageServer for DestackLanguageServer {
         // project every declaration target from the response revision
         let file_ids = hover_info.items.iter().map(|item| item.target.span.file);
         let documents = self.load_documents(&query_file.path, revision, file_ids)?;
-        let markdown = documents.render_hover(&hover_info.items)?;
+        let markdown = documents.render_hover(&hover_info)?;
         let range = document.range(hover_info.range)?;
 
         Ok(Some(lsp::Hover {
