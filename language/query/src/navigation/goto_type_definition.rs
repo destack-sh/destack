@@ -30,22 +30,27 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Vec<NavigationTarget>> {
-        let Some(occurrence) = self.symbol_at_offset(file_id, offset)? else {
+        let occurrence = self.symbol_at_offset(file_id, offset)?;
+        let (span, symbols, type_id) = if let Some(occurrence) = occurrence {
+            (occurrence.span, occurrence.symbols, occurrence.type_id)
+        } else if let Some(occurrence) = self.type_at_offset(file_id, offset)? {
+            (occurrence.span, Vec::new(), Some(occurrence.type_id))
+        } else {
             return Ok(Vec::new());
         };
         let origin = QueryRange {
             module: self.module(),
-            span: occurrence.span,
+            span,
         };
-        let mut targets = Vec::new();
+        let mut definitions = Vec::new();
 
         // resolve nominal declarations and checked result types for every exact target
-        for symbol in occurrence.symbols {
+        for symbol in symbols {
             for canonical in query.canonical_symbols(symbol)? {
                 let module = query.module(canonical.module_id)?;
                 let declaration = module.symbols().get_symbol(canonical.local_id);
                 if declaration.kind.is_type_definition() {
-                    targets.push(module.navigation_target(canonical, origin)?);
+                    definitions.push(canonical);
 
                     continue;
                 }
@@ -58,23 +63,32 @@ impl ModuleQueryContext<'_> {
                             "type definition type: {canonical:?}"
                         )))?;
                 let mut type_symbols = module.type_definition_symbols(query, type_id)?;
-                type_symbols.sort();
-                type_symbols.dedup();
+                definitions.append(&mut type_symbols);
+            }
+        }
 
-                // build every exact nominal target reached through the checked type
-                for type_symbol in type_symbols {
-                    for type_symbol in query.canonical_symbols(type_symbol)? {
-                        let type_module = query.module(type_symbol.module_id)?;
-                        let declaration = type_module.symbols().get_symbol(type_symbol.local_id);
-                        if !declaration.kind.is_type_definition() {
-                            return Err(QueryError::invalid(format!(
-                                "type definition symbol: {type_symbol:?}"
-                            )));
-                        }
+        // resolve primitive and structural type occurrences without declaration symbols
+        if definitions.is_empty()
+            && let Some(type_id) = type_id
+        {
+            definitions.extend(self.type_definition_symbols(query, type_id)?);
+        }
+        definitions.sort_unstable();
+        definitions.dedup();
 
-                        targets.push(type_module.navigation_target(type_symbol, origin)?);
-                    }
+        // build every exact nominal target reached through the checked type
+        let mut targets = Vec::new();
+        for definition in definitions {
+            for definition in query.canonical_symbols(definition)? {
+                let module = query.module(definition.module_id)?;
+                let symbol = module.symbols().get_symbol(definition.local_id);
+                if !symbol.kind.is_type_definition() {
+                    return Err(QueryError::invalid(format!(
+                        "type definition symbol: {definition:?}"
+                    )));
                 }
+
+                targets.push(module.navigation_target(definition, origin)?);
             }
         }
 
@@ -93,6 +107,16 @@ impl ModuleQueryContext<'_> {
             let selected = match type_value {
                 dir::Type::Reference(reference) => (vec![reference.symbol], Vec::new()),
                 dir::Type::Application(application) => (vec![application.symbol], Vec::new()),
+                dir::Type::Primitive(primitive) => {
+                    let Some(item) = primitive.representation_item() else {
+                        return Ok((Vec::new(), Vec::new()));
+                    };
+                    let symbol = query.global_environment()?.language.symbol(item).ok_or(
+                        QueryError::missing(format!("primitive language item: {item:?}")),
+                    )?;
+
+                    (vec![symbol], Vec::new())
+                }
                 dir::Type::Form(form) => (Vec::new(), vec![form.value]),
                 dir::Type::Union(union) => {
                     (Vec::new(), module.types().type_ids(union.elements).to_vec())

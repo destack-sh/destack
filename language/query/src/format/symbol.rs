@@ -245,10 +245,26 @@ impl Formatter<'_, '_, '_> {
 
                 format!("({kind}) {signature}")
             }
-            dir::DefinitionMember::AssociatedType(_) => {
-                let type_text = self.member_type(member)?;
+            dir::DefinitionMember::AssociatedType(associated) => {
+                let constraint = associated
+                    .constraint
+                    .map(|constraint| self.global_type(constraint))
+                    .transpose()?;
+                let value = associated
+                    .value
+                    .map(|value| self.global_type(value))
+                    .transpose()?;
 
-                format!("(type member) {name} = {type_text}")
+                match (constraint, value) {
+                    (None, None) => format!("(type member) {name}"),
+                    (Some(constraint), None) => {
+                        format!("(type member) {name}: {constraint}")
+                    }
+                    (None, Some(value)) => format!("(type member) {name} = {value}"),
+                    (Some(constraint), Some(value)) => {
+                        format!("(type member) {name}: {constraint} = {value}")
+                    }
+                }
             }
             dir::DefinitionMember::AssociatedConst(_) => {
                 let type_text = self.member_type(member)?;

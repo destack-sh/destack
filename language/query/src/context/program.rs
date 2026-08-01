@@ -1,8 +1,8 @@
 use std::sync::{Arc, OnceLock};
 
 use destack_artifact::{
-    ArtifactKey, ComponentGraph, IndexKind, InferenceComponentIndex, ModuleIndex, PackageGraph,
-    ProgramIndex,
+    ArtifactKey, ComponentGraph, GlobalEnvironment, IndexKind, InferenceComponentIndex,
+    ModuleIndex, PackageGraph, ProgramIndex,
 };
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProviderError, Repository, RepositoryError, Revision};
@@ -28,6 +28,8 @@ pub struct ProgramQueryContext<'a> {
     require_artifacts: &'a dyn Fn(&[ArtifactKey]) -> QueryResult<()>,
     /// Lazily read package graph for import completion.
     package_graph: OnceLock<Result<Arc<PackageGraph>, ProviderError>>,
+    /// Lazily read compiler language and global bindings.
+    global_environment: OnceLock<Result<Arc<GlobalEnvironment>, ProviderError>>,
     /// Lazily read component graph for semantic index families.
     component_graph: OnceLock<Result<Arc<ComponentGraph>, ProviderError>>,
     /// Lazily read program indexes by family.
@@ -219,6 +221,22 @@ impl<'a> ProgramQueryContext<'a> {
         }
     }
 
+    /// Return the compiler language and global bindings for this program.
+    pub(crate) fn global_environment(&self) -> QueryResult<&GlobalEnvironment> {
+        let artifact = ArtifactKey::global_environment(self.profile_id());
+        (self.require_artifacts)(&[artifact])?;
+        let environment = self.global_environment.get_or_init(|| {
+            let artifacts = ArtifactReader::new(self.repository(), self.revision());
+
+            artifacts.global_environment(self.profile_id())
+        });
+
+        match environment {
+            Ok(environment) => Ok(environment.as_ref()),
+            Err(error) => Err(QueryError::from(error.clone())),
+        }
+    }
+
     /// Return symbol postings.
     pub(crate) fn symbol_postings(&self) -> QueryResult<&dir::SymbolPostings> {
         match self.program_index(IndexKind::Symbols)? {
@@ -394,6 +412,7 @@ impl<'a> ProgramQueryContext<'a> {
             modules: Mutex::new(FxHashMap::default()),
             require_artifacts,
             package_graph: OnceLock::new(),
+            global_environment: OnceLock::new(),
             component_graph: OnceLock::new(),
             program_indexes: std::array::from_fn(|_| OnceLock::new()),
             module_indexes: OnceLock::new(),

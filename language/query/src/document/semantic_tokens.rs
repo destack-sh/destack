@@ -282,8 +282,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
                 continue;
             }
 
-            let source_node_id = view.get_source(declaration_id);
-            let Some(main_span) = self.main_span(source_node_id)? else {
+            let Some(main_span) = self.main_span(declaration_id.into_any())? else {
                 continue;
             };
 
@@ -314,8 +313,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
         // collect parameter declarations
         for (parameter_id, _) in view.iter_nodes_of_type::<dir::Parameter>() {
-            let source_node_id = view.get_source(parameter_id);
-            let Some(name_span) = self.main_span(source_node_id)? else {
+            let Some(name_span) = self.main_span(parameter_id.into_any())? else {
                 continue;
             };
             let modifiers = SemanticTokenModifiers::DECLARATION
@@ -341,8 +339,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
                 continue;
             }
 
-            let source_node_id = view.get_source(pattern_id);
-            let Some(main_span) = self.main_span(source_node_id)? else {
+            let Some(main_span) = self.main_span(pattern_id.into_any())? else {
                 continue;
             };
 
@@ -372,8 +369,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
                 | dir::PatternField::Elision => continue,
             };
 
-            let source_node_id = view.get_source(field_id);
-            let Some(main_span) = self.main_span(source_node_id)? else {
+            let Some(main_span) = self.main_span(field_id.into_any())? else {
                 continue;
             };
 
@@ -398,11 +394,9 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
                 continue;
             }
 
-            let source_node_id = view.get_source(expression_id);
-
             match expression {
                 dir::Expression::Label { .. } => {
-                    if let Some(main_span) = self.main_span(source_node_id)? {
+                    if let Some(main_span) = self.main_span(expression_id.into_any())? {
                         self.tokens.push(SemanticToken::new(
                             main_span,
                             SemanticTokenType::Label,
@@ -415,7 +409,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
                     let Some((token_type, modifiers)) = self.reference_token(node_id)? else {
                         continue;
                     };
-                    let Some(main_span) = self.main_span(source_node_id)? else {
+                    let Some(main_span) = self.main_span(expression_id.into_any())? else {
                         continue;
                     };
 
@@ -428,7 +422,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
                     let (token_type, modifiers) = self
                         .reference_token(node_id)?
                         .ok_or(QueryError::missing(format!("label target: {node_id:?}")))?;
-                    let Some(main_span) = self.main_span(source_node_id)? else {
+                    let Some(main_span) = self.main_span(expression_id.into_any())? else {
                         continue;
                     };
 
@@ -792,8 +786,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
             let Some((token_type, modifiers)) = Self::member_token(member) else {
                 continue;
             };
-            let source_node_id = view.get_source(member_id);
-            let Some(main_span) = self.main_span(source_node_id)? else {
+            let Some(main_span) = self.main_span(member_id.into_any())? else {
                 continue;
             };
             let modifiers = modifiers.union(self.node_symbol_modifiers(member_id.into_any())?);
@@ -857,8 +850,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
             let Some((token_type, modifiers)) = self.type_member_token(member_id, member)? else {
                 continue;
             };
-            let source_node_id = view.get_source(member_id);
-            let Some(main_span) = self.main_span(source_node_id)? else {
+            let Some(main_span) = self.main_span(member_id.into_any())? else {
                 continue;
             };
             let modifiers = modifiers.union(self.node_symbol_modifiers(member_id.into_any())?);
@@ -962,8 +954,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
         // collect enum member declarations
         for (field_id, _) in view.iter_nodes_of_type::<dir::EnumField>() {
-            let source_node_id = view.get_source(field_id);
-            let Some(main_span) = self.main_span(source_node_id)? else {
+            let Some(main_span) = self.main_span(field_id.into_any())? else {
                 continue;
             };
             let modifiers = SemanticTokenModifiers::DECLARATION
@@ -991,8 +982,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
             };
 
             for &parameter_id in generic_parameters {
-                let source_node_id = view.get_source(parameter_id);
-                let Some(main_span) = self.main_span(source_node_id)? else {
+                let Some(main_span) = self.main_span(parameter_id.into_any())? else {
                     continue;
                 };
 
@@ -1056,7 +1046,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
                 | dir::TypeExpression::Member { .. }
                 | dir::TypeExpression::Lifetime { .. }
                 | dir::TypeExpression::This => {
-                    if let Some(span) = self.main_span(source_id)? {
+                    if let Some(span) = self.main_span(type_id.into_any())? {
                         spans.push(span);
                     }
                 }
@@ -1092,10 +1082,9 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
         // collect decorator names
         for (decorator_id, decorator) in view.iter_nodes_of_type::<dir::Decorator>() {
             let name_id = Self::decorator_name_expression(view, decorator);
-            let source_node_id = view.get_source(name_id);
             let decorator_node = decorator_id.into_any().into_global(self.module.module_id());
             let span = self
-                .main_span(source_node_id)?
+                .main_span(name_id.into_any())?
                 .ok_or(QueryError::missing(format!(
                     "semantic token span: {decorator_node:?}"
                 )))?;
@@ -1202,7 +1191,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
         // collect imported and exported binding names
         for (item_id, _) in view.iter_nodes_of_type::<dir::DependencyItem>() {
             let source_node_id = view.get_source(item_id);
-            let Some(main_span) = self.main_span(source_node_id)? else {
+            let Some(main_span) = self.main_span(item_id.into_any())? else {
                 continue;
             };
 
@@ -1267,18 +1256,20 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
         Ok(())
     }
 
-    /// Return the main span for a source node.
-    fn main_span(&self, source_node_id: u32) -> QueryResult<Option<Span>> {
+    /// Return the authored main span for one DIR node.
+    fn main_span(&self, node_id: dir::LocalNodeIdAny) -> QueryResult<Option<Span>> {
+        let source_node_id = self.module.view().get_source_any(node_id);
         if self.module.source_index().try_get(source_node_id).is_none() {
             return Ok(None);
         }
 
+        let node_id = node_id.into_global(self.module.module_id());
         let span =
             self.module
                 .source_index()
                 .get_main(source_node_id)
                 .ok_or(QueryError::missing(format!(
-                    "semantic token main span: {source_node_id}"
+                    "semantic token main span: {node_id:?}, source={source_node_id}"
                 )))?;
 
         Ok(Some(span))

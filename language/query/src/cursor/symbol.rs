@@ -14,6 +14,15 @@ pub(crate) struct SymbolOccurrence {
     pub span: Span,
 }
 
+/// One checked type occurrence at an authored source span.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct TypeOccurrence {
+    /// The checked type selected at this occurrence.
+    pub type_id: dir::GlobalTypeId,
+    /// The authored occurrence span.
+    pub span: Span,
+}
+
 impl SymbolOccurrence {
     /// Return the symbol when this occurrence names exactly one declaration.
     pub(crate) fn symbol(&self) -> Option<dir::GlobalSymbolId> {
@@ -34,6 +43,22 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<Option<SymbolOccurrence>> {
         self.occurrence_at_offset(file_id, offset, |view, node_id, span, offset| {
             self.symbol_occurrence(view, node_id, span, offset)
+        })
+    }
+
+    /// Return the checked type occurrence at an authored span.
+    pub(crate) fn type_at_offset(
+        &self,
+        file_id: FileId,
+        offset: u32,
+    ) -> QueryResult<Option<TypeOccurrence>> {
+        self.occurrence_at_offset(file_id, offset, |_view, node_id, span, _offset| {
+            let node_id = node_id.into_global(self.module_id());
+            let Some(type_id) = self.types().get_node_type_id(node_id) else {
+                return Ok(None);
+            };
+
+            Ok(Some(TypeOccurrence { type_id, span }))
         })
     }
 
@@ -71,7 +96,7 @@ impl ModuleQueryContext<'_> {
     }
 
     /// Find one occurrence by visiting authored source owners at an offset.
-    fn occurrence_at_offset(
+    fn occurrence_at_offset<T>(
         &self,
         file_id: FileId,
         offset: u32,
@@ -80,8 +105,8 @@ impl ModuleQueryContext<'_> {
             dir::LocalNodeIdAny,
             Span,
             u32,
-        ) -> QueryResult<Option<SymbolOccurrence>>,
-    ) -> QueryResult<Option<SymbolOccurrence>> {
+        ) -> QueryResult<Option<T>>,
+    ) -> QueryResult<Option<T>> {
         // exclude comments from semantic occurrences
         let is_comment = self
             .comments(file_id)?
@@ -98,9 +123,9 @@ impl ModuleQueryContext<'_> {
             let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
                 continue;
             };
-            let Some(main_span) = self.source_index().get_main(enclosing_span.source_id) else {
-                continue;
-            };
+            let main_span = self
+                .source_index()
+                .get_main_or_enclosing(enclosing_span.source_id);
 
             // select the authored name inside nodes that own several names
             let span = if node_id.ty == dir::NodeType::DependencyItem {

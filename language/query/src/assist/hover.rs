@@ -25,6 +25,8 @@ pub struct HoverItem {
 pub struct Hover {
     /// The declarations named by the hovered occurrence.
     pub items: Vec<HoverItem>,
+    /// Documentation attached to the authored node at the hovered position.
+    pub documentation: Option<String>,
     /// The range of the hovered occurrence.
     pub range: Span,
 }
@@ -51,40 +53,65 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<Hover>> {
-        // resolve every exact declaration named by this occurrence
-        let Some(occurrence) = self.symbol_at_offset(file_id, offset)? else {
+        // resolve source documentation and every exact named declaration
+        let documentation = self.documentation_at_offset(file_id, offset)?;
+        let occurrence = self.symbol_at_offset(file_id, offset)?;
+        if occurrence.is_none() && documentation.is_none() {
             return Ok(None);
-        };
+        }
+
         let mut symbols = Vec::new();
-        for symbol in &occurrence.symbols {
-            symbols.extend(query.canonical_symbols(*symbol)?);
+        if let Some(occurrence) = &occurrence {
+            for symbol in &occurrence.symbols {
+                symbols.extend(query.canonical_symbols(*symbol)?);
+            }
         }
         symbols.sort();
         symbols.dedup();
-        let type_text = self.format_distinct_type(query, occurrence.type_id, &symbols)?;
+        let type_text = match &occurrence {
+            Some(occurrence) => self.format_distinct_type(query, occurrence.type_id, &symbols)?,
+            None => None,
+        };
 
         // format only recorded declaration shapes
         let mut items = Vec::new();
+        let mut is_documentation_in_items = false;
         for symbol in symbols {
             let module = query.module(symbol.module_id)?;
             let signature = Formatter::new(&module, query).symbol_signature(symbol)?;
-            let documentation = query.symbol_documentation(symbol)?;
+            let item_documentation = query.symbol_documentation(symbol)?;
             let target = module.symbol_target(symbol)?;
+
+            // avoid repeating documentation on its declaration occurrence
+            if let Some(documentation) = &documentation {
+                let declaration = module.symbols().get_symbol(symbol.local_id).declaration;
+                is_documentation_in_items |= declaration == Some(documentation.node_id);
+            }
 
             items.push(HoverItem {
                 signature,
                 type_text: type_text.clone(),
-                documentation,
+                documentation: item_documentation,
                 target,
             });
         }
-        if items.is_empty() {
+        if items.is_empty() && documentation.is_none() {
             return Ok(None);
         }
 
+        let range = match (&occurrence, &documentation) {
+            (Some(occurrence), _) => occurrence.span,
+            (None, Some(documentation)) => documentation.span,
+            (None, None) => return Ok(None),
+        };
+        let documentation = documentation
+            .filter(|_| !is_documentation_in_items)
+            .map(|documentation| documentation.text);
+
         Ok(Some(Hover {
             items,
-            range: occurrence.span,
+            documentation,
+            range,
         }))
     }
 
