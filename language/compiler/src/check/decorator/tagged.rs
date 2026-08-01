@@ -14,6 +14,8 @@ struct TaggedOptions {
     discriminator: Option<dir::StaticKey>,
     /// The constructor naming policy.
     case: TaggedCaseConvention,
+    /// The written naming convention text.
+    case_text: Option<dir::StringId>,
     /// Explicit constructor names keyed by discriminant text.
     names: FxIndexMap<dir::StringId, dir::StringId>,
 }
@@ -109,7 +111,7 @@ impl CheckState<'_> {
             }
 
             // derived members require written literal options
-            let origin = self.node_site(expression.into_global_any(module))?.origin();
+            let origin = Origin::Node(expression.into_global_any(module), None);
             let Some(options) = self.decode_tagged_options(module, options) else {
                 self.report_undecidable_static_value(module, expression.into_any());
                 continue;
@@ -183,7 +185,9 @@ impl CheckState<'_> {
             });
         };
         let backing = declared.backing;
-        let template = declared.template.map(|template| template.into_global(module));
+        let template = declared
+            .template
+            .map(|template| template.into_global(module));
         let identities = declared
             .members
             .iter()
@@ -198,11 +202,25 @@ impl CheckState<'_> {
             });
         }
 
-        // decode the written derive options
-        let Some(options) = self.tagged_derive_options(module, symbol)? else {
+        // read the declared derive options
+        let Some(sealed) = declared.tagged_options.clone() else {
             return Err(CompilerError::Internal {
-                message: format!("tagged newtype {symbol:?} has no written Tagged derive"),
+                message: format!("tagged newtype {symbol:?} declared no Tagged options"),
             });
+        };
+
+        // resolve the written naming convention text
+        let case = sealed
+            .case
+            .and_then(|text| TaggedCaseConvention::from_text(self.strings().get(text)))
+            .unwrap_or(TaggedCaseConvention::UpperCamel);
+
+        // assemble tagged options from the sealed derive input
+        let options = TaggedOptions {
+            discriminator: sealed.discriminator,
+            case,
+            case_text: sealed.case,
+            names: sealed.names.iter().copied().collect(),
         };
 
         // classify every constructible backing arm
@@ -266,7 +284,8 @@ impl CheckState<'_> {
         let mut derived = Vec::with_capacity(cases.len());
         for ((key, variant), identity) in cases.into_iter().zip(identities) {
             let member = identity.symbol;
-            let ty = self.tagged_variant_member_type(owner_ty, member, template, variant.argument)?;
+            let ty =
+                self.tagged_variant_member_type(owner_ty, member, template, variant.argument)?;
             self.bind_symbol_type(member, ty)?;
             derived.push(dir::DefinitionMember::TaggedVariant(
                 dir::TaggedVariantDefinition {
@@ -291,73 +310,6 @@ impl CheckState<'_> {
         Ok(Some(definition))
     }
 
-    /// Decode the written Tagged options annotating one declaration.
-    fn tagged_derive_options(
-        &mut self,
-        module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<TaggedOptions>> {
-        // the declaration node comes from the loaded definition tables
-        let source = if let Some(state) = self.module_maybe(module) {
-            let declared = state
-                .declared
-                .as_ref()
-                .and_then(|declared| declared.definitions.definition_source_maybe(symbol));
-
-            state
-                .definitions
-                .definition_source_maybe(symbol)
-                .or(declared)
-        } else {
-            self.external_module(module).definitions.definition_source(symbol)
-        };
-        let Some(source) = source else {
-            return Ok(None);
-        };
-        let decorators = self.decorator_expressions(module, source.local_id);
-
-        for decorator in decorators {
-            // the derive decorator names its providers in the arguments
-            let Some(target) = self.reference_symbol(decorator.target.into_global_any(module))
-            else {
-                continue;
-            };
-            let target = self.resolve_symbol_alias(target)?;
-            if self.global.language.item(target) != Some(dir::LanguageItem::Derive) {
-                continue;
-            }
-
-            for argument in decorator.arguments.iter().copied() {
-                // split one provider reference from its written options
-                let Some(expression) = self.module_view(module).get(argument).value() else {
-                    continue;
-                };
-                let (provider, options) = match self.module_view(module).get(expression) {
-                    dir::Expression::Call {
-                        left, arguments, ..
-                    } => (*left, arguments.first().copied()),
-                    _ => (expression, None),
-                };
-                let options =
-                    options.and_then(|argument| self.module_view(module).get(argument).value());
-
-                // providers resolve by language item
-                let Some(provider) = self.reference_symbol(provider.into_global_any(module))
-                else {
-                    continue;
-                };
-                let provider = self.resolve_symbol_alias(provider)?;
-                if self.global.language.item(provider) != Some(dir::LanguageItem::Tagged) {
-                    continue;
-                }
-
-                return Ok(self.decode_tagged_options(module, options));
-            }
-        }
-
-        Ok(None)
-    }
-
     /// Decode literal Tagged options from one written provider argument.
     fn decode_tagged_options(
         &self,
@@ -367,6 +319,7 @@ impl CheckState<'_> {
         let mut options = TaggedOptions {
             discriminator: None,
             case: TaggedCaseConvention::UpperCamel,
+            case_text: None,
             names: FxIndexMap::default(),
         };
         let Some(expression) = expression else {
@@ -392,6 +345,8 @@ impl CheckState<'_> {
                     options.case = match self.literal_scalar(module, value)? {
                         dir::ScalarLiteral::Undefined => TaggedCaseConvention::UpperCamel,
                         dir::ScalarLiteral::String(name) => {
+                            options.case_text = Some(name);
+
                             TaggedCaseConvention::from_text(self.strings().get(name))?
                         }
                         _ => return None,
@@ -483,7 +438,7 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        let _ = (template, options);
+        let _ = template;
 
         // count the written backing arms
         let mut active = FxIndexSet::default();
@@ -514,6 +469,15 @@ impl CheckState<'_> {
             });
         };
         definition.is_tagged = true;
+        definition.tagged_options = Some(dir::TaggedOptionsDefinition {
+            discriminator: options.discriminator,
+            case: options.case_text,
+            names: options
+                .names
+                .iter()
+                .map(|(key, name)| (*key, *name))
+                .collect(),
+        });
         definition.members.extend(members);
 
         Ok(())

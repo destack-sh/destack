@@ -1,8 +1,9 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 
 use crate::check::{
-    ExpectedType, FlowPredicate, Obligation, Origin, PatternCoverage, PatternCoverageObligation,
-    WalkState, Widening,
+    CheckState, ExpectedType, FlowPredicate, Obligation, Origin, PatternCoverage,
+    PatternCoverageObligation, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -86,7 +87,7 @@ impl WalkState<'_, '_> {
 
         for id in declarators {
             let declarator = self.tree.get(id).clone();
-            if !self.walk_decorators(id.into_any())? {
+            if !self.declare_decorators(id.into_any())? {
                 continue;
             }
 
@@ -101,17 +102,16 @@ impl WalkState<'_, '_> {
                         .export_kind
                         .is_some()
                 });
-            // annotations with elided borrow lifetimes resolve at their
-            //  initializers, keeping those declarators body-owned; ambient
-            //  bindings elide to static instead
-            let elides = !is_ambient
-                && declarator
-                    .ty
-                    .is_some_and(|annotation| annotation_elides_lifetime(self.tree, annotation));
-            if (declarator.ty.is_none() || elides) && !exported {
+
+            // annotations that infer resolve at their initializers
+            let infers = !is_ambient
+                && declarator.ty.is_some_and(|annotation| {
+                    self.check.annotation_infers(self.module, annotation)
+                });
+            if (declarator.ty.is_none() || infers) && !exported {
                 continue;
             }
-            if elides {
+            if infers {
                 self.check
                     .report_missing_export_binding_type(self.module, declarator.pattern.into_any());
                 continue;
@@ -119,16 +119,17 @@ impl WalkState<'_, '_> {
 
             self.walk_declarator_pattern(&declarator, Some(kind), is_ambient)?;
 
-            // exported bindings without annotations keep literal values only,
-            //  matching TypeScript's isolatedDeclarations rule
+            // exported bindings without annotations keep literal values only
             if declarator.ty.is_none()
                 && let Some(value) = declarator.value
             {
-                if is_transcribable_literal(self.tree, value) {
+                if self.check.is_transcribable_literal(self.module, value) {
                     self.walk_declarator_initializer(id, value)?;
                 } else {
-                    self.check
-                        .report_missing_export_binding_type(self.module, declarator.pattern.into_any());
+                    self.check.report_missing_export_binding_type(
+                        self.module,
+                        declarator.pattern.into_any(),
+                    );
                 }
             }
         }
@@ -143,7 +144,9 @@ impl WalkState<'_, '_> {
         binding_kind: Option<dir::LetKind>,
         is_ambient: bool,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let widening = declarator_widening(self.tree, declarator, binding_kind);
+        let widening = self
+            .check
+            .declarator_widening(self.module, declarator, binding_kind);
         self.walk_pattern(
             declarator.pattern,
             self.tree.get(declarator.pattern),
@@ -401,113 +404,127 @@ impl WalkState<'_, '_> {
     }
 }
 
-/// Return the widening policy for one inferred declarator initializer.
-pub(in crate::check) fn declarator_widening(
-    tree: dir::View<'_>,
-    declarator: &dir::Declarator,
-    binding_kind: Option<dir::LetKind>,
-) -> Widening {
-    if declarator.ty.is_some() {
-        return Widening::Never;
-    }
-    let Some(value) = declarator.value else {
-        return Widening::Never;
-    };
-
-    match tree.get(value) {
-        // value satisfies T
-        dir::Expression::Satisfies { .. } => Widening::Never,
-        // value as const
-        dir::Expression::As { target_type, .. }
-            if matches!(tree.get(*target_type), dir::TypeExpression::Const) =>
-        {
-            Widening::Never
+impl CheckState<'_> {
+    /// Return the widening policy for one inferred declarator initializer.
+    pub(in crate::check) fn declarator_widening(
+        &self,
+        module: ModuleId,
+        declarator: &dir::Declarator,
+        binding_kind: Option<dir::LetKind>,
+    ) -> Widening {
+        // annotated and valueless declarators never widen
+        if declarator.ty.is_some() {
+            return Widening::Never;
         }
-        // mutable bindings widen their initialized value
-        _ if binding_kind != Some(dir::LetKind::Const) => Widening::Always,
-        // immutable aggregate bindings keep mutable contents usable
-        dir::Expression::ArrayExpression { .. }
-        | dir::Expression::TupleExpression { .. }
-        | dir::Expression::ObjectExpression { .. } => Widening::Always,
-        // immutable scalar bindings stay literal
-        _ => Widening::Never,
-    }
-}
+        let Some(value) = declarator.value else {
+            return Widening::Never;
+        };
 
-/// Return whether one annotation elides a borrow lifetime or writes a hole.
-fn annotation_elides_lifetime(
-    tree: dir::View<'_>,
-    annotation: dir::LocalNodeId<dir::TypeExpression>,
-) -> bool {
-    for (id, node) in tree.iter_nodes_of_type::<dir::TypeExpression>() {
-        if !matches!(
-            node,
-            dir::TypeExpression::BorrowedOf { lifetime: None, .. }
-                | dir::TypeExpression::Infer { .. }
-        ) {
-            continue;
+        let tree = self.module(module).view();
+        match tree.get(value) {
+            // value satisfies T
+            dir::Expression::Satisfies { .. } => Widening::Never,
+            // value as const
+            dir::Expression::As { target_type, .. }
+                if matches!(tree.get(*target_type), dir::TypeExpression::Const) =>
+            {
+                Widening::Never
+            }
+            // mutable bindings widen their initialized value
+            _ if binding_kind != Some(dir::LetKind::Const) => Widening::Always,
+            // immutable aggregate bindings keep mutable contents usable
+            dir::Expression::ArrayExpression { .. }
+            | dir::Expression::TupleExpression { .. }
+            | dir::Expression::ObjectExpression { .. } => Widening::Always,
+            // immutable scalar bindings stay literal
+            _ => Widening::Never,
         }
+    }
 
-        // reject elided borrows written inside the annotation
-        let mut current = id.into_any();
-        loop {
-            if current == annotation.into_any() {
+    /// Return whether one annotation writes a hole or elides a borrow lifetime.
+    pub(in crate::check) fn annotation_infers(
+        &self,
+        module: ModuleId,
+        annotation: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> bool {
+        let tree = self.module(module).view();
+
+        // find elided borrows and type holes written inside the annotation
+        for (id, node) in tree.iter_nodes_of_type::<dir::TypeExpression>() {
+            if matches!(
+                node,
+                dir::TypeExpression::BorrowedOf { lifetime: None, .. }
+                    | dir::TypeExpression::Infer { .. }
+            ) && tree.is_inside(id.into_any(), annotation.into_any())
+            {
                 return true;
             }
-            match tree.get_parent_any(current) {
-                Some(parent) => current = parent,
-                None => break,
+        }
+
+        // find value holes like fixed-array lengths
+        for (id, node) in tree.iter_nodes_of_type::<dir::Expression>() {
+            if matches!(node, dir::Expression::Infer { .. })
+                && tree.is_inside(id.into_any(), annotation.into_any())
+            {
+                return true;
             }
         }
+
+        false
     }
 
-    false
-}
-
-/// Return whether an initializer's type transcribes without inference.
-///
-/// Exported bindings without a written type keep only these initializers,
-/// matching TypeScript's isolatedDeclarations rule.
-pub(in crate::check) fn is_transcribable_literal(
-    tree: dir::View<'_>,
-    expression: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    match tree.get(expression) {
-        dir::Expression::ScalarLiteral(_) => true,
-        dir::Expression::TemplateExpression {
-            value: dir::TemplateLiteral::String { .. },
-        } => true,
-        // signed number literals
-        dir::Expression::Unary {
-            operator: dir::UnaryOperator::Negate | dir::UnaryOperator::Plus,
-            right,
-        } => matches!(tree.get(*right), dir::Expression::ScalarLiteral(_)),
-        dir::Expression::As {
-            expression,
-            target_type,
-        } if matches!(tree.get(*target_type), dir::TypeExpression::Const) => {
-            is_transcribable_literal(tree, *expression)
+    /// Return whether an initializer's type transcribes without inference.
+    pub(in crate::check) fn is_transcribable_literal(
+        &self,
+        module: ModuleId,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        let tree = self.module(module).view();
+        match tree.get(expression) {
+            // 1, "text", true
+            dir::Expression::ScalarLiteral(_) => true,
+            dir::Expression::TemplateExpression {
+                value: dir::TemplateLiteral::String { .. },
+            } => true,
+            // signed number literals
+            dir::Expression::Unary {
+                operator: dir::UnaryOperator::Negate | dir::UnaryOperator::Plus,
+                right,
+            } => matches!(tree.get(*right), dir::Expression::ScalarLiteral(_)),
+            // value as const
+            dir::Expression::As {
+                expression,
+                target_type,
+            } if matches!(tree.get(*target_type), dir::TypeExpression::Const) => {
+                self.is_transcribable_literal(module, *expression)
+            }
+            // [1, 2], (1, "a")
+            dir::Expression::ArrayExpression { elements }
+            | dir::Expression::TupleExpression { elements } => {
+                elements.iter().all(|element| match tree.get(*element) {
+                    dir::Argument::Positional { value } => {
+                        self.is_transcribable_literal(module, *value)
+                    }
+                    _ => false,
+                })
+            }
+            // [0; 16]
+            dir::Expression::FixedArrayExpression { value, length } => {
+                self.is_transcribable_literal(module, *value)
+                    && self.is_transcribable_literal(module, *length)
+            }
+            // { name: "a" }
+            dir::Expression::ObjectExpression { properties } => {
+                properties.iter().all(|property| match tree.get(*property) {
+                    dir::Property::Field {
+                        key: dir::Key::Name(_),
+                        value,
+                        ..
+                    } => self.is_transcribable_literal(module, *value),
+                    _ => false,
+                })
+            }
+            _ => false,
         }
-        dir::Expression::ArrayExpression { elements }
-        | dir::Expression::TupleExpression { elements } => {
-            elements.iter().all(|element| match tree.get(*element) {
-                dir::Argument::Positional { value } => is_transcribable_literal(tree, *value),
-                _ => false,
-            })
-        }
-        dir::Expression::FixedArrayExpression { value, length } => {
-            is_transcribable_literal(tree, *value) && is_transcribable_literal(tree, *length)
-        }
-        dir::Expression::ObjectExpression { properties } => {
-            properties.iter().all(|property| match tree.get(*property) {
-                dir::Property::Field {
-                    key: dir::Key::Name(_),
-                    value,
-                    ..
-                } => is_transcribable_literal(tree, *value),
-                _ => false,
-            })
-        }
-        _ => false,
     }
 }

@@ -3,18 +3,10 @@ use destack_dir as dir;
 use std::ptr::NonNull;
 
 use crate::check::{
-    BodyForm, CauseKind, FlowBranch, FlowState, GenericTemplateId, InducedParameterOwner, Origin,
-    Receiver, ReceiverBinding, Relation, ValueUse, WalkState, Widening,
+    CauseKind, FlowBranch, FlowState, GenericTemplateId, InducedParameterOwner, Origin, Receiver,
+    ReceiverBinding, Relation, ValueUse, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
-
-/// One member definition and its optional method body.
-pub(in crate::check) struct MemberHeader {
-    /// The member installed into the containing definition.
-    pub(in crate::check) definition: Option<dir::DefinitionMember>,
-    /// The method body checked after the containing definition exists.
-    pub(in crate::check) body: Option<MethodBody>,
-}
 
 /// Inputs required to check one method body.
 #[derive(Clone)]
@@ -172,14 +164,7 @@ impl WalkState<'_, '_> {
 
                 // walk method body after its result exists
                 if let (Some(symbol), Some(body), Some(result)) = (symbol, body, result) {
-                    self.walk_function_body(
-                        symbol,
-                        signature,
-                        body,
-                        result,
-                        None,
-                        BodyForm::Value,
-                    )?;
+                    self.walk_function_body(symbol, signature, body, result, None)?;
                 }
 
                 Ok(())
@@ -209,14 +194,14 @@ impl WalkState<'_, '_> {
         receiver_scope: Option<Receiver>,
         induced_owner: Option<InducedParameterOwner>,
         is_ambient_scope: bool,
-    ) -> CompilerResult<Option<MemberHeader>> {
-        if !self.walk_decorators(id.into_any())? {
+    ) -> CompilerResult<Option<dir::DefinitionMember>> {
+        if !self.declare_decorators(id.into_any())? {
             return Ok(None);
         }
         let _receiver =
             self.enter_receiver_scope(receiver_scope.filter(|_| member.binds_receiver()));
 
-        let header: CompilerResult<MemberHeader> = match member {
+        let definition: CompilerResult<Option<dir::DefinitionMember>> = match member {
             // type Item = T
             dir::Member::AssociatedType {
                 name,
@@ -261,24 +246,18 @@ impl WalkState<'_, '_> {
                 }
 
                 let Some(symbol) = symbol else {
-                    return Ok(Some(MemberHeader {
-                        definition: None,
-                        body: None,
-                    }));
+                    return Ok(None);
                 };
 
-                Ok(MemberHeader {
-                    definition: Some(dir::DefinitionMember::AssociatedType(
-                        dir::AssociatedTypeDefinition {
-                            symbol,
-                            source,
-                            key: dir::StaticKey::Name(name),
-                            constraint,
-                            value,
-                        },
-                    )),
-                    body: None,
-                })
+                Ok(Some(dir::DefinitionMember::AssociatedType(
+                    dir::AssociatedTypeDefinition {
+                        symbol,
+                        source,
+                        key: dir::StaticKey::Name(name),
+                        constraint,
+                        value,
+                    },
+                )))
             }
             // const item: T = value
             dir::Member::AssociatedConst {
@@ -333,23 +312,17 @@ impl WalkState<'_, '_> {
                 }
 
                 let (Some(symbol), Some(_)) = (symbol, declared) else {
-                    return Ok(Some(MemberHeader {
-                        definition: None,
-                        body: None,
-                    }));
+                    return Ok(None);
                 };
 
-                Ok(MemberHeader {
-                    definition: Some(dir::DefinitionMember::AssociatedConst(
-                        dir::AssociatedConstDefinition {
-                            symbol,
-                            source: id.into_global_any(self.module),
-                            key: dir::StaticKey::Name(name),
-                            value: None,
-                        },
-                    )),
-                    body: None,
-                })
+                Ok(Some(dir::DefinitionMember::AssociatedConst(
+                    dir::AssociatedConstDefinition {
+                        symbol,
+                        source: id.into_global_any(self.module),
+                        key: dir::StaticKey::Name(name),
+                        value: None,
+                    },
+                )))
             }
             // field: T = value
             dir::Member::Field {
@@ -429,31 +402,25 @@ impl WalkState<'_, '_> {
                 }
 
                 let (Some(symbol), Some(key)) = (symbol, key.direct_static_key()) else {
-                    return Ok(Some(MemberHeader {
-                        definition: None,
-                        body: None,
-                    }));
+                    return Ok(None);
                 };
 
-                Ok(MemberHeader {
-                    definition: Some(dir::DefinitionMember::Field(dir::FieldDefinition {
-                        space: if is_static {
-                            dir::MemberSpace::Static
-                        } else {
-                            dir::MemberSpace::Instance
-                        },
-                        symbol,
-                        source: id.into_global_any(self.module),
-                        key,
-                        initializer: default.map(|default| default.into_global_any(self.module)),
-                        is_optional,
-                        is_readonly,
-                        is_definite,
-                        is_abstract,
-                        is_override,
-                    })),
-                    body: None,
-                })
+                Ok(Some(dir::DefinitionMember::Field(dir::FieldDefinition {
+                    space: if is_static {
+                        dir::MemberSpace::Static
+                    } else {
+                        dir::MemberSpace::Instance
+                    },
+                    symbol,
+                    source: id.into_global_any(self.module),
+                    key,
+                    initializer: default.map(|default| default.into_global_any(self.module)),
+                    is_optional,
+                    is_readonly,
+                    is_definite,
+                    is_abstract,
+                    is_override,
+                })))
             }
             // method() {}
             dir::Member::Method {
@@ -481,10 +448,7 @@ impl WalkState<'_, '_> {
                     _ => match (*key).and_then(dir::Key::direct_static_key) {
                         Some(key) => dir::MemberSlot::Key(key),
                         None => {
-                            return Ok(Some(MemberHeader {
-                                definition: None,
-                                body: None,
-                            }));
+                            return Ok(None);
                         }
                     },
                 };
@@ -564,60 +528,28 @@ impl WalkState<'_, '_> {
                 // write the method symbol type
                 self.bind_symbol_type(symbol, method)?;
 
-                // check the body against the completed stored signature
-                let result = self
-                    .check
-                    .signature_head(method)?
-                    .and_then(|signature| signature.return_type);
-                let body_result = match (receiver, result) {
-                    (Some(receiver), Some(result)) => {
-                        Some(self.apply_receiver_scope(Some(receiver.receiver), result)?)
-                    }
-                    (_, result) => result,
-                };
-                let body = match (*body, body_result) {
-                    (Some(_), Some(result))
-                        if !is_ambient_scope && !*is_ambient && !abstraction.is_abstract() =>
-                    {
-                        Some(MethodBody { receiver, result })
-                    }
-                    _ => None,
-                };
-
-                Ok(MemberHeader {
-                    definition: Some(dir::DefinitionMember::Method(dir::MethodDefinition {
-                        space: if *is_static {
-                            dir::MemberSpace::Static
-                        } else {
-                            dir::MemberSpace::Instance
-                        },
-                        symbol,
-                        source,
-                        slot,
-                        role: signature.role,
-                        abstraction: *abstraction,
-                        is_override: *is_override,
-                        implementation,
-                    })),
-                    body,
-                })
+                Ok(Some(dir::DefinitionMember::Method(dir::MethodDefinition {
+                    space: if *is_static {
+                        dir::MemberSpace::Static
+                    } else {
+                        dir::MemberSpace::Instance
+                    },
+                    symbol,
+                    source,
+                    slot,
+                    role: signature.role,
+                    abstraction: *abstraction,
+                    is_override: *is_override,
+                    implementation,
+                })))
             }
             // static { ... }, comptime { ... }
-            dir::Member::StaticBlock { .. } | dir::Member::ComptimeBlock { .. } => {
-                Ok(MemberHeader {
-                    definition: None,
-                    body: None,
-                })
-            }
+            dir::Member::StaticBlock { .. } | dir::Member::ComptimeBlock { .. } => Ok(None),
             // ignore damaged nodes
-            dir::Member::Error => Ok(MemberHeader {
-                definition: None,
-                body: None,
-            }),
+            dir::Member::Error => Ok(None),
         };
-        let header = header?;
 
-        Ok(Some(header))
+        definition
     }
 
     /// Assemble one declared-stage member's body context from its declared signature.
@@ -657,7 +589,7 @@ impl WalkState<'_, '_> {
             return Ok(None);
         };
 
-        self.walk_declared_parameter_defaults(signature, method.module_id, &head)?;
+        self.walk_declared_parameters(signature, method.module_id, &head)?;
 
         // bind the receiver for instance methods
         let implicit = if *is_static { None } else { receiver_scope };
@@ -690,6 +622,10 @@ impl WalkState<'_, '_> {
         is_ambient_scope: bool,
         method_body: Option<MethodBody>,
     ) -> CompilerResult<Option<FlowBranch>> {
+        // walk decorator expressions as values in the body pass
+        if !self.walk_decorators(id.into_any())? {
+            return Ok(None);
+        }
         let _receiver =
             self.enter_receiver_scope(receiver_scope.filter(|_| member.binds_receiver()));
 
@@ -726,7 +662,6 @@ impl WalkState<'_, '_> {
                     body,
                     method_body.result,
                     method_body.receiver,
-                    BodyForm::Declaration,
                 )?;
 
                 if matches!(signature.role, Some(dir::FunctionRole::Constructor)) {
@@ -767,7 +702,7 @@ impl WalkState<'_, '_> {
         receiver_scope: Option<Receiver>,
         induced_owner: Option<InducedParameterOwner>,
     ) -> CompilerResult<Option<dir::DefinitionMember>> {
-        if !self.walk_decorators(id.into_any())? {
+        if !self.declare_decorators(id.into_any())? {
             return Ok(None);
         }
         let _receiver = self.enter_receiver_scope(receiver_scope);
@@ -899,14 +834,7 @@ impl WalkState<'_, '_> {
 
                 // walk default method bodies
                 if let (Some(body), Some(result)) = (body, result) {
-                    self.walk_function_body(
-                        symbol,
-                        signature,
-                        body,
-                        result,
-                        None,
-                        BodyForm::Declaration,
-                    )?;
+                    self.walk_function_body(symbol, signature, body, result, None)?;
                 }
 
                 // classify how the member receives its implementation

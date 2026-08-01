@@ -195,7 +195,7 @@ impl BodyState<'_, '_> {
             });
         };
         let expression = expression.into_typed::<dir::Expression>().local_id;
-        let origin = self.node_site(expression.into_global_any(module))?.origin();
+        let origin = Origin::Node(expression.into_global_any(module), None);
         let node = self.module_view(module).get(expression).clone();
 
         // select the exact newtype backing of a configured provider

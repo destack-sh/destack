@@ -1,17 +1,10 @@
 use destack_dir as dir;
 
-use crate::check::{CheckState, Decision, VariableRole, WalkState, Widening};
+use crate::check::{CheckState, Decision, DecoratorExpression, VariableRole, WalkState, Widening};
 use crate::r#static::{StaticError, StaticEvaluator, StaticGuard};
 use crate::{CompilerError, CompilerResult};
 
-/// Source presence decided by closed static gates.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum StaticGate {
-    /// The node is absent.
-    Absent,
-    /// The node is present.
-    Present,
-}
+pub(in crate::check) use dir::StaticPresence;
 
 impl WalkState<'_, '_> {
     /// Return the static key named by one key.
@@ -34,13 +27,26 @@ impl WalkState<'_, '_> {
     /// @if(import.meta.platform == "windows")
     /// function f() {}
     /// ```
-    fn decide_static_gate(&mut self, decorated: dir::LocalNodeIdAny) -> CompilerResult<StaticGate> {
+    fn decide_static_gate(
+        &mut self,
+        decorated: dir::LocalNodeIdAny,
+    ) -> CompilerResult<StaticPresence> {
         if let Some(gate) = self
             .check
             .module(self.module)
             .static_presence
             .get(&decorated)
             .copied()
+        {
+            return Ok(gate);
+        }
+
+        // trust earlier-stage gate decisions from the table, never re-judge them
+        if let Some(gate) = self
+            .check
+            .module(self.module)
+            .statics_base
+            .presence(decorated)
         {
             return Ok(gate);
         }
@@ -56,32 +62,30 @@ impl WalkState<'_, '_> {
                 StaticGuard::Rejected(error) => {
                     self.check
                         .report_invalid_static_if_invocation(self.module, error.node())?;
-                    self.commit_static_gate(decorated, StaticGate::Absent);
+                    self.commit_static_gate(decorated, StaticPresence::Absent);
 
-                    return Ok(StaticGate::Absent);
+                    return Ok(StaticPresence::Absent);
                 }
                 StaticGuard::Condition(condition) => match self.evaluate_static_gate(condition)? {
-                    StaticGate::Absent => {
-                        self.commit_static_gate(decorated, StaticGate::Absent);
+                    StaticPresence::Absent => {
+                        self.commit_static_gate(decorated, StaticPresence::Absent);
 
-                        return Ok(StaticGate::Absent);
+                        return Ok(StaticPresence::Absent);
                     }
-                    StaticGate::Present => {}
+                    StaticPresence::Present => {}
                 },
             }
         }
 
-        self.commit_static_gate(decorated, StaticGate::Present);
+        self.commit_static_gate(decorated, StaticPresence::Present);
 
-        Ok(StaticGate::Present)
+        Ok(StaticPresence::Present)
     }
 
     /// Commit one static gate decision.
-    fn commit_static_gate(&mut self, decorated: dir::LocalNodeIdAny, gate: StaticGate) {
+    fn commit_static_gate(&mut self, decorated: dir::LocalNodeIdAny, gate: StaticPresence) {
         let module = self.check.module_mut(self.module);
-        if gate == StaticGate::Absent {
-            module.statics.insert_absent_root(decorated);
-        }
+        module.statics.record_presence(decorated, gate);
 
         // retain the decision for repeated decorator walks
         module.static_presence.insert(decorated, gate);
@@ -103,7 +107,7 @@ impl WalkState<'_, '_> {
 
         match gate {
             // record absent declarations so name lookup drops them
-            StaticGate::Absent => {
+            StaticPresence::Absent => {
                 if let Some(symbol) = symbol {
                     self.check
                         .module_mut(self.module)
@@ -113,7 +117,7 @@ impl WalkState<'_, '_> {
 
                 Ok(false)
             }
-            StaticGate::Present => Ok(true),
+            StaticPresence::Present => Ok(true),
         }
     }
 
@@ -122,22 +126,58 @@ impl WalkState<'_, '_> {
         &mut self,
         decorated: dir::LocalNodeIdAny,
     ) -> CompilerResult<bool> {
-        if !self.decide_static_presence(decorated)? {
+        let Some(decorators) = self.applied_decorators(decorated)? else {
             return Ok(false);
-        }
-        let decorated_global = decorated.into_global(self.module);
-        let decorators = self.check.decorator_expressions(self.module, decorated);
+        };
 
-        // walk ordinary decorators in authored order
+        // walk applied decorators in authored order
+        let owner = decorated.into_global(self.module);
+        for decorator in decorators {
+            self.walk_decorator(decorator, owner)?;
+        }
+
+        Ok(true)
+    }
+
+    /// Declare decorator applications without walking their values.
+    pub(in crate::check) fn declare_decorators(
+        &mut self,
+        decorated: dir::LocalNodeIdAny,
+    ) -> CompilerResult<bool> {
+        let Some(decorators) = self.applied_decorators(decorated)? else {
+            return Ok(false);
+        };
+
+        // declare applied decorators in authored order
+        let owner = decorated.into_global(self.module);
+        for decorator in decorators {
+            self.declare_decorator(decorator, owner)?;
+        }
+
+        Ok(true)
+    }
+
+    /// Decide one node's presence and select its applied decorators.
+    fn applied_decorators(
+        &mut self,
+        decorated: dir::LocalNodeIdAny,
+    ) -> CompilerResult<Option<Vec<DecoratorExpression>>> {
+        if !self.decide_static_presence(decorated)? {
+            return Ok(None);
+        }
+
+        // keep applied decorators, presence is already decided
+        let decorators = self.check.decorator_expressions(self.module, decorated);
+        let mut ordinary = Vec::with_capacity(decorators.len());
         for decorator in decorators {
             let view = self.check.module_view(self.module);
             let guard = StaticGuard::classify(view, self.check.strings(), decorator.decorator);
             if matches!(guard, StaticGuard::Ordinary) {
-                self.walk_decorator(decorator, decorated_global)?;
+                ordinary.push(decorator);
             }
         }
 
-        Ok(true)
+        Ok(Some(ordinary))
     }
 
     /// Evaluate one static gate expression.
@@ -149,7 +189,7 @@ impl WalkState<'_, '_> {
     fn evaluate_static_gate(
         &mut self,
         condition: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<StaticGate> {
+    ) -> CompilerResult<StaticPresence> {
         let module = self.module;
 
         // decide profile-level conditions eagerly
@@ -168,19 +208,19 @@ impl WalkState<'_, '_> {
         };
 
         match evaluated {
-            Ok(true) => Ok(StaticGate::Present),
-            Ok(false) => Ok(StaticGate::Absent),
+            Ok(true) => Ok(StaticPresence::Present),
+            Ok(false) => Ok(StaticPresence::Absent),
             Err(StaticError::NotBoolean(expression)) => {
                 self.check
                     .report_non_boolean_static_guard(module, expression.into_any());
 
-                Ok(StaticGate::Absent)
+                Ok(StaticPresence::Absent)
             }
             Err(StaticError::NotStatic(_)) => {
                 self.check
                     .report_undecidable_static_guard(module, condition.into_any());
 
-                Ok(StaticGate::Absent)
+                Ok(StaticPresence::Absent)
             }
         }
     }
@@ -365,6 +405,45 @@ impl WalkState<'_, '_> {
 
                 self.bind_static_term(expression, ty)
             }
+            // { role: "button", live: true }
+            dir::Expression::ObjectExpression { properties } => {
+                let properties = properties.clone();
+
+                // collect one static shape field per literal keyed property
+                let mut fields = Vec::new();
+                for property in properties {
+                    match self.tree.get(property).clone() {
+                        dir::Property::Field { key, value, .. } => {
+                            let ty = self.walk_static_term(value)?;
+                            let Some(key) = key.direct_static_key() else {
+                                self.check
+                                    .report_undecidable_static_value(self.module, source);
+                                continue;
+                            };
+                            fields.push(dir::TypeProperty {
+                                key,
+                                access: dir::PropertyAccess::Read(ty),
+                                is_optional: false,
+                            });
+                        }
+                        _ => {
+                            self.check
+                                .report_undecidable_static_value(self.module, source);
+                        }
+                    }
+                }
+
+                // intern the collected fields as an object shape
+                let properties = self.check.intern_properties(self.module, &fields)?;
+                let ty = self.intern_type(dir::Type::Object(dir::ShapeType {
+                    properties,
+                    call_signatures: dir::TypeListId::EMPTY,
+                    construct_signatures: dir::TypeListId::EMPTY,
+                    index_signatures: dir::TypeListId::EMPTY,
+                }))?;
+
+                self.bind_static_term(expression, ty)
+            }
             // member chains project static members off their owners
             dir::Expression::Member {
                 left,
@@ -414,7 +493,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn static_gate(
         &self,
         node: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<StaticGate> {
+    ) -> CompilerResult<StaticPresence> {
         self.module(node.module_id)
             .static_presence
             .get(&node.local_id)

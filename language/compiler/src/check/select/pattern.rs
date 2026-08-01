@@ -615,7 +615,8 @@ impl BodyState<'_, '_> {
         let widening = match slot {
             Some(slot) => match self.check.root_variable(slot)? {
                 Some(variable) => self.check.solver.variable(variable)?.widening,
-                None => Widening::Never,
+                // transcribed bindings widen by their written declarator
+                None => self.written_binding_widening(symbol)?,
             },
             None => Widening::Never,
         };
@@ -625,6 +626,39 @@ impl BodyState<'_, '_> {
         };
 
         self.check.place_binding_type(symbol, input)
+    }
+
+    /// Return the written widening of one binding's declarator.
+    fn written_binding_widening(&self, symbol: dir::GlobalSymbolId) -> CompilerResult<Widening> {
+        let module = symbol.module_id;
+        let Some(state) = self.check.module_maybe(module) else {
+            return Ok(Widening::Never);
+        };
+        let Ok(pattern) = state.symbol_declaration_node(symbol.local_id) else {
+            return Ok(Widening::Never);
+        };
+        let view = state.view();
+
+        // read the pattern's enclosing declarator
+        let Some(parent) = view.get_parent_any(pattern) else {
+            return Ok(Widening::Never);
+        };
+        let Ok(declarator) = parent.try_into_typed::<dir::Declarator>() else {
+            return Ok(Widening::Never);
+        };
+
+        // resolve the enclosing let expression's kind, if any
+        let kind = view
+            .get_parent_any(parent)
+            .and_then(|node| node.try_into_typed::<dir::Expression>().ok())
+            .and_then(|node| match view.get(node) {
+                dir::Expression::Let { kind, .. } => Some(*kind),
+                _ => None,
+            });
+
+        let declarator = view.get(declarator).clone();
+
+        Ok(self.check.declarator_widening(module, &declarator, kind))
     }
 
     /// Return whether one pattern has a default branch.

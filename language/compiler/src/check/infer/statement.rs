@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 
 use crate::check::{
     Answer, BodyState, Cause, CauseKind, Constraint, Expectation, FlowSite, InferMode, Origin,
-    PlaceUse, Relation, ValueUse, Widening, answer, declarator_widening, is_transcribable_literal,
+    PlaceUse, Relation, ValueUse, Widening, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -268,6 +268,11 @@ impl BodyState<'_, '_> {
         binding_kind: Option<dir::LetKind>,
         exported: bool,
     ) -> CompilerResult<Answer<()>> {
+        // skip statically absent declarators, they keep no rows
+        if self.check.is_absent(id.into_global_any(module)) {
+            return Ok(Answer::Ready(()));
+        }
+
         let declarator = self.module(module).view().get(id).clone();
         let pattern = declarator.pattern;
 
@@ -317,7 +322,7 @@ impl BodyState<'_, '_> {
             (Some(_), None) if self.is_declaration() && !exported => None,
             // error for exported non-transcribable values
             (Some(value), None)
-                if exported && !is_transcribable_literal(self.module(module).view(), value) =>
+                if exported && !self.check.is_transcribable_literal(module, value) =>
             {
                 // infer the body while checking
                 if !self.is_declaration() {
@@ -329,8 +334,9 @@ impl BodyState<'_, '_> {
             }
             (Some(value), None) => {
                 let site = self.node_site(value.into_global_any(module))?;
-                let widening =
-                    declarator_widening(self.module(module).view(), &declarator, binding_kind);
+                let widening = self
+                    .check
+                    .declarator_widening(module, &declarator, binding_kind);
                 let mode = match widening {
                     Widening::Never | Widening::Aggregate | Widening::Multiple => InferMode::Exact,
                     Widening::Always => InferMode::Widen,

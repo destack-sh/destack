@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    Answer, BodyForm, CauseKind, CheckState, ClassInitializationObligation, FlowBranch, Obligation,
-    Origin, Receiver, ValueUse, WalkState,
+    Answer, CauseKind, CheckState, ClassInitializationObligation, FlowBranch, Obligation, Origin,
+    Receiver, ValueUse, WalkState, function_needs_written_result,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -109,6 +109,13 @@ impl WalkState<'_, '_> {
         match declaration {
             // walk the function body against its declared signature
             dir::Declaration::Function(function) => {
+                // report a missing written result in the owner's checked pass,
+                //  importers read declared rows without body diagnostics
+                if function_needs_written_result(function) {
+                    self.check
+                        .report_missing_result_type(self.module, id.into_any());
+                }
+
                 self.walk_declared_function_body(id, function, symbol)
             }
             // walk class members under a managed receiver
@@ -124,7 +131,7 @@ impl WalkState<'_, '_> {
                     super_ty,
                     ..receiver
                 };
-                let handled = self.walk_declared_member_bodies(
+                self.walk_declared_member_bodies(
                     id,
                     symbol,
                     &class.members,
@@ -134,7 +141,7 @@ impl WalkState<'_, '_> {
                 )?;
                 self.queue_declaration_layout_obligation(symbol, receiver)?;
 
-                Ok(handled)
+                Ok(true)
             }
             // interface members carry no bodies, heritage still checks
             dir::Declaration::Interface(_) => {
@@ -147,7 +154,7 @@ impl WalkState<'_, '_> {
             // walk struct members under an owned receiver
             dir::Declaration::Struct(declaration) => {
                 let receiver = self.nominal_receiver(symbol, Some(dir::Ownership::Owned))?;
-                let handled = self.walk_declared_member_bodies(
+                self.walk_declared_member_bodies(
                     id,
                     symbol,
                     &declaration.members,
@@ -157,12 +164,17 @@ impl WalkState<'_, '_> {
                 )?;
                 self.queue_declaration_layout_obligation(symbol, receiver)?;
 
-                Ok(handled)
+                Ok(true)
             }
             // walk enum members under an owned receiver
             dir::Declaration::Enum(declaration) => {
+                // check enum field decorator expressions as values
+                for field in &declaration.fields {
+                    self.walk_decorators(field.into_any())?;
+                }
+
                 let receiver = self.nominal_receiver(symbol, Some(dir::Ownership::Owned))?;
-                let handled = self.walk_declared_member_bodies(
+                self.walk_declared_member_bodies(
                     id,
                     symbol,
                     &declaration.members,
@@ -172,7 +184,7 @@ impl WalkState<'_, '_> {
                 )?;
                 self.queue_declaration_layout_obligation(symbol, receiver)?;
 
-                Ok(handled)
+                Ok(true)
             }
             // take the extension receiver from the declared target type
             dir::Declaration::Extension(extension) => {
@@ -201,7 +213,9 @@ impl WalkState<'_, '_> {
                     receiver,
                     false,
                     false,
-                )
+                )?;
+
+                Ok(true)
             }
             // aliases carry no bodies, nominal values check parameter use
             dir::Declaration::Type(declaration) => {
@@ -216,8 +230,8 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Validate one declared signature's parameter defaults while checking.
-    pub(in crate::check) fn walk_declared_parameter_defaults(
+    /// Destructure and default-check declared parameters while checking.
+    pub(in crate::check) fn walk_declared_parameters(
         &mut self,
         signature: &dir::FunctionSignature,
         module: ModuleId,
@@ -228,26 +242,38 @@ impl WalkState<'_, '_> {
             .signature_parameters(module, head.parameters)?
             .to_vec();
 
-        // check each written default against its declared parameter type
         for (parameter, declared) in signature.parameters.iter().zip(declared_parameters) {
             let node = self.tree.get(*parameter).clone();
-            let Some(default) = node.default_value() else {
-                continue;
-            };
 
-            let before_default = self.fork_flow();
-            self.walk_expression(default, self.tree.get(default))?;
-            self.queue_assignable(
-                default,
-                declared.ty,
-                CauseKind::Initializer {
-                    annotation: node
-                        .declared_type()
-                        .map(|annotation| annotation.into_global_any(self.module)),
-                },
-                ValueUse::Store,
-            )?;
-            self.restore_flow(before_default);
+            // destructure the written pattern against the declared type
+            if let Some(pattern) = node.pattern() {
+                self.walk_pattern(pattern, self.tree.get(pattern), None)?;
+                self.queue_assignable(
+                    pattern,
+                    declared.ty,
+                    CauseKind::Pattern {
+                        pattern: pattern.into_global_any(self.module),
+                    },
+                    ValueUse::Store,
+                )?;
+            }
+
+            // check the written default against the declared type
+            if let Some(default) = node.default_value() {
+                let before_default = self.fork_flow();
+                self.walk_expression(default, self.tree.get(default))?;
+                self.queue_assignable(
+                    default,
+                    declared.ty,
+                    CauseKind::Initializer {
+                        annotation: node
+                            .declared_type()
+                            .map(|annotation| annotation.into_global_any(self.module)),
+                    },
+                    ValueUse::Store,
+                )?;
+                self.restore_flow(before_default);
+            }
         }
 
         Ok(())
@@ -262,7 +288,7 @@ impl WalkState<'_, '_> {
         receiver: Receiver,
         is_ambient: bool,
         is_class: bool,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<()> {
         // enter the declaration's template and receiver scopes
         let template = self.check.symbol_template(symbol)?;
         let _scope = self.enter_template_scope(template);
@@ -347,7 +373,7 @@ impl WalkState<'_, '_> {
 
         self.queue_heritage_obligation(source, symbol)?;
 
-        Ok(true)
+        Ok(())
     }
 
     /// Walk one declared-stage function's body against its declared signature.
@@ -378,7 +404,7 @@ impl WalkState<'_, '_> {
             return Ok(false);
         };
 
-        self.walk_declared_parameter_defaults(&declaration.signature, signature.module_id, &head)?;
+        self.walk_declared_parameters(&declaration.signature, signature.module_id, &head)?;
 
         // bind the written receiver to its declared type
         let receiver = match (declaration.signature.this_parameter, head.this_parameter) {
@@ -388,16 +414,7 @@ impl WalkState<'_, '_> {
             _ => None,
         };
 
-        // pick the body form, lambdas and anonymous functions produce values
-        let form = if declaration.signature.form == dir::FunctionForm::Lambda
-            || declaration.name.is_none()
-        {
-            BodyForm::Value
-        } else {
-            BodyForm::Declaration
-        };
-
-        self.walk_function_body(symbol, &declaration.signature, body, result, receiver, form)?;
+        self.walk_function_body(symbol, &declaration.signature, body, result, receiver)?;
 
         Ok(true)
     }

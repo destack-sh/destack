@@ -265,79 +265,17 @@ impl WalkState<'_, '_> {
                 result = parameter_type;
             }
             // ({ p }: T), (...{ p }: T)
-            dir::Parameter::Pattern {
-                pattern,
-                declared_type,
-                default,
-                ..
-            } => {
-                let (pattern, declared_type, default) = (*pattern, *declared_type, *default);
-
+            dir::Parameter::Pattern { declared_type, .. }
+            | dir::Parameter::VariadicPattern { declared_type, .. } => {
                 // report missing annotations
                 if is_annotation_required && declared_type.is_none() {
                     self.check
                         .report_missing_type_annotation(self.module, id.into_any());
                 }
 
-                // constrain pattern type from the parameter type
-                self.walk_pattern(pattern, self.tree.get(pattern), None)?;
-                let parameter_type = self.walk_parameter_type(id, represents_open_type)?;
-                if let Some(parameter_type) = parameter_type {
-                    self.queue_assignable(
-                        pattern,
-                        parameter_type,
-                        CauseKind::Pattern {
-                            pattern: pattern.into_global_any(self.module),
-                        },
-                        ValueUse::Store,
-                    )?;
-                }
-
-                // validate defaults while checking, declaring transcribes them
-                if let Some(default) = default.filter(|_| !self.check.is_declaration()) {
-                    let before_default = self.fork_flow();
-                    self.walk_expression(default, self.tree.get(default))?;
-                    if let Some(parameter_type) = parameter_type {
-                        let annotation =
-                            declared_type.map(|annotation| annotation.into_global_any(self.module));
-                        self.queue_assignable(
-                            default,
-                            parameter_type,
-                            CauseKind::Initializer { annotation },
-                            ValueUse::Store,
-                        )?;
-                    }
-                    self.restore_flow(before_default);
-                }
-
-                result = parameter_type;
-            }
-            dir::Parameter::VariadicPattern {
-                pattern,
-                declared_type,
-                ..
-            } => {
-                let (pattern, declared_type) = (*pattern, *declared_type);
-
-                // report missing annotations
-                if is_annotation_required && declared_type.is_none() {
-                    self.check
-                        .report_missing_type_annotation(self.module, id.into_any());
-                }
-
-                // constrain pattern type from the parameter type
-                self.walk_pattern(pattern, self.tree.get(pattern), None)?;
-                if let Some(parameter_type) = self.walk_parameter_type(id, represents_open_type)? {
-                    self.queue_assignable(
-                        pattern,
-                        parameter_type,
-                        CauseKind::Pattern {
-                            pattern: pattern.into_global_any(self.module),
-                        },
-                        ValueUse::Store,
-                    )?;
-                    result = Some(parameter_type);
-                }
+                // build the declared parameter type only, the body pass
+                //  destructures the pattern against it later
+                result = self.walk_parameter_type(id, represents_open_type)?;
             }
             // ignore damaged nodes
             dir::Parameter::Error => {}

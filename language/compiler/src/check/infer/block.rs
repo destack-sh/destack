@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, CheckOutcome, Expectation, FlowSite, PlaceUse, StaticGate, ValueCheck,
+    Answer, BodyState, CheckOutcome, Expectation, FlowSite, PlaceUse, StaticPresence, ValueCheck,
     answer,
 };
 
@@ -44,7 +44,7 @@ impl BodyState<'_, '_> {
             .clone();
         for statement in statements {
             let node = statement.into_global_any(module);
-            if self.check.static_gate(node)? == StaticGate::Absent {
+            if self.check.static_gate(node)? == StaticPresence::Absent {
                 continue;
             }
             let site = self.check.node_site(node)?;
@@ -115,7 +115,7 @@ impl BodyState<'_, '_> {
         let value = match value {
             Some(value)
                 if self.check.static_gate(value.into_global_any(module))?
-                    == StaticGate::Present =>
+                    == StaticPresence::Present =>
             {
                 Some(value)
             }

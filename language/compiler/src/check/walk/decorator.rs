@@ -16,12 +16,31 @@ impl WalkState<'_, '_> {
         decorator: DecoratorExpression,
         owner: dir::GlobalNodeIdAny,
     ) -> CompilerResult<()> {
+        let arguments = decorator.arguments.clone();
+        if !self.declare_decorator(decorator, owner)? {
+            return Ok(());
+        }
+
+        // walk decorator value expressions
+        for argument in &arguments {
+            self.walk_argument(*argument, self.tree.get(*argument))?;
+        }
+
+        Ok(())
+    }
+
+    /// Declare one decorator application without walking its values.
+    pub(in crate::check) fn declare_decorator(
+        &mut self,
+        decorator: DecoratorExpression,
+        owner: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<bool> {
         self.enter_node(decorator.decorator)?;
         self.enter_node(decorator.target)?;
 
         // resolve the decorator declaration exactly once
         let Some(symbol) = self.walk_decorator_target(decorator.target)? else {
-            return Ok(());
+            return Ok(false);
         };
         let symbol = self.check.resolve_symbol_alias(symbol)?;
 
@@ -34,16 +53,11 @@ impl WalkState<'_, '_> {
             self.check
                 .report_invalid_decorator_target(self.module, decorator.target.into_any());
 
-            return Ok(());
+            return Ok(false);
         }
 
         // walk explicit decorator type arguments
         self.walk_generic_arguments(&decorator.generic_arguments)?;
-
-        // walk decorator value expressions
-        for argument in &decorator.arguments {
-            self.walk_argument(*argument, self.tree.get(*argument))?;
-        }
 
         // retain the resolved application in component walk order
         self.check.decorators.push(DecoratorApplication {
@@ -52,7 +66,7 @@ impl WalkState<'_, '_> {
             symbol,
         });
 
-        Ok(())
+        Ok(true)
     }
 
     /// Walk one decorator target.

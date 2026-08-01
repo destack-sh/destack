@@ -384,7 +384,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::Declaration,
     ) -> CompilerResult<()> {
-        if !self.walk_decorators(id.into_any())? {
+        if !self.declare_decorators(id.into_any())? {
             return Ok(());
         }
 
@@ -488,6 +488,7 @@ impl WalkState<'_, '_> {
                 representation: dir::Representation::default(),
                 backing: value,
                 is_tagged: false,
+                tagged_options: None,
                 discriminator: None,
                 members: Vec::new(),
             })
@@ -528,6 +529,7 @@ impl WalkState<'_, '_> {
                 representation: dir::Representation::default(),
                 backing: value,
                 is_tagged: false,
+                tagged_options: None,
                 discriminator: None,
                 members: Vec::new(),
             });
@@ -593,17 +595,13 @@ impl WalkState<'_, '_> {
         // walk members
         let mut members = Vec::new();
         for member in &declaration.members {
-            let Some(header) = self.walk_member_header(
+            if let Some(definition) = self.walk_member_header(
                 *member,
                 self.tree.get(*member),
                 Some(receiver),
                 Some(induction),
                 declaration.is_ambient,
-            )?
-            else {
-                continue;
-            };
-            if let Some(definition) = header.definition {
+            )? {
                 members.push(definition);
             }
         }
@@ -694,17 +692,13 @@ impl WalkState<'_, '_> {
         // walk members
         let mut members = Vec::new();
         for member in &declaration.members {
-            let Some(header) = self.walk_member_header(
+            if let Some(definition) = self.walk_member_header(
                 *member,
                 self.tree.get(*member),
                 Some(receiver),
                 Some(induction),
                 declaration.is_ambient,
-            )?
-            else {
-                continue;
-            };
-            if let Some(definition) = header.definition {
+            )? {
                 members.push(definition);
             }
         }
@@ -942,17 +936,13 @@ impl WalkState<'_, '_> {
             members.push(dir::DefinitionMember::EnumVariant(variant));
         }
         for member in &declaration.members {
-            let Some(header) = self.walk_member_header(
+            if let Some(definition) = self.walk_member_header(
                 *member,
                 self.tree.get(*member),
                 Some(receiver),
                 Some(induction),
                 declaration.is_ambient,
-            )?
-            else {
-                continue;
-            };
-            if let Some(definition) = header.definition {
+            )? {
                 members.push(definition);
             }
         }
@@ -1139,17 +1129,13 @@ impl WalkState<'_, '_> {
         // walk members
         let mut members = Vec::new();
         for member in &declaration.members {
-            let Some(header) = self.walk_member_header(
+            if let Some(definition) = self.walk_member_header(
                 *member,
                 self.tree.get(*member),
                 Some(receiver),
                 Some(induction),
                 declaration.is_ambient,
-            )?
-            else {
-                continue;
-            };
-            if let Some(definition) = header.definition {
+            )? {
                 members.push(definition);
             }
         }
@@ -1307,12 +1293,6 @@ impl WalkState<'_, '_> {
                 .report_missing_declaration_body(source, self.check.format_symbol(symbol));
         }
 
-        // require a written result type on named function declarations
-        if self.check.is_declaration() && function_needs_written_result(declaration) {
-            self.check
-                .report_missing_result_type(self.module, id.into_any());
-        }
-
         // write the function symbol type
         let signature = self.walk_function_signature_type(
             id.into_any(),
@@ -1348,7 +1328,7 @@ impl WalkState<'_, '_> {
         enum_field: &dir::EnumField,
         implicit: Option<Result<dir::EnumVariantValue, dir::EnumVariantIncrementError>>,
     ) -> CompilerResult<WalkedEnumVariant> {
-        if !self.walk_decorators(id.into_any())? {
+        if !self.declare_decorators(id.into_any())? {
             return Ok(WalkedEnumVariant::Absent);
         }
         let (name, value) = (enum_field.name, enum_field.value);
@@ -1796,7 +1776,9 @@ impl WalkState<'_, '_> {
 }
 
 /// Return whether one named function declaration must write its result type.
-fn function_needs_written_result(declaration: &dir::FunctionDeclaration) -> bool {
+pub(in crate::check) fn function_needs_written_result(
+    declaration: &dir::FunctionDeclaration,
+) -> bool {
     declaration.signature.return_type.is_none()
         && !declaration.signature.is_generator
         && declaration.name.is_some()

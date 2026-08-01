@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Answer, BodyState, Cause, CauseKind, CheckAttempt, CheckOutcome, Expectation, FlowSite,
-    ForInSourceObligation, InferMode, Obligation, Origin, PlaceUse, Relation, StaticGate,
+    ForInSourceObligation, InferMode, Obligation, Origin, PlaceUse, Relation, StaticPresence,
     ValueCheck, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
@@ -401,7 +401,7 @@ impl BodyState<'_, '_> {
         let mut present = Vec::new();
         for arm in arms {
             let node = arm.into_global_any(module);
-            if self.check.static_gate(node)? == StaticGate::Present {
+            if self.check.static_gate(node)? == StaticPresence::Present {
                 present.push(*arm);
             }
         }
@@ -418,7 +418,7 @@ impl BodyState<'_, '_> {
         let mut present = Vec::new();
         for case in cases {
             let node = case.into_global_any(module);
-            if self.check.static_gate(node)? == StaticGate::Present {
+            if self.check.static_gate(node)? == StaticPresence::Present {
                 present.push(*case);
             }
         }
