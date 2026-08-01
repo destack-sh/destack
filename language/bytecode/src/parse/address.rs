@@ -1,6 +1,5 @@
 use crate::{
-    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterSpan, RelocationTag,
-    Token, TokenType,
+    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterSpan, Token, TokenType,
 };
 
 use super::function::FunctionParser;
@@ -15,14 +14,20 @@ impl Parser<'_> {
     ) -> ParseResult<()> {
         let opcode = match name {
             "frame.address" => Opcode::FRAME_ADDRESS,
-            "global.address" => Opcode::GLOBAL_ADDRESS,
+            "global.address.constant" => Opcode::GLOBAL_ADDRESS_CONSTANT,
+            "global.address.local" => Opcode::GLOBAL_ADDRESS_LOCAL,
+            "global.address.shared" => Opcode::GLOBAL_ADDRESS_SHARED,
             _ => return Err(ParseError::new("unknown address operation", token.span)),
         };
         let results = self.parse_definitions(opcode)?;
 
         match opcode {
             Opcode::FRAME_ADDRESS => self.parse_frame_address(&results, function),
-            Opcode::GLOBAL_ADDRESS => self.parse_global_address(&results, function),
+            Opcode::GLOBAL_ADDRESS_CONSTANT
+            | Opcode::GLOBAL_ADDRESS_LOCAL
+            | Opcode::GLOBAL_ADDRESS_SHARED => {
+                self.parse_global_address(opcode, &results, function)
+            }
             _ => Err(ParseError::new("invalid address operation", token.span)),
         }
     }
@@ -43,6 +48,7 @@ impl Parser<'_> {
     /// Parse one stable global address.
     fn parse_global_address(
         &mut self,
+        opcode: Opcode,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
@@ -52,8 +58,8 @@ impl Parser<'_> {
             .strip_prefix('g')
             .and_then(|index| index.parse::<u32>().ok())
             .ok_or_else(|| ParseError::new("expected global id", token.span))?;
-        let mut instruction = InstructionBuilder::new(Opcode::GLOBAL_ADDRESS);
-        instruction.relocation(RelocationTag::GLOBAL, global);
+        let mut instruction = InstructionBuilder::new(opcode);
+        instruction.global(global);
 
         function.emit(instruction, results, self.empty_span())
     }

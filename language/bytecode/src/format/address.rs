@@ -8,7 +8,9 @@ impl InstructionFormatter<'_, '_, '_> {
     pub(super) fn format_address(&mut self, opcode: Opcode) -> FormatResult<()> {
         match opcode {
             Opcode::FRAME_ADDRESS => self.format_frame_address(),
-            Opcode::GLOBAL_ADDRESS => self.format_global_address(),
+            Opcode::GLOBAL_ADDRESS_CONSTANT
+            | Opcode::GLOBAL_ADDRESS_LOCAL
+            | Opcode::GLOBAL_ADDRESS_SHARED => self.format_global_address(opcode),
             _ => Err(FormatError::SyntaxError {
                 message: "invalid address opcode",
             }),
@@ -28,10 +30,14 @@ impl InstructionFormatter<'_, '_, '_> {
     }
 
     /// Format one global address.
-    fn format_global_address(&mut self) -> FormatResult<()> {
-        self.write_opcode("global.address")?;
+    fn format_global_address(&mut self, opcode: Opcode) -> FormatResult<()> {
+        let name = opcode.name().ok_or(FormatError::SyntaxError {
+            message: "unnamed global address opcode",
+        })?;
+
+        self.write_opcode(name)?;
         self.result()?;
-        let symbol = self.relocation_text()?;
+        let symbol = self.global_text()?;
 
         self.write_comma()?;
         self.write_text(&symbol)

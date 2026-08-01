@@ -14,9 +14,8 @@ impl Parser<'_> {
     ) -> ParseResult<()> {
         let opcode = match name {
             "pointer.frame" => Opcode::POINTER_FRAME,
-            "pointer.global" => Opcode::POINTER_GLOBAL,
-            "pointer.local" => Opcode::POINTER_LOCAL,
-            "pointer.shared" => Opcode::POINTER_SHARED,
+            "pointer.constant" => Opcode::POINTER_CONSTANT,
+            "pointer.memory" => Opcode::POINTER_MEMORY,
             "pointer.add" => Opcode::POINTER_ADD,
             "pointer.byteOffsetFrom" => Opcode::POINTER_BYTE_OFFSET_FROM,
             _ => return Err(ParseError::new("unknown pointer operation", token.span)),
@@ -24,10 +23,9 @@ impl Parser<'_> {
         let results = self.parse_definitions(opcode)?;
 
         match opcode {
-            Opcode::POINTER_FRAME
-            | Opcode::POINTER_GLOBAL
-            | Opcode::POINTER_LOCAL
-            | Opcode::POINTER_SHARED => self.parse_pointer_reference(opcode, &results, function),
+            Opcode::POINTER_FRAME | Opcode::POINTER_CONSTANT | Opcode::POINTER_MEMORY => {
+                self.parse_pointer_reference(opcode, &results, function)
+            }
             Opcode::POINTER_ADD => self.parse_pointer_add(token, &results, function),
             Opcode::POINTER_BYTE_OFFSET_FROM => {
                 self.parse_pointer_byte_offset_from(&results, function)

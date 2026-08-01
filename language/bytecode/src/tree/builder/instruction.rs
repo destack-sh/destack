@@ -143,6 +143,14 @@ impl InstructionBuilder {
         self.relocations.push(Relocation::new(byte_offset, tag));
     }
 
+    /// Append one relocatable global offset operand.
+    pub fn global(&mut self, index: u32) {
+        let byte_offset = self.bytes.len() as u32;
+        self.u64(u64::from(index));
+        self.relocations
+            .push(Relocation::new(byte_offset, RelocationTag::GLOBAL));
+    }
+
     /// Append one unresolved dynamic dispatch table operand.
     pub fn dynamic_table(&mut self, table: u32) {
         self.relocation(RelocationTag::DYNAMIC, table);

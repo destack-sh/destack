@@ -30,7 +30,7 @@ pub enum Operand {
     Layout,
     /// One relocatable function symbol encoded as an unsigned 32-bit index.
     Function,
-    /// One relocatable global symbol encoded as an unsigned 32-bit index.
+    /// One relocatable global symbol encoded in a 64-bit offset cell.
     Global,
     /// One relocatable dynamic dispatch table encoded as an unsigned 32-bit index.
     DynamicTable,
@@ -118,7 +118,6 @@ impl Operand {
             | Self::Type
             | Self::Layout
             | Self::Function
-            | Self::Global
             | Self::DynamicTable
             | Self::Allocation
             | Self::Counter
@@ -127,6 +126,7 @@ impl Operand {
             | Self::VectorType
             | Self::Unsigned32
             | Self::Signed32 => Some(size_of::<u32>()),
+            Self::Global => Some(size_of::<u64>()),
             Self::ConvolutionGroups => Some(size_of::<[u32; 2]>()),
             Self::Tensor => Some(TensorOperand::BYTE_LEN),
             Self::Bits64 => Some(size_of::<u64>()),

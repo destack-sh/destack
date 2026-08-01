@@ -198,47 +198,52 @@ opcodes! {
         signature: "(value: value) => ref<frame>",
         operands: [Result, RegisterSpan],
     }
-    GLOBAL_ADDRESS = 0x0031 {
-        text: "global.address",
-        signature: "(global: GlobalId) => ref<global>",
+    GLOBAL_ADDRESS_CONSTANT = 0x0031 {
+        text: "global.address.constant",
+        signature: "(global: GlobalId) => ref<constant>",
         operands: [Result, Global],
     }
-    POINTER_FRAME = 0x0032 {
+    GLOBAL_ADDRESS_LOCAL = 0x0032 {
+        text: "global.address.local",
+        signature: "(global: GlobalId) => ref<localGlobal>",
+        operands: [Result, Global],
+    }
+    GLOBAL_ADDRESS_SHARED = 0x0033 {
+        text: "global.address.shared",
+        signature: "(global: GlobalId) => ref<sharedGlobal>",
+        operands: [Result, Global],
+    }
+    POINTER_FRAME = 0x0034 {
         text: "pointer.frame",
         signature: "(reference: ref<frame>) => pointer",
         operands: [Result, Register],
     }
-    POINTER_GLOBAL = 0x0033 {
-        text: "pointer.global",
-        signature: "(reference: ref<global>) => pointer",
+    POINTER_CONSTANT = 0x0035 {
+        text: "pointer.constant",
+        signature: "(reference: ref<constant>) => pointer",
         operands: [Result, Register],
     }
-    POINTER_LOCAL = 0x0034 {
-        text: "pointer.local",
-        signature: "(reference: ref<local>) => pointer",
+    POINTER_MEMORY = 0x0036 {
+        text: "pointer.memory",
+        signature: "(reference: ref<memory>) => pointer",
         operands: [Result, Register],
     }
-    POINTER_SHARED = 0x0035 {
-        text: "pointer.shared",
-        signature: "(reference: ref<shared>) => pointer",
-        operands: [Result, Register],
-    }
-    POINTER_ADD_IMMEDIATE = 0x0036 {
+    POINTER_ADD_IMMEDIATE = 0x0038 {
         text: "pointer.add",
         signature: "(base: pointer, byteOffset: int32) => pointer",
         operands: [Result, Register, Signed32],
     }
-    POINTER_ADD = 0x0037 {
+    POINTER_ADD = 0x0039 {
         text: "pointer.add",
         signature: "(base: pointer, byteOffset: int64) => pointer",
         operands: [Result, Register, Register],
     }
-    POINTER_ADD_SCALED = 0x0038 {
+    POINTER_ADD_SCALED = 0x003a {
         text: "pointer.add",
         signature: "(base: pointer, offset: int64, scale: uint32) => pointer",
         operands: [Result, Register, Register, Unsigned32],
     }
-    POINTER_BYTE_OFFSET_FROM = 0x0039 {
+    POINTER_BYTE_OFFSET_FROM = 0x003b {
         text: "pointer.byteOffsetFrom",
         signature: "(pointer: pointer, origin: pointer) => int64",
         operands: [Result, Register, Register],

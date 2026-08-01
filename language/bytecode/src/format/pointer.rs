@@ -7,10 +7,9 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one pointer operation.
     pub(super) fn format_pointer(&mut self, opcode: Opcode) -> FormatResult<()> {
         match opcode {
-            Opcode::POINTER_FRAME
-            | Opcode::POINTER_GLOBAL
-            | Opcode::POINTER_LOCAL
-            | Opcode::POINTER_SHARED => self.format_pointer_reference(opcode),
+            Opcode::POINTER_FRAME | Opcode::POINTER_CONSTANT | Opcode::POINTER_MEMORY => {
+                self.format_pointer_reference(opcode)
+            }
             Opcode::POINTER_ADD_IMMEDIATE => self.format_pointer_add_immediate(),
             Opcode::POINTER_ADD => self.format_pointer_add(),
             Opcode::POINTER_ADD_SCALED => self.format_pointer_add_scaled(),
