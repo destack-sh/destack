@@ -1,3 +1,5 @@
+use std::any::Any;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Arc;
 
 use destack_artifact::{
@@ -48,6 +50,19 @@ impl SessionState {
     }
 }
 
+/// Convert one caught provider panic into a session error.
+fn panic_error(task: Task, panic: Box<dyn Any + Send>) -> SessionError {
+    let message = panic
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| panic.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("opaque panic payload");
+
+    SessionError::Internal {
+        detail: format!("provider panicked for artifact {:?}: {message}", task.key),
+    }
+}
+
 impl Worker {
     /// Drive the shared scheduler until the executor shuts down.
     pub(super) fn run(&self) {
@@ -62,8 +77,14 @@ impl Worker {
                     self.scheduler.mark_done(task);
                 }
                 Ok(None) => {
-                    if let Err(error) = self.provide_task(run.as_ref(), task, pending_set) {
-                        self.scheduler.abort(task, error);
+                    // contain provider panics, an unwound worker would leave the task running forever
+                    let provided = catch_unwind(AssertUnwindSafe(|| {
+                        self.provide_task(run.as_ref(), task, pending_set)
+                    }));
+                    match provided {
+                        Ok(Ok(())) => {}
+                        Ok(Err(error)) => self.scheduler.abort(task, error),
+                        Err(panic) => self.scheduler.abort(task, panic_error(task, panic)),
                     }
                 }
                 Err(error) => {
