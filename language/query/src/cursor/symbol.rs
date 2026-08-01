@@ -186,6 +186,23 @@ impl ModuleQueryContext<'_> {
         Ok(None)
     }
 
+    /// Return the occurrence introduced by one named binding.
+    fn binding_occurrence(
+        &self,
+        node_id: dir::LocalNodeIdAny,
+        span: Span,
+    ) -> Option<SymbolOccurrence> {
+        let symbol_id = self.node_symbol(node_id)?;
+        self.symbols().get_symbol(symbol_id).name()?;
+        let source = node_id.into_global(self.module_id());
+
+        Some(SymbolOccurrence {
+            symbols: vec![symbol_id.into_global(self.module_id())],
+            type_id: self.types().get_node_type_id(source),
+            span,
+        })
+    }
+
     /// Return declaration symbols for one DIR node at its authored span.
     fn declaration_occurrence(
         &self,
@@ -247,15 +264,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // declaration nodes read their recorded binding
-        let Some(symbol_id) = self.global_node_symbol(node_id) else {
-            return Ok(None);
-        };
-
-        Ok(Some(SymbolOccurrence {
-            symbols: vec![symbol_id],
-            type_id: self.types().get_node_type_id(source),
-            span,
-        }))
+        Ok(self.binding_occurrence(node_id, span))
     }
 
     /// Return the first authored name span for one reference node.
@@ -364,15 +373,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // declarations read only their recorded binding
-        let Some(symbol_id) = self.global_node_symbol(node_id) else {
-            return Ok(None);
-        };
-
-        Ok(Some(SymbolOccurrence {
-            symbols: vec![symbol_id],
-            type_id: self.types().get_node_type_id(global_node_id),
-            span,
-        }))
+        Ok(self.binding_occurrence(node_id, span))
     }
 
     /// Return the selected segment in one qualified type reference.
@@ -433,6 +434,13 @@ impl ModuleQueryContext<'_> {
             return Ok(Some(declarations.to_vec()));
         }
 
+        // nominal patterns retain their exact selected variant separately
+        if segment + 1 == segment_count
+            && let Some(symbol) = self.pattern_variant_symbol(source)?
+        {
+            return Ok(Some(vec![symbol]));
+        }
+
         let reference = self
             .resolved()
             .references
@@ -465,6 +473,52 @@ impl ModuleQueryContext<'_> {
         };
 
         Ok(targets)
+    }
+
+    /// Return the variant selected by one nominal pattern path.
+    fn pattern_variant_symbol(
+        &self,
+        source: dir::GlobalNodeIdAny,
+    ) -> QueryResult<Option<dir::GlobalSymbolId>> {
+        if source.module_id != self.module_id()
+            || source.local_id.ty != dir::NodeType::TypeExpression
+        {
+            return Ok(None);
+        }
+
+        // select only type paths owned by nominal patterns
+        let view = self.view();
+        let Some(parent) = view.get_parent_any(source.local_id) else {
+            return Ok(None);
+        };
+        if parent.ty != dir::NodeType::Pattern {
+            return Ok(None);
+        }
+        let pattern_id = dir::LocalNodeId::<dir::Pattern>::new(parent.id);
+        let pattern = view.get(pattern_id);
+        let pattern_type = match pattern {
+            dir::Pattern::NominalTuple { ty, .. } | dir::Pattern::NominalObject { ty, .. } => *ty,
+            _ => return Ok(None),
+        };
+        if pattern_type.into_any() != source.local_id {
+            return Ok(None);
+        }
+
+        // read the exact variant selected for the pattern
+        let pattern = pattern_id.into_global_any(self.module_id());
+        let resolution =
+            self.resolutions()
+                .pattern_resolution(pattern)
+                .ok_or(QueryError::missing(format!(
+                    "qualified pattern: {pattern:?}"
+                )))?;
+        match resolution {
+            dir::PatternResolution::Variant(resolution) => Ok(Some(resolution.case.variant)),
+            dir::PatternResolution::Destructure(_) => Ok(None),
+            _ => Err(QueryError::invalid(format!(
+                "qualified pattern: {pattern:?}"
+            ))),
+        }
     }
 
     /// Return the checked call whose callee contains one expression.

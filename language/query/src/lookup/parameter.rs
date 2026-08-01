@@ -31,19 +31,18 @@ impl ModuleQueryContext<'_> {
     /// Return the declared parameters for one callable symbol.
     pub(crate) fn callable_parameters(
         &self,
-        symbol_id: dir::GlobalSymbolId,
+        symbol_id: dir::LocalSymbolId,
     ) -> Option<&[dir::LocalNodeId<dir::Parameter>]> {
         // read the symbol declaration
         let global_node_id = {
             let symbols = self.symbols();
-            let symbol = symbols.get_symbol(symbol_id.local_id);
+            let symbol = symbols.get_symbol(symbol_id);
             symbol.declaration?
         };
 
-        // resolve the parameter target based on the declaration node type
+        // read parameters from the exact authored declaration
         let view = self.view();
         match global_node_id.local_id.ty {
-            // collect parameters from function declarations
             dir::NodeType::Declaration => {
                 let declaration_id =
                     dir::LocalNodeId::<dir::Declaration>::new(global_node_id.local_id.id);
@@ -54,42 +53,75 @@ impl ModuleQueryContext<'_> {
 
                 Some(&declaration.signature.parameters)
             }
-
-            // collect parameters from method members
             dir::NodeType::Member => {
                 let member_id = dir::LocalNodeId::<dir::Member>::new(global_node_id.local_id.id);
                 let member = view.get::<dir::Member>(member_id);
-                let signature = member.signature()?;
 
-                Some(&signature.parameters)
+                match member {
+                    dir::Member::Method { signature, .. } => Some(&signature.parameters),
+                    dir::Member::Field { declared_type, .. }
+                    | dir::Member::AssociatedConst { declared_type, .. } => {
+                        self.callable_type_parameters(*declared_type)
+                    }
+                    dir::Member::AssociatedType { .. }
+                    | dir::Member::StaticBlock { .. }
+                    | dir::Member::ComptimeBlock { .. }
+                    | dir::Member::Error => None,
+                }
             }
             dir::NodeType::TypeMember => {
                 let member_id =
                     dir::LocalNodeId::<dir::TypeMember>::new(global_node_id.local_id.id);
                 let member = view.get::<dir::TypeMember>(member_id);
-                let signature = member.signature()?;
 
-                Some(&signature.parameters)
+                match member {
+                    dir::TypeMember::Method { signature, .. } => Some(&signature.parameters),
+                    dir::TypeMember::Field { declared_type, .. }
+                    | dir::TypeMember::AssociatedConst { declared_type, .. } => {
+                        self.callable_type_parameters(*declared_type)
+                    }
+                    dir::TypeMember::CallSignature { .. }
+                    | dir::TypeMember::ConstructSignature { .. }
+                    | dir::TypeMember::IndexSignature { .. }
+                    | dir::TypeMember::AssociatedType { .. }
+                    | dir::TypeMember::Error => None,
+                }
             }
+            dir::NodeType::Parameter => {
+                let parameter_id =
+                    dir::LocalNodeId::<dir::Parameter>::new(global_node_id.local_id.id);
+                let parameter = view.get::<dir::Parameter>(parameter_id);
 
+                self.callable_type_parameters(parameter.declared_type())
+            }
+            dir::NodeType::Pattern => {
+                let pattern_id = dir::LocalNodeId::<dir::Pattern>::new(global_node_id.local_id.id);
+
+                self.binding_callable_parameters(pattern_id)
+            }
             _ => None,
         }
     }
 
-    /// Return the function type parameters declared on a variable binding.
-    pub(crate) fn variable_callable_parameters(
+    /// Return parameters declared by one callable type expression.
+    fn callable_type_parameters(
         &self,
-        symbol_id: dir::GlobalSymbolId,
+        type_id: Option<dir::LocalNodeId<dir::TypeExpression>>,
     ) -> Option<&[dir::LocalNodeId<dir::Parameter>]> {
-        let symbol = self.symbols().get_symbol(symbol_id.local_id);
-        let declaration = symbol.declaration?;
-        if declaration.local_id.ty != dir::NodeType::Pattern {
+        let dir::TypeExpression::Function(function) = self.view().get(type_id?) else {
             return None;
-        }
+        };
 
-        // select the variable declarator
+        Some(&function.parameters)
+    }
+
+    /// Return parameters declared by one callable binding.
+    fn binding_callable_parameters(
+        &self,
+        pattern_id: dir::LocalNodeId<dir::Pattern>,
+    ) -> Option<&[dir::LocalNodeId<dir::Parameter>]> {
         let view = self.view();
-        let parent = view.get_parent_any(declaration.local_id)?;
+        let parent = view.get_parent_any(pattern_id.into_any())?;
         if parent.ty != dir::NodeType::Declarator {
             return None;
         }
@@ -97,10 +129,8 @@ impl ModuleQueryContext<'_> {
         let declarator = view.get(declarator_id);
 
         // prefer the declared function type
-        if let Some(type_id) = declarator.ty
-            && let dir::TypeExpression::Function(function) = view.get(type_id)
-        {
-            return Some(&function.parameters);
+        if declarator.ty.is_some() {
+            return self.callable_type_parameters(declarator.ty);
         }
 
         // otherwise use the authored lambda initializer
@@ -123,7 +153,7 @@ impl ProgramQueryContext<'_> {
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<Vec<String>>> {
         let module = self.module(symbol_id.module_id)?;
-        let Some(parameters) = module.callable_parameters(symbol_id) else {
+        let Some(parameters) = module.callable_parameters(symbol_id.local_id) else {
             return Ok(None);
         };
         let view = module.view();

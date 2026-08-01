@@ -220,7 +220,7 @@ impl ModuleQueryContext<'_> {
             )));
         };
         let name = module.strings().get(name).to_string();
-        let Some(parameters) = module.callable_parameters(symbol_id) else {
+        let Some(parameters) = module.callable_parameters(symbol_id.local_id) else {
             return Err(QueryError::missing(format!(
                 "call signature parameters: {symbol_id:?}"
             )));
@@ -258,29 +258,8 @@ impl ModuleQueryContext<'_> {
                 "expression call declarations: {source:?}, {symbols:?}"
             )));
         };
-        let symbol = self.symbols().get_symbol(symbol_id.local_id);
-        let Some(name) = symbol.name() else {
-            return Err(QueryError::missing(format!(
-                "expression call name: {symbol_id:?}"
-            )));
-        };
-        let name = self.strings().get(name).to_string();
-        let Some(parameters) = self.variable_callable_parameters(*symbol_id) else {
-            return Err(QueryError::missing(format!(
-                "expression call parameters: {symbol_id:?}"
-            )));
-        };
 
-        self.selected_signature_item(
-            query,
-            self,
-            *symbol_id,
-            &name,
-            parameters,
-            generic_arguments,
-            bindings,
-            return_type,
-        )
+        self.call_signature_item(query, *symbol_id, generic_arguments, bindings, return_type)
     }
 
     /// Format one selected declaration signature with applied call types.
@@ -439,7 +418,7 @@ impl ModuleQueryContext<'_> {
             )));
         };
         let module = query.module(constructor_symbol.module_id)?;
-        let Some(parameters) = module.callable_parameters(constructor_symbol) else {
+        let Some(parameters) = module.callable_parameters(constructor_symbol.local_id) else {
             return Err(QueryError::missing(format!(
                 "class constructor parameters: {constructor_symbol:?}"
             )));

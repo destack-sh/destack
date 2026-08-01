@@ -18,6 +18,7 @@ pub struct NavigationTarget {
 impl ModuleQueryContext<'_> {
     /// Build one source target from an exact declaration symbol.
     pub(crate) fn symbol_target(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<Target> {
+        // FUGU #Incomplete: model exact definition targets for generated symbols
         let span = self
             .symbol_local_declaration_span(symbol_id)?
             .ok_or(QueryError::missing(format!(

@@ -217,7 +217,9 @@ impl ModuleQueryContext<'_> {
                     function: dir::DynamicFunction::Symbol(symbol),
                     ..
                 } => self.symbol_call_parameter_names(query, call, *symbol)?,
-                dir::CallTarget::Expression { .. } => self.expression_parameter_names(call)?,
+                dir::CallTarget::Expression { .. } => {
+                    self.expression_parameter_names(query, call)?
+                }
                 dir::CallTarget::Dynamic { .. } => {
                     // FUGU #Incomplete: retain declaration free call parameter names in DIR
                     return Err(QueryError::missing(format!(
@@ -277,6 +279,7 @@ impl ModuleQueryContext<'_> {
     /// Return authored parameter names for an expression backed call.
     fn expression_parameter_names(
         &self,
+        query: &ProgramQueryContext<'_>,
         call: dir::GlobalNodeIdAny,
     ) -> QueryResult<Vec<Option<String>>> {
         if call.module_id != self.module_id() || call.local_id.ty != dir::NodeType::Expression {
@@ -310,13 +313,8 @@ impl ModuleQueryContext<'_> {
                 "inlay hint callable: {source:?}"
             )));
         };
-        let Some(parameters) = self.variable_callable_parameters(*symbol_id) else {
-            return Err(QueryError::missing(format!(
-                "inlay hint callable parameters: {symbol_id:?}"
-            )));
-        };
 
-        self.parameter_names(parameters)
+        self.symbol_call_parameter_names(query, call, *symbol_id)
     }
 
     /// Return authored display names for one parameter list.
@@ -344,18 +342,8 @@ impl ModuleQueryContext<'_> {
                 let Some(symbol_id) = candidate.constructor.call_symbol() else {
                     return Ok(Vec::new());
                 };
-                let Some(symbol_id) = query.canonical_symbol(symbol_id)? else {
-                    return Err(QueryError::missing(format!(
-                        "inlay hint parameters: {call:?}"
-                    )));
-                };
-                let Some(names) = query.symbol_parameter_names(symbol_id)? else {
-                    return Err(QueryError::missing(format!(
-                        "inlay hint parameters: {call:?}"
-                    )));
-                };
 
-                Ok(names.into_iter().map(Some).collect())
+                self.symbol_call_parameter_names(query, call, symbol_id)
             }
             dir::ConstructTarget::Newtype(_) | dir::ConstructTarget::Variant(_) => {
                 Ok(vec![None; resolution.arguments.len()])

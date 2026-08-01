@@ -358,30 +358,157 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
     fn collect_pattern_fields(&mut self) -> QueryResult<()> {
         let view = self.module.view();
 
-        // collect named and spread destructuring bindings
+        // collect destructuring names from their exact roles
         for (field_id, field) in view.iter_nodes_of_type::<dir::PatternField>() {
-            let token_type = match field {
-                dir::PatternField::Named { .. } | dir::PatternField::Rest { .. } => {
-                    SemanticTokenType::Variable
-                }
-                dir::PatternField::Positional { .. }
-                | dir::PatternField::Computed { .. }
-                | dir::PatternField::Elision => continue,
+            let dir::PatternField::Named { pattern, .. } = field else {
+                continue;
             };
 
             let Some(main_span) = self.main_span(field_id.into_any())? else {
                 continue;
             };
 
-            let modifiers = self.binding_modifiers(field_id.into_any())?;
-            self.tokens.push(SemanticToken::new(
-                main_span,
-                token_type,
-                modifiers.union(SemanticTokenModifiers::DECLARATION),
-            ));
+            // shorthand names introduce bindings
+            if pattern.is_none() {
+                let modifiers = self.binding_modifiers(field_id.into_any())?;
+                self.tokens.push(SemanticToken::new(
+                    main_span,
+                    SemanticTokenType::Variable,
+                    modifiers.union(SemanticTokenModifiers::DECLARATION),
+                ));
+
+                continue;
+            }
+
+            // explicit names select the recorded field projection
+            let parent = view
+                .get_parent_for(field_id)
+                .ok_or(QueryError::missing(format!(
+                    "semantic token pattern field parent: {:?}",
+                    field_id.into_global_any(self.module.module_id())
+                )))?;
+            if parent.ty != dir::NodeType::Pattern {
+                return Err(QueryError::invalid(format!(
+                    "semantic token pattern field parent: {:?}, {parent:?}",
+                    field_id.into_global_any(self.module.module_id())
+                )));
+            }
+            let field = self.pattern_field_resolution(parent, field_id)?;
+            let Some((token_type, modifiers)) = self.field_projection_token(&field.projection)?
+            else {
+                continue;
+            };
+
+            self.tokens
+                .push(SemanticToken::new(main_span, token_type, modifiers));
         }
 
         Ok(())
+    }
+
+    /// Return the recorded projection for one destructuring field.
+    fn pattern_field_resolution(
+        &self,
+        pattern: dir::LocalNodeIdAny,
+        field: dir::LocalNodeId<dir::PatternField>,
+    ) -> QueryResult<&dir::PatternFieldResolution> {
+        let pattern = pattern.into_global(self.module.module_id());
+        let resolution = self
+            .module
+            .resolutions()
+            .pattern_resolution(pattern)
+            .ok_or(QueryError::missing(format!(
+                "semantic token pattern: {pattern:?}"
+            )))?;
+        let fields = match resolution {
+            dir::PatternResolution::Variant(resolution) => &resolution.fields,
+            dir::PatternResolution::Destructure(resolution) => match resolution.as_ref() {
+                dir::PatternDestructureResolution::Object(resolution) => &resolution.fields,
+                dir::PatternDestructureResolution::Nominal(resolution) => &resolution.fields,
+                dir::PatternDestructureResolution::Tuple(_)
+                | dir::PatternDestructureResolution::Sequence(_) => {
+                    return Err(QueryError::invalid(format!(
+                        "semantic token named pattern: {pattern:?}"
+                    )));
+                }
+            },
+            _ => {
+                return Err(QueryError::invalid(format!(
+                    "semantic token named pattern: {pattern:?}"
+                )));
+            }
+        };
+        let field = field.into_global_any(self.module.module_id());
+
+        fields
+            .iter()
+            .find(|resolution| resolution.source == field)
+            .ok_or(QueryError::missing(format!(
+                "semantic token pattern field: {field:?}"
+            )))
+    }
+
+    /// Return the semantic token selected by one field projection.
+    fn field_projection_token(
+        &self,
+        resolution: &dir::ProjectionResolution,
+    ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
+        let mut token: Option<(SemanticTokenType, SemanticTokenModifiers)> = None;
+        for projection in resolution.iter() {
+            let candidate = match projection {
+                dir::Projection::Absent { .. } => {
+                    Some((SemanticTokenType::Property, SemanticTokenModifiers::NONE))
+                }
+                dir::Projection::Field(field) => match field.target {
+                    dir::FieldTarget::Structural { .. } => {
+                        Some((SemanticTokenType::Property, SemanticTokenModifiers::NONE))
+                    }
+                    dir::FieldTarget::Member { symbol, .. } => self.symbol_token(symbol)?,
+                },
+                dir::Projection::Member(access) => {
+                    let mut symbols = Vec::new();
+                    access.target.collect_symbols(&mut symbols);
+                    if symbols.is_empty() {
+                        Some((SemanticTokenType::Property, SemanticTokenModifiers::NONE))
+                    } else {
+                        self.symbol_targets_token(&symbols)?
+                    }
+                }
+                dir::Projection::Call(call) => match call.target.symbol() {
+                    Some(symbol) => self.symbol_token(symbol)?,
+                    None => Some((SemanticTokenType::Property, SemanticTokenModifiers::NONE)),
+                },
+                dir::Projection::Subscript(_)
+                | dir::Projection::ObjectRest { .. }
+                | dir::Projection::SliceLength { .. }
+                | dir::Projection::DynamicPayload { .. }
+                | dir::Projection::DynamicType { .. }
+                | dir::Projection::VariantTag { .. }
+                | dir::Projection::VariantPayload { .. }
+                | dir::Projection::NewtypePayload { .. }
+                | dir::Projection::Borrow { .. }
+                | dir::Projection::Move { .. }
+                | dir::Projection::Dereference(_)
+                | dir::Projection::Copy { .. } => {
+                    return Err(QueryError::invalid(format!(
+                        "semantic token field projection: {projection:?}"
+                    )));
+                }
+            };
+            let Some(candidate) = candidate else {
+                return Ok(None);
+            };
+            if token.is_some_and(|(token_type, _)| token_type != candidate.0) {
+                return Ok(None);
+            }
+
+            token = Some(match token {
+                Some((token_type, modifiers)) => (token_type, modifiers.intersection(candidate.1)),
+                None => candidate,
+            });
+        }
+
+        Ok(token)
     }
 
     /// Collect expression tokens.
@@ -1189,7 +1316,11 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
         let view = self.module.view();
 
         // collect imported and exported binding names
-        for (item_id, _) in view.iter_nodes_of_type::<dir::DependencyItem>() {
+        for (item_id, item) in view.iter_nodes_of_type::<dir::DependencyItem>() {
+            if item.local_string_key().is_none() {
+                continue;
+            }
+
             let source_node_id = view.get_source(item_id);
             let Some(main_span) = self.main_span(item_id.into_any())? else {
                 continue;

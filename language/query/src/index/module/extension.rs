@@ -48,9 +48,15 @@ impl<'context, 'index> ExtensionIndexer<'context, 'index> {
             }
 
             // resolve source span and checked target
-            let Some(span) = self.module.view().get_span_by_id(source.local_id.id) else {
-                continue;
-            };
+            let span = self
+                .module
+                .view()
+                .get_span_by_id(source.local_id.id)
+                .ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "extension definition has no source span: {source:?}"
+                    ))
+                })?;
             let root = extension.target.root();
 
             // emit extension declaration row
