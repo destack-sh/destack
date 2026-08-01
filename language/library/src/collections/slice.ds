@@ -12,24 +12,24 @@ import { Sequence } from "./sequence.ds";
 @languageItem("collections.Slice")
 export newtype Slice<T> = [T];
 
-export extension<T> of Slice<T> implements From<Iterable<T>>, FromIterator<T>, Default {
+export extension<T> of Slice<T> implements Default {
     /// Create an empty slice.
-    static new(): [T] {
+    static new(): ^[T] {
         todo("Slice.new")
     }
 
     /// Create a slice from `values`.
-    static from(values: Iterable<T>): [T] {
+    static from(values: Iterable<T>): ^[T] {
         todo("Slice.from")
     }
 
     /// Create a slice from `values`.
-    static fromIterator<R>(values: Iterator<T, R>): [T] {
+    static fromIterator<R>(values: Iterator<T, R>): ^[T] {
         todo("Slice.fromIterator")
     }
 
     /// Create the default slice.
-    static default(): [T] {
+    static default(): ^[T] {
         Slice.new()
     }
 
@@ -161,6 +161,18 @@ export extension<T: Copy> of Slice<T> implements Iterable<T>, Sequence {
         }
 
         this[length - 1]
+    }
+}
+
+export extension<T> of ^Slice<T> implements From<Iterable<T>>, FromIterator<T> {
+    /// Create a slice from `values`.
+    static from(values: Iterable<T>): ^[T] {
+        Slice.from(values)
+    }
+
+    /// Create a slice from `values`.
+    static fromIterator<R>(values: Iterator<T, R>): ^[T] {
+        Slice.fromIterator(values)
     }
 }
 
