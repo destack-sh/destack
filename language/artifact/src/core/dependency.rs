@@ -131,6 +131,8 @@ pub enum ArtifactProjectionKey {
     Checked,
     /// The resolved import relationships that shape module graph edges.
     ImportEdges,
+    /// The full payload content, independent of the inputs that built it.
+    Content,
 }
 
 /// One artifact projection selected by owner artifact and projection key.

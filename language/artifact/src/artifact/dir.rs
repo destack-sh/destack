@@ -408,10 +408,7 @@ impl DirChecked {
 
     /// Return the cumulative generic table for checked DIR.
     pub fn generic_table(&self, declared: &DirDeclared) -> dir::GenericTable<'static> {
-        dir::GenericTable::from_segments(vec![
-            declared.generics.clone(),
-            self.generics.clone(),
-        ])
+        dir::GenericTable::from_segments(vec![declared.generics.clone(), self.generics.clone()])
     }
 
     /// Return the cumulative definition table for checked DIR.

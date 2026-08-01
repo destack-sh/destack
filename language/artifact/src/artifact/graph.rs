@@ -229,7 +229,8 @@ impl ModuleGraph {
             }
             ArtifactProjectionKey::Declared
             | ArtifactProjectionKey::Checked
-            | ArtifactProjectionKey::ImportEdges => None,
+            | ArtifactProjectionKey::ImportEdges
+            | ArtifactProjectionKey::Content => None,
         }
     }
 

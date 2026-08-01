@@ -6,7 +6,9 @@ use dashmap::DashMap;
 use dashmap::mapref::entry::Entry;
 use destack_core::StringPool;
 use destack_program::Program;
-use destack_source::{ContentId, DiagnosticCollection};
+use destack_source::ContentId;
+
+use crate::DiagnosticRecord;
 use parking_lot::RwLock;
 use rustc_hash::FxBuildHasher;
 
@@ -160,7 +162,7 @@ impl ArtifactTable {
     }
 
     /// Return the recorded diagnostics for one exact artifact version.
-    pub fn diagnostics(&self, version: &ArtifactVersion) -> Option<Arc<DiagnosticCollection>> {
+    pub fn diagnostics(&self, version: &ArtifactVersion) -> Option<Arc<[DiagnosticRecord]>> {
         self.entries
             .get(version)
             .map(|entry| Arc::clone(&entry.diagnostics))
@@ -231,7 +233,7 @@ impl ArtifactTable {
         };
 
         let dependencies = dependencies.to_vec();
-        let diagnostics = entry.diagnostics.as_ref().clone();
+        let diagnostics = entry.diagnostics.to_vec();
         let sidecars = entry.sidecars.iter().cloned().collect();
         let record = ArtifactRecord::new(
             version,
@@ -251,7 +253,7 @@ impl ArtifactTable {
         version: ArtifactVersion,
         payload: ArtifactPayload,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
-        diagnostics: impl Into<Arc<DiagnosticCollection>>,
+        diagnostics: impl Into<Arc<[DiagnosticRecord]>>,
         sidecars: impl Into<Arc<[ArtifactSidecar]>>,
     ) -> Result<ArtifactBindingPin, ArtifactError> {
         if !payload.matches_key(&version.key) {
@@ -298,7 +300,7 @@ impl ArtifactTable {
         self: &Arc<Self>,
         version: ArtifactVersion,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
-        diagnostics: impl Into<Arc<DiagnosticCollection>>,
+        diagnostics: impl Into<Arc<[DiagnosticRecord]>>,
         sidecars: impl Into<Arc<[ArtifactSidecar]>>,
         failure: ArtifactFailure,
     ) -> Result<ArtifactBindingPin, ArtifactError> {
@@ -329,7 +331,7 @@ impl ArtifactTable {
         &self,
         version: ArtifactVersion,
         payload: ArtifactPayload,
-        diagnostics: Arc<DiagnosticCollection>,
+        diagnostics: Arc<[DiagnosticRecord]>,
         sidecars: Arc<[ArtifactSidecar]>,
     ) {
         self.entries

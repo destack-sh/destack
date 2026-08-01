@@ -2,7 +2,10 @@ use destack_source::{
     Diagnostic, DiagnosticHelp, DiagnosticNote, DiagnosticSuggestion, DiagnosticTag,
 };
 
-use crate::{DiagnosticAnchor, DiagnosticContext, DiagnosticError, ToDiagnostic};
+use crate::{
+    DeclarationReference, DiagnosticAnchor, DiagnosticContext, DiagnosticError, DiagnosticRecord,
+    ToDiagnostic,
+};
 
 /// One secondary diagnostic label.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -165,5 +168,62 @@ where
         }
 
         Ok(diagnostic)
+    }
+}
+
+impl<T> DiagnosticBuilder<T>
+where
+    T: ToDiagnostic,
+{
+    /// Convert the provider diagnostic into a stored record, splitting
+    /// declaration references from labels resolvable at emit.
+    pub fn to_record(
+        &self,
+        context: &dyn DiagnosticContext,
+    ) -> Result<DiagnosticRecord, DiagnosticError> {
+        // base diagnostic with the primary label resolved
+        let mut diagnostic = self.diagnostic.to_diagnostic(context)?;
+        if let Some(message) = &self.primary {
+            diagnostic.primary.message = Some(message.clone());
+        }
+
+        // split labels: declarations stay references, the rest resolve now
+        let mut references = Vec::new();
+        for label in &self.labels {
+            if let Some(symbol) = label.anchor.declaration() {
+                references.push(DeclarationReference {
+                    symbol,
+                    message: Some(label.message.clone()),
+                });
+                continue;
+            }
+            let label = context.label(&label.anchor, Some(label.message.clone()))?;
+            diagnostic = diagnostic.label(label);
+        }
+
+        // carry the notes
+        for note in &self.notes {
+            diagnostic = diagnostic.note(note.clone());
+        }
+
+        // carry the help messages
+        for help in &self.helps {
+            diagnostic = diagnostic.help(help.clone());
+        }
+
+        // carry the suggestions
+        for suggestion in &self.suggestions {
+            diagnostic = diagnostic.suggestion(suggestion.clone());
+        }
+
+        // carry the tags
+        for tag in &self.tags {
+            diagnostic = diagnostic.tag(*tag);
+        }
+
+        Ok(DiagnosticRecord {
+            diagnostic,
+            references,
+        })
     }
 }

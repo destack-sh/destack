@@ -3,7 +3,6 @@ use std::sync::Arc;
 use destack_core::{StringId, StringPool};
 use destack_program::Program;
 use destack_serde::Reflect;
-use destack_source::DiagnosticCollection;
 use serde::{Deserialize, Serialize};
 
 use super::string::collect_string_ids;
@@ -11,7 +10,7 @@ use super::string::collect_string_ids;
 use crate::{
     ArtifactDependency, ArtifactError, ArtifactKey, ArtifactPayload, ArtifactPayloadRef,
     ArtifactProjectionFingerprint, ArtifactProjectionKey, ArtifactSidecar, ArtifactVersion,
-    BuildId,
+    DiagnosticRecord,
 };
 
 /// One persisted artifact.
@@ -26,7 +25,7 @@ pub struct ArtifactRecord {
     /// The exact artifact dependencies.
     pub dependencies: Vec<ArtifactDependency>,
     /// Diagnostics recorded for this artifact version.
-    pub diagnostics: DiagnosticCollection,
+    pub diagnostics: Vec<DiagnosticRecord>,
     /// Artifact sidecars recorded for this artifact version.
     pub sidecars: Vec<ArtifactSidecar>,
     /// Observable payload projections by exact projection key.
@@ -40,7 +39,7 @@ impl ArtifactRecord {
         payload: ArtifactPayloadRef<'_>,
         string_pool: &StringPool,
         dependencies: Vec<ArtifactDependency>,
-        diagnostics: DiagnosticCollection,
+        diagnostics: Vec<DiagnosticRecord>,
         sidecars: Vec<ArtifactSidecar>,
     ) -> Result<Self, ArtifactError> {
         // encode payload values

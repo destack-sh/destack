@@ -2,10 +2,12 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use destack_serde::Reflect;
-use destack_source::{Content, DiagnosticCollection};
+use destack_source::Content;
 use serde::{Deserialize, Serialize};
 
-use crate::{ArtifactDependency, ArtifactFailure, ArtifactPayload, ArtifactVersion};
+use crate::{
+    ArtifactDependency, ArtifactFailure, ArtifactPayload, ArtifactVersion, DiagnosticRecord,
+};
 
 /// Dense in-process id for one artifact key.
 #[repr(transparent)]
@@ -30,7 +32,7 @@ pub(crate) struct ArtifactEntry {
     /// The exact terminal result.
     pub(crate) result: ArtifactResult,
     /// The diagnostics for this exact artifact version.
-    pub(crate) diagnostics: Arc<DiagnosticCollection>,
+    pub(crate) diagnostics: Arc<[DiagnosticRecord]>,
     /// The sidecars for this exact artifact version.
     pub(crate) sidecars: Arc<[ArtifactSidecar]>,
 }
@@ -48,7 +50,7 @@ impl ArtifactEntry {
     /// Create one successful artifact entry.
     pub(crate) fn ok(
         payload: ArtifactPayload,
-        diagnostics: impl Into<Arc<DiagnosticCollection>>,
+        diagnostics: impl Into<Arc<[DiagnosticRecord]>>,
         sidecars: impl Into<Arc<[ArtifactSidecar]>>,
     ) -> Self {
         Self {
@@ -60,7 +62,7 @@ impl ArtifactEntry {
 
     /// Create one failed artifact entry.
     pub(crate) fn failed(
-        diagnostics: impl Into<Arc<DiagnosticCollection>>,
+        diagnostics: impl Into<Arc<[DiagnosticRecord]>>,
         sidecars: impl Into<Arc<[ArtifactSidecar]>>,
         failure: ArtifactFailure,
     ) -> Self {

@@ -333,6 +333,22 @@ impl ArtifactPayloadRef<'_> {
             (Self::DirChecked(payload), ArtifactProjectionKey::Checked) => {
                 Some(payload.fingerprint)
             }
+            // hash content directly, ignoring the inputs that rebuilt identical payloads
+            (Self::DirBound(payload), ArtifactProjectionKey::Content) => {
+                ArtifactProjectionFingerprint::from_serialized_payload(payload).ok()
+            }
+            (Self::DirExpanded(payload), ArtifactProjectionKey::Content) => {
+                ArtifactProjectionFingerprint::from_serialized_payload(payload).ok()
+            }
+            (Self::DirResolved(payload), ArtifactProjectionKey::Content) => {
+                ArtifactProjectionFingerprint::from_serialized_payload(payload).ok()
+            }
+            (Self::GlobalEnvironment(payload), ArtifactProjectionKey::Content) => {
+                ArtifactProjectionFingerprint::from_serialized_payload(payload).ok()
+            }
+            (Self::DirExported(payload), ArtifactProjectionKey::Content) => {
+                ArtifactProjectionFingerprint::from_serialized_payload(payload).ok()
+            }
             _ => None,
         }
     }
