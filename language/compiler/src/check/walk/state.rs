@@ -395,7 +395,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if let Some(ty) = self.check.symbol_type_maybe(symbol) {
+        if let Some(ty) = self.check.canonical_symbol_type_maybe(symbol)? {
             return Ok(ty);
         }
 

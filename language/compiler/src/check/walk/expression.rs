@@ -38,6 +38,20 @@ impl WalkState<'_, '_> {
                             || function.name.is_none()
                 );
                 self.walk_declaration(declaration, self.tree.get(declaration))?;
+
+                // walk the declared bodies the declaration walk no longer visits
+                if !is_lambda
+                    && let Some(symbol) = self
+                        .check
+                        .module(self.module)
+                        .declaration_symbol(declaration.into_any())
+                {
+                    self.visit_declared_bodies(
+                        declaration,
+                        &self.tree.get(declaration).clone(),
+                        symbol,
+                    )?;
+                }
                 if is_lambda {
                     let Some(symbol) = self
                         .check
@@ -48,6 +62,11 @@ impl WalkState<'_, '_> {
                             message: format!("function value {id:?} has no declaration symbol"),
                         });
                     };
+                    // function values register their bodies at their expression
+                    if let dir::Declaration::Function(function) = self.tree.get(declaration).clone()
+                    {
+                        self.walk_declared_function_body(declaration, &function, symbol)?;
+                    }
                     // move the body from independent roots to its value expression
                     let Some(body) = self.check.functions.swap_remove(&symbol) else {
                         return Err(CompilerError::Internal {

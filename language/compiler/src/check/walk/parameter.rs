@@ -220,8 +220,8 @@ impl WalkState<'_, '_> {
                     self.bind_symbol_type(symbol, parameter_type)?;
                 }
 
-                // check default after the parameter type is known
-                if let Some(default) = default {
+                // validate defaults while checking, declaring transcribes them
+                if let Some(default) = default.filter(|_| !self.check.is_declaration()) {
                     let before_default = self.fork_flow();
                     self.walk_expression(default, self.tree.get(default))?;
                     if let Some(parameter_type) = parameter_type {
@@ -293,8 +293,8 @@ impl WalkState<'_, '_> {
                     )?;
                 }
 
-                // check default after the parameter type is known
-                if let Some(default) = default {
+                // validate defaults while checking, declaring transcribes them
+                if let Some(default) = default.filter(|_| !self.check.is_declaration()) {
                     let before_default = self.fork_flow();
                     self.walk_expression(default, self.tree.get(default))?;
                     if let Some(parameter_type) = parameter_type {

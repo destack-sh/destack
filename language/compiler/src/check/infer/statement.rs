@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 
 use crate::check::{
     Answer, BodyState, Cause, CauseKind, Constraint, Expectation, FlowSite, InferMode, Origin,
-    PlaceUse, Relation, ValueUse, Widening, answer, declarator_widening,
+    PlaceUse, Relation, ValueUse, Widening, answer, declarator_widening, is_transcribable_literal,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -273,10 +273,20 @@ impl BodyState<'_, '_> {
 
         // resolve the written type before checking the optional value
         let annotation = declarator.ty.map(|ty| ty.into_global_any(module));
+        // unwalked annotations belong to skipped declarators
+        if let Some(annotation) = annotation
+            && self.check.committed_node_type(annotation).is_none()
+        {
+            return Ok(Answer::Ready(()));
+        }
         let written = match annotation {
             Some(annotation) => {
                 let ty = self.require_node_type(annotation)?;
-                let origin = self.node_origin(annotation)?;
+                // fall back to the pattern's origin for declared-stage annotations
+                let origin = match self.check.node_origin_maybe(annotation) {
+                    Some(origin) => origin,
+                    None => self.node_site(pattern.into_global_any(module))?.origin(),
+                };
 
                 Some(self.storage_type(origin, ty)?)
             }
@@ -303,6 +313,20 @@ impl BodyState<'_, '_> {
 
                 Some(written)
             }
+            // leave unexported initializers to the body pass
+            (Some(_), None) if self.is_declaration() && !exported => None,
+            // error for exported non-transcribable values
+            (Some(value), None)
+                if exported && !is_transcribable_literal(self.module(module).view(), value) =>
+            {
+                // infer the body while checking
+                if !self.is_declaration() {
+                    let site = self.node_site(value.into_global_any(module))?;
+                    answer!(self.infer_node(site, PlaceUse::Read, InferMode::Widen)?);
+                }
+
+                Some(self.intern_type(dir::Type::Error)?)
+            }
             (Some(value), None) => {
                 let site = self.node_site(value.into_global_any(module))?;
                 let widening =
@@ -311,12 +335,7 @@ impl BodyState<'_, '_> {
                     Widening::Never | Widening::Aggregate | Widening::Multiple => InferMode::Exact,
                     Widening::Always => InferMode::Widen,
                 };
-                // infer exported initializers under export derivation
-                let deriving = self.check.deriving_export;
-                self.check.deriving_export |= exported;
-                let ty = self.infer_node(site, PlaceUse::Read, mode)?;
-                self.check.deriving_export = deriving;
-                let ty = answer!(ty);
+                let ty = answer!(self.infer_node(site, PlaceUse::Read, mode)?);
 
                 Some(answer!(self.flow_type_at(site, ty)?))
             }

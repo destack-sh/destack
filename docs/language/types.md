@@ -638,17 +638,24 @@ type Callback<...Parameters, Return> = (...parameters: Parameters) => Return;
 
 ## Boundaries
 
-The type of every module export must be derivable from that module alone, which means all exported functions need to write their parameter and result types explicitly.
-Everything else - locals, lambdas, private helpers, and any initializer that module-local inference can settle - infers as usual.
+The type of every declaration must be transcribable from that module's source alone, without running inference.
+This is TypeScript's `isolatedDeclarations` rule extended to Rust's discipline: every named function and method writes its parameter and result types, and exported bindings either write their type or initialize with a literal whose type transcribes directly - numbers, strings, booleans, and arrays or objects composed of transcribable values.
+Everything else - locals, lambdas, function values, and unexported initializers - infers as usual.
 
 ```ds
-export const FOO = 1;                  // OK - module-local inference
-export const NEXT = increment(FOO);    // OK - increment lives in this module
-export const B: Widget = imported();   // OK - annotate because imported() is in another module
+export const FOO = 1;                  // OK - literal types transcribe
+export const NEXT = increment(FOO);    // error - calls need inference, write the type
+export const B: Widget = imported();   // OK - written type
+
+function helper(value: float64) {      // error - named functions write their result type
+    return value * 2.0;
+}
 
 export function scale(value: float64): float64 {
     return value * FACTOR;
 }
+
+const double = (value) => value * 2.0; // OK - function values infer fully
 ```
 
 ## Variance

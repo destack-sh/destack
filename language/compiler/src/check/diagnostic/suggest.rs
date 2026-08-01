@@ -147,7 +147,7 @@ impl CheckState<'_> {
                 }
             }
             dir::Type::Reference(reference) => {
-                if let Some(definition) = self.definintion_maybe(reference.symbol) {
+                if let Some(definition) = self.definition_maybe(reference.symbol) {
                     for member in definition.members() {
                         if member.space() == dir::MemberSpace::Static
                             && let Some(key) = member.key()
@@ -158,7 +158,7 @@ impl CheckState<'_> {
                 }
             }
             dir::Type::Application(instance) => {
-                if let Some(definition) = self.definintion_maybe(instance.symbol) {
+                if let Some(definition) = self.definition_maybe(instance.symbol) {
                     for member in definition.members() {
                         if let Some(key) = member.key() {
                             keys.push(self.format_static_key(&key));

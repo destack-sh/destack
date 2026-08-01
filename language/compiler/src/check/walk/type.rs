@@ -2,8 +2,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    CauseKind, Decision, GenericArgument, Obligation, Origin, Receiver, Relation, TypeSubstitution,
-    VariableRole, WalkState, WellFormedTypeObligation, Widening,
+    CauseKind, Decision, GenericArgument, Origin, Receiver, Relation, TypeSubstitution,
+    VariableRole, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -353,13 +353,6 @@ impl WalkState<'_, '_> {
                 let index = self.walk_type_expression(*index)?;
                 let ty = self
                     .intern_operation(dir::TypeOperation::Index(dir::IndexType { left, index }))?;
-                self.check.push_obligation(
-                    Obligation::WellFormedType(WellFormedTypeObligation {
-                        source: id.into_global_any(self.module),
-                        ty,
-                    }),
-                    self.flow().template_scope(),
-                );
 
                 Ok(ty)
             }
@@ -1331,7 +1324,7 @@ impl WalkState<'_, '_> {
     /// Return one placed type expression.
     fn walk_placed_type(
         &mut self,
-        id: dir::LocalNodeId<dir::TypeExpression>,
+        _id: dir::LocalNodeId<dir::TypeExpression>,
         target_type: dir::LocalNodeId<dir::TypeExpression>,
         space: dir::Space,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -1344,14 +1337,6 @@ impl WalkState<'_, '_> {
             form: dir::Form::Placed { place },
             value,
         }))?;
-        self.check.push_obligation(
-            Obligation::WellFormedType(WellFormedTypeObligation {
-                source: id.into_global_any(self.module),
-                ty,
-            }),
-            self.flow().template_scope(),
-        );
-
         Ok(ty)
     }
 

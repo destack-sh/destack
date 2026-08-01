@@ -37,20 +37,20 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) module: CheckModuleState,
     /// Loaded external module states keyed by module id.
     pub(in crate::check) external_modules: FxIndexMap<ModuleId, CheckExternalModuleState>,
-    /// Foreign binder tables read for declare-time symbol kinds.
-    pub(in crate::check) external_binders: FxIndexMap<ModuleId, dir::BindingTable<'static>>,
     /// Resolved import targets of external modules read for alias hops.
     pub(in crate::check) external_resolved: FxIndexMap<ModuleId, Arc<DirResolved>>,
     /// Whether this check infers the module's bodies.
     pub(in crate::check) is_checking: bool,
-    /// Whether inference currently derives an exported binding's type.
-    pub(in crate::check) deriving_export: bool,
     /// Whether every member template is declared and walked.
     pub(in crate::check) templates_ready: bool,
 
     // walk state
     /// Resolved decorators in component walk order.
     pub(in crate::check) decorators: Vec<DecoratorApplication>,
+    /// Tagged newtype definitions derived on demand while checking.
+    pub(in crate::check) derived_newtypes: FxIndexMap<dir::GlobalSymbolId, dir::Definition>,
+    /// Tagged newtypes whose derivation is on the stack.
+    pub(in crate::check) deriving_newtypes: FxIndexSet<dir::GlobalSymbolId>,
 
     // checked state
     /// Stable declaration symbol types.
@@ -134,6 +134,12 @@ impl<'a> CheckState<'a> {
         let expanded = artifacts
             .dir_expanded(module_id, profile)
             .map_err(CompilerError::from)?;
+
+        // seed the checking pass from the module's own declared artifact
+        let declared = is_checking
+            .then(|| artifacts.dir_declared(module_id, profile))
+            .transpose()
+            .map_err(CompilerError::from)?;
         let module = CheckModuleState::new(
             repository_module,
             package,
@@ -142,9 +148,10 @@ impl<'a> CheckState<'a> {
             bound,
             resolved,
             Arc::clone(&expanded),
+            declared,
         );
 
-        Ok(Self {
+        let mut state = Self {
             compiler,
             context,
             artifacts,
@@ -154,12 +161,12 @@ impl<'a> CheckState<'a> {
             module_id,
             module,
             external_modules: FxIndexMap::default(),
-            external_binders: FxIndexMap::default(),
             external_resolved: FxIndexMap::default(),
             is_checking,
-            deriving_export: false,
             templates_ready: false,
             decorators: Vec::new(),
+            derived_newtypes: FxIndexMap::default(),
+            deriving_newtypes: FxIndexSet::default(),
             declaration_types: FxIndexMap::default(),
             binding_types: FxIndexMap::default(),
             node_types: FxIndexMap::default(),
@@ -178,7 +185,35 @@ impl<'a> CheckState<'a> {
             try_propagations: FxIndexMap::default(),
             control_results: FxIndexMap::default(),
             trace: CheckTrace::new(emit_events, should_stream_check_events()),
-        })
+        };
+        state.index_declared_generics();
+
+        Ok(state)
+    }
+
+    /// Index the declared stage's generic templates and parameters by symbol.
+    fn index_declared_generics(&mut self) {
+        let Some(declared) = self.module.declared.clone() else {
+            return;
+        };
+        let module = self.module_id;
+
+        // index declared templates by their declaring symbol
+        for (local_id, template) in declared.generics.iter_templates() {
+            let id = local_id.into_global(module);
+            if let Some(symbol) = template.symbol {
+                self.generics.index_template_symbol(symbol, id);
+            }
+        }
+
+        // index declared parameters by their declaring symbol
+        for (local_id, binding) in declared.generics.iter_parameters() {
+            let id = local_id.into_global(module);
+            let symbol = self.module.declaration_symbol(binding.source.local_id);
+            if let Some(symbol) = symbol {
+                self.generics.index_parameter(symbol, id);
+            }
+        }
     }
 
     /// Return whether this check infers one member's bodies.
@@ -193,9 +228,13 @@ impl<'a> CheckState<'a> {
 
     /// Solve the loaded module in declare or check mode.
     pub(in crate::check) fn solve(&mut self) -> CompilerResult<()> {
-        // walk the module and apply derive decorators in both modes
+        // walk the module in both modes
         self.walk()?;
-        self.apply_derive_decorators()?;
+
+        // apply derive decorators while declaring, checking reads the declared output
+        if self.is_declaration() {
+            self.apply_derive_decorators()?;
+        }
 
         // drain the walk's remaining declaration tasks when declaring
         if self.is_declaration() {
@@ -235,7 +274,11 @@ impl<'a> CheckState<'a> {
                 continue;
             }
 
-            self.report_export_type_not_derivable(module, declarator);
+            // report the failure once, while declaring
+            if self.is_declaration() {
+                self.report_export_type_not_derivable(module, declarator);
+            }
+
             let error = self.intern_type(dir::Type::Error)?;
             self.bind_symbol_type(symbol, error)?;
         }
@@ -287,27 +330,27 @@ impl<'a> CheckState<'a> {
 
     /// Walk the loaded module.
     pub(in crate::check) fn walk(&mut self) -> CompilerResult<()> {
-        let modules = vec![self.module_id];
+        let module = self.module_id;
 
         // import external declared modules
         self.import_external_modules()?;
 
+        // checking walks bodies against the declared rows
+        if self.is_checking {
+            self.templates_ready = true;
+            self.derive_tagged_definitions()?;
+            self.canonicalize_declared_types()?;
+
+            return self.walk_module_bodies(module);
+        }
+
         // declare template identities, then walk their bounds, so
         //  declarations resolve in any order across module cycles
-        for module in modules.iter().copied() {
-            self.declare_module_templates(module)?;
-        }
-        for module in modules.iter().copied() {
-            self.walk_module_templates(module)?;
-        }
+        self.declare_module_templates(module)?;
+        self.walk_module_templates(module)?;
         self.templates_ready = true;
 
-        // walk each module's declarations in root order
-        for module in modules.iter().copied() {
-            self.walk_module(module)?;
-        }
-
-        Ok(())
+        self.walk_module(module)
     }
 
     /// Return one language symbol resolved for one module.
@@ -890,24 +933,57 @@ impl CheckState<'_> {
         self.intern_type(dir::Type::Variable(variable))
     }
 
+    /// Canonicalize every declared value symbol type onto the checked tail.
+    pub(in crate::check) fn canonicalize_declared_types(&mut self) -> CompilerResult<()> {
+        let module = self.module_id;
+        let Some(declared) = self.module(module).declared.clone() else {
+            return Ok(());
+        };
+
+        for (symbol, _) in declared.types.symbol_types() {
+            self.canonical_symbol_type_maybe(symbol)?;
+        }
+
+        Ok(())
+    }
+
     /// Return one definition, importing the symbol's module on demand.
     pub(in crate::check) fn definition(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<&dir::Definition>> {
-        // foreign definitions stay symbolic while declaring
+        // unloaded foreign definitions stay symbolic
         if !self.is_own_module(symbol.module_id) {
-            if self.is_declaration() {
-                return Ok(None);
-            }
             self.import_external_module(symbol.module_id)?;
         }
 
-        Ok(self.definintion_maybe(symbol))
+        // derive tagged newtype variants before their rows are read
+        let underived = matches!(
+            self.definition_maybe(symbol),
+            Some(dir::Definition::Newtype(newtype))
+                if newtype.is_tagged && newtype.discriminator.is_none()
+        );
+        if self.is_checking
+            && underived
+            && !self.derived_newtypes.contains_key(&symbol)
+            && self.deriving_newtypes.insert(symbol)
+        {
+            let derived = self.classify_tagged_newtype(symbol)?;
+            self.deriving_newtypes.swap_remove(&symbol);
+            if let Some(derived) = derived {
+                self.derived_newtypes
+                    .insert(symbol, dir::Definition::Newtype(derived));
+            }
+        }
+        if let Some(definition) = self.derived_newtypes.get(&symbol) {
+            return Ok(Some(definition));
+        }
+
+        Ok(self.definition_maybe(symbol))
     }
 
     /// Return one already loaded definition, without importing.
-    pub(in crate::check) fn definintion_maybe(
+    pub(in crate::check) fn definition_maybe(
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Option<&dir::Definition> {
@@ -949,6 +1025,16 @@ impl CheckState<'_> {
             .insert_definition(symbol, source, definition);
 
         Ok(())
+    }
+
+    /// Return one definition for mutation.
+    pub(in crate::check) fn definition_mut(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<&mut dir::Definition> {
+        self.module_maybe_mut(symbol.module_id)?
+            .definitions
+            .definition_mut(symbol)
     }
 
     /// Commit one nominal declaration's solved space.
@@ -1344,6 +1430,22 @@ impl CheckState<'_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("type {id:?} has no nominal application"),
             })
+    }
+
+    /// Return one written application's arguments with elided slots filled.
+    pub(in crate::check) fn filled_application_arguments(
+        &mut self,
+        module: ModuleId,
+        instance: &dir::GenericApplication,
+    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
+        let filled = self.fill_elided_application(module, instance)?;
+        if let Some(filled) = filled
+            && let dir::Type::Application(filled) = self.ty(filled)?
+        {
+            return Ok(self.type_ids(module, filled.arguments)?.to_vec());
+        }
+
+        Ok(self.type_ids(module, instance.arguments)?.to_vec())
     }
 
     /// Return the nominal application beneath refinements and memory forms.

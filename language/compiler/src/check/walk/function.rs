@@ -486,14 +486,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         body: dir::LocalNodeId<dir::Expression>,
         result: dir::GlobalTypeId,
         receiver: Option<ReceiverBinding>,
-        form: BodyForm,
+        _form: BodyForm,
     ) -> CompilerResult<FlowBranch> {
-        // skip declaration bodies outside the inferred members; value bodies
-        //  walk with the state their expression evaluates in
-        if form == BodyForm::Declaration && !self.check.infers_module(symbol.module_id) {
-            return Ok(FlowBranch::empty());
-        }
-
         let source = body.into_any();
         let origin = Origin::Node(
             body.into_global_any(self.module),

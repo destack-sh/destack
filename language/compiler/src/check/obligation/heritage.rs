@@ -87,11 +87,6 @@ impl CheckState<'_> {
         origin: Origin,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<ObligationCheck>> {
-        // skip heritage closure while declaring, checking validates the inherited rows
-        if self.is_declaration() {
-            return Ok(Answer::Ready(ObligationCheck::Holds));
-        }
-
         let source = self.origin_source(origin)?;
         let instance = self.declaration_instance(symbol)?;
         let closure = answer!(self.heritage_closure(origin, source.module_id, &instance)?);

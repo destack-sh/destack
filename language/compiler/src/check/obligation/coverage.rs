@@ -432,7 +432,7 @@ impl CheckState<'_> {
                 let dir::PatternResolution::Destructure(resolution) = resolution else {
                     return Err(CompilerError::Internal {
                         message: format!(
-                            "nominal coverage pattern {pattern:?} has non-nominal resolution"
+                            "nominal coverage pattern {pattern:?} has non-nominal resolution: {resolution:?}"
                         ),
                     });
                 };

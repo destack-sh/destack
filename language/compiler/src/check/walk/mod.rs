@@ -1,5 +1,6 @@
 mod argument;
 mod block;
+mod body;
 mod capture;
 mod completion;
 mod declaration;
@@ -23,7 +24,7 @@ mod visit;
 
 pub(in crate::check) use argument::GenericArgument;
 pub(in crate::check) use declaration::TemplatePass;
-pub(in crate::check) use declarator::declarator_widening;
+pub(in crate::check) use declarator::{declarator_widening, is_transcribable_literal};
 pub(in crate::check) use function::{BodyForm, FunctionHeader};
 pub(in crate::check) use generic::InducedParameterOwner;
 pub(in crate::check) use narrow::ConditionBranch;

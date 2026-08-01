@@ -4,7 +4,9 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, PlaceUse, Task, TemplatePass, WalkState};
+use crate::check::{
+    CheckState, Obligation, PlaceUse, Task, TemplatePass, WalkState, WellFormedTypeObligation,
+};
 
 impl CheckState<'_> {
     /// Declare every declaration template in one module.
@@ -64,6 +66,11 @@ impl CheckState<'_> {
             return Ok(());
         }
 
+        // skip symbols the declared stage already declares
+        if self.current_stage_declares(symbol) {
+            return Ok(());
+        }
+
         let input = self.module(symbol.module_id);
         let parsed = input.parsed.clone();
         let expanded = input.expanded.clone();
@@ -82,19 +89,89 @@ impl CheckState<'_> {
     /// ```ds
     /// export function value(): number { 1 }
     /// ```
+    pub(in crate::check) fn walk_module_bodies(&mut self, module: ModuleId) -> CompilerResult<()> {
+        let input = self.module(module);
+        let parsed = input.parsed.clone();
+        let expanded = input.expanded.clone();
+        let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
+
+        // walk and queue each root's bodies, inducing body-written lifetimes
+        let mut walk = WalkState::new(module, tree, self);
+        for root in &expanded.roots {
+            walk.visit_body_expression(*root)?;
+            walk.queue_module_expression(*root)?;
+            walk.check.induce_signature_lifetimes()?;
+        }
+        walk.commit()?;
+        self.queue_written_type_obligations(module)?;
+
+        Ok(())
+    }
+
+    /// Queue obligations for written index and placed types.
+    fn queue_written_type_obligations(&mut self, module: ModuleId) -> CompilerResult<()> {
+        let mut written = Vec::new();
+        if let Some(declared) = &self.module(module).declared {
+            written.extend(declared.types.node_types());
+        }
+        written.extend(self.node_types.iter().map(|(node, ty)| (*node, *ty)));
+
+        for (source, ty) in written {
+            if source.try_into_typed::<dir::TypeExpression>().is_err() {
+                continue;
+            }
+
+            let checked = matches!(self.operation_head(ty)?, Some(dir::TypeOperation::Index(_)))
+                || matches!(
+                    self.ty(ty)?,
+                    dir::Type::Form(dir::FormType {
+                        form: dir::Form::Placed { .. },
+                        ..
+                    })
+                );
+            if !checked {
+                continue;
+            }
+
+            self.push_obligation(
+                Obligation::WellFormedType(WellFormedTypeObligation { source, ty }),
+                None,
+            );
+        }
+
+        Ok(())
+    }
+
+    /// Visit DIR and collect check constraints and obligations.
+    ///
+    /// Example:
+    /// ```ds
+    /// export function value(): number { 1 }
+    /// ```
     pub(in crate::check) fn walk_module(&mut self, module: ModuleId) -> CompilerResult<()> {
         let input = self.module(module);
         let parsed = input.parsed.clone();
         let expanded = input.expanded.clone();
         let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
 
-        // walk and queue expanded module roots, inducing each root's memory
-        //  parameters before later roots apply its declarations; infer module
-        //  state for interface members too, since consumers evaluate their
-        //  constant values
+        // walk and queue expanded module roots
         let mut walk = WalkState::new(module, tree, self);
         for root in &expanded.roots {
-            walk.walk_expression(*root, tree.get(*root))?;
+            match tree.get(*root) {
+                dir::Expression::Declaration(declaration) => {
+                    let declaration = *declaration;
+                    walk.enter_node(*root)?;
+                    let void = walk.intern_type(dir::Type::Void)?;
+                    walk.commit_node_type(*root, void)?;
+                    walk.walk_declaration(declaration, &tree.get(declaration).clone())?;
+                }
+                dir::Expression::Let { .. } => {
+                    walk.enter_node(*root)?;
+                    walk.walk_let_bindings(*root)?;
+                }
+                _ => continue,
+            }
+
             walk.queue_module_expression(*root)?;
             walk.check.induce_signature_lifetimes()?;
         }
@@ -112,6 +189,16 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         let node = expression.into_global_any(self.module);
         if self.check.is_absent(node) {
+            return Ok(());
+        }
+
+        // transcribe declarations / bindings only
+        if self.check.is_declaration()
+            && !matches!(
+                self.tree.get(expression),
+                dir::Expression::Declaration(_) | dir::Expression::Let { .. }
+            )
+        {
             return Ok(());
         }
 

@@ -24,51 +24,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
 
-        let widening = declarator_widening(self.tree, declarator, binding_kind);
-        self.walk_pattern(
-            declarator.pattern,
-            self.tree.get(declarator.pattern),
-            Some(widening),
-        )?;
-
-        // walk the declared pattern type
-        let matched = match declarator.ty {
-            Some(annotation) => {
-                let ty = match is_ambient {
-                    true => self.walk_static_type_expression(annotation)?,
-                    false => self.walk_type_expression(annotation)?,
-                };
-                let source = annotation.into_global_any(self.module);
-                let origin = Origin::Node(source, self.flow().template_scope());
-
-                Some(self.check.storage_type(origin, ty)?)
-            }
-            None => None,
-        };
-
-        // create declaration identity for const unique symbols
-        if binding_kind == Some(dir::LetKind::Const)
-            && let Some(matched) = matched
-            && matches!(
-                self.check.ty(matched)?,
-                dir::Type::Primitive(dir::PrimitiveType::UniqueSymbol)
-            )
-            && matches!(
-                self.tree.get(declarator.pattern),
-                dir::Pattern::Binding { .. }
-            )
-        {
-            let symbol = self
-                .check
-                .module(self.module)
-                .declaration_symbol(declarator.pattern.into_any())
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("declaration pattern {:?} has no symbol", declarator.pattern),
-                })?;
-            let key = dir::StaticKey::Symbol(dir::SymbolKey::Unique(symbol));
-            let value = self.intern_type(dir::Type::Key(key))?;
-            self.commit_static_value(symbol, value)?;
-        }
+        let matched = self.walk_declarator_pattern(declarator, binding_kind, is_ambient)?;
 
         // walk matched value
         if let Some(value) = declarator.value {
@@ -107,6 +63,144 @@ impl WalkState<'_, '_> {
         }
 
         Ok(())
+    }
+
+    /// Walk one let declaration's annotated and exported bindings.
+    ///
+    /// Every other declarator belongs to the checking pass.
+    pub(in crate::check) fn walk_let_bindings(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<()> {
+        let dir::Expression::Let {
+            kind,
+            declarators,
+            is_ambient,
+            ..
+        } = self.tree.get(expression).clone()
+        else {
+            return Err(CompilerError::Internal {
+                message: format!("let binding walk on a non-let expression {expression:?}"),
+            });
+        };
+
+        for id in declarators {
+            let declarator = self.tree.get(id).clone();
+            if !self.walk_decorators(id.into_any())? {
+                continue;
+            }
+
+            let exported = self
+                .check
+                .module(self.module)
+                .declaration_symbol(declarator.pattern.into_any())
+                .is_some_and(|symbol| {
+                    self.check
+                        .binding_table(symbol.module_id)
+                        .get_symbol(symbol.local_id)
+                        .export_kind
+                        .is_some()
+                });
+            // annotations with elided borrow lifetimes resolve at their
+            //  initializers, keeping those declarators body-owned; ambient
+            //  bindings elide to static instead
+            let elides = !is_ambient
+                && declarator
+                    .ty
+                    .is_some_and(|annotation| annotation_elides_lifetime(self.tree, annotation));
+            if (declarator.ty.is_none() || elides) && !exported {
+                continue;
+            }
+            if elides {
+                self.check
+                    .report_missing_export_binding_type(self.module, declarator.pattern.into_any());
+                continue;
+            }
+
+            self.walk_declarator_pattern(&declarator, Some(kind), is_ambient)?;
+
+            // exported bindings without annotations keep literal values only,
+            //  matching TypeScript's isolatedDeclarations rule
+            if declarator.ty.is_none()
+                && let Some(value) = declarator.value
+            {
+                if is_transcribable_literal(self.tree, value) {
+                    self.walk_declarator_initializer(id, value)?;
+                } else {
+                    self.check
+                        .report_missing_export_binding_type(self.module, declarator.pattern.into_any());
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Walk one declarator's pattern and annotation, returning the annotated type.
+    fn walk_declarator_pattern(
+        &mut self,
+        declarator: &dir::Declarator,
+        binding_kind: Option<dir::LetKind>,
+        is_ambient: bool,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let widening = declarator_widening(self.tree, declarator, binding_kind);
+        self.walk_pattern(
+            declarator.pattern,
+            self.tree.get(declarator.pattern),
+            Some(widening),
+        )?;
+
+        // the declared layer already carries transcribed annotation rows
+        let declared_row = self
+            .check
+            .module(self.module)
+            .declaration_symbol(declarator.pattern.into_any())
+            .is_some_and(|symbol| {
+                let module = self.check.module(self.module);
+                module.declared.is_some() && module.types.get_symbol_type_id(symbol).is_some()
+            });
+
+        // walk the declared pattern type
+        let matched = match declarator.ty {
+            Some(_) if declared_row && !self.check.is_declaration() => None,
+            Some(annotation) => {
+                let ty = match is_ambient {
+                    true => self.walk_static_type_expression(annotation)?,
+                    false => self.walk_type_expression(annotation)?,
+                };
+                let source = annotation.into_global_any(self.module);
+                let origin = Origin::Node(source, self.flow().template_scope());
+
+                Some(self.check.storage_type(origin, ty)?)
+            }
+            None => None,
+        };
+
+        // create declaration identity for const unique symbols
+        if binding_kind == Some(dir::LetKind::Const)
+            && let Some(matched) = matched
+            && matches!(
+                self.check.ty(matched)?,
+                dir::Type::Primitive(dir::PrimitiveType::UniqueSymbol)
+            )
+            && matches!(
+                self.tree.get(declarator.pattern),
+                dir::Pattern::Binding { .. }
+            )
+        {
+            let symbol = self
+                .check
+                .module(self.module)
+                .declaration_symbol(declarator.pattern.into_any())
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("declaration pattern {:?} has no symbol", declarator.pattern),
+                })?;
+            let key = dir::StaticKey::Symbol(dir::SymbolKey::Unique(symbol));
+            let value = self.intern_type(dir::Type::Key(key))?;
+            self.commit_static_value(symbol, value)?;
+        }
+
+        Ok(matched)
     }
 
     /// Walk one direct declarator initializer.
@@ -337,5 +431,83 @@ pub(in crate::check) fn declarator_widening(
         | dir::Expression::ObjectExpression { .. } => Widening::Always,
         // immutable scalar bindings stay literal
         _ => Widening::Never,
+    }
+}
+
+/// Return whether one annotation elides a borrow lifetime or writes a hole.
+fn annotation_elides_lifetime(
+    tree: dir::View<'_>,
+    annotation: dir::LocalNodeId<dir::TypeExpression>,
+) -> bool {
+    for (id, node) in tree.iter_nodes_of_type::<dir::TypeExpression>() {
+        if !matches!(
+            node,
+            dir::TypeExpression::BorrowedOf { lifetime: None, .. }
+                | dir::TypeExpression::Infer { .. }
+        ) {
+            continue;
+        }
+
+        // reject elided borrows written inside the annotation
+        let mut current = id.into_any();
+        loop {
+            if current == annotation.into_any() {
+                return true;
+            }
+            match tree.get_parent_any(current) {
+                Some(parent) => current = parent,
+                None => break,
+            }
+        }
+    }
+
+    false
+}
+
+/// Return whether an initializer's type transcribes without inference.
+///
+/// Exported bindings without a written type keep only these initializers,
+/// matching TypeScript's isolatedDeclarations rule.
+pub(in crate::check) fn is_transcribable_literal(
+    tree: dir::View<'_>,
+    expression: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    match tree.get(expression) {
+        dir::Expression::ScalarLiteral(_) => true,
+        dir::Expression::TemplateExpression {
+            value: dir::TemplateLiteral::String { .. },
+        } => true,
+        // signed number literals
+        dir::Expression::Unary {
+            operator: dir::UnaryOperator::Negate | dir::UnaryOperator::Plus,
+            right,
+        } => matches!(tree.get(*right), dir::Expression::ScalarLiteral(_)),
+        dir::Expression::As {
+            expression,
+            target_type,
+        } if matches!(tree.get(*target_type), dir::TypeExpression::Const) => {
+            is_transcribable_literal(tree, *expression)
+        }
+        dir::Expression::ArrayExpression { elements }
+        | dir::Expression::TupleExpression { elements } => {
+            elements.iter().all(|element| match tree.get(*element) {
+                dir::Argument::Positional { value } => is_transcribable_literal(tree, *value),
+                _ => false,
+            })
+        }
+        dir::Expression::FixedArrayExpression { value, length } => {
+            is_transcribable_literal(tree, *value) && is_transcribable_literal(tree, *length)
+        }
+        dir::Expression::ObjectExpression { properties } => {
+            properties.iter().all(|property| match tree.get(*property) {
+                dir::Property::Field {
+                    key: dir::Key::Name(_),
+                    value,
+                    ..
+                } => is_transcribable_literal(tree, *value),
+                _ => false,
+            })
+        }
+        _ => false,
     }
 }

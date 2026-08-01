@@ -15,11 +15,6 @@ impl CheckState<'_> {
         origin: Origin,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<ObligationCheck>> {
-        // skip conformance while declaring, checking validates every implements row
-        if self.is_declaration() {
-            return Ok(Answer::Ready(ObligationCheck::Holds));
-        }
-
         let Some(definition) = self.definition(symbol)? else {
             return Err(CompilerError::Internal {
                 message: format!("implementation obligation has no definition: {symbol:?}"),
@@ -107,10 +102,9 @@ impl CheckState<'_> {
         };
         let target = extension.target;
         let form = extension.form;
-        let implements = extension
-            .implements
-            .iter()
-            .cloned()
+        let implements = self
+            .declared_implementations(symbol)?
+            .into_iter()
             .collect::<SmallVec<[_; 2]>>();
 
         // reject anonymous exported extensions on nonlocal targets
@@ -640,8 +634,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         selected: Vec<dir::InterfaceImplementation>,
     ) -> CompilerResult<()> {
-        let state = self.module_mut(symbol.module_id);
-        let Some(definition) = state.definitions.definition_mut(symbol) else {
+        let Some(definition) = self.definition_mut(symbol) else {
             return Err(CompilerError::Internal {
                 message: format!("implementer {symbol:?} lost its definition"),
             });
@@ -663,6 +656,25 @@ impl CheckState<'_> {
         }
 
         Ok(())
+    }
+
+    /// Return one declaration's unrefined interface implementations.
+    fn declared_implementations(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Vec<dir::InterfaceImplementation>> {
+        // read the declared stage's definition when one exists
+        if let Some(module) = self.module_maybe(symbol.module_id)
+            && let Some(declared) = &module.declared
+            && let Some(definition) = declared.definitions.definition(symbol)
+        {
+            return Ok(definition.implementations().to_vec());
+        }
+
+        Ok(self
+            .definition(symbol)?
+            .map(|definition| definition.implementations().to_vec())
+            .unwrap_or_default())
     }
 
     /// Check visible implementations conflicting with one new extension.
@@ -708,13 +720,16 @@ impl CheckState<'_> {
             if other_root != root {
                 continue;
             }
-            for other_implementation in &extension.implements {
+            let other_implementations = self.declared_implementations(other)?;
+            for other_implementation in &other_implementations {
                 let (_, other_interface) =
                     self.require_nominal_application(other_implementation.interface.ty)?;
+                let other_symbol = self.resolve_symbol_alias(other_interface.symbol)?;
                 for implementation in implementations {
                     let (_, interface) =
                         self.require_nominal_application(implementation.interface.ty)?;
-                    if interface.symbol == other_interface.symbol {
+                    let symbol = self.resolve_symbol_alias(interface.symbol)?;
+                    if symbol == other_symbol {
                         candidates.push((
                             other,
                             other_ty,
@@ -736,12 +751,10 @@ impl CheckState<'_> {
                 self.require_nominal_application(heritage.ty)?;
             let (other_module, other_interface) =
                 self.require_nominal_application(other_heritage.ty)?;
-            let heritage_arguments = self
-                .type_ids(heritage_module, heritage_interface.arguments)?
-                .to_vec();
-            let other_arguments = self
-                .type_ids(other_module, other_interface.arguments)?
-                .to_vec();
+            let heritage_arguments =
+                self.filled_application_arguments(heritage_module, &heritage_interface)?;
+            let other_arguments =
+                self.filled_application_arguments(other_module, &other_interface)?;
             if heritage_arguments.len() == other_arguments.len() {
                 let mut distinct = false;
                 for (left, right) in heritage_arguments
@@ -779,7 +792,9 @@ impl CheckState<'_> {
         let Some(state) = self.module_maybe(other.module_id) else {
             return true;
         };
-        let other_source = state.definitions.definition_source(other);
+        let Some(other_source) = state.definitions.definition_source_maybe(other) else {
+            return true;
+        };
         if other_source.module_id != source.module_id {
             return true;
         }

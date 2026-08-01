@@ -56,18 +56,35 @@ pub enum CheckError {
         module: ModuleId,
     },
 
-    /// Exported function requires an explicit result type.
+    /// Named function requires a written result type.
     ///
     /// ```ds
-    /// export function scale(value: float64) { }
+    /// function scale(value: float64) { }
     /// ```
     #[diagnostic(
-        id = "missing-export-result-type",
-        message = "exported function needs an explicit result type",
-        help = "state the result type on the exported function"
+        id = "missing-result-type",
+        message = "function declaration needs a written result type",
+        help = "state the result type on the declaration"
     )]
-    MissingExportResultType {
-        /// Report the exported function without a result type.
+    MissingResultType {
+        /// Report the function declaration without a result type.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Exported binding requires a written type.
+    ///
+    /// ```ds
+    /// export const value = compute();
+    /// ```
+    #[diagnostic(
+        id = "missing-export-binding-type",
+        message = "exported binding needs a written type",
+        help = "state the type or initialize with a literal"
+    )]
+    MissingExportBindingType {
+        /// Report the exported binding without a written type.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,

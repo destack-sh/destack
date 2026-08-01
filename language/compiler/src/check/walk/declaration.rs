@@ -4,11 +4,11 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyForm, CauseKind, CheckError, CheckState, ClassInitializationObligation,
-    DeclarationHeritageObligation, FlowBranch, FunctionHeader, GenericTemplateId,
-    ImplementationCoherenceObligation, InducedParameterOwner, InterfaceConformanceObligation,
-    Obligation, Origin, ParameterUseObligation, Receiver, ReceiverBinding, Relation,
-    RepresentationObligation, TypeSubstitution, VariableRole, WalkState, Widening,
+    Answer, CauseKind, CheckError, CheckState, DeclarationHeritageObligation, FunctionHeader,
+    GenericTemplateId, ImplementationCoherenceObligation, InducedParameterOwner,
+    InterfaceConformanceObligation, Obligation, Origin, ParameterUseObligation, Receiver,
+    ReceiverBinding, Relation, RepresentationObligation, TypeSubstitution, VariableRole, WalkState,
+    Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -334,8 +334,8 @@ impl WalkState<'_, '_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<()> {
-        // skip foreign declarations while declaring
-        if self.check.is_declaration() && !self.check.is_own_module(symbol.module_id) {
+        // declared rows already cover the demanded declaration
+        if self.check.current_stage_declares(symbol) {
             return Ok(());
         }
 
@@ -487,7 +487,7 @@ impl WalkState<'_, '_> {
                 template: template.map(|template| template.local_id),
                 representation: dir::Representation::default(),
                 backing: value,
-                constructors: Vec::new(),
+                is_tagged: false,
                 discriminator: None,
                 members: Vec::new(),
             })
@@ -503,11 +503,6 @@ impl WalkState<'_, '_> {
             })
         };
         self.check.insert_definition(symbol, source, definition)?;
-
-        // nominal values check their declared parameter use
-        if receiver.is_some() {
-            self.queue_parameter_use_obligation(source, symbol)?;
-        }
 
         Ok(())
     }
@@ -532,7 +527,7 @@ impl WalkState<'_, '_> {
                 template: template.map(|template| template.local_id),
                 representation: dir::Representation::default(),
                 backing: value,
-                constructors: Vec::new(),
+                is_tagged: false,
                 discriminator: None,
                 members: Vec::new(),
             });
@@ -597,7 +592,6 @@ impl WalkState<'_, '_> {
 
         // walk members
         let mut members = Vec::new();
-        let mut member_headers = Vec::new();
         for member in &declaration.members {
             let Some(header) = self.walk_member_header(
                 *member,
@@ -612,7 +606,6 @@ impl WalkState<'_, '_> {
             if let Some(definition) = header.definition {
                 members.push(definition);
             }
-            member_headers.push((*member, header.body));
         }
 
         let template = self.induced_owner_template(induction, template)?;
@@ -624,24 +617,6 @@ impl WalkState<'_, '_> {
             members,
         });
         self.check.insert_definition(symbol, source, definition)?;
-
-        // walk member bodies after the nominal definition exists
-        for (member, body) in member_headers {
-            self.walk_member_body(
-                member,
-                self.tree.get(member),
-                Some(receiver),
-                declaration.is_ambient,
-                body,
-            )?;
-        }
-
-        // heritage rules check once the inherited declarations close
-        self.queue_heritage_obligation(source, symbol)?;
-        self.queue_parameter_use_obligation(source, symbol)?;
-
-        // concrete structs need one fixed representation
-        self.queue_declaration_layout_obligation(symbol, receiver, template)?;
 
         Ok(())
     }
@@ -718,7 +693,6 @@ impl WalkState<'_, '_> {
 
         // walk members
         let mut members = Vec::new();
-        let mut member_headers = Vec::new();
         for member in &declaration.members {
             let Some(header) = self.walk_member_header(
                 *member,
@@ -733,7 +707,6 @@ impl WalkState<'_, '_> {
             if let Some(definition) = header.definition {
                 members.push(definition);
             }
-            member_headers.push((*member, header.body));
         }
         let constructors =
             self.class_construct_candidates(receiver.ty, extends.is_some(), &members)?;
@@ -751,45 +724,6 @@ impl WalkState<'_, '_> {
             members,
         });
         self.check.insert_definition(symbol, source, definition)?;
-
-        // walk member bodies after the nominal definition exists
-        let mut constructor_branches = Vec::new();
-        for (member, body) in member_headers {
-            if let Some(branch) = self.walk_member_body(
-                member,
-                self.tree.get(member),
-                Some(receiver),
-                declaration.is_ambient,
-                body,
-            )? {
-                constructor_branches.push(branch);
-            }
-        }
-
-        // require concrete constructors to initialize concrete instance fields
-        if !declaration.is_ambient {
-            if constructor_branches.is_empty() {
-                constructor_branches.push(FlowBranch::empty());
-            }
-
-            let scope = self.check.symbol_template(symbol)?;
-            self.check.push_obligation(
-                Obligation::ClassInitialization(ClassInitializationObligation {
-                    source,
-                    symbol,
-                    receiver: receiver.ty,
-                    constructor_branches,
-                }),
-                scope,
-            );
-        }
-
-        // heritage rules check once the inherited declarations close
-        self.queue_heritage_obligation(source, symbol)?;
-        self.queue_parameter_use_obligation(source, symbol)?;
-
-        // concrete classes need one fixed representation
-        self.queue_declaration_layout_obligation(symbol, receiver, template)?;
 
         Ok(())
     }
@@ -1007,7 +941,6 @@ impl WalkState<'_, '_> {
             next_value = Some(variant.value.increment());
             members.push(dir::DefinitionMember::EnumVariant(variant));
         }
-        let mut member_headers = Vec::new();
         for member in &declaration.members {
             let Some(header) = self.walk_member_header(
                 *member,
@@ -1022,7 +955,6 @@ impl WalkState<'_, '_> {
             if let Some(definition) = header.definition {
                 members.push(definition);
             }
-            member_headers.push((*member, header.body));
         }
 
         let template = self.induced_owner_template(induction, template)?;
@@ -1035,24 +967,6 @@ impl WalkState<'_, '_> {
             members,
         });
         self.check.insert_definition(symbol, source, definition)?;
-
-        // walk member bodies after the nominal definition exists
-        for (member, body) in member_headers {
-            self.walk_member_body(
-                member,
-                self.tree.get(member),
-                Some(receiver),
-                declaration.is_ambient,
-                body,
-            )?;
-        }
-
-        // heritage rules check once the inherited declarations close
-        self.queue_heritage_obligation(source, symbol)?;
-        self.queue_parameter_use_obligation(source, symbol)?;
-
-        // enums need one fixed backing representation
-        self.queue_declaration_layout_obligation(symbol, receiver, template)?;
 
         Ok(())
     }
@@ -1132,10 +1046,6 @@ impl WalkState<'_, '_> {
             members,
         });
         self.check.insert_definition(symbol, source, definition)?;
-
-        // heritage rules check once the inherited declarations close
-        self.queue_heritage_obligation(source, symbol)?;
-        self.queue_parameter_use_obligation(source, symbol)?;
 
         Ok(())
     }
@@ -1228,7 +1138,6 @@ impl WalkState<'_, '_> {
 
         // walk members
         let mut members = Vec::new();
-        let mut member_headers = Vec::new();
         for member in &declaration.members {
             let Some(header) = self.walk_member_header(
                 *member,
@@ -1243,7 +1152,6 @@ impl WalkState<'_, '_> {
             if let Some(definition) = header.definition {
                 members.push(definition);
             }
-            member_headers.push((*member, header.body));
         }
 
         // exported extensions are visible outside this module
@@ -1263,26 +1171,11 @@ impl WalkState<'_, '_> {
         });
         self.check.insert_definition(symbol, source, definition)?;
 
-        // walk member bodies after the extension definition exists
-        for (member, body) in member_headers {
-            self.walk_member_body(
-                member,
-                self.tree.get(member),
-                Some(receiver),
-                declaration.is_ambient,
-                body,
-            )?;
-        }
-
-        self.queue_extension_conformance_obligation(source, symbol)?;
-        self.queue_implementation_coherence_obligation(source, symbol)?;
-        self.queue_heritage_obligation(source, symbol)?;
-
         Ok(())
     }
 
     /// Queue one extension conformance obligation.
-    fn queue_extension_conformance_obligation(
+    pub(in crate::check) fn queue_extension_conformance_obligation(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
@@ -1297,7 +1190,7 @@ impl WalkState<'_, '_> {
     }
 
     /// Queue one implementation coherence obligation.
-    fn queue_implementation_coherence_obligation(
+    pub(in crate::check) fn queue_implementation_coherence_obligation(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
@@ -1315,7 +1208,7 @@ impl WalkState<'_, '_> {
     }
 
     /// Queue one generic parameter use obligation.
-    fn queue_parameter_use_obligation(
+    pub(in crate::check) fn queue_parameter_use_obligation(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
@@ -1333,7 +1226,7 @@ impl WalkState<'_, '_> {
     }
 
     /// Queue one heritage obligation.
-    fn queue_heritage_obligation(
+    pub(in crate::check) fn queue_heritage_obligation(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
@@ -1348,13 +1241,13 @@ impl WalkState<'_, '_> {
     }
 
     /// Queue one concrete declaration's layout check.
-    fn queue_declaration_layout_obligation(
+    pub(in crate::check) fn queue_declaration_layout_obligation(
         &mut self,
         symbol: dir::GlobalSymbolId,
         receiver: Receiver,
-        template: Option<GenericTemplateId>,
     ) -> CompilerResult<()> {
-        if template.is_some() {
+        // generic declarations lay out per instantiation
+        if self.check.symbol_template(symbol)?.is_some() {
             return Ok(());
         }
         let source = self
@@ -1406,7 +1299,6 @@ impl WalkState<'_, '_> {
             &declaration.signature,
             declaration.body,
         )?;
-        let this_parameter = header.this_parameter;
 
         // require a body unless the declaration is ambient
         if declaration.body.is_none() && !declaration.is_ambient {
@@ -1415,13 +1307,10 @@ impl WalkState<'_, '_> {
                 .report_missing_declaration_body(source, self.check.format_symbol(symbol));
         }
 
-        // require a written result type on exported functions
-        if declaration.export.is_some()
-            && declaration.signature.return_type.is_none()
-            && !declaration.signature.is_generator
-        {
+        // require a written result type on named function declarations
+        if self.check.is_declaration() && function_needs_written_result(declaration) {
             self.check
-                .report_missing_export_result_type(self.module, id.into_any());
+                .report_missing_result_type(self.module, id.into_any());
         }
 
         // write the function symbol type
@@ -1443,28 +1332,6 @@ impl WalkState<'_, '_> {
         };
         self.push_induced_parameter_site(induction, function);
         self.bind_symbol_type(symbol, function)?;
-
-        // check the body against the completed stored signature
-        let result = self
-            .check
-            .signature_head(signature)?
-            .and_then(|signature| signature.return_type);
-
-        // walk body after its result exists
-        if let (Some(body), Some(result)) = (declaration.body, result) {
-            let receiver = match (declaration.signature.this_parameter, this_parameter) {
-                (Some(parameter), Some(ty)) => {
-                    Some(self.this_parameter_receiver_binding(parameter, None, ty)?)
-                }
-                _ => None,
-            };
-            let form = if is_function_value {
-                BodyForm::Value
-            } else {
-                BodyForm::Declaration
-            };
-            self.walk_function_body(symbol, &declaration.signature, body, result, receiver, form)?;
-        }
 
         Ok(())
     }
@@ -1847,7 +1714,7 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// struct Box { value: number }
     /// ```
-    fn nominal_receiver(
+    pub(in crate::check) fn nominal_receiver(
         &mut self,
         symbol: dir::GlobalSymbolId,
         ownership: Option<dir::Ownership>,
@@ -1926,4 +1793,12 @@ impl WalkState<'_, '_> {
 
         Ok(dir::ExtensionTarget::Blanket { ty })
     }
+}
+
+/// Return whether one named function declaration must write its result type.
+fn function_needs_written_result(declaration: &dir::FunctionDeclaration) -> bool {
+    declaration.signature.return_type.is_none()
+        && !declaration.signature.is_generator
+        && declaration.name.is_some()
+        && declaration.signature.form != dir::FunctionForm::Lambda
 }

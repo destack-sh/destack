@@ -127,14 +127,11 @@ impl CheckState<'_> {
         }
 
         // commit the layout policy and any explicit enum scalar backing
-        let state = self.module_mut(module);
-        let definition =
-            state
-                .definitions
-                .definition_mut(symbol)
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("representation owner {symbol:?} lost its definition"),
-                })?;
+        let definition = self
+            .definition_mut(symbol)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("representation owner {symbol:?} lost its definition"),
+            })?;
         match definition {
             dir::Definition::Struct(definition) => {
                 definition.representation = representation_value.representation;

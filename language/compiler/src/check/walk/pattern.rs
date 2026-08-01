@@ -41,10 +41,12 @@ impl WalkState<'_, '_> {
             dir::Pattern::Default { pattern, value } => {
                 self.walk_pattern(*pattern, self.tree.get(*pattern), binding_widening)?;
 
-                // check pattern default in selector context
-                let before_value = self.fork_flow();
-                self.walk_expression(*value, self.tree.get(*value))?;
-                self.restore_flow(before_value);
+                // walk default values while checking, declaring transcribes them
+                if !self.check.is_declaration() {
+                    let before_value = self.fork_flow();
+                    self.walk_expression(*value, self.tree.get(*value))?;
+                    self.restore_flow(before_value);
+                }
             }
             // name: pattern
             dir::Pattern::Binding {

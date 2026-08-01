@@ -70,14 +70,26 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
-    /// Report an exported function without a result type.
-    pub(in crate::check) fn report_missing_export_result_type(
+    /// Report an exported binding without a written type.
+    pub(in crate::check) fn report_missing_export_binding_type(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::MissingExportResultType { anchor, module };
+        let diagnostic = CheckError::MissingExportBindingType { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
+    /// Report a function declaration without a written result type.
+    pub(in crate::check) fn report_missing_result_type(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::MissingResultType { anchor, module };
 
         self.report(module, diagnostic);
     }

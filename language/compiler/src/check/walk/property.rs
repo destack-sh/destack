@@ -412,8 +412,9 @@ impl WalkState<'_, '_> {
                     self.bind_symbol_type(symbol, field_type)?;
                 }
 
-                // check the default against the field type
-                if let (Some(field_type), Some(default)) = (field_type, default) {
+                // validate annotated defaults while checking, unannotated ones settle the type
+                let checks_default = declared_type.is_none() || !self.check.is_declaration();
+                if checks_default && let (Some(field_type), Some(default)) = (field_type, default) {
                     let before_default = self.fork_flow();
                     self.walk_expression(default, self.tree.get(default))?;
                     let annotation =
@@ -619,6 +620,67 @@ impl WalkState<'_, '_> {
         Ok(Some(header))
     }
 
+    /// Assemble one declared-stage member's body context from its declared signature.
+    pub(in crate::check) fn declared_method_body(
+        &mut self,
+        id: dir::LocalNodeId<dir::Member>,
+        member: &dir::Member,
+        receiver_scope: Option<Receiver>,
+    ) -> CompilerResult<Option<MethodBody>> {
+        let dir::Member::Method {
+            signature,
+            body,
+            is_ambient,
+            abstraction,
+            is_static,
+            ..
+        } = member
+        else {
+            return Ok(None);
+        };
+
+        // only written method bodies check against a declared signature
+        if body.is_none() || *is_ambient || abstraction.is_abstract() {
+            return Ok(None);
+        }
+        let Some(symbol) = self
+            .check
+            .module(self.module)
+            .declaration_symbol(id.into_any())
+        else {
+            return Ok(None);
+        };
+        let Some(method) = self.check.canonical_symbol_type_maybe(symbol)? else {
+            return Ok(None);
+        };
+        let Some(head) = self.check.signature_head(method)? else {
+            return Ok(None);
+        };
+
+        self.walk_declared_parameter_defaults(signature, method.module_id, &head)?;
+
+        // bind the receiver for instance methods
+        let implicit = if *is_static { None } else { receiver_scope };
+        let receiver_form = self.implicit_receiver_form(id, signature, implicit)?;
+        let receiver = self.method_receiver_binding(
+            id,
+            signature,
+            implicit,
+            head.this_parameter,
+            receiver_form,
+        )?;
+
+        // apply the receiver scope to the declared result type
+        let result = match (receiver, head.return_type) {
+            (Some(receiver), Some(result)) => {
+                Some(self.apply_receiver_scope(Some(receiver.receiver), result)?)
+            }
+            (_, result) => result,
+        };
+
+        Ok(result.map(|result| MethodBody { receiver, result }))
+    }
+
     /// Walk one declaration member body after its containing definition exists.
     pub(in crate::check) fn walk_member_body(
         &mut self,
@@ -801,6 +863,17 @@ impl WalkState<'_, '_> {
                     && self.check.symbol_kind(interface)?.is_interface()
                 {
                     self.push_this_predicate(source, interface, template)?;
+                }
+
+                // require a written result type on declared members,
+                //  accessors and constructors write none
+                if self.check.is_declaration()
+                    && signature.return_type.is_none()
+                    && !signature.is_generator
+                    && signature.role.is_none()
+                {
+                    self.check
+                        .report_missing_result_type(self.module, id.into_any());
                 }
 
                 let (header, result, tracked) =
@@ -1048,6 +1121,16 @@ impl WalkState<'_, '_> {
                 .report_missing_explicit_receiver(self.module, id.into_any());
         }
 
+        // bind implicit receivers to the declared receiver type
+        if let Some(ty) = this_parameter {
+            let ty = self.apply_receiver_scope(Some(scope), ty)?;
+
+            return Ok(Some(ReceiverBinding {
+                symbol,
+                receiver: Receiver { ty, ..scope },
+            }));
+        }
+
         // value-family receivers borrow this under the synthesized form
         let receiver = match receiver_form {
             Some(form) => Receiver {
@@ -1100,7 +1183,7 @@ impl WalkState<'_, '_> {
             // read foreign kinds from their module's bound table
             Some(declaration) if !self.check.is_own_module(declaration.module_id) => {
                 matches!(
-                    self.check.external_binder_kind(declaration)?,
+                    self.check.external_binder_kind(declaration),
                     dir::SymbolKind::Struct | dir::SymbolKind::Enum
                 )
             }
