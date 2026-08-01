@@ -16,7 +16,7 @@ pub enum Poll {
 }
 
 /// Mutable roots retained by one active execution engine.
-pub trait RootSource {
+pub trait RootSet {
     /// Root traversal failure.
     type Error;
 
@@ -27,7 +27,7 @@ pub trait RootSource {
     ) -> Result<(), Self::Error>;
 }
 
-impl<E, F> RootSource for F
+impl<E, F> RootSet for F
 where
     F: FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
 {
@@ -54,7 +54,7 @@ pub trait Runtime {
     fn poll(
         &mut self,
         memory: Memory<'_>,
-        roots: &mut dyn RootSource<Error = Self::Error>,
+        roots: &mut dyn RootSet<Error = Self::Error>,
     ) -> Result<Poll, Self::Error>;
 
     /// Call one linked runtime binding.

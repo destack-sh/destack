@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use destack_heap::{HeapResult, RootSlot};
 use destack_memory::{MemoryMap, MemoryRange};
 use destack_serde::Reflect;
@@ -7,27 +5,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::Result;
 
-use super::{FrameImage, Program, Word};
+use super::{ActivationImage, Completion, FrameImage, Program, Word};
 
 /// One suspended coroutine call chain.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Continuation {
-    /// Root completion mode for the call chain.
-    completion: Completion,
-    /// Retained frames in caller to callee order.
-    frames: Arc<[FrameImage]>,
-    /// Packed live frame bytes inside the owning MemoryMap.
-    memory: MemoryRange,
-}
-
-/// Root completion mode preserved by one coroutine call chain.
-#[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum Completion {
-    /// Publish the function's returned value.
-    Return,
-    /// Discard the terminal value after cancellation cleanup.
-    Cancel,
+    /// Retained engine-neutral activation.
+    image: ActivationImage,
 }
 
 /// Runtime continuations addressed by generation-checked handles.
@@ -55,64 +39,38 @@ struct ContinuationSlot {
 
 impl Continuation {
     /// Create one suspended coroutine call chain.
-    pub fn new(
-        completion: Completion,
-        frames: impl Into<Arc<[FrameImage]>>,
-        memory: MemoryRange,
-    ) -> Self {
-        Self {
-            completion,
-            frames: frames.into(),
-            memory,
-        }
+    pub const fn new(image: ActivationImage) -> Self {
+        Self { image }
     }
 
     /// Return the root completion mode.
     pub const fn completion(&self) -> Completion {
-        self.completion
-    }
-
-    /// Duplicate this continuation inside its current memory map.
-    pub fn fork(&self, memory: &MemoryMap) -> Result<Self> {
-        let bytes = memory.read_bytes(self.memory.offset, self.memory.byte_len)?;
-        let range = memory.allocate_bytes(&bytes, align_of::<Word>())?;
-
-        Ok(Self {
-            completion: self.completion,
-            frames: self.frames.clone(),
-            memory: range,
-        })
+        self.image.completion()
     }
 
     /// Inherit this continuation into an already-forked memory map.
     pub fn inherit(&self) -> Self {
-        Self {
-            completion: self.completion,
-            frames: self.frames.clone(),
-            memory: self.memory,
-        }
+        Self::new(self.image.inherit())
     }
 
     /// Release this continuation's frame bytes.
     pub fn release(self, memory: &MemoryMap) -> Result<()> {
-        memory.release(self.memory)?;
-
-        Ok(())
+        self.image.release(memory)
     }
 
     /// Return retained frames in caller to callee order.
     pub fn frames(&self) -> &[FrameImage] {
-        &self.frames
+        self.image.frames()
     }
 
     /// Return the innermost frame.
     pub fn innermost(&self) -> Option<FrameImage> {
-        self.frames.last().copied()
+        self.image.frames().last().copied()
     }
 
     /// Return packed frame bytes inside the owning MemoryMap.
     pub const fn memory(&self) -> MemoryRange {
-        self.memory
+        self.image.memory()
     }
 }
 

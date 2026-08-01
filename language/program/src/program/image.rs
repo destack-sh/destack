@@ -4,7 +4,9 @@ use destack_memory::{MemoryMap, MemoryRange};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::{Completion, FrameStateId, ProgramPoint};
+use crate::Result;
+
+use super::{FrameStateId, ProgramPoint};
 
 /// One retained call chain independent of its execution engine.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -15,6 +17,16 @@ pub struct ActivationImage {
     frames: Arc<[FrameImage]>,
     /// Packed live frame bytes inside the owning MemoryMap.
     memory: MemoryRange,
+}
+
+/// Root completion mode preserved by one retained activation.
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum Completion {
+    /// Publish the function's returned value.
+    Return,
+    /// Discard the terminal value after cancellation cleanup.
+    Cancel,
 }
 
 impl ActivationImage {
@@ -61,7 +73,7 @@ impl ActivationImage {
     }
 
     /// Release this activation's frame bytes.
-    pub fn release(self, memory: &MemoryMap) -> crate::Result<()> {
+    pub fn release(self, memory: &MemoryMap) -> Result<()> {
         memory.release(self.memory)?;
 
         Ok(())
@@ -75,14 +87,18 @@ pub struct FrameImage {
     state: FrameStateId,
     /// Retained program operation cursor.
     point: ProgramPoint,
-    /// Transition from this frame to its caller.
-    link: FrameLink,
+    /// Return behavior selected when this frame completes.
+    return_to: FrameReturn,
 }
 
 impl FrameImage {
     /// Create one retained frame image.
-    pub const fn new(state: FrameStateId, point: ProgramPoint, link: FrameLink) -> Self {
-        Self { state, point, link }
+    pub const fn new(state: FrameStateId, point: ProgramPoint, return_to: FrameReturn) -> Self {
+        Self {
+            state,
+            point,
+            return_to,
+        }
     }
 
     /// Return the Program frame state.
@@ -95,15 +111,15 @@ impl FrameImage {
         self.point
     }
 
-    /// Return the transition from this frame to its caller.
-    pub const fn link(self) -> FrameLink {
-        self.link
+    /// Return the behavior selected when this frame completes.
+    pub const fn return_to(self) -> FrameReturn {
+        self.return_to
     }
 }
 
-/// Return behavior from one frame to its caller.
+/// Return behavior selected when one retained frame completes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum FrameLink {
+pub enum FrameReturn {
     /// Exit the root call chain.
     Root,
     /// Return from one ordinary call.
