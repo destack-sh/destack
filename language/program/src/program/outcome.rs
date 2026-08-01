@@ -70,9 +70,9 @@ pub enum StopReason {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct BreakpointId(u64);
 
-/// One program instruction stop point.
+/// One active stop at a Program point.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct InstructionStop {
+pub struct StopPoint {
     /// The program point that can stop.
     pub point: ProgramPoint,
     /// The reason execution stops at this point.
@@ -91,8 +91,8 @@ pub struct ResumeSkip {
 /// Active program stops sorted by program point.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StopSet {
-    /// Active instruction stop points.
-    instructions: Vec<InstructionStop>,
+    /// Active stops in Program point order.
+    points: Vec<StopPoint>,
 }
 
 impl BreakpointId {
@@ -107,8 +107,8 @@ impl BreakpointId {
     }
 }
 
-impl InstructionStop {
-    /// Create one instruction stop point.
+impl StopPoint {
+    /// Create one active stop point.
     pub const fn new(point: ProgramPoint, reason: StopReason) -> Self {
         Self { point, reason }
     }
@@ -116,15 +116,15 @@ impl InstructionStop {
 
 impl StopSet {
     /// Create one sorted stop set.
-    pub fn new(mut instructions: Vec<InstructionStop>) -> Self {
-        instructions.sort_by_key(|stop| (stop.point, stop.reason.sort_key()));
+    pub fn new(mut points: Vec<StopPoint>) -> Self {
+        points.sort_by_key(|stop| (stop.point, stop.reason.sort_key()));
 
-        Self { instructions }
+        Self { points }
     }
 
     /// Return whether the set has no active stops.
     pub fn is_empty(&self) -> bool {
-        self.instructions.is_empty()
+        self.points.is_empty()
     }
 
     /// Return the stop reason at one program point.
@@ -133,21 +133,19 @@ impl StopSet {
         point: ProgramPoint,
         resume_skip: Option<ResumeSkip>,
     ) -> Option<StopReason> {
-        let mut index = self
-            .instructions
-            .partition_point(|instruction| instruction.point < point);
+        let mut index = self.points.partition_point(|stop| stop.point < point);
 
         // find the first matching stop that is not being skipped for continue
-        while let Some(instruction) = self.instructions.get(index) {
-            if instruction.point != point {
+        while let Some(stop) = self.points.get(index) {
+            if stop.point != point {
                 return None;
             }
-            if resume_skip.is_some_and(|skip| skip.selects(point, instruction.reason)) {
+            if resume_skip.is_some_and(|skip| skip.selects(point, stop.reason)) {
                 index += 1;
                 continue;
             }
 
-            return Some(instruction.reason);
+            return Some(stop.reason);
         }
 
         None
@@ -198,7 +196,7 @@ impl ResumeSkip {
             StopReason::Breakpoint { .. } => matches!(reason, StopReason::Breakpoint { .. }),
             StopReason::Pause { .. }
             | StopReason::Instruction { .. }
-            | StopReason::Watchpoint { .. } => false,
+            | StopReason::Watchpoint { .. } => self.reason == reason,
         }
     }
 }
