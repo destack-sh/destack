@@ -16,9 +16,7 @@ use destack_repository::{
     Revision, Settings, TraceReport, TraceSnapshot, TraceView,
 };
 use destack_session::{Session, SessionError};
-use destack_source::{
-    Content, DiagnosticCollection, MemoryFileSystem, ModuleId, ProfileId, TargetId,
-};
+use destack_source::{Content, MemoryFileSystem, ModuleId, ProfileId, TargetId};
 
 use crate::tests::snapshot::{
     DirRows, DirSnapshotBuilder, assert_snapshot, render_diagnostics, render_source_diagnostics,
@@ -696,7 +694,13 @@ impl TestSession {
     /// Assert checked DIR diagnostics for one module.
     #[track_caller]
     pub(crate) fn assert_dir_checked_diagnostics(&self, path: &str, expected: &str) {
-        self.assert_diagnostics(self.dir_checked_key(path), expected);
+        self.print_trace_if_requested("diagnostics");
+
+        // stack checked diagnostics over the declared stage's own
+        self.require_artifact(self.dir_checked_key(path));
+        let keys = [self.dir_declared_key(path), self.dir_checked_key(path)];
+
+        assert_snapshot(self.diagnostic_snapshot_for(&keys), expected);
     }
 
     /// Assert resolved DIR diagnostics for one module.
@@ -799,7 +803,7 @@ impl TestSession {
                     key,
                     ArtifactPayload::DirParsed(Arc::new(entry.dir_parsed.clone())),
                     dependencies,
-                    DiagnosticCollection::new(),
+                    Vec::new(),
                     Vec::new(),
                     None,
                 )

@@ -13,6 +13,10 @@ pub(super) struct GenericInstanceSnapshot {
     pub(super) template: Option<String>,
     /// The complete argument tuple label.
     pub(super) arguments: String,
+    /// The rows this instance derives from.
+    pub(super) owners: BTreeSet<usize>,
+    /// Whether the instance derives from a rowless call and never retires.
+    pub(super) is_rowless: bool,
 }
 
 impl SnapshotTable for dir::GenericSegment {
@@ -162,6 +166,7 @@ impl DirSnapshotBuilder<'_> {
         let rows = self
             .generic_instances
             .iter()
+            .filter(|(_, instance)| instance.is_rowless || !instance.owners.is_empty())
             .map(|(id, instance)| {
                 SnapshotRow::new(SnapshotAnchor::End, "generic", "instance")
                     .field("id", id)
@@ -296,11 +301,26 @@ impl DirSnapshotBuilder<'_> {
         template: Option<&str>,
         arguments: &str,
     ) {
-        let instance = GenericInstanceSnapshot {
-            template: template.map(str::to_string),
-            arguments: arguments.to_string(),
-        };
-        self.generic_instances.insert(id.to_string(), instance);
+        // attribute the instance to the row it derives from, so a later
+        //  layer shadowing that row also retires the instance
+        let owner = self.last_row;
+        let instance = self
+            .generic_instances
+            .entry(id.to_string())
+            .or_insert_with(|| GenericInstanceSnapshot {
+                template: None,
+                arguments: String::new(),
+                owners: BTreeSet::new(),
+                is_rowless: false,
+            });
+        instance.template = template.map(str::to_string);
+        instance.arguments = arguments.to_string();
+        match owner {
+            Some(row) => {
+                instance.owners.insert(row);
+            }
+            None => instance.is_rowless = true,
+        }
 
         let Some(source) = source else {
             return;

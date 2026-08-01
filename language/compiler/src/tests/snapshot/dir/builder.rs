@@ -2,7 +2,9 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Debug;
 
-use destack_artifact::{DirBound, DirChecked, DirDeclared, DirExpanded, DirExported, DirImported, DirResolved};
+use destack_artifact::{
+    DirBound, DirChecked, DirDeclared, DirExpanded, DirExported, DirImported, DirResolved,
+};
 use destack_core::{StringId, StringPool};
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -76,6 +78,8 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     rows: Vec<SnapshotRow>,
     /// Generic instances discovered while rendering rows.
     pub(super) generic_instances: BTreeMap<String, GenericInstanceSnapshot>,
+    /// The row most recently pushed, owning subsequent derived instances.
+    pub(super) last_row: Option<usize>,
     /// Source-anchored generic instance rows already emitted.
     pub(super) generic_instance_sources: BTreeSet<(u32, String, String)>,
 }
@@ -111,6 +115,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             summaries: true,
             rows: Vec::new(),
             generic_instances: BTreeMap::new(),
+            last_row: None,
             generic_instance_sources: BTreeSet::new(),
         }
     }
@@ -291,8 +296,8 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
 
         if selection.resolution {
-            self.add_table(declared.resolutions.as_ref());
-            self.add_table(checked.resolutions.as_ref());
+            // stack the layers so instance rows derive from winning rows only
+            self.add_table(&checked.resolution_table(declared));
         }
 
         if selection.generics {
@@ -316,6 +321,8 @@ impl<'a> DirSnapshotBuilder<'a> {
     /// Add one row.
     pub(crate) fn push(&mut self, row: SnapshotRow) {
         if row.tag.entry == "summary" && !self.summaries {
+            self.last_row = None;
+
             return;
         }
 
@@ -334,8 +341,18 @@ impl<'a> DirSnapshotBuilder<'a> {
                 && identity(existing) == identity(&row)
         });
         match replaced {
-            Some(index) => self.rows[index] = row,
-            None => self.rows.push(row),
+            Some(index) => {
+                // drop instances derived from the shadowed row along with it
+                for instance in self.generic_instances.values_mut() {
+                    instance.owners.remove(&index);
+                }
+                self.rows[index] = row;
+                self.last_row = Some(index);
+            }
+            None => {
+                self.rows.push(row);
+                self.last_row = Some(self.rows.len() - 1);
+            }
         }
     }
 

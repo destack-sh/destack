@@ -1,13 +1,13 @@
 use destack_artifact::{
     ArtifactKey, ArtifactSidecar, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
-    DiagnosticError, DiagnosticLike, MirLowered,
+    DiagnosticError, DiagnosticLike, DiagnosticRecord, MirLowered,
 };
 use destack_core::StringPool;
 use destack_mir as mir;
 use destack_repository::{ProviderContext, Revision};
 use destack_source::{
-    DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity, DiagnosticTarget, File, FileId,
-    FileType, ModuleId, PackageId, ProfileId, Span, TargetId, Uri,
+    DiagnosticLabel, DiagnosticSeverity, DiagnosticTarget, File, FileId, FileType, ModuleId,
+    PackageId, ProfileId, Span, TargetId, Uri,
 };
 use std::sync::Arc;
 
@@ -129,7 +129,8 @@ impl DiagnosticContext for TestMirProvider {
     ) -> Result<DiagnosticLabel, DiagnosticError> {
         let span = match anchor {
             DiagnosticAnchor::Span(span) => *span,
-            DiagnosticAnchor::File(_)
+            DiagnosticAnchor::Symbol(_)
+            | DiagnosticAnchor::File(_)
             | DiagnosticAnchor::Module(_)
             | DiagnosticAnchor::Package(_) => Span::empty(self.file.id),
         };
@@ -158,8 +159,8 @@ impl ProviderContext for TestMirProvider {
         ArtifactKey::mir_verified(test_module_id(), test_profile_id(), test_target_id())
     }
 
-    /// Emit one diagnostic collection.
-    fn emit_diagnostics(&self, _diagnostics: DiagnosticCollection) {}
+    /// Emit already-recorded diagnostics produced by this attempt.
+    fn emit_diagnostics(&self, _diagnostics: Vec<DiagnosticRecord>) {}
 
     /// Emit one sidecar.
     fn emit_sidecar(&self, _sidecar: ArtifactSidecar) {}
