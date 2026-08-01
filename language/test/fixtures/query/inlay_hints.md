@@ -234,6 +234,21 @@ transform(1);
 @inlay_hints.hint position=main.ds#argument label="value:" kind=parameter padding_right=true
 ```
 
+### Show parameter names for callable parameters
+
+A call through a function parameter uses names from its function type.
+
+```ds main.ds
+function apply(callback: (value: string) => string): string {
+    return callback("ready");
+                    ^^^^^^^ argument
+}
+```
+
+```query inlay_hints main.ds#argument
+@inlay_hints.hint position=main.ds#argument label="value:" kind=parameter padding_right=true
+```
+
 ### Show parameter names for imported call arguments
 
 Imported call arguments use parameter names from the defining module.

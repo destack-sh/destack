@@ -353,6 +353,22 @@ const result = callback("ready");
 @signature_help.parameter signature=0 index=0 label="value: string" active=true
 ```
 
+### Resolve a callable parameter
+
+A call through a function parameter shows its function type.
+
+```ds main.ds
+function apply(callback: (value: string) => string): string {
+    return callback("ready");
+                     ^ cursor
+}
+```
+
+```query signature_help main.ds#cursor
+@signature_help.signature index=0 label="callback(value: string): string" active=true
+@signature_help.parameter signature=0 index=0 label="value: string" active=true
+```
+
 ## Construction
 
 ### Resolve an explicit class constructor

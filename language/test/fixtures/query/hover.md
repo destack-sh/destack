@@ -707,6 +707,19 @@ newtype Marker = string;
 
 ## Empty Results
 
+### Return no hover for a lambda
+
+A lambda has no name to hover.
+
+```ds main.ds
+const transform = (value: string): string => value;
+                  ^ lambda
+```
+
+```query hover main.ds#lambda
+@hover.none
+```
+
 ### Return no hover for a literal
 
 An ordinary literal has no symbol hover.

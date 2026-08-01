@@ -407,6 +407,26 @@ const status = Status.Ok({ value: "ready" });
 @goto_definition.target origin=main.ds#reference:ok location=main.ds#definition:ok symbol=main.ds#Ok@3
 ```
 
+### [ignored] Resolve a tagged pattern to the variant definition
+
+A tagged pattern resolves to its variant declaration.
+
+```ds main.ds
+@derive(Tagged)
+newtype Status = Ok<string>;
+                 ^^ definition:ok
+
+declare const status: Status;
+const value = match (status) {
+    Status.Ok { value } => value
+           ^^ reference:ok
+};
+```
+
+```query goto_definition main.ds#reference:ok
+@goto_definition.target origin=main.ds#reference:ok location=main.ds#definition:ok symbol=main.ds#Ok@5
+```
+
 ## Imports and Exports
 
 ### Go to a definition through a namespace re-export

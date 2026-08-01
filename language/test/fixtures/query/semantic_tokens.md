@@ -366,6 +366,25 @@ encoding;
 @semantic_tokens.token range=main.ds#namespace_reference type=namespace
 ```
 
+### Omit exports without names
+
+Star and default exports without aliases do not carry name tokens.
+
+```ds library.ds
+export const value = 1;
+export default value;
+```
+
+```ds main.ds
+export * from "./library.ds";
+export { default } from "./library.ds";
+export default 1;
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.none
+```
+
 ## Bindings
 
 ### Classify using bindings
@@ -462,7 +481,39 @@ const result = match (boxed) {
 @semantic_tokens.token range=main.ds#value_reference type=variable modifiers=readonly
 ```
 
-### [ignored] Classify qualified tagged match bindings
+### Classify nested object bindings
+
+Object patterns distinguish field names from bindings.
+
+```ds main.ds
+struct Box {
+       ^^^ box_declaration
+    value: int32;
+    ^^^^^ field_declaration
+}
+
+declare const boxed: Box;
+              ^^^^^ boxed_declaration
+                     ^^^ box_reference
+const { value: item, ...rest } = boxed;
+        ^^^^^ field_reference
+               ^^^^ item_declaration
+                        ^^^^ rest_declaration
+                                 ^^^^^ boxed_reference
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#box_declaration type=struct modifiers=declaration
+@semantic_tokens.token range=main.ds#field_declaration type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#boxed_declaration type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#box_reference type=struct
+@semantic_tokens.token range=main.ds#field_reference type=property
+@semantic_tokens.token range=main.ds#item_declaration type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#rest_declaration type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#boxed_reference type=variable modifiers=readonly
+```
+
+### Classify qualified tagged match bindings
 
 Qualified variant patterns classify the variant, field binding, and bound reference.
 

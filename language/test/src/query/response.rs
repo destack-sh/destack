@@ -10,7 +10,7 @@ use destack_query::{
 };
 use destack_source::{DiagnosticTarget, Patch, PatchSet};
 
-use super::{QueryCall, QueryRun, display_query_path, parse_words};
+use super::{QueryCall, QueryRun, parse_words};
 
 /// One query response rendered as exact ordered rows.
 #[derive(Debug, Clone, PartialEq, Eq)]
