@@ -361,6 +361,9 @@ fn add_members(
             dir::DefinitionMember::EnumVariant(variant) => {
                 add_enum_variant(builder, owner, variant);
             }
+            dir::DefinitionMember::TaggedKey(variant) => {
+                add_tagged_key(builder, owner, variant);
+            }
             dir::DefinitionMember::TaggedVariant(variant) => {
                 add_tagged_variant(builder, owner, variant);
             }
@@ -485,6 +488,20 @@ fn add_enum_variant(
 }
 
 /// Add one derived tagged variant row.
+/// Add one declared tagged variant identity row.
+fn add_tagged_key(
+    builder: &mut DirSnapshotBuilder<'_>,
+    owner: dir::GlobalSymbolId,
+    variant: &dir::TaggedKeyDefinition,
+) {
+    let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", "variant")
+        .field("symbol", builder.symbol_path_label(variant.symbol))
+        .optional_field("source", builder.node_source(variant.source))
+        .field("index", variant.index.to_string());
+
+    builder.push(row);
+}
+
 fn add_tagged_variant(
     builder: &mut DirSnapshotBuilder<'_>,
     owner: dir::GlobalSymbolId,

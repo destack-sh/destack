@@ -227,6 +227,13 @@ impl TestSession {
         ArtifactKey::dir_expanded(entry.module.id, entry.profile)
     }
 
+    /// Return the declared DIR key for one module.
+    pub(crate) fn dir_declared_key(&self, path: &str) -> ArtifactKey {
+        let entry = self.module_entry(path);
+
+        ArtifactKey::dir_declared(entry.module.id, entry.profile)
+    }
+
     /// Return the checked DIR key for one module.
     pub(crate) fn dir_checked_key(&self, path: &str) -> ArtifactKey {
         let entry = self.module_entry(path);
@@ -247,6 +254,15 @@ impl TestSession {
         let diagnostics = self
             .repository
             .diagnostics(self.revision, Some(key))
+            .expect("test diagnostics should be readable");
+        render_diagnostics(self.repository.as_ref(), self.revision, &diagnostics)
+    }
+
+    /// Render diagnostics produced by a set of artifact keys.
+    pub(crate) fn diagnostic_snapshot_for(&self, keys: &[ArtifactKey]) -> String {
+        let diagnostics = self
+            .repository
+            .diagnostics_for_keys(self.revision, keys)
             .expect("test diagnostics should be readable");
         render_diagnostics(self.repository.as_ref(), self.revision, &diagnostics)
     }
@@ -636,7 +652,8 @@ impl TestSession {
         expected_diagnostics: &str,
     ) {
         let dir = self.render_dir_snapshots(&[path], rows, true);
-        let diagnostics = self.diagnostic_snapshot(self.dir_checked_key(path));
+        let keys = [self.dir_declared_key(path), self.dir_checked_key(path)];
+        let diagnostics = self.diagnostic_snapshot_for(&keys);
         self.print_trace_if_requested(path);
 
         assert_snapshot(dir, expected_dir);
@@ -975,8 +992,9 @@ impl TestSession {
         let parsed = self.dir_parsed(entry);
         let bound = self.dir_bound(entry);
         let expanded = self.dir_expanded(entry);
+        let declared = self.dir_declared_module(entry.module.id, entry.profile);
         let checked = self.dir_checked(entry);
-        let bindings = checked.binding_table(&bound, &expanded);
+        let bindings = checked.binding_table(&bound, &expanded, &declared);
         let foreign_artifacts = self.foreign_artifacts_for(entry, true);
         let foreign_bindings = foreign_artifacts
             .iter()
@@ -1013,7 +1031,7 @@ impl TestSession {
             builder.add_language_items(&resolved.imports);
         }
 
-        builder.add_checked(selection, &bound, &expanded, &checked);
+        builder.add_checked(selection, &bound, &expanded, &declared, &checked);
 
         if selection.includes_metadata() {
             let metadata_rows = selection.metadata_rows();
@@ -1335,7 +1353,7 @@ impl TestSession {
         dir::TypeTable<'static>,
         dir::StaticTable<'static>,
     )> {
-        // foreign ids name declared surfaces, the cross-module currency
+        // stack each foreign module's declared and checked tables
         let externals = self.entry_external_modules(entry);
 
         externals
@@ -1354,10 +1372,11 @@ impl TestSession {
                     .dir_expanded(&expanded_version)
                     .expect("test external expanded artifact should exist");
                 let declared = self.dir_declared_module(module_id, entry.profile);
-                let generics = declared.generic_table();
-                let definitions = declared.definition_table();
-                let types = declared.type_table(&bound, &expanded);
-                let statics = declared.static_table(&bound, &expanded);
+                let checked = self.dir_checked_module(module_id, entry.profile);
+                let generics = checked.generic_table(&declared);
+                let definitions = checked.definition_table(&declared);
+                let types = checked.type_table(&bound, &expanded, &declared);
+                let statics = checked.static_table(&bound, &expanded, &declared);
 
                 (Some(generics), definitions, types, statics)
             })

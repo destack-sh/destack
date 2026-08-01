@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Debug;
 
-use destack_artifact::{DirBound, DirChecked, DirExpanded, DirExported, DirImported, DirResolved};
+use destack_artifact::{DirBound, DirChecked, DirDeclared, DirExpanded, DirExported, DirImported, DirResolved};
 use destack_core::{StringId, StringPool};
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -253,6 +253,7 @@ impl<'a> DirSnapshotBuilder<'a> {
         selection: DirRows,
         bound: &DirBound,
         expanded: &DirExpanded,
+        declared: &DirDeclared,
         checked: &DirChecked,
     ) {
         self.summaries = selection.summaries;
@@ -260,21 +261,11 @@ impl<'a> DirSnapshotBuilder<'a> {
         self.type_references = selection.type_references;
 
         if selection.uses_type_labels() {
-            self.generics = Some(dir::GenericTable::from_segment(checked.generics.clone()));
-            self.definitions = Some(dir::DefinitionTable::from_segment(
-                checked.definitions.clone(),
-            ));
+            self.generics = Some(checked.generic_table(declared));
+            self.definitions = Some(checked.definition_table(declared));
 
-            let types = dir::TypeTable::from_segments(vec![
-                bound.types.clone(),
-                expanded.types.clone(),
-                checked.types.clone(),
-            ]);
-            let statics = dir::StaticTable::from_segments(vec![
-                bound.statics.clone(),
-                expanded.statics.clone(),
-                checked.statics.clone(),
-            ]);
+            let types = checked.type_table(bound, expanded, declared);
+            let statics = checked.static_table(bound, expanded, declared);
             self.types = Some(types.clone());
             self.statics = Some(statics.clone());
             self.add_static_labels(&statics);
@@ -282,10 +273,12 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
 
         if selection.types {
+            self.add_table(declared.types.as_ref());
             self.add_table(checked.types.as_ref());
         }
 
         if selection.decorators {
+            self.add_table(declared.decorators.as_ref());
             self.add_table(checked.decorators.as_ref());
         }
 
@@ -293,14 +286,17 @@ impl<'a> DirSnapshotBuilder<'a> {
             for (_, application) in checked.decorators.iter_applications() {
                 self.decorator_statics.insert(application.value);
             }
+            self.add_table(declared.statics.as_ref());
             self.add_table(checked.statics.as_ref());
         }
 
         if selection.resolution {
+            self.add_table(declared.resolutions.as_ref());
             self.add_table(checked.resolutions.as_ref());
         }
 
         if selection.generics {
+            self.add_table(declared.generics.as_ref());
             self.add_table(checked.generics.as_ref());
         }
 
@@ -323,7 +319,24 @@ impl<'a> DirSnapshotBuilder<'a> {
             return;
         }
 
-        self.rows.push(row);
+        // later table layers shadow earlier rows of the same identity,
+        //  matching the stacked view consumers read
+        let identity = |row: &SnapshotRow| {
+            row.fields
+                .iter()
+                .take(2)
+                .map(|field| (field.key.clone(), field.value.clone()))
+                .collect::<Vec<_>>()
+        };
+        let replaced = self.rows.iter().position(|existing| {
+            existing.tag == row.tag
+                && existing.anchor == row.anchor
+                && identity(existing) == identity(&row)
+        });
+        match replaced {
+            Some(index) => self.rows[index] = row,
+            None => self.rows.push(row),
+        }
     }
 
     /// Add semantic language item identities from resolved imports.
