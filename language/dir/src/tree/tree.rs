@@ -78,7 +78,7 @@ pub struct Tree {
     #[serde(skip)]
     decorator_attachments: Vec<DecoratorAttachment>,
     /// The normalized documentation attached to nodes.
-    documentation_by_node_id: BTreeMap<u32, Documentation>,
+    documentation_by_node_id: SparseNodeMap<Documentation>,
     /// Final source span overrides by node id.
     source_span_by_node_id: SparseNodeMap<Span>,
     /// The detached node ids.
@@ -156,7 +156,7 @@ impl Tree {
             alias_node_id_by_node_id: BTreeMap::new(),
             decorators_by_node_id: BTreeMap::new(),
             decorator_attachments: Vec::new(),
-            documentation_by_node_id: BTreeMap::new(),
+            documentation_by_node_id: SparseNodeMap::new(),
             source_span_by_node_id: SparseNodeMap::new(),
             detached_node_ids: BTreeSet::new(),
         }
@@ -345,7 +345,7 @@ impl Tree {
         self.source_span_by_node_id
             .retain(|node_id, _| node_id < next_global_id);
         self.documentation_by_node_id
-            .retain(|node_id, _| *node_id < next_global_id);
+            .retain(|node_id, _| node_id < next_global_id);
         self.detached_node_ids
             .retain(|node_id| *node_id < next_global_id);
     }
@@ -1132,13 +1132,19 @@ impl Tree {
     /// Return whether one node has normalized documentation.
     #[inline]
     pub fn has_documentation(&self, node_id: u32) -> bool {
-        self.documentation_by_node_id.contains_key(&node_id)
+        self.documentation_by_node_id.get_ref(node_id).is_some()
     }
 
     /// Get normalized documentation attached to a node.
     #[inline]
     pub fn get_documentation(&self, node_id: u32) -> Option<&Documentation> {
-        self.documentation_by_node_id.get(&node_id)
+        self.documentation_by_node_id.get_ref(node_id)
+    }
+
+    /// Take normalized documentation from one node.
+    #[inline]
+    pub fn take_documentation(&mut self, node_id: u32) -> Option<Documentation> {
+        self.documentation_by_node_id.take(node_id)
     }
 }
 

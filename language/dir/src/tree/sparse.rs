@@ -60,6 +60,14 @@ impl<T> SparseNodeMap<T> {
     /// Take one value out by node id.
     #[inline]
     pub(crate) fn take(&mut self, node_id: u32) -> Option<T> {
+        if self
+            .entries
+            .last()
+            .is_some_and(|entry| entry.node_id == node_id)
+        {
+            return self.entries.pop().map(|entry| entry.value);
+        }
+
         if let Ok(index) = self
             .entries
             .binary_search_by_key(&node_id, |entry| entry.node_id)
