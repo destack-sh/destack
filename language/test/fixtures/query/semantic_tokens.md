@@ -66,6 +66,166 @@ interface Drawable {
 @semantic_tokens.token range=main.ds#method type=method modifiers=declaration,abstract
 ```
 
+### Classify interface method signatures
+
+Interface method parameters and their referenced types retain their distinct roles.
+
+```ds main.ds
+struct ResourceId {}
+       ^^^^^^^^^^ resource_type
+
+struct IoControlRequest {}
+       ^^^^^^^^^^^^^^^^ request_type
+
+interface IoControlBinding {
+          ^^^^^^^^^^^^^^^^ binding_type
+    @binding("destack.io.control", {
+     ^^^^^^^ decorator
+        provider: "host",
+        effect: "external",
+        requires: ["host.io.control"],
+        families: ["windows", "unix"],
+    })
+    executeIoControl(
+    ^^^^^^^^^^^^^^^^ method
+        resource: ResourceId,
+        ^^^^^^^^ resource_parameter
+                  ^^^^^^^^^^ resource_reference
+        request: IoControlRequest,
+        ^^^^^^^ request_parameter
+                 ^^^^^^^^^^^^^^^^ request_reference
+    ): IoControlRequest;
+       ^^^^^^^^^^^^^^^^ return_reference
+}
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#resource_type type=struct modifiers=declaration
+@semantic_tokens.token range=main.ds#request_type type=struct modifiers=declaration
+@semantic_tokens.token range=main.ds#binding_type type=interface modifiers=declaration
+@semantic_tokens.token range=main.ds#decorator type=decorator modifiers=default_library
+@semantic_tokens.token range=main.ds#method type=method modifiers=declaration,abstract
+@semantic_tokens.token range=main.ds#resource_parameter type=parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#resource_reference type=struct
+@semantic_tokens.token range=main.ds#request_parameter type=parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#request_reference type=struct
+@semantic_tokens.token range=main.ds#return_reference type=struct
+```
+
+### Classify a binding module
+
+A binding module keeps imported, declared, and referenced symbol roles across its complete source.
+
+```ds main.ds
+import { HostError } from "./host.ds";
+         ^^^^^^^^^ host_error_import
+import { ResourceId } from "./resource.ds";
+         ^^^^^^^^^^ resource_import
+
+/// Resource control flags.
+export newtype IoControlFlags = uint32;
+               ^^^^^^^^^^^^^^ flags_type
+
+/// Resource control request.
+export struct IoControlRequest {
+              ^^^^^^^^^^^^^^^^ request_type
+    /// Host request code.
+    code: uint64;
+    ^^^^ code_field
+    /// Scalar argument value.
+    argument: uint64;
+    ^^^^^^^^ argument_field
+    /// Request flags.
+    flags: IoControlFlags;
+    ^^^^^ flags_field
+           ^^^^^^^^^^^^^^ flags_reference
+}
+
+/// Resource control result.
+export struct IoControlResult {
+              ^^^^^^^^^^^^^^^ result_type
+    /// Host return value.
+    value: int64;
+    ^^^^^ value_field
+    /// Output bytes written.
+    bytes: uint32;
+    ^^^^^ bytes_field
+}
+
+/// Control binding family.
+export interface IoControlBinding {
+                 ^^^^^^^^^^^^^^^^ binding_type
+    /// Execute one resource control request.
+    @binding("destack.io.control", {
+     ^^^^^^^ decorator
+        provider: "host",
+        effect: "external",
+        requires: ["host.io.control"],
+        families: ["windows", "unix"],
+    })
+    executeIoControl(
+    ^^^^^^^^^^^^^^^^ method
+        resource: ResourceId,
+        ^^^^^^^^ resource_parameter
+                  ^^^^^^^^^^ resource_reference
+        request: IoControlRequest,
+        ^^^^^^^ request_parameter
+                 ^^^^^^^^^^^^^^^^ request_reference
+        input: &readonly [uint8],
+        ^^^^^ input_parameter
+        output: &[uint8],
+        ^^^^^^ output_parameter
+    ): Result<IoControlResult, HostError>;
+       ^^^^^^ result_reference
+              ^^^^^^^^^^^^^^^ result_type_reference
+                               ^^^^^^^^^ host_error_reference
+}
+```
+
+```ds host.ds
+export interface HostError {}
+```
+
+```ds resource.ds
+export struct ResourceId {}
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#host_error_import type=interface modifiers=declaration
+@semantic_tokens.token range=main.ds#resource_import type=struct modifiers=declaration
+@semantic_tokens.token range=main.ds:4:1-4:28 type=comment modifiers=documentation
+@semantic_tokens.token range=main.ds#flags_type type=type modifiers=declaration
+@semantic_tokens.token range=main.ds:7:1-7:30 type=comment modifiers=documentation
+@semantic_tokens.token range=main.ds#request_type type=struct modifiers=declaration
+@semantic_tokens.token range=main.ds:9:5-9:27 type=comment modifiers=documentation
+@semantic_tokens.token range=main.ds#code_field type=property modifiers=declaration
+@semantic_tokens.token range=main.ds:11:5-11:31 type=comment modifiers=documentation
+@semantic_tokens.token range=main.ds#argument_field type=property modifiers=declaration
+@semantic_tokens.token range=main.ds:13:5-13:23 type=comment modifiers=documentation
+@semantic_tokens.token range=main.ds#flags_field type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#flags_reference type=type
+@semantic_tokens.token range=main.ds:17:1-17:29 type=comment modifiers=documentation
+@semantic_tokens.token range=main.ds#result_type type=struct modifiers=declaration
+@semantic_tokens.token range=main.ds:19:5-19:27 type=comment modifiers=documentation
+@semantic_tokens.token range=main.ds#value_field type=property modifiers=declaration
+@semantic_tokens.token range=main.ds:21:5-21:30 type=comment modifiers=documentation
+@semantic_tokens.token range=main.ds#bytes_field type=property modifiers=declaration
+@semantic_tokens.token range=main.ds:25:1-25:28 type=comment modifiers=documentation
+@semantic_tokens.token range=main.ds#binding_type type=interface modifiers=declaration
+@semantic_tokens.token range=main.ds:27:5-27:46 type=comment modifiers=documentation
+@semantic_tokens.token range=main.ds#decorator type=decorator modifiers=default_library
+@semantic_tokens.token range=main.ds#method type=method modifiers=declaration,abstract
+@semantic_tokens.token range=main.ds#resource_parameter type=parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#resource_reference type=struct
+@semantic_tokens.token range=main.ds#request_parameter type=parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#request_reference type=struct
+@semantic_tokens.token range=main.ds#input_parameter type=parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#output_parameter type=parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#result_reference type=type modifiers=default_library
+@semantic_tokens.token range=main.ds#result_type_reference type=struct
+@semantic_tokens.token range=main.ds#host_error_reference type=interface
+```
+
 ### Omit unnamed interface signatures
 
 Call signatures do not introduce a semantic symbol.

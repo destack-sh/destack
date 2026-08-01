@@ -82,6 +82,26 @@ const color: Color = Color.Red;
 
 ## Type References
 
+### Resolve primitive runtime declarations
+
+Primitive types resolve to their runtime declarations.
+
+```ds main.ds
+type Text = string;
+            ^^^^^^ reference:string
+
+type Integer = bigint;
+               ^^^^^^ reference:bigint
+```
+
+```query goto_type_definition main.ds#reference:string
+@goto_type_definition.target origin=main.ds#reference:string location=destack://string/string:28:1-31:2 selection=destack://string/string:28:14-28:20 symbol=destack://string/string#String@24
+```
+
+```query goto_type_definition main.ds#reference:bigint
+@goto_type_definition.target origin=main.ds#reference:bigint location=destack://math/bigint:27:1-39:2 selection=destack://math/bigint:27:14-27:20 symbol=destack://math/bigint#BigInt@23
+```
+
 ### Resolve a direct type reference
 
 A nominal name in type position resolves to its declaration.

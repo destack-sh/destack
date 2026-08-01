@@ -102,7 +102,7 @@ const result = identity(name);
 
 ## Documentation
 
-### [ignored] Include declaration documentation
+### Include declaration documentation
 
 Documentation comes from the referenced declaration.
 
@@ -135,6 +135,21 @@ function identity(name: string): string {
 
 ```query hover main.ds#documentation
 @hover.none
+```
+
+### Include expression documentation
+
+Documentation attached to an expression is available without a symbol declaration.
+
+```ds main.ds
+const result =
+    /// Computed value.
+    42;
+    ^^ expression
+```
+
+```query hover main.ds#expression
+@hover.documentation text="Computed value." range=main.ds#expression
 ```
 
 ## Types
@@ -349,7 +364,34 @@ const width = Buffer.Width;
 @hover.item index=0 signature="(comptime const) Buffer.Width: uint64" location=main.ds:2:5-2:35 selection=main.ds:2:20-2:25 range=main.ds#reference
 ```
 
-### [ignored] Include method documentation
+### Hover over associated types
+
+Associated type hovers preserve required, constrained, and defaulted declarations.
+
+```ds main.ds
+interface Types {
+    type Required;
+         ^^^^^^^^ required
+    type Constrained: string;
+         ^^^^^^^^^^^ constrained
+    type Defaulted: string = string;
+         ^^^^^^^^^ defaulted
+}
+```
+
+```query hover main.ds#required
+@hover.item index=0 signature="(type member) Types.Required" location=main.ds:2:5-2:18 selection=main.ds#required range=main.ds#required
+```
+
+```query hover main.ds#constrained
+@hover.item index=0 signature="(type member) Types.Constrained: string" location=main.ds:3:5-3:29 selection=main.ds#constrained range=main.ds#constrained
+```
+
+```query hover main.ds#defaulted
+@hover.item index=0 signature="(type member) Types.Defaulted: string = string" location=main.ds:4:5-4:36 selection=main.ds#defaulted range=main.ds#defaulted
+```
+
+### Include method documentation
 
 Method hover includes documentation from the member declaration.
 
@@ -510,7 +552,7 @@ const result = scale(2, 3);
 @hover.item index=0 signature="export default function scale(value: int32, factor: int32): int32" location=library.ds:1:1-3:2 selection=library.ds:1:25-1:30 range=main.ds#reference
 ```
 
-### [ignored] Include documentation through a re-export
+### Include documentation through a re-export
 
 A re-exported function reports its declaration signature and documentation.
 
@@ -647,6 +689,20 @@ function run(): void {}
 
 ```query hover main.ds#reference
 @hover.item index=0 signature="newtype marker = (string,)" location=main.ds:1:1-1:27 selection=main.ds#definition range=main.ds#reference
+```
+
+### Hover over a global decorator
+
+A global decorator resolves to its standard-library declaration.
+
+```ds main.ds
+@languageItem()
+ ^^^^^^^^^^^^ reference
+newtype Marker = string;
+```
+
+```query hover main.ds#reference
+@hover.item index=0 signature="export newtype languageItem = (string,) | ()" documentation="Compiler language item marker.\n\n```\n@languageItem(\"memory.Unique\")\nexport newtype Unique<T> = intrinsic;\n```" location=destack://decorator/intrinsic:17:1-17:45 selection=destack://decorator/intrinsic:17:16-17:28 range=main.ds#reference
 ```
 
 ## Empty Results
