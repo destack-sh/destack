@@ -154,7 +154,19 @@ impl<'context, 'index> MemberIndexer<'context, 'index> {
             return Ok(Some(type_id));
         }
 
-        Ok(member.value_type())
+        // read structural signature types without a symbol payload
+        match member {
+            dir::DefinitionMember::AssociatedType(member) => member.value,
+            dir::DefinitionMember::CallSignature(member)
+            | dir::DefinitionMember::ConstructSignature(member) => Some(member.ty),
+            dir::DefinitionMember::IndexSignature(member) => Some(member.value_type),
+            dir::DefinitionMember::Field(_)
+            | dir::DefinitionMember::Method(_)
+            | dir::DefinitionMember::AssociatedConst(_)
+            | dir::DefinitionMember::EnumVariant(_)
+            | dir::DefinitionMember::TaggedKey(_)
+            | dir::DefinitionMember::TaggedVariant(_) => None,
+        }
     }
 
     /// Return the index kind for one checked definition member.
@@ -179,7 +191,9 @@ impl<'context, 'index> MemberIndexer<'context, 'index> {
             }
             dir::DefinitionMember::AssociatedType(_) => dir::MemberKind::AssociatedType,
             dir::DefinitionMember::AssociatedConst(_) => dir::MemberKind::AssociatedConst,
-            dir::DefinitionMember::EnumVariant(_) | dir::DefinitionMember::TaggedVariant(_) => {
+            dir::DefinitionMember::EnumVariant(_)
+            | dir::DefinitionMember::TaggedKey(_)
+            | dir::DefinitionMember::TaggedVariant(_) => {
                 dir::MemberKind::Variant
             }
             dir::DefinitionMember::CallSignature(_) => dir::MemberKind::CallSignature,

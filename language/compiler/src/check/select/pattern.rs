@@ -237,16 +237,23 @@ impl BodyState<'_, '_> {
             }
             dir::Pattern::Default { pattern, value } => {
                 let (pattern, value) = (*pattern, *value);
-                let value_node = value.into_global_any(module);
-                let default = answer!(self.infer_node_type(
-                    FlowSite {
-                        node: value_node,
-                        flow,
-                        scope,
-                    },
-                    PlaceUse::Read
-                )?);
-                let input = answer!(self.defaulted_pattern_type(origin, input, default)?);
+
+                // transcribe the written input while declaring, infer the default while checking
+                let input = if self.is_declaration() {
+                    input
+                } else {
+                    let value_node = value.into_global_any(module);
+                    let default = answer!(self.infer_node_type(
+                        FlowSite {
+                            node: value_node,
+                            flow,
+                            scope,
+                        },
+                        PlaceUse::Read
+                    )?);
+
+                    answer!(self.defaulted_pattern_type(origin, input, default)?)
+                };
 
                 // flow the defaulted input into the nested pattern
                 answer!(self.check_pattern_projection(

@@ -120,6 +120,244 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Derive every tagged newtype definition the declared identities name.
+    pub(in crate::check) fn derive_tagged_definitions(&mut self) -> CompilerResult<()> {
+        // collect the declared tagged newtypes
+        let module = self.module_id;
+        let mut targets = Vec::new();
+        {
+            let state = self.module(module);
+            let Some(declared) = &state.declared else {
+                return Ok(());
+            };
+            for (symbol, definition) in declared.definitions.iter_definitions() {
+                if let dir::Definition::Newtype(definition) = definition
+                    && definition.is_tagged
+                {
+                    targets.push(symbol);
+                }
+            }
+        }
+
+        // seal each derived definition onto the checked tail
+        for symbol in targets {
+            let Some(derived) = self.classify_tagged_newtype(symbol)? else {
+                continue;
+            };
+
+            // name each declared variant identity by its derived key
+            for member in derived.tagged_variants() {
+                let mut named = self
+                    .binding_table(symbol.module_id)
+                    .get_symbol(member.symbol.local_id)
+                    .clone();
+                named.key = Some(member.key);
+                self.module_mut(symbol.module_id)
+                    .bindings_tail
+                    .replace_symbol(member.symbol.local_id, named);
+            }
+
+            let source = self
+                .module(symbol.module_id)
+                .symbol_declaration_node(symbol.local_id)?
+                .into_global(symbol.module_id);
+            self.insert_definition(symbol, source, dir::Definition::Newtype(derived))?;
+        }
+
+        Ok(())
+    }
+
+    /// Classify one tagged newtype's variants onto its declared identities.
+    pub(in crate::check) fn classify_tagged_newtype(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<dir::NewtypeDefinition>> {
+        let module = symbol.module_id;
+        let origin = Origin::Symbol(symbol);
+
+        // read the declared newtype and its variant identities
+        let Some(dir::Definition::Newtype(declared)) = self.definition_maybe(symbol).cloned()
+        else {
+            return Err(CompilerError::Internal {
+                message: format!("tagged newtype {symbol:?} lost its declared definition"),
+            });
+        };
+        let backing = declared.backing;
+        let template = declared.template.map(|template| template.into_global(module));
+        let identities = declared
+            .members
+            .iter()
+            .filter_map(|member| match member {
+                dir::DefinitionMember::TaggedKey(identity) => Some(identity.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        if identities.is_empty() {
+            return Err(CompilerError::Internal {
+                message: format!("tagged newtype {symbol:?} declared no variant identities"),
+            });
+        }
+
+        // decode the written derive options
+        let Some(options) = self.tagged_derive_options(module, symbol)? else {
+            return Err(CompilerError::Internal {
+                message: format!("tagged newtype {symbol:?} has no written Tagged derive"),
+            });
+        };
+
+        // classify every constructible backing arm
+        let mut active = FxIndexSet::default();
+        active.insert(symbol);
+        let Some(arms) = self.tagged_arms(origin, backing, &mut active)? else {
+            self.report_invalid_tagged_variant(origin)?;
+
+            return Ok(None);
+        };
+
+        // select one explicit or uniquely inferred discriminator
+        let Some((discriminator, discriminants)) =
+            self.select_tagged_discriminator(origin, options.discriminator, &arms)?
+        else {
+            return Ok(None);
+        };
+        // derived types intern into the checking module's working tables
+        let intern_module = self.module_id;
+        let mut variants = Vec::with_capacity(arms.len());
+        for (arm, discriminant) in arms.into_iter().zip(discriminants) {
+            variants.push(self.derive_tagged_variant(
+                intern_module,
+                arm,
+                discriminator,
+                discriminant,
+            )?);
+        }
+
+        // validate every generated key before binding the identities
+        let mut cases = Vec::with_capacity(variants.len());
+        let mut distinct_keys = FxIndexSet::default();
+        for variant in variants {
+            let Some(name) = options.case_name(variant.discriminant, self.strings()) else {
+                self.report_invalid_tagged_case(origin, variant.discriminant)?;
+
+                return Ok(None);
+            };
+            if !distinct_keys.insert(name) {
+                self.report_duplicate_tagged_case(origin, name)?;
+
+                return Ok(None);
+            }
+            cases.push((dir::StaticKey::Name(name), variant));
+        }
+
+        // the derived arms must line up with the declared identities
+        if cases.len() != identities.len() {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "tagged newtype {symbol:?} declared {} variant identities but derived {}",
+                    identities.len(),
+                    cases.len(),
+                ),
+            });
+        }
+
+        // bind each declared identity to its derived constructor
+        let instance = self.declaration_instance(symbol)?;
+        let owner_ty = self.intern_type(dir::Type::Application(instance))?;
+        let mut derived = Vec::with_capacity(cases.len());
+        for ((key, variant), identity) in cases.into_iter().zip(identities) {
+            let member = identity.symbol;
+            let ty = self.tagged_variant_member_type(owner_ty, member, template, variant.argument)?;
+            self.bind_symbol_type(member, ty)?;
+            derived.push(dir::DefinitionMember::TaggedVariant(
+                dir::TaggedVariantDefinition {
+                    symbol: member,
+                    source: identity.source,
+                    key,
+                    discriminant: variant.discriminant,
+                    backing: variant.backing,
+                    argument: variant.argument,
+                },
+            ));
+        }
+
+        // replace the identities with the derived variants
+        let mut definition = declared;
+        definition.discriminator = Some(discriminator);
+        definition
+            .members
+            .retain(|member| !matches!(member, dir::DefinitionMember::TaggedKey(_)));
+        definition.members.extend(derived);
+
+        Ok(Some(definition))
+    }
+
+    /// Decode the written Tagged options annotating one declaration.
+    fn tagged_derive_options(
+        &mut self,
+        module: ModuleId,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<TaggedOptions>> {
+        // the declaration node comes from the loaded definition tables
+        let source = if let Some(state) = self.module_maybe(module) {
+            let declared = state
+                .declared
+                .as_ref()
+                .and_then(|declared| declared.definitions.definition_source_maybe(symbol));
+
+            state
+                .definitions
+                .definition_source_maybe(symbol)
+                .or(declared)
+        } else {
+            self.external_module(module).definitions.definition_source(symbol)
+        };
+        let Some(source) = source else {
+            return Ok(None);
+        };
+        let decorators = self.decorator_expressions(module, source.local_id);
+
+        for decorator in decorators {
+            // the derive decorator names its providers in the arguments
+            let Some(target) = self.reference_symbol(decorator.target.into_global_any(module))
+            else {
+                continue;
+            };
+            let target = self.resolve_symbol_alias(target)?;
+            if self.global.language.item(target) != Some(dir::LanguageItem::Derive) {
+                continue;
+            }
+
+            for argument in decorator.arguments.iter().copied() {
+                // split one provider reference from its written options
+                let Some(expression) = self.module_view(module).get(argument).value() else {
+                    continue;
+                };
+                let (provider, options) = match self.module_view(module).get(expression) {
+                    dir::Expression::Call {
+                        left, arguments, ..
+                    } => (*left, arguments.first().copied()),
+                    _ => (expression, None),
+                };
+                let options =
+                    options.and_then(|argument| self.module_view(module).get(argument).value());
+
+                // providers resolve by language item
+                let Some(provider) = self.reference_symbol(provider.into_global_any(module))
+                else {
+                    continue;
+                };
+                let provider = self.resolve_symbol_alias(provider)?;
+                if self.global.language.item(provider) != Some(dir::LanguageItem::Tagged) {
+                    continue;
+                }
+
+                return Ok(self.decode_tagged_options(module, options));
+            }
+        }
+
+        Ok(None)
+    }
+
     /// Decode literal Tagged options from one written provider argument.
     fn decode_tagged_options(
         &self,
@@ -225,7 +463,7 @@ impl CheckState<'_> {
 
             return Ok(());
         };
-        let (backing, template, is_tagged) = match self.definintion_maybe(symbol) {
+        let (backing, template, is_tagged) = match self.definition_maybe(symbol) {
             Some(dir::Definition::Newtype(definition)) => (
                 definition.backing,
                 definition
@@ -245,74 +483,29 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        // collect every constructible backing arm before selecting a discriminator
+        let _ = (template, options);
+
+        // count the written backing arms
         let mut active = FxIndexSet::default();
-        let Some(arms) = self.tagged_arms(origin, backing, &mut active)? else {
+        active.insert(symbol);
+        let Some(arity) = self.written_tagged_arity(backing, &mut active)? else {
             self.report_invalid_tagged_variant(origin)?;
 
             return Ok(());
         };
-        if arms.is_empty() {
-            return Err(CompilerError::Internal {
-                message: "Tagged backing produced no constructible arms".to_string(),
-            });
+
+        // insert one positional variant symbol per written arm
+        let mut members = Vec::with_capacity(arity);
+        for index in 0..arity {
+            let member = self.insert_tagged_variant_symbol(symbol)?;
+            members.push(dir::DefinitionMember::TaggedKey(dir::TaggedKeyDefinition {
+                symbol: member,
+                source: owner,
+                index: index as u32,
+            }));
         }
 
-        // select one explicit or uniquely inferred discriminator
-        let Some((discriminator, discriminants)) =
-            self.select_tagged_discriminator(origin, options.discriminator, &arms)?
-        else {
-            return Ok(());
-        };
-        let mut variants = Vec::with_capacity(arms.len());
-        for (arm, discriminant) in arms.into_iter().zip(discriminants) {
-            variants.push(self.derive_tagged_variant(
-                origin.module(),
-                arm,
-                discriminator,
-                discriminant,
-            )?);
-        }
-
-        // validate every generated key before mutating bindings
-        let mut cases = Vec::with_capacity(variants.len());
-        let mut distinct_keys = FxIndexSet::default();
-        for variant in variants {
-            let Some(name) = options.case_name(variant.discriminant, self.strings()) else {
-                self.report_invalid_tagged_case(origin, variant.discriminant)?;
-
-                return Ok(());
-            };
-            if !distinct_keys.insert(name) {
-                self.report_duplicate_tagged_case(origin, name)?;
-
-                return Ok(());
-            }
-            cases.push((dir::StaticKey::Name(name), variant));
-        }
-
-        // create one static variant symbol for each validated backing arm
-        let instance = self.declaration_instance(symbol)?;
-        let owner_ty = self.intern_type(dir::Type::Application(instance))?;
-        let mut members = Vec::with_capacity(cases.len());
-        for (key, variant) in cases {
-            let member = self.insert_tagged_variant_symbol(symbol, key)?;
-            let ty =
-                self.tagged_variant_member_type(owner_ty, member, template, variant.argument)?;
-            self.bind_symbol_type(member, ty)?;
-            members.push(dir::DefinitionMember::TaggedVariant(
-                dir::TaggedVariantDefinition {
-                    symbol: member,
-                    source: owner,
-                    key,
-                    discriminant: variant.discriminant,
-                    backing: variant.backing,
-                    argument: variant.argument,
-                },
-            ));
-        }
-
-        // commit the derived members as the discriminator domain
+        // mark the newtype tagged with its declared variant identities
         let state = self.module_mut(module);
         let Some(dir::Definition::Newtype(definition)) = state.definitions.definition_mut(symbol)
         else {
@@ -320,10 +513,54 @@ impl CheckState<'_> {
                 message: format!("Tagged owner {symbol:?} lost its newtype definition"),
             });
         };
-        definition.discriminator = Some(discriminator);
+        definition.is_tagged = true;
         definition.members.extend(members);
 
         Ok(())
+    }
+
+    /// Count the written backing arms of one tagged newtype.
+    fn written_tagged_arity(
+        &mut self,
+        ty: dir::GlobalTypeId,
+        active: &mut FxIndexSet<dir::GlobalSymbolId>,
+    ) -> CompilerResult<Option<usize>> {
+        match self.ty(ty)? {
+            // sum direct union arms in declaration order
+            dir::Type::Union(union) => {
+                let elements = self.type_ids(ty.module_id, union.elements)?.to_vec();
+                let mut arity = 0;
+                for element in elements {
+                    let Some(element_arity) = self.written_tagged_arity(element, active)? else {
+                        return Ok(None);
+                    };
+                    arity += element_arity;
+                }
+
+                Ok(Some(arity))
+            }
+
+            // flatten an own nested newtype into its written arms
+            dir::Type::Application(instance) if self.is_own_module(instance.symbol.module_id) => {
+                match self.definition_maybe(instance.symbol) {
+                    Some(dir::Definition::Newtype(definition)) => {
+                        let backing = definition.backing;
+                        if !active.insert(instance.symbol) {
+                            return Ok(None);
+                        }
+                        let arity = self.written_tagged_arity(backing, active)?;
+                        active.swap_remove(&instance.symbol);
+
+                        Ok(arity)
+                    }
+                    _ => Ok(Some(1)),
+                }
+            }
+
+            // every other leaf counts one written arm, checking
+            //  validates the derived arity against these identities
+            _ => Ok(Some(1)),
+        }
     }
 
     /// Return the constructible arms beneath one Tagged backing type.
@@ -378,10 +615,6 @@ impl CheckState<'_> {
             // return structs or flatten a nested newtype; derive
             //  foreign arms only when checking
             dir::Type::Application(instance) => {
-                if self.is_declaration() && !self.is_own_module(instance.symbol.module_id) {
-                    return Ok(None);
-                }
-
                 match self.definition(instance.symbol)? {
                     // return one struct arm with its instantiated fields
                     Some(dir::Definition::Struct(_)) => {
@@ -634,7 +867,6 @@ impl CheckState<'_> {
     fn insert_tagged_variant_symbol(
         &mut self,
         owner: dir::GlobalSymbolId,
-        key: dir::StaticKey,
     ) -> CompilerResult<dir::GlobalSymbolId> {
         let module = owner.module_id;
         let (scope, scope_value) = {
@@ -656,7 +888,7 @@ impl CheckState<'_> {
         let (symbol, _) = bindings.insert_symbol(
             dir::SymbolRole::Item,
             dir::SymbolKind::Variant,
-            Some(key),
+            None,
             scope,
             None,
             dir::SymbolVisibility::Member,

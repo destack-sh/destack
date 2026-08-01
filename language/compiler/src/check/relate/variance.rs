@@ -385,7 +385,9 @@ impl CheckState<'_> {
 
                     Some((signature.value_type, storage))
                 }
-                dir::DefinitionMember::EnumVariant(_) | dir::DefinitionMember::TaggedVariant(_) => {
+                dir::DefinitionMember::EnumVariant(_)
+                | dir::DefinitionMember::TaggedKey(_)
+                | dir::DefinitionMember::TaggedVariant(_) => {
                     None
                 }
             };

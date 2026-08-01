@@ -137,7 +137,9 @@ impl CheckState<'_> {
                     types.push(signature.value_type);
                 }
                 // skip variant singletons, they restate the receiver instance
-                dir::DefinitionMember::EnumVariant(_) | dir::DefinitionMember::TaggedVariant(_) => {
+                dir::DefinitionMember::EnumVariant(_)
+                | dir::DefinitionMember::TaggedKey(_)
+                | dir::DefinitionMember::TaggedVariant(_) => {
                 }
                 dir::DefinitionMember::Field(_)
                 | dir::DefinitionMember::AssociatedConst(_)

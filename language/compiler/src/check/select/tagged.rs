@@ -704,7 +704,7 @@ impl CheckState<'_> {
         let dir::ScalarLiteral::String(discriminant) = discriminant else {
             return None;
         };
-        let Some(dir::Definition::Newtype(definition)) = self.definintion_maybe(owner) else {
+        let Some(dir::Definition::Newtype(definition)) = self.definition_maybe(owner) else {
             return None;
         };
 

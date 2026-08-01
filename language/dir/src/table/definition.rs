@@ -222,6 +222,11 @@ impl DefinitionSegment {
         self.definitions.insert(symbol, definition);
     }
 
+    /// Return the source declaration node for one definition when present.
+    pub fn definition_source_maybe(&self, symbol: GlobalSymbolId) -> Option<GlobalNodeIdAny> {
+        self.sources.get(&symbol).copied()
+    }
+
     /// Return the source declaration node for one definition.
     pub fn definition_source(&self, symbol: GlobalSymbolId) -> GlobalNodeIdAny {
         *self
@@ -478,7 +483,8 @@ impl Definition {
                 DefinitionMember::Field(_)
                 | DefinitionMember::Method(_)
                 | DefinitionMember::AssociatedConst(_)
-                | DefinitionMember::EnumVariant(_) => {}
+                | DefinitionMember::EnumVariant(_)
+                | DefinitionMember::TaggedKey(_) => {}
             }
         }
     }
@@ -697,9 +703,9 @@ pub struct NewtypeDefinition {
     pub representation: Representation,
     /// The nominal backing type.
     pub backing: GlobalTypeId,
-    /// The constructable backing alternatives in selection order.
-    pub constructors: Vec<NewtypeConstructor>,
-    /// The property discriminating derived Tagged variants.
+    /// Whether the newtype declares a Tagged derivation.
+    pub is_tagged: bool,
+    /// The property discriminating derived Tagged variants, filled while checking.
     pub discriminator: Option<StaticKey>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
@@ -983,7 +989,18 @@ pub struct EnumVariantDefinition {
     pub value: EnumVariantValue,
 }
 
-/// One case derived from a tagged newtype backing.
+/// One declared tagged newtype variant identity.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct TaggedKeyDefinition {
+    /// The variant symbol.
+    pub symbol: GlobalSymbolId,
+    /// The source newtype declaration node.
+    pub source: GlobalNodeIdAny,
+    /// The written backing arm position.
+    pub index: u32,
+}
+
+/// One case derived from a tagged newtype backing, filled while checking.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TaggedVariantDefinition {
     /// The variant symbol.
@@ -1048,6 +1065,8 @@ pub enum DefinitionMember {
     AssociatedConst(AssociatedConstDefinition),
     /// Declared enum variant member.
     EnumVariant(EnumVariantDefinition),
+    /// Declared tagged newtype variant identity.
+    TaggedKey(TaggedKeyDefinition),
     /// Derived tagged newtype variant member.
     TaggedVariant(TaggedVariantDefinition),
     /// Structural call signature member.
@@ -1100,6 +1119,7 @@ impl DefinitionMember {
             Self::AssociatedType(associated) => associated.source,
             Self::AssociatedConst(associated) => associated.source,
             Self::EnumVariant(variant) => variant.source,
+            Self::TaggedKey(variant) => variant.source,
             Self::TaggedVariant(variant) => variant.source,
             Self::CallSignature(signature) | Self::ConstructSignature(signature) => {
                 signature.source
@@ -1122,6 +1142,7 @@ impl DefinitionMember {
             Self::AssociatedType(_)
             | Self::AssociatedConst(_)
             | Self::EnumVariant(_)
+            | Self::TaggedKey(_)
             | Self::TaggedVariant(_) => MemberSpace::Static,
             // structural signatures describe instances
             Self::CallSignature(_) | Self::ConstructSignature(_) | Self::IndexSignature(_) => {
@@ -1138,6 +1159,7 @@ impl DefinitionMember {
             Self::AssociatedType(associated) => Some(associated.symbol),
             Self::AssociatedConst(associated) => Some(associated.symbol),
             Self::EnumVariant(variant) => Some(variant.symbol),
+            Self::TaggedKey(variant) => Some(variant.symbol),
             Self::TaggedVariant(variant) => Some(variant.symbol),
             Self::CallSignature(_) | Self::ConstructSignature(_) | Self::IndexSignature(_) => None,
         }
@@ -1155,7 +1177,10 @@ impl DefinitionMember {
             Self::AssociatedConst(associated) => Some(associated.key),
             Self::EnumVariant(variant) => Some(variant.key),
             Self::TaggedVariant(variant) => Some(variant.key),
-            Self::CallSignature(_) | Self::ConstructSignature(_) | Self::IndexSignature(_) => None,
+            Self::TaggedKey(_)
+            | Self::CallSignature(_)
+            | Self::ConstructSignature(_)
+            | Self::IndexSignature(_) => None,
         }
     }
 
@@ -1167,6 +1192,7 @@ impl DefinitionMember {
             | Self::Method(_)
             | Self::AssociatedType(_)
             | Self::EnumVariant(_)
+            | Self::TaggedKey(_)
             | Self::TaggedVariant(_)
             | Self::CallSignature(_)
             | Self::ConstructSignature(_)
@@ -1195,6 +1221,7 @@ impl DefinitionMember {
             | Self::Method(_)
             | Self::AssociatedConst(_)
             | Self::EnumVariant(_)
+            | Self::TaggedKey(_)
             | Self::TaggedVariant(_) => None,
         }
     }
@@ -1455,9 +1482,9 @@ impl EnumDefinition {
 }
 
 impl NewtypeDefinition {
-    /// Return whether this newtype has a checked Tagged derivation.
+    /// Return whether this newtype declares a Tagged derivation.
     pub fn is_tagged(&self) -> bool {
-        self.discriminator.is_some()
+        self.is_tagged
     }
 
     /// Iterate the derived Tagged variants in declaration order.

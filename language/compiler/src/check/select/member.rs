@@ -230,6 +230,7 @@ impl MemberRole {
             dir::DefinitionMember::AssociatedType(_)
             | dir::DefinitionMember::AssociatedConst(_) => Some(Self::Associated),
             dir::DefinitionMember::EnumVariant(_) => Some(Self::VariantValue),
+            dir::DefinitionMember::TaggedKey(_) => Some(Self::VariantValue),
             dir::DefinitionMember::TaggedVariant(variant) if variant.argument.is_some() => {
                 Some(Self::VariantConstructor)
             }
