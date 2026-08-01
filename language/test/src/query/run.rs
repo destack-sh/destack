@@ -579,7 +579,7 @@ impl<'a> QueryRun<'a> {
     }
 
     /// Return the declared path for one exact file id.
-    pub(super) fn path(&self, file_id: FileId) -> Result<&Path, String> {
+    pub(super) fn declared_path(&self, file_id: FileId) -> Result<&Path, String> {
         let Some(path) = self.files.paths.get(&file_id) else {
             let logical_path = self
                 .workspace
@@ -597,26 +597,61 @@ impl<'a> QueryRun<'a> {
         Ok(path)
     }
 
-    /// Return the declared path for one exact module profile.
-    pub(super) fn path_for_module(&self, module: Module) -> Result<String, String> {
-        self.files
+    /// Format one exact module path.
+    pub(super) fn format_module(&self, module: Module) -> Result<String, String> {
+        let declared = self
+            .files
             .modules
             .iter()
             .find_map(|(file_id, candidate)| (*candidate == module).then_some(file_id))
-            .map(|file_id| self.path(*file_id))
+            .map(|file_id| self.declared_path(*file_id))
             .transpose()?
-            .map(display_query_path)
-            .ok_or_else(|| format!("query response names unknown module {module:?}"))
+            .map(display_query_path);
+        if let Some(path) = declared {
+            return Ok(path);
+        }
+
+        // read undeclared program modules from the repository
+        let profile_id = self.program_profile_id()?;
+        if module.profile_id != profile_id {
+            return Err(format!(
+                "query response names module {module:?} outside profile {profile_id:?}"
+            ));
+        }
+        let repository_module = self
+            .workspace
+            .repository()
+            .module(self.revision, module.module_id)
+            .map_err(|error| format!("failed to read query module {module:?}: {error}"))?
+            .ok_or_else(|| format!("query response names unknown module {module:?}"))?;
+
+        self.format_file(repository_module.file_id)
     }
 
     /// Require one module to match its source file's exact module profile.
     pub(super) fn require_module(&self, module: Module, file_id: FileId) -> Result<(), String> {
-        let path = self.path(file_id)?;
-        let expected = self.module(path)?;
+        let expected = if let Some(path) = self.files.paths.get(&file_id) {
+            self.module(path)?
+        } else {
+            let module_id = self
+                .workspace
+                .repository()
+                .module_id_for_file(self.revision, file_id)
+                .map_err(|error| {
+                    format!("failed to resolve query target file {file_id:?}: {error}")
+                })?
+                .ok_or_else(|| format!("query target file {file_id:?} has no module"))?;
+
+            Module {
+                module_id,
+                profile_id: self.program_profile_id()?,
+            }
+        };
         if module != expected {
+            let path = self.format_file(file_id)?;
+
             return Err(format!(
-                "query target for '{}' names module {module:?}, expected {expected:?}",
-                display_query_path(path)
+                "query target for '{path}' names module {module:?}, expected {expected:?}"
             ));
         }
 
@@ -633,7 +668,7 @@ impl<'a> QueryRun<'a> {
             module_id: symbol_id.module_id,
             profile_id,
         };
-        let path = self.path_for_module(module)?;
+        let path = self.format_module(module)?;
         let artifacts = ArtifactReader::new(self.workspace.repository(), self.revision);
         let bound = artifacts
             .dir_bound(symbol_id.module_id, profile_id)
@@ -682,7 +717,7 @@ impl<'a> QueryRun<'a> {
             module_id: symbol_id.module_id,
             profile_id,
         };
-        let path = self.path_for_module(module)?;
+        let path = self.format_module(module)?;
 
         Ok(format!("{path}#{name}@{}", symbol_id.local_id.id))
     }
@@ -697,7 +732,7 @@ impl<'a> QueryRun<'a> {
             module_id: node_id.module_id,
             profile_id,
         };
-        let path = self.path_for_module(module)?;
+        let path = self.format_module(module)?;
         let artifacts = ArtifactReader::new(self.workspace.repository(), self.revision);
         let parsed = artifacts
             .dir_parsed(node_id.module_id)
@@ -719,30 +754,69 @@ impl<'a> QueryRun<'a> {
 
     /// Format one exact source span in stable byte line and column coordinates.
     pub(super) fn format_span(&self, span: Span) -> Result<String, String> {
-        let path = self.path(span.file)?;
-        let file = self.file(path)?;
+        if let Some(path) = self.files.paths.get(&span.file) {
+            let file = self.file(path)?;
 
-        // use one exact range anchor when available
-        if let Some(name) = file.range_name(span.start, span.end) {
-            return Ok(format!("{}#{name}", display_query_path(path)));
+            // use one exact range anchor when available
+            if let Some(name) = file.range_name(span.start, span.end) {
+                return Ok(format!("{}#{name}", display_query_path(path)));
+            }
+
+            // preserve named fixture insertions
+            if span.start == span.end {
+                return self.format_position(path, span.start);
+            }
+
+            // render fixture coordinates
+            return Self::format_source_span(
+                &display_query_path(path),
+                &file.source,
+                span.start,
+                span.end,
+            );
         }
 
-        // render insertions as one named or numeric position
-        if span.start == span.end {
-            return self.format_position(path, span.start);
+        // render dependency coordinates from the exact repository file
+        let path = self.format_file(span.file)?;
+        let file = self
+            .workspace
+            .repository()
+            .file(self.revision, span.file)
+            .map_err(|error| format!("failed to read query source '{path}': {error}"))?
+            .ok_or_else(|| format!("query source '{path}' is missing"))?;
+
+        Self::format_source_span(&path, file.text(), span.start, span.end)
+    }
+
+    /// Format one exact file path.
+    pub(super) fn format_file(&self, file_id: FileId) -> Result<String, String> {
+        if let Some(path) = self.files.paths.get(&file_id) {
+            return Ok(display_query_path(path));
         }
 
-        // render explicit source coordinates
-        let start = line_column(&file.source, span.start)?;
-        let end = line_column(&file.source, span.end)?;
+        self.workspace
+            .repository()
+            .file_logical_path(self.revision, file_id)
+            .map_err(|error| format!("failed to resolve query source {file_id:?}: {error}"))?
+            .ok_or_else(|| format!("query response names unknown file id {file_id:?}"))
+    }
+
+    /// Format one exact span against its complete source text.
+    fn format_source_span(
+        path: &str,
+        source: &str,
+        start: u32,
+        end: u32,
+    ) -> Result<String, String> {
+        let start_position = line_column(source, start)?;
+        if start == end {
+            return Ok(format!("{path}:{}:{}", start_position.0, start_position.1));
+        }
+        let end_position = line_column(source, end)?;
 
         Ok(format!(
-            "{}:{}:{}-{}:{}",
-            display_query_path(path),
-            start.0,
-            start.1,
-            end.0,
-            end.1
+            "{path}:{}:{}-{}:{}",
+            start_position.0, start_position.1, end_position.0, end_position.1
         ))
     }
 
@@ -788,7 +862,7 @@ impl<'a> QueryRun<'a> {
                     file_patch.file
                 ));
             }
-            let path = self.path(file_patch.file)?;
+            let path = self.declared_path(file_patch.file)?;
             let expected = expected_by_path.remove(path).ok_or_else(|| {
                 format!("query unexpectedly edited '{}'", display_query_path(path))
             })?;

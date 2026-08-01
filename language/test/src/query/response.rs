@@ -413,7 +413,17 @@ fn completion_rows(
 
 /// Render every declaration in one hover result.
 fn hover_rows(run: &QueryRun<'_>, hover: &Hover) -> Result<Vec<QueryRow>, String> {
-    let mut rows = Vec::with_capacity(hover.items.len());
+    let mut rows =
+        Vec::with_capacity(hover.items.len() + usize::from(hover.documentation.is_some()));
+
+    // render documentation attached directly to the hovered source node
+    if let Some(documentation) = &hover.documentation {
+        rows.push(
+            QueryRow::new("hover.documentation")
+                .field("text", documentation)
+                .field("range", run.format_span(hover.range)?),
+        );
+    }
 
     for (index, item) in hover.items.iter().enumerate() {
         rows.push(
@@ -677,10 +687,9 @@ fn link_rows(run: &QueryRun<'_>, links: &[Link]) -> Result<Vec<QueryRow>, String
     let rows = links
         .iter()
         .map(|link| {
-            let path = run.path(link.target)?;
             let row = QueryRow::new("links.link")
                 .field("range", run.format_span(link.range)?)
-                .field("path", display_query_path(path));
+                .field("path", run.format_file(link.target)?);
 
             Ok(row)
         })
@@ -713,7 +722,7 @@ fn selection_rows(
         let mut depth = 0;
         let mut current = Some(range);
         while let Some(range) = current {
-            let path = run.path(range.range.file)?;
+            let path = run.declared_path(range.range.file)?;
             if path != expected_path {
                 return Err(format!(
                     "selection range chain {selection} names '{}', expected '{}'",
@@ -922,7 +931,7 @@ fn code_action_rows(run: &QueryRun<'_>, actions: &[CodeAction]) -> Result<Vec<Qu
         for diagnostic in &action.diagnostics {
             let location = match diagnostic.primary.target {
                 DiagnosticTarget::Span(span) => run.format_span(span)?,
-                DiagnosticTarget::File(file) => display_query_path(run.path(file)?),
+                DiagnosticTarget::File(file) => run.format_file(file)?,
             };
             rows.push(
                 QueryRow::new("code_actions.diagnostic")
