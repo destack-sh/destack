@@ -39,6 +39,7 @@ interface Drawable {
 }
 
 function paint(item: Drawable): void {
+/// @type.symbol symbol=paint type=(Drawable) => void
 /// @type.symbol symbol=paint type=(Dynamic<Drawable>) => void
 /// @type.symbol symbol=paint.item source="item: Drawable" type=Dynamic<Drawable>
 /// @resolution.name source=Drawable target=Drawable

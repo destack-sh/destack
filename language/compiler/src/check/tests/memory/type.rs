@@ -27,26 +27,22 @@ struct Cell {}
 /// @definition.struct symbol=Cell source="struct Cell {}"
 
 type StaticCell = WithSpace<Cell, "static">;
-/// @type.symbol symbol=StaticCell source="type StaticCell = WithSpace<Cell, \"static\">" type=<error>
-/// @definition.type symbol=StaticCell source="type StaticCell = WithSpace<Cell, \"static\">" value=<error>
+/// @type.symbol symbol=StaticCell source="type StaticCell = WithSpace<Cell, \"static\">" type=WithSpace<Cell, "static"> reduced=Placed<Cell, "static">
+/// @definition.type symbol=StaticCell source="type StaticCell = WithSpace<Cell, \"static\">" value=WithSpace<Cell, "static"> reduced=Placed<Cell, "static">
 /// @resolution.name source=WithSpace target=memory.type.WithSpace
 /// @resolution.name source=Cell target=Cell
 
 type FrameCell = WithSpace<Cell, "frame">;
-/// @type.symbol symbol=FrameCell source="type FrameCell = WithSpace<Cell, \"frame\">" type=<error>
-/// @definition.type symbol=FrameCell source="type FrameCell = WithSpace<Cell, \"frame\">" value=<error>
+/// @type.symbol symbol=FrameCell source="type FrameCell = WithSpace<Cell, \"frame\">" type=WithSpace<Cell, "frame"> reduced=Placed<Cell, "frame">
+/// @definition.type symbol=FrameCell source="type FrameCell = WithSpace<Cell, \"frame\">" value=WithSpace<Cell, "frame"> reduced=Placed<Cell, "frame">
 /// @resolution.name source=WithSpace target=memory.type.WithSpace
 /// @resolution.name source=Cell target=Cell
+
+/// @generic.instance id="WithSpace<Cell, \"frame\">" template=memory.type.WithSpace arguments=(Cell, "frame")
+/// @generic.instance id="WithSpace<Cell, \"static\">" template=memory.type.WithSpace arguments=(Cell, "static")
 "#,
         r#"
-/// @diagnostic.error id=constraint-not-satisfied message="type '\"static\"' does not satisfy 'Space'"
-/// @diagnostic.label line=4 column=35 span="\"static\"" line_source="type StaticCell = WithSpace<Cell, \"static\">;"
-/// @diagnostic.related file="type.ds" message="required by this bound on 'S'"
-/// @diagnostic.note message="'Space' reduces to '\"local\" | \"shared\"'"
-/// @diagnostic.error id=constraint-not-satisfied message="type '\"frame\"' does not satisfy 'Space'"
-/// @diagnostic.label line=5 column=34 span="\"frame\"" line_source="type FrameCell = WithSpace<Cell, \"frame\">;"
-/// @diagnostic.related file="type.ds" message="required by this bound on 'S'"
-/// @diagnostic.note message="'Space' reduces to '\"local\" | \"shared\"'"
+
 "#,
     );
 }
@@ -102,8 +98,8 @@ struct Cell {
 }
 
 type OwnedBorrow = Owned<Borrowed<Cell, "static">>;
-/// @type.symbol symbol=OwnedBorrow source="type OwnedBorrow = Owned<Borrowed<Cell, \"static\">>" type=Owned<Borrowed<Cell, "static", "mutable">> reduced=Owned<&'static Cell>
-/// @definition.type symbol=OwnedBorrow source="type OwnedBorrow = Owned<Borrowed<Cell, \"static\">>" value=Owned<Borrowed<Cell, "static", "mutable">> reduced=Owned<&'static Cell>
+/// @type.symbol symbol=OwnedBorrow source="type OwnedBorrow = Owned<Borrowed<Cell, \"static\">>" type=Owned<Borrowed<Cell, "static">> reduced=Owned<&'static Cell>
+/// @definition.type symbol=OwnedBorrow source="type OwnedBorrow = Owned<Borrowed<Cell, \"static\">>" value=Owned<Borrowed<Cell, "static">> reduced=Owned<&'static Cell>
 /// @resolution.name source=Owned target=memory.owned.Owned
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=Cell target=Cell
@@ -143,8 +139,8 @@ payload satisfies Borrowed<Cell, "static">;
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=Cell target=Cell
 
-/// @generic.instance id="Borrowed<Cell, \"static\", \"mutable\">" template=memory.borrow.Borrowed arguments=(Cell, "static", "mutable")
-/// @generic.instance id="Owned<Borrowed<Cell, \"static\", \"mutable\">>" template=memory.owned.Owned arguments=(Borrowed<Cell, "static", "mutable">)
+/// @generic.instance id="Borrowed<Cell, \"static\">" template=memory.borrow.Borrowed arguments=(Cell, "static")
+/// @generic.instance id="Owned<Borrowed<Cell, \"static\">>" template=memory.owned.Owned arguments=(Borrowed<Cell, "static">)
 /// @generic.instance id=BaseOf<OwnedBorrow> template=memory.type.BaseOf arguments=(OwnedBorrow)
 /// @generic.instance id=PayloadOf<OwnedBorrow> template=memory.type.PayloadOf arguments=(OwnedBorrow)
 "#,
@@ -202,8 +198,8 @@ struct Cell {
 }
 
 type BorrowOwned = Borrowed<Owned<Cell>, "static">;
-/// @type.symbol symbol=BorrowOwned source="type BorrowOwned = Borrowed<Owned<Cell>, \"static\">" type=Borrowed<Owned<Cell>, "static", "mutable"> reduced=&'static Cell
-/// @definition.type symbol=BorrowOwned source="type BorrowOwned = Borrowed<Owned<Cell>, \"static\">" value=Borrowed<Owned<Cell>, "static", "mutable"> reduced=&'static Cell
+/// @type.symbol symbol=BorrowOwned source="type BorrowOwned = Borrowed<Owned<Cell>, \"static\">" type=Borrowed<Owned<Cell>, "static"> reduced=&'static Cell
+/// @definition.type symbol=BorrowOwned source="type BorrowOwned = Borrowed<Owned<Cell>, \"static\">" value=Borrowed<Owned<Cell>, "static"> reduced=&'static Cell
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=Owned target=memory.owned.Owned
 /// @resolution.name source=Cell target=Cell
@@ -240,7 +236,7 @@ borrowedAccess satisfies "mutable";
 /// @resolution.place source=borrowedAccess placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=borrowedAccess root=borrowedAccess
 
-/// @generic.instance id="Borrowed<Owned<Cell>, \"static\", \"mutable\">" template=memory.borrow.Borrowed arguments=(Owned<Cell>, "static", "mutable")
+/// @generic.instance id="Borrowed<Owned<Cell>, \"static\">" template=memory.borrow.Borrowed arguments=(Owned<Cell>, "static")
 /// @generic.instance id=AccessOf<BorrowOwned> template=memory.type.AccessOf arguments=(BorrowOwned)
 /// @generic.instance id=LifetimeOf<BorrowOwned> template=memory.type.LifetimeOf arguments=(BorrowOwned)
 /// @generic.instance id=Owned<Cell> template=memory.owned.Owned arguments=(Cell)
@@ -341,8 +337,8 @@ struct Cell {
 
 type Reborrow<Q, comptime L: Lifetime = type LifetimeOr<Q, "static">> = Borrowed<Q, L>;
 /// @generic.template symbol=Reborrow parameters=(Q, comptime L: Lifetime = LifetimeOr<Q, "static">)
-/// @type.symbol symbol=Reborrow type=Borrowed<Q, L, "mutable">
-/// @definition.type symbol=Reborrow template=(Q, comptime L: Lifetime = LifetimeOr<Q, "static">) value=Borrowed<Q, L, "mutable">
+/// @type.symbol symbol=Reborrow type=Borrowed<Q, L> reduced=Borrowed<Q, L, "mutable">
+/// @definition.type symbol=Reborrow template=(Q, comptime L: Lifetime = LifetimeOr<Q, "static">) value=Borrowed<Q, L> reduced=Borrowed<Q, L, "mutable">
 /// @type.symbol symbol=Reborrow.Q source=Q type=Q
 /// @type.symbol symbol=Reborrow.L source="comptime L: Lifetime = type LifetimeOr<Q, \"static\">" type=L
 /// @resolution.name source=Lifetime target=memory.lifetime.Lifetime
@@ -370,7 +366,7 @@ cell satisfies Borrowed<Cell, "static">;
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=Cell target=Cell
 
-/// @generic.instance id="Borrowed<Q, L, \"mutable\">" template=memory.borrow.Borrowed arguments=(Q, L, "mutable")
+/// @generic.instance id="Borrowed<Q, L>" template=memory.borrow.Borrowed arguments=(Q, L)
 /// @generic.instance id="Reborrow<Cell, \"static\">" template=Reborrow arguments=(Cell, "static")
 "#,
     );
@@ -726,8 +722,8 @@ type OwnedKind = OwnershipOf<Owned<Cell>>;
 /// @resolution.name source=Cell target=Cell
 
 type BorrowedKind = OwnershipOf<Borrowed<Cell, "static">>;
-/// @type.symbol symbol=BorrowedKind source="type BorrowedKind = OwnershipOf<Borrowed<Cell, \"static\">>" type=OwnershipOf<Borrowed<Cell, "static", "mutable">> reduced="borrowed"
-/// @definition.type symbol=BorrowedKind source="type BorrowedKind = OwnershipOf<Borrowed<Cell, \"static\">>" value=OwnershipOf<Borrowed<Cell, "static", "mutable">> reduced="borrowed"
+/// @type.symbol symbol=BorrowedKind source="type BorrowedKind = OwnershipOf<Borrowed<Cell, \"static\">>" type=OwnershipOf<Borrowed<Cell, "static">> reduced="borrowed"
+/// @definition.type symbol=BorrowedKind source="type BorrowedKind = OwnershipOf<Borrowed<Cell, \"static\">>" value=OwnershipOf<Borrowed<Cell, "static">> reduced="borrowed"
 /// @resolution.name source=OwnershipOf target=memory.type.OwnershipOf
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=Cell target=Cell
@@ -739,8 +735,8 @@ type RawKind = OwnershipOf<Raw<Cell>>;
 /// @resolution.name source=Raw target=memory.raw.Raw
 /// @resolution.name source=Cell target=Cell
 
-/// @generic.instance id="Borrowed<Cell, \"static\", \"mutable\">" template=memory.borrow.Borrowed arguments=(Cell, "static", "mutable")
-/// @generic.instance id="OwnershipOf<Borrowed<Cell, \"static\", \"mutable\">>" template=memory.type.OwnershipOf arguments=(Borrowed<Cell, "static", "mutable">)
+/// @generic.instance id="Borrowed<Cell, \"static\">" template=memory.borrow.Borrowed arguments=(Cell, "static")
+/// @generic.instance id="OwnershipOf<Borrowed<Cell, \"static\">>" template=memory.type.OwnershipOf arguments=(Borrowed<Cell, "static">)
 /// @generic.instance id=Managed<Cell> template=memory.managed.Managed arguments=(Cell)
 /// @generic.instance id=Owned<Cell> template=memory.owned.Owned arguments=(Cell)
 /// @generic.instance id=OwnershipOf<Managed<Cell>> template=memory.type.OwnershipOf arguments=(Managed<Cell>)
@@ -806,8 +802,8 @@ type OwnedCheck = IsOwned<Owned<Cell>>;
 /// @resolution.name source=Cell target=Cell
 
 type BorrowedCheck = IsBorrowed<Borrowed<Cell, "static">>;
-/// @type.symbol symbol=BorrowedCheck source="type BorrowedCheck = IsBorrowed<Borrowed<Cell, \"static\">>" type=IsBorrowed<Borrowed<Cell, "static", "mutable">> reduced=true
-/// @definition.type symbol=BorrowedCheck source="type BorrowedCheck = IsBorrowed<Borrowed<Cell, \"static\">>" value=IsBorrowed<Borrowed<Cell, "static", "mutable">> reduced=true
+/// @type.symbol symbol=BorrowedCheck source="type BorrowedCheck = IsBorrowed<Borrowed<Cell, \"static\">>" type=IsBorrowed<Borrowed<Cell, "static">> reduced=true
+/// @definition.type symbol=BorrowedCheck source="type BorrowedCheck = IsBorrowed<Borrowed<Cell, \"static\">>" value=IsBorrowed<Borrowed<Cell, "static">> reduced=true
 /// @resolution.name source=IsBorrowed target=memory.type.IsBorrowed
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=Cell target=Cell
@@ -819,8 +815,8 @@ type RawCheck = IsRaw<Raw<Cell>>;
 /// @resolution.name source=Raw target=memory.raw.Raw
 /// @resolution.name source=Cell target=Cell
 
-/// @generic.instance id="Borrowed<Cell, \"static\", \"mutable\">" template=memory.borrow.Borrowed arguments=(Cell, "static", "mutable")
-/// @generic.instance id="IsBorrowed<Borrowed<Cell, \"static\", \"mutable\">>" template=memory.type.IsBorrowed arguments=(Borrowed<Cell, "static", "mutable">)
+/// @generic.instance id="Borrowed<Cell, \"static\">" template=memory.borrow.Borrowed arguments=(Cell, "static")
+/// @generic.instance id="IsBorrowed<Borrowed<Cell, \"static\">>" template=memory.type.IsBorrowed arguments=(Borrowed<Cell, "static">)
 /// @generic.instance id=IsManaged<Managed<Cell>> template=memory.type.IsManaged arguments=(Managed<Cell>)
 /// @generic.instance id=IsOwned<Owned<Cell>> template=memory.type.IsOwned arguments=(Owned<Cell>)
 /// @generic.instance id=IsRaw<Raw<Cell>> template=memory.type.IsRaw arguments=(Raw<Cell>)
@@ -1080,8 +1076,8 @@ struct Cell {
 
 type Reborrow<comptime Source: Lifetime, comptime Target: Lifetime> = WithLifetime<
 /// @generic.template symbol=Reborrow parameters=(comptime Source: Lifetime, comptime Target: Lifetime)
-/// @type.symbol symbol=Reborrow type=WithLifetime<Borrowed<Cell, Source, "mutable">, Target> reduced=Borrowed<Cell, Target, "mutable">
-/// @definition.type symbol=Reborrow template=(comptime Source: Lifetime, comptime Target: Lifetime) value=WithLifetime<Borrowed<Cell, Source, "mutable">, Target> reduced=Borrowed<Cell, Target, "mutable">
+/// @type.symbol symbol=Reborrow type=WithLifetime<Borrowed<Cell, Source>, Target> reduced=Borrowed<Cell, Target, "mutable">
+/// @definition.type symbol=Reborrow template=(comptime Source: Lifetime, comptime Target: Lifetime) value=WithLifetime<Borrowed<Cell, Source>, Target> reduced=Borrowed<Cell, Target, "mutable">
 /// @type.symbol symbol=Reborrow.Source source="comptime Source: Lifetime" type=Source
 /// @resolution.name source=Lifetime target=memory.lifetime.Lifetime
 /// @type.symbol symbol=Reborrow.Target source="comptime Target: Lifetime" type=Target
@@ -1098,8 +1094,8 @@ type Reborrow<comptime Source: Lifetime, comptime Target: Lifetime> = WithLifeti
 
 >;
 
-/// @generic.instance id="Borrowed<Cell, Source, \"mutable\">" template=memory.borrow.Borrowed arguments=(Cell, Source, "mutable")
-/// @generic.instance id="WithLifetime<Borrowed<Cell, Source, \"mutable\">, Target>" template=memory.type.WithLifetime arguments=(Borrowed<Cell, Source, "mutable">, Target)
+/// @generic.instance id="Borrowed<Cell, Source>" template=memory.borrow.Borrowed arguments=(Cell, Source)
+/// @generic.instance id="WithLifetime<Borrowed<Cell, Source>, Target>" template=memory.type.WithLifetime arguments=(Borrowed<Cell, Source>, Target)
 "#,
     );
 }
@@ -1286,8 +1282,8 @@ type ReadonlyOwned = WithAccess<^Cell, "readonly">;
 /// @resolution.name source=Cell target=Cell
 
 type ExclusiveBorrow = WithAccess<Borrowed<Cell, "static">, "exclusive">;
-/// @type.symbol symbol=ExclusiveBorrow source="type ExclusiveBorrow = WithAccess<Borrowed<Cell, \"static\">, \"exclusive\">" type=WithAccess<Borrowed<Cell, "static", "mutable">, "exclusive"> reduced=&'static exclusive Cell
-/// @definition.type symbol=ExclusiveBorrow source="type ExclusiveBorrow = WithAccess<Borrowed<Cell, \"static\">, \"exclusive\">" value=WithAccess<Borrowed<Cell, "static", "mutable">, "exclusive"> reduced=&'static exclusive Cell
+/// @type.symbol symbol=ExclusiveBorrow source="type ExclusiveBorrow = WithAccess<Borrowed<Cell, \"static\">, \"exclusive\">" type=WithAccess<Borrowed<Cell, "static">, "exclusive"> reduced=&'static exclusive Cell
+/// @definition.type symbol=ExclusiveBorrow source="type ExclusiveBorrow = WithAccess<Borrowed<Cell, \"static\">, \"exclusive\">" value=WithAccess<Borrowed<Cell, "static">, "exclusive"> reduced=&'static exclusive Cell
 /// @resolution.name source=WithAccess target=memory.type.WithAccess
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=Cell target=Cell
@@ -1315,8 +1311,8 @@ exclusiveBorrow satisfies Borrowed<Cell, "static", "exclusive">;
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=Cell target=Cell
 
-/// @generic.instance id="Borrowed<Cell, \"static\", \"mutable\">" template=memory.borrow.Borrowed arguments=(Cell, "static", "mutable")
-/// @generic.instance id="WithAccess<Borrowed<Cell, \"static\", \"mutable\">, \"exclusive\">" template=memory.type.WithAccess arguments=(Borrowed<Cell, "static", "mutable">, "exclusive")
+/// @generic.instance id="Borrowed<Cell, \"static\">" template=memory.borrow.Borrowed arguments=(Cell, "static")
+/// @generic.instance id="WithAccess<Borrowed<Cell, \"static\">, \"exclusive\">" template=memory.type.WithAccess arguments=(Borrowed<Cell, "static">, "exclusive")
 /// @generic.instance id="WithAccess<Owned<Cell>, \"readonly\">" template=memory.type.WithAccess arguments=(Owned<Cell>, "readonly")
 "#,
     );
@@ -1448,8 +1444,8 @@ struct Cell {
 }
 
 type ReadonlyBorrow = Borrowed<Readonly<Cell>, "static">;
-/// @type.symbol symbol=ReadonlyBorrow source="type ReadonlyBorrow = Borrowed<Readonly<Cell>, \"static\">" type=Borrowed<Readonly<Cell>, "static", "mutable"> reduced=&'static readonly Cell
-/// @definition.type symbol=ReadonlyBorrow source="type ReadonlyBorrow = Borrowed<Readonly<Cell>, \"static\">" value=Borrowed<Readonly<Cell>, "static", "mutable"> reduced=&'static readonly Cell
+/// @type.symbol symbol=ReadonlyBorrow source="type ReadonlyBorrow = Borrowed<Readonly<Cell>, \"static\">" type=Borrowed<Readonly<Cell>, "static"> reduced=&'static readonly Cell
+/// @definition.type symbol=ReadonlyBorrow source="type ReadonlyBorrow = Borrowed<Readonly<Cell>, \"static\">" value=Borrowed<Readonly<Cell>, "static"> reduced=&'static readonly Cell
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=Readonly target=types.object.Readonly
 /// @resolution.name source=Cell target=Cell
@@ -1466,7 +1462,7 @@ borrow satisfies Borrowed<Cell, "static", "readonly">;
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=Cell target=Cell
 
-/// @generic.instance id="Borrowed<Readonly<Cell>, \"static\", \"mutable\">" template=memory.borrow.Borrowed arguments=(Readonly<Cell>, "static", "mutable")
+/// @generic.instance id="Borrowed<Readonly<Cell>, \"static\">" template=memory.borrow.Borrowed arguments=(Readonly<Cell>, "static")
 /// @generic.instance id=Readonly<Cell> template=types.object.Readonly arguments=(Cell)
 "#,
     );

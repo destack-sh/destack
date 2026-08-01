@@ -31,7 +31,7 @@ state.count = 1;
 /// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=state root=state
 
-/// @check.stats.solve variables=1 types=9 constraints=0 obligations=1 solutions=1 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=9 constraints=0 obligations=1 solutions=0 bounds=0 decisions=3
 "#,
         r#"
 

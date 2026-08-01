@@ -448,7 +448,7 @@ export const result = value;
     .unwrap();
 
     let (cold, cold_trace) = test.check("src/index.ds", "js");
-    assert_eq!(cold_trace.stats.built, 3209);
+    assert_eq!(cold_trace.stats.built, 2661);
     assert_eq!(cold_trace.stats.memory_cached, 0);
     assert_eq!(cold_trace.stats.store_cached, 0);
     assert_eq!(cold_trace.stats.failed, 0);
@@ -481,8 +481,8 @@ export const result = value;
         [
             ("built", "dir.bind"),
             ("built", "dir.check"),
-            ("built", "dir.check.component"),
-            ("built", "dir.check.component"),
+            ("built", "dir.declare"),
+            ("built", "dir.declare"),
             ("built", "dir.expand"),
             ("built", "dir.export"),
             ("built", "dir.import"),
@@ -571,22 +571,22 @@ fn test_check_keeps_unrelated_module_current_after_single_edit() {
     assert_eq!(
         TraceCounts::from_trace(&left_trace),
         TraceCounts {
-            attempts: 12,
-            built: 6,
-            memory_cached: 1,
+            attempts: 0,
+            built: 0,
+            memory_cached: 0,
             store_cached: 0,
-            parked: 5,
+            parked: 0,
             failed: 0,
         },
     );
     assert_eq!(
         TraceCounts::from_trace(&right_trace),
         TraceCounts {
-            attempts: 3,
-            built: 2,
+            attempts: 11,
+            built: 7,
             memory_cached: 0,
             store_cached: 0,
-            parked: 1,
+            parked: 4,
             failed: 0,
         },
     );

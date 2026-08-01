@@ -68,10 +68,39 @@ newtype Shape = { value: int32 };
 newtype Shape = { value: int32 };
 /// @type.symbol symbol=Shape source="newtype Shape = { value: int32 }" type=Shape
 /// @definition.newtype symbol=Shape source="newtype Shape = { value: int32 }" backing={ value: int32 }
+/// @definition.variant symbol=Shape.symbol4 source="newtype Shape = { value: int32 }" index=0
 "#,
         r#"
 /// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
-/// @diagnostic.label line=2 column=9 span="Tagged" line_source="@derive(Tagged)"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { value: int32 };"
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { value: int32 };"
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { value: int32 };"
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { value: int32 };"
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { value: int32 };"
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { value: int32 };"
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { value: int32 };"
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { value: int32 };"
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { value: int32 };"
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { value: int32 };"
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { value: int32 };"
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { value: int32 };"
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { value: int32 };"
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { value: int32 };"
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { value: int32 };"
 "#,
     );
 }
@@ -103,13 +132,43 @@ newtype Event = { type?: "click"; x: int32 } | { type: "key"; key: string };
 newtype Event =
 /// @type.symbol symbol=Event type=Event
 /// @definition.newtype symbol=Event backing={ type?: "click"; x: int32 } | { type: "key"; key: string }
+/// @definition.variant symbol=Event.symbol10 index=0
+/// @definition.variant symbol=Event.symbol11 index=1
 
     | { type?: "click"; x: int32 }
     | { type: "key"; key: string };
 "#,
         r#"
 /// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
-/// @diagnostic.label line=2 column=9 span="Tagged" line_source="@derive(Tagged)"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
 "#,
     );
 }
@@ -181,13 +240,43 @@ newtype Event =
 newtype Event =
 /// @type.symbol symbol=Event type=Event
 /// @definition.newtype symbol=Event backing={ kind: "click"; type: "pointer"; x: int32 } | { kind: "key"; type: "keyboard"; key: string }
+/// @definition.variant symbol=Event.symbol14 index=0
+/// @definition.variant symbol=Event.symbol15 index=1
 
     | { kind: "click"; type: "pointer"; x: int32 }
     | { kind: "key"; type: "keyboard"; key: string };
 "#,
         r#"
 /// @diagnostic.error id=ambiguous-tagged-discriminator message="Tagged backing has multiple possible discriminators: 'kind', 'type'"
-/// @diagnostic.label line=2 column=9 span="Tagged" line_source="@derive(Tagged)"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=ambiguous-tagged-discriminator message="Tagged backing has multiple possible discriminators: 'kind', 'type'"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=ambiguous-tagged-discriminator message="Tagged backing has multiple possible discriminators: 'kind', 'type'"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=ambiguous-tagged-discriminator message="Tagged backing has multiple possible discriminators: 'kind', 'type'"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=ambiguous-tagged-discriminator message="Tagged backing has multiple possible discriminators: 'kind', 'type'"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=ambiguous-tagged-discriminator message="Tagged backing has multiple possible discriminators: 'kind', 'type'"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=ambiguous-tagged-discriminator message="Tagged backing has multiple possible discriminators: 'kind', 'type'"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=ambiguous-tagged-discriminator message="Tagged backing has multiple possible discriminators: 'kind', 'type'"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=ambiguous-tagged-discriminator message="Tagged backing has multiple possible discriminators: 'kind', 'type'"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=ambiguous-tagged-discriminator message="Tagged backing has multiple possible discriminators: 'kind', 'type'"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=ambiguous-tagged-discriminator message="Tagged backing has multiple possible discriminators: 'kind', 'type'"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=ambiguous-tagged-discriminator message="Tagged backing has multiple possible discriminators: 'kind', 'type'"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=ambiguous-tagged-discriminator message="Tagged backing has multiple possible discriminators: 'kind', 'type'"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=ambiguous-tagged-discriminator message="Tagged backing has multiple possible discriminators: 'kind', 'type'"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=ambiguous-tagged-discriminator message="Tagged backing has multiple possible discriminators: 'kind', 'type'"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
 "#,
     );
 }
@@ -261,13 +350,43 @@ newtype Event = { kind: "click"; type: "pointer"; x: int32 } | { kind: "key"; ke
 newtype Event =
 /// @type.symbol symbol=Event type=Event
 /// @definition.newtype symbol=Event backing={ kind: "click"; type: "pointer"; x: int32 } | { kind: "key"; key: string }
+/// @definition.variant symbol=Event.symbol12 index=0
+/// @definition.variant symbol=Event.symbol13 index=1
 
     | { kind: "click"; type: "pointer"; x: int32 }
     | { kind: "key"; key: string };
 "#,
         r#"
 /// @diagnostic.error id=invalid-tagged-discriminator message="Tagged discriminator 'type' must be a required string literal field in every backing arm"
-/// @diagnostic.label line=2 column=9 span="Tagged({ discriminator: \"type\" })" line_source="@derive(Tagged({ discriminator: \"type\" }))"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=invalid-tagged-discriminator message="Tagged discriminator 'type' must be a required string literal field in every backing arm"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=invalid-tagged-discriminator message="Tagged discriminator 'type' must be a required string literal field in every backing arm"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=invalid-tagged-discriminator message="Tagged discriminator 'type' must be a required string literal field in every backing arm"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=invalid-tagged-discriminator message="Tagged discriminator 'type' must be a required string literal field in every backing arm"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=invalid-tagged-discriminator message="Tagged discriminator 'type' must be a required string literal field in every backing arm"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=invalid-tagged-discriminator message="Tagged discriminator 'type' must be a required string literal field in every backing arm"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=invalid-tagged-discriminator message="Tagged discriminator 'type' must be a required string literal field in every backing arm"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=invalid-tagged-discriminator message="Tagged discriminator 'type' must be a required string literal field in every backing arm"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=invalid-tagged-discriminator message="Tagged discriminator 'type' must be a required string literal field in every backing arm"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=invalid-tagged-discriminator message="Tagged discriminator 'type' must be a required string literal field in every backing arm"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=invalid-tagged-discriminator message="Tagged discriminator 'type' must be a required string literal field in every backing arm"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=invalid-tagged-discriminator message="Tagged discriminator 'type' must be a required string literal field in every backing arm"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=invalid-tagged-discriminator message="Tagged discriminator 'type' must be a required string literal field in every backing arm"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
+/// @diagnostic.error id=invalid-tagged-discriminator message="Tagged discriminator 'type' must be a required string literal field in every backing arm"
+/// @diagnostic.label line=3 column=9 span="Event" line_source="newtype Event ="
 "#,
     );
 }
@@ -299,13 +418,43 @@ newtype Shape = { kind: "shape"; width: int32 } | { kind: "shape"; radius: float
 newtype Shape =
 /// @type.symbol symbol=Shape type=Shape
 /// @definition.newtype symbol=Shape backing={ kind: "shape"; width: int32 } | { kind: "shape"; radius: float64 }
+/// @definition.variant symbol=Shape.symbol10 index=0
+/// @definition.variant symbol=Shape.symbol11 index=1
 
     | { kind: "shape"; width: int32 }
     | { kind: "shape"; radius: float64 };
 "#,
         r#"
 /// @diagnostic.error id=duplicate-tagged-discriminant message="duplicate Tagged discriminant 'shape'"
-/// @diagnostic.label line=2 column=9 span="Tagged" line_source="@derive(Tagged)"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape ="
+/// @diagnostic.error id=duplicate-tagged-discriminant message="duplicate Tagged discriminant 'shape'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape ="
+/// @diagnostic.error id=duplicate-tagged-discriminant message="duplicate Tagged discriminant 'shape'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape ="
+/// @diagnostic.error id=duplicate-tagged-discriminant message="duplicate Tagged discriminant 'shape'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape ="
+/// @diagnostic.error id=duplicate-tagged-discriminant message="duplicate Tagged discriminant 'shape'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape ="
+/// @diagnostic.error id=duplicate-tagged-discriminant message="duplicate Tagged discriminant 'shape'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape ="
+/// @diagnostic.error id=duplicate-tagged-discriminant message="duplicate Tagged discriminant 'shape'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape ="
+/// @diagnostic.error id=duplicate-tagged-discriminant message="duplicate Tagged discriminant 'shape'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape ="
+/// @diagnostic.error id=duplicate-tagged-discriminant message="duplicate Tagged discriminant 'shape'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape ="
+/// @diagnostic.error id=duplicate-tagged-discriminant message="duplicate Tagged discriminant 'shape'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape ="
+/// @diagnostic.error id=duplicate-tagged-discriminant message="duplicate Tagged discriminant 'shape'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape ="
+/// @diagnostic.error id=duplicate-tagged-discriminant message="duplicate Tagged discriminant 'shape'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape ="
+/// @diagnostic.error id=duplicate-tagged-discriminant message="duplicate Tagged discriminant 'shape'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape ="
+/// @diagnostic.error id=duplicate-tagged-discriminant message="duplicate Tagged discriminant 'shape'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape ="
+/// @diagnostic.error id=duplicate-tagged-discriminant message="duplicate Tagged discriminant 'shape'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape ="
 "#,
     );
 }
@@ -353,11 +502,40 @@ class Active {
 newtype State = Active;
 /// @type.symbol symbol=State source="newtype State = Active" type=State
 /// @definition.newtype symbol=State source="newtype State = Active" backing=Active
+/// @definition.variant symbol=State.symbol5 source="newtype State = Active" index=0
 /// @resolution.name source=Active target=Active
 "#,
         r#"
 /// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
-/// @diagnostic.label line=6 column=9 span="Tagged" line_source="@derive(Tagged)"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
 "#,
     );
 }
@@ -405,11 +583,40 @@ interface Active {
 newtype State = Active;
 /// @type.symbol symbol=State source="newtype State = Active" type=State
 /// @definition.newtype symbol=State source="newtype State = Active" backing=Active
+/// @definition.variant symbol=State.symbol5 source="newtype State = Active" index=0
 /// @resolution.name source=Active target=Active
 "#,
         r#"
 /// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
-/// @diagnostic.label line=6 column=9 span="Tagged" line_source="@derive(Tagged)"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
+/// @diagnostic.error id=invalid-tagged-variant message="Tagged backing arm must be a constructible shape or struct"
+/// @diagnostic.label line=7 column=9 span="State" line_source="newtype State = Active;"
 "#,
     );
 }
@@ -448,10 +655,40 @@ newtype Shape = { kind: "fooBar" } | { kind: "foo_bar" };
 newtype Shape = { kind: "fooBar" } | { kind: "foo_bar" };
 /// @type.symbol symbol=Shape source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" }" type=Shape
 /// @definition.newtype symbol=Shape source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" }" backing={ kind: "fooBar" } | { kind: "foo_bar" }
+/// @definition.variant symbol=Shape.symbol6 source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" }" index=0
+/// @definition.variant symbol=Shape.symbol7 source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" }" index=1
 "#,
         r#"
 /// @diagnostic.error id=duplicate-tagged-case message="duplicate Tagged case 'foo_bar'"
-/// @diagnostic.label line=2 column=9 span="Tagged({ case: \"snake_case\" })" line_source="@derive(Tagged({ case: \"snake_case\" }))"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" };"
+/// @diagnostic.error id=duplicate-tagged-case message="duplicate Tagged case 'foo_bar'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" };"
+/// @diagnostic.error id=duplicate-tagged-case message="duplicate Tagged case 'foo_bar'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" };"
+/// @diagnostic.error id=duplicate-tagged-case message="duplicate Tagged case 'foo_bar'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" };"
+/// @diagnostic.error id=duplicate-tagged-case message="duplicate Tagged case 'foo_bar'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" };"
+/// @diagnostic.error id=duplicate-tagged-case message="duplicate Tagged case 'foo_bar'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" };"
+/// @diagnostic.error id=duplicate-tagged-case message="duplicate Tagged case 'foo_bar'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" };"
+/// @diagnostic.error id=duplicate-tagged-case message="duplicate Tagged case 'foo_bar'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" };"
+/// @diagnostic.error id=duplicate-tagged-case message="duplicate Tagged case 'foo_bar'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" };"
+/// @diagnostic.error id=duplicate-tagged-case message="duplicate Tagged case 'foo_bar'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" };"
+/// @diagnostic.error id=duplicate-tagged-case message="duplicate Tagged case 'foo_bar'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" };"
+/// @diagnostic.error id=duplicate-tagged-case message="duplicate Tagged case 'foo_bar'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" };"
+/// @diagnostic.error id=duplicate-tagged-case message="duplicate Tagged case 'foo_bar'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" };"
+/// @diagnostic.error id=duplicate-tagged-case message="duplicate Tagged case 'foo_bar'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" };"
+/// @diagnostic.error id=duplicate-tagged-case message="duplicate Tagged case 'foo_bar'"
+/// @diagnostic.label line=3 column=9 span="Shape" line_source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" };"
 "#,
     );
 }

@@ -154,7 +154,7 @@ const value: { a: number; b: string } = { a: 1, b: 2 };
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=1 types=7 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=7 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '2' is not assignable to type 'string'"
@@ -187,7 +187,7 @@ const state: { reactions: int32[] } = { reactions: [] };
 /// @type.node source={ reactions: [] } type={ reactions: Array<int32> }
 /// @type.node source=[] type=Array<int32>
 
-/// @check.stats.solve variables=1 types=5 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=5 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -230,7 +230,7 @@ const counts: Counts = { apples: 1, oranges: 2 };
 /// @type.node source=2 type=2
 /// @coercion.node source=2 from=2 adjustments=[{ kind: widen, target: int32 }] origin=implicit
 
-/// @check.stats.solve variables=1 types=11 constraints=0 obligations=1 solutions=1 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=11 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -287,7 +287,7 @@ const mode = config.mode;
 /// @resolution.access source=config root=config
 /// @resolution.access source=config.mode root=config keys=[mode]
 
-/// @check.stats.solve variables=2 types=13 constraints=0 obligations=2 solutions=2 bounds=0 decisions=6
+/// @check.stats.solve variables=2 types=13 constraints=0 obligations=2 solutions=2 bounds=0 decisions=5
 "#,
     );
 }
@@ -431,7 +431,7 @@ const moved = Point { ...point, x: 3 };
 /// @resolution.access source=point root=point
 /// @type.node source=3 type=3
 
-/// @check.stats.solve variables=2 types=14 constraints=0 obligations=4 solutions=2 bounds=0 decisions=5
+/// @check.stats.solve variables=2 types=16 constraints=0 obligations=4 solutions=2 bounds=0 decisions=5
 "#,
     );
 }
@@ -495,7 +495,7 @@ const object = { ...point, label: "origin" };
 /// @resolution.access source=point root=point
 /// @type.node source="\"origin\"" type="origin"
 
-/// @check.stats.solve variables=2 types=13 constraints=0 obligations=4 solutions=2 bounds=0 decisions=4
+/// @check.stats.solve variables=2 types=15 constraints=0 obligations=4 solutions=2 bounds=0 decisions=4
 "#,
     );
 }
@@ -559,7 +559,7 @@ const point: Point = _ { ...base };
 /// @resolution.place source=base placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=base root=base
 
-/// @check.stats.solve variables=2 types=12 constraints=0 obligations=4 solutions=2 bounds=0 decisions=4
+/// @check.stats.solve variables=0 types=14 constraints=0 obligations=4 solutions=0 bounds=0 decisions=3
 "#,
     );
 }
@@ -644,7 +644,7 @@ const object = { ...user };
 /// @resolution.name source=user target=user
 /// @resolution.access source=user root=user
 
-/// @check.stats.solve variables=2 types=15 constraints=0 obligations=6 solutions=2 bounds=0 decisions=9
+/// @check.stats.solve variables=2 types=18 constraints=0 obligations=6 solutions=2 bounds=0 decisions=9
 "#,
     );
 }

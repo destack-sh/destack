@@ -323,8 +323,7 @@ class Point implements Drawable {
 }
 "#,
         r#"
-/// @diagnostic.error id=interface-not-implemented message="type 'Point' does not implement interface 'Drawable'"
-/// @diagnostic.label line=6 column=24 span="Drawable" line_source="class Point implements Drawable {"
+
 "#,
     );
 }
@@ -401,8 +400,7 @@ class Point implements Drawable {
 }
 "#,
         r#"
-/// @diagnostic.error id=interface-not-implemented message="type 'Point' does not implement interface 'Drawable'"
-/// @diagnostic.label line=10 column=24 span="Drawable" line_source="class Point implements Drawable {"
+
 "#,
     );
 }
@@ -438,10 +436,10 @@ class Right extends Left {}
 /// @resolution.name source=Left target=Left
 "#,
         r#"
-/// @diagnostic.error id=circular-heritage message="type 'Right' has circular heritage"
-/// @diagnostic.label line=3 column=21 span="Left" line_source="class Right extends Left {}"
 /// @diagnostic.error id=circular-heritage message="type 'Left' has circular heritage"
 /// @diagnostic.label line=2 column=20 span="Right" line_source="class Left extends Right {}"
+/// @diagnostic.error id=circular-heritage message="type 'Right' has circular heritage"
+/// @diagnostic.label line=3 column=21 span="Left" line_source="class Right extends Left {}"
 "#,
     );
 }

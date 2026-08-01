@@ -537,11 +537,11 @@ struct OwnedBox {
     value: local ^User;
 }
 struct BorrowedBox {
-    value: local Borrowed<User, "static", "mutable">;
+    value: local Borrowed<User, "static">;
 }
 
 declare const owned: local ^User;
-declare const borrowed: local Borrowed<User, "static", "mutable">;
+declare const borrowed: local Borrowed<User, "static">;
 
 const ownedBox: shared OwnedBox = shared OwnedBox { value: owned };
 const borrowedBox: shared BorrowedBox = shared BorrowedBox { value: borrowed };
@@ -561,8 +561,8 @@ struct OwnedBox { value: local ^User; }
 struct BorrowedBox { value: local Borrowed<User, "static">; }
 /// @type.symbol symbol=BorrowedBox source="struct BorrowedBox { value: local Borrowed<User, \"static\">; }" type=BorrowedBox
 /// @definition.struct symbol=BorrowedBox source="struct BorrowedBox { value: local Borrowed<User, \"static\">; }"
-/// @definition.field symbol=BorrowedBox.value source="value: local Borrowed<User, \"static\">" key=value type=Placed<Borrowed<User, "static", "mutable">, "local">
-/// @type.symbol symbol=BorrowedBox.value source="value: local Borrowed<User, \"static\">" type=Placed<Borrowed<User, "static", "mutable">, "local"> reduced=Placed<&'static User, "local">
+/// @definition.field symbol=BorrowedBox.value source="value: local Borrowed<User, \"static\">" key=value type=Placed<Borrowed<User, "static">, "local">
+/// @type.symbol symbol=BorrowedBox.value source="value: local Borrowed<User, \"static\">" type=Placed<Borrowed<User, "static">, "local"> reduced=Placed<&'static User, "local">
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=User target=User
 
@@ -572,7 +572,7 @@ declare const owned: local ^User;
 /// @resolution.name source=User target=User
 
 declare const borrowed: local Borrowed<User, "static">;
-/// @type.symbol symbol=borrowed source=borrowed type=Placed<Borrowed<User, "static", "mutable">, "local"> reduced=Placed<&'static User, "local">
+/// @type.symbol symbol=borrowed source=borrowed type=Placed<Borrowed<User, "static">, "local"> reduced=Placed<&'static User, "local">
 /// @resolution.pattern source=borrowed kind=binding target=borrowed
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=User target=User
@@ -595,7 +595,7 @@ const borrowedBox: shared BorrowedBox = BorrowedBox { value: borrowed };
 /// @resolution.place source=borrowed placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=borrowed root=borrowed
 
-/// @generic.instance id="Borrowed<User, \"static\", \"mutable\">" template=memory.borrow.Borrowed arguments=(User, "static", "mutable")
+/// @generic.instance id="Borrowed<User, \"static\">" template=memory.borrow.Borrowed arguments=(User, "static")
 "#,
         r#"
 /// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"

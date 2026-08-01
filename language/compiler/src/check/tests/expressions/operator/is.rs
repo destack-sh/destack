@@ -294,6 +294,7 @@ function check<T>(value: Dynamic<unknown>): void {
 function check<T>(value: unknown): void {
 /// @generic.template symbol=check parameters=(T)
 /// @type.symbol symbol=check type=<T>(Dynamic<unknown>) => void
+/// @type.symbol symbol=check type=<T>(unknown) => void
 /// @type.symbol symbol=check.T source=T type=T
 /// @type.symbol symbol=check.value source="value: unknown" type=Dynamic<unknown>
 

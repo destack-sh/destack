@@ -30,7 +30,7 @@ value = 2;
 /// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=1 types=5 constraints=0 obligations=2 solutions=1 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=5 constraints=0 obligations=2 solutions=0 bounds=0 decisions=3
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-immutable-binding message="cannot assign to immutable binding 'value'"
@@ -73,7 +73,7 @@ value += 2;
 /// @resolution.assignment source=value read=binding(value) write=binding(value) type=int32
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=1 types=8 constraints=0 obligations=2 solutions=1 bounds=0 decisions=4
+/// @check.stats.solve variables=0 types=8 constraints=0 obligations=2 solutions=0 bounds=0 decisions=4
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-immutable-binding message="cannot assign to immutable binding 'value'"
@@ -119,7 +119,7 @@ state.count = 1;
 /// @resolution.assignment source=state.count write="receiver={ count: int32 }, target=field(receiver={ count: int32 }, target=count, type=int32), type=int32" type=int32
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=1 types=9 constraints=0 obligations=2 solutions=1 bounds=0 decisions=4
+/// @check.stats.solve variables=0 types=9 constraints=0 obligations=2 solutions=0 bounds=0 decisions=4
 "#,
     );
 }

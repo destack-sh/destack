@@ -32,13 +32,13 @@ struct Pack<out T> {
 }
 
 export extension<T: Compare<T>> of Pack<T> {
-    static from(values: Dynamic<Iterable<T, void>>): ^Pack<T> {
+    static from(values: Dynamic<Iterable<T>>): ^Pack<T> {
         todo("Pack.from" as string | undefined)
     }
 }
 
 export extension<T: Compare<T>> of ^Pack<T> {
-    static from(values: Dynamic<Iterable<T, void>>): ^Pack<T> {
+    static from(values: Dynamic<Iterable<T>>): ^Pack<T> {
         Pack.from<T>(values)
     }
 }
@@ -60,7 +60,7 @@ struct Pack<T> {
 export extension<T: Compare<T>> of Pack<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#2: Compare<T#2>)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#2>
-/// @definition.method symbol=from#1 slot=from static=true type=(Dynamic<Iterable<T#2, void>>) => Owned<Pack<T#2>>
+/// @definition.method symbol=from#1 slot=from static=true type=(Dynamic<Iterable<T#2>>) => Owned<Pack<T#2>>
 /// @type.symbol symbol=T#1 source="T: Compare<T>" type=T#2
 /// @resolution.name source=Compare target=ops.comparison.Compare
 /// @resolution.name source=T target=T#1
@@ -68,8 +68,9 @@ export extension<T: Compare<T>> of Pack<T> {
 /// @resolution.name source=T target=T#1
 
     static from(values: Iterable<T>): ^Pack<T> {
-    /// @type.symbol symbol=from#1 type=(Dynamic<Iterable<T#2, void>>) => Owned<Pack<T#2>> reduced=(Dynamic<Iterable<T#2, void>>) => Pack<T#2>
-    /// @type.symbol symbol=from.values#1 source="values: Iterable<T>" type=Dynamic<Iterable<T#2, void>>
+    /// @type.symbol symbol=from#1 type=(Dynamic<Iterable<T#2>>) => Owned<Pack<T#2>> reduced=(Dynamic<Iterable<T#2, void>>) => Pack<T#2>
+    /// @type.symbol symbol=from#1 type=(Iterable<T#2>) => Owned<Pack<T#2>>
+    /// @type.symbol symbol=from.values#1 source="values: Iterable<T>" type=Dynamic<Iterable<T#2>> reduced=Dynamic<Iterable<T#2, void>>
     /// @resolution.name source=Iterable target=iter.iterator.Iterable
     /// @resolution.name source=T target=T#1
     /// @resolution.name source=Pack target=Pack
@@ -88,7 +89,7 @@ export extension<T: Compare<T>> of Pack<T> {
 export extension<T: Compare<T>> of ^Pack<T> {
 /// @generic.template symbol=<module>#3 parameters=(T#3: Compare<T#3>)
 /// @definition.extension symbol=<module>#3 form=exported target=Owned<Pack<T#3>>
-/// @definition.method symbol=from#2 slot=from static=true type=(Dynamic<Iterable<T#3, void>>) => Owned<Pack<T#3>>
+/// @definition.method symbol=from#2 slot=from static=true type=(Dynamic<Iterable<T#3>>) => Owned<Pack<T#3>>
 /// @type.symbol symbol=T#2 source="T: Compare<T>" type=T#3
 /// @resolution.name source=Compare target=ops.comparison.Compare
 /// @resolution.name source=T target=T#2
@@ -96,8 +97,9 @@ export extension<T: Compare<T>> of ^Pack<T> {
 /// @resolution.name source=T target=T#2
 
     static from(values: Iterable<T>): ^Pack<T> {
-    /// @type.symbol symbol=from#2 type=(Dynamic<Iterable<T#3, void>>) => Owned<Pack<T#3>> reduced=(Dynamic<Iterable<T#3, void>>) => Pack<T#3>
-    /// @type.symbol symbol=from.values#2 source="values: Iterable<T>" type=Dynamic<Iterable<T#3, void>>
+    /// @type.symbol symbol=from#2 type=(Dynamic<Iterable<T#3>>) => Owned<Pack<T#3>> reduced=(Dynamic<Iterable<T#3, void>>) => Pack<T#3>
+    /// @type.symbol symbol=from#2 type=(Iterable<T#3>) => Owned<Pack<T#3>>
+    /// @type.symbol symbol=from.values#2 source="values: Iterable<T>" type=Dynamic<Iterable<T#3>> reduced=Dynamic<Iterable<T#3, void>>
     /// @resolution.name source=Iterable target=iter.iterator.Iterable
     /// @resolution.name source=T target=T#2
     /// @resolution.name source=Pack target=Pack
@@ -105,28 +107,28 @@ export extension<T: Compare<T>> of ^Pack<T> {
 
         Pack.from(values)
         /// @type.node source=Pack type=Pack
-        /// @type.node source=Pack.from type=(Dynamic<Iterable<T#2, void>>) => Owned<Pack<T#2>> & (Dynamic<Iterable<T#3, void>>) => Owned<Pack<T#3>> reduced=(Dynamic<Iterable<T#2, void>>) => Pack<T#2> & (Dynamic<Iterable<T#3, void>>) => Pack<T#3>
+        /// @type.node source=Pack.from type=(Dynamic<Iterable<T#2>>) => Owned<Pack<T#2>> & (Dynamic<Iterable<T#3>>) => Owned<Pack<T#3>> reduced=(Dynamic<Iterable<T#2, void>>) => Pack<T#2> & (Dynamic<Iterable<T#3, void>>) => Pack<T#3>
         /// @type.node source=Pack.from(values) type=Owned<Pack<T#3>> reduced=Pack<T#3>
         /// @resolution.name source=Pack target=Pack
-        /// @resolution.member source=Pack.from receiver=Pack type=(Dynamic<Iterable<T#2, void>>) => Owned<Pack<T#2>> & (Dynamic<Iterable<T#3, void>>) => Owned<Pack<T#3>> kind=existential targets=[from#1, from#2]
-        /// @resolution.call source=Pack.from(values) parameters=(Dynamic<Iterable<T#3, void>>) arguments=(provided(values) as Dynamic<Iterable<T#3, void>>) return=Owned<Pack<T#3>> kind=symbol target=from#1 instance=Pack<T#3>.<extension#1>.from#1
-        /// @generic.instance source=Pack.from id="Iterable<T#2, void>"
-        /// @generic.instance source=Pack.from id="Iterable<T#3, void>"
+        /// @resolution.member source=Pack.from receiver=Pack type=(Dynamic<Iterable<T#2>>) => Owned<Pack<T#2>> & (Dynamic<Iterable<T#3>>) => Owned<Pack<T#3>> kind=existential targets=[from#1, from#2]
+        /// @resolution.call source=Pack.from(values) parameters=(Dynamic<Iterable<T#3>>) arguments=(provided(values) as Dynamic<Iterable<T#3>>) return=Owned<Pack<T#3>> kind=symbol target=from#1 instance=Pack<T#3>.<extension#1>.from#1
+        /// @generic.instance source=Pack.from id=Iterable<T#2>
+        /// @generic.instance source=Pack.from id=Iterable<T#3>
         /// @generic.instance source=Pack.from id=Pack<T#2>
         /// @generic.instance source=Pack.from id=Pack<T#3>
         /// @generic.instance source=Pack.from(values) id=Pack<T#3>
         /// @generic.instance source=Pack.from(values) id=Pack<T#3>.<extension#1>.from#1
-        /// @type.node source=values type=Dynamic<Iterable<T#3, void>>
+        /// @type.node source=values type=Dynamic<Iterable<T#3>> reduced=Dynamic<Iterable<T#3, void>>
         /// @resolution.name source=values target=from.values#2
         /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=values root=from.values#2
-        /// @generic.instance source=values id="Iterable<T#3, void>"
+        /// @generic.instance source=values id=Iterable<T#3>
 
     }
 }
 
-/// @generic.instance id="Iterable<T#2, void>" template=iter.iterator.Iterable arguments=(T#2, void)
-/// @generic.instance id="Iterable<T#3, void>" template=iter.iterator.Iterable arguments=(T#3, void)
+/// @generic.instance id=Iterable<T#2> template=iter.iterator.Iterable arguments=(T#2)
+/// @generic.instance id=Iterable<T#3> template=iter.iterator.Iterable arguments=(T#3)
 /// @generic.instance id=Pack<T#2> template=Pack arguments=(T#2)
 /// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
 /// @generic.instance id=Pack<T#3>.<extension#1>.from#1 template=from#1 arguments=(T#3)
@@ -186,7 +188,7 @@ newtype Port<comptime M: Mode = Mode.Read> = int32;
 /// @type.symbol symbol=Port.M source="comptime M: Mode = Mode.Read" type=M
 /// @resolution.name source=Mode target=Mode
 /// @type.node source=Mode type=Mode
-/// @type.node source=Mode.Read type=Mode.Read reduced=0
+/// @type.node source=Mode.Read type=Mode.Read
 /// @resolution.name source=Mode target=Mode
 
 export type ReadPort = Port<Mode.Write>;

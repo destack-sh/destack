@@ -58,7 +58,7 @@ const greeting: string = `hello`;
 /// @resolution.pattern source=greeting kind=binding target=greeting
 /// @type.node source=`hello` type=string
 
-/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -84,7 +84,7 @@ const value: number = `hello`;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=`hello` type=string
 
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'string' is not assignable to type 'float64'"
@@ -132,7 +132,7 @@ struct Point {
 }
 
 extension of Point implements Display {
-    display(&readonly this): MaybeOwned<'a, string> {
+    display(&readonly this): MaybeOwned<string> {
         return todo("Point.display" as string | undefined);
     }
 }
@@ -159,14 +159,14 @@ struct Point {
 extension of Point implements Display {
 /// @definition.extension symbol=<module>#2 form=local target=Point
 /// @definition.implements symbol=<module>#2 source=Display target=ops.format.Display
-/// @definition.method symbol=display slot=display type=<display.'a>(this: &display.'a readonly this) => memory.cow.cow.MaybeOwned<display.'a, string>
+/// @definition.method symbol=display slot=display type=<display.'a>(this: &display.'a readonly this) => memory.cow.cow.MaybeOwned<string>
 /// @definition.implementation symbol=<module>#2 requirement=ops.format.Display.display target=display
 /// @resolution.name source=Point target=Point
 /// @resolution.name source=Display target=ops.format.Display
 
     display(&readonly this): MaybeOwned<string> {
     /// @generic.template symbol=display parent=template#0 parameters=('a)
-    /// @type.symbol symbol=display type=<display.'a>(this: &display.'a readonly this) => memory.cow.cow.MaybeOwned<display.'a, string>
+    /// @type.symbol symbol=display type=<display.'a>(this: &display.'a readonly this) => memory.cow.cow.MaybeOwned<string>
     /// @type.symbol symbol=display.this source="&readonly this" type=&display.'a readonly this
     /// @resolution.name source=MaybeOwned target=memory.cow.cow.MaybeOwned
 
@@ -194,7 +194,7 @@ function label(point: Point): string {
 
 }
 
-/// @generic.instance id="memory.cow.cow.MaybeOwned<display.'a, string>" template=memory.cow.cow.MaybeOwned arguments=(display.'a, string)
+/// @generic.instance id=memory.cow.cow.MaybeOwned<string> template=memory.cow.cow.MaybeOwned arguments=(string)
 "#,
     );
 }

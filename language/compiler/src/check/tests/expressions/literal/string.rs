@@ -75,7 +75,7 @@ const value: string = "hello";
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"hello\"" type="hello"
 
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -127,7 +127,7 @@ const value: number = "hello";
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"hello\"" type="hello"
 
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"hello\"' is not assignable to type 'float64'"

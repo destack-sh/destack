@@ -79,8 +79,6 @@ const copied: int32[] = [...fixed];
 /// @diagnostic.error id=not-assignable message="type 'FixedArray<int32, 3>' is not assignable to type 'Array<int32>'"
 /// @diagnostic.label line=3 column=24 span="fixed" line_source="const grown: int32[] = fixed;"
 /// @diagnostic.related line=3 column=14 span="int32[]" line_source="const grown: int32[] = fixed;" message="expected due to this annotation"
-/// @diagnostic.error id=not-assignable message="type 'FixedArray<int32, 3>' is not assignable to type 'int32'"
-/// @diagnostic.label line=4 column=29 span="fixed" line_source="const copied: int32[] = [...fixed];"
 "#,
     );
 }

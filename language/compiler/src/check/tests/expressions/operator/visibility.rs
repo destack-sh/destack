@@ -82,7 +82,7 @@ extension of Force implements Multiply<float64> {
 }
 
 declare const inside: Force;
-export const doubled = inside * 2.0;
+export const doubled: Force = inside * 2.0;
 "#,
         )
         .module(
@@ -173,9 +173,10 @@ declare const inside: Force;
 /// @resolution.pattern source=inside kind=binding target=inside
 /// @resolution.name source=Force target=Force
 
-export const doubled = inside * 2.0;
+export const doubled: Force = inside * 2.0;
 /// @type.symbol symbol=doubled source=doubled type=Force
 /// @resolution.pattern source=doubled kind=binding target=doubled
+/// @resolution.name source=Force target=Force
 /// @resolution.name source=inside target=inside
 /// @resolution.operator source="inside * 2.0" type=Force operator="*" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=Force kind=symbol target=multiply receiver=Force adjustments=(borrow(&'static exclusive Force))
 /// @resolution.place source=inside placement="local" lifetime="static" access="exclusive"

@@ -21,7 +21,7 @@ const value: "ready" = "ready";
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"ready\"" type="ready"
 
-/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -47,7 +47,7 @@ const value: true = true;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=true type=true
 
-/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -300,7 +300,7 @@ export const version = 1;
 /// @resolution.pattern source=version kind=binding target=version
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 
 === main.ds ===
 

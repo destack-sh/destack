@@ -70,7 +70,7 @@ function capture<T>(value: T): { reactions: T[] } {
 
 }
 
-/// @check.stats.solve variables=0 types=6 constraints=0 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=6 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -183,7 +183,7 @@ function pending<T>(): State<T> {
 /// @generic.instance id=Pending<T#3> template=Pending arguments=(T#3)
 /// @generic.instance id=State<T#4> template=State arguments=(T#4)
 
-/// @check.stats.solve variables=0 types=27 constraints=0 obligations=4 solutions=0 bounds=0 decisions=8
+/// @check.stats.solve variables=0 types=27 constraints=0 obligations=4 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -451,7 +451,7 @@ function ok<T, E>(value: T): AsyncResult<T, E> {
 /// @generic.instance id=Promise<T#2> template=Promise arguments=(T#2)
 /// @generic.instance id=Promise<T#3> template=Promise arguments=(T#3)
 
-/// @check.stats.solve variables=3 types=71 constraints=1 obligations=11 solutions=3 bounds=3 decisions=45
+/// @check.stats.solve variables=3 types=71 constraints=1 obligations=11 solutions=3 bounds=3 decisions=17
 "#,
     );
 }
@@ -602,7 +602,7 @@ extension<T, E> of Result<T, E> {
 /// @generic.instance id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2)
 /// @generic.instance id="Result<T#3, E#3>" template=Result arguments=(T#3, E#3)
 
-/// @check.stats.solve variables=2 types=42 constraints=1 obligations=8 solutions=2 bounds=3 decisions=19
+/// @check.stats.solve variables=2 types=42 constraints=1 obligations=8 solutions=2 bounds=3 decisions=6
 "#,
     );
 }
@@ -649,11 +649,9 @@ function countdown(n: float64) {
 }
 "#,
         r#"
-/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
+/// @diagnostic.error id=missing-result-type message="function declaration needs a written result type"
 /// @diagnostic.label line=2 column=10 span="countdown" line_source="function countdown(n: float64) {"
-/// @diagnostic.related line=3 column=12 span="n > 0 ? countdown(n - 1) : n" line_source="return n > 0 ? countdown(n - 1) : n;" message="'_ | float64' flows into it here"
-/// @diagnostic.related line=2 column=32 span="{\n    return n > 0 ? countdown(n - 1) : n;\n}" line_source="function countdown(n: float64) {" message="'never' flows into it here"
-/// @diagnostic.help message="annotate the type explicitly"
+/// @diagnostic.help message="state the result type on the declaration"
 "#,
     );
 }
@@ -728,16 +726,12 @@ function pong(n: float64) {
 }
 "#,
         r#"
-/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
+/// @diagnostic.error id=missing-result-type message="function declaration needs a written result type"
 /// @diagnostic.label line=2 column=10 span="ping" line_source="function ping(n: float64) {"
-/// @diagnostic.related line=3 column=12 span="n > 0 ? pong(n - 1) : n" line_source="return n > 0 ? pong(n - 1) : n;" message="'_ | float64' flows into it here"
-/// @diagnostic.related line=2 column=27 span="{\n    return n > 0 ? pong(n - 1) : n;\n}" line_source="function ping(n: float64) {" message="'never' flows into it here"
-/// @diagnostic.help message="annotate the type explicitly"
-/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
+/// @diagnostic.help message="state the result type on the declaration"
+/// @diagnostic.error id=missing-result-type message="function declaration needs a written result type"
 /// @diagnostic.label line=6 column=10 span="pong" line_source="function pong(n: float64) {"
-/// @diagnostic.related line=7 column=12 span="n > 0 ? ping(n - 1) : n" line_source="return n > 0 ? ping(n - 1) : n;" message="'_ | float64' flows into it here"
-/// @diagnostic.related line=6 column=27 span="{\n    return n > 0 ? ping(n - 1) : n;\n}" line_source="function pong(n: float64) {" message="'never' flows into it here"
-/// @diagnostic.help message="annotate the type explicitly"
+/// @diagnostic.help message="state the result type on the declaration"
 "#,
     );
 }

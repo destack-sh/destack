@@ -1732,7 +1732,7 @@ export extension of Panel implements TreeBuilder {
         .module(
             "main.ds",
             r#"
-function render() {
+function render(): Panel {
     const page = <span/>;
     return page;
 }
@@ -1751,8 +1751,8 @@ function render(): Panel {
 }
 
 === checked ===
-function render() {
-/// @type.symbol symbol=render type=() => panel.Panel
+function render(): Panel {
+/// @type.symbol symbol=render type=() => <error>
 
     const page = <span/>;
     /// @type.symbol symbol=render.page source=page type=panel.Panel

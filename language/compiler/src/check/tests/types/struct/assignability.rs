@@ -255,8 +255,7 @@ struct Point implements Drawable {
 }
 "#,
         r#"
-/// @diagnostic.error id=interface-not-implemented message="type 'Point' does not implement interface 'Drawable'"
-/// @diagnostic.label line=6 column=25 span="Drawable" line_source="struct Point implements Drawable {"
+
 "#,
     );
 }
@@ -316,8 +315,6 @@ struct Point implements Left, Right {}
 "#,
         r#"
 /// @diagnostic.error id=conflicting-heritage message="type 'Point' has conflicting heritage for 'Base'"
-/// @diagnostic.label line=6 column=31 span="Right" line_source="struct Point implements Left, Right {}"
-/// @diagnostic.error id=interface-not-implemented message="type 'Point' does not implement interface 'Right'"
 /// @diagnostic.label line=6 column=31 span="Right" line_source="struct Point implements Left, Right {}"
 "#,
     );

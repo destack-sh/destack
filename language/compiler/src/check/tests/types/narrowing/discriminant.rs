@@ -577,6 +577,7 @@ interface Source {
 
 function read(source: Source): "ready" {
 /// @type.symbol symbol=read type=(Dynamic<Source>) => "ready"
+/// @type.symbol symbol=read type=(Source) => "ready"
 /// @type.symbol symbol=read.source source="source: Source" type=Dynamic<Source>
 /// @resolution.name source=Source target=Source
 
@@ -758,6 +759,7 @@ type State = Pending | Fulfilled;
 
 function read(state: State): int32 {
 /// @type.symbol symbol=read type=(Dynamic<Pending> | Dynamic<Fulfilled>) => int32
+/// @type.symbol symbol=read type=(State) => int32
 /// @type.symbol symbol=read.state source="state: State" type=Dynamic<Pending> | Dynamic<Fulfilled>
 /// @resolution.name source=State target=State
 
@@ -889,6 +891,7 @@ type State = Pending | Fulfilled;
 
 function read(state: State): int32 {
 /// @type.symbol symbol=read type=(Dynamic<Pending> | Dynamic<Fulfilled>) => int32
+/// @type.symbol symbol=read type=(State) => int32
 /// @type.symbol symbol=read.state source="state: State" type=Dynamic<Pending> | Dynamic<Fulfilled>
 /// @resolution.name source=State target=State
 
@@ -1030,6 +1033,7 @@ type State = Pending | Fulfilled;
 
 function read(initial: State, next: State): int32 {
 /// @type.symbol symbol=read type=(Dynamic<Pending> | Dynamic<Fulfilled>, Dynamic<Pending> | Dynamic<Fulfilled>) => int32
+/// @type.symbol symbol=read type=(State, State) => int32
 /// @type.symbol symbol=read.initial source="initial: State" type=Dynamic<Pending> | Dynamic<Fulfilled>
 /// @resolution.name source=State target=State
 /// @type.symbol symbol=read.next source="next: State" type=Dynamic<Pending> | Dynamic<Fulfilled>

@@ -287,10 +287,10 @@ interface Right extends Left {}
 /// @resolution.name source=Left target=Left
 "#,
         r#"
-/// @diagnostic.error id=circular-heritage message="type 'Right' has circular heritage"
-/// @diagnostic.label line=3 column=25 span="Left" line_source="interface Right extends Left {}"
 /// @diagnostic.error id=circular-heritage message="type 'Left' has circular heritage"
 /// @diagnostic.label line=2 column=24 span="Right" line_source="interface Left extends Right {}"
+/// @diagnostic.error id=circular-heritage message="type 'Right' has circular heritage"
+/// @diagnostic.label line=3 column=25 span="Left" line_source="interface Right extends Left {}"
 "#,
     );
 }

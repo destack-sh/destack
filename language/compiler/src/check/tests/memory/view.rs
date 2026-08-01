@@ -184,6 +184,7 @@ local class Meter {
 
     constructor(sink: Sink) {
     /// @type.symbol symbol=Meter.constructor type=(Dynamic<Sink>) => this
+    /// @type.symbol symbol=Meter.constructor type=(Sink) => this
     /// @type.symbol symbol=Meter.constructor.sink source="sink: Sink" type=Dynamic<Sink>
     /// @resolution.name source=Sink target=Sink
 

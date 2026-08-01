@@ -1465,13 +1465,13 @@ export extension<K, V, 'a, 'b> of Bag<K, V>
     implements
         Iterable<(K, V)>,
         Iterable<Entry<&readonly K, &V>> {
-    iterator(): Iterator<(K, V), void> {
+    iterator(): Iterator<(K, V)> {
         todo("Bag.iterator" as string | undefined)
     }
 
     iterator<comptime A: Access = "readonly">(
         this: WithAccess<&Bag<K, V>, A>,
-    ): Iterator<Entry<&'a readonly K, WithAccess<&'a V, A>>, void> {
+    ): Iterator<Entry<&'a readonly K, WithAccess<&'a V, A>>> {
         todo("Bag.iterator" as string | undefined)
     }
 }
@@ -1522,11 +1522,10 @@ export class Bag<K, V> {
 export extension<K, V> of Bag<K, V>
 /// @generic.template symbol=<module>#2 parameters=(K#3, V#3, 'a, 'b)
 /// @definition.extension symbol=<module>#2 form=exported target=Bag<K#3, V#3>
-/// @definition.implements symbol=<module>#2 source="Iterable<(K, V)>" target="iter.iterator.Iterable<(K#3, V#3), void>"
-/// @definition.implements symbol=<module>#2 source="Iterable<Entry<&readonly K, &V>>" target="iter.iterator.Iterable<Entry<&<module>#2.'a readonly K#3, &<module>#2.'b V#3>, void>"
-/// @definition.method symbol=iterator#1 slot=iterator type=(this: this) => iter.iterator.Iterator<(K#3, V#3), void>
-/// @definition.method symbol=iterator#2 slot=iterator type=<comptime A: memory.access.Access = "readonly", iterator#2.'a>(this: memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>, void>
-/// @definition.implementation symbol=<module>#2 requirement=iter.iterator.Iterable.iterator target=iterator#1
+/// @definition.implements symbol=<module>#2 source="Iterable<(K, V)>" target="iter.iterator.Iterable<(K#3, V#3)>"
+/// @definition.implements symbol=<module>#2 source="Iterable<Entry<&readonly K, &V>>" target="iter.iterator.Iterable<Entry<&<module>#2.'a readonly K#3, &<module>#2.'b V#3>>"
+/// @definition.method symbol=iterator#1 slot=iterator type=(this: this) => iter.iterator.Iterator<(K#3, V#3)>
+/// @definition.method symbol=iterator#2 slot=iterator type=<comptime A: memory.access.Access = "readonly", iterator#2.'a>(this: memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>>
 /// @definition.implementation symbol=<module>#2 requirement=iter.iterator.Iterable.iterator target=iterator#2
 /// @type.symbol symbol=K source=K type=K#3
 /// @type.symbol symbol=V source=V type=V#3
@@ -1547,7 +1546,7 @@ export extension<K, V> of Bag<K, V>
         /// @resolution.name source=V target=V
 
     iterator(): Iterator<(K, V)> {
-    /// @type.symbol symbol=iterator#1 type=(this: this) => iter.iterator.Iterator<(K#3, V#3), void>
+    /// @type.symbol symbol=iterator#1 type=(this: this) => iter.iterator.Iterator<(K#3, V#3)> reduced=(this: this) => iter.iterator.Iterator<(K#3, V#3), void>
     /// @resolution.name source=Iterator target=iter.iterator.Iterator
     /// @resolution.name source=K target=K
     /// @resolution.name source=V target=V
@@ -1560,7 +1559,7 @@ export extension<K, V> of Bag<K, V>
 
     iterator<comptime A: Access = "readonly">(
     /// @generic.template symbol=iterator#2 parent=template#2 parameters=(comptime A: memory.access.Access = "readonly", 'a)
-    /// @type.symbol symbol=iterator#2 type=<comptime A: memory.access.Access = "readonly", iterator#2.'a>(this: memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>, void> reduced=<comptime A: memory.access.Access = "readonly", iterator#2.'a>(this: Borrowed<Bag<K#3, V#3>, iterator#2.'a, A>) => iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, Borrowed<V#3, iterator#2.'a, A>>, void>
+    /// @type.symbol symbol=iterator#2 type=<comptime A: memory.access.Access = "readonly", iterator#2.'a>(this: memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>> reduced=<comptime A: memory.access.Access = "readonly", iterator#2.'a>(this: Borrowed<Bag<K#3, V#3>, iterator#2.'a, A>) => iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, Borrowed<V#3, iterator#2.'a, A>>, void>
     /// @type.symbol symbol=iterator.A source="comptime A: Access = \"readonly\"" type=A
     /// @resolution.name source=Access target=memory.access.Access
 
@@ -1589,8 +1588,8 @@ export extension<K, V> of Bag<K, V>
 
 /// @generic.instance id="Bag<K#3, V#3>" template=Bag arguments=(K#3, V#3)
 /// @generic.instance id="Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>" template=Entry arguments=(&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>)
-/// @generic.instance id="iter.iterator.Iterator<(K#3, V#3), void>" template=iter.iterator.Iterator arguments=((K#3, V#3), void)
-/// @generic.instance id="iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>, void>" template=iter.iterator.Iterator arguments=(Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>, void)
+/// @generic.instance id="iter.iterator.Iterator<(K#3, V#3)>" template=iter.iterator.Iterator arguments=((K#3, V#3))
+/// @generic.instance id="iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>>" template=iter.iterator.Iterator arguments=(Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>)
 /// @generic.instance id="memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>" template=memory.type.WithAccess arguments=(&iterator#2.'a Bag<K#3, V#3>, A)
 /// @generic.instance id="memory.type.WithAccess<&iterator#2.'a V#3, A>" template=memory.type.WithAccess arguments=(&iterator#2.'a V#3, A)
 "#,

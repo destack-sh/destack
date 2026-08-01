@@ -125,7 +125,7 @@ use(source);
         r#"
 === annotated ===
 function source(value?: Dynamic<unknown>): void {}
-declare function use(callback: (arg0: unknown) => void): void;
+declare function use(callback: (arg0: Dynamic<unknown>) => void): void;
 
 use(source);
 
@@ -136,7 +136,7 @@ function source(value?: unknown): void {}
 
 declare function use(callback: (value: unknown) => void): void;
 /// @type.symbol symbol=use source="declare function use(callback: (value: unknown) => void): void" type=(Function<(unknown,), void>) => void
-/// @type.symbol symbol=use.callback source="callback: (value: unknown) => void" type=Function<(unknown,), void>
+/// @type.symbol symbol=use.callback source="callback: (value: unknown) => void" type=Function<(Dynamic<unknown>,), void>
 
 use(source);
 /// @type.node source=use type=(Function<(unknown,), void>) => void
@@ -169,7 +169,7 @@ const value = map(() => 1);
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-declare function map<T>(callback: (arg0: unknown) => T): T;
+declare function map<T>(callback: (arg0: Dynamic<unknown>) => T): T;
 
 const value: float64 = map<float64>((): float64 => 1);
 
@@ -178,7 +178,7 @@ declare function map<T>(callback: (value: unknown) => T): T;
 /// @generic.template symbol=map parameters=(T)
 /// @type.symbol symbol=map source="declare function map<T>(callback: (value: unknown) => T): T" type=<T>(Function<(unknown,), T>) => T
 /// @type.symbol symbol=map.T source=T type=T
-/// @type.symbol symbol=map.callback source="callback: (value: unknown) => T" type=Function<(unknown,), T>
+/// @type.symbol symbol=map.callback source="callback: (value: unknown) => T" type=Function<(Dynamic<unknown>,), T>
 /// @resolution.name source=T target=map.T
 /// @resolution.name source=T target=map.T
 

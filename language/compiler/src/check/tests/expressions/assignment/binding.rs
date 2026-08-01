@@ -21,7 +21,7 @@ const value: int32 = "text";
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"text\"" type="text"
 
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"text\"' is not assignable to type 'int32'"
@@ -61,7 +61,7 @@ value = 2;
 /// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=1 types=5 constraints=0 obligations=2 solutions=1 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=5 constraints=0 obligations=2 solutions=0 bounds=0 decisions=3
 "#,
     );
 }
@@ -96,7 +96,7 @@ value = "text";
 /// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source="\"text\"" type="text"
 
-/// @check.stats.solve variables=1 types=5 constraints=0 obligations=2 solutions=1 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=5 constraints=0 obligations=2 solutions=0 bounds=0 decisions=3
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"text\"' is not assignable to type 'int32'"
@@ -138,7 +138,7 @@ value += 2;
 /// @resolution.assignment source=value read=binding(value) write=binding(value) type=int32
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=1 types=8 constraints=0 obligations=2 solutions=1 bounds=0 decisions=4
+/// @check.stats.solve variables=0 types=8 constraints=0 obligations=2 solutions=0 bounds=0 decisions=4
 "#,
     );
 }
@@ -247,7 +247,7 @@ value = 1;
 /// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=2 solutions=1 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=3
 "#,
     );
 }
@@ -283,7 +283,7 @@ values = [1, 2];
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=1 types=6 constraints=0 obligations=2 solutions=1 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=6 constraints=0 obligations=1 solutions=0 bounds=0 decisions=3
 "#,
     );
 }
@@ -317,7 +317,7 @@ values = [];
 /// @resolution.assignment source=values write=binding(values) type=Array<int32>
 /// @type.node source=[] type=Array<int32>
 
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=2 solutions=1 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=3
 "#,
     );
 }
@@ -353,7 +353,7 @@ values = [1, 2];
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=1 types=6 constraints=0 obligations=2 solutions=1 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=6 constraints=0 obligations=1 solutions=0 bounds=0 decisions=3
 "#,
     );
 }
@@ -390,7 +390,7 @@ values = [1, 2, 3];
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
 
-/// @check.stats.solve variables=1 types=8 constraints=0 obligations=2 solutions=1 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=8 constraints=0 obligations=1 solutions=0 bounds=0 decisions=3
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'FixedArray<int32, 3>' is not assignable to type 'FixedArray<int32, 2>'"
@@ -439,7 +439,7 @@ const copy = value;
 /// @resolution.name source=value target=value
 /// @resolution.access source=value root=value
 
-/// @check.stats.solve variables=2 types=5 constraints=0 obligations=3 solutions=2 bounds=0 decisions=5
+/// @check.stats.solve variables=1 types=4 constraints=0 obligations=2 solutions=1 bounds=0 decisions=5
 "#,
     );
 }
@@ -473,7 +473,7 @@ const copy = value;
 /// @resolution.name source=value target=value
 /// @resolution.access source=value root=value
 
-/// @check.stats.solve variables=2 types=4 constraints=0 obligations=2 solutions=2 bounds=0 decisions=3
+/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=3
 "#,
         r#"
 /// @diagnostic.error id=use-before-assigned message="'value' is used before being assigned"
@@ -540,7 +540,7 @@ const copy = value;
 /// @resolution.name source=value target=value
 /// @resolution.access source=value root=value
 
-/// @check.stats.solve variables=3 types=12 constraints=0 obligations=4 solutions=3 bounds=0 decisions=7
+/// @check.stats.solve variables=1 types=9 constraints=0 obligations=2 solutions=1 bounds=0 decisions=7
 "#,
         r#"
 /// @diagnostic.error id=use-before-assigned message="'value' is used before being assigned"
@@ -608,7 +608,7 @@ const copy = value;
 /// @resolution.name source=value target=value
 /// @resolution.access source=value root=value
 
-/// @check.stats.solve variables=3 types=15 constraints=0 obligations=4 solutions=3 bounds=0 decisions=7
+/// @check.stats.solve variables=1 types=12 constraints=0 obligations=3 solutions=1 bounds=0 decisions=7
 "#,
     );
 }

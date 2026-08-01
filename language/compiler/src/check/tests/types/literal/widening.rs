@@ -85,7 +85,7 @@ const first = values[0];
 
 /// @generic.instance id="Array<1 | 2>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=(1 | 2, "exclusive")
 
-/// @check.stats.solve variables=13 types=98 constraints=4 obligations=2 solutions=13 bounds=9 decisions=4
+/// @check.stats.solve variables=12 types=97 constraints=4 obligations=2 solutions=12 bounds=9 decisions=4
 "#,
     );
 }
@@ -115,7 +115,7 @@ const value: number | boolean = 1;
 /// @type.node source=1 type=1
 /// @coercion.node source=1 from=1 adjustments=[{ kind: union, target: float64 | boolean, cases: ({ source: 1, target: float64, adjustments: [{ kind: widen, target: float64 }] }) }] origin=implicit
 
-/// @check.stats.solve variables=1 types=6 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=6 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -166,7 +166,7 @@ function widen(value: 1 | Flag): int32 | Flag {
 
 }
 
-/// @check.stats.solve variables=0 types=13 constraints=0 obligations=0 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=15 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
     );
 }

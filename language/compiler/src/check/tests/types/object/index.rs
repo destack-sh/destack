@@ -424,7 +424,7 @@ struct Store {
 extension of Store implements Index<string>, IndexSet<string, int32> {
 /// @definition.extension symbol=<module>#2 form=local target=Store
 /// @definition.implements symbol=<module>#2 source="IndexSet<string, int32>" target="IndexSet<string, int32>"
-/// @definition.implements symbol=<module>#2 source=Index<string> target="Index<string, \"readonly\"><type Missing = never><type Output = int32 | undefined>"
+/// @definition.implements symbol=<module>#2 source=Index<string> target="Index<string><type Missing = never><type Output = int32 | undefined>"
 /// @definition.associated.type symbol=Output source="type Output = int32 | undefined" key=Output value="int32 | undefined"
 /// @definition.method symbol=index slot=index type=<index.'a>(this: &index.'a exclusive this, string) => this.Output
 /// @definition.method symbol=indexSet slot=indexSet type=<indexSet.'a>(this: &indexSet.'a exclusive this, string, int32) => void
@@ -851,7 +851,7 @@ struct Counter {}
 extension of Counter implements Index<string>, IndexSet<string, int32 | float64> {
 /// @definition.extension symbol=<module>#2 form=local target=Counter
 /// @definition.implements symbol=<module>#2 source="IndexSet<string, int32 | float64>" target="IndexSet<string, int32 | float64>"
-/// @definition.implements symbol=<module>#2 source=Index<string> target="Index<string, \"readonly\"><type Missing = never><type Output = int32>"
+/// @definition.implements symbol=<module>#2 source=Index<string> target="Index<string><type Missing = never><type Output = int32>"
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
 /// @definition.method symbol=index slot=index type=<comptime L>(this: Borrowed<this, L, "readonly">, string) => Borrowed<this.Output, L, "readonly">
 /// @definition.method symbol=indexSet source="indexSet(&exclusive this, key: string, value: int32 | float64): void {}" slot=indexSet type=<indexSet.'a>(this: &indexSet.'a exclusive this, string, int32 | float64) => void

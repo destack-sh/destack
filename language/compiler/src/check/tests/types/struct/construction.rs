@@ -119,7 +119,7 @@ function wrap<T>(value: T): Box<T> {
 
 /// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
 
-/// @check.stats.solve variables=0 types=11 constraints=0 obligations=2 solutions=0 bounds=0 decisions=6
+/// @check.stats.solve variables=0 types=11 constraints=0 obligations=2 solutions=0 bounds=0 decisions=2
 "#,
     );
 }

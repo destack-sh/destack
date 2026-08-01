@@ -109,9 +109,12 @@ export const first = second;
 /// @resolution.access source=second root=second.second
 "#,
         r#"
-/// @diagnostic.error id=export-type-not-module-derivable message="export's type is not derivable within its module"
-/// @diagnostic.label line=4 column=22 span="second" line_source="export const first = second;"
-/// @diagnostic.help message="annotate the exported declaration"
+/// @diagnostic.error id=missing-export-binding-type message="exported binding needs a written type"
+/// @diagnostic.label line=4 column=14 span="second" line_source="export const second = first;"
+/// @diagnostic.help message="state the type or initialize with a literal"
+/// @diagnostic.error id=missing-export-binding-type message="exported binding needs a written type"
+/// @diagnostic.label line=4 column=14 span="first" line_source="export const first = second;"
+/// @diagnostic.help message="state the type or initialize with a literal"
 "#,
     );
 }

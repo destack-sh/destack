@@ -515,7 +515,7 @@ const text = identity("x");
 /// @generic.instance id="identity<\"x\">" template=identity arguments=("x")
 /// @generic.instance id=identity<1> template=identity arguments=(1)
 
-/// @check.stats.solve variables=4 types=15 constraints=0 obligations=2 solutions=4 bounds=2 decisions=9
+/// @check.stats.solve variables=4 types=15 constraints=0 obligations=2 solutions=4 bounds=2 decisions=7
 "#);
 }
 

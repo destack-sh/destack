@@ -73,7 +73,7 @@ const value: char = 'a';
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -99,7 +99,7 @@ const value: string = 'a';
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type ''a'' is not assignable to type 'string'"
@@ -130,7 +130,7 @@ const value: int32 = 'a';
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type ''a'' is not assignable to type 'int32'"
@@ -161,7 +161,7 @@ const value: char | string = 'a';
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=1 types=6 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=6 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }

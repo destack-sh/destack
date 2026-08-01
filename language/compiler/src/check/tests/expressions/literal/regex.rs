@@ -22,7 +22,7 @@ const value: RegExp = /abc/;
 /// @resolution.name source=RegExp target=regexp.regexp.RegExp
 /// @type.node source=/abc/ type=RegExp
 
-/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -48,7 +48,7 @@ const value: string = /abc/;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=/abc/ type=RegExp
 
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'RegExp' is not assignable to type 'string'"
@@ -80,7 +80,7 @@ const value: RegExp | int32 = /abc/;
 /// @resolution.name source=RegExp target=regexp.regexp.RegExp
 /// @type.node source=/abc/ type=RegExp
 
-/// @check.stats.solve variables=1 types=5 constraints=0 obligations=1 solutions=1 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=5 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -106,7 +106,7 @@ const value: boolean = /abc/;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=/abc/ type=RegExp
 
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'RegExp' is not assignable to type 'boolean'"

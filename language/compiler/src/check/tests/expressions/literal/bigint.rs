@@ -73,7 +73,7 @@ const value: bigint = 42n;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42n type=42n
 
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -99,7 +99,7 @@ const value: number = 42n;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42n type=42n
 
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '42n' is not assignable to type 'float64'"
@@ -130,7 +130,7 @@ const value: bigint | string = 42n;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42n type=42n
 
-/// @check.stats.solve variables=1 types=6 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=6 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
