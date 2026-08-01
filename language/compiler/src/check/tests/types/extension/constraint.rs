@@ -110,13 +110,13 @@ extension<T> of Box<T> where T: Readable {
     /// @type.symbol symbol=read type=<read.'a>(this: &read.'a exclusive this) => string
 
         return this.value.read();
-        /// @resolution.member source=this.value receiver=&'frame exclusive Box<T#2> type=T#2 kind=field target_receiver=&'frame exclusive Box<T#2> key=value target=Box.value target_type=T#2
+        /// @resolution.member source=this.value receiver=&read.'a exclusive Box<T#2> type=T#2 kind=field target_receiver=&read.'a exclusive Box<T#2> key=value target=Box.value target_type=T#2
         /// @resolution.member source=this.value.read receiver=T#2 type=(this: T#2) => string kind=symbol target_receiver=T#2 target=Readable.read
         /// @resolution.call source=this.value.read() parameters=() return=string kind=symbol target=Readable.read receiver=T#2
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&'frame exclusive Box<T#2>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&read.'a exclusive Box<T#2>
+        /// @resolution.place source=this placement="local" lifetime=read.'a access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.value placement="local" lifetime=read.'a access="exclusive"
         /// @resolution.access source=this.value root=this keys=[value]
 
     }
@@ -541,8 +541,6 @@ export extension<T> of Pack<T> where T: Copy {
 /// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
 /// @generic.instance id=Pack<T#3>.<extension#1>.duplicate template=duplicate arguments=(T#3)
 "#,
-        r#"
-
-"#,
+        r#""#,
     );
 }

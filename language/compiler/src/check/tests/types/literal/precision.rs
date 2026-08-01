@@ -358,7 +358,7 @@ export let counter = 1;
 /// @resolution.pattern source=counter kind=binding target=counter
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 
 === main.ds ===
 

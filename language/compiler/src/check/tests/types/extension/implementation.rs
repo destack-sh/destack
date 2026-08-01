@@ -755,7 +755,6 @@ extension<T, E> of Result<T, E> implements Source<E>, Carrier {
 /// @definition.method symbol=from slot=from static=true type=(E#2) => Result<T#3, E#2>
 /// @definition.implementation symbol=<module>#2 requirement=Carrier.Error target=Error
 /// @definition.implementation symbol=<module>#2 requirement=Source.from target=from
-/// @definition.implementation symbol=<module>#2 requirement=Source.from target=from
 /// @type.symbol symbol=T source=T type=T#3
 /// @type.symbol symbol=E source=E type=E#2
 /// @resolution.name source=Result target=Result

@@ -173,13 +173,14 @@ import { Axis, Grid, Marker, Wrap } from "./sharding.ds";
 
 declare function mesh<T, ...Xs: Axis[]>(
 /// @generic.template symbol=mesh#1 parameters=(T#1, ...Xs#1: Array<sharding.Axis>, 'a)
+/// @type.symbol symbol=mesh#1 type=<T#1, ...Xs#1: Array<sharding.Axis>, mesh#1.'a>(&mesh#1.'a readonly <error>) => int32
 /// @type.symbol symbol=mesh#1 type=<T#1, ...Xs#1: Array<sharding.Axis>, mesh#1.'a>(&mesh#1.'a readonly sharding.Grid<T#1, sharding.Wrap<Xs#1>>) => int32
 /// @type.symbol symbol=mesh.T source=T type=T#1
 /// @type.symbol symbol=mesh.Xs source="...Xs: Axis[]" type=Xs#1
 /// @resolution.name source=Axis target=sharding.Axis
 
     grid: &readonly Grid<T, Wrap<...Xs>>,
-    /// @type.symbol symbol=mesh.grid source="grid: &readonly Grid<T, Wrap<...Xs>>" type=&mesh#1.'a readonly sharding.Grid<T#1, sharding.Wrap<Xs#1>>
+    /// @type.symbol symbol=mesh.grid source="grid: &readonly Grid<T, Wrap<...Xs>>" type=&mesh#1.'a readonly <error>
     /// @resolution.name source=Grid target=sharding.Grid
     /// @resolution.name source=T target=mesh.T
     /// @resolution.name source=Wrap target=sharding.Wrap
@@ -223,6 +224,12 @@ extension<T, comptime ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Xs' does not satisfy 'Array<sharding.Axis>'"
 /// @diagnostic.label line=11 column=16 span="mesh<T, ...Xs>(this)" line_source="return mesh<T, ...Xs>(this);"
 /// @diagnostic.related line=4 column=29 span="Xs" line_source="declare function mesh<T, ...Xs: Axis[]>(" message="required by this bound on 'Xs'"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'Xs' does not satisfy 'sharding.Marker'"
+/// @diagnostic.label line=5 column=34 span="...Xs" line_source="grid: &readonly Grid<T, Wrap<...Xs>>,"
+/// @diagnostic.related file="sharding.ds" line=6 column=33 span="Xs" line_source="export newtype Wrap<comptime ...Xs: Marker> = intrinsic;" message="required by this bound on 'Xs'"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'sharding.Wrap<Xs>' does not satisfy 'sharding.Placed'"
+/// @diagnostic.label line=5 column=29 span="Wrap<...Xs>" line_source="grid: &readonly Grid<T, Wrap<...Xs>>,"
+/// @diagnostic.related file="sharding.ds" line=10 column=24 span="P" line_source="export newtype Grid<T, P: Placed> = intrinsic;" message="required by this bound on 'P'"
 "#,
     );
 }

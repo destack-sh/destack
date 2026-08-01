@@ -743,7 +743,6 @@ function make(options?: Options): Entry {
     /// @resolution.access source=options root=make.options
     /// @resolution.place source=options?.message placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=options?.message root=make.options keys=[message]
-    /// @resolution.access source=options?.message root=make.options keys=[message]
 
     return entry;
     /// @resolution.name source=entry target=make.entry

@@ -252,14 +252,15 @@ type Bad = Record<{ name: string }, boolean>;
 
 === checked ===
 type Bad = Record<{ name: string }, boolean>;
-/// @type.symbol symbol=Bad source="type Bad = Record<{ name: string }, boolean>" type=Record<{ name: string }, boolean> reduced={ [P in { name: string }]: boolean }
-/// @definition.type symbol=Bad source="type Bad = Record<{ name: string }, boolean>" value=Record<{ name: string }, boolean> reduced={ [P in { name: string }]: boolean }
+/// @type.symbol symbol=Bad source="type Bad = Record<{ name: string }, boolean>" type=<error>
+/// @definition.type symbol=Bad source="type Bad = Record<{ name: string }, boolean>" value=<error>
 /// @resolution.name source=Record target=types.object.Record
-
-/// @generic.instance id="Record<{ name: string }, boolean>" template=types.object.Record arguments=({ name: string }, boolean)
 "#,
         r#"
-
+/// @diagnostic.error id=constraint-not-satisfied message="type '{ name: string }' does not satisfy 'PropertyKey'"
+/// @diagnostic.label line=2 column=19 span="{ name: string }" line_source="type Bad = Record<{ name: string }, boolean>;"
+/// @diagnostic.related file="object.ds" message="required by this bound on 'K'"
+/// @diagnostic.note message="'PropertyKey' reduces to 'string | usize | symbol'"
 "#,
     );
 }

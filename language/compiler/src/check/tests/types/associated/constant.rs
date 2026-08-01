@@ -36,6 +36,7 @@ class Segment<in out Row> {
 
     comptime const Width: uint = Row extends string ? 8 : 4;
     /// @type.symbol symbol=Segment.Width source="comptime const Width: uint = Row extends string ? 8 : 4" type=uint64
+    /// @static.symbol symbol=Segment.Width source="comptime const Width: uint = Row extends string ? 8 : 4" value="Row extends string ? 8 : 4"
     /// @resolution.name source=Row target=Segment.Row
 
     type Lane = [uint8; this.Width];
