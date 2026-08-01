@@ -1,17 +1,18 @@
 use destack_artifact::{
     DiagnosticAnchor, DiagnosticBuilder, DiagnosticControlIndex, DiagnosticControlLevel,
-    DiagnosticControlTable, ToDiagnostic,
+    DiagnosticControlTable, DiagnosticRecord,
 };
 use destack_core::{FxIndexSet, StringId, StringPool};
-use destack_source::DiagnosticCollection;
 
 use crate::check::{CheckError, CheckState, CheckWarning};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Collect final diagnostics for one checked component.
-    pub(in crate::check) fn collect_diagnostics(&mut self) -> CompilerResult<DiagnosticCollection> {
-        let modules = vec![self.module_id];
+    pub(in crate::check) fn collect_diagnostics(
+        &mut self,
+    ) -> CompilerResult<Vec<DiagnosticRecord>> {
+        let modules = [self.module_id];
         let mut errors = Vec::<DiagnosticBuilder<CheckError>>::new();
         let mut warnings = Vec::<DiagnosticBuilder<CheckWarning>>::new();
 
@@ -59,7 +60,7 @@ impl CheckState<'_> {
         // resolve warning controls before checking expectations
         let mut controlled_warnings = Vec::with_capacity(warnings.len());
         for warning in warnings {
-            let mut diagnostic = warning.to_diagnostic(self.context)?;
+            let mut diagnostic = warning.to_record(self.context)?;
             let anchor = warning.diagnostic().anchor();
             let diagnostic_id = StringId::for_text(warning.diagnostic().id());
             let mut is_enabled = true;
@@ -73,7 +74,7 @@ impl CheckState<'_> {
                 }
                 let severity = control.level.severity();
                 if let Some(severity) = severity {
-                    diagnostic.severity = severity;
+                    diagnostic.diagnostic.severity = severity;
                 }
                 is_enabled = severity.is_some();
             }
@@ -87,16 +88,14 @@ impl CheckState<'_> {
             append_unmet_expectations(table, matched, &mut errors, self.strings());
         }
 
-        // render diagnostics in production order
-        let mut collection = DiagnosticCollection::new();
+        // record diagnostics in production order
+        let mut records = Vec::with_capacity(errors.len() + controlled_warnings.len());
         for diagnostic in errors {
-            collection.insert(diagnostic.to_diagnostic(self.context)?);
+            records.push(diagnostic.to_record(self.context)?);
         }
-        for warning in controlled_warnings {
-            collection.insert(warning);
-        }
+        records.extend(controlled_warnings);
 
-        Ok(collection)
+        Ok(records)
     }
 }
 

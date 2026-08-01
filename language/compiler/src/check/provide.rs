@@ -11,7 +11,6 @@ use destack_source::{Content, ModuleId};
 use crate::check::{AnnotatedSource, CheckState};
 use crate::{Compiler, CompilerError, CompilerResult};
 
-
 /// Return the modules one module references, or None while their resolve
 /// stages are still building.
 fn referenced_modules(
@@ -24,7 +23,7 @@ fn referenced_modules(
         Err(ProviderError::Blocked { .. }) => return Ok(None),
         Err(error) => return Err(error.into()),
     };
-    let global = match artifacts.global_environment(profile) {
+    let global = match artifacts.global_environment_content(profile) {
         Ok(global) => global,
         Err(ProviderError::Blocked { .. }) => return Ok(None),
         Err(error) => return Err(error.into()),
@@ -47,7 +46,10 @@ impl Compiler {
     ) -> CompilerResult<ArtifactDependencySet> {
         let mut dependencies = ArtifactDependencySet::default();
         self.require_own_stages(module, profile, &mut dependencies);
-        dependencies.require(ArtifactKey::global_environment(profile));
+        dependencies.require_projection(
+            ArtifactKey::global_environment(profile),
+            ArtifactProjectionKey::Content,
+        );
 
         // observe package config for check options
         let repository_module = self.module(context.revision(), module)?;
@@ -61,9 +63,18 @@ impl Compiler {
             return Ok(dependencies);
         };
         for reference in references {
-            dependencies.require(ArtifactKey::dir_bound(reference, profile));
-            dependencies.require(ArtifactKey::dir_expanded(reference, profile));
-            dependencies.require(ArtifactKey::dir_resolved(reference, profile));
+            dependencies.require_projection(
+                ArtifactKey::dir_bound(reference, profile),
+                ArtifactProjectionKey::Content,
+            );
+            dependencies.require_projection(
+                ArtifactKey::dir_expanded(reference, profile),
+                ArtifactProjectionKey::Content,
+            );
+            dependencies.require_projection(
+                ArtifactKey::dir_resolved(reference, profile),
+                ArtifactProjectionKey::Content,
+            );
         }
 
         Ok(dependencies)
@@ -78,7 +89,7 @@ impl Compiler {
     ) -> CompilerResult<ArtifactPayload> {
         let artifacts = self.artifact_reader(context);
         let global = artifacts
-            .global_environment(profile)
+            .global_environment_content(profile)
             .map_err(CompilerError::from)?;
         let environment = self.environment(context.revision())?;
         let repository_module = self.module(context.revision(), module)?;
@@ -120,7 +131,10 @@ impl Compiler {
     ) -> CompilerResult<ArtifactDependencySet> {
         let mut dependencies = ArtifactDependencySet::default();
         self.require_own_stages(module, profile, &mut dependencies);
-        dependencies.require(ArtifactKey::global_environment(profile));
+        dependencies.require_projection(
+            ArtifactKey::global_environment(profile),
+            ArtifactProjectionKey::Content,
+        );
 
         // seed the checking pass from the module's own declared artifact
         dependencies.require(ArtifactKey::dir_declared(module, profile));
@@ -141,6 +155,18 @@ impl Compiler {
                 ArtifactKey::dir_declared(import, profile),
                 ArtifactProjectionKey::Declared,
             );
+            dependencies.require_projection(
+                ArtifactKey::dir_bound(import, profile),
+                ArtifactProjectionKey::Content,
+            );
+            dependencies.require_projection(
+                ArtifactKey::dir_expanded(import, profile),
+                ArtifactProjectionKey::Content,
+            );
+            dependencies.require_projection(
+                ArtifactKey::dir_resolved(import, profile),
+                ArtifactProjectionKey::Content,
+            );
         }
 
         Ok(dependencies)
@@ -155,7 +181,7 @@ impl Compiler {
     ) -> CompilerResult<ArtifactPayload> {
         let artifacts = self.artifact_reader(context);
         let global = artifacts
-            .global_environment(profile)
+            .global_environment_content(profile)
             .map_err(CompilerError::from)?;
         let environment = self.environment(context.revision())?;
         let repository_module = self.module(context.revision(), module)?;
@@ -190,7 +216,9 @@ impl Compiler {
         }
         let events = emit_events.then(|| check.events());
 
-        // render checked type annotations when requested
+        // close solved state, then render checked type annotations so
+        //  the echo reflects write-derived values like parameter variance
+        let closed = check.close_checked(module)?;
         if options.emit_checked_types {
             for source in check.render_annotated_sources()? {
                 context.emit_sidecar(annotated_sidecar(source));
@@ -201,7 +229,7 @@ impl Compiler {
         }
 
         // write checked DIR tables and report the pass's diagnostics
-        let (checked, diagnostics) = check.write_checked(module)?;
+        let (checked, diagnostics) = check.write_checked(closed)?;
         context.emit_diagnostics(diagnostics);
 
         Ok(ArtifactPayload::DirChecked(Arc::new(checked)))

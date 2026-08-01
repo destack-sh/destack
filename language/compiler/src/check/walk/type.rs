@@ -2,8 +2,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    CauseKind, Decision, GenericArgument, Origin, Receiver, Relation, TypeSubstitution,
-    VariableRole, WalkState, Widening,
+    Decision, GenericArgument, Origin, Receiver, TypeSubstitution, VariableRole, WalkState,
+    Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -979,14 +979,6 @@ impl WalkState<'_, '_> {
             arguments: argument_list,
         }))?;
         let ty = self.apply_named_refinements(ty, applied)?;
-        self.constrain_applied_symbol_arguments(
-            source,
-            ty,
-            symbol,
-            &parameters,
-            &arguments,
-            &written,
-        )?;
 
         Ok(ty)
     }
@@ -1013,85 +1005,6 @@ impl WalkState<'_, '_> {
         }
 
         Ok(ty)
-    }
-
-    /// Constrain applied type arguments by their declared parameter bounds.
-    fn constrain_applied_symbol_arguments(
-        &mut self,
-        source: dir::LocalNodeIdAny,
-        application: dir::GlobalTypeId,
-        symbol: dir::GlobalSymbolId,
-        parameters: &[dir::GlobalGenericParameterId],
-        arguments: &[dir::GlobalTypeId],
-        written: &[&GenericArgument],
-    ) -> CompilerResult<()> {
-        let substitution = TypeSubstitution {
-            bindings: parameters
-                .iter()
-                .zip(arguments)
-                .map(|(parameter, argument)| {
-                    dir::GenericArgumentBinding::new(*parameter, *argument)
-                })
-                .collect(),
-            receiver: None,
-        };
-        let origin = Origin::Node(
-            source.into_global(self.module),
-            self.flow().template_scope(),
-        );
-
-        // enqueue parameter bounds as ordinary type relations
-        for (index, (parameter, argument)) in parameters
-            .iter()
-            .copied()
-            .zip(arguments.iter().copied())
-            .enumerate()
-        {
-            let Some(constraint) = self
-                .check
-                .generic_parameter(parameter)
-                .and_then(|binding| binding.constraint)
-            else {
-                continue;
-            };
-            let constraint = self.check.substitute_type(constraint, &substitution)?;
-            if self.check.type_flags(argument)?.has_infer() {
-                continue;
-            }
-
-            let argument_source = written
-                .get(index)
-                .map(|argument| argument.source)
-                .unwrap_or_else(|| source.into_global(self.module));
-            self.relate_generic_bound(
-                argument_source,
-                application,
-                parameter,
-                argument,
-                constraint,
-            );
-        }
-
-        // enqueue declared where predicates, leaving predicates over
-        //  this to conformance sites where a receiver is bound
-        let template = self.check.symbol_template(symbol)?;
-        for predicate in self.check.template_predicates(template) {
-            if self.check.type_flags(predicate.left)?.has_this() {
-                continue;
-            }
-            let left = self.check.substitute_type(predicate.left, &substitution)?;
-            let right = self.check.substitute_type(predicate.right, &substitution)?;
-
-            self.relate_type(
-                origin,
-                CauseKind::Expression,
-                Relation::Satisfies,
-                left,
-                right,
-            );
-        }
-
-        Ok(())
     }
 
     /// Return a type-member path from one resolved base symbol.

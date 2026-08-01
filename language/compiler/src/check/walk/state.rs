@@ -368,28 +368,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
             .push_constraint(Constraint::r#type(origin, relation, source, target, cause));
     }
 
-    /// Collect one generic argument bound constraint.
-    pub(in crate::check) fn relate_generic_bound(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        application: dir::GlobalTypeId,
-        parameter: dir::GlobalGenericParameterId,
-        argument: dir::GlobalTypeId,
-        bound: dir::GlobalTypeId,
-    ) {
-        let origin = Origin::Node(source, self.flow().template_scope());
-        let cause = self
-            .check
-            .intern_cause(Cause::root(origin, CauseKind::Bound { parameter }));
-        self.check.push_constraint(Constraint::generic_bound(
-            origin,
-            argument,
-            bound,
-            application,
-            cause,
-        ));
-    }
-
     /// Return one symbol's type slot.
     pub(in crate::check) fn symbol_type_slot(
         &mut self,

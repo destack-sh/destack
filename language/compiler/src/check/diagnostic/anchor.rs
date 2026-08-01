@@ -22,16 +22,31 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::LocalNodeIdAny,
     ) -> DiagnosticAnchor {
-        let span = match self.module_maybe(module) {
-            Some(state) => state.diagnostic_span(source),
-            None => self.external_module(module).diagnostic_span(source),
+        // fall back to a symbol anchor when the module isn't loaded
+        let Some(state) = self.module_maybe(module) else {
+            return self.foreign_anchor(module, source);
         };
-        let span = match span {
+
+        let span = match state.diagnostic_span(source) {
             Some(span) => span,
             None => unreachable!("check node {} has no source span", source.id),
         };
 
         DiagnosticAnchor::from(span)
+    }
+
+    /// Return the position-free anchor for one foreign source node.
+    fn foreign_anchor(&self, module: ModuleId, source: dir::LocalNodeIdAny) -> DiagnosticAnchor {
+        let symbol = self.external_modules.get(&module).and_then(|external| {
+            external
+                .bindings
+                .declaration_symbol(source.into_global(module))
+        });
+
+        match symbol {
+            Some(symbol) => DiagnosticAnchor::from(symbol.into_global(module)),
+            None => DiagnosticAnchor::from(module),
+        }
     }
 
     /// Return one source node's full anchor.
@@ -40,13 +55,16 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<DiagnosticAnchor> {
-        let span = match self.module_maybe(module) {
-            Some(state) => state.source_span(source),
-            None => self.external_module(module).diagnostic_span(source),
+        // fall back to a symbol anchor when the module isn't loaded
+        let Some(state) = self.module_maybe(module) else {
+            return Ok(self.foreign_anchor(module, source));
         };
-        let span = span.ok_or_else(|| CompilerError::Internal {
-            message: format!("check node {} has no source span", source.id),
-        })?;
+
+        let span = state
+            .source_span(source)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("check node {} has no source span", source.id),
+            })?;
 
         Ok(DiagnosticAnchor::from(span))
     }

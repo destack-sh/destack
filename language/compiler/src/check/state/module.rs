@@ -13,7 +13,7 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Answer, Capture, Cause, CauseKind, CheckError, CheckState, CheckWarning, Constraint,
-    Dependency, FlowPoint, FlowPointId, FlowSite, Origin, Relation, StaticGate,
+    Dependency, FlowPoint, FlowPointId, FlowSite, Origin, Relation, StaticPresence,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -84,7 +84,7 @@ pub(in crate::check) struct CheckModuleState {
 
     // statically false gates
     /// Presence decisions for decorated source nodes.
-    pub(in crate::check) static_presence: FxIndexMap<dir::LocalNodeIdAny, StaticGate>,
+    pub(in crate::check) static_presence: FxIndexMap<dir::LocalNodeIdAny, StaticPresence>,
     /// Declarations whose guards decided statically false.
     pub(in crate::check) absent_symbols: FxIndexSet<dir::GlobalSymbolId>,
 
@@ -93,7 +93,6 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) diagnostics: Vec<DiagnosticBuilder<CheckError>>,
     /// Warnings reported while walking this module.
     pub(in crate::check) warnings: Vec<DiagnosticBuilder<CheckWarning>>,
-
 }
 
 impl CheckModuleState {
@@ -446,7 +445,9 @@ impl CheckState<'_> {
         let view = module.view();
         let mut current = Some(node.local_id);
         while let Some(local) = current {
-            if module.statics.contains_absent_root(local) {
+            if module.statics.contains_absent_root(local)
+                || module.statics_base.contains_absent_root(local)
+            {
                 return true;
             }
             current = view.get_parent_any(local);
@@ -885,7 +886,7 @@ impl CheckState<'_> {
         match term {
             dir::StaticTerm::Type { ty } => Some(*ty),
             dir::StaticTerm::ScalarLiteral { value } => {
-                self.intern_type(dir::Type::Literal((*value).into())).ok()
+                self.intern_type(dir::Type::Literal(*value)).ok()
             }
             _ => None,
         }
@@ -919,12 +920,11 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return one module's tree view, loaded or external.
+    /// Return one module's tree view.
     pub(in crate::check) fn module_view(&self, module: ModuleId) -> dir::View<'_> {
-        if let Some(module) = self.module_maybe(module) {
-            module.view()
-        } else {
-            self.external_module(module).view()
+        match self.module_maybe(module) {
+            Some(module) => module.view(),
+            None => unreachable!("foreign trees are not checking inputs: {module:?}"),
         }
     }
 
@@ -940,12 +940,16 @@ impl CheckState<'_> {
         // a referenced module's declared artifact depends on its bound tables
         let bound = self
             .artifacts
-            .dir_bound(module, self.profile)
-            .unwrap_or_else(|error| unreachable!("referenced module {module:?} has no bound artifact: {error}"));
+            .dir_bound_content(module, self.profile)
+            .unwrap_or_else(|error| {
+                unreachable!("referenced module {module:?} has no bound artifact: {error}")
+            });
         let expanded = self
             .artifacts
-            .dir_expanded(module, self.profile)
-            .unwrap_or_else(|error| unreachable!("referenced module {module:?} has no expanded artifact: {error}"));
+            .dir_expanded_content(module, self.profile)
+            .unwrap_or_else(|error| {
+                unreachable!("referenced module {module:?} has no expanded artifact: {error}")
+            });
 
         expanded.binding_table(bound.as_ref())
     }

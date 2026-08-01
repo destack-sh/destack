@@ -139,8 +139,7 @@ impl CheckState<'_> {
                 // skip variant singletons, they restate the receiver instance
                 dir::DefinitionMember::EnumVariant(_)
                 | dir::DefinitionMember::TaggedKey(_)
-                | dir::DefinitionMember::TaggedVariant(_) => {
-                }
+                | dir::DefinitionMember::TaggedVariant(_) => {}
                 dir::DefinitionMember::Field(_)
                 | dir::DefinitionMember::AssociatedConst(_)
                 | dir::DefinitionMember::CallSignature(_)

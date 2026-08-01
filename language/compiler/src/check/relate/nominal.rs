@@ -805,8 +805,8 @@ impl CheckState<'_> {
         target: &dir::GenericApplication,
     ) -> CompilerResult<Answer<bool>> {
         // written applications complete their elided arguments
-        let mut source = source.clone();
-        let mut target = target.clone();
+        let mut source = *source;
+        let mut target = *target;
         let mut source_module = source_module;
         let mut target_module = target_module;
         if source.arguments.len() != target.arguments.len() {

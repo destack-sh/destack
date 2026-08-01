@@ -216,13 +216,9 @@ impl<'a, 'b> DumpContext<'a, 'b> {
 
     /// Return the visible span for one node.
     fn node_span(&self, node: dir::GlobalNodeIdAny) -> Option<Span> {
-        if let Some(module) = self.check.module_maybe(node.module_id) {
-            return module.view().get_span_by_id(node.local_id.id);
-        }
+        let module = self.check.module_maybe(node.module_id)?;
 
-        let external = self.check.external_modules.get(&node.module_id)?;
-
-        external.view().get_span_by_id(node.local_id.id)
+        module.view().get_span_by_id(node.local_id.id)
     }
 
     /// Return the declaration node for one symbol.

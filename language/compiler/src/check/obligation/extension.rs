@@ -658,12 +658,12 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Return one declaration's unrefined interface implementations.
+    /// Return one symbol's interface implementations as written.
     fn declared_implementations(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Vec<dir::InterfaceImplementation>> {
-        // read the declared stage's definition when one exists
+        // prefer the own module's still-unrefined declared row over a foreign definition
         if let Some(module) = self.module_maybe(symbol.module_id)
             && let Some(declared) = &module.declared
             && let Some(definition) = declared.definitions.definition(symbol)

@@ -972,7 +972,7 @@ impl CheckState<'_> {
         // lifetime joins write as unions of lifetimes
         if let dir::Type::Union(union) = self.ty(ty)? {
             let elements = self.type_ids(ty.module_id, union.elements)?;
-            for element in elements.to_vec() {
+            for &element in elements {
                 if !self.written_argument_is_lifetime(element)? {
                     return Ok(false);
                 }

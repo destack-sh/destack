@@ -353,6 +353,32 @@ impl CheckState<'_> {
         }
     }
 
+    /// Prune unresolved hole rows before the declared write reads symbols.
+    pub(in crate::check) fn prune_open_hole_symbols(
+        &mut self,
+        module: ModuleId,
+    ) -> CompilerResult<()> {
+        // collect hole-typed symbols, their rows are not written forms
+        let mut open = Vec::new();
+        let rows = self
+            .declaration_types
+            .iter()
+            .chain(self.binding_types.iter());
+        for (symbol, ty) in rows {
+            if symbol.module_id == module && self.root_variable(*ty)?.is_some() {
+                open.push(*symbol);
+            }
+        }
+
+        // drop the collected rows from both symbol maps
+        for symbol in open {
+            self.declaration_types.swap_remove(&symbol);
+            self.binding_types.swap_remove(&symbol);
+        }
+
+        Ok(())
+    }
+
     /// Resolve one module's recorded symbol types.
     fn resolved_symbol_types(
         &mut self,

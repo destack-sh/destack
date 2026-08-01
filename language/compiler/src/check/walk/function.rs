@@ -18,15 +18,6 @@ pub(in crate::check) struct FunctionHeader {
     pub(in crate::check) parameters: Vec<dir::FunctionParameterType>,
 }
 
-/// The source position owning a function body.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum BodyForm {
-    /// A declaration body, inferred by its owning inference component.
-    Declaration,
-    /// A value body, inferred with the state its expression evaluates in.
-    Value,
-}
-
 impl<'check, 'state> WalkState<'check, 'state> {
     /// Walk one function signature and return its type.
     ///
@@ -486,7 +477,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
         body: dir::LocalNodeId<dir::Expression>,
         result: dir::GlobalTypeId,
         receiver: Option<ReceiverBinding>,
-        _form: BodyForm,
     ) -> CompilerResult<FlowBranch> {
         let source = body.into_any();
         let origin = Origin::Node(

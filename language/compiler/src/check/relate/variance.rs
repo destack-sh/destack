@@ -387,9 +387,7 @@ impl CheckState<'_> {
                 }
                 dir::DefinitionMember::EnumVariant(_)
                 | dir::DefinitionMember::TaggedKey(_)
-                | dir::DefinitionMember::TaggedVariant(_) => {
-                    None
-                }
+                | dir::DefinitionMember::TaggedVariant(_) => None,
             };
             if let Some(measured) = measured {
                 members.push(measured);

@@ -1,5 +1,5 @@
-mod graph;
 mod error;
+mod graph;
 mod provide;
 mod resolve;
 mod state;

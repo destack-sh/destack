@@ -1,20 +1,15 @@
-use std::slice::from_ref;
 use std::sync::Arc;
 
-use destack_artifact::{DirExpanded, DirParsed, DirResolved};
+use destack_artifact::DirResolved;
 use destack_core::FxIndexSet;
 use destack_dir as dir;
-use destack_source::{ModuleId, Span};
+use destack_source::ModuleId;
 
 use super::CheckState;
 use crate::{CompilerError, CompilerResult};
 
 /// Committed tables loaded for one out-of-component external module.
 pub(in crate::check) struct CheckExternalModuleState {
-    /// The parsed external module, kept for diagnostic source spans.
-    pub(in crate::check) parsed: Arc<DirParsed>,
-    /// The expanded external module, kept for diagnostic source spans.
-    pub(in crate::check) expanded: Arc<DirExpanded>,
     /// The resolved external module holding the import alias targets.
     pub(in crate::check) resolved: Arc<DirResolved>,
     /// The committed binding table.
@@ -27,29 +22,6 @@ pub(in crate::check) struct CheckExternalModuleState {
     pub(in crate::check) generics: dir::GenericTable<'static>,
     /// The committed definition table.
     pub(in crate::check) definitions: dir::DefinitionTable<'static>,
-}
-
-impl CheckExternalModuleState {
-    /// Return the post-expansion DIR tree view of this module.
-    pub(in crate::check) fn view(&self) -> dir::View<'_> {
-        dir::View::with_patches(&self.parsed.tree, from_ref(&self.expanded.patch))
-    }
-
-    /// Return the authored diagnostic span of one visible node.
-    pub(in crate::check) fn diagnostic_span(&self, node: dir::LocalNodeIdAny) -> Option<Span> {
-        let view = self.view();
-        let source = view.get_source_any(node);
-
-        // prefer the authored node that produced the visible node
-        if let Some(span) = self.parsed.tree.get_main_span_by_id(source) {
-            return Some(span);
-        }
-        if let Some(span) = self.parsed.tree.get_span_by_id(source) {
-            return Some(span);
-        }
-
-        view.get_span_by_id(node.id)
-    }
 }
 
 impl CheckState<'_> {
@@ -75,7 +47,7 @@ impl CheckState<'_> {
         // read the resolve stage directly, it never depends on declared modules
         let resolved = self
             .artifacts
-            .dir_resolved(module, self.profile)
+            .dir_resolved_content(module, self.profile)
             .map_err(CompilerError::from)?;
         self.external_resolved.insert(module, Arc::clone(&resolved));
 
@@ -254,27 +226,23 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<CheckExternalModuleState> {
-        let parsed = self
-            .artifacts
-            .dir_parsed(module)
-            .map_err(CompilerError::from)?;
         let bound = self
             .artifacts
-            .dir_bound(module, self.profile)
+            .dir_bound_content(module, self.profile)
             .map_err(CompilerError::from)?;
         let expanded = self
             .artifacts
-            .dir_expanded(module, self.profile)
+            .dir_expanded_content(module, self.profile)
             .map_err(CompilerError::from)?;
         let resolved = self
             .artifacts
-            .dir_resolved(module, self.profile)
+            .dir_resolved_content(module, self.profile)
             .map_err(CompilerError::from)?;
 
         // read the module's sealed declared module
         let declared = self
             .artifacts
-            .dir_declared(module, self.profile)
+            .dir_declared_projected(module, self.profile)
             .map_err(CompilerError::from)?;
 
         Ok(CheckExternalModuleState {
@@ -283,8 +251,6 @@ impl CheckState<'_> {
             statics: declared.static_table(bound.as_ref(), expanded.as_ref()),
             generics: declared.generic_table(),
             definitions: declared.definition_table(),
-            parsed,
-            expanded: Arc::clone(&expanded),
             resolved,
         })
     }

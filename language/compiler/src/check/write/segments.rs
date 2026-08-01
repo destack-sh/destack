@@ -90,10 +90,7 @@ impl CheckModuleSegments {
     }
 
     /// Convert segments into one declared DIR module.
-    pub(in crate::check) fn into_declared(
-        self,
-        module: ModuleId,
-    ) -> CompilerResult<DirDeclared> {
+    pub(in crate::check) fn into_declared(self, module: ModuleId) -> CompilerResult<DirDeclared> {
         let fingerprint = ArtifactProjectionFingerprint::from_serialized_payload(&(
             module,
             &self.bindings,

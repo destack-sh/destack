@@ -23,10 +23,9 @@ mod r#type;
 mod visit;
 
 pub(in crate::check) use argument::GenericArgument;
-pub(in crate::check) use declaration::TemplatePass;
-pub(in crate::check) use declarator::{declarator_widening, is_transcribable_literal};
-pub(in crate::check) use function::{BodyForm, FunctionHeader};
+pub(in crate::check) use declaration::{TemplatePass, function_needs_written_result};
+pub(in crate::check) use function::FunctionHeader;
 pub(in crate::check) use generic::InducedParameterOwner;
 pub(in crate::check) use narrow::ConditionBranch;
 pub(in crate::check) use state::*;
-pub(in crate::check) use r#static::StaticGate;
+pub(in crate::check) use r#static::StaticPresence;

@@ -274,6 +274,11 @@ impl<'a> CheckState<'a> {
                 continue;
             }
 
+            // skip statically absent exports, they bind nothing
+            if self.is_absent(declarator.into_global(module)) {
+                continue;
+            }
+
             // report the failure once, while declaring
             if self.is_declaration() {
                 self.report_export_type_not_derivable(module, declarator);
@@ -941,6 +946,12 @@ impl CheckState<'_> {
         };
 
         for (symbol, _) in declared.types.symbol_types() {
+            // skip statically absent declarations, they keep no canonical rows
+            if let Ok(source) = self.symbol_source(symbol)
+                && self.is_absent(source)
+            {
+                continue;
+            }
             self.canonical_symbol_type_maybe(symbol)?;
         }
 
