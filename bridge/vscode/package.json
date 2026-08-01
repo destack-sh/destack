@@ -2,6 +2,7 @@
     "name": "destack",
     "displayName": "Destack",
     "description": "Destack language and toolchain support for VS Code",
+    "icon": "icon.png",
     "version": "0.55.4",
     "license": "MIT",
     "engines": {
@@ -52,6 +53,7 @@
         "destack-dsa.json",
         "destack-dsa.tmLanguage.json",
         "destack.schema.json",
+        "icon.png",
         "package.json",
         "LICENSE.txt"
     ],
