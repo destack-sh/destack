@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ARTIFACT_SEGMENT_EXTENSION, ARTIFACT_STORE_VERSION, ArtifactError, ArtifactFlush,
-    ArtifactRecord, ArtifactStore, ArtifactVersion, BlobStore, BlobStoreError, MAX_BLOB_BYTES,
-    RepositoryStoreLayout,
+    ArtifactRecord, ArtifactStore, ArtifactVersion, BlobStore, BlobStoreError, BuildId,
+    MAX_BLOB_BYTES, RepositoryStoreLayout,
 };
 
 /// Segmented store of artifacts.
@@ -37,10 +37,9 @@ impl SegmentedArtifactStore {
     pub fn new(
         store: Arc<dyn BlobStore>,
         layout: RepositoryStoreLayout,
-        build_fingerprint: impl Into<String>,
+        build_id: BuildId,
     ) -> Self {
-        let build_fingerprint = build_fingerprint.into();
-        let partition = format!("{build_fingerprint}-artifact-{ARTIFACT_STORE_VERSION}");
+        let partition = format!("v{ARTIFACT_STORE_VERSION}-{build_id}");
 
         Self {
             store,

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_source::{ModuleId, PackageId, ProfileId};
 
-use crate::{ArtifactDependency, ArtifactFingerprint, ArtifactKey};
+use crate::{ArtifactDependency, ArtifactFingerprint, ArtifactKey, BuildId};
 
 /// Reusable identity of one artifact result.
 #[derive(
@@ -20,10 +20,10 @@ impl ArtifactVersion {
     /// Create one artifact version from its declared dependency observations.
     pub fn new(
         key: ArtifactKey,
-        build_fingerprint: &str,
+        build_id: BuildId,
         dependencies: impl IntoIterator<Item = ArtifactDependency>,
     ) -> Self {
-        let fingerprint = ArtifactFingerprint::new(build_fingerprint, dependencies);
+        let fingerprint = ArtifactFingerprint::new(build_id, dependencies);
 
         Self { key, fingerprint }
     }

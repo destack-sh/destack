@@ -11,6 +11,7 @@ use super::string::collect_string_ids;
 use crate::{
     ArtifactDependency, ArtifactError, ArtifactKey, ArtifactPayload, ArtifactPayloadRef,
     ArtifactProjectionFingerprint, ArtifactProjectionKey, ArtifactSidecar, ArtifactVersion,
+    BuildId,
 };
 
 /// One persisted artifact.
@@ -69,13 +70,13 @@ impl ArtifactRecord {
     /// Decode this artifact and verify its derived identities.
     pub fn decode(
         &self,
-        build_fingerprint: &str,
+        build_id: BuildId,
         string_pool: &StringPool,
     ) -> Result<ArtifactPayload, ArtifactError> {
         // verify the exact version from its dependencies
         let version = ArtifactVersion::new(
             self.version.key,
-            build_fingerprint,
+            build_id,
             self.dependencies.iter().cloned(),
         );
         if version != self.version {

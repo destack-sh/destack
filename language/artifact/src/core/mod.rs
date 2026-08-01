@@ -1,3 +1,4 @@
+mod build;
 mod condition;
 mod dependency;
 mod environment;
@@ -8,6 +9,7 @@ mod profile;
 mod target;
 mod version;
 
+pub use build::*;
 pub use condition::*;
 pub use dependency::*;
 pub use environment::*;

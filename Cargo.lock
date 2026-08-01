@@ -865,6 +865,7 @@ dependencies = [
  "destack_source",
  "fs2",
  "indexmap",
+ "libc",
  "parking_lot",
  "rustc-hash 2.1.2",
  "schemars",
@@ -872,6 +873,7 @@ dependencies = [
  "serde_json",
  "siphasher",
  "tracing",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
