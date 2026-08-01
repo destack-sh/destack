@@ -2,25 +2,25 @@ use destack_core::{EntryRange, EntryStore, SectionEntry};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
+use crate::BlockId;
+
 /// Physical native projection of one canonical Program frame state.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct FrameMap {
-    /// Object-local function index before linking, or Program function id after linking.
-    pub function: u32,
-    /// Return-address byte offset from the containing function body.
+pub struct ObjectFrameMap {
+    /// Object-local code block.
+    pub block: BlockId,
+    /// Return-address byte offset inside the containing block.
     pub return_offset: u32,
     /// Signed byte offset from the frame marker to the native frame pointer.
     pub frame_pointer_offset: i32,
-    /// Object-local frame-state index before linking, or Program frame-state id after linking.
+    /// Object-local frame-state index.
     pub state: u32,
-    /// Program operation resumed after restoring this frame.
-    pub resume: u32,
     /// Canonical values in Program frame slot order.
     values: EntryRange<FrameValue>,
 }
 
-impl FrameMap {
+impl ObjectFrameMap {
     /// Return whether this frame's value range fits its shared column.
     pub(super) fn values_fit(self, values: usize) -> bool {
         self.values.fits(values)
@@ -34,36 +34,32 @@ impl FrameMap {
 
 /// Mutable native frame map before section packing.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FrameMapBuilder {
-    /// Function identity selected by the containing representation.
-    function: u32,
-    /// Return-address byte offset from the containing function body.
+pub struct ObjectFrameMapBuilder {
+    /// Object-local code block.
+    block: BlockId,
+    /// Return-address byte offset inside the containing block.
     return_offset: u32,
     /// Signed byte offset from the frame marker to the native frame pointer.
     frame_pointer_offset: i32,
-    /// Frame-state identity selected by the containing representation.
+    /// Object-local frame-state index.
     state: u32,
-    /// Program operation resumed after restoring this frame.
-    resume: u32,
     /// Canonical values in Program frame slot order.
     values: Vec<FrameValueBuilder>,
 }
 
-impl FrameMapBuilder {
-    /// Create one native frame map builder.
+impl ObjectFrameMapBuilder {
+    /// Create one object frame map builder.
     pub const fn new(
-        function: u32,
+        block: super::BlockId,
         return_offset: u32,
         frame_pointer_offset: i32,
         state: u32,
-        resume: u32,
     ) -> Self {
         Self {
-            function,
+            block,
             return_offset,
             frame_pointer_offset,
             state,
-            resume,
             values: Vec::new(),
         }
     }
@@ -80,6 +76,85 @@ impl FrameMapBuilder {
         self,
         values: &mut EntryStore<FrameValue>,
         locations: &mut EntryStore<FrameLocation>,
+    ) -> ObjectFrameMap {
+        let entries = self
+            .values
+            .into_iter()
+            .map(|value| value.build(locations))
+            .collect::<Vec<_>>();
+
+        ObjectFrameMap {
+            block: self.block,
+            return_offset: self.return_offset,
+            frame_pointer_offset: self.frame_pointer_offset,
+            state: self.state,
+            values: values.append(entries),
+        }
+    }
+}
+
+/// Physical native projection of one linked Program frame state.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct FrameMap {
+    /// Absolute return-address byte offset inside linked native code.
+    pub return_offset: u32,
+    /// Signed byte offset from the frame marker to the native frame pointer.
+    pub frame_pointer_offset: i32,
+    /// Program frame-state id.
+    pub state: u32,
+    /// Canonical values in Program frame slot order.
+    values: EntryRange<FrameValue>,
+}
+
+/// One linked native frame map under construction.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FrameMapBuilder {
+    /// Absolute return-address byte offset inside linked native code.
+    return_offset: u32,
+    /// Signed byte offset from the frame marker to the native frame pointer.
+    frame_pointer_offset: i32,
+    /// Program frame-state id.
+    state: u32,
+    /// Canonical values in Program frame slot order.
+    values: Vec<FrameValueBuilder>,
+}
+
+impl FrameMap {
+    /// Return whether this frame's value range fits its shared column.
+    pub(super) fn values_fit(self, values: usize) -> bool {
+        self.values.fits(values)
+    }
+
+    /// Return canonical values in Program frame slot order.
+    pub fn values(self, values: &[FrameValue]) -> &[FrameValue] {
+        self.values.slice(values)
+    }
+}
+
+impl FrameMapBuilder {
+    /// Create one linked frame map builder.
+    pub const fn new(return_offset: u32, frame_pointer_offset: i32, state: u32) -> Self {
+        Self {
+            return_offset,
+            frame_pointer_offset,
+            state,
+            values: Vec::new(),
+        }
+    }
+
+    /// Set canonical values in Program frame slot order.
+    pub fn values(mut self, values: impl IntoIterator<Item = FrameValueBuilder>) -> Self {
+        self.values = values.into_iter().collect();
+
+        self
+    }
+
+    /// Pack this frame map into flattened code-map storage.
+    pub(super) fn build(
+        self,
+        values: &mut EntryStore<FrameValue>,
+        locations: &mut EntryStore<FrameLocation>,
     ) -> FrameMap {
         let entries = self
             .values
@@ -88,11 +163,9 @@ impl FrameMapBuilder {
             .collect::<Vec<_>>();
 
         FrameMap {
-            function: self.function,
             return_offset: self.return_offset,
             frame_pointer_offset: self.frame_pointer_offset,
             state: self.state,
-            resume: self.resume,
             values: values.append(entries),
         }
     }
@@ -155,7 +228,7 @@ pub struct FrameLocation {
     /// Signed byte offset selected by the source.
     pub source_offset: i32,
     /// Byte offset inside the canonical value.
-    pub target_offset: u32,
+    pub value_offset: u32,
     /// Byte length of this piece.
     pub byte_len: u32,
 }
@@ -165,13 +238,13 @@ impl FrameLocation {
     pub const fn new(
         source: FrameSource,
         source_offset: i32,
-        target_offset: u32,
+        value_offset: u32,
         byte_len: u32,
     ) -> Self {
         Self {
             source,
             source_offset,
-            target_offset,
+            value_offset,
             byte_len,
         }
     }

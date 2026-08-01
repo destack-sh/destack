@@ -1,29 +1,100 @@
-use destack_core::{SectionEntry, StringId};
+use destack_core::{EntryRange, EntryStore, SectionEntry};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-/// Native function definition linked into a Program.
+use super::BlockId;
+
+/// One native function definition inside a relocatable object.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct Definition {
-    /// The internal native function body symbol.
-    pub body: StringId,
-    /// The native runtime entry symbol.
-    pub entry: StringId,
-    /// The compiled body byte length.
-    pub body_byte_len: u32,
-    /// Linked module owning this function.
-    pub module: u32,
+    /// Typed internal function body.
+    pub body: BlockId,
+    /// Uniform runtime entry wrapper.
+    pub entry: BlockId,
+    /// Coroutine resume entries.
+    resumes: EntryRange<Resume>,
+}
+
+/// One object-local coroutine resume entry.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct Resume {
+    /// Object-local canonical frame state.
+    pub state: u32,
+    /// Native code reconstructing and resuming that state.
+    pub block: BlockId,
+}
+
+/// One native function definition under construction.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DefinitionBuilder {
+    /// Typed internal function body.
+    body: BlockId,
+    /// Uniform runtime entry wrapper.
+    entry: BlockId,
+    /// Coroutine resume entries.
+    resumes: Vec<Resume>,
 }
 
 impl Definition {
-    /// Create one linked native function definition.
-    pub const fn new(body: StringId, entry: StringId, body_byte_len: u32, module: u32) -> Self {
+    /// Return coroutine resume entries.
+    pub fn resumes(self, resumes: &[Resume]) -> &[Resume] {
+        self.resumes.slice(resumes)
+    }
+
+    /// Return whether every referenced block and resume exists.
+    pub(super) fn ranges_fit(self, blocks: usize, resumes: &[Resume]) -> bool {
+        self.body.index() < blocks
+            && self.entry.index() < blocks
+            && self.resumes.fits(resumes.len())
+            && self
+                .resumes(resumes)
+                .iter()
+                .all(|resume| resume.block.index() < blocks)
+    }
+}
+
+impl Resume {
+    /// Create one object-local coroutine resume entry.
+    pub const fn new(state: u32, block: BlockId) -> Self {
+        Self { state, block }
+    }
+}
+
+impl DefinitionBuilder {
+    /// Create one native function definition.
+    pub fn new(body: BlockId, entry: BlockId) -> Self {
         Self {
             body,
             entry,
-            body_byte_len,
-            module,
+            resumes: Vec::new(),
+        }
+    }
+
+    /// Return the typed internal function body block.
+    pub const fn body(&self) -> BlockId {
+        self.body
+    }
+
+    /// Return the uniform runtime entry block.
+    pub const fn entry(&self) -> BlockId {
+        self.entry
+    }
+
+    /// Set coroutine resume entries.
+    pub fn resumes(mut self, resumes: impl IntoIterator<Item = Resume>) -> Self {
+        self.resumes = resumes.into_iter().collect();
+
+        self
+    }
+
+    /// Pack this definition into flattened object columns.
+    pub(super) fn build(self, resumes: &mut EntryStore<Resume>) -> Definition {
+        Definition {
+            body: self.body,
+            entry: self.entry,
+            resumes: resumes.append(self.resumes),
         }
     }
 }

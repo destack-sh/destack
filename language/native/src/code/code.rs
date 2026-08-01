@@ -1,86 +1,182 @@
+use destack_core::{Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use destack_core::{
-    EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId,
-};
-use destack_mir::TargetLayout;
-
 use crate::abi;
 
-use super::{
-    CodeMap, CodeMapBuilder, Definition, Image, ImageBuilder, ImportTable, ImportTableBuilder,
-    Module, ModuleBuilder,
-};
+use super::{CodeMap, CodeMapBuilder, Entry, Function, Unwind, UnwindBuilder};
 
-/// Durable native code produced for one program.
+/// Immutable position-independent native code linked into one Program.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect, SectionEntry)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct Code {
     /// Destack native ABI version required by this code.
     pub abi_version: u32,
-    /// Target triple or equivalent target identity.
+    /// Exact target triple.
     pub target: StringId,
-    /// Target ABI layout expected by this code.
-    pub target_layout: TargetLayout,
-    /// The native image.
-    pub image: Image,
-    /// Native imports required by this code.
-    pub imports: ImportTable,
+    /// Sorted target CPU features.
+    features: SectionSlice<StringId>,
+    /// Linked native code and literal pools.
+    bytes: SectionSlice<u8>,
+    /// Native functions keyed by Program function id.
+    functions: SectionSlice<Optional<Function>>,
+    /// Native resume entries keyed by Program frame state id.
+    resumes: SectionSlice<Optional<Entry>>,
+    /// Fully linked target-native unwind tables.
+    unwind: Optional<Unwind>,
     /// Native frame maps for collection, inspection, and deoptimization.
-    pub map: CodeMap,
-    /// Program identity mappings in archive object order.
-    modules: SectionSlice<Module>,
-    /// Program function identities referenced by native modules.
-    functions: SectionSlice<abi::Function>,
-    /// Optional Program type ids referenced by linked modules.
-    types: SectionSlice<Optional<u32>>,
-    /// Optional Program layout ids referenced by linked modules.
-    layouts: SectionSlice<Optional<u32>>,
-    /// Program global ids referenced by linked modules.
-    globals: SectionSlice<u32>,
-    /// Program dynamic-table ids referenced by linked modules.
-    dynamics: SectionSlice<u32>,
-    /// Native definitions keyed by Program function id.
-    definitions: SectionSlice<Optional<Definition>>,
+    map: CodeMap,
 }
 
-/// Build-time native code payload.
+/// Immutable position-independent native code under construction.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CodeBuilder {
-    /// Target triple or equivalent target identity.
+    /// Exact target triple.
     target: StringId,
-    /// Target ABI layout expected by this code.
-    target_layout: TargetLayout,
-    /// Native image payload.
-    image: ImageBuilder,
-    /// Required native imports.
-    imports: ImportTableBuilder,
+    /// Sorted target CPU features.
+    features: Vec<StringId>,
+    /// Linked native code and literal pools.
+    bytes: Vec<u8>,
+    /// Native functions keyed by Program function id.
+    functions: Vec<Option<Function>>,
+    /// Native resume entries keyed by Program frame state id.
+    resumes: Vec<Option<Entry>>,
+    /// Fully linked target-native unwind tables.
+    unwind: Option<UnwindBuilder>,
     /// Native code map.
     map: CodeMapBuilder,
-    /// Program identity mappings in archive object order.
-    modules: Vec<ModuleBuilder>,
-    /// Native definitions keyed by Program function id.
-    definitions: Vec<Option<Definition>>,
+}
+
+impl Code {
+    /// Return whether every relative range fits its sibling column.
+    pub fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+        let bytes = self.bytes(sections);
+        let functions = self.functions(sections);
+        let resumes = self.resumes(sections);
+
+        // check every physical function and coroutine entry
+        let functions_fit = functions
+            .iter()
+            .filter_map(|function| function.get())
+            .all(|function| function.ranges_fit(bytes.len()));
+        let resumes_fit = resumes
+            .iter()
+            .filter_map(|resume| resume.get())
+            .all(|resume| resume.ranges_fit(bytes.len()));
+        let unwind_fits = self
+            .unwind
+            .get()
+            .is_none_or(|unwind| unwind.ranges_fit(sections));
+        if !functions_fit || !resumes_fit || !unwind_fits {
+            return false;
+        }
+
+        // check the sorted physical frame map
+        let frames = self.map.frames(sections);
+        let frames_fit = frames
+            .iter()
+            .all(|frame| (frame.return_offset as usize) <= bytes.len());
+        let frames_sorted = frames
+            .windows(2)
+            .all(|frames| frames[0].return_offset < frames[1].return_offset);
+
+        frames_fit && frames_sorted && self.map.ranges_fit(sections)
+    }
+
+    /// Return sorted target CPU features.
+    pub fn features<'a>(&self, sections: SectionImage<'a>) -> &'a [StringId] {
+        sections.entries(self.features)
+    }
+
+    /// Return linked native code and literal pools.
+    pub fn bytes<'a>(&self, sections: SectionImage<'a>) -> &'a [u8] {
+        sections.entries(self.bytes)
+    }
+
+    /// Return one native function.
+    pub fn function(&self, sections: SectionImage<'_>, function: usize) -> Option<Function> {
+        sections
+            .entries(self.functions)
+            .get(function)
+            .and_then(|function| function.get())
+    }
+
+    /// Return native functions in dense Program function order.
+    pub fn functions<'a>(&self, sections: SectionImage<'a>) -> &'a [Optional<Function>] {
+        sections.entries(self.functions)
+    }
+
+    /// Return one native coroutine resume entry.
+    pub fn resume(&self, sections: SectionImage<'_>, state: usize) -> Option<Entry> {
+        sections
+            .entries(self.resumes)
+            .get(state)
+            .and_then(|resume| resume.get())
+    }
+
+    /// Return native resume entries in dense Program frame state order.
+    pub fn resumes<'a>(&self, sections: SectionImage<'a>) -> &'a [Optional<Entry>] {
+        sections.entries(self.resumes)
+    }
+
+    /// Return fully linked target-native unwind tables when present.
+    pub fn unwind(&self) -> Option<Unwind> {
+        self.unwind.get()
+    }
+
+    /// Return native frame maps for this linked code.
+    pub const fn map(&self) -> CodeMap {
+        self.map
+    }
 }
 
 impl CodeBuilder {
     /// Create one native code builder.
-    pub fn new(target: StringId, target_layout: TargetLayout, image: ImageBuilder) -> Self {
+    pub fn new(target: StringId) -> Self {
         Self {
             target,
-            target_layout,
-            image,
-            imports: ImportTableBuilder::default(),
-            map: CodeMapBuilder::default(),
-            modules: Vec::new(),
-            definitions: Vec::new(),
+            features: Vec::new(),
+            bytes: Vec::new(),
+            functions: Vec::new(),
+            resumes: Vec::new(),
+            unwind: None,
+            map: CodeMapBuilder::new(),
         }
     }
 
-    /// Set required native imports.
-    pub fn imports(mut self, imports: ImportTableBuilder) -> Self {
-        self.imports = imports;
+    /// Set target CPU features.
+    pub fn features(mut self, features: impl IntoIterator<Item = StringId>) -> Self {
+        self.features = features.into_iter().collect();
+        self.features.sort_unstable();
+        self.features.dedup();
+
+        self
+    }
+
+    /// Set linked native code and literal pools.
+    pub fn bytes(mut self, bytes: impl Into<Vec<u8>>) -> Self {
+        self.bytes = bytes.into();
+
+        self
+    }
+
+    /// Set native functions in dense Program function order.
+    pub fn functions(mut self, functions: impl IntoIterator<Item = Option<Function>>) -> Self {
+        self.functions = functions.into_iter().collect();
+
+        self
+    }
+
+    /// Set native resume entries in dense Program frame state order.
+    pub fn resumes(mut self, resumes: impl IntoIterator<Item = Option<Entry>>) -> Self {
+        self.resumes = resumes.into_iter().collect();
+
+        self
+    }
+
+    /// Set fully linked target-native unwind tables.
+    pub fn unwind(mut self, unwind: UnwindBuilder) -> Self {
+        self.unwind = Some(unwind);
 
         self
     }
@@ -92,151 +188,29 @@ impl CodeBuilder {
         self
     }
 
-    /// Set Program identity mappings in archive object order.
-    pub fn modules(mut self, modules: impl IntoIterator<Item = ModuleBuilder>) -> Self {
-        self.modules = modules.into_iter().collect();
-
-        self
-    }
-
-    /// Set native definitions in dense Program function order.
-    pub fn definitions(
-        mut self,
-        definitions: impl IntoIterator<Item = Option<Definition>>,
-    ) -> Self {
-        self.definitions = definitions.into_iter().collect();
-
-        self
-    }
-
-    /// Build this native code payload into program sections.
+    /// Build this native code into Program sections.
     pub fn build(self, sections: &mut SectionBuilder) -> Code {
-        let image = self.image.build(sections);
-        let imports = self.imports.build(sections);
-        let map = self.map.build(sections);
-        let mut functions = EntryStore::new();
-        let mut types = EntryStore::new();
-        let mut layouts = EntryStore::new();
-        let mut globals = EntryStore::new();
-        let mut dynamics = EntryStore::new();
-        let modules = self
-            .modules
-            .into_iter()
-            .map(|module| {
-                module.build(
-                    &mut functions,
-                    &mut types,
-                    &mut layouts,
-                    &mut globals,
-                    &mut dynamics,
-                )
-            })
-            .collect::<Vec<_>>();
-        let definitions = self
-            .definitions
+        let functions = self
+            .functions
             .into_iter()
             .map(Optional::from)
             .collect::<Vec<_>>();
+        let resumes = self
+            .resumes
+            .into_iter()
+            .map(Optional::from)
+            .collect::<Vec<_>>();
+        let unwind = self.unwind.map(|unwind| unwind.build(sections));
 
         Code {
             abi_version: abi::VERSION,
             target: self.target,
-            target_layout: self.target_layout,
-            image,
-            imports,
-            map,
-            modules: sections.insert(modules),
-            functions: sections.insert(functions.into_entries()),
-            types: sections.insert(types.into_entries()),
-            layouts: sections.insert(layouts.into_entries()),
-            globals: sections.insert(globals.into_entries()),
-            dynamics: sections.insert(dynamics.into_entries()),
-            definitions: sections.insert(definitions),
+            features: sections.insert(self.features),
+            bytes: sections.insert_bytes(self.bytes, 16),
+            functions: sections.insert(functions),
+            resumes: sections.insert(resumes),
+            unwind: Optional::from(unwind),
+            map: self.map.build(sections),
         }
-    }
-}
-
-impl Code {
-    /// Return whether every relative range fits its sibling column.
-    pub fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
-        let functions = self.functions(sections);
-        let types = self.types(sections);
-        let layouts = self.layouts(sections);
-        let globals = self.globals(sections);
-        let dynamics = self.dynamics(sections);
-
-        // check each module's linked identity ranges
-        let modules_fit = self.modules(sections).iter().all(|module| {
-            module.ranges_fit(
-                functions.len(),
-                types.len(),
-                layouts.len(),
-                globals.len(),
-                dynamics.len(),
-            )
-        });
-        if !modules_fit {
-            return false;
-        }
-
-        // check canonical native frame maps
-        if !self.map.ranges_fit(sections) {
-            return false;
-        }
-
-        // check archived object byte ranges when present
-        let Image::Archive(archive) = self.image else {
-            return true;
-        };
-
-        archive.ranges_fit(sections)
-    }
-
-    /// Return Program identity mappings in archive object order.
-    pub fn modules<'a>(&self, sections: SectionImage<'a>) -> &'a [Module] {
-        sections.entries(self.modules)
-    }
-
-    /// Return one Program identity mapping by archive object index.
-    pub fn module(&self, sections: SectionImage<'_>, index: u32) -> Option<Module> {
-        sections.entries(self.modules).get(index as usize).copied()
-    }
-
-    /// Return Program function identities referenced by native modules.
-    pub fn functions<'a>(&self, sections: SectionImage<'a>) -> &'a [abi::Function] {
-        sections.entries(self.functions)
-    }
-
-    /// Return optional Program type ids referenced by linked modules.
-    pub fn types<'a>(&self, sections: SectionImage<'a>) -> &'a [Optional<u32>] {
-        sections.entries(self.types)
-    }
-
-    /// Return optional Program layout ids referenced by linked modules.
-    pub fn layouts<'a>(&self, sections: SectionImage<'a>) -> &'a [Optional<u32>] {
-        sections.entries(self.layouts)
-    }
-
-    /// Return Program global ids referenced by linked modules.
-    pub fn globals<'a>(&self, sections: SectionImage<'a>) -> &'a [u32] {
-        sections.entries(self.globals)
-    }
-
-    /// Return Program dynamic-table ids referenced by linked modules.
-    pub fn dynamics<'a>(&self, sections: SectionImage<'a>) -> &'a [u32] {
-        sections.entries(self.dynamics)
-    }
-
-    /// Return one native function definition.
-    pub fn definition(&self, sections: SectionImage<'_>, function: usize) -> Option<Definition> {
-        sections
-            .entries(self.definitions)
-            .get(function)
-            .and_then(|definition| definition.get())
-    }
-
-    /// Return native definitions in dense Program function order.
-    pub fn definitions<'a>(&self, sections: SectionImage<'a>) -> &'a [Optional<Definition>] {
-        sections.entries(self.definitions)
     }
 }

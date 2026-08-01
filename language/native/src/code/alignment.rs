@@ -1,0 +1,34 @@
+use destack_core::SectionEntry;
+use destack_serde::Reflect;
+use serde::{Deserialize, Serialize};
+
+/// One native code alignment in bytes.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct Alignment(u32);
+
+impl Alignment {
+    /// One-byte alignment.
+    pub const ONE: Self = Self(1);
+
+    /// Create one power-of-two native code alignment.
+    pub const fn new(bytes: u32) -> Option<Self> {
+        let alignment = Self(bytes);
+
+        if alignment.is_valid() {
+            Some(alignment)
+        } else {
+            None
+        }
+    }
+
+    /// Return the alignment in bytes.
+    pub const fn bytes(self) -> u32 {
+        self.0
+    }
+
+    /// Return whether this alignment is valid.
+    pub(super) const fn is_valid(self) -> bool {
+        self.0.is_power_of_two()
+    }
+}

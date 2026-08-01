@@ -36,7 +36,7 @@ pub enum ExitKind {
     Panicked = 4,
     /// Execution stopped for host inspection.
     Stopped = 5,
-    /// Execution deoptimized into interpreter state.
+    /// Execution deoptimized into bytecode state.
     Deoptimized = 6,
     /// Execution trapped.
     Trapped = 7,
@@ -76,7 +76,7 @@ impl Exit {
     }
 
     /// Set this record to one deoptimization exit.
-    pub fn deopt(&mut self, frame_map: u32) -> ExitCode {
+    pub fn deoptimize(&mut self, frame_map: u32) -> ExitCode {
         self.kind = ExitKind::Deoptimized.code();
         self.frame_map = frame_map;
 
