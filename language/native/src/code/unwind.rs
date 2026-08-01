@@ -24,10 +24,8 @@ pub struct ObjectUnwind {
 pub struct Unwind {
     /// Platform unwind encoding.
     pub format: UnwindFormat,
-    /// Target unwind sections.
+    /// Target unwind sections inside the native load image.
     sections: SectionSlice<UnwindSection>,
-    /// Flattened target unwind bytes.
-    bytes: SectionSlice<u8>,
 }
 
 /// One target unwind section.
@@ -36,7 +34,7 @@ pub struct Unwind {
 pub struct UnwindSection {
     /// Platform section role.
     pub kind: UnwindSectionKind,
-    /// Section bytes inside the flattened unwind image.
+    /// Section bytes inside the owning native image.
     bytes: EntryRange<u8>,
     /// Required section alignment.
     pub alignment: Alignment,
@@ -162,22 +160,16 @@ impl ObjectUnwind {
 }
 
 impl Unwind {
-    /// Return whether every linked unwind range fits its byte column.
-    pub(super) fn ranges_fit(self, sections: SectionImage<'_>) -> bool {
+    /// Return whether every linked unwind range fits its load image.
+    pub(super) fn ranges_fit(self, sections: SectionImage<'_>, image_len: usize) -> bool {
         let entries = self.sections(sections);
-        let bytes = self.bytes(sections);
 
-        sections_fit(entries, bytes.len())
+        sections_fit(entries, image_len)
     }
 
     /// Return target unwind sections.
     pub fn sections<'a>(self, sections: SectionImage<'a>) -> &'a [UnwindSection] {
         sections.entries(self.sections)
-    }
-
-    /// Return flattened target unwind bytes.
-    pub fn bytes<'a>(self, sections: SectionImage<'a>) -> &'a [u8] {
-        sections.entries(self.bytes)
     }
 }
 
@@ -279,14 +271,17 @@ impl UnwindBuilder {
         self
     }
 
-    /// Build fully linked target unwind tables.
-    pub(super) fn build(self, sections: &mut SectionBuilder) -> Unwind {
-        let (entries, bytes, alignment) = build_sections(self.sections);
+    /// Append linked unwind sections to one native load image.
+    pub(super) fn build(self, image: &mut Vec<u8>, sections: &mut SectionBuilder) -> Unwind {
+        let entries = self
+            .sections
+            .into_iter()
+            .map(|section| section.build(image))
+            .collect::<Vec<_>>();
 
         Unwind {
             format: self.format,
             sections: sections.insert(entries),
-            bytes: sections.insert_bytes(bytes, alignment),
         }
     }
 }
@@ -318,7 +313,7 @@ impl UnwindSectionBuilder {
     }
 }
 
-/// Return whether target unwind sections fit their byte column.
+/// Return whether target unwind sections fit their owning native image.
 fn sections_fit(sections: &[UnwindSection], bytes: usize) -> bool {
     sections
         .iter()
@@ -344,8 +339,7 @@ fn build_sections(sections: Vec<UnwindSectionBuilder>) -> (Vec<UnwindSection>, V
     let alignment = sections
         .iter()
         .map(|section| section.alignment.bytes())
-        .max()
-        .unwrap_or(1) as usize;
+        .fold(1, u32::max) as usize;
     let mut bytes = Vec::new();
     let sections = sections
         .into_iter()

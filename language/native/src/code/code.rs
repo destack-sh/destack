@@ -66,7 +66,7 @@ impl Code {
         let unwind_fits = self
             .unwind
             .get()
-            .is_none_or(|unwind| unwind.ranges_fit(sections));
+            .is_none_or(|unwind| unwind.ranges_fit(sections, bytes.len()));
         if !functions_fit || !resumes_fit || !unwind_fits {
             return false;
         }
@@ -200,13 +200,14 @@ impl CodeBuilder {
             .into_iter()
             .map(Optional::from)
             .collect::<Vec<_>>();
-        let unwind = self.unwind.map(|unwind| unwind.build(sections));
+        let mut bytes = self.bytes;
+        let unwind = self.unwind.map(|unwind| unwind.build(&mut bytes, sections));
 
         Code {
             abi_version: abi::VERSION,
             target: self.target,
             features: sections.insert(self.features),
-            bytes: sections.insert_bytes(self.bytes, 16),
+            bytes: sections.insert_bytes(bytes, 16),
             functions: sections.insert(functions),
             resumes: sections.insert(resumes),
             unwind: Optional::from(unwind),
