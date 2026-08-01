@@ -13,7 +13,7 @@ use destack_workspace::{
     QueryFile, QueryRun, ReloadReason, ReloadRequest, RevisionPolicy, RunQueryRequest,
     RunQueryResponse, Workspace,
 };
-use serde_json::{Value, to_value};
+use serde_json::to_value;
 
 use super::{ClientCapabilities, ServerSession, ServerSettings, internal_error, workspace_error};
 use crate::query::{
@@ -79,18 +79,6 @@ impl DestackLanguageServer {
     /// Return mutable editor configuration after initialization.
     fn settings(&self) -> jsonrpc::Result<&ServerSettings> {
         Ok(&self.session()?.settings)
-    }
-
-    /// Report an asynchronous LSP failure to the client.
-    async fn report_error(&self, operation: &str, error: jsonrpc::Error) {
-        let detail = error
-            .data
-            .as_ref()
-            .and_then(Value::as_str)
-            .unwrap_or(error.message.as_ref());
-        self.client
-            .log_message(lsp::MessageType::ERROR, format!("{operation}: {detail}"))
-            .await;
     }
 
     /// Execute one program query through the workspace.
@@ -175,7 +163,7 @@ impl DestackLanguageServer {
         let response = tokio::task::spawn_blocking(move || run.wait()).await;
         guard.finish();
         self.report_query_trace(workspace.as_ref(), revision, method, trace)
-            .await;
+            .await?;
         let response = response.map_err(internal_error)?.map_err(workspace_error)?;
 
         // reject results invalidated while the query was running
@@ -194,65 +182,34 @@ impl DestackLanguageServer {
         revision: Revision,
         method: query::QueryMethod,
         trace: Arc<Trace>,
-    ) {
-        let trace_level = match self.session() {
-            Ok(session) => session.trace(),
-            Err(error) => {
-                self.report_error("report query trace", error).await;
-
-                return;
-            }
-        };
-        if trace_level == lsp::TraceValue::Off {
-            return;
+    ) -> jsonrpc::Result<()> {
+        if self.client.trace_level() != lsp::TraceValue::Verbose {
+            return Ok(());
         }
 
-        // snapshot exact repository labels after the query has finished
-        let view = TraceView::detailed(trace_level == lsp::TraceValue::Verbose);
-        let snapshot = match workspace.snapshot_trace(revision, trace.as_ref(), view) {
-            Ok(snapshot) => snapshot,
-            Err(error) => {
-                self.client
-                    .log_message(
-                        lsp::MessageType::ERROR,
-                        format!("query trace failed: {error}"),
-                    )
-                    .await;
-
-                return;
-            }
-        };
-
-        // summarize the complete artifact outcome set
-        let stats = &snapshot.stats;
-        let attempts =
-            stats.built + stats.memory_cached + stats.store_cached + stats.parked + stats.failed;
-        let milliseconds = snapshot.total_micros as f64 / 1_000.0;
+        // snapshot exact artifact labels only for an explicit detailed trace
+        let snapshot = workspace
+            .snapshot_trace(revision, trace.as_ref(), TraceView::Detailed)
+            .map_err(internal_error)?;
         let message = format!(
-            "{}: {milliseconds:.3} ms, {attempts} attempts, {} built, {} memory, {} store, {} parked, {} failed",
+            "event=query.finished method={} revision={revision} duration_us={}",
             method.name(),
-            stats.built,
-            stats.memory_cached,
-            stats.store_cached,
-            stats.parked,
-            stats.failed,
+            snapshot.total_micros,
         );
 
-        // include the standard detailed report only at verbose trace level
-        let verbose = (trace_level == lsp::TraceValue::Verbose).then(|| {
+        // render the complete artifact report in the explicit verbose field
+        let verbose = Some(
             TraceReport::new()
                 .row(method.name(), snapshot)
                 .timelines()
                 .span_totals()
                 .slow_attempts(TRACE_SLOW_ATTEMPTS)
-                .render()
-        });
+                .render(),
+        );
         self.client
-            .send_notification::<lsp::notification::LogTrace>(lsp::LogTraceParams {
-                message,
-                verbose,
-            })
-            .await;
+            .log_trace(message, verbose)
+            .await
+            .map_err(internal_error)
     }
 
     /// Load documents from one query revision.
@@ -593,6 +550,8 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::InitializeParams,
     ) -> jsonrpc::Result<lsp::InitializeResult> {
+        self.client.set_trace(params.trace.unwrap_or_default());
+
         // build the complete initialized session
         let session = ServerSession::open(&params)?;
         let supports_code_lenses = session.client_capabilities.supports_code_lenses();
@@ -734,7 +693,8 @@ impl LanguageServer for DestackLanguageServer {
         let capabilities = match self.client_capabilities() {
             Ok(capabilities) => capabilities,
             Err(error) => {
-                self.report_error("failed to read client capabilities", error)
+                self.client
+                    .report_error("client_capabilities.read", error)
                     .await;
 
                 return;
@@ -745,7 +705,8 @@ impl LanguageServer for DestackLanguageServer {
         if capabilities.supports_dynamic_file_watching
             && let Err(error) = self.register_file_watchers().await
         {
-            self.report_error("failed to register file watchers", error)
+            self.client
+                .report_error("file_watchers.register", error)
                 .await;
         }
 
@@ -756,23 +717,18 @@ impl LanguageServer for DestackLanguageServer {
                 Err(error) => Err(error),
             };
             if let Err(error) = result {
-                self.report_error("failed to load editor configuration", error)
-                    .await;
+                self.client.report_error("configuration.load", error).await;
             }
         }
     }
 
     async fn set_trace(&self, params: lsp::SetTraceParams) {
-        match self.session() {
-            Ok(session) => session.set_trace(params.value),
-            Err(error) => self.report_error("failed to set trace level", error).await,
-        }
+        self.client.set_trace(params.value);
     }
 
     async fn did_change_configuration(&self, _: lsp::DidChangeConfigurationParams) {
         if let Err(error) = self.change_configuration().await {
-            self.report_error("failed to apply editor configuration", error)
-                .await;
+            self.client.report_error("configuration.apply", error).await;
         }
     }
 
@@ -786,42 +742,40 @@ impl LanguageServer for DestackLanguageServer {
 
     async fn did_open(&self, params: lsp::DidOpenTextDocumentParams) {
         if let Err(error) = self.open_document(params).await {
-            self.report_error("failed to open editor document", error)
-                .await;
+            self.client.report_error("document.open", error).await;
         }
     }
 
     async fn did_change(&self, params: lsp::DidChangeTextDocumentParams) {
         if let Err(error) = self.change_document(params).await {
-            self.report_error("failed to change editor document", error)
-                .await;
+            self.client.report_error("document.change", error).await;
         }
     }
 
     async fn did_save(&self, params: lsp::DidSaveTextDocumentParams) {
         if let Err(error) = self.save_document(params).await {
-            self.report_error("failed to save editor document", error)
-                .await;
+            self.client.report_error("document.save", error).await;
         }
     }
 
     async fn did_close(&self, params: lsp::DidCloseTextDocumentParams) {
         if let Err(error) = self.close_document(params).await {
-            self.report_error("failed to close editor document", error)
-                .await;
+            self.client.report_error("document.close", error).await;
         }
     }
 
     async fn did_change_workspace_folders(&self, params: lsp::DidChangeWorkspaceFoldersParams) {
         if let Err(error) = self.change_workspace_folders(params).await {
-            self.report_error("failed to change workspace folders", error)
+            self.client
+                .report_error("workspace_folders.change", error)
                 .await;
         }
     }
 
     async fn did_change_watched_files(&self, params: lsp::DidChangeWatchedFilesParams) {
         if let Err(error) = self.change_watched_files(params).await {
-            self.report_error("failed to reload watched files", error)
+            self.client
+                .report_error("watched_files.reload", error)
                 .await;
         }
     }
@@ -914,7 +868,8 @@ impl LanguageServer for DestackLanguageServer {
                 .clear_renamed_file_diagnostics(&file.old_uri, &file.new_uri)
                 .await;
             if let Err(error) = result {
-                self.report_error("failed to clear renamed file diagnostics", error)
+                self.client
+                    .report_error("renamed_file_diagnostics.clear", error)
                     .await;
             }
         }
@@ -924,7 +879,8 @@ impl LanguageServer for DestackLanguageServer {
         for file in params.files {
             let result = self.clear_deleted_file_diagnostics(&file.uri).await;
             if let Err(error) = result {
-                self.report_error("failed to clear deleted file diagnostics", error)
+                self.client
+                    .report_error("deleted_file_diagnostics.clear", error)
                     .await;
             }
         }

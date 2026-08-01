@@ -4,8 +4,9 @@ pub use self::socket::{ClientSocket, RequestStream, ResponseSink};
 
 use std::fmt::{self, Debug, Display, Formatter};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::task::{Context, Poll};
+use std::time::Instant;
 
 use destack_lsp_types::*;
 use futures::channel::mpsc::{self, Sender};
@@ -16,8 +17,8 @@ use tower::Service;
 
 use self::pending::Pending;
 use self::progress::Progress;
-use super::ExitedError;
 use super::state::{ServerState, State};
+use super::{ExitedError, TraceRecord};
 use crate::jsonrpc::{self, Error, ErrorCode, Id, Request, Response};
 
 pub mod progress;
@@ -31,6 +32,8 @@ const CLIENT_REQUEST_QUEUE_CAPACITY: usize = 256;
 struct ClientInner {
     tx: Sender<Request>,
     request_id: AtomicU32,
+    is_trace_enabled: AtomicBool,
+    is_trace_verbose: AtomicBool,
     pending: Arc<Pending>,
     state: Arc<ServerState>,
 }
@@ -56,6 +59,8 @@ impl Client {
             inner: Arc::new(ClientInner {
                 tx,
                 request_id: AtomicU32::new(0),
+                is_trace_enabled: AtomicBool::new(false),
+                is_trace_verbose: AtomicBool::new(false),
                 pending: pending.clone(),
                 state: state.clone(),
             }),
@@ -74,6 +79,70 @@ impl Client {
     /// observe the end of the stream.
     pub(crate) fn close(&self) {
         self.inner.tx.clone().close_channel();
+    }
+
+    /// Set the protocol trace level.
+    pub fn set_trace(&self, trace: TraceValue) {
+        let (is_enabled, is_verbose) = match trace {
+            TraceValue::Off => (false, false),
+            TraceValue::Messages => (true, false),
+            TraceValue::Verbose => (true, true),
+        };
+        self.inner
+            .is_trace_verbose
+            .store(is_verbose, Ordering::Relaxed);
+        self.inner
+            .is_trace_enabled
+            .store(is_enabled, Ordering::Release);
+    }
+
+    /// Return the protocol trace level.
+    #[must_use]
+    pub fn trace_level(&self) -> TraceValue {
+        if !self.inner.is_trace_enabled.load(Ordering::Acquire) {
+            TraceValue::Off
+        } else if self.inner.is_trace_verbose.load(Ordering::Relaxed) {
+            TraceValue::Verbose
+        } else {
+            TraceValue::Messages
+        }
+    }
+
+    /// Send one protocol trace message.
+    pub async fn log_trace(
+        &self,
+        message: impl Into<String>,
+        verbose: Option<String>,
+    ) -> Result<(), ExitedError> {
+        let verbose = match self.trace_level() {
+            TraceValue::Off => return Ok(()),
+            TraceValue::Messages => None,
+            TraceValue::Verbose => verbose,
+        };
+        let request = Request::from_notification::<notification::LogTrace>(LogTraceParams {
+            message: message.into(),
+            verbose,
+        });
+        let mut tx = self.inner.tx.clone();
+        tx.send(request).await.map_err(|_| ExitedError(()))
+    }
+
+    /// Report one failed language server operation.
+    pub async fn report_error(&self, operation: &str, error: Error) {
+        let code = error.code;
+        let reason = error.reason();
+        let message = format!(
+            "event=lsp.operation.failed operation={operation} code={code} error={reason:?}"
+        );
+
+        self.log_message(MessageType::ERROR, message).await;
+    }
+
+    /// Send one structured protocol trace record.
+    pub(super) async fn log_trace_record(&self, record: TraceRecord) -> Result<(), ExitedError> {
+        let (message, verbose) = record.into_parts();
+
+        self.log_trace(message, verbose).await
     }
 }
 
@@ -680,16 +749,42 @@ impl Service<Request> for Client {
     }
 
     fn call(&mut self, req: Request) -> Self::Future {
+        let trace = self.trace_level();
+        let is_verbose = trace == TraceValue::Verbose;
+        let request_trace = (trace != TraceValue::Off).then(|| TraceRecord::sent(&req, is_verbose));
         let mut tx = self.inner.tx.clone();
         let response_waiter = req.id().cloned().map(|id| self.inner.pending.wait(id));
+        let method = (trace != TraceValue::Off && response_waiter.is_some())
+            .then(|| req.method().to_string());
+        let client = self.clone();
 
         Box::pin(async move {
+            if let Some(request_trace) = request_trace {
+                client.log_trace_record(request_trace).await?;
+            }
+
+            // send the message and time traced client requests
+            let started = method.as_ref().map(|_| Instant::now());
             if tx.send(req).await.is_err() {
                 return Err(ExitedError(()));
             }
 
+            // await and report request responses
             match response_waiter {
-                Some(fut) => Ok(Some(fut.await)),
+                Some(fut) => {
+                    let response = fut.await;
+                    if let Some((method, started)) = method.zip(started) {
+                        let response_trace = TraceRecord::response_received(
+                            &response,
+                            &method,
+                            started.elapsed(),
+                            is_verbose,
+                        );
+                        client.log_trace_record(response_trace).await?;
+                    }
+
+                    Ok(Some(response))
+                }
                 None => Ok(None),
             }
         })

@@ -31,8 +31,6 @@ pub(super) struct ServerSession {
     pub(super) client_capabilities: ClientCapabilities,
     /// Mutable editor configuration.
     pub(super) settings: ServerSettings,
-    /// LSP trace verbosity selected by the client.
-    trace: RwLock<lsp::TraceValue>,
     /// Diagnostic delivery selected from client capabilities.
     pub(super) diagnostics: DiagnosticDelivery,
 }
@@ -266,7 +264,6 @@ impl ServerSession {
             projects: RwLock::new(ProjectSet::default()),
             client_capabilities,
             settings: ServerSettings::default(),
-            trace: RwLock::new(params.trace.unwrap_or_default()),
             diagnostics,
         };
 
@@ -276,16 +273,6 @@ impl ServerSession {
         }
 
         Ok(session)
-    }
-
-    /// Return the active LSP trace verbosity.
-    pub(super) fn trace(&self) -> lsp::TraceValue {
-        *self.trace.read()
-    }
-
-    /// Set the active LSP trace verbosity.
-    pub(super) fn set_trace(&self, trace: lsp::TraceValue) {
-        *self.trace.write() = trace;
     }
 
     /// Resolve the project workspace that owns one source path.

@@ -329,10 +329,7 @@ impl PullDiagnostics {
             tokio::time::sleep(DIAGNOSTIC_DELAY).await;
             if let Err(error) = client.workspace_diagnostic_refresh().await {
                 client
-                    .log_message(
-                        lsp::MessageType::ERROR,
-                        format!("failed to refresh diagnostics: {error}"),
-                    )
+                    .report_error("diagnostics.refresh", internal_error(error))
                     .await;
             }
         });
@@ -380,10 +377,7 @@ impl PushDiagnostics {
                 Ok(run) => run,
                 Err(error) => {
                     client
-                        .log_message(
-                            lsp::MessageType::ERROR,
-                            format!("failed to schedule diagnostics: {error}"),
-                        )
+                        .report_error("diagnostics.schedule", workspace_error(error))
                         .await;
 
                     return;
@@ -397,20 +391,14 @@ impl PushDiagnostics {
                 Ok(Ok(diagnostics)) => diagnostics,
                 Ok(Err(error)) => {
                     client
-                        .log_message(
-                            lsp::MessageType::ERROR,
-                            format!("failed to read diagnostics: {error}"),
-                        )
+                        .report_error("diagnostics.read", workspace_error(error))
                         .await;
 
                     return;
                 }
                 Err(error) => {
                     client
-                        .log_message(
-                            lsp::MessageType::ERROR,
-                            format!("diagnostic worker failed: {error}"),
-                        )
+                        .report_error("diagnostics.wait", internal_error(error))
                         .await;
 
                     return;
@@ -433,10 +421,7 @@ impl PushDiagnostics {
                     Ok(current) => current,
                     Err(error) => {
                         client
-                            .log_message(
-                                lsp::MessageType::ERROR,
-                                format!("failed to read diagnostic revision: {error}"),
-                            )
+                            .report_error("diagnostics.revision.read", workspace_error(error))
                             .await;
 
                         return;
@@ -465,12 +450,7 @@ impl PushDiagnostics {
                     }
                 }
                 Err(error) => {
-                    client
-                        .log_message(
-                            lsp::MessageType::ERROR,
-                            format!("failed to publish diagnostics: {error}"),
-                        )
-                        .await;
+                    client.report_error("diagnostics.publish", error).await;
                 }
             }
         });

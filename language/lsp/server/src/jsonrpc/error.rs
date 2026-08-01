@@ -180,6 +180,15 @@ impl Error {
     pub const fn content_modified() -> Self {
         Self::new(ErrorCode::ContentModified)
     }
+
+    /// Return the specific reason carried by this error.
+    #[must_use]
+    pub fn reason(&self) -> &str {
+        self.data
+            .as_ref()
+            .and_then(LSPAny::as_str)
+            .unwrap_or(self.message.as_ref())
+    }
 }
 
 impl Display for Error {

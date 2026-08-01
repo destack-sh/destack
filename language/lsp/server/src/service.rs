@@ -8,8 +8,9 @@ pub use self::state::{ServerState, State};
 use std::fmt::{self, Debug, Display, Formatter};
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::time::{Duration, Instant};
 
-use destack_lsp_types::LSPAny;
+use destack_lsp_types::{LSPAny, MessageType, TraceValue};
 use futures::future::{self, BoxFuture, FutureExt};
 use tower::Service;
 
@@ -56,6 +57,125 @@ impl Display for ExitedError {
 pub struct LspService<S> {
     inner: Router<S, ExitedError>,
     state: Arc<ServerState>,
+    client: Client,
+}
+
+/// One structured protocol trace record.
+pub(super) struct TraceRecord {
+    /// The compact record fields.
+    message: String,
+    /// The verbose message body.
+    verbose: Option<String>,
+}
+
+impl TraceRecord {
+    /// Render an incoming request or notification.
+    fn received(request: &Request, is_verbose: bool) -> Self {
+        Self::request("lsp", request, is_verbose)
+    }
+
+    /// Render an outgoing request or notification.
+    pub(super) fn sent(request: &Request, is_verbose: bool) -> Self {
+        Self::request("lsp.client", request, is_verbose)
+    }
+
+    /// Render an outgoing response.
+    fn response_sent(
+        response: &Response,
+        method: &str,
+        duration: Duration,
+        is_verbose: bool,
+    ) -> Self {
+        Self::response("lsp.response", response, method, duration, is_verbose)
+    }
+
+    /// Render an incoming response.
+    pub(super) fn response_received(
+        response: &Response,
+        method: &str,
+        duration: Duration,
+        is_verbose: bool,
+    ) -> Self {
+        Self::response(
+            "lsp.client.response",
+            response,
+            method,
+            duration,
+            is_verbose,
+        )
+    }
+
+    /// Return the compact record fields.
+    pub(super) fn message(&self) -> &str {
+        &self.message
+    }
+
+    /// Split the record into standard LSP trace fields.
+    pub(super) fn into_parts(self) -> (String, Option<String>) {
+        (self.message, self.verbose)
+    }
+
+    /// Render one request-shaped message.
+    fn request(namespace: &str, request: &Request, is_verbose: bool) -> Self {
+        let message = match request.id() {
+            Some(request_id) => format!(
+                "event={namespace}.request method={} request_id={request_id}",
+                request.method(),
+            ),
+            None => format!("event={namespace}.notification method={}", request.method(),),
+        };
+        let verbose = if is_verbose {
+            request.params().map(|params| format!("params={params}"))
+        } else {
+            None
+        };
+
+        Self { message, verbose }
+    }
+
+    /// Render one response-shaped message.
+    fn response(
+        event: &str,
+        response: &Response,
+        method: &str,
+        duration: Duration,
+        is_verbose: bool,
+    ) -> Self {
+        let duration_us = duration.as_micros();
+        let status = match response.error().map(|error| error.code) {
+            None => "ok",
+            Some(ErrorCode::RequestCancelled) => "cancelled",
+            Some(ErrorCode::ContentModified) => "stale",
+            Some(_) => "error",
+        };
+        let mut message = format!(
+            "event={event} method={method} request_id={} status={status} duration_us={duration_us}",
+            response.id(),
+        );
+
+        // include exact failures in the compact record
+        if let Some(error) = response.error() {
+            let reason = error.reason();
+            message.push_str(&format!(" code={} error={reason:?}", error.code));
+        }
+
+        // include complete results only in verbose traces
+        let verbose = if is_verbose {
+            response
+                .result()
+                .map(|result| format!("result={result}"))
+                .or_else(|| {
+                    response
+                        .error()
+                        .and_then(|error| error.data.as_ref())
+                        .map(|data| format!("error_data={data}"))
+                })
+        } else {
+            None
+        };
+
+        Self { message, verbose }
+    }
 }
 
 impl<S: LanguageServer> LspService<S> {
@@ -86,10 +206,11 @@ impl<S: LanguageServer> LspService<S> {
                 inner,
                 state.clone(),
                 pending.clone(),
-                client,
+                client.clone(),
             ),
             state,
             pending,
+            client,
             socket,
         }
     }
@@ -119,19 +240,58 @@ impl<S: LanguageServer> Service<Request> for LspService<S> {
             return future::err(ExitedError(())).boxed();
         }
 
+        let trace = self.client.trace_level();
+        let is_verbose = trace == TraceValue::Verbose;
+        let method = req.method().to_string();
+        let request_trace =
+            (trace != TraceValue::Off).then(|| TraceRecord::received(&req, is_verbose));
+        let client = self.client.clone();
         let fut = self.inner.call(req);
 
         Box::pin(async move {
+            if let Some(request_trace) = request_trace {
+                client.log_trace_record(request_trace).await?;
+            }
+
+            // time request handling independently from trace publication
+            let started = Instant::now();
             let response = fut.await?;
 
-            match response.as_ref().and_then(|res| res.error()) {
+            let response = match response.as_ref().and_then(|res| res.error()) {
                 Some(Error {
                     code: ErrorCode::MethodNotFound,
                     data: Some(LSPAny::String(m)),
                     ..
-                }) if m.starts_with("$/") => Ok(None),
-                _ => Ok(response),
+                }) if m.starts_with("$/") => None,
+                _ => response,
+            };
+
+            // report failures and traced responses with the exact handler duration
+            if let Some(response) = response.as_ref() {
+                let is_error = response.error().is_some_and(|error| {
+                    !matches!(
+                        error.code,
+                        ErrorCode::RequestCancelled | ErrorCode::ContentModified
+                    )
+                });
+                if is_error || trace != TraceValue::Off {
+                    let response_trace = TraceRecord::response_sent(
+                        response,
+                        &method,
+                        started.elapsed(),
+                        is_verbose,
+                    );
+                    if is_error {
+                        client
+                            .log_message(MessageType::ERROR, response_trace.message())
+                            .await;
+                    } else {
+                        client.log_trace_record(response_trace).await?;
+                    }
+                }
             }
+
+            Ok(response)
         })
     }
 }
@@ -143,6 +303,7 @@ pub struct LspServiceBuilder<S> {
     inner: Router<S, ExitedError>,
     state: Arc<ServerState>,
     pending: Arc<Pending>,
+    client: Client,
     socket: ClientSocket,
 }
 
@@ -232,11 +393,19 @@ impl<S: LanguageServer> LspServiceBuilder<S> {
         let Self {
             inner,
             state,
+            client,
             socket,
             ..
         } = self;
 
-        (LspService { inner, state }, socket)
+        (
+            LspService {
+                inner,
+                state,
+                client,
+            },
+            socket,
+        )
     }
 }
 
