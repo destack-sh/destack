@@ -33,7 +33,7 @@ export local class AsyncOnceCell<T> {
     }
 
     /// Get the value or initialize it.
-    getOrInit(init: () => Task<T>): Promise<&readonly T> {
+    getOrInit(init: () => Task<T>): Task<&readonly T> {
         todo("AsyncOnceCell.getOrInit")
     }
 

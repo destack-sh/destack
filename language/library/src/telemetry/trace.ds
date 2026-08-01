@@ -163,7 +163,7 @@ export class Tracer {
     }
 
     /// Run task `body` inside one span.
-    async spanAsync<T>(
+    async spanTask<T>(
         &readonly this,
         name: &readonly string,
         body: (span: Span) => Task<T>,
@@ -202,12 +202,12 @@ export function spanAsync<T: Copy>(
 }
 
 /// Run task `body` inside one span.
-export async function spanAsync<T>(
+export function spanTask<T>(
     name: &readonly string,
     body: (span: Span) => Task<T>,
     options?: SpanOptions,
 ): Task<T> {
-    tracer().spanAsync(name, body, options)
+    tracer().spanTask(name, body, options)
 }
 
 /// Write one trace entry to a trace sink.
