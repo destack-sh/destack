@@ -98,10 +98,10 @@ impl CheckState<'_> {
                 SmallVec::from_slice(&[target_type.constraint]),
             ),
 
-            // callables decompose over their signatures and environments
+            // callables decompose over their signatures
             (dir::Type::Function(source_type), dir::Type::Function(target_type)) => (
-                SmallVec::from_slice(&[source_type.signature, source_type.environment]),
-                SmallVec::from_slice(&[target_type.signature, target_type.environment]),
+                SmallVec::from_slice(&[source_type.signature]),
+                SmallVec::from_slice(&[target_type.signature]),
             ),
             (dir::Type::FunctionPointer(source_type), dir::Type::FunctionPointer(target_type)) => (
                 SmallVec::from_slice(&[source_type.signature]),

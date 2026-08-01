@@ -262,11 +262,7 @@ impl CheckState<'_> {
         else {
             return Ok(Answer::Ready(None));
         };
-        let environment = self.intern_type(dir::Type::Unknown)?;
-        let function = dir::Type::Function(dir::FunctionType {
-            signature,
-            environment,
-        });
+        let function = dir::Type::Function(dir::FunctionType { signature });
         let ty = self.intern_type(function)?;
 
         Ok(Answer::Ready(Some(ty)))

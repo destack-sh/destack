@@ -514,13 +514,9 @@ impl CheckState<'_> {
                 measured
             }
 
-            // measure functions through their signature and environment
+            // measure functions through their signature
             dir::Type::Function(function) => {
-                let signature = self.measure_type(function.signature, position, form, parameter)?;
-                let environment =
-                    self.measure_type(function.environment, Variance::Invariant, form, parameter)?;
-
-                signature.join(environment)
+                self.measure_type(function.signature, position, form, parameter)?
             }
             dir::Type::FunctionPointer(pointer) => {
                 self.measure_type(pointer.signature, position, form, parameter)?

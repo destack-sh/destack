@@ -65,10 +65,7 @@ impl CheckState<'_> {
                     return Ok(ty);
                 }
 
-                self.intern_type(dir::Type::Function(dir::FunctionType {
-                    signature,
-                    environment: function.environment,
-                }))
+                self.intern_type(dir::Type::Function(dir::FunctionType { signature }))
             }
             dir::Type::FunctionPointer(function) => {
                 let signature = self.canonical_foreign_signature(origin, function.signature)?;

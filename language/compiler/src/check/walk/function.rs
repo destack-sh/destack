@@ -422,11 +422,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         signature: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let environment = self.intern_type(dir::Type::Unknown)?;
-        let function = dir::FunctionType {
-            signature,
-            environment,
-        };
+        let function = dir::FunctionType { signature };
 
         self.intern_type(dir::Type::Function(function))
     }

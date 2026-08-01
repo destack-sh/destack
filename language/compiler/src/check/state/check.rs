@@ -1385,7 +1385,6 @@ impl CheckState<'_> {
             }
             dir::Type::Function(mut function) => {
                 function.signature = map(self, function.signature)?;
-                function.environment = map(self, function.environment)?;
 
                 dir::Type::Function(function)
             }
