@@ -5,7 +5,7 @@ use crate::lower::ModuleLowerer;
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl ModuleLowerer<'_> {
-    /// Return the checked type table of one module.
+    /// Return the type table of one module.
     pub(in crate::lower) fn types(
         &self,
         module: ModuleId,
@@ -13,16 +13,16 @@ impl ModuleLowerer<'_> {
         Ok(&self.state(module)?.types)
     }
 
-    /// Return one checked type by id.
+    /// Return one type by id.
     pub(in crate::lower) fn ty(&self, ty: dir::GlobalTypeId) -> CompilerResult<dir::Type> {
         self.types(ty.module_id)?
             .get_type_maybe(ty.local_id)
             .ok_or_else(|| CompilerError::Internal {
-                message: format!("checked DIR is missing type {:?}", ty.local_id),
+                message: format!("missing type {:?}", ty.local_id),
             })
     }
 
-    /// Return the checked reduction of one type id.
+    /// Return the reduction of one type id.
     pub(in crate::lower) fn reduced_type(
         &self,
         ty: dir::GlobalTypeId,
@@ -30,7 +30,34 @@ impl ModuleLowerer<'_> {
         Ok(self.types(ty.module_id)?.get_reduced_type_id(ty))
     }
 
-    /// Return one canonical checked singleton in a well-known memory domain.
+    /// Return the inherent method implementing one constraint member.
+    pub(in crate::lower) fn implementing_method(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        name: destack_core::StringId,
+    ) -> CompilerResult<dir::GlobalSymbolId> {
+        let Some(definition) = self.definition(symbol)? else {
+            return Err(CompilerError::Internal {
+                message: "an erased value without a definition".to_string(),
+            });
+        };
+        for member in definition.members() {
+            let dir::DefinitionMember::Method(method) = member else {
+                continue;
+            };
+            if self.symbol_name(method.symbol)? == Some(name) {
+                return Ok(method.symbol);
+            }
+        }
+
+        Err(LowerError::Unsupported {
+            anchor: self.module.into(),
+            construct: "an extension-implemented constraint member".to_string(),
+        }
+        .into())
+    }
+
+    /// Return one canonical singleton in a well-known memory domain.
     pub(in crate::lower) fn memory_literal(
         &self,
         ty: dir::GlobalTypeId,
@@ -40,12 +67,12 @@ impl ModuleLowerer<'_> {
         let actual = self.ty(ty)?;
         let dir::Type::Memory(literal) = actual else {
             return Err(CompilerError::Internal {
-                message: format!("checked DIR left a {kind:?} singleton as {actual:?}"),
+                message: format!("a {kind:?} singleton left as {actual:?}"),
             });
         };
         if literal.kind_language_item() != kind.language_item() {
             return Err(CompilerError::Internal {
-                message: format!("checked DIR supplied the wrong {kind:?} singleton"),
+                message: format!("the wrong {kind:?} singleton"),
             });
         }
 
@@ -64,13 +91,13 @@ impl ModuleLowerer<'_> {
             signature @ dir::Type::FunctionSignature(_) => (signature, ty.module_id),
             other => {
                 return Err(CompilerError::Internal {
-                    message: format!("checked DIR declared a non-callable function: {other:?}"),
+                    message: format!("a non-callable function: {other:?}"),
                 });
             }
         };
         let dir::Type::FunctionSignature(signature) = signature else {
             return Err(CompilerError::Internal {
-                message: "checked DIR is missing a signature behind one function type".to_string(),
+                message: "missing a signature behind one function type".to_string(),
             });
         };
 
@@ -120,7 +147,7 @@ impl ModuleLowerer<'_> {
             _ => return Ok(None),
         };
 
-        // open elements need their instance substitution to resolve
+        // leave open elements to their instance substitution
         let element = self.reduced_type(slice.element)?;
         if matches!(self.ty(element)?, dir::Type::Parameter(_)) {
             return Ok(None);
@@ -144,7 +171,34 @@ impl ModuleLowerer<'_> {
         };
 
         u64::try_from(length).map_err(|_| CompilerError::Internal {
-            message: "checked DIR closed a fixed array at a negative length".to_string(),
+            message: "a fixed array closed at a negative length".to_string(),
         })
+    }
+
+    /// Return one enum or Tagged variant's declaration position.
+    pub(in crate::lower) fn variant_position(
+        &self,
+        owner: dir::GlobalSymbolId,
+        variant: dir::GlobalSymbolId,
+    ) -> CompilerResult<u32> {
+        // select the declaration order owned by the variant family
+        let index = match self.definition(owner)? {
+            Some(dir::Definition::Enum(definition)) => definition.variant_position(variant),
+            Some(dir::Definition::Newtype(definition)) if definition.is_tagged() => {
+                definition.tagged_variant_position(variant)
+            }
+            _ => {
+                return Err(CompilerError::Internal {
+                    message: "a variant owner without a variant definition".to_string(),
+                });
+            }
+        };
+        let Some(index) = index else {
+            return Err(CompilerError::Internal {
+                message: "a variant missing from its owner definition".to_string(),
+            });
+        };
+
+        Ok(index as u32)
     }
 }

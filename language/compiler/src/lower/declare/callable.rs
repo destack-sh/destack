@@ -8,7 +8,7 @@ use crate::lower::{
 use crate::{CompilerError, CompilerResult};
 
 impl ModuleLowerer<'_> {
-    /// Declare the MIR header for one function declaration with a body.
+    /// Declare the header for one function declaration with a body.
     pub(in crate::lower) fn declare_function(
         &mut self,
         builder: &mut mir::ModuleBuilder,
@@ -21,17 +21,17 @@ impl ModuleLowerer<'_> {
         let node = declaration.into_global_any(module);
         let Some(symbol) = self.symbol_declared_at(node)? else {
             return Err(CompilerError::Internal {
-                message: "checked DIR is missing a symbol for one function declaration".to_string(),
+                message: "missing a symbol for one function declaration".to_string(),
             });
         };
         let declared = self.symbol_type(symbol)?;
         let lifetime_parameters = self.lifetime_parameters(declared)?;
         let type_substitution = TypeSubstitution::default();
 
-        // resolve the checked parameter types alongside their symbols
+        // resolve the parameter types alongside their symbols
         let dir::Declaration::Function(function) = self.local().tree().get(declaration) else {
             return Err(CompilerError::Internal {
-                message: "checked DIR declared a function body outside a function".to_string(),
+                message: "a function body declared outside a function".to_string(),
             });
         };
         let parameter_nodes = function.signature.parameters.to_vec();
@@ -40,27 +40,25 @@ impl ModuleLowerer<'_> {
             let node = parameter.into_global_any(module);
             let Some(symbol) = self.symbol_declared_at(node)? else {
                 return Err(CompilerError::Internal {
-                    message: "checked DIR is missing a symbol for one parameter".to_string(),
+                    message: "missing a symbol for one parameter".to_string(),
                 });
             };
             symbols.push(symbol.local_id);
         }
 
-        // lower the sealed signature through the shared callable path
+        // lower the signature through the shared callable path
         let signature =
             self.lower_signature(builder, declared, &type_substitution, &lifetime_parameters)?;
         if signature.parameters.len() != symbols.len() {
             return Err(CompilerError::Internal {
-                message: "checked DIR function parameters disagree with its sealed signature"
-                    .to_string(),
+                message: "function parameters disagree with the declared signature".to_string(),
             });
         }
 
         // declare the header under the function's name
         let Some(name) = self.symbol_name(symbol)? else {
             return Err(CompilerError::Internal {
-                message: "checked DIR is missing a name on one lowered function declaration"
-                    .to_string(),
+                message: "missing a name on one lowered function declaration".to_string(),
             });
         };
         let name = format!("{}.{}", self.local().path, self.strings.get(name));
@@ -94,7 +92,7 @@ impl ModuleLowerer<'_> {
             return Ok(false);
         };
 
-        // any non-lifetime parameter makes the callable instance-polymorphic
+        // report any non-lifetime parameter
         let template_module = template.module_id;
         let generics = &self.state(template_module)?.generics;
         let template = generics.get_template(template.local_id);
@@ -122,7 +120,7 @@ impl ModuleLowerer<'_> {
         LifetimeParameters::from_template(self, template)
     }
 
-    /// Declare the MIR header for one member callable with a body.
+    /// Declare the header for one member callable with a body.
     pub(in crate::lower) fn declare_method(
         &mut self,
         builder: &mut mir::ModuleBuilder,
@@ -152,9 +150,9 @@ impl ModuleLowerer<'_> {
         };
         let type_substitution = TypeSubstitution::default().with_receiver(receiver);
 
-        // read the sealed receiver before borrowing the member signature
+        // read the declared receiver before borrowing the member signature
         let (signature, signature_module) = self.signature(declared)?;
-        let sealed_this = self
+        let declared_this = self
             .types(signature_module)?
             .signature(signature)
             .this_parameter;
@@ -163,7 +161,7 @@ impl ModuleLowerer<'_> {
         let role = {
             let dir::Member::Method { signature, .. } = self.local().tree().get(member) else {
                 return Err(CompilerError::Internal {
-                    message: "checked DIR declared a method body outside a method".to_string(),
+                    message: "a method body declared outside a method".to_string(),
                 });
             };
 
@@ -171,9 +169,9 @@ impl ModuleLowerer<'_> {
         };
 
         let this = match role {
-            // static members take no receiver
+            // take no receiver for static members
             _ if is_static => None,
-            // constructors initialize storage exclusively, whatever its final form
+            // receive an exclusive borrow in constructors
             Some(dir::FunctionRole::Constructor) => {
                 let nominal = self
                     .type_lowerer(
@@ -193,12 +191,11 @@ impl ModuleLowerer<'_> {
                     nullability: mir::Nullability::None,
                 }))
             }
-            // methods receive this at their sealed receiver type
+            // pass this at the declared receiver type
             _ => {
-                let Some(this_type) = sealed_this else {
+                let Some(this_type) = declared_this else {
                     return Err(CompilerError::Internal {
-                        message: "checked DIR sealed an instance method without a receiver"
-                            .to_string(),
+                        message: "an instance method without a receiver".to_string(),
                     });
                 };
 
@@ -215,7 +212,7 @@ impl ModuleLowerer<'_> {
         };
         let dir::Member::Method { signature, .. } = self.local().tree().get(member) else {
             return Err(CompilerError::Internal {
-                message: "checked DIR declared a method body outside a method".to_string(),
+                message: "a method body declared outside a method".to_string(),
             });
         };
         let parameter_nodes = signature.parameters.to_vec();
@@ -224,19 +221,18 @@ impl ModuleLowerer<'_> {
             let node = parameter.into_global_any(self.module);
             let Some(symbol) = self.symbol_declared_at(node)? else {
                 return Err(CompilerError::Internal {
-                    message: "checked DIR is missing a symbol for one parameter".to_string(),
+                    message: "missing a symbol for one parameter".to_string(),
                 });
             };
             symbols.push(symbol.local_id);
         }
 
-        // lower the sealed signature and prepend its receiver
+        // lower the signature and prepend its receiver
         let signature =
             self.lower_signature(builder, declared, &type_substitution, &lifetime_parameters)?;
         if signature.parameters.len() != symbols.len() {
             return Err(CompilerError::Internal {
-                message: "checked DIR method parameters disagree with its sealed signature"
-                    .to_string(),
+                message: "method parameters disagree with the declared signature".to_string(),
             });
         }
         let mut parameters = signature.parameters;
@@ -244,7 +240,7 @@ impl ModuleLowerer<'_> {
             parameters.insert(0, this);
         }
 
-        // constructors initialize storage and return no value
+        // give constructors a void result
         let result = match role {
             Some(dir::FunctionRole::Constructor) => builder.tree_mut().intern_type(mir::Type::Void),
             _ => signature.result,
@@ -259,7 +255,7 @@ impl ModuleLowerer<'_> {
         }
         let Some(owner_name) = owner_name else {
             return Err(CompilerError::Internal {
-                message: "checked DIR declared a member owner without a name".to_string(),
+                message: "a member owner without a name".to_string(),
             });
         };
         let owner_name = self.strings.get(owner_name).to_string();
@@ -268,7 +264,7 @@ impl ModuleLowerer<'_> {
             None if role == Some(dir::FunctionRole::Constructor) => "constructor".to_string(),
             None => {
                 return Err(CompilerError::Internal {
-                    message: "checked DIR declared a method without a name".to_string(),
+                    message: "a method without a name".to_string(),
                 });
             }
         };
@@ -297,7 +293,7 @@ impl ModuleLowerer<'_> {
         })
     }
 
-    /// Return the sealed method symbol declared at one member node.
+    /// Return the method symbol declared at one member node.
     pub(in crate::lower) fn method_symbol(
         &self,
         owner: dir::GlobalSymbolId,

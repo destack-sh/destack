@@ -1,47 +1,18 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{ModuleLowerer, NominalField, TypeLowerer};
+use crate::lower::{NominalField, TypeLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
-impl ModuleLowerer<'_> {
-    /// Return one enum or Tagged variant's declaration position.
-    pub(in crate::lower) fn variant_position(
-        &self,
-        owner: dir::GlobalSymbolId,
-        variant: dir::GlobalSymbolId,
-    ) -> CompilerResult<u32> {
-        // select the declaration order owned by the variant family
-        let index = match self.definition(owner)? {
-            Some(dir::Definition::Enum(definition)) => definition.variant_position(variant),
-            Some(dir::Definition::Newtype(definition)) if definition.is_tagged() => {
-                definition.tagged_variant_position(variant)
-            }
-            _ => {
-                return Err(CompilerError::Internal {
-                    message: "checked DIR variant owner has no variant definition".to_string(),
-                });
-            }
-        };
-        let Some(index) = index else {
-            return Err(CompilerError::Internal {
-                message: "checked DIR variant is missing from its owner definition".to_string(),
-            });
-        };
-
-        Ok(index as u32)
-    }
-}
-
 impl TypeLowerer<'_, '_> {
-    /// Lower one value enum declaration to its MIR variant type.
+    /// Lower one value enum declaration to its variant type.
     pub(in crate::lower) fn lower_enum(
         &mut self,
         _symbol: dir::GlobalSymbolId,
         definition: dir::EnumDefinition,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<Vec<NominalField>> {
-        // require an integer representation supported by MIR variants
+        // require an integer representation
         let dir::EnumBackingType::Integer(integer) = definition.backing else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -89,7 +60,7 @@ impl TypeLowerer<'_, '_> {
             });
         }
 
-        // value enums carry only their copyable integer discriminant
+        // carry only the copyable integer discriminant
         let copy = mir::Copy::Yes;
         self.tree.define_type(
             ty,

@@ -4,7 +4,7 @@ use crate::lower::ModuleLowerer;
 use crate::{CompilerError, CompilerResult};
 
 impl ModuleLowerer<'_> {
-    /// Return the checked type of one symbol.
+    /// Return the type of one symbol.
     pub(in crate::lower) fn symbol_type(
         &self,
         symbol: dir::GlobalSymbolId,
@@ -12,7 +12,7 @@ impl ModuleLowerer<'_> {
         self.types(symbol.module_id)?
             .get_reduced_symbol_type_id(symbol)
             .ok_or_else(|| CompilerError::Internal {
-                message: format!("checked DIR is missing a type for symbol {symbol:?}"),
+                message: format!("missing a type for symbol {symbol:?}"),
             })
     }
 
@@ -37,8 +37,7 @@ impl ModuleLowerer<'_> {
         for symbol in local_path.symbols() {
             let Some(name) = state.bindings.get_symbol(*symbol).name() else {
                 return Err(CompilerError::Internal {
-                    message: "checked DIR runtime symbol path contains an unnamed owner"
-                        .to_string(),
+                    message: "an unnamed owner in a runtime symbol path".to_string(),
                 });
             };
             names.push(self.strings.get(name));
@@ -74,14 +73,11 @@ impl ModuleLowerer<'_> {
             .name_resolution(node)
             .and_then(|resolution| resolution.symbols().first().copied())
             .ok_or_else(|| CompilerError::Internal {
-                message: format!(
-                    "checked DIR is missing a name resolution for node {}",
-                    node.local_id.id
-                ),
+                message: format!("missing a name resolution for node {}", node.local_id.id),
             })
     }
 
-    /// Return the checked definition of one symbol in its owning module.
+    /// Return the definition of one symbol in its owning module.
     pub(in crate::lower) fn definition(
         &self,
         symbol: dir::GlobalSymbolId,
@@ -90,9 +86,6 @@ impl ModuleLowerer<'_> {
     }
 
     /// Return whether one definition declares any generic parameters.
-    ///
-    /// Heritage clauses allocate template rows even on concrete nominals, so
-    /// parameterization reads the declared parameters, not the row's presence.
     pub(in crate::lower) fn definition_is_parameterized(
         &self,
         module: destack_source::ModuleId,

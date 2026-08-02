@@ -5,7 +5,7 @@ use crate::CompilerResult;
 use crate::lower::{NominalField, TypeLowerer};
 
 impl TypeLowerer<'_, '_> {
-    /// Lower one struct declaration to its MIR type.
+    /// Lower one struct declaration to its representation.
     pub(in crate::lower) fn lower_struct(
         &mut self,
         symbol: dir::GlobalSymbolId,
@@ -15,7 +15,7 @@ impl TypeLowerer<'_, '_> {
         // gather the instance fields in declaration order
         let fields = self.lowerer.instance_fields(&definition.members);
 
-        // lower each field's checked type into a MIR field node
+        // lower each field's type into a field node
         let mut field_nodes = Vec::with_capacity(fields.len());
         for field in &fields {
             let ty = self
@@ -30,7 +30,7 @@ impl TypeLowerer<'_, '_> {
             field_nodes.push(self.tree.intern_field(mir::Field { name, ty }, Vec::new()));
         }
 
-        // concrete field representations decide whether values copy or move
+        // decide copy from the concrete field representations
         let is_copy = field_nodes
             .iter()
             .all(|field| self.tree.get(self.tree.get(*field).ty).copy(self.tree) == mir::Copy::Yes);

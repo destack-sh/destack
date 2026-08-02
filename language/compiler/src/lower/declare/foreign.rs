@@ -24,7 +24,7 @@ impl ModuleLowerer<'_> {
         builder: &mut mir::ModuleBuilder,
         imports: FxIndexSet<dir::GlobalSymbolId>,
     ) -> CompilerResult<()> {
-        // declare each import from its checked signature under its canonical name
+        // declare each import from its signature under its canonical name
         for symbol in imports {
             let key = GenericInstanceKey::non_generic(symbol);
             if self.functions.contains_key(&key) {
@@ -37,7 +37,7 @@ impl ModuleLowerer<'_> {
             let lifetime_parameters = self.lifetime_parameters(declared)?;
             let (signature, owner) = self.signature(declared)?;
 
-            // member callables lead with their receiver and qualify by owner
+            // lead member callables with their receiver and qualify by owner
             let member = self.imported_member(symbol)?;
             let type_substitution = match &member {
                 Some(member) => TypeSubstitution::default().with_receiver(
@@ -65,7 +65,7 @@ impl ModuleLowerer<'_> {
                 None => {
                     let Some(name) = self.symbol_name(symbol)? else {
                         return Err(CompilerError::Internal {
-                            message: "checked DIR imported a function without a name".to_string(),
+                            message: "an imported function without a name".to_string(),
                         });
                     };
 
@@ -80,7 +80,7 @@ impl ModuleLowerer<'_> {
                 parameters.insert(0, receiver);
             }
 
-            // constructors initialize storage and return no value
+            // give constructors a void result
             let is_constructor = member
                 .as_ref()
                 .is_some_and(|member| member.role == Some(dir::FunctionRole::Constructor));
@@ -98,7 +98,7 @@ impl ModuleLowerer<'_> {
         Ok(())
     }
 
-    /// Declare the dotted-name extern behind one sealed binding.
+    /// Declare the dotted-name extern behind one binding.
     pub(in crate::lower) fn declare_binding_function(
         &mut self,
         builder: &mut mir::ModuleBuilder,
@@ -118,7 +118,7 @@ impl ModuleLowerer<'_> {
             .into());
         };
 
-        // the declared signature supplies the parameter and return carriers
+        // read the parameter and return carriers from the declared signature
         let declared = self.symbol_type(symbol)?;
         let type_substitution = TypeSubstitution::default();
         let lifetime_parameters = self.lifetime_parameters(declared)?;
@@ -131,7 +131,7 @@ impl ModuleLowerer<'_> {
             .result(signature.result);
         let function = builder.binding_function(header, &name);
 
-        // bindings observe external state until the sealed effect row refines them
+        // mark bindings as observing external state
         *builder.effects_mut().function_mut(function) = mir::FunctionEffect::unknown();
         self.functions.insert(key, function);
 
@@ -160,7 +160,7 @@ impl ModuleLowerer<'_> {
             .lower_nominal(member.owner, &[])?;
         let pointee = value.storage;
         let receiver = match member.role {
-            // constructors initialize storage exclusively
+            // pass an exclusive reference to constructors
             Some(dir::FunctionRole::Constructor) => {
                 builder.tree_mut().intern_type(mir::Type::Reference {
                     kind: mir::ReferenceKind::Borrowed,
@@ -171,13 +171,12 @@ impl ModuleLowerer<'_> {
                     nullability: mir::Nullability::None,
                 })
             }
-            // methods receive this at their sealed receiver type
+            // pass this at the declared receiver type
             _ => {
-                let sealed = self.types(owner)?.signature(signature).this_parameter;
-                let Some(sealed) = sealed else {
+                let declared = self.types(owner)?.signature(signature).this_parameter;
+                let Some(declared) = declared else {
                     return Err(CompilerError::Internal {
-                        message: "checked DIR imported an instance method without a receiver"
-                            .to_string(),
+                        message: "an imported instance method without a receiver".to_string(),
                     });
                 };
 
@@ -187,13 +186,13 @@ impl ModuleLowerer<'_> {
                     type_substitution,
                     lifetime_parameters,
                 )
-                .lower(sealed)?
+                .lower(declared)?
             }
         };
 
         let Some(owner_name) = self.symbol_name(member.owner)? else {
             return Err(CompilerError::Internal {
-                message: "checked DIR imported a method from an unnamed nominal".to_string(),
+                message: "an imported method from an unnamed nominal".to_string(),
             });
         };
         let owner_name = self.strings.get(owner_name).to_string();
@@ -220,10 +219,10 @@ impl ModuleLowerer<'_> {
         };
         let role = signature.role;
 
-        // the introducing scope's owner names the enclosing nominal
+        // read the enclosing nominal from the introducing scope's owner
         let Some(owner) = state.bindings.get_scope(declared.scope).owner else {
             return Err(CompilerError::Internal {
-                message: "checked DIR imported a member outside a nominal scope".to_string(),
+                message: "an imported member outside a nominal scope".to_string(),
             });
         };
 
@@ -243,7 +242,7 @@ impl ModuleLowerer<'_> {
             Some(name) => Ok(self.strings.get(name).to_string()),
             None if role == Some(dir::FunctionRole::Constructor) => Ok("constructor".to_string()),
             None => Err(CompilerError::Internal {
-                message: "checked DIR imported a method without a name".to_string(),
+                message: "an imported method without a name".to_string(),
             }),
         }
     }

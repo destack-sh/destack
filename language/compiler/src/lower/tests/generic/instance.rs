@@ -57,7 +57,7 @@ b2:
 "#,
     );
 
-    // distinct runtime representations must remain distinct after display naming is erased
+    // assert distinct runtime representations survive display naming
     let lowered = session.mir_lowered("main.ds");
     let strings = session.repository().string_pool();
     let symbols: Vec<_> = lowered
@@ -154,7 +154,7 @@ entry(v0: Box_1):
 "#,
     );
 
-    // nominal specializations retain independent persistent identities
+    // assert nominal specializations keep independent identities
     let lowered = session.mir_lowered("main.ds");
     let strings = session.repository().string_pool();
     let symbols: Vec<_> = lowered

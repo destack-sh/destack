@@ -5,10 +5,10 @@ use destack_mir as mir;
 use crate::lower::ModuleLowerer;
 use crate::{CompilerError, CompilerResult};
 
-/// MIR lifetime slots declared for DIR lifetime parameters.
+/// The lifetime slots declared for generic lifetime parameters.
 #[derive(Clone, Default)]
 pub(in crate::lower) struct LifetimeParameters {
-    /// The function-local MIR slot of each lifetime parameter.
+    /// The function-local slot of each lifetime parameter.
     pub(in crate::lower) slots: FxIndexMap<dir::GlobalGenericParameterId, mir::LifetimeSlot>,
     /// The declared name of each slot, without the tick.
     pub(in crate::lower) names: Vec<String>,
@@ -34,7 +34,7 @@ impl LifetimeParameters {
                     dir::GenericParameterKey::Generated(name) => Some(name),
                 };
                 let name = match name {
-                    // tick names flow into MIR verbatim; bare names gain one
+                    // keep tick names verbatim and add a tick to bare names
                     Some(name) => {
                         let name = lowerer.strings.get(name);
                         match name.starts_with('\'') {
@@ -89,7 +89,7 @@ impl LifetimeParameters {
             .collect()
     }
 
-    /// Declare these lifetime slots on one MIR function header.
+    /// Declare these lifetime slots on one function header.
     pub(in crate::lower) fn declare<'a>(
         &self,
         mut header: mir::FunctionHeaderBuilder<'a>,
@@ -102,7 +102,7 @@ impl LifetimeParameters {
         header
     }
 
-    /// Return MIR declarations for these lifetime slots.
+    /// Return declarations for these lifetime slots.
     pub(in crate::lower) fn declarations(
         &self,
         strings: &destack_core::StringPool,
@@ -121,7 +121,7 @@ impl LifetimeParameters {
 }
 
 impl ModuleLowerer<'_> {
-    /// Lower one sealed lifetime into the current MIR lifetime environment.
+    /// Lower one lifetime into the current lifetime environment.
     pub(in crate::lower) fn lower_lifetime(
         &self,
         lifetime: dir::GlobalTypeId,
@@ -130,21 +130,13 @@ impl ModuleLowerer<'_> {
         let lifetime = self.reduced_type(lifetime)?;
 
         match self.ty(lifetime)? {
-            // lifetime parameters resolve to their declared slot
-            dir::Type::Parameter(parameter) => {
-                let Some(slot) = parameters.slots.get(&parameter) else {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "checked DIR left lifetime parameter {parameter:?} outside its scope \
-                             with slots for {:?}",
-                            parameters.slots.keys().collect::<Vec<_>>()
-                        ),
-                    });
-                };
-
-                Ok(mir::Lifetime::slot(slot.0))
-            }
-            // lifetime unions retain every possible provenance term
+            // resolve declared slots and erase parameters outside the scope
+            dir::Type::Parameter(parameter) => Ok(parameters
+                .slots
+                .get(&parameter)
+                .map(|slot| mir::Lifetime::slot(slot.0))
+                .unwrap_or_default()),
+            // retain every provenance term of a lifetime union
             dir::Type::Union(union) => {
                 let elements = self
                     .types(lifetime.module_id)?
@@ -165,7 +157,7 @@ impl ModuleLowerer<'_> {
                 }
                 dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame) => Ok(mir::Lifetime::empty()),
                 _ => Err(CompilerError::Internal {
-                    message: "checked DIR decoded a lifetime in the wrong domain".to_string(),
+                    message: "a lifetime in the wrong domain".to_string(),
                 }),
             },
         }

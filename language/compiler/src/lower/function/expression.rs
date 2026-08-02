@@ -5,10 +5,11 @@ use crate::lower::FunctionLowerer;
 use crate::lower::function::body::Binding;
 use crate::{CompilerError, CompilerResult, LowerError};
 
+/// One value in flight along a coercion path.
 enum CoercionValue {
     /// One source expression that has not been evaluated.
     Expression(dir::LocalNodeId<dir::Expression>),
-    /// One materialized MIR value.
+    /// One materialized value.
     Runtime(mir::Value),
     /// One compile-time scalar literal.
     Literal(dir::ScalarLiteral),
@@ -19,7 +20,7 @@ enum CoercionValue {
 }
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Lower one expression through its checked coercion.
+    /// Lower one expression through its coercion.
     pub(in crate::lower) fn lower_expression(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -34,7 +35,7 @@ impl FunctionLowerer<'_, '_, '_> {
         self.materialize_coercion_value(value, target)
     }
 
-    /// Classify one expression before applying its checked coercion path.
+    /// Classify one expression before applying its coercion path.
     fn coercion_source(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -50,7 +51,7 @@ impl FunctionLowerer<'_, '_, '_> {
         })
     }
 
-    /// Apply one complete checked adjustment path.
+    /// Apply one complete adjustment path.
     fn lower_adjustments(
         &mut self,
         mut value: CoercionValue,
@@ -65,7 +66,7 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(value)
     }
 
-    /// Apply one checked adjustment.
+    /// Apply one adjustment.
     fn lower_adjustment(
         &mut self,
         value: CoercionValue,
@@ -91,7 +92,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     }
                     _ => {
                         return Err(CompilerError::Internal {
-                            message: "checked coercion borrows a value without a place".to_string(),
+                            message: "a coercion borrow of a value without a place".to_string(),
                         });
                     }
                 };
@@ -109,7 +110,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let value = self.materialize_coercion_value(value, source)?;
                 let Some(source) = self.builder.value_type(value) else {
                     return Err(CompilerError::Internal {
-                        message: "lowered scalar coercion source has no MIR type".to_string(),
+                        message: "the lowered scalar coercion source has no type".to_string(),
                     });
                 };
                 let target = self.lower_type(*target)?;
@@ -131,6 +132,12 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 Ok(CoercionValue::Runtime(value))
             }
+            dir::CoercionAdjustment::Existential { target } => {
+                let value = self.materialize_coercion_value(value, source)?;
+                let value = self.lower_existential(value, source, *target)?;
+
+                Ok(CoercionValue::Runtime(value))
+            }
             adjustment => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: format!("an implicit {} coercion", adjustment.as_str()),
@@ -145,7 +152,7 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         target: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::Value> {
-        // reference sources borrow as a zero-cost kind change
+        // borrow reference sources as a kind change
         let source = self.node_type_id(expression)?;
         if self.lowerer.has_reference_representation(source)? {
             let value = self.lower_expression_value(expression)?;
@@ -153,14 +160,14 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(self.builder.cast(mir::CastOperator::Bitcast, value, target));
         }
 
-        // value sources borrow the storage holding them
+        // borrow the storage holding value sources
         match self.source().tree().get(expression).clone() {
             dir::Expression::Identifier { .. } => {
                 let node = expression.into_global_any(self.source);
                 let symbol = self.lowerer.resolved_symbol(node)?;
                 match self.values.get(&symbol.local_id).copied() {
                     Some(Binding::Local(local)) => Ok(self.builder.local_addr(local, target)),
-                    // borrowed parameters gain a frame home on first borrow
+                    // give borrowed parameters a frame home on first borrow
                     Some(Binding::Value(value)) => {
                         let ty = self.lowerer.symbol_type(symbol)?;
                         let slot = self.lower_type(ty)?;
@@ -185,6 +192,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
+    /// Adjust one value into its union target carrier.
     fn lower_union_adjustment(
         &mut self,
         value: CoercionValue,
@@ -194,12 +202,12 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         let carrier = self.lower_type(target)?;
 
-        // indexed variants preserve the checked source case correspondence
+        // preserve the source case correspondence for indexed variants
         if let mir::Type::Variant { .. } = self.builder.tree().get(carrier) {
             return self.lower_variant_adjustment(value, source, target, carrier, cases);
         }
 
-        // union sources dispatch before leaving their indexed carrier
+        // dispatch union sources before leaving their indexed carrier
         if matches!(self.lowerer.ty(source)?, dir::Type::Union(_)) {
             return self.lower_union_exit(value, source, target, carrier, cases);
         }
@@ -218,7 +226,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         let target_members = self.union_members(target)?;
 
-        // union sources convert each runtime case through its checked path
+        // convert each runtime case of a union source
         if let dir::Type::Union(source_union) = self.lowerer.ty(source)? {
             let source_members = self
                 .lowerer
@@ -228,7 +236,7 @@ impl FunctionLowerer<'_, '_, '_> {
             let value = self.materialize_coercion_value(value, source)?;
             let Some(value_type) = self.builder.value_type(value) else {
                 return Err(CompilerError::Internal {
-                    message: "lowered union coercion source has no MIR type".to_string(),
+                    message: "the lowered union coercion source has no type".to_string(),
                 });
             };
             if matches!(
@@ -244,15 +252,15 @@ impl FunctionLowerer<'_, '_, '_> {
                 );
             }
 
-            // shared source carriers can enter only one target case
+            // enter a single target case for shared source carriers
             let Some(first) = cases.first() else {
                 return Err(CompilerError::Internal {
-                    message: "checked union conversion has no source cases".to_string(),
+                    message: "a union conversion without source cases".to_string(),
                 });
             };
             if cases.iter().any(|case| case.target != first.target) {
                 return Err(CompilerError::Internal {
-                    message: "checked union conversion requires a missing source discriminant"
+                    message: "a union conversion requiring a missing source discriminant"
                         .to_string(),
                 });
             }
@@ -262,7 +270,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 .position(|member| *member == target_member)
             else {
                 return Err(CompilerError::Internal {
-                    message: "checked union conversion selects an absent target member".to_string(),
+                    message: "a union conversion selecting an absent target member".to_string(),
                 });
             };
             let payload = self.union_payload(CoercionValue::Runtime(value), target_member)?;
@@ -273,7 +281,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
         let [case] = cases else {
             return Err(CompilerError::Internal {
-                message: "checked union injection requires exactly one source case".to_string(),
+                message: "a union injection requiring exactly one source case".to_string(),
             });
         };
         let target_member = case.target;
@@ -282,7 +290,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .position(|member| *member == target_member)
         else {
             return Err(CompilerError::Internal {
-                message: "checked union injection selects an absent target member".to_string(),
+                message: "a union injection selecting an absent target member".to_string(),
             });
         };
 
@@ -306,7 +314,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         if mappings.len() != source_members.len() {
             return Err(CompilerError::Internal {
-                message: "checked union conversion has an incomplete case map".to_string(),
+                message: "a union conversion with an incomplete case map".to_string(),
             });
         }
 
@@ -331,7 +339,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 .position(|member| *member == target_member)
             else {
                 return Err(CompilerError::Internal {
-                    message: "checked union conversion selects an absent target member".to_string(),
+                    message: "a union conversion selecting an absent target member".to_string(),
                 });
             };
             let payload = self.union_payload(source_value, target_member)?;
@@ -357,7 +365,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         let dir::Type::Union(source_union) = self.lowerer.ty(source)? else {
             return Err(CompilerError::Internal {
-                message: "checked union exit has a non-union source".to_string(),
+                message: "a union exit with a non-union source".to_string(),
             });
         };
         let source_members = self
@@ -367,22 +375,22 @@ impl FunctionLowerer<'_, '_, '_> {
             .to_vec();
         if cases.len() != source_members.len() {
             return Err(CompilerError::Internal {
-                message: "checked union exit has an incomplete case map".to_string(),
+                message: "a union exit with an incomplete case map".to_string(),
             });
         }
         if cases.iter().any(|case| case.target != target) {
             return Err(CompilerError::Internal {
-                message: "checked union exit selects a different target type".to_string(),
+                message: "a union exit selecting a different target type".to_string(),
             });
         }
         let value = self.materialize_coercion_value(value, source)?;
         let Some(value_type) = self.builder.value_type(value) else {
             return Err(CompilerError::Internal {
-                message: "lowered union exit source has no MIR type".to_string(),
+                message: "the lowered union exit source has no type".to_string(),
             });
         };
 
-        // indexed carriers dispatch and convert each payload independently
+        // dispatch indexed carriers and convert each payload independently
         if matches!(
             self.builder.tree().get(value_type),
             mir::Type::Variant { .. }
@@ -412,10 +420,10 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(self.builder.local_get(result));
         }
 
-        // shared carriers cannot select different runtime conversions
+        // require one shared conversion for shared carriers
         let Some(first) = cases.first() else {
             return Err(CompilerError::Internal {
-                message: "checked union exit has no source cases".to_string(),
+                message: "a union exit without source cases".to_string(),
             });
         };
         if cases
@@ -423,7 +431,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .any(|case| case.adjustments != first.adjustments)
         {
             return Err(CompilerError::Internal {
-                message: "checked union exit requires a missing source discriminant".to_string(),
+                message: "a union exit requiring a missing source discriminant".to_string(),
             });
         }
         let value = self.lower_adjustments(
@@ -442,7 +450,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
         let dir::Type::Union(union) = self.lowerer.ty(ty)? else {
             return Err(CompilerError::Internal {
-                message: "checked union adjustment targets a non-union type".to_string(),
+                message: "a union adjustment targeting a non-union type".to_string(),
             });
         };
 
@@ -488,7 +496,7 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(Some(value))
     }
 
-    /// Materialize one coercion value at its checked target carrier.
+    /// Materialize one coercion value at its target carrier.
     fn materialize_coercion_value(
         &mut self,
         value: CoercionValue,
@@ -536,15 +544,19 @@ impl FunctionLowerer<'_, '_, '_> {
                     Some(Binding::Local(local)) => Ok(self.builder.local_get(local)),
                     // load module constants through their globals
                     None => {
-                        let Some(global) = self.module_constant_global(symbol)? else {
-                            return Err(LowerError::Unsupported {
-                                anchor: self.lowerer.module.into(),
-                                construct: "a module or captured binding".to_string(),
-                            }
-                            .into());
-                        };
+                        if let Some(global) = self.module_constant_global(symbol)? {
+                            return Ok(self.builder.load_global(global));
+                        }
+                        // materialize callable declarations as function values
+                        if let Some(value) = self.lower_function_value(expression, symbol)? {
+                            return Ok(value);
+                        }
 
-                        Ok(self.builder.load_global(global))
+                        Err(LowerError::Unsupported {
+                            anchor: self.lowerer.module.into(),
+                            construct: "a module or captured binding".to_string(),
+                        }
+                        .into())
                     }
                 }
             }
@@ -584,7 +596,7 @@ impl FunctionLowerer<'_, '_, '_> {
                             operator => self.lower_binary(left, operator, right, &operands),
                         },
                     },
-                    // protocol operators dispatch as left.method(right)
+                    // dispatch protocol operators as left.method(right)
                     dir::OperatorApplication::Binary {
                         target: dir::OperatorTarget::Call(call),
                         ..
@@ -598,13 +610,11 @@ impl FunctionLowerer<'_, '_, '_> {
                             ..
                         } => self.lower_operator_method(left, &call, function),
                         _ => Err(CompilerError::Internal {
-                            message: "checked DIR selected a non-callable binary operator"
-                                .to_string(),
+                            message: "a non-callable binary operator".to_string(),
                         }),
                     },
                     dir::OperatorApplication::Unary { .. } => Err(CompilerError::Internal {
-                        message: "checked DIR selected a unary resolution for a binary expression"
-                            .to_string(),
+                        message: "a unary resolution for a binary expression".to_string(),
                     }),
                 }
             }
@@ -625,7 +635,7 @@ impl FunctionLowerer<'_, '_, '_> {
                         target: dir::OperatorTarget::Builtin(operand),
                         ..
                     } => self.lower_unary(operator, right, &operand),
-                    // protocol operators dispatch as right.method()
+                    // dispatch protocol operators as right.method()
                     dir::OperatorApplication::Unary {
                         target: dir::OperatorTarget::Call(call),
                         ..
@@ -639,13 +649,11 @@ impl FunctionLowerer<'_, '_, '_> {
                             ..
                         } => self.lower_operator_method(right, &call, function),
                         _ => Err(CompilerError::Internal {
-                            message: "checked DIR selected a non-callable unary operator"
-                                .to_string(),
+                            message: "a non-callable unary operator".to_string(),
                         }),
                     },
                     dir::OperatorApplication::Binary { .. } => Err(CompilerError::Internal {
-                        message: "checked DIR selected a binary resolution for a unary expression"
-                            .to_string(),
+                        message: "a binary resolution for a unary expression".to_string(),
                     }),
                 }
             }
@@ -661,6 +669,13 @@ impl FunctionLowerer<'_, '_, '_> {
                 else_expression,
             } => self.lower_ternary(expression, &condition, then_expression, else_expression),
 
+            // { x: 1 }
+            dir::Expression::ObjectExpression { properties } => {
+                let properties = properties.into_iter().collect::<Vec<_>>();
+
+                self.lower_object_expression(expression, &properties)
+            }
+
             // Point { x: 1 }
             dir::Expression::StructExpression { properties, .. } => {
                 self.lower_struct_expression(expression, &properties)
@@ -673,14 +688,16 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // this
             dir::Expression::This => self.this.ok_or_else(|| CompilerError::Internal {
-                message: "checked DIR used this outside a method body".to_string(),
+                message: "this used outside a method body".to_string(),
             }),
 
             // point.x
             dir::Expression::Member { left, .. } => self.lower_member(expression, left),
 
             // pair[0]
-            dir::Expression::Index { left, .. } => self.lower_subscript(expression, left),
+            dir::Expression::Index { left, index, .. } => {
+                self.lower_subscript(expression, left, index)
+            }
 
             // value as T
             dir::Expression::As {
@@ -698,8 +715,7 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::Expression::New { .. } => {
                 let Some(resolution) = self.construct_resolution(expression) else {
                     return Err(CompilerError::Internal {
-                        message: "checked DIR is missing a construct resolution for one new"
-                            .to_string(),
+                        message: "missing a construct resolution for one new".to_string(),
                     });
                 };
 
@@ -718,7 +734,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let value = self.lower_call(expression)?;
 
                 value.ok_or_else(|| CompilerError::Internal {
-                    message: "checked DIR typed a void call as a value".to_string(),
+                    message: "a void call used as a value".to_string(),
                 })
             }
 
@@ -728,5 +744,34 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             .into()),
         }
+    }
+
+    /// Return the global behind one module constant, importing foreign ones.
+    pub(in crate::lower) fn module_constant_global(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<mir::LocalNodeId<mir::Global>>> {
+        // reuse the global this module already declared or imported
+        if let Some(global) = self.lowerer.globals.get(&symbol) {
+            return Ok(Some(*global));
+        }
+
+        // skip local constants and non-constant symbols
+        if symbol.module_id == self.lowerer.module
+            || self.lowerer.module_constant(symbol)?.is_none()
+        {
+            return Ok(None);
+        }
+
+        // declare an import for one foreign module constant
+        let ty = self.lowerer.symbol_type(symbol)?;
+        let ty = self.lower_type(ty)?;
+        let name = self.lowerer.constant_name(symbol)?;
+        let global = self
+            .builder
+            .external_global(&name, ty, mir::Mutability::Immutable);
+        self.lowerer.globals.insert(symbol, global);
+
+        Ok(Some(global))
     }
 }

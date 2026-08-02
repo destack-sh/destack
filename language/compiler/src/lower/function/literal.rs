@@ -5,7 +5,7 @@ use crate::lower::FunctionLowerer;
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Lower one scalar literal node to a constant at its checked carrier.
+    /// Lower one scalar literal node to a constant at its carrier.
     pub(in crate::lower) fn lower_scalar_literal(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -40,10 +40,15 @@ impl FunctionLowerer<'_, '_, '_> {
                 Ok(self.builder.fconst(value, float))
             }
 
+            // reject string literals, which carry no scalar constant
+            (dir::ScalarLiteral::String(_), _) => Err(LowerError::Unsupported {
+                anchor: self.lowerer.module.into(),
+                construct: "a string literal constant".to_string(),
+            }
+            .into()),
+
             (literal, carrier) => Err(CompilerError::Internal {
-                message: format!(
-                    "checked DIR selected carrier {carrier:?} for literal {literal:?}"
-                ),
+                message: format!("carrier {carrier:?} for literal {literal:?}"),
             }),
         }
     }
@@ -66,7 +71,7 @@ impl FunctionLowerer<'_, '_, '_> {
             // pick the single boolean carrier
             dir::ScalarLiteral::Boolean(_) => Ok(mir::Type::Boolean),
 
-            // require numeric literals to enter through their checked value target
+            // require numeric literals to enter through a concrete value target
             dir::ScalarLiteral::Integer(_) | dir::ScalarLiteral::Float(_) => {
                 Err(CompilerError::Internal {
                     message: format!(

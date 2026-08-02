@@ -32,7 +32,7 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.cast(operator, lowered, target))
     }
 
-    /// Select the MIR conversion between two concrete scalar carriers.
+    /// Select the conversion between two concrete scalar carriers.
     pub(in crate::lower) fn cast_operator(
         &self,
         source: &mir::Type,
@@ -102,6 +102,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
         })
     }
+
     /// Name one concrete scalar carrier for diagnostics.
     fn scalar_name(&self, ty: &mir::Type) -> String {
         match ty {

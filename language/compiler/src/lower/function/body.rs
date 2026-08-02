@@ -30,7 +30,7 @@ pub(in crate::lower) struct ControlFrame {
 
 /// One concrete function definition awaiting lowering.
 pub(in crate::lower) struct FunctionDefinition {
-    /// The declared MIR function.
+    /// The declared function.
     pub(in crate::lower) function: mir::FunctionId,
     /// Whether the function receives this as its leading parameter.
     pub(in crate::lower) has_this: bool,
@@ -40,9 +40,9 @@ pub(in crate::lower) struct FunctionDefinition {
     pub(in crate::lower) type_substitution: TypeSubstitution,
     /// The polymorphic lifetime parameters of this definition.
     pub(in crate::lower) lifetime_parameters: LifetimeParameters,
-    /// The module whose DIR declares this body.
+    /// The module declaring this body.
     pub(in crate::lower) source: destack_source::ModuleId,
-    /// The DIR body expression.
+    /// The body expression.
     pub(in crate::lower) expression: dir::LocalNodeId<dir::Expression>,
 }
 
@@ -50,9 +50,9 @@ pub(in crate::lower) struct FunctionDefinition {
 pub(in crate::lower) struct FunctionLowerer<'lowerer, 'builder, 'module> {
     /// The module lowering state.
     pub(in crate::lower) lowerer: &'lowerer mut ModuleLowerer<'module>,
-    /// The MIR function builder.
+    /// The function builder.
     pub(in crate::lower) builder: mir::FunctionBuilder<'builder>,
-    /// The module whose DIR declares this function.
+    /// The module declaring this function.
     pub(in crate::lower) source: ModuleId,
     /// The concrete type substitutions of this function.
     pub(in crate::lower) type_substitution: TypeSubstitution,
@@ -85,7 +85,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         let builder = builder
             .function_body(function)
             .map_err(|error| CompilerError::Internal {
-                message: format!("MIR body start failed: {error}"),
+                message: format!("function body start failed: {error}"),
             })?;
         let mut function = FunctionLowerer {
             lowerer,
@@ -107,6 +107,8 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             let value = function.builder.function_parameter(index + shift);
             function.values.insert(*symbol, Binding::Value(value));
         }
+
+        // lower the body into the entry block and finalize its blocks
         let entry = function.builder.block();
         function.builder.switch_to_block(entry);
         function.lower_body(expression)?;
@@ -115,13 +117,63 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             .builder
             .finish()
             .map_err(|error| CompilerError::Internal {
-                message: format!("MIR function build failed: {error}"),
+                message: format!("function build failed: {error}"),
             })?;
 
         Ok(())
     }
 
-    /// Return the sealed check output declaring this function.
+    /// Lower the module initializer storing each runtime binding.
+    pub(in crate::lower) fn lower_initializer(
+        lowerer: &mut ModuleLowerer<'_>,
+        builder: &mut mir::ModuleBuilder,
+        function: mir::FunctionId,
+        initializers: Vec<(
+            mir::LocalNodeId<mir::Global>,
+            dir::LocalNodeId<dir::Expression>,
+        )>,
+    ) -> CompilerResult<()> {
+        let source = lowerer.module;
+        let builder = builder
+            .function_body(function)
+            .map_err(|error| CompilerError::Internal {
+                message: format!("function body start failed: {error}"),
+            })?;
+        let mut function = FunctionLowerer {
+            lowerer,
+            builder,
+            source,
+            type_substitution: TypeSubstitution::default(),
+            lifetime_parameters: LifetimeParameters::default(),
+            values: FxIndexMap::default(),
+            this: None,
+            controls: Vec::new(),
+        };
+
+        // open the entry block
+        let entry = function.builder.block();
+        function.builder.switch_to_block(entry);
+
+        // store each binding in declaration order
+        for (global, expression) in initializers {
+            let value = function.lower_expression(expression)?;
+            function.builder.store_global(global, value);
+        }
+
+        // close the initializer with a void return
+        function.builder.return_(None);
+        function.builder.seal_all_blocks();
+        function
+            .builder
+            .finish()
+            .map_err(|error| CompilerError::Internal {
+                message: format!("function build failed: {error}"),
+            })?;
+
+        Ok(())
+    }
+
+    /// Return the state of the module declaring this function.
     pub(in crate::lower) fn source(&self) -> &LowerModuleState {
         match self.lowerer.modules.get(&self.source) {
             Some(state) => state,
@@ -140,7 +192,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         Ok(self.builder.local(ty, mir::Mutability::Mutable))
     }
 
-    /// Lower one checked type into this function's MIR tree.
+    /// Lower one type.
     pub(in crate::lower) fn lower_type(
         &mut self,
         id: dir::GlobalTypeId,
@@ -148,7 +200,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         self.type_lowerer().lower(id)
     }
 
-    /// Return recursive type lowering for this function.
+    /// Return the type lowerer for this function.
     pub(in crate::lower) fn type_lowerer(&mut self) -> TypeLowerer<'_, 'module> {
         let pointer_bytes = (self.builder.pointer_bits() / 8) as u8;
 
@@ -160,7 +212,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         )
     }
 
-    /// Lower the nominal representation beneath one checked value type.
+    /// Lower the nominal representation beneath one value type.
     pub(in crate::lower) fn lower_nominal(
         &mut self,
         id: dir::GlobalTypeId,
@@ -171,7 +223,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         };
         let dir::Type::Application(instance) = self.lowerer.ty(stored)? else {
             return Err(CompilerError::Internal {
-                message: "checked value does not carry a nominal representation".to_string(),
+                message: "the value does not carry a nominal representation".to_string(),
             });
         };
         let arguments = self

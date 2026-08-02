@@ -15,7 +15,7 @@ impl TypeLowerer<'_, '_> {
         // gather the instance fields in declaration order
         let fields = self.lowerer.instance_fields(&definition.members);
 
-        // lower each field's checked type into a MIR field node
+        // lower each field's type into a field node
         let mut field_nodes = Vec::with_capacity(fields.len());
         for field in &fields {
             let ty = self
@@ -30,7 +30,7 @@ impl TypeLowerer<'_, '_> {
             field_nodes.push(self.tree.intern_field(mir::Field { name, ty }, Vec::new()));
         }
 
-        // instances store behind a reference and never copy in place
+        // store instances behind a reference without copying in place
         self.tree.define_type(
             ty,
             mir::Type::Struct {

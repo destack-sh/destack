@@ -82,13 +82,30 @@ impl ModuleLowerer<'_> {
             )?;
         }
 
+        // collect calls from the module initializer expressions
+        let substitution = TypeSubstitution::default();
+        let expressions: Vec<_> = self
+            .initializers
+            .iter()
+            .map(|(_, expression)| *expression)
+            .collect();
+        for expression in expressions {
+            self.collect_body_calls(
+                self.module,
+                expression,
+                &substitution,
+                &mut pending,
+                &mut references,
+            )?;
+        }
+
         // collect calls recursively from each declared instance body
         let mut instances = Vec::new();
         let mut index = 0;
         while index < pending.len() {
-            let (symbol, arguments) = pending[index].clone();
+            let (symbol, bindings) = pending[index].clone();
             index += 1;
-            let Some(body) = self.declare_instance(builder, symbol, &arguments)? else {
+            let Some(body) = self.declare_instance(builder, symbol, &bindings)? else {
                 continue;
             };
             self.collect_body_calls(
@@ -109,10 +126,11 @@ impl ModuleLowerer<'_> {
         &mut self,
         builder: &mut mir::ModuleBuilder,
         symbol: dir::GlobalSymbolId,
-        arguments: &[dir::GlobalTypeId],
+        bindings: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<Option<FunctionDefinition>> {
-        // source types with the same runtime representation share one instance
+        // key the instance by its runtime representation
         let pointer_bytes = builder.pointer_bytes();
+        let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
         let type_substitution = TypeSubstitution::default();
         let lifetime_parameters = LifetimeParameters::default();
         let key = self
@@ -122,27 +140,27 @@ impl ModuleLowerer<'_> {
                 &type_substitution,
                 &lifetime_parameters,
             )
-            .generic_instance_key(symbol, arguments)?;
+            .generic_instance_key(symbol, &arguments)?;
         if self.functions.contains_key(&key) {
             return Ok(None);
         }
 
         // declare under the instance's concrete types and polymorphic lifetimes
         let lifetime_parameters = self.lifetime_parameters(self.symbol_type(symbol)?)?;
-        let type_substitution = self.instance_substitution(symbol, arguments)?;
+        let type_substitution = TypeSubstitution::from_bindings(bindings);
         let declared =
             self.declare_instance_header(builder, &key, &type_substitution, &lifetime_parameters);
 
         declared.map(Some)
     }
 
-    /// Collect one body's sealed calls under one substitution.
+    /// Collect one body's calls under one substitution.
     fn collect_body_calls(
         &self,
         module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
         substitution: &TypeSubstitution,
-        pending: &mut Vec<(dir::GlobalSymbolId, Vec<dir::GlobalTypeId>)>,
+        pending: &mut Vec<(dir::GlobalSymbolId, Vec<dir::GenericArgumentBinding>)>,
         references: &mut ExternalCallables,
     ) -> CompilerResult<()> {
         // walk the body subtree collecting its expression nodes
@@ -161,7 +179,7 @@ impl ModuleLowerer<'_> {
         for id in collector.expressions {
             let node = id.into_global_any(module);
 
-            // foreign declared constructors resolve through imports
+            // import foreign declared constructors
             if let Some(resolution) = state.resolutions.construct_resolution(node)
                 && let dir::ConstructTarget::Class(candidate) = &resolution.target
                 && let dir::ClassConstructor::Declared { symbol } = &candidate.constructor
@@ -170,7 +188,7 @@ impl ModuleLowerer<'_> {
                 references.imports.insert(*symbol);
             }
 
-            // tree literals carry their selected calls inside the resolution
+            // collect the calls selected inside a tree resolution
             if let Some(resolution) = state.resolutions.tree_resolution(node) {
                 match &resolution.target {
                     dir::TreeTarget::Element { call, .. } | dir::TreeTarget::Fragment { call } => {
@@ -194,10 +212,78 @@ impl ModuleLowerer<'_> {
                 }
             }
 
+            // collect the implementing methods required by erasing coercions
+            if let Some(coercion) = state.coercions.coercion(node) {
+                self.collect_coercion(coercion, substitution, pending)?;
+            }
+
             let Some(resolution) = state.resolutions.call_resolution(node) else {
                 continue;
             };
             self.collect_call_resolution(resolution, substitution, pending, references)?;
+        }
+
+        Ok(())
+    }
+
+    /// Collect the implementing methods one erasing coercion requires.
+    fn collect_coercion(
+        &self,
+        coercion: &dir::Coercion,
+        substitution: &TypeSubstitution,
+        pending: &mut Vec<(dir::GlobalSymbolId, Vec<dir::GenericArgumentBinding>)>,
+    ) -> CompilerResult<()> {
+        let mut source = coercion.source;
+        for adjustment in &coercion.adjustments {
+            if let dir::CoercionAdjustment::Existential { target } = adjustment {
+                self.collect_existential(source, *target, substitution, pending)?;
+            }
+            source = adjustment.target();
+        }
+
+        Ok(())
+    }
+
+    /// Collect the methods one concrete source supplies for a constraint.
+    fn collect_existential(
+        &self,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        substitution: &TypeSubstitution,
+        pending: &mut Vec<(dir::GlobalSymbolId, Vec<dir::GenericArgumentBinding>)>,
+    ) -> CompilerResult<()> {
+        let source = substitution.resolve(self, source)?;
+        let source = self.reduced_type(source)?;
+        let dir::Type::Application(class) = self.ty(source)? else {
+            return Ok(());
+        };
+
+        // read the constraint interface from the erased target
+        let target = self.reduced_type(target)?;
+        let target = match self.ty(target)? {
+            dir::Type::Dynamic(dynamic) => self.reduced_type(dynamic.constraint)?,
+            _ => target,
+        };
+        let dir::Type::Application(interface) = self.ty(target)? else {
+            return Ok(());
+        };
+        let Some(definition) = self.definition(interface.symbol)? else {
+            return Ok(());
+        };
+
+        // require one declared instance per dispatched method
+        for member in definition.members() {
+            let dir::DefinitionMember::Method(method) = member else {
+                continue;
+            };
+            let Some(name) = self.symbol_name(method.symbol)? else {
+                continue;
+            };
+            let implementing = self.implementing_method(class.symbol, name)?;
+            let instance = (implementing, Vec::new());
+            if !pending.contains(&instance) {
+                pending.push(instance);
+            }
         }
 
         Ok(())
@@ -208,7 +294,7 @@ impl ModuleLowerer<'_> {
         &self,
         resolution: &dir::CallResolution,
         substitution: &TypeSubstitution,
-        pending: &mut Vec<(dir::GlobalSymbolId, Vec<dir::GlobalTypeId>)>,
+        pending: &mut Vec<(dir::GlobalSymbolId, Vec<dir::GenericArgumentBinding>)>,
         references: &mut ExternalCallables,
     ) -> CompilerResult<()> {
         match resolution {
@@ -230,7 +316,7 @@ impl ModuleLowerer<'_> {
         &self,
         call: &dir::Call,
         substitution: &TypeSubstitution,
-        pending: &mut Vec<(dir::GlobalSymbolId, Vec<dir::GlobalTypeId>)>,
+        pending: &mut Vec<(dir::GlobalSymbolId, Vec<dir::GenericArgumentBinding>)>,
         references: &mut ExternalCallables,
     ) -> CompilerResult<()> {
         let function = match &call.target {
@@ -238,23 +324,23 @@ impl ModuleLowerer<'_> {
             dir::CallTarget::Symbol { function, .. } => function,
         };
 
-        // sealed intrinsic and binding callables require no instance
+        // route intrinsic and binding callables without an instance
         match self.callable_implementation(function.symbol)? {
-            // sealed bindings declare dotted host externs
+            // declare dotted host externs for bindings
             Some(CallableImplementation::Binding { .. }) => {
                 references.bindings.insert(function.symbol);
 
                 return Ok(());
             }
-            // sealed intrinsics emit MIR without declarations
+            // emit intrinsics without declarations
             Some(CallableImplementation::Intrinsic { .. }) => return Ok(()),
             None => {}
         }
 
-        // only calls binding type parameters select instances
-        let arguments = self.instance_arguments(function, substitution)?;
-        if arguments.is_empty() {
-            // plain calls into other modules resolve through imports
+        // select an instance only when the call binds type parameters
+        let bindings = self.instance_bindings(function, substitution)?;
+        if bindings.is_empty() {
+            // import plain calls into other modules
             if function.symbol.module_id != self.module {
                 references.imports.insert(function.symbol);
             }
@@ -263,15 +349,15 @@ impl ModuleLowerer<'_> {
         }
 
         // require every generic argument to be concrete under this body instance
-        for argument in &arguments {
-            if matches!(self.ty(*argument)?, dir::Type::Parameter(_)) {
+        for binding in &bindings {
+            if matches!(self.ty(binding.argument)?, dir::Type::Parameter(_)) {
                 return Err(CompilerError::Internal {
                     message: "instantiation collection left a generic argument unsubstituted"
                         .to_string(),
                 });
             }
         }
-        let instance = (function.symbol, arguments);
+        let instance = (function.symbol, bindings);
         if !pending.contains(&instance) {
             pending.push(instance);
         }
@@ -279,13 +365,13 @@ impl ModuleLowerer<'_> {
         Ok(())
     }
 
-    /// Return the substituted type arguments one candidate binds beyond lifetimes.
-    pub(in crate::lower) fn instance_arguments(
+    /// Return the substituted type bindings one candidate selects beyond lifetimes.
+    pub(in crate::lower) fn instance_bindings(
         &self,
         function: &dir::FunctionTarget,
         substitution: &TypeSubstitution,
-    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
-        let mut arguments = Vec::new();
+    ) -> CompilerResult<Vec<dir::GenericArgumentBinding>> {
+        let mut bindings = Vec::new();
         for binding in &function.generic_arguments {
             let parameter = binding.parameter;
             let generics = &self.state(parameter.module_id)?.generics;
@@ -304,31 +390,16 @@ impl ModuleLowerer<'_> {
 
             // substitute arguments through the enclosing instance
             let argument = substitution.resolve(self, binding.argument)?;
-            arguments.push(argument);
+            bindings.push(dir::GenericArgumentBinding {
+                parameter: binding.parameter,
+                argument,
+            });
         }
 
-        Ok(arguments)
+        Ok(bindings)
     }
 
-    /// Return the parameter substitution selecting one instance's arguments.
-    fn instance_substitution(
-        &self,
-        symbol: dir::GlobalSymbolId,
-        arguments: &[dir::GlobalTypeId],
-    ) -> CompilerResult<TypeSubstitution> {
-        // the callable's template names the substituted parameters in order
-        let declared = self.symbol_type(symbol)?;
-        let (signature, owner) = self.signature(declared)?;
-        let Some(template) = self.types(owner)?.signature(signature).template else {
-            return Err(CompilerError::Internal {
-                message: "checked DIR instantiated a non-generic callable".to_string(),
-            });
-        };
-
-        TypeSubstitution::bind(self, template, arguments, &TypeSubstitution::default())
-    }
-
-    /// Declare the MIR header of one generic instance and queue its body.
+    /// Declare the header of one generic instance and queue its body.
     fn declare_instance_header(
         &mut self,
         builder: &mut mir::ModuleBuilder,
@@ -337,6 +408,7 @@ impl ModuleLowerer<'_> {
         lifetime_parameters: &LifetimeParameters,
     ) -> CompilerResult<FunctionDefinition> {
         let symbol = key.symbol;
+
         // find the declaration's source function in its defining module's tree
         let Some(declaration) = self
             .state(symbol.module_id)?
@@ -345,10 +417,11 @@ impl ModuleLowerer<'_> {
             .declaration
         else {
             return Err(CompilerError::Internal {
-                message: "checked DIR instantiated a callable without a declaration".to_string(),
+                message: "an instantiated callable without a declaration".to_string(),
             });
         };
-        // member callables declare through their owner's receiver
+
+        // declare member callables through their owner's receiver
         if let Ok(member) = declaration.local_id.try_into_typed::<dir::Member>() {
             return self.declare_member_instance_header(
                 builder,
@@ -360,7 +433,7 @@ impl ModuleLowerer<'_> {
         }
         let Ok(declaration) = declaration.local_id.try_into_typed::<dir::Declaration>() else {
             return Err(CompilerError::Internal {
-                message: "checked DIR instantiated a non-declaration callable".to_string(),
+                message: "an instantiated non-declaration callable".to_string(),
             });
         };
 
@@ -369,12 +442,12 @@ impl ModuleLowerer<'_> {
             self.state(symbol.module_id)?.tree().get(declaration)
         else {
             return Err(CompilerError::Internal {
-                message: "checked DIR instantiated a non-function declaration".to_string(),
+                message: "an instantiated non-function declaration".to_string(),
             });
         };
         let Some(expression) = function.body else {
             return Err(CompilerError::Internal {
-                message: "checked DIR instantiated a bodiless function".to_string(),
+                message: "an instantiated bodiless function".to_string(),
             });
         };
         let parameter_nodes = function.signature.parameters.to_vec();
@@ -383,7 +456,7 @@ impl ModuleLowerer<'_> {
             let node = parameter.into_global_any(symbol.module_id);
             let Some(parameter_symbol) = self.symbol_declared_at(node)? else {
                 return Err(CompilerError::Internal {
-                    message: "checked DIR is missing a symbol for one parameter".to_string(),
+                    message: "missing a symbol for one parameter".to_string(),
                 });
             };
             symbols.push(parameter_symbol.local_id);
@@ -393,8 +466,7 @@ impl ModuleLowerer<'_> {
             self.lower_signature(builder, declared, type_substitution, lifetime_parameters)?;
         if signature.parameters.len() != symbols.len() {
             return Err(CompilerError::Internal {
-                message: "checked DIR instance parameters disagree with its sealed signature"
-                    .to_string(),
+                message: "instance parameters disagree with the declared signature".to_string(),
             });
         }
 
@@ -409,7 +481,7 @@ impl ModuleLowerer<'_> {
         )
     }
 
-    /// Declare the MIR header of one static member instance and queue its body.
+    /// Declare the header of one static member instance and queue its body.
     fn declare_member_instance_header(
         &mut self,
         builder: &mut mir::ModuleBuilder,
@@ -429,10 +501,10 @@ impl ModuleLowerer<'_> {
             .find(|(_, definition)| definition.method_declared_at(member_node) == Some(symbol))
             .map(|(owner, _)| owner)
             .ok_or_else(|| CompilerError::Internal {
-                message: "checked DIR instantiated a member without an owner".to_string(),
+                message: "an instantiated member without an owner".to_string(),
             })?;
 
-        // instance receivers await their own placement design
+        // require the member to be static
         let is_static = match self.definition(owner)? {
             Some(definition) => definition.members().iter().any(|candidate| {
                 matches!(
@@ -451,7 +523,7 @@ impl ModuleLowerer<'_> {
             .into());
         }
 
-        // extension members receive at their target
+        // receive extension members at their target
         let receiver = match self.definition(owner)? {
             Some(dir::Definition::Extension(extension)) => {
                 ReceiverBinding::Type(extension.target.r#type())
@@ -470,12 +542,12 @@ impl ModuleLowerer<'_> {
         } = state.tree().get(member)
         else {
             return Err(CompilerError::Internal {
-                message: "checked DIR instantiated a non-method member".to_string(),
+                message: "an instantiated non-method member".to_string(),
             });
         };
         let Some(expression) = *body else {
             return Err(CompilerError::Internal {
-                message: "checked DIR instantiated a bodiless member".to_string(),
+                message: "an instantiated bodiless member".to_string(),
             });
         };
         let parameter_nodes = signature.parameters.to_vec();
@@ -484,7 +556,7 @@ impl ModuleLowerer<'_> {
             let node = parameter.into_global_any(symbol.module_id);
             let Some(parameter_symbol) = self.symbol_declared_at(node)? else {
                 return Err(CompilerError::Internal {
-                    message: "checked DIR is missing a symbol for one parameter".to_string(),
+                    message: "missing a symbol for one parameter".to_string(),
                 });
             };
             symbols.push(parameter_symbol.local_id);
@@ -494,8 +566,7 @@ impl ModuleLowerer<'_> {
             self.lower_signature(builder, declared, &type_substitution, lifetime_parameters)?;
         if signature.parameters.len() != symbols.len() {
             return Err(CompilerError::Internal {
-                message: "checked DIR instance parameters disagree with its sealed signature"
-                    .to_string(),
+                message: "instance parameters disagree with the declared signature".to_string(),
             });
         }
 
@@ -509,6 +580,7 @@ impl ModuleLowerer<'_> {
             expression,
         )
     }
+
     /// Declare one instance header under its canonical name and queue its body.
     fn declare_instance_function(
         &mut self,
@@ -542,5 +614,4 @@ impl ModuleLowerer<'_> {
             expression,
         })
     }
-
 }

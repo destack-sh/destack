@@ -5,12 +5,7 @@ use destack_mir::{IntrinsicInstruction, IntrinsicTerminator};
 use crate::lower::{FunctionLowerer, LayoutBuilder};
 use crate::{CompilerError, CompilerResult, LowerError};
 
-/// The target constant one sealed intrinsic name folds to at lower.
-///
-/// Layout resolves at lower against the target, so these names denote
-/// constants and constant arithmetic rather than MIR. Lower owns this
-/// vocabulary the way MIR owns the operation, instruction, and
-/// terminator vocabularies.
+/// The target constant one intrinsic name folds to.
 enum LayoutIntrinsic {
     /// The size of the subject type.
     SizeOf,
@@ -27,7 +22,7 @@ enum LayoutIntrinsic {
 }
 
 impl LayoutIntrinsic {
-    /// Return the layout intrinsic one sealed name denotes.
+    /// Return the layout intrinsic one name denotes.
     fn from_name(name: &str) -> Option<Self> {
         let denoted = match name {
             "reflect.sizeOf" => Self::SizeOf,
@@ -44,10 +39,7 @@ impl LayoutIntrinsic {
 }
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Lower one sealed intrinsic call through its name's vocabulary.
-    ///
-    /// Each denotation vocabulary resolves in turn: MIR operations,
-    /// instructions, and terminators, then lower's own layout constants.
+    /// Lower one intrinsic call through its name's vocabulary.
     pub(in crate::lower) fn lower_intrinsic_call(
         &mut self,
         name: Option<String>,
@@ -81,7 +73,7 @@ impl FunctionLowerer<'_, '_, '_> {
         .into())
     }
 
-    /// Lower one operation intrinsic to its MIR operation.
+    /// Lower one operation intrinsic.
     fn lower_operation_intrinsic(
         &mut self,
         operation: mir::Intrinsic,
@@ -167,8 +159,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Lower one atomic fence from its comptime ordering configuration.
     ///
-    /// MIR fences order whole storage: region and memory-scope refinements
-    /// subsume conservatively into the full fence.
+    /// Region and memory-scope refinements subsume into a whole-storage fence.
     pub(in crate::lower) fn lower_atomic_fence(
         &mut self,
         resolution: &dir::Call,
@@ -228,7 +219,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one atomic compare-exchange returning the old value and success.
     ///
     /// The failed comparison loads at the success ordering stripped of its
-    /// release half, the strongest failure ordering the success permits.
+    /// release half.
     pub(in crate::lower) fn lower_atomic_compare_exchange(
         &mut self,
         weak: bool,
@@ -303,7 +294,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let value = self.argument_value(resolution, 2)?;
         let Some(element) = self.builder.value_type(value) else {
             return Err(CompilerError::Internal {
-                message: "lowered MIR stored an untyped slice element".to_string(),
+                message: "an untyped slice element store".to_string(),
             });
         };
         let pointer = self.emit_element_address(slice, index, element)?;
@@ -423,12 +414,12 @@ impl FunctionLowerer<'_, '_, '_> {
     fn pointee_type(&mut self, pointer: mir::Value) -> CompilerResult<mir::TypeId> {
         let Some(pointer_type) = self.builder.value_type(pointer) else {
             return Err(CompilerError::Internal {
-                message: "lowered MIR carried an untyped pointer operand".to_string(),
+                message: "an untyped pointer operand".to_string(),
             });
         };
         let mir::Type::Reference { pointee, .. } = self.builder.tree().get(pointer_type) else {
             return Err(CompilerError::Internal {
-                message: "lowered MIR addressed through a non-reference operand".to_string(),
+                message: "an address through a non-reference operand".to_string(),
             });
         };
 
@@ -459,10 +450,6 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Read one atomic configuration starting at one argument position.
-    ///
-    /// The ordering and scope become the access; volatile and availability
-    /// flags reject until MIR represents them; region and memory-scope
-    /// refinements subsume conservatively into whole-memory ordering.
     fn atomic_access(
         &mut self,
         resolution: &dir::Call,
@@ -490,7 +477,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
         };
 
-        // the three trailing flags reject until MIR represents them
+        // reject the three trailing flags
         for (offset, flag) in [
             (4, "a volatile atomic"),
             (5, "an availability-publishing atomic"),
@@ -550,7 +537,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let step = self.builder.iconst(stride as i128, pointer_bits, true);
                 let Some(domain) = self.builder.value_type(step) else {
                     return Err(CompilerError::Internal {
-                        message: "lowered MIR built an untyped stride constant".to_string(),
+                        message: "an untyped stride constant".to_string(),
                     });
                 };
                 let address =
@@ -570,7 +557,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let step = self.builder.iconst(stride as i128, pointer_bits, true);
                 let Some(domain) = self.builder.value_type(step) else {
                     return Err(CompilerError::Internal {
-                        message: "lowered MIR built an untyped stride constant".to_string(),
+                        message: "an untyped stride constant".to_string(),
                     });
                 };
                 let bytes = self.builder.intrinsic(
@@ -595,18 +582,18 @@ impl FunctionLowerer<'_, '_, '_> {
         } = resolution
         else {
             return Err(CompilerError::Internal {
-                message: "checked DIR bound a layout intrinsic without a candidate".to_string(),
+                message: "a layout intrinsic without a candidate".to_string(),
             });
         };
-        let arguments = self
+        let bindings = self
             .lowerer
-            .instance_arguments(function, &self.type_substitution)?;
-        let Some(subject) = arguments.first() else {
+            .instance_bindings(function, &self.type_substitution)?;
+        let Some(subject) = bindings.first().map(|binding| binding.argument) else {
             return Err(CompilerError::Internal {
-                message: "checked DIR bound a layout intrinsic without a subject type".to_string(),
+                message: "a layout intrinsic without a subject type".to_string(),
             });
         };
-        let subject = self.lower_type(*subject)?;
+        let subject = self.lower_type(subject)?;
 
         let pointer_bytes = (self.builder.pointer_bits() / 8) as u8;
         let mut layouts = mir::LayoutTable::default();
@@ -656,7 +643,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
         let dir::Type::Application(owner) = self.lowerer.ty(member.owner)? else {
             return Err(CompilerError::Internal {
-                message: "checked DIR typed an enum member without its owner instance".to_string(),
+                message: "an enum member without its owner instance".to_string(),
             });
         };
 
@@ -690,7 +677,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let arguments = &resolution.arguments;
         let Some(binding) = arguments.get(index) else {
             return Err(CompilerError::Internal {
-                message: "checked DIR bound too few arguments for one intrinsic".to_string(),
+                message: "too few arguments for one intrinsic".to_string(),
             });
         };
         let dir::ArgumentSource::Provided(argument) = binding.argument else {
@@ -703,7 +690,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let argument = argument.local_id.into_typed::<dir::Argument>();
         let Some(value) = self.source().tree().get(argument).value() else {
             return Err(CompilerError::Internal {
-                message: "checked DIR bound a valueless intrinsic argument".to_string(),
+                message: "a valueless intrinsic argument".to_string(),
             });
         };
 

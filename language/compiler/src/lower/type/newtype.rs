@@ -5,7 +5,7 @@ use crate::CompilerResult;
 use crate::lower::{NominalField, TypeLowerer};
 
 impl TypeLowerer<'_, '_> {
-    /// Lower one newtype declaration to its MIR type.
+    /// Lower one newtype declaration to its representation.
     pub(in crate::lower) fn lower_newtype(
         &mut self,
         symbol: dir::GlobalSymbolId,
@@ -13,12 +13,12 @@ impl TypeLowerer<'_, '_> {
         ty: mir::LocalNodeId<mir::Type>,
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Vec<NominalField>> {
-        // tagged newtypes lower their checked variants directly
+        // lower tagged newtypes through their variants
         if definition.is_tagged() {
             return self.lower_tagged_newtype(definition, ty);
         }
 
-        // compiler-known newtypes take their intrinsic representations
+        // take the intrinsic representation for compiler-known newtypes
         if matches!(self.lowerer.ty(definition.backing)?, dir::Type::Intrinsic) {
             return self.lower_intrinsic(symbol, ty, arguments);
         }
@@ -38,7 +38,7 @@ impl TypeLowerer<'_, '_> {
         definition: dir::NewtypeDefinition,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<Vec<NominalField>> {
-        // lower each checked case and its exact backing leaf together
+        // lower each case with its backing leaf
         let mut cases = Vec::new();
         let mut payloads = Vec::new();
         for variant in definition.tagged_variants() {
@@ -49,7 +49,7 @@ impl TypeLowerer<'_, '_> {
             payloads.push(self.lower(variant.backing)?);
         }
 
-        // concrete payload representations decide whether values copy or move
+        // decide copy from the concrete payload representations
         let is_copy = payloads
             .iter()
             .all(|payload| self.tree.get(*payload).copy(self.tree) == mir::Copy::Yes);

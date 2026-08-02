@@ -35,7 +35,7 @@ pub(in crate::lower) struct Place {
 }
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Return the place selected by one checked assignment resolution.
+    /// Return the place selected by one assignment resolution.
     pub(in crate::lower) fn place(
         &mut self,
         assignment: &dir::AssignmentResolution,
@@ -46,7 +46,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .try_into_typed::<dir::Expression>()
         else {
             return Err(CompilerError::Internal {
-                message: "checked DIR placed a non-expression node".to_string(),
+                message: "a non-expression node in a place".to_string(),
             });
         };
 
@@ -91,14 +91,14 @@ impl FunctionLowerer<'_, '_, '_> {
                     .into());
                 }
 
-                // lower the checked storage selection
+                // lower the storage selection
                 let index = self.member_field_index(field)?;
                 let ty = self.lower_type(field.ty)?;
 
-                // the receiver chain reads through its checked member resolutions
+                // read the receiver chain through its member resolutions
                 let dir::Expression::Member { left, .. } = *self.source().tree().get(source) else {
                     return Err(CompilerError::Internal {
-                        message: "checked DIR fielded a non-member place".to_string(),
+                        message: "a field write on a non-member place".to_string(),
                     });
                 };
                 let mut place = self.receiver_place(left)?;
@@ -119,7 +119,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Place> {
-        // reference receivers root the place at their reference value
+        // root the place at the reference value for reference receivers
         let ty = self.node_type_id(expression)?;
         if let Some(layer) = self.lowerer.peel_reference(ty)? {
             let value = self.lower_expression(expression)?;
@@ -158,7 +158,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 Ok(place)
             }
-            // the identifier names the base binding
+            // bind the place base at the identifier
             dir::Expression::Identifier { .. } => {
                 let node = expression.into_global_any(self.source);
                 let symbol = self.lowerer.resolved_symbol(node)?;
@@ -184,7 +184,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::LocalNodeId<mir::Local>> {
         let Some(Binding::Local(local)) = self.values.get(&symbol).copied() else {
             return Err(CompilerError::Internal {
-                message: "checked DIR wrote through a binding without a mutable local".to_string(),
+                message: "a write through a binding without a mutable local".to_string(),
             });
         };
 
@@ -199,7 +199,7 @@ impl FunctionLowerer<'_, '_, '_> {
         field: mir::LocalNodeId<mir::Type>,
         access: mir::Access,
     ) -> mir::Value {
-        // interior addresses borrow from the object reference
+        // borrow interior addresses from the object reference
         let address = self.builder.tree_mut().intern_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
             lifetime: mir::Lifetime::empty(),
@@ -215,7 +215,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Read the current value of one place.
     pub(in crate::lower) fn read_place(&mut self, place: &Place) -> CompilerResult<mir::Value> {
         match place.root {
-            // locals project by value
+            // project locals by value
             PlaceRoot::Local(local) => {
                 let mut value = self.builder.local_get(local);
                 for projection in &place.path {
@@ -224,7 +224,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 Ok(value)
             }
-            // references project by address and load the leaf
+            // project references by address and load the leaf
             PlaceRoot::Reference { value, access } => {
                 let (address, leaf) = self.emit_address_path(value, access, &place.path)?;
 
@@ -240,13 +240,13 @@ impl FunctionLowerer<'_, '_, '_> {
         value: mir::Value,
     ) -> CompilerResult<()> {
         match place.root {
-            // locals rebuild the aggregates on the path
+            // rebuild the aggregates on the path for locals
             PlaceRoot::Local(local) => {
                 self.write_local_place(local, &place.path, value);
 
                 Ok(())
             }
-            // references store through the leaf address
+            // store through the leaf address for references
             PlaceRoot::Reference {
                 value: reference,
                 access,
@@ -268,7 +268,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let Some((first, remaining)) = path.split_first() else {
             return Err(CompilerError::Internal {
-                message: "lowered MIR addressed a reference place without a field".to_string(),
+                message: "a reference place addressed without a field".to_string(),
             });
         };
 
@@ -290,7 +290,7 @@ impl FunctionLowerer<'_, '_, '_> {
         path: &[PlaceProjection],
         value: mir::Value,
     ) {
-        // bare locals store directly
+        // store bare locals directly
         if path.is_empty() {
             self.builder.local_set(local, value);
 

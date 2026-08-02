@@ -5,7 +5,7 @@ use crate::lower::{CallableImplementation, FunctionLowerer, GenericInstanceKey};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Lower one call expression through its checked call resolution.
+    /// Lower one call expression through its call resolution.
     pub(in crate::lower) fn lower_call(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -25,7 +25,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 function,
                 dispatch: dir::FunctionDispatch::Direct,
             } => {
-                // sealed intrinsic and binding callables bypass declared functions
+                // route intrinsic and binding callables before declared functions
                 match self.lowerer.callable_implementation(function.symbol)? {
                     Some(CallableImplementation::Intrinsic { name }) => {
                         return self.lower_intrinsic_call(name, call);
@@ -52,15 +52,17 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
             }
             // value(...)
-            dir::CallTarget::Expression { .. } => self.lower_indirect_call(call),
-            // virtual and erased calls require their selected dispatch table
-            dir::CallTarget::Symbol { .. } | dir::CallTarget::Dynamic { .. } => {
-                Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
-                    construct: "a virtual or dynamic call".to_string(),
-                }
-                .into())
+            dir::CallTarget::Expression { .. } => self.lower_indirect_call(expression, call),
+            // erased.method(...) dispatches through the constraint's entries
+            dir::CallTarget::Dynamic { dispatch, .. } => {
+                self.lower_dynamic_call(expression, call, dispatch)
             }
+            // reject virtual calls
+            dir::CallTarget::Symbol { .. } => Err(LowerError::Unsupported {
+                anchor: self.lowerer.module.into(),
+                construct: "a virtual call".to_string(),
+            }
+            .into()),
         }
     }
 
@@ -78,7 +80,7 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(false)
     }
 
-    /// Lower one sealed binding call through its declared dotted extern.
+    /// Lower one binding call through its declared dotted extern.
     fn lower_binding_call(
         &mut self,
         symbol: dir::GlobalSymbolId,
@@ -109,7 +111,7 @@ impl FunctionLowerer<'_, '_, '_> {
         for binding in arguments {
             let source = match binding.argument {
                 dir::ArgumentSource::Provided(source) => source,
-                // omitted optional parameters receive their undefined slot
+                // pass the undefined slot for omitted optional parameters
                 dir::ArgumentSource::Omitted => {
                     values.push(self.lower_omitted_argument(binding.ty)?);
 
@@ -147,25 +149,25 @@ impl FunctionLowerer<'_, '_, '_> {
         symbol: dir::GlobalSymbolId,
         resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
-        // resolve the declared MIR function behind the symbol
+        // resolve the declared function behind the symbol
         let function = self.function(&GenericInstanceKey::non_generic(symbol))?;
         let values = self.lower_provided_arguments(resolution)?;
 
         Ok(self.builder.call_function(function, values))
     }
 
-    /// Lower one method call through its checked candidate.
+    /// Lower one method call through its candidate.
     fn lower_method_call(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
         resolution: &dir::Call,
         function: &dir::FunctionTarget,
     ) -> CompilerResult<Option<mir::Value>> {
-        // the callee member names the receiver expression
+        // read the receiver expression from the callee member
         let dir::Expression::Call { left: callee, .. } = *self.source().tree().get(expression)
         else {
             return Err(CompilerError::Internal {
-                message: "checked DIR called a method outside a call expression".to_string(),
+                message: "a method call outside a call expression".to_string(),
             });
         };
         let dir::Expression::Member { left: receiver, .. } = *self.source().tree().get(callee)
@@ -196,23 +198,9 @@ impl FunctionLowerer<'_, '_, '_> {
             })?;
 
         // apply the selected receiver adjustments
-        let receiver = match adjusted.adjustments.as_slice() {
-            [] => self.lower_expression(receiver)?,
-            [dir::ReceiverAdjustment::Borrow { ty }] => {
-                let target = self.lower_type(*ty)?;
+        let receiver = self.lower_adjusted_receiver(receiver, adjusted)?;
 
-                self.lower_borrowed_place(receiver, target)?
-            }
-            other => {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
-                    construct: format!("a '{other:?}' receiver adjustment"),
-                }
-                .into());
-            }
-        };
-
-        // resolve the declared MIR function behind the method symbol
+        // resolve the declared function behind the method symbol
         let function = self.function(&GenericInstanceKey::non_generic(function.symbol))?;
 
         // bind the arguments after the receiver
@@ -240,10 +228,11 @@ impl FunctionLowerer<'_, '_, '_> {
         function: &dir::FunctionTarget,
         resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
-        // the substituted arguments select the declared instance
-        let arguments = self
+        // select the declared instance from the substituted arguments
+        let bindings = self
             .lowerer
-            .instance_arguments(function, &self.type_substitution)?;
+            .instance_bindings(function, &self.type_substitution)?;
+        let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
         let key = self
             .type_lowerer()
             .generic_instance_key(function.symbol, &arguments)?;
@@ -253,28 +242,54 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.call_function(function, values))
     }
 
-    /// Return the MIR function behind one callable symbol and its instance key.
-    fn function(&self, key: &GenericInstanceKey) -> CompilerResult<mir::FunctionId> {
+    /// Return the function behind one callable symbol and its instance key.
+    pub(in crate::lower) fn function(
+        &self,
+        key: &GenericInstanceKey,
+    ) -> CompilerResult<mir::FunctionId> {
         self.lowerer
             .functions
             .get(key)
             .copied()
             .ok_or_else(|| CompilerError::Internal {
-                message: "checked DIR is missing a declared function behind one call symbol"
-                    .to_string(),
+                message: "missing a declared function behind one call symbol".to_string(),
             })
     }
 
     /// Lower one call through a function-typed value.
     fn lower_indirect_call(
         &mut self,
-        _resolution: &dir::Call,
+        expression: dir::LocalNodeId<dir::Expression>,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
-        Err(LowerError::Unsupported {
-            anchor: self.lowerer.module.into(),
-            construct: "an indirect call".to_string(),
-        }
-        .into())
+        let dir::Expression::Call { left, .. } = *self.source().tree().get(expression) else {
+            return Err(CompilerError::Internal {
+                message: "a non-call through the indirect path".to_string(),
+            });
+        };
+        let callee = self.lower_expression(left)?;
+
+        // call through the value's declared signature
+        let Some(ty) = self.builder.value_type(callee) else {
+            return Err(CompilerError::Internal {
+                message: "the lowered callee value has no type".to_string(),
+            });
+        };
+        let signature = match self.builder.tree().get(ty) {
+            mir::Type::Function { signature, .. } | mir::Type::FunctionPointer { signature } => {
+                *signature
+            }
+            _ => {
+                return Err(CompilerError::Internal {
+                    message: "a call through a non-callable value".to_string(),
+                });
+            }
+        };
+        let values = self.lower_provided_arguments(resolution)?;
+
+        Ok(self
+            .builder
+            .call(mir::Callee::Indirect { value: callee }, signature, values))
     }
 
     /// Lower one omitted optional argument to its undefined slot value.
@@ -293,7 +308,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
         }
 
-        // reference-like carriers store undefined directly
+        // store undefined directly in reference-like carriers
         Ok(self.builder.constant(mir::Constant::Undefined, carrier))
     }
 
@@ -317,7 +332,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
                 dir::Argument::Elision | dir::Argument::Error => {
                     return Err(CompilerError::Internal {
-                        message: "checked DIR provided an empty argument".to_string(),
+                        message: "an empty argument".to_string(),
                     });
                 }
             };
@@ -328,10 +343,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // lower the source as the value expression itself
         let Ok(expression) = source.local_id.try_into_typed::<dir::Expression>() else {
             return Err(CompilerError::Internal {
-                message: format!(
-                    "checked DIR provided a non-expression argument node {}",
-                    source.local_id.id
-                ),
+                message: format!("a non-expression argument node {}", source.local_id.id),
             });
         };
 

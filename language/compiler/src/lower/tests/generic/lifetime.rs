@@ -1,7 +1,7 @@
 use crate::tests::TestSession;
 
 #[test]
-fn test_lower_lifetime_parameters_to_polymorphic_mir_slots() {
+fn test_lower_lifetime_parameters_to_polymorphic_slots() {
     let session = TestSession::single(
         r#"
 struct User {
@@ -108,8 +108,8 @@ struct User {
     id: int32;
 }
 
-struct View {
-    user: &readonly User;
+struct View<'a> {
+    user: Borrowed<User, 'a, "readonly">;
 }
 
 function retain(value: View): View {
@@ -271,7 +271,7 @@ entry(v0: int32, v1: ref<User, borrowed, 'a, readonly>):
 }
 
 #[test]
-fn test_lower_lifetime_unions_to_combined_mir_provenance() {
+fn test_lower_comptime_lifetime_unions_to_combined_provenance() {
     let session = TestSession::single(
         r#"
 struct User {

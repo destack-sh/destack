@@ -14,11 +14,11 @@ impl TypeLowerer<'_, '_> {
     ) -> CompilerResult<Vec<NominalField>> {
         let item = self.lowerer.language_item(symbol)?;
         match item {
-            // a unique handle references exactly its payload storage
+            // reference the payload storage for a unique handle
             Some(dir::LanguageItem::Unique) => {
                 let [payload] = arguments else {
                     return Err(CompilerError::Internal {
-                        message: "checked DIR instantiated Unique without its payload".to_string(),
+                        message: "Unique instantiated without its payload".to_string(),
                     });
                 };
                 let payload = self.lowerer.reduced_type(*payload)?;

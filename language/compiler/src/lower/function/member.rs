@@ -5,7 +5,7 @@ use crate::lower::FunctionLowerer;
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Lower one member read through its checked resolution.
+    /// Lower one member read through its resolution.
     pub(in crate::lower) fn lower_member(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -24,50 +24,53 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             .into());
         };
-        if let dir::MemberTarget::Projection { projection, .. } = &access.target {
-            let receiver = self.lower_expression(left)?;
 
-            return self.lower_member_projection(receiver, projection);
-        }
-        if let dir::MemberTarget::Call(call) = &access.target {
-            let dir::Call {
-                target:
-                    dir::CallTarget::Symbol {
-                        function,
-                        dispatch: dir::FunctionDispatch::Direct,
-                    },
-                ..
-            } = &**call
-            else {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
-                    construct: "a dynamic property read".to_string(),
-                }
-                .into());
-            };
-            let value = self.lower_function_target_call(left, call, function, None)?;
+        match &access.target {
+            // project a compiler-defined member off the receiver
+            dir::MemberTarget::Projection { projection, .. } => {
+                let receiver = self.lower_expression(left)?;
 
-            return value.ok_or_else(|| CompilerError::Internal {
-                message: "checked getter returned no value".to_string(),
-            });
-        }
-
-        let dir::MemberTarget::Field(field) = &access.target else {
-            return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
-                construct: format!("a member read through {:?}", access.target),
+                self.lower_member_projection(receiver, projection)
             }
-            .into());
-        };
+            // call the resolved getter
+            dir::MemberTarget::Call(call) => {
+                let dir::Call {
+                    target:
+                        dir::CallTarget::Symbol {
+                            function,
+                            dispatch: dir::FunctionDispatch::Direct,
+                        },
+                    ..
+                } = &**call
+                else {
+                    return Err(LowerError::Unsupported {
+                        anchor: self.lowerer.module.into(),
+                        construct: "a dynamic property read".to_string(),
+                    }
+                    .into());
+                };
+                let value = self.lower_function_target_call(left, call, function, None)?;
 
-        self.lower_field_read(expression, left, field)
+                value.ok_or_else(|| CompilerError::Internal {
+                    message: "the getter returned no value".to_string(),
+                })
+            }
+            // read the resolved field
+            dir::MemberTarget::Field(field) => self.lower_field_read(expression, left, field),
+            other => Err(LowerError::Unsupported {
+                anchor: self.lowerer.module.into(),
+                construct: format!("a member read through {other:?}"),
+            }
+            .into()),
+        }
     }
 
-    /// Lower one subscript read through its checked resolution.
+    /// Lower one subscript read through its resolution.
     pub(in crate::lower) fn lower_subscript(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
+        index: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> CompilerResult<mir::Value> {
         let resolution = self.subscript_resolution(expression)?;
         let dir::OperationResolution::One(subscript) = resolution else {
@@ -80,13 +83,37 @@ impl FunctionLowerer<'_, '_, '_> {
 
         match subscript.target {
             dir::SubscriptTarget::Member(access) => match access.target {
+                // read the constant key straight off its field
                 dir::MemberTarget::Field(field) => self.lower_field_read(expression, left, &field),
+                // find the computed key through the receiver's dynamic table
+                dir::MemberTarget::Index(read)
+                    if matches!(read.target, dir::IndexTarget::Signature(_)) =>
+                {
+                    // keyed finds dispatch by name over string domains only
+                    let domain = self.lowerer.reduced_type(read.key_type)?;
+                    if !matches!(
+                        self.lowerer.ty(domain)?,
+                        dir::Type::Primitive(dir::PrimitiveType::String)
+                    ) {
+                        return Err(LowerError::Unsupported {
+                            anchor: self.lowerer.module.into(),
+                            construct: "a non-string signature key domain".to_string(),
+                        }
+                        .into());
+                    }
+                    let key = index.ok_or_else(|| CompilerError::Internal {
+                        message: "a signature subscript read has no key expression".to_string(),
+                    })?;
+
+                    self.lower_dynamic_signature_read(expression, left, key)
+                }
                 other => Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
                     construct: format!("a subscript read through {other:?}"),
                 }
                 .into()),
             },
+            // call the resolved subscript getter
             dir::SubscriptTarget::Call(call) => {
                 let dir::Call {
                     target:
@@ -106,9 +133,10 @@ impl FunctionLowerer<'_, '_, '_> {
                 let value = self.lower_function_target_call(left, &call, function, None)?;
 
                 value.ok_or_else(|| CompilerError::Internal {
-                    message: "checked subscript read returned no value".to_string(),
+                    message: "the subscript read returned no value".to_string(),
                 })
             }
+            // load the value behind the address the Index protocol returns
             dir::SubscriptTarget::Index(read) => {
                 if read.missing.is_some() {
                     return Err(LowerError::Unsupported {
@@ -135,7 +163,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 };
                 let value = self.lower_function_target_call(left, &call, function, None)?;
                 let value = value.ok_or_else(|| CompilerError::Internal {
-                    message: "checked subscript read returned no value".to_string(),
+                    message: "the subscript read returned no value".to_string(),
                 })?;
                 let result_type = self.lower_type(read.dereference.ty)?;
 
@@ -144,13 +172,20 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Lower one checked field read.
+    /// Lower one field read.
     fn lower_field_read(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
         field: &dir::FieldResolution,
     ) -> CompilerResult<mir::Value> {
+        // read structural receivers through their dynamic entries
+        let reduced = self.lowerer.reduced_type(field.receiver.ty())?;
+        if matches!(self.lowerer.ty(reduced)?, dir::Type::Shape(_)) {
+            return self.lower_dynamic_field_read(expression, left, reduced, field.target.key());
+        }
+
+        // lower the receiver the resolution selected
         let index = self.member_field_index(field)?;
         let receiver = field.receiver.ty();
         let result_type = self.lower_type(self.node_type_id(expression)?)?;
@@ -172,7 +207,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // materialize the owner carrier and select the declared case
         let dir::Type::Application(owner) = self.lowerer.ty(variant.owner)? else {
             return Err(CompilerError::Internal {
-                message: "checked DIR typed a variant without its owner instance".to_string(),
+                message: "a variant without its owner instance".to_string(),
             });
         };
         let ty = self.lower_type(variant.owner)?;
@@ -202,7 +237,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Apply the selected receiver adjustments before one member read.
     fn lower_member_receiver(
         &mut self,
-        mut value: mir::Value,
+        value: mir::Value,
         receiver: &dir::MemberReceiver,
     ) -> CompilerResult<mir::Value> {
         let dir::MemberReceiver::Direct(receiver) = receiver else {
@@ -213,25 +248,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .into());
         };
 
-        for adjustment in &receiver.adjustments {
-            value = match adjustment {
-                dir::ReceiverAdjustment::NewtypePayload { .. } => self.builder.field_get(value, 0),
-                dir::ReceiverAdjustment::VariantPayload { case, .. } => {
-                    let index = self.lowerer.variant_position(case.owner, case.variant)?;
-
-                    self.builder.variant_payload(value, index)
-                }
-                other => {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
-                        construct: format!("a member read through {other:?}"),
-                    }
-                    .into());
-                }
-            };
-        }
-
-        Ok(value)
+        self.lower_receiver_adjustments(value, &receiver.adjustments)
     }
 
     /// Return the storage index selected by one field resolution.
@@ -244,6 +261,8 @@ impl FunctionLowerer<'_, '_, '_> {
             Some(layer) => layer.stored,
             None => self.lowerer.peel_owned(field.receiver.ty())?,
         };
+
+        // find the field's position in the storage the receiver declares
         let index = match self.lowerer.ty(stored)? {
             dir::Type::Tuple(_) => match field.target.key() {
                 dir::StaticKey::Index(index) => Some(index),
@@ -255,6 +274,17 @@ impl FunctionLowerer<'_, '_, '_> {
                 fields.iter().position(|stored| match field.target {
                     dir::FieldTarget::Structural { key, .. } => stored.key == key,
                     dir::FieldTarget::Member { symbol, .. } => stored.symbol == symbol.local_id,
+                })
+            }
+            dir::Type::Object(shape) => {
+                let properties = self
+                    .lowerer
+                    .types(stored.module_id)?
+                    .properties(shape.properties);
+
+                properties.iter().position(|stored| match field.target {
+                    dir::FieldTarget::Structural { key, .. } => stored.key == key,
+                    dir::FieldTarget::Member { .. } => false,
                 })
             }
             _ => {
@@ -269,8 +299,7 @@ impl FunctionLowerer<'_, '_, '_> {
         index
             .map(|index| index as u32)
             .ok_or_else(|| CompilerError::Internal {
-                message: "checked DIR selected a field absent from its lowered receiver"
-                    .to_string(),
+                message: "a field absent from its lowered receiver".to_string(),
             })
     }
 }

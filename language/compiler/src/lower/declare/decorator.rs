@@ -40,7 +40,7 @@ impl ModuleLowerer<'_> {
                 continue;
             }
 
-            // the first evaluated argument names the operation
+            // read the operation name from the first evaluated argument
             let name = self.decorator_name(application)?;
 
             return Ok(Some(match item {
@@ -121,16 +121,16 @@ impl ModuleLowerer<'_> {
             .statics
             .get_static_maybe(application.value.local_id)
             .ok_or_else(|| CompilerError::Internal {
-                message: "checked DIR is missing one decorator static value".to_string(),
+                message: "missing one decorator static value".to_string(),
             })?;
         let Some((_, value)) = value.as_newtype() else {
             return Err(CompilerError::Internal {
-                message: "checked decorator value is not a newtype".to_string(),
+                message: "the decorator value is not a newtype".to_string(),
             });
         };
         let Some(arguments) = value.as_tuple() else {
             return Err(CompilerError::Internal {
-                message: "checked decorator backing is not a tuple".to_string(),
+                message: "the decorator backing is not a tuple".to_string(),
             });
         };
         let Some(value) = arguments.first() else {
@@ -138,7 +138,7 @@ impl ModuleLowerer<'_> {
         };
         let Some(name) = value.as_string() else {
             return Err(CompilerError::Internal {
-                message: "checked decorator name is not a string".to_string(),
+                message: "the decorator name is not a string".to_string(),
             });
         };
 

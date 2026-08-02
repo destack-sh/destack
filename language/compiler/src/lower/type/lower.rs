@@ -9,11 +9,11 @@ use crate::lower::{
 };
 use crate::{CompilerError, CompilerResult, LowerError};
 
-/// Recursive checked type lowering into one MIR tree.
+/// Recursive type lowering into one tree.
 pub(in crate::lower) struct TypeLowerer<'lower, 'module> {
     /// The stable module lowering state.
     pub(in crate::lower) lowerer: &'lower mut ModuleLowerer<'module>,
-    /// The MIR tree receiving lowered types.
+    /// The tree receiving lowered types.
     pub(in crate::lower) tree: &'lower mut mir::Tree,
     /// The target pointer width in bytes.
     pub(in crate::lower) pointer_bytes: u8,
@@ -21,12 +21,12 @@ pub(in crate::lower) struct TypeLowerer<'lower, 'module> {
     pub(in crate::lower) type_substitution: &'lower TypeSubstitution,
     /// The polymorphic lifetime parameters available during lowering.
     pub(in crate::lower) lifetime_parameters: &'lower LifetimeParameters,
-    /// The structural types being lowered, with reservations for revisits.
+    /// The compound types being lowered, with reservations for revisits.
     reservations: FxIndexMap<dir::GlobalTypeId, Option<mir::LocalNodeId<mir::Type>>>,
 }
 
 impl<'lower, 'module> TypeLowerer<'lower, 'module> {
-    /// Create recursive type lowering over one MIR tree.
+    /// Create recursive type lowering over one tree.
     fn new(
         lowerer: &'lower mut ModuleLowerer<'module>,
         tree: &'lower mut mir::Tree,
@@ -44,21 +44,54 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         }
     }
 
-    /// Lower one checked type into the MIR tree.
+    /// Lower one type.
     pub(in crate::lower) fn lower(
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        let alias = match self.lowerer.ty(id)? {
+            dir::Type::Reference(reference) => Some((reference.symbol, None)),
+            dir::Type::Application(instance) => Some((instance.symbol, Some(instance.arguments))),
+            _ => None,
+        };
+        if let Some((symbol, arguments)) = alias
+            && self.lowerer.alias_form(symbol)?.is_some()
+        {
+            let arguments = match arguments {
+                Some(list) => self.lowerer.types(id.module_id)?.type_ids(list).to_vec(),
+                None => Vec::new(),
+            };
+
+            // reject bare defaulted uses without instantiation arguments
+            let is_generic = self
+                .lowerer
+                .definition(symbol)?
+                .and_then(|definition| definition.template())
+                .is_some();
+            if is_generic && arguments.is_empty() {
+                return Err(LowerError::Unsupported {
+                    anchor: self.lowerer.module.into(),
+                    construct: "a defaulted generic row alias".to_string(),
+                }
+                .into());
+            }
+
+            return Ok(self.lower_nominal(symbol, &arguments)?.value);
+        }
+
         let id = self.lowerer.reduced_type(id)?;
 
-        // structural families can recurse through transparent aliases, so a
-        //  revisit reserves the identity and the first visit defines it
+        // anonymous compound graphs can cycle when reduction strands the
+        //  declared spelling: a revisit reserves the identity, the first
+        //  visit defines it
         let compound = matches!(
             self.lowerer.ty(id)?,
             dir::Type::Union(_)
                 | dir::Type::Tuple(_)
                 | dir::Type::Slice(_)
                 | dir::Type::FixedArray(_)
+                | dir::Type::Shape(_)
+                | dir::Type::Object(_)
         );
         if compound {
             if let Some(entry) = self.reservations.get_mut(&id) {
@@ -67,7 +100,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                 }
 
                 // reserve the identity for the outer visit to define
-                let name = format!("recursive{}", id.local_id.0);
+                let name = format!("cycle{}", id.local_id.0);
                 let name = self.lowerer.strings.intern(&name);
                 let reserved = self.tree.reserve_type(mir::Symbol::named(name));
                 *entry = Some(reserved);
@@ -91,13 +124,13 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         lowered
     }
 
-    /// Lower one reduced checked type by family.
-    fn lower_reduced(
+    /// Lower one reduced type by family.
+    pub(super) fn lower_reduced(
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         match self.lowerer.ty(id)? {
-            // nominal instances lower through their concrete representation
+            // lower nominal instances through their concrete representation
             dir::Type::Application(instance) => {
                 if let Some(argument) = self.lowerer.storage_carrier_argument(id, &instance)? {
                     let value = self.lower(argument)?;
@@ -114,17 +147,17 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
 
                 Ok(nominal.value)
             }
-            // variants lower through their owning carrier
+            // lower variants through their owning carrier
             dir::Type::Variant(member) => self.lower(member.owner),
-            // instance substitutions resolve generic parameters
+            // resolve generic parameters through instance substitutions
             dir::Type::Parameter(_) => {
                 let argument = self.type_substitution.resolve(self.lowerer, id)?;
 
                 self.lower(argument)
             }
-            // contextual this lowers through the receiver substitution
+            // lower contextual this through the receiver substitution
             dir::Type::This => self.lower_receiver_value(),
-            // nullable unions ride their reference carrier's niches
+            // ride the reference carrier's niches for nullable unions
             dir::Type::Union(union) => {
                 if let Some((nullability, carrier)) =
                     self.lowerer.decompose_nullish_union(id.module_id, &union)?
@@ -134,7 +167,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                     return self.insert_nullable_reference(reference, nullability);
                 }
 
-                // non-nullish unions store as indexed variants
+                // store non-nullish unions as indexed variants
                 let elements = self
                     .lowerer
                     .types(id.module_id)?
@@ -147,16 +180,25 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
 
                 Ok(self.insert_union_variant(payloads))
             }
-            // memory forms resolve through the form algebra
+            // store concrete object classes behind a managed reference
+            dir::Type::Object(shape) => {
+                let row = self.lower_object_struct(&shape, id.module_id)?;
+
+                Ok(self.insert_reference(mir::ReferenceKind::Managed, mir::Access::Mutable, row))
+            }
+            // erase structural rows behind the dynamic carrier
+            dir::Type::Shape(_) | dir::Type::Unknown => self.lower_dynamic(id),
+            dir::Type::Dynamic(dynamic) => self.lower_dynamic(dynamic.constraint),
+            // resolve memory forms through the form algebra
             dir::Type::Form(_) => self.lower_form(id, None),
-            // slice values are fat headers over managed element storage
+            // lower slice values as fat headers over managed element storage
             dir::Type::Slice(_) => self.lower_reference(
                 mir::ReferenceKind::Managed,
                 mir::Lifetime::empty(),
                 mir::Access::Mutable,
                 id,
             ),
-            // fixed arrays lower to their inline element storage
+            // lower fixed arrays to their inline element storage
             dir::Type::FixedArray(fixed) => {
                 let element = self.lower(fixed.element)?;
                 let length = self.lowerer.fixed_array_length(fixed.count)?;
@@ -168,7 +210,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                     copy,
                 }))
             }
-            // tuples lower their elements recursively
+            // lower tuple elements recursively
             dir::Type::Tuple(tuple) => {
                 let ids = self.lowerer.tuple_element_types(id.module_id, &tuple)?;
                 let mut elements = Vec::with_capacity(ids.len());
@@ -178,8 +220,29 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
 
                 Ok(self.insert_tuple(elements))
             }
+            // pair a code pointer with an erased environment for function values
+            dir::Type::Function(function) => self.lower_function(&function),
+            dir::Type::FunctionPointer(pointer) => {
+                let signature = self.lower_signature_type(pointer.signature)?;
+
+                Ok(self.tree.intern_type(mir::Type::FunctionPointer {
+                    signature: mir::TypeId::from(signature),
+                }))
+            }
+            // lower a bare signature in value position as the fat callable
+            dir::Type::FunctionSignature(_) => {
+                let signature = self.lower_signature_type(id)?;
+                let environment = self.erased_environment();
+
+                Ok(self.tree.intern_type(mir::Type::Function {
+                    signature: mir::TypeId::from(signature),
+                    environment: mir::TypeId::from(environment),
+                }))
+            }
+            // lower never without a value
+            dir::Type::Never => Ok(self.tree.intern_type(mir::Type::Never)),
             other => {
-                // reference primitives lower through their representation classes
+                // lower reference primitives through their representation classes
                 if let Some((item, arguments)) = ModuleLowerer::representation_item(&other) {
                     let symbol = self.lowerer.language_item_symbol(item)?;
 
@@ -214,7 +277,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
 }
 
 impl<'module> ModuleLowerer<'module> {
-    /// Return recursive type lowering over one MIR tree.
+    /// Return recursive type lowering over one tree.
     pub(in crate::lower) fn type_lowerer<'lower>(
         &'lower mut self,
         tree: &'lower mut mir::Tree,
@@ -248,7 +311,7 @@ impl<'module> ModuleLowerer<'module> {
         let arguments = self.types(id.module_id)?.type_ids(instance.arguments);
         let Some(argument) = arguments.first().copied() else {
             return Err(CompilerError::Internal {
-                message: "checked DIR instantiated a storage carrier without its value".to_string(),
+                message: "a storage carrier instantiated without its value".to_string(),
             });
         };
 
@@ -286,7 +349,7 @@ impl TypeLowerer<'_, '_> {
         self.type_substitution
             .receiver()
             .ok_or_else(|| CompilerError::Internal {
-                message: "checked DIR left a contextual receiver unbound".to_string(),
+                message: "an unbound contextual receiver".to_string(),
             })
     }
 
@@ -333,7 +396,7 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
         let mut ids = Vec::with_capacity(tuple.elements.len() as usize);
         for element in self.types(module)?.elements(tuple.elements) {
-            // optional and rest elements have no fixed positional layout
+            // reject optional and rest elements
             if element.is_optional || element.is_rest {
                 return Err(LowerError::Unsupported {
                     anchor: self.module.into(),
@@ -354,7 +417,7 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         payloads: Vec<mir::LocalNodeId<mir::Type>>,
     ) -> mir::LocalNodeId<mir::Type> {
-        // a variant copies when every payload copies
+        // compose copy over the payloads
         let copy = payloads
             .iter()
             .all(|payload| self.tree.get(*payload).copy(self.tree) == mir::Copy::Yes);
@@ -374,7 +437,7 @@ impl TypeLowerer<'_, '_> {
         payloads: Vec<mir::LocalNodeId<mir::Type>>,
         copy: mir::Copy,
     ) -> mir::Type {
-        // cases discriminate by their declaration index
+        // discriminate cases by their declaration index
         let discriminant = self.tree.intern_type(mir::Type::Int {
             width: 8,
             is_signed: false,
@@ -391,7 +454,7 @@ impl TypeLowerer<'_, '_> {
             })
             .collect();
 
-        // the first case stands in as the logical storage carrier
+        // take the first case as the logical storage carrier
         let storage = payloads
             .first()
             .copied()
@@ -410,7 +473,7 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         elements: Vec<mir::LocalNodeId<mir::Type>>,
     ) -> mir::LocalNodeId<mir::Type> {
-        // a tuple copies when every element copies
+        // compose copy over the elements
         let copy = elements
             .iter()
             .all(|element| self.tree.get(*element).copy(self.tree) == mir::Copy::Yes);

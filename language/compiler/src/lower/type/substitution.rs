@@ -23,6 +23,18 @@ pub(in crate::lower) struct TypeSubstitution {
 }
 
 impl TypeSubstitution {
+    /// Bind selected arguments directly to their declaration parameters.
+    pub(in crate::lower) fn from_bindings(bindings: &[dir::GenericArgumentBinding]) -> Self {
+        let mut substitution = Self::default();
+        for binding in bindings {
+            substitution
+                .bindings
+                .insert(binding.parameter, binding.argument);
+        }
+
+        substitution
+    }
+
     /// Return this substitution with its contextual receiver.
     pub(in crate::lower) fn with_receiver(mut self, receiver: ReceiverBinding) -> Self {
         self.receiver = Some(receiver);
@@ -56,7 +68,12 @@ impl TypeSubstitution {
             .collect();
         if parameters.len() != arguments.len() {
             return Err(CompilerError::Internal {
-                message: "checked DIR supplied the wrong number of type arguments".to_string(),
+                message: format!(
+                    "{} type arguments for the {} type parameters of {:?}",
+                    arguments.len(),
+                    parameters.len(),
+                    template
+                ),
             });
         }
 
@@ -83,8 +100,7 @@ impl TypeSubstitution {
             let Some(argument) = self.bindings.get(&parameter).copied() else {
                 return Err(CompilerError::Internal {
                     message: format!(
-                        "checked DIR left type parameter {parameter:?} unbound with bindings \
-                         for {:?}",
+                        "type parameter {parameter:?} unbound with bindings for {:?}",
                         self.bindings.keys().collect::<Vec<_>>()
                     ),
                 });

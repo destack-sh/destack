@@ -60,7 +60,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         let Some(else_expression) = else_expression else {
             return Err(CompilerError::Internal {
-                message: "checked DIR is missing an else arm on one ternary".to_string(),
+                message: "missing an else arm on one ternary".to_string(),
             });
         };
 
@@ -72,7 +72,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let join = self.builder.block();
         self.builder.branch(condition, then_block, else_block);
 
-        // each arm writes the join local before joining
+        // write the join local in each arm before joining
         self.builder.switch_to_block(then_block);
         let value = self.lower_expression(then_expression)?;
         self.builder.local_set(join_value, value);
@@ -174,7 +174,7 @@ impl FunctionLowerer<'_, '_, '_> {
         label: Option<StringId>,
         body: dir::LocalNodeId<dir::Block>,
     ) -> CompilerResult<bool> {
-        // loop the body onto itself: only break reaches the exit
+        // loop the body onto itself
         let body_block = self.builder.block();
         let exit = self.builder.block();
         self.builder.jump(body_block);
@@ -203,8 +203,8 @@ impl FunctionLowerer<'_, '_, '_> {
             .into());
         }
         let target = self.break_target(label)?;
-
         self.builder.jump(target);
+
         Ok(true)
     }
 
@@ -214,8 +214,8 @@ impl FunctionLowerer<'_, '_, '_> {
         label: Option<StringId>,
     ) -> CompilerResult<bool> {
         let target = self.continue_target(label)?;
-
         self.builder.jump(target);
+
         Ok(true)
     }
 
@@ -282,7 +282,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         let Some(frame) = frame else {
             return Err(CompilerError::Internal {
-                message: "checked DIR is missing an enclosing statement for one break".to_string(),
+                message: "missing an enclosing statement for one break".to_string(),
             });
         };
 
@@ -304,7 +304,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         let Some(target) = frame.and_then(|frame| frame.continue_target) else {
             return Err(CompilerError::Internal {
-                message: "checked DIR is missing an enclosing loop for one continue".to_string(),
+                message: "missing an enclosing loop for one continue".to_string(),
             });
         };
 

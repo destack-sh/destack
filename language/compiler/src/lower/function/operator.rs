@@ -5,10 +5,10 @@ use super::equality::LoweredOperand;
 use crate::lower::FunctionLowerer;
 use crate::{CompilerError, CompilerResult, LowerError};
 
-/// The operator class of one checked operand type.
+/// The operator class of one operand type.
 enum OperandClass {
     /// An integer with its signedness.
-    Int { signed: bool },
+    Int { is_signed: bool },
     /// A floating point number.
     Float,
     /// A boolean.
@@ -37,7 +37,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let Some(value) = self.lower_function_target_call(receiver, resolution, function, None)?
         else {
             return Err(CompilerError::Internal {
-                message: "checked DIR selected a void operator method".to_string(),
+                message: "a void operator method".to_string(),
             });
         };
 
@@ -92,7 +92,7 @@ impl FunctionLowerer<'_, '_, '_> {
         operator: dir::BinaryOperator,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Value> {
-        // reject non-boolean logical joins: they produce union values
+        // reject non-boolean logical joins
         if !matches!(
             self.node_type(expression)?,
             dir::Type::Primitive(dir::PrimitiveType::Boolean)
@@ -127,7 +127,7 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.local_get(join_value))
     }
 
-    /// Lower one statement-position update operator through its checked place.
+    /// Lower one statement-position update operator through its place.
     pub(in crate::lower) fn lower_update(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -141,21 +141,21 @@ impl FunctionLowerer<'_, '_, '_> {
         }) = resolution
         else {
             return Err(CompilerError::Internal {
-                message: "checked update has a non-builtin unary resolution".to_string(),
+                message: "an update with a non-builtin unary resolution".to_string(),
             });
         };
 
-        // the checked resolution names the updated place
+        // resolve the updated place
         let resolution = self.assignment_resolution(target)?;
         let place = self.place(&resolution)?;
 
-        // rewrite the place by one over its checked carrier
+        // rewrite the place by one over its carrier
         let current = self.read_place(&place)?;
         let one_type = self
             .builder
             .value_type(current)
             .ok_or_else(|| CompilerError::Internal {
-                message: "lowered update operand has no MIR type".to_string(),
+                message: "the lowered update operand has no type".to_string(),
             })?;
         let one_type = self.builder.tree().get(one_type).clone();
         let one = self.lower_constant(dir::ScalarLiteral::Integer(1), one_type)?;
@@ -172,7 +172,7 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(())
     }
 
-    /// Map one DIR binary operator over one lowered scalar value.
+    /// Map one binary operator over one lowered scalar value.
     pub(super) fn binary_value_operator(
         &self,
         operator: dir::BinaryOperator,
@@ -180,7 +180,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::BinaryOperator> {
         let Some(ty) = self.builder.value_type(operand) else {
             return Err(CompilerError::Internal {
-                message: "lowered scalar operand has no MIR type".to_string(),
+                message: "the lowered scalar operand has no type".to_string(),
             });
         };
         let class = self.mir_operand_class(self.builder.tree().get(ty))?;
@@ -188,7 +188,7 @@ impl FunctionLowerer<'_, '_, '_> {
         self.binary_operator_class(operator, class)
     }
 
-    /// Map one DIR binary operator over one operand class.
+    /// Map one binary operator over one operand class.
     fn binary_operator_class(
         &self,
         operator: dir::BinaryOperator,
@@ -210,17 +210,17 @@ impl FunctionLowerer<'_, '_, '_> {
             (dir::BinaryOperator::Multiply, OperandClass::Float) => {
                 mir::BinaryOperator::FloatMultiply
             }
-            (dir::BinaryOperator::Divide, OperandClass::Int { signed: true }) => {
+            (dir::BinaryOperator::Divide, OperandClass::Int { is_signed: true }) => {
                 mir::BinaryOperator::SignedDivide
             }
-            (dir::BinaryOperator::Divide, OperandClass::Int { signed: false }) => {
+            (dir::BinaryOperator::Divide, OperandClass::Int { is_signed: false }) => {
                 mir::BinaryOperator::UnsignedDivide
             }
             (dir::BinaryOperator::Divide, OperandClass::Float) => mir::BinaryOperator::FloatDivide,
-            (dir::BinaryOperator::Remainder, OperandClass::Int { signed: true }) => {
+            (dir::BinaryOperator::Remainder, OperandClass::Int { is_signed: true }) => {
                 mir::BinaryOperator::SignedRemainder
             }
-            (dir::BinaryOperator::Remainder, OperandClass::Int { signed: false }) => {
+            (dir::BinaryOperator::Remainder, OperandClass::Int { is_signed: false }) => {
                 mir::BinaryOperator::UnsignedRemainder
             }
 
@@ -237,10 +237,10 @@ impl FunctionLowerer<'_, '_, '_> {
             (dir::BinaryOperator::ShiftLeft, OperandClass::Int { .. }) => {
                 mir::BinaryOperator::ShiftLeft
             }
-            (dir::BinaryOperator::ShiftRight, OperandClass::Int { signed: true }) => {
+            (dir::BinaryOperator::ShiftRight, OperandClass::Int { is_signed: true }) => {
                 mir::BinaryOperator::ArithmeticShiftRight
             }
-            (dir::BinaryOperator::ShiftRight, OperandClass::Int { signed: false }) => {
+            (dir::BinaryOperator::ShiftRight, OperandClass::Int { is_signed: false }) => {
                 mir::BinaryOperator::LogicalShiftRight
             }
             (dir::BinaryOperator::UnsignedShiftRight, OperandClass::Int { .. }) => {
@@ -266,37 +266,37 @@ impl FunctionLowerer<'_, '_, '_> {
             ) => mir::BinaryOperator::FloatNotEqual,
 
             // ordering
-            (dir::BinaryOperator::LessThan, OperandClass::Int { signed: true }) => {
+            (dir::BinaryOperator::LessThan, OperandClass::Int { is_signed: true }) => {
                 mir::BinaryOperator::SignedLessThan
             }
-            (dir::BinaryOperator::LessThan, OperandClass::Int { signed: false }) => {
+            (dir::BinaryOperator::LessThan, OperandClass::Int { is_signed: false }) => {
                 mir::BinaryOperator::UnsignedLessThan
             }
             (dir::BinaryOperator::LessThan, OperandClass::Float) => {
                 mir::BinaryOperator::FloatLessThan
             }
-            (dir::BinaryOperator::LessThanOrEqual, OperandClass::Int { signed: true }) => {
+            (dir::BinaryOperator::LessThanOrEqual, OperandClass::Int { is_signed: true }) => {
                 mir::BinaryOperator::SignedLessEqual
             }
-            (dir::BinaryOperator::LessThanOrEqual, OperandClass::Int { signed: false }) => {
+            (dir::BinaryOperator::LessThanOrEqual, OperandClass::Int { is_signed: false }) => {
                 mir::BinaryOperator::UnsignedLessEqual
             }
             (dir::BinaryOperator::LessThanOrEqual, OperandClass::Float) => {
                 mir::BinaryOperator::FloatLessEqual
             }
-            (dir::BinaryOperator::GreaterThan, OperandClass::Int { signed: true }) => {
+            (dir::BinaryOperator::GreaterThan, OperandClass::Int { is_signed: true }) => {
                 mir::BinaryOperator::SignedGreaterThan
             }
-            (dir::BinaryOperator::GreaterThan, OperandClass::Int { signed: false }) => {
+            (dir::BinaryOperator::GreaterThan, OperandClass::Int { is_signed: false }) => {
                 mir::BinaryOperator::UnsignedGreaterThan
             }
             (dir::BinaryOperator::GreaterThan, OperandClass::Float) => {
                 mir::BinaryOperator::FloatGreaterThan
             }
-            (dir::BinaryOperator::GreaterThanOrEqual, OperandClass::Int { signed: true }) => {
+            (dir::BinaryOperator::GreaterThanOrEqual, OperandClass::Int { is_signed: true }) => {
                 mir::BinaryOperator::SignedGreaterEqual
             }
-            (dir::BinaryOperator::GreaterThanOrEqual, OperandClass::Int { signed: false }) => {
+            (dir::BinaryOperator::GreaterThanOrEqual, OperandClass::Int { is_signed: false }) => {
                 mir::BinaryOperator::UnsignedGreaterEqual
             }
             (dir::BinaryOperator::GreaterThanOrEqual, OperandClass::Float) => {
@@ -320,14 +320,16 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Classify one lowered scalar type for operator selection.
     fn mir_operand_class(&self, operand: &mir::Type) -> CompilerResult<OperandClass> {
         match operand {
-            mir::Type::Int { is_signed, .. } => Ok(OperandClass::Int { signed: *is_signed }),
-            mir::Type::Isize => Ok(OperandClass::Int { signed: true }),
-            mir::Type::Usize => Ok(OperandClass::Int { signed: false }),
+            mir::Type::Int { is_signed, .. } => Ok(OperandClass::Int {
+                is_signed: *is_signed,
+            }),
+            mir::Type::Isize => Ok(OperandClass::Int { is_signed: true }),
+            mir::Type::Usize => Ok(OperandClass::Int { is_signed: false }),
             mir::Type::Float(_) => Ok(OperandClass::Float),
             mir::Type::Boolean => Ok(OperandClass::Boolean),
             _ => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
-                construct: format!("operands with the MIR carrier {operand:?}"),
+                construct: format!("operands with the carrier {operand:?}"),
             }
             .into()),
         }

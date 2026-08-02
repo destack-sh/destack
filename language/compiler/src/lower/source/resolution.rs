@@ -4,7 +4,7 @@ use crate::lower::FunctionLowerer;
 use crate::{CompilerError, CompilerResult};
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Return the checked type behind one expression node.
+    /// Return the type behind one expression node.
     pub(in crate::lower) fn node_type(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -12,7 +12,7 @@ impl FunctionLowerer<'_, '_, '_> {
         self.lowerer.ty(self.node_type_id(expression)?)
     }
 
-    /// Return the checked type id behind one expression node.
+    /// Return the type id behind one expression node.
     pub(in crate::lower) fn node_type_id(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -23,16 +23,13 @@ impl FunctionLowerer<'_, '_, '_> {
             .types
             .get_reduced_node_type_id(node)
             .ok_or_else(|| CompilerError::Internal {
-                message: format!(
-                    "checked DIR is missing a type for node {}",
-                    node.local_id.id
-                ),
+                message: format!("missing a type for node {}", node.local_id.id),
             })
     }
 }
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Return the checked call resolution of one applying expression.
+    /// Return the call resolution of one applying expression.
     pub(in crate::lower) fn call_resolution(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -44,14 +41,11 @@ impl FunctionLowerer<'_, '_, '_> {
             .call_resolution(node)
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
-                message: format!(
-                    "checked DIR is missing a call resolution for node {}",
-                    node.local_id.id
-                ),
+                message: format!("missing a call resolution for node {}", node.local_id.id),
             })
     }
 
-    /// Return the checked construct resolution on one call expression.
+    /// Return the construct resolution on one call expression.
     pub(in crate::lower) fn construct_resolution(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -62,7 +56,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .cloned()
     }
 
-    /// Return the checked tree resolution on one tree expression.
+    /// Return the tree resolution on one tree expression.
     pub(in crate::lower) fn tree_resolution(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -74,14 +68,11 @@ impl FunctionLowerer<'_, '_, '_> {
             .tree_resolution(node)
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
-                message: format!(
-                    "checked DIR is missing a tree resolution for node {}",
-                    node.local_id.id
-                ),
+                message: format!("missing a tree resolution for node {}", node.local_id.id),
             })
     }
 
-    /// Return the checked assignment resolution of one target expression.
+    /// Return the assignment resolution of one target expression.
     pub(in crate::lower) fn assignment_resolution(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -94,13 +85,13 @@ impl FunctionLowerer<'_, '_, '_> {
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
                 message: format!(
-                    "checked DIR is missing an assignment resolution for node {}",
+                    "missing an assignment resolution for node {}",
                     node.local_id.id
                 ),
             })
     }
 
-    /// Return the checked resolution of one assignment pattern.
+    /// Return the resolution of one assignment pattern.
     pub(in crate::lower) fn assign_resolution(
         &self,
         pattern: dir::LocalNodeId<dir::AssignPattern>,
@@ -113,13 +104,13 @@ impl FunctionLowerer<'_, '_, '_> {
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
                 message: format!(
-                    "checked DIR is missing a resolution for assignment pattern {}",
+                    "missing a resolution for assignment pattern {}",
                     node.local_id.id
                 ),
             })
     }
 
-    /// Return the checked member resolution of one member expression.
+    /// Return the member resolution of one member expression.
     pub(in crate::lower) fn member_resolution(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -131,14 +122,11 @@ impl FunctionLowerer<'_, '_, '_> {
             .member_resolution(node)
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
-                message: format!(
-                    "checked DIR is missing a member resolution for node {}",
-                    node.local_id.id
-                ),
+                message: format!("missing a member resolution for node {}", node.local_id.id),
             })
     }
 
-    /// Return the checked subscript resolution of one index expression.
+    /// Return the subscript resolution of one index expression.
     pub(in crate::lower) fn subscript_resolution(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -151,13 +139,13 @@ impl FunctionLowerer<'_, '_, '_> {
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
                 message: format!(
-                    "checked DIR is missing a subscript resolution for node {}",
+                    "missing a subscript resolution for node {}",
                     node.local_id.id
                 ),
             })
     }
 
-    /// Return the checked resolution of one pattern node.
+    /// Return the resolution of one pattern node.
     pub(in crate::lower) fn pattern_resolution(
         &self,
         pattern: dir::LocalNodeId<dir::Pattern>,
@@ -169,14 +157,11 @@ impl FunctionLowerer<'_, '_, '_> {
             .pattern_resolution(node)
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
-                message: format!(
-                    "checked DIR is missing a pattern resolution for node {}",
-                    node.local_id.id
-                ),
+                message: format!("missing a pattern resolution for node {}", node.local_id.id),
             })
     }
 
-    /// Return the checked operator resolution of one applying node.
+    /// Return the operator resolution of one applying node.
     pub(in crate::lower) fn operator_resolution<T: dir::Node>(
         &self,
         node: dir::LocalNodeId<T>,
@@ -189,13 +174,13 @@ impl FunctionLowerer<'_, '_, '_> {
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
                 message: format!(
-                    "checked DIR is missing an operator resolution for node {}",
+                    "missing an operator resolution for node {}",
                     node.local_id.id
                 ),
             })
     }
 
-    /// Return the checked coercion for one expression.
+    /// Return the coercion for one expression.
     pub(in crate::lower) fn coercion(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,

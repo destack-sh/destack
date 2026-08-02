@@ -1,20 +1,27 @@
+mod alias;
 mod class;
+mod dispatch;
+mod dynamic;
 mod r#enum;
 mod form;
+mod interface;
 mod intrinsic;
 mod layout;
 mod lifetime;
 mod lower;
 mod newtype;
 mod nominal;
+mod object;
 mod scalar;
 mod signature;
-pub(in crate::lower) use signature::LoweredSignature;
 mod r#struct;
 mod substitution;
 
+pub(in crate::lower) use alias::AliasForm;
+pub(in crate::lower) use dispatch::DynamicSource;
 pub(in crate::lower) use layout::LayoutBuilder;
 pub(in crate::lower) use lifetime::LifetimeParameters;
 pub(in crate::lower) use lower::TypeLowerer;
 pub(in crate::lower) use nominal::*;
+pub(in crate::lower) use signature::LoweredSignature;
 pub(in crate::lower) use substitution::{ReceiverBinding, TypeSubstitution};

@@ -14,7 +14,7 @@ pub(in crate::lower) struct Indirection {
 }
 
 impl TypeLowerer<'_, '_> {
-    /// Lower one sealed form type through the memory form algebra.
+    /// Lower one form type through the memory form algebra.
     pub(in crate::lower) fn lower_form(
         &mut self,
         id: dir::GlobalTypeId,
@@ -27,14 +27,14 @@ impl TypeLowerer<'_, '_> {
         };
 
         match form.form {
-            // views narrow the access of the next reference layer inward
+            // narrow the access of the next reference layer inward
             dir::Form::Readonly => match self.lowerer.ty(form.value)? {
                 dir::Type::Form(_) => self.lower_form(form.value, Some(mir::Access::Readonly)),
-                // readonly over a pure value is a check-side fact only
+                // lower readonly over a pure value at the narrowed access
                 _ => self.lower_layer_value(form.value, Some(mir::Access::Readonly)),
             },
 
-            // managed layers reference their stored payload on the local heap
+            // reference the stored payload of managed layers on the local heap
             dir::Form::Managed => self.lower_reference(
                 mir::ReferenceKind::Managed,
                 mir::Lifetime::empty(),
@@ -42,12 +42,12 @@ impl TypeLowerer<'_, '_> {
                 form.value,
             ),
 
-            // borrowed layers carry their declared lifetime and access
+            // carry the declared lifetime and access of borrowed layers
             dir::Form::Borrowed(borrow) => {
                 let Some(borrow) = self.lowerer.types(id.module_id)?.borrow_form_maybe(borrow)
                 else {
                     return Err(CompilerError::Internal {
-                        message: "checked DIR is missing a borrow form".to_string(),
+                        message: "missing a borrow form".to_string(),
                     });
                 };
                 let (lifetime, borrow_access) = (borrow.lifetime, borrow.access);
@@ -64,7 +64,7 @@ impl TypeLowerer<'_, '_> {
                 )
             }
 
-            // raw layers reference their payload without safety
+            // reference the payload of raw layers without safety
             dir::Form::Raw => self.lower_reference(
                 mir::ReferenceKind::Raw,
                 mir::Lifetime::empty(),
@@ -72,7 +72,7 @@ impl TypeLowerer<'_, '_> {
                 form.value,
             ),
 
-            // owned means holding the stored value itself
+            // hold the stored value itself for owned
             dir::Form::Owned => self.lower_pointee(form.value),
 
             dir::Form::Placed { .. } => Err(LowerError::Unsupported {
@@ -105,6 +105,7 @@ impl TypeLowerer<'_, '_> {
                 nullability: mir::Nullability::None,
             }));
         }
+
         // otherwise reference the lowered pointee thinly
         let pointee = self.lower_pointee(payload)?;
 
@@ -128,7 +129,7 @@ impl TypeLowerer<'_, '_> {
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         let ty = self.lowerer.ty(id)?;
 
-        // reference primitives store as their representation classes
+        // store reference primitives as their representation classes
         if let Some((item, arguments)) = ModuleLowerer::representation_item(&ty) {
             let symbol = self.lowerer.language_item_symbol(item)?;
 
@@ -136,9 +137,9 @@ impl TypeLowerer<'_, '_> {
         }
 
         match ty {
-            // contextual this stores as the receiver's storage representation
+            // store contextual this as the receiver's storage representation
             dir::Type::This => self.lower_receiver_storage(),
-            // nominal storage is the declared type, not its value form
+            // store nominals as their declared type
             dir::Type::Application(instance) => {
                 let arguments = self
                     .lowerer
@@ -149,7 +150,9 @@ impl TypeLowerer<'_, '_> {
 
                 Ok(nominal.storage)
             }
-            // value families hold their value form directly
+            // store anonymous object rows as their concrete struct
+            dir::Type::Object(shape) => self.lower_object_struct(&shape, id.module_id),
+            // hold value families as their value form
             _ => self.lower(id),
         }
     }
@@ -160,7 +163,7 @@ impl TypeLowerer<'_, '_> {
         id: dir::GlobalTypeId,
         access: Option<mir::Access>,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        // reference-family bases receive the access on their implicit layer
+        // apply the access to the implicit layer of reference-family bases
         if let dir::Type::Application(instance) = self.lowerer.ty(id)?
             && self.lowerer.has_reference_representation(id)?
         {
@@ -183,13 +186,13 @@ impl TypeLowerer<'_, '_> {
 }
 
 impl ModuleLowerer<'_> {
-    /// Return the outermost reference layer of one sealed value type, when one exists.
+    /// Return the outermost reference layer of one value type, when one exists.
     pub(in crate::lower) fn peel_reference(
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Indirection>> {
         match self.ty(id)? {
-            // form layers reference their payload by constructor
+            // reference the payload of form layers by constructor
             dir::Type::Form(form) => match form.form {
                 dir::Form::Managed | dir::Form::Raw => Ok(Some(Indirection {
                     stored: form.value,
@@ -198,7 +201,7 @@ impl ModuleLowerer<'_> {
                 dir::Form::Borrowed(borrow) => {
                     let Some(borrow) = self.types(id.module_id)?.borrow_form_maybe(borrow) else {
                         return Err(CompilerError::Internal {
-                            message: "checked DIR is missing a borrow form".to_string(),
+                            message: "missing a borrow form".to_string(),
                         });
                     };
                     let access = self.borrow_access(borrow.access)?;
@@ -208,7 +211,7 @@ impl ModuleLowerer<'_> {
                         access,
                     }))
                 }
-                // views narrow the layer beneath them
+                // narrow the layer beneath views
                 dir::Form::Readonly => {
                     let layer = self.peel_reference(form.value)?;
 
@@ -217,20 +220,22 @@ impl ModuleLowerer<'_> {
                         ..layer
                     }))
                 }
-                // owned values hold their storage directly
+                // hold owned values directly
                 dir::Form::Owned | dir::Form::Placed { .. } => Ok(None),
             },
 
-            // reference-family nominals carry an implicit managed layer
-            dir::Type::Application(_) => match self.has_reference_representation(id)? {
-                true => Ok(Some(Indirection {
-                    stored: id,
-                    access: mir::Access::Mutable,
-                })),
-                false => Ok(None),
-            },
+            // carry an implicit managed layer on reference-family classes
+            base @ (dir::Type::Application(_) | dir::Type::Object(_)) => {
+                match self.base_default_ownership(&base)? == dir::Ownership::Managed {
+                    true => Ok(Some(Indirection {
+                        stored: id,
+                        access: mir::Access::Mutable,
+                    })),
+                    false => Ok(None),
+                }
+            }
 
-            // nullable unions reference through their carrier
+            // reference nullable unions through their carrier
             dir::Type::Union(union) => match self.decompose_nullish_union(id.module_id, &union)? {
                 Some((_, carrier)) => self.peel_reference(carrier),
                 None => Ok(None),
@@ -246,7 +251,7 @@ impl ModuleLowerer<'_> {
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         match self.ty(id)? {
-            // owners and views store their payload directly
+            // store the payload of owners and views directly
             dir::Type::Form(form) => match form.form {
                 dir::Form::Owned | dir::Form::Readonly => self.peel_owned(form.value),
                 _ => Ok(id),
@@ -255,30 +260,30 @@ impl ModuleLowerer<'_> {
         }
     }
 
-    /// Return whether one sealed type is carried by a reference at runtime.
+    /// Return whether one type is carried by a reference at runtime.
     pub(in crate::lower) fn has_reference_representation(
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         match self.ty(id)? {
-            // form layers answer by their outermost constructor
+            // answer form layers by their outermost constructor
             dir::Type::Form(form) => match form.form {
                 dir::Form::Managed | dir::Form::Borrowed(_) | dir::Form::Raw => Ok(true),
-                // owned values hold their storage directly
+                // hold owned values directly
                 dir::Form::Owned => Ok(false),
-                // views and placement answer for the layer beneath
+                // answer views and placement for the layer beneath
                 dir::Form::Readonly | dir::Form::Placed { .. } => {
                     self.has_reference_representation(form.value)
                 }
             },
 
-            // nullable unions ride their reference carrier; tagged unions are values
+            // ride the reference carrier for nullable unions
             dir::Type::Union(union) => match self.decompose_nullish_union(id.module_id, &union)? {
                 Some((_, carrier)) => self.has_reference_representation(carrier),
                 None => Ok(false),
             },
 
-            // bare bases answer by their family default
+            // answer bare bases by their family default
             other => Ok(self.base_default_ownership(&other)? == dir::Ownership::Managed),
         }
     }
@@ -286,14 +291,14 @@ impl ModuleLowerer<'_> {
     /// Return the default ownership of one base type family.
     fn base_default_ownership(&self, base: &dir::Type) -> CompilerResult<dir::Ownership> {
         Ok(match base {
-            // reference families default to managed values
+            // default reference families to managed
             dir::Type::Shape(_)
             | dir::Type::Array(_)
             | dir::Type::Dynamic(_)
             | dir::Type::Function(_)
-            | dir::Type::Object => dir::Ownership::Managed,
+            | dir::Type::Object(_) => dir::Ownership::Managed,
 
-            // nominal defaults follow their declaration family
+            // follow the declaration family for nominal defaults
             dir::Type::Application(instance) => match self.definition(instance.symbol)? {
                 Some(dir::Definition::Class(_) | dir::Definition::Interface(_)) => {
                     dir::Ownership::Managed
@@ -301,12 +306,12 @@ impl ModuleLowerer<'_> {
                 _ => dir::Ownership::Owned,
             },
 
-            // string and bigint primitives are held through their representation classes
+            // hold string and bigint primitives through their representation classes
             dir::Type::Primitive(dir::PrimitiveType::String | dir::PrimitiveType::Bigint) => {
                 dir::Ownership::Managed
             }
 
-            // value families are held directly
+            // hold value families directly
             dir::Type::Never
             | dir::Type::Void
             | dir::Type::Undefined
@@ -318,7 +323,7 @@ impl ModuleLowerer<'_> {
             | dir::Type::FixedArray(_)
             | dir::Type::FunctionPointer(_) => dir::Ownership::Owned,
 
-            // precise variants share their owner's representation
+            // share the owner's representation for precise variants
             dir::Type::Variant(variant) => {
                 let owner = self.ty(variant.owner)?;
 
@@ -344,14 +349,14 @@ impl ModuleLowerer<'_> {
         let mut carriers = Vec::new();
         for id in self.types(module)?.type_ids(union.elements) {
             match self.ty(*id)? {
-                // nullish members ride the carrier's spare values
+                // ride the carrier's spare values for nullish members
                 dir::Type::Null => nullability.0 = true,
                 dir::Type::Undefined => nullability.1 = true,
                 _ => carriers.push(*id),
             }
         }
 
-        // one reference member carries the whole union in its niches
+        // require one reference member to carry the union
         let [carrier] = carriers.as_slice() else {
             return Ok(None);
         };
@@ -364,7 +369,7 @@ impl ModuleLowerer<'_> {
             (false, true) => mir::Nullability::Undefined,
             (false, false) => {
                 return Err(CompilerError::Internal {
-                    message: "checked DIR sealed a single-member union".to_string(),
+                    message: "a single-member union".to_string(),
                 });
             }
         };
@@ -374,35 +379,59 @@ impl ModuleLowerer<'_> {
 }
 
 impl TypeLowerer<'_, '_> {
-    /// Widen one lowered reference type with the nullish values it admits.
+    /// Widen one lowered carrier type with the nullish values it admits.
     pub(in crate::lower) fn insert_nullable_reference(
         &mut self,
         reference: mir::LocalNodeId<mir::Type>,
         nullability: mir::Nullability,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        let mir::Type::Reference {
-            kind,
-            lifetime,
-            space,
-            access,
-            pointee,
-            ..
-        } = self.tree.get(reference).clone()
-        else {
-            return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
-                construct: "a union beyond a nullable reference".to_string(),
-            })?;
+        let carrier = match self.tree.get(reference).clone() {
+            // niche thin references in their pointer word
+            mir::Type::Reference {
+                kind,
+                lifetime,
+                space,
+                access,
+                pointee,
+                ..
+            } => mir::Type::Reference {
+                kind,
+                lifetime,
+                space,
+                access,
+                pointee,
+                nullability,
+            },
+            // niche fat slices in their base word
+            mir::Type::Slice {
+                kind,
+                lifetime,
+                element,
+                space,
+                access,
+                ..
+            } => mir::Type::Slice {
+                kind,
+                lifetime,
+                element,
+                space,
+                access,
+                nullability,
+            },
+            // niche erased pairs in their concrete word
+            mir::Type::Dynamic { constraint, .. } => mir::Type::Dynamic {
+                constraint,
+                nullability,
+            },
+            _ => {
+                return Err(LowerError::Unsupported {
+                    anchor: self.lowerer.module.into(),
+                    construct: "a union beyond a nullable reference".to_string(),
+                })?;
+            }
         };
 
-        Ok(self.tree.intern_type(mir::Type::Reference {
-            kind,
-            lifetime,
-            space,
-            access,
-            pointee,
-            nullability,
-        }))
+        Ok(self.tree.intern_type(carrier))
     }
 
     /// Insert one reference type over a pointee.
@@ -424,7 +453,7 @@ impl TypeLowerer<'_, '_> {
 }
 
 impl ModuleLowerer<'_> {
-    /// Return the access spelled by one sealed borrow access singleton.
+    /// Return the access of one borrow access singleton.
     pub(in crate::lower) fn borrow_access(
         &self,
         access: dir::GlobalTypeId,
@@ -433,7 +462,7 @@ impl ModuleLowerer<'_> {
             self.memory_literal(access, dir::MemoryParameter::Access)?
         else {
             return Err(CompilerError::Internal {
-                message: "checked DIR decoded a borrow access in the wrong domain".to_string(),
+                message: "a borrow access in the wrong domain".to_string(),
             });
         };
 

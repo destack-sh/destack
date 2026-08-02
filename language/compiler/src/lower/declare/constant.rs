@@ -5,7 +5,7 @@ use crate::lower::{FunctionLowerer, LifetimeParameters, ModuleLowerer, TypeSubst
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl ModuleLowerer<'_> {
-    /// Declare one MIR global for each binding of one module-level let.
+    /// Declare one global for each binding of one module-level let.
     pub(in crate::lower) fn declare_module_constants(
         &mut self,
         builder: &mut mir::ModuleBuilder,
@@ -31,11 +31,25 @@ impl ModuleLowerer<'_> {
                 .into());
             };
             let Some(term) = self.module_constant(symbol)? else {
-                return Err(LowerError::Unsupported {
-                    anchor: self.module.into(),
-                    construct: "a module binding with a runtime initializer".to_string(),
-                }
-                .into());
+                // store runtime bindings from the module initializer
+                let Some(value) = self.local().tree().get(*declarator).value else {
+                    return Err(CompilerError::Internal {
+                        message: "a module binding without a value".to_string(),
+                    });
+                };
+                let declared = self.symbol_type(symbol)?;
+                let ty = self.constant_type(builder, declared)?;
+                let name = self.constant_name(symbol)?;
+                let global = builder.global(
+                    &name,
+                    ty,
+                    mir::Mutability::Mutable,
+                    mir::GlobalInitializer::zero(),
+                );
+                self.globals.insert(symbol, global);
+                self.initializers.push((global, value));
+
+                continue;
             };
 
             // declare the constant under its module-qualified name
@@ -48,6 +62,27 @@ impl ModuleLowerer<'_> {
         }
 
         Ok(())
+    }
+
+    /// Lower the module initializer storing every runtime binding.
+    pub(in crate::lower) fn lower_module_initializer(
+        &mut self,
+        builder: &mut mir::ModuleBuilder,
+    ) -> CompilerResult<Option<mir::FunctionId>> {
+        if self.initializers.is_empty() {
+            return Ok(None);
+        }
+
+        // declare the initializer under its module-qualified name
+        let initializers = std::mem::take(&mut self.initializers);
+        let void = builder.tree_mut().intern_type(mir::Type::Void);
+        let path = &self.state(self.module)?.path;
+        let name = format!("{path}.@init");
+        let header = builder.function_header(&name).result(void);
+        let function = builder.declare_function(header);
+        FunctionLowerer::lower_initializer(self, builder, function, initializers)?;
+
+        Ok(Some(function))
     }
 
     /// Return the evaluated constant behind one module binding, when one exists.
@@ -70,7 +105,7 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<String> {
         let Some(name) = self.symbol_name(symbol)? else {
             return Err(CompilerError::Internal {
-                message: "checked DIR declared a module constant without a name".to_string(),
+                message: "a module constant without a name".to_string(),
             });
         };
         let path = &self.state(symbol.module_id)?.path;
@@ -86,7 +121,7 @@ impl ModuleLowerer<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<mir::GlobalInitializer> {
         match term {
-            // scalars initialize at their lowered carrier
+            // initialize scalars at their lowered carrier
             dir::StaticTerm::ScalarLiteral { value } => {
                 let pointer_bytes = builder.pointer_bytes();
                 let carrier = self.constant_type(builder, ty)?;
@@ -96,23 +131,21 @@ impl ModuleLowerer<'_> {
                 Ok(mir::GlobalInitializer::Scalar(constant))
             }
 
-            // newtypes wrap their backing as a single-field aggregate
+            // wrap a newtype backing as a single-field aggregate
             dir::StaticTerm::Newtype {
                 ty: instance,
                 value,
             } => {
                 let dir::Type::Application(application) = self.ty(*instance)? else {
                     return Err(CompilerError::Internal {
-                        message: "checked DIR built a newtype constant without its instance"
-                            .to_string(),
+                        message: "a newtype constant without its instance".to_string(),
                     });
                 };
                 let Some(dir::Definition::Newtype(newtype)) =
                     self.definition(application.symbol)?
                 else {
                     return Err(CompilerError::Internal {
-                        message: "checked DIR built a newtype constant without its definition"
-                            .to_string(),
+                        message: "a newtype constant without its definition".to_string(),
                     });
                 };
                 let backing = newtype.backing;
@@ -121,13 +154,12 @@ impl ModuleLowerer<'_> {
                 Ok(mir::GlobalInitializer::Aggregate(vec![inner]))
             }
 
-            // tuples initialize each element at its own type
+            // initialize each tuple element at its own type
             dir::StaticTerm::Tuple { elements } => {
                 let reduced = self.reduced_type(ty)?;
                 let dir::Type::Tuple(tuple) = self.ty(reduced)? else {
                     return Err(CompilerError::Internal {
-                        message: "checked DIR built a tuple constant at a non-tuple type"
-                            .to_string(),
+                        message: "a tuple constant at a non-tuple type".to_string(),
                     });
                 };
                 let element_types = self
@@ -136,8 +168,7 @@ impl ModuleLowerer<'_> {
                     .to_vec();
                 if element_types.len() != elements.len() {
                     return Err(CompilerError::Internal {
-                        message: "checked DIR built a tuple constant with a mismatched arity"
-                            .to_string(),
+                        message: "a tuple constant with a mismatched arity".to_string(),
                     });
                 }
                 let mut values = Vec::with_capacity(elements.len());
@@ -156,7 +187,7 @@ impl ModuleLowerer<'_> {
         }
     }
 
-    /// Lower one constant's checked type outside any generic context.
+    /// Lower one constant's type outside any generic context.
     fn constant_type(
         &mut self,
         builder: &mut mir::ModuleBuilder,
@@ -225,42 +256,9 @@ impl ModuleLowerer<'_> {
             },
             (literal, carrier) => {
                 return Err(CompilerError::Internal {
-                    message: format!(
-                        "checked DIR selected carrier {carrier:?} for constant {literal:?}"
-                    ),
+                    message: format!("carrier {carrier:?} for constant {literal:?}"),
                 });
             }
         })
-    }
-}
-
-impl FunctionLowerer<'_, '_, '_> {
-    /// Return the global behind one module constant, importing foreign ones.
-    pub(in crate::lower) fn module_constant_global(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<mir::LocalNodeId<mir::Global>>> {
-        // reuse the global this module already declared or imported
-        if let Some(global) = self.lowerer.globals.get(&symbol) {
-            return Ok(Some(*global));
-        }
-
-        // only foreign constants import lazily; local ones declare at roots
-        if symbol.module_id == self.lowerer.module
-            || self.lowerer.module_constant(symbol)?.is_none()
-        {
-            return Ok(None);
-        }
-
-        // declare an import for one foreign module constant
-        let ty = self.lowerer.symbol_type(symbol)?;
-        let ty = self.lower_type(ty)?;
-        let name = self.lowerer.constant_name(symbol)?;
-        let global = self
-            .builder
-            .external_global(&name, ty, mir::Mutability::Immutable);
-        self.lowerer.globals.insert(symbol, global);
-
-        Ok(Some(global))
     }
 }

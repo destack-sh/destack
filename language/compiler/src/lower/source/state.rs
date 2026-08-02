@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use destack_artifact::{DirBound, DirChecked, DirDeclared, DirExpanded, DirMaterialized, DirParsed};
+use destack_artifact::{
+    DirBound, DirChecked, DirDeclared, DirExpanded, DirMaterialized, DirParsed,
+};
 use destack_dir as dir;
 use destack_source::ModuleId;
 

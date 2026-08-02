@@ -35,7 +35,7 @@ impl FunctionLowerer<'_, '_, '_> {
             let node = pattern.into_global_any(self.source);
             let Some(symbol) = self.lowerer.symbol_declared_at(node)? else {
                 return Err(CompilerError::Internal {
-                    message: "checked DIR is missing a symbol for one let binding".to_string(),
+                    message: "missing a symbol for one let binding".to_string(),
                 });
             };
             let value = self.lower_expression(value)?;
@@ -66,7 +66,7 @@ impl FunctionLowerer<'_, '_, '_> {
         operator: dir::AssignOperator,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
-        // the checked pattern identifies a place assignment
+        // require a place assignment
         let dir::AssignPatternResolution::Place = self.assign_resolution(left)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -76,7 +76,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
         let dir::AssignPattern::Place { expression } = *self.source().tree().get(left) else {
             return Err(CompilerError::Internal {
-                message: "checked DIR resolved a non-place pattern as a place".to_string(),
+                message: "a non-place pattern resolved as a place".to_string(),
             });
         };
         let resolution = self.assignment_resolution(expression)?;
@@ -98,7 +98,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
             Ok(())
         }
-        // apply the checked builtin operation for compound assignment
+        // apply the builtin operation for compound assignment
         else {
             let place = self.place(&resolution)?;
             let resolution = self.operator_resolution(statement)?;
@@ -124,7 +124,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Lower one assignment into a setter member through its checked call.
+    /// Lower one assignment into a setter member through its call.
     fn lower_accessor_write(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -152,7 +152,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
         let dir::Expression::Member { left, .. } = *self.source().tree().get(expression) else {
             return Err(CompilerError::Internal {
-                message: "checked DIR wrote an accessor outside a member place".to_string(),
+                message: "an accessor write outside a member place".to_string(),
             });
         };
         self.lower_function_target_call(left, call, function, Some(right))?;

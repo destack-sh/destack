@@ -20,7 +20,7 @@ pub(in crate::lower) enum LoweredOperand {
     Variant {
         /// The lowered value.
         value: mir::Value,
-        /// The checked type defining the cases.
+        /// The type defining the cases.
         carrier: dir::GlobalTypeId,
     },
     /// The unmaterialized null value.
@@ -32,7 +32,7 @@ pub(in crate::lower) enum LoweredOperand {
 }
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Lower one binary operation over the checked operand carrier.
+    /// Lower one binary operation over the operand carrier.
     pub(in crate::lower) fn lower_binary(
         &mut self,
         left: dir::LocalNodeId<dir::Expression>,
@@ -83,7 +83,7 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(layer.stored)
     }
 
-    /// Lower one checked builtin operand.
+    /// Lower one builtin operand.
     pub(in crate::lower) fn lower_operand(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -93,7 +93,7 @@ impl FunctionLowerer<'_, '_, '_> {
         if source != operand.source {
             return Err(CompilerError::Internal {
                 message: format!(
-                    "checked builtin operand {:?} is attached to expression {:?}",
+                    "builtin operand {:?} is attached to expression {:?}",
                     operand.source, source
                 ),
             });
@@ -130,7 +130,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<LoweredOperand> {
         carrier = self.lowerer.reduced_type(carrier)?;
 
-        // transparent newtypes compare through their backing representation
+        // compare transparent newtypes through their backing representation
         loop {
             let dir::Type::Application(instance) = self.lowerer.ty(carrier)? else {
                 break;
@@ -153,7 +153,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         let Some(ty) = self.builder.value_type(value) else {
             return Err(CompilerError::Internal {
-                message: "lowered equality operand has no MIR type".to_string(),
+                message: "the lowered equality operand has no type".to_string(),
             });
         };
         let ty = self.builder.tree().get(ty);
@@ -175,7 +175,7 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(LoweredOperand::Variant { value, carrier });
         }
 
-        // apply leaf scalar behavior selected by check
+        // apply the selected leaf scalar behavior
         if let Some(families) = scalar_families
             && families.len() == 1
         {
@@ -185,7 +185,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     .next()
                     .copied()
                     .ok_or_else(|| CompilerError::Internal {
-                        message: "checked scalar family set is empty".to_string(),
+                        message: "the scalar family set is empty".to_string(),
                     })?;
             match family {
                 dir::ScalarFamily::Domain(domain) => {
@@ -193,30 +193,29 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
                 dir::ScalarFamily::Enum(_) => {
                     return Err(CompilerError::Internal {
-                        message: format!(
-                            "checked enum equality carrier {carrier:?} lowered to {ty:?}"
-                        ),
+                        message: format!("an enum equality carrier {carrier:?} lowered to {ty:?}"),
                     });
                 }
             }
         }
 
-        // nested variant payloads compare directly through their MIR scalar carrier
+        // compare nested variant payloads through their scalar carrier
         if let Some(domain) = Self::mir_scalar_domain(ty) {
             return Ok(LoweredOperand::Scalar { value, domain });
         }
 
         match ty {
-            mir::Type::Reference { .. } => Ok(LoweredOperand::Reference(value)),
+            // reference-family carriers compare by identity
+            mir::Type::Reference { .. } | mir::Type::Slice { .. } | mir::Type::Dynamic { .. } => {
+                Ok(LoweredOperand::Reference(value))
+            }
             other => Err(CompilerError::Internal {
-                message: format!(
-                    "checked equality type lowered to the unsupported MIR carrier {other:?}"
-                ),
+                message: format!("an equality type lowered to the unsupported carrier {other:?}"),
             }),
         }
     }
 
-    /// Return the scalar domain represented directly by one MIR type.
+    /// Return the scalar domain one lowered type represents directly.
     fn mir_scalar_domain(ty: &mir::Type) -> Option<dir::ScalarDomain> {
         match ty {
             mir::Type::Boolean => Some(dir::ScalarDomain::Boolean),
@@ -228,7 +227,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Return whether one checked type has one value and no runtime payload.
+    /// Return whether one type has one value and no runtime payload.
     fn type_is_singleton(&self, mut ty: dir::GlobalTypeId) -> CompilerResult<bool> {
         loop {
             ty = self.lowerer.reduced_type(ty)?;
@@ -274,7 +273,7 @@ impl FunctionLowerer<'_, '_, '_> {
         if left_domain != right_domain {
             return Err(CompilerError::Internal {
                 message: format!(
-                    "checked binary operands have different scalar domains: {left_domain:?} and \
+                    "binary operands have different scalar domains: {left_domain:?} and \
                      {right_domain:?}"
                 ),
             });
@@ -284,7 +283,7 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.binary_op(operator, left_value, right_value))
     }
 
-    /// Lower equality over one checked common carrier.
+    /// Lower equality over one common carrier.
     pub(in crate::lower) fn lower_carrier_equality(
         &mut self,
         left: LoweredOperand,
@@ -303,7 +302,7 @@ impl FunctionLowerer<'_, '_, '_> {
             ) => self.lower_variant_equality(left_carrier, left, right_carrier, right),
             (LoweredOperand::Variant { .. }, _) | (_, LoweredOperand::Variant { .. }) => {
                 Err(CompilerError::Internal {
-                    message: "checked equality operands use different runtime carriers".to_string(),
+                    message: "equality operands use different runtime carriers".to_string(),
                 })
             }
             (left, right) => self.lower_leaf_equality(left, right),
@@ -322,7 +321,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let right_members = self.variant_members(right_carrier)?;
         if left_members.len() != right_members.len() {
             return Err(CompilerError::Internal {
-                message: "checked equality variants have different case counts".to_string(),
+                message: "equality variants have different case counts".to_string(),
             });
         }
 
@@ -403,12 +402,12 @@ impl FunctionLowerer<'_, '_, '_> {
                     self.lowerer.definition(instance.symbol)?
                 else {
                     return Err(CompilerError::Internal {
-                        message: "checked variant carrier is not a tagged newtype".to_string(),
+                        message: "the variant carrier is not a tagged newtype".to_string(),
                     });
                 };
                 if !definition.is_tagged() {
                     return Err(CompilerError::Internal {
-                        message: "checked variant carrier is not a tagged newtype".to_string(),
+                        message: "the variant carrier is not a tagged newtype".to_string(),
                     });
                 }
 
@@ -418,7 +417,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     .collect())
             }
             other => Err(CompilerError::Internal {
-                message: format!("checked variant carrier has type {other:?}"),
+                message: format!("the variant carrier has type {other:?}"),
             }),
         }
     }
@@ -429,7 +428,7 @@ impl FunctionLowerer<'_, '_, '_> {
         left: LoweredOperand,
         right: LoweredOperand,
     ) -> CompilerResult<mir::Value> {
-        // payload-free values of one checked carrier are equal
+        // treat payload-free values as equal
         if matches!(left, LoweredOperand::Singleton) && matches!(right, LoweredOperand::Singleton) {
             return Ok(self.builder.bconst(true));
         }
@@ -450,7 +449,7 @@ impl FunctionLowerer<'_, '_, '_> {
         if left_domain != right_domain {
             return Err(CompilerError::Internal {
                 message: format!(
-                    "checked equality operands have different scalar domains: {left_domain:?} and \
+                    "equality operands have different scalar domains: {left_domain:?} and \
                      {right_domain:?}"
                 ),
             });
@@ -517,7 +516,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             _ => {
                 return Err(CompilerError::Internal {
-                    message: "checked equality comparison has incompatible carriers".to_string(),
+                    message: "the equality comparison has incompatible carriers".to_string(),
                 });
             }
         };
@@ -537,7 +536,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         let Some(carrier) = self.builder.value_type(reference) else {
             return Err(CompilerError::Internal {
-                message: "lowered MIR compared an untyped reference".to_string(),
+                message: "an untyped reference in an equality comparison".to_string(),
             });
         };
         let constant = match operand {
@@ -545,7 +544,7 @@ impl FunctionLowerer<'_, '_, '_> {
             LoweredOperand::Undefined => mir::Constant::Undefined,
             _ => {
                 return Err(CompilerError::Internal {
-                    message: "lowered equality operand is not nullish".to_string(),
+                    message: "the lowered equality operand is not nullish".to_string(),
                 });
             }
         };

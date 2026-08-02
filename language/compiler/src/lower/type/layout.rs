@@ -4,21 +4,23 @@ use destack_source::ModuleId;
 
 use crate::{CompilerError, CompilerResult, LowerError};
 
-/// Target layout construction for one MIR module.
+/// Target layout construction for one module.
 pub(in crate::lower) struct LayoutBuilder<'tree> {
     /// The module anchoring layout diagnostics.
     module: ModuleId,
-    /// The MIR tree whose types are laid out.
+    /// The tree whose types are laid out.
     tree: &'tree mut mir::Tree,
     /// The layouts computed so far.
     layouts: &'tree mut mir::LayoutTable,
     /// The target pointer width in bytes.
     pointer_bytes: u8,
+    /// The types whose layouts are in flight, for cycle detection.
+    computing: FxIndexSet<mir::LocalNodeId<mir::Type>>,
 }
 
-/// Types requiring layouts that are reachable from runtime MIR roots.
+/// Types requiring layouts that are reachable from runtime roots.
 struct ReachableTypeCollector {
-    /// The MIR visitor options.
+    /// The visitor options.
     options: mir::NodeVisitorOptions,
     /// The types already traversed.
     visited: FxIndexSet<mir::LocalNodeId<mir::Type>>,
@@ -64,7 +66,7 @@ impl mir::NodeVisitor for ReachableTypeCollector {
 }
 
 impl<'tree> LayoutBuilder<'tree> {
-    /// Create layout construction over one MIR tree and table.
+    /// Create layout construction over one tree and table.
     pub(in crate::lower) fn new(
         module: ModuleId,
         tree: &'tree mut mir::Tree,
@@ -76,10 +78,11 @@ impl<'tree> LayoutBuilder<'tree> {
             tree,
             layouts,
             pointer_bytes,
+            computing: FxIndexSet::default(),
         }
     }
 
-    /// Compute every aggregate layout reachable from runtime MIR roots.
+    /// Compute every aggregate layout reachable from runtime roots.
     pub(in crate::lower) fn layout_reachable_types(&mut self) -> CompilerResult<()> {
         // traverse named representations
         let mut reachable = ReachableTypeCollector::new();
@@ -98,13 +101,20 @@ impl<'tree> LayoutBuilder<'tree> {
         }
 
         for ty in reachable.types {
+            // skip types without runtime representations
+            if matches!(
+                self.tree.get(ty),
+                mir::Type::Error | mir::Type::Never | mir::Type::FunctionSignature { .. }
+            ) {
+                continue;
+            }
             self.layout_type(ty)?;
         }
 
         Ok(())
     }
 
-    /// Return the cached or newly computed layout of one MIR type.
+    /// Return the cached or newly computed layout of one type.
     pub(in crate::lower) fn layout_type(
         &mut self,
         ty: mir::LocalNodeId<mir::Type>,
@@ -123,17 +133,25 @@ impl<'tree> LayoutBuilder<'tree> {
             return Ok(id);
         }
 
-        let layout = self.compute_type(ty)?;
+        // reject value cycles
+        if !self.computing.insert(ty) {
+            return Err(CompilerError::Internal {
+                message: "a value-recursive type without indirection".to_string(),
+            });
+        }
+        let layout = self.compute_type(ty);
+        self.computing.swap_remove(&ty);
+        let layout = layout?;
         let id = self.layouts.insert(layout);
         self.layouts.types.insert(ty, id);
 
         Ok(id)
     }
 
-    /// Compute the layout of one MIR type against the target.
+    /// Compute the layout of one type against the target.
     fn compute_type(&mut self, ty: mir::LocalNodeId<mir::Type>) -> CompilerResult<mir::Layout> {
         match self.tree.get(ty).clone() {
-            // scalars occupy their natural width
+            // lay out scalars at their natural width
             mir::Type::Void => Ok(mir::Layout::scalar(0, 1)),
             mir::Type::Boolean => Ok(mir::Layout::scalar(1, 1)),
             mir::Type::Int { width, .. } => {
@@ -146,7 +164,7 @@ impl<'tree> LayoutBuilder<'tree> {
 
                 Ok(mir::Layout::scalar(bytes, bytes))
             }
-            // references occupy one pointer, nullish values in the zero page
+            // lay out references as one pointer
             mir::Type::Reference { .. } => {
                 let bytes = self.pointer_bytes as u32;
 
@@ -158,7 +176,38 @@ impl<'tree> LayoutBuilder<'tree> {
                 Ok(mir::Layout::scalar(bytes, bytes))
             }
 
-            // slices occupy a pointer-aligned {data, length} descriptor
+            // lay out function values as a code and environment pointer pair
+            mir::Type::Function { .. } => {
+                let bytes = self.pointer_bytes as u32;
+
+                Ok(mir::Layout {
+                    shape: mir::LayoutShape::Function,
+                    size: 2 * bytes,
+                    alignment: bytes,
+                    trace_map: mir::TraceMap::Empty,
+                })
+            }
+
+            // lay out bare function pointers as one target pointer
+            mir::Type::FunctionPointer { .. } => {
+                let bytes = self.pointer_bytes as u32;
+
+                Ok(mir::Layout::scalar(bytes, bytes))
+            }
+
+            // lay out dynamics as a pointer-aligned payload and type pair
+            mir::Type::Dynamic { .. } => {
+                let bytes = self.pointer_bytes as u32;
+
+                Ok(mir::Layout {
+                    shape: mir::LayoutShape::Dynamic,
+                    size: 2 * bytes,
+                    alignment: bytes,
+                    trace_map: mir::TraceMap::Empty,
+                })
+            }
+
+            // lay out slices as a pointer-aligned data and length descriptor
             mir::Type::Slice { .. } => {
                 let bytes = self.pointer_bytes as u32;
 
@@ -170,7 +219,7 @@ impl<'tree> LayoutBuilder<'tree> {
                 })
             }
 
-            // fixed arrays repeat their element at its aligned stride
+            // repeat the element of fixed arrays at its aligned stride
             mir::Type::FixedArray {
                 element, length, ..
             } => {
@@ -193,7 +242,7 @@ impl<'tree> LayoutBuilder<'tree> {
                 })
             }
 
-            // structs pack their named fields largest alignment first
+            // pack struct fields largest alignment first
             mir::Type::Struct { fields, .. } => {
                 let mut components = Vec::with_capacity(fields.len());
                 for field in fields {
@@ -210,7 +259,7 @@ impl<'tree> LayoutBuilder<'tree> {
                 })
             }
 
-            // tuples pack their elements the same way
+            // pack tuple elements the same way
             mir::Type::Tuple { elements, .. } => {
                 let components: Vec<_> = elements.iter().map(|element| (None, *element)).collect();
                 let (elements, size, alignment) = self.pack_fields(&components)?;
@@ -223,7 +272,7 @@ impl<'tree> LayoutBuilder<'tree> {
                 })
             }
 
-            // newtypes store transparently as their inner type
+            // store newtypes transparently as their inner type
             mir::Type::Newtype { inner, .. } => {
                 let backing = self.layout_type(inner)?;
                 let layout = self.layouts.entries[backing.index()].clone();
@@ -239,7 +288,7 @@ impl<'tree> LayoutBuilder<'tree> {
                 })
             }
 
-            // variants pack their widest payload behind a direct discriminant
+            // pack the widest variant payload behind a direct discriminant
             mir::Type::Variant {
                 discriminant,
                 storage,
@@ -302,7 +351,7 @@ impl<'tree> LayoutBuilder<'tree> {
         storage: mir::LocalNodeId<mir::Type>,
         cases: &[mir::VariantCase],
     ) -> CompilerResult<mir::Layout> {
-        // the widest case payload sizes the shared storage
+        // size the shared storage by the widest case payload
         let mut payload_size = 0u32;
         let mut payload_alignment = 1u32;
         for case in cases {
@@ -317,14 +366,14 @@ impl<'tree> LayoutBuilder<'tree> {
             return Ok(layout);
         }
 
-        // the discriminant leads, the payload follows at its alignment
+        // place the discriminant first and the payload at its alignment
         let tag = self.layout_type(discriminant)?;
         let tag = self.layouts.entries[tag.index()].clone();
         let payload_offset = tag.size.next_multiple_of(payload_alignment.max(1));
         let alignment = tag.alignment.max(payload_alignment);
         let size = (payload_offset + payload_size).next_multiple_of(alignment);
 
-        // every case stores its payload at the shared offset
+        // store every case payload at the shared offset
         let case_layouts = cases
             .iter()
             .map(|case| {
@@ -363,7 +412,7 @@ impl<'tree> LayoutBuilder<'tree> {
         storage: mir::LocalNodeId<mir::Type>,
         cases: &[mir::VariantCase],
     ) -> CompilerResult<Option<mir::Layout>> {
-        // exactly one case may carry a payload; the others ride its spare values
+        // require exactly one payload case
         let mut untagged = None;
         for (index, case) in cases.iter().enumerate() {
             if matches!(self.tree.get(case.ty), mir::Type::Void) {
@@ -378,7 +427,7 @@ impl<'tree> LayoutBuilder<'tree> {
             return Ok(None);
         };
 
-        // the encoding represents one contiguous range excluding the payload case
+        // select the contiguous case range excluding the payload case
         let last_case = cases.len() - 1;
         let (niche_case_start, niche_case_end) = if untagged_case == 0 && last_case > 0 {
             (1, last_case)
@@ -388,7 +437,7 @@ impl<'tree> LayoutBuilder<'tree> {
             return Ok(None);
         };
 
-        // booleans spare every value above one
+        // require a boolean payload sparing every value above one
         let mir::Type::Boolean = self.tree.get(payload) else {
             return Ok(None);
         };
@@ -399,7 +448,7 @@ impl<'tree> LayoutBuilder<'tree> {
             return Ok(None);
         }
 
-        // cases keep their logical discriminants; the encoding maps the niche range
+        // keep the logical discriminants on each case
         let case_layouts = cases
             .iter()
             .map(|case| {
@@ -439,14 +488,14 @@ impl<'tree> LayoutBuilder<'tree> {
     }
 }
 
-/// Return the logical discriminant bits sealed on one variant case.
+/// Return the logical discriminant bits of one variant case.
 fn case_discriminant(case: &mir::VariantCase) -> CompilerResult<mir::Discriminant> {
     match &case.discriminant {
         mir::Constant::Int { value, .. } => Ok(mir::Discriminant::from_bits(*value as u128)),
         mir::Constant::UInt { value, .. } => Ok(mir::Discriminant::from_bits(*value)),
         mir::Constant::Boolean { value } => Ok(mir::Discriminant::from_bits(*value as u128)),
         other => Err(CompilerError::Internal {
-            message: format!("variant case sealed a non-scalar tag {other:?}"),
+            message: format!("a variant case with the non-scalar tag {other:?}"),
         }),
     }
 }

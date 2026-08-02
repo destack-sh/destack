@@ -5,11 +5,11 @@ use crate::lower::ModuleLowerer;
 use crate::{CompilerResult, LowerError};
 
 impl ModuleLowerer<'_> {
-    /// Lower one checked type to its concrete MIR form.
+    /// Lower one type to its concrete scalar form.
     pub(in crate::lower) fn scalar_type(&self, ty: &dir::Type) -> CompilerResult<mir::Type> {
         match ty {
             dir::Type::Void => Ok(mir::Type::Void),
-            // singleton types store no runtime value: reads materialize from the type
+            // store no runtime value for singleton types
             dir::Type::Literal(_) => Ok(mir::Type::Void),
             dir::Type::Null | dir::Type::Undefined => Ok(mir::Type::Void),
             dir::Type::Primitive(primitive) => self.lower_primitive_type(primitive),
@@ -21,7 +21,7 @@ impl ModuleLowerer<'_> {
         }
     }
 
-    /// Lower one checked primitive type to its concrete MIR form.
+    /// Lower one primitive type to its concrete scalar form.
     fn lower_primitive_type(&self, primitive: &dir::PrimitiveType) -> CompilerResult<mir::Type> {
         match primitive {
             dir::PrimitiveType::Boolean => Ok(mir::Type::Boolean),

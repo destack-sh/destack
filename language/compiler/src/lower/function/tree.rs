@@ -5,7 +5,7 @@ use crate::lower::{FunctionLowerer, GenericInstanceKey};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Lower one tree literal through its checked resolution.
+    /// Lower one tree literal through its resolution.
     pub(in crate::lower) fn lower_tree(
         &mut self,
         resolution: &dir::TreeResolution,
@@ -52,9 +52,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 dir::TreeInvocation::Construct(construct) => {
                     self.lower_tree_construct(construct, resolution)
                 }
-                dir::TreeInvocation::Struct { ty } => {
-                    self.lower_tree_aggregate(*ty, resolution)
-                }
+                dir::TreeInvocation::Struct { ty } => self.lower_tree_aggregate(*ty, resolution),
             },
         }
     }
@@ -86,9 +84,10 @@ impl FunctionLowerer<'_, '_, '_> {
         let key = match function.generic_arguments.is_empty() {
             true => GenericInstanceKey::non_generic(function.symbol),
             false => {
-                let arguments = self
+                let bindings = self
                     .lowerer
-                    .instance_arguments(function, &self.type_substitution)?;
+                    .instance_bindings(function, &self.type_substitution)?;
+                let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
 
                 self.type_lowerer()
                     .generic_instance_key(function.symbol, &arguments)?
@@ -96,14 +95,13 @@ impl FunctionLowerer<'_, '_, '_> {
         };
         let Some(id) = self.lowerer.functions.get(&key).copied() else {
             return Err(CompilerError::Internal {
-                message: "checked DIR is missing a declared function behind one tree call"
-                    .to_string(),
+                message: "missing a declared function behind one tree call".to_string(),
             });
         };
         let value = self.builder.call_function(id, values);
 
         value.ok_or_else(|| CompilerError::Internal {
-            message: "checked DIR typed a void tree call as a value".to_string(),
+            message: "a void tree call used as a value".to_string(),
         })
     }
 
@@ -170,7 +168,7 @@ impl FunctionLowerer<'_, '_, '_> {
             values.push((key, value));
         }
 
-        // the children field carries the children tuple
+        // fill the children field with the children tuple
         let children = self.lowerer.strings.intern("children");
         let children_key = dir::StaticKey::Name(children);
         if !resolution.children.is_empty()
@@ -213,7 +211,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
         let literal = match attribute.text {
             Some(text) => dir::ScalarLiteral::String(text),
-            // bare attributes provide true
+            // provide true for bare attributes
             None => dir::ScalarLiteral::Boolean(true),
         };
         let reduced = self.lowerer.reduced_type(attribute.ty)?;

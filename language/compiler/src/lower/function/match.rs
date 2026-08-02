@@ -32,7 +32,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // evaluate the matched value once before dispatch
         let matched = self.lower_expression(value)?;
 
-        // resolve each arm's case through its sealed pattern
+        // resolve each arm's case through its pattern
         let mut lowered_arms = Vec::with_capacity(arms.len());
         let mut targets = Vec::new();
         let mut default = None;
@@ -52,7 +52,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
             };
 
-            // guards re-test at runtime beyond the case dispatch
+            // reject guarded arms
             if guard.is_some() {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
@@ -69,7 +69,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 None if default.is_none() => default = Some(block),
                 None => {
                     return Err(CompilerError::Internal {
-                        message: "checked DIR admitted two irrefutable match arms".to_string(),
+                        message: "two irrefutable match arms".to_string(),
                     });
                 }
             }
@@ -98,7 +98,7 @@ impl FunctionLowerer<'_, '_, '_> {
         value: dir::LocalNodeId<dir::Expression>,
         cases: &[dir::LocalNodeId<dir::SwitchCase>],
     ) -> CompilerResult<bool> {
-        // require one shared checked scrutinee operand across every case
+        // require one shared scrutinee operand across every case
         let mut matched_operand = None;
         for case in cases {
             if !matches!(
@@ -115,15 +115,13 @@ impl FunctionLowerer<'_, '_, '_> {
             }) = resolution
             else {
                 return Err(CompilerError::Internal {
-                    message: "checked switch case has a non-builtin equality resolution"
-                        .to_string(),
+                    message: "a switch case with a non-builtin equality resolution".to_string(),
                 });
             };
             match &matched_operand {
                 Some(selected) if selected != &operands[0] => {
                     return Err(CompilerError::Internal {
-                        message: "checked switch cases selected different scrutinee operands"
-                            .to_string(),
+                        message: "switch cases selected different scrutinee operands".to_string(),
                     });
                 }
                 Some(_) => {}
@@ -151,7 +149,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 dir::SwitchSelector::Default => {
                     if default.replace(block).is_some() {
                         return Err(CompilerError::Internal {
-                            message: "checked DIR admitted two default switch cases".to_string(),
+                            message: "two default switch cases".to_string(),
                         });
                     }
                 }
@@ -183,14 +181,13 @@ impl FunctionLowerer<'_, '_, '_> {
                 }) = resolution
                 else {
                     return Err(CompilerError::Internal {
-                        message: "checked switch case has a non-builtin equality resolution"
-                            .to_string(),
+                        message: "a switch case with a non-builtin equality resolution".to_string(),
                     });
                 };
                 let selected = self.lower_operand(selector, &operands[1])?;
                 let equal = self.lower_carrier_equality(
                     matched.ok_or_else(|| CompilerError::Internal {
-                        message: "checked switch case has no scrutinee operand".to_string(),
+                        message: "a switch case without a scrutinee operand".to_string(),
                     })?,
                     selected,
                 )?;
@@ -223,7 +220,7 @@ impl FunctionLowerer<'_, '_, '_> {
         value: dir::LocalNodeId<dir::Expression>,
         cases: &[LoweredSwitchCase],
     ) -> CompilerResult<Option<Vec<(i128, mir::LocalNodeId<mir::Block>)>>> {
-        // the runtime carrier must dispatch by integer identity
+        // require a runtime carrier dispatching by integer identity
         let carrier = self.operand_carrier(value)?;
         let carrier = self.lowerer.reduced_type(carrier)?;
         let dir::Type::Primitive(dir::PrimitiveType::Integer(_)) = self.lowerer.ty(carrier)? else {
@@ -245,7 +242,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 return Ok(None);
             };
 
-            // the first matching case wins; duplicates only receive fallthrough
+            // keep the first matching case
             let constant = i128::from(constant);
             if selected.iter().any(|(existing, _)| *existing == constant) {
                 continue;
@@ -266,19 +263,19 @@ impl FunctionLowerer<'_, '_, '_> {
         self.lower_block(body)
     }
 
-    /// Return the case index selected by one match arm's sealed pattern.
+    /// Return the case index selected by one match arm's pattern.
     fn match_arm_case(
         &mut self,
         pattern: dir::LocalNodeId<dir::Pattern>,
     ) -> CompilerResult<Option<u32>> {
         match self.pattern_resolution(pattern)? {
-            // wildcards and bare bindings take the default arm
+            // take the default arm for wildcards and bare bindings
             dir::PatternResolution::Ignore => Ok(None),
             dir::PatternResolution::Bind(dir::PatternBindingResolution {
                 pattern: None, ..
             }) => Ok(None),
 
-            // unit variants select their declared carrier position
+            // select the declared carrier position of unit variants
             dir::PatternResolution::Variant(resolution)
                 if resolution.payload.is_none() && resolution.fields.is_empty() =>
             {
@@ -289,7 +286,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 Ok(Some(index))
             }
 
-            // payload variants wait on tagged payload lowering
+            // reject payload variants
             dir::PatternResolution::Variant(_) => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "a tagged payload pattern".to_string(),
