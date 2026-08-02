@@ -1670,6 +1670,11 @@ impl WalkState<'_, '_> {
             return Ok((Some(result), tracked));
         }
 
+        // setters return void by role, never written or inferred
+        if signature.role == Some(dir::FunctionRole::Setter) {
+            return Ok((Some(self.intern_type(dir::Type::Void)?), Vec::new()));
+        }
+
         // skip ambient signatures
         if body.is_none() {
             return Ok((None, Vec::new()));
