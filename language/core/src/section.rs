@@ -556,14 +556,16 @@ impl<T> SectionMemory for T where T: AsRef<[u8]> + fmt::Debug + Send + Sync {}
 
 /// Immutable aligned section storage.
 #[derive(Debug, Clone)]
-pub enum SectionStorage {
-    /// Owned aligned image chunks and initialized byte length.
-    Owned {
-        /// Aligned image chunks.
-        chunks: Vec<u128>,
-        /// Number of initialized bytes.
-        byte_len: u64,
-    },
+pub struct SectionStorage {
+    /// Owned, static, or shared image bytes.
+    bytes: SectionBytes,
+}
+
+/// Physical storage for one section image.
+#[derive(Debug, Clone)]
+enum SectionBytes {
+    /// Owned aligned image bytes.
+    Owned(Buffer),
     /// Prelinked static image chunks and initialized byte length.
     Static {
         /// Aligned image chunks.
@@ -576,7 +578,7 @@ pub enum SectionStorage {
 }
 
 impl Serialize for SectionStorage {
-    /// Serialize section storage as its logical aligned chunks.
+    /// Serialize section storage as its logical image bytes.
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -586,7 +588,7 @@ impl Serialize for SectionStorage {
 }
 
 impl<'de> Deserialize<'de> for SectionStorage {
-    /// Deserialize section storage into owned aligned chunks.
+    /// Deserialize section storage into owned aligned bytes.
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -598,7 +600,7 @@ impl<'de> Deserialize<'de> for SectionStorage {
 }
 
 impl Reflect for SectionStorage {
-    /// Reflect section storage as its logical aligned chunks.
+    /// Reflect section storage as its logical image bytes.
     fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
         Vec::<u8>::reflect(registry)
     }
@@ -609,7 +611,9 @@ impl SectionStorage {
     pub fn from_static(chunks: &'static [u128], byte_len: u64) -> Result<Self, SectionImageError> {
         Self::check_len(chunks, byte_len)?;
 
-        Ok(Self::Static { chunks, byte_len })
+        Ok(Self {
+            bytes: SectionBytes::Static { chunks, byte_len },
+        })
     }
 
     /// Retain shared immutable section memory without copying it.
@@ -619,51 +623,60 @@ impl SectionStorage {
             return Err(SectionImageError::Misaligned);
         }
 
-        Ok(Self::Shared(memory))
+        Ok(Self {
+            bytes: SectionBytes::Shared(memory),
+        })
     }
 
     /// Copy raw bytes into owned aligned section storage.
     pub fn from_bytes(bytes: &[u8]) -> Self {
-        let byte_len = bytes.len();
-        let chunk_len = byte_len.div_ceil(SECTION_CHUNK_BYTES);
-        let mut chunks = vec![0; chunk_len];
-        let destination = chunks.as_mut_ptr().cast::<u8>();
-
-        // SAFETY: chunks has enough initialized byte storage for byte_len bytes.
-        unsafe {
-            std::ptr::copy_nonoverlapping(bytes.as_ptr(), destination, byte_len);
+        Self {
+            bytes: SectionBytes::Owned(Buffer::from_bytes(bytes, SECTION_ALIGNMENT_BYTES)),
         }
+    }
 
-        Self::Owned {
-            chunks,
-            byte_len: byte_len as u64,
+    /// Align owned bytes or require retained memory to satisfy the requested alignment.
+    pub fn align(&mut self, alignment: usize) -> Result<(), SectionImageError> {
+        if !alignment.is_power_of_two() {
+            return Err(SectionImageError::Misaligned);
+        }
+        let is_aligned = (self.bytes().as_ptr() as usize).is_multiple_of(alignment);
+
+        // retain alignment across future owned storage clones
+        match &mut self.bytes {
+            SectionBytes::Owned(bytes) => {
+                bytes.align(alignment);
+
+                Ok(())
+            }
+            // require retained mappings to satisfy the requested alignment in place
+            SectionBytes::Static { .. } | SectionBytes::Shared(_) if is_aligned => Ok(()),
+            SectionBytes::Static { .. } | SectionBytes::Shared(_) => {
+                Err(SectionImageError::Misaligned)
+            }
         }
     }
 
     /// Return initialized image bytes.
     pub fn bytes(&self) -> &[u8] {
-        match self {
-            Self::Owned { chunks, byte_len } => {
+        match &self.bytes {
+            SectionBytes::Owned(bytes) => bytes.as_ref(),
+            SectionBytes::Static { chunks, byte_len } => {
                 let bytes = chunks.as_ptr().cast::<u8>();
 
                 // SAFETY: constructors require byte_len to fit in the backing chunks.
                 unsafe { slice::from_raw_parts(bytes, *byte_len as usize) }
             }
-            Self::Static { chunks, byte_len } => {
-                let bytes = chunks.as_ptr().cast::<u8>();
-
-                // SAFETY: constructors require byte_len to fit in the backing chunks.
-                unsafe { slice::from_raw_parts(bytes, *byte_len as usize) }
-            }
-            Self::Shared(memory) => memory.as_ref().as_ref(),
+            SectionBytes::Shared(memory) => memory.as_ref().as_ref(),
         }
     }
 
     /// Return the number of initialized bytes.
     pub fn byte_len(&self) -> u64 {
-        match self {
-            Self::Owned { byte_len, .. } | Self::Static { byte_len, .. } => *byte_len,
-            Self::Shared(memory) => memory.as_ref().as_ref().len() as u64,
+        match &self.bytes {
+            SectionBytes::Owned(bytes) => bytes.len() as u64,
+            SectionBytes::Static { byte_len, .. } => *byte_len,
+            SectionBytes::Shared(memory) => memory.as_ref().as_ref().len() as u64,
         }
     }
 
@@ -681,13 +694,24 @@ impl SectionStorage {
     }
 }
 
+/// Owned section buffer with one stable power-of-two alignment.
+#[derive(Debug)]
+struct Buffer {
+    /// Overallocated backing bytes.
+    allocation: Vec<u8>,
+    /// Aligned logical image start.
+    offset: usize,
+    /// Number of initialized image bytes.
+    byte_len: usize,
+    /// Guaranteed image alignment.
+    alignment: usize,
+}
+
 /// Mutable writer that packs typed sections into one section image.
 #[derive(Debug, Clone)]
 pub struct SectionBuilder {
     /// Mutable aligned image storage being packed.
-    storage: Vec<u128>,
-    /// Number of initialized image bytes.
-    byte_len: usize,
+    storage: Buffer,
 }
 
 /// Borrowed read-only section view.
@@ -711,26 +735,110 @@ impl Default for SectionBuilder {
     }
 }
 
+impl Clone for Buffer {
+    /// Clone logical bytes into a separately aligned allocation.
+    fn clone(&self) -> Self {
+        Self::from_bytes(self.as_ref(), self.alignment)
+    }
+}
+
+impl AsRef<[u8]> for Buffer {
+    /// Borrow initialized image bytes.
+    fn as_ref(&self) -> &[u8] {
+        &self.allocation[self.offset..self.offset + self.byte_len]
+    }
+}
+
+impl Buffer {
+    /// Create empty storage with the requested alignment and capacity.
+    fn new(alignment: usize, capacity: usize) -> Self {
+        let allocation_len = capacity.max(1) + alignment - 1;
+        let allocation = vec![0; allocation_len];
+        let address = allocation.as_ptr() as usize;
+        let offset = align_usize(address, alignment) - address;
+
+        Self {
+            allocation,
+            offset,
+            byte_len: 0,
+            alignment,
+        }
+    }
+
+    /// Copy bytes into one aligned allocation.
+    fn from_bytes(bytes: &[u8], alignment: usize) -> Self {
+        let mut buffer = Self::new(alignment, bytes.len());
+        buffer.allocation_mut()[..bytes.len()].copy_from_slice(bytes);
+        buffer.byte_len = bytes.len();
+
+        buffer
+    }
+
+    /// Return the initialized byte count.
+    fn len(&self) -> usize {
+        self.byte_len
+    }
+
+    /// Return the available logical byte capacity.
+    fn capacity(&self) -> usize {
+        self.allocation.len() - self.offset
+    }
+
+    /// Strengthen the logical image alignment.
+    fn align(&mut self, alignment: usize) {
+        let byte_len = self.byte_len;
+        self.grow(byte_len, alignment);
+    }
+
+    /// Grow initialized storage and strengthen its alignment when required.
+    fn grow(&mut self, byte_len: usize, alignment: usize) {
+        assert!(byte_len >= self.byte_len, "aligned storage cannot shrink");
+
+        let alignment = self.alignment.max(alignment);
+        let must_reallocate = alignment != self.alignment || byte_len > self.capacity();
+
+        // preserve logical bytes while changing allocation shape
+        if must_reallocate {
+            let capacity = byte_len
+                .max(self.capacity().saturating_mul(2))
+                .max(SECTION_CHUNK_BYTES);
+            let mut buffer = Self::new(alignment, capacity);
+            buffer.allocation_mut()[..self.byte_len].copy_from_slice(self.as_ref());
+            buffer.byte_len = byte_len;
+            *self = buffer;
+        }
+        // initialize newly exposed bytes in place
+        else {
+            let initialized = self.byte_len;
+            self.allocation_mut()[initialized..byte_len].fill(0);
+            self.byte_len = byte_len;
+        }
+    }
+
+    /// Borrow the complete logical allocation mutably.
+    fn allocation_mut(&mut self) -> &mut [u8] {
+        &mut self.allocation[self.offset..]
+    }
+}
+
 impl SectionBuilder {
     /// Create an empty section builder.
     pub fn new() -> Self {
         Self {
-            storage: Vec::new(),
-            byte_len: 0,
+            storage: Buffer::new(SECTION_ALIGNMENT_BYTES, 0),
         }
     }
 
     /// Borrow this builder as a read-only section image.
     pub fn view(&self) -> SectionImage<'_> {
         // SAFETY: SectionBuilder creates offsets and storage together through insert.
-        unsafe { SectionImage::from_chunks_unchecked(&self.storage, self.byte_len) }
+        unsafe { SectionImage::from_bytes_unchecked(self.storage.as_ref()) }
     }
 
     /// Build immutable aligned section storage.
     pub fn build(self) -> SectionStorage {
-        SectionStorage::Owned {
-            chunks: self.storage,
-            byte_len: self.byte_len as u64,
+        SectionStorage {
+            bytes: SectionBytes::Owned(self.storage),
         }
     }
 
@@ -741,33 +849,26 @@ impl SectionBuilder {
             0,
             "section entries must not be zero-sized"
         );
-        assert!(
-            mem::align_of::<T>() <= SECTION_ALIGNMENT_BYTES,
-            "section entry alignment exceeds image alignment"
-        );
 
         let entries = entries.as_ref();
         let byte_len = mem::size_of_val(entries);
         let alignment = mem::align_of::<T>().max(1);
-        let byte_offset = align_usize(self.byte_len, alignment);
+        let byte_offset = align_usize(self.storage.len(), alignment);
 
         // copy typed entries into the aligned section image
         let section_end = byte_offset + byte_len;
-        let chunk_len = section_end.div_ceil(SECTION_CHUNK_BYTES);
-        self.storage.resize(chunk_len, 0);
+        self.storage.grow(section_end, alignment);
 
         let source = entries.as_ptr().cast::<u8>();
 
         // SAFETY: storage was resized to contain section_end bytes above.
-        let destination = unsafe { self.storage.as_mut_ptr().cast::<u8>().add(byte_offset) };
+        let destination = unsafe { self.storage.allocation_mut().as_mut_ptr().add(byte_offset) };
 
         // SAFETY: source points to byte_len initialized entry bytes and destination
         // points to distinct table storage with enough initialized capacity.
         unsafe {
             std::ptr::copy_nonoverlapping(source, destination, byte_len);
         }
-
-        self.byte_len = section_end;
 
         SectionSlice::new(byte_offset as u64, entries.len() as u32)
     }
@@ -778,26 +879,13 @@ impl SectionBuilder {
             alignment.is_power_of_two(),
             "section alignment must be a power of two"
         );
-        assert!(
-            alignment <= SECTION_ALIGNMENT_BYTES,
-            "section byte alignment exceeds image alignment"
-        );
-
         let bytes = bytes.as_ref();
-        let byte_offset = align_usize(self.byte_len, alignment);
+        let byte_offset = align_usize(self.storage.len(), alignment);
         let byte_end = byte_offset + bytes.len();
-        let chunk_len = byte_end.div_ceil(SECTION_CHUNK_BYTES);
-        self.storage.resize(chunk_len, 0);
+        self.storage.grow(byte_end, alignment);
 
         // copy bytes into the explicitly aligned image range
-        let destination = unsafe { self.storage.as_mut_ptr().cast::<u8>().add(byte_offset) };
-
-        // SAFETY: storage was resized to contain byte_end bytes above.
-        unsafe {
-            std::ptr::copy_nonoverlapping(bytes.as_ptr(), destination, bytes.len());
-        }
-
-        self.byte_len = byte_end;
+        self.storage.allocation_mut()[byte_offset..byte_end].copy_from_slice(bytes);
 
         SectionSlice::new(byte_offset as u64, bytes.len() as u32)
     }
@@ -815,13 +903,13 @@ impl SectionBuilder {
         let byte_len = mem::size_of_val(entries);
         let byte_end = byte_offset + byte_len;
         assert!(
-            byte_end <= self.byte_len,
+            byte_end <= self.storage.len(),
             "replacement section exceeds image bytes"
         );
 
         // overwrite the complete existing section
         let source = entries.as_ptr().cast::<u8>();
-        let destination = unsafe { self.storage.as_mut_ptr().cast::<u8>().add(byte_offset) };
+        let destination = unsafe { self.storage.allocation_mut().as_mut_ptr().add(byte_offset) };
 
         // SAFETY: source and destination name distinct initialized ranges of equal length.
         unsafe {
@@ -847,21 +935,6 @@ impl<'a> SectionImage<'a> {
     /// The bytes must remain immutable and every accessed slice must contain its original
     /// SectionEntry values at the recorded alignment.
     pub unsafe fn from_bytes_unchecked(bytes: &'a [u8]) -> Self {
-        Self { bytes }
-    }
-
-    /// Create one read-only section image from aligned chunks without checking coherence.
-    ///
-    /// # Safety
-    ///
-    /// The byte length must fit in the chunks and slices must only be read as their original
-    /// SectionEntry types.
-    unsafe fn from_chunks_unchecked(chunks: &'a [u128], byte_len: usize) -> Self {
-        let bytes = chunks.as_ptr().cast::<u8>();
-
-        // SAFETY: the caller requires byte_len to fit in the backing chunks.
-        let bytes = unsafe { slice::from_raw_parts(bytes, byte_len) };
-
         Self { bytes }
     }
 
@@ -1020,4 +1093,41 @@ fn align_usize(value: usize, alignment: usize) -> usize {
     let mask = alignment - 1;
 
     (value + mask) & !mask
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Preserve existing sections when a later section strengthens image alignment.
+    #[test]
+    fn test_preserve_overaligned_sections() {
+        let mut builder = SectionBuilder::new();
+        let numbers = builder.insert([11_u32, 22]);
+        let bytes = builder.insert_bytes([1_u8, 2, 3, 4], 64);
+        let storage = builder.build();
+
+        // require independent owned images to retain content and physical alignment
+        for storage in [storage.clone(), storage] {
+            let image = unsafe { SectionImage::new(&storage) };
+            let address = image.bytes().as_ptr() as usize + bytes.byte_offset as usize;
+
+            assert_eq!(image.entries(numbers), &[11, 22]);
+            assert_eq!(image.entries(bytes), &[1, 2, 3, 4]);
+            assert!(address.is_multiple_of(64));
+        }
+    }
+
+    /// Realign copied storage while preserving its complete logical image.
+    #[test]
+    fn test_realign_owned_section_storage() {
+        let mut storage = SectionStorage::from_bytes(&[1, 2, 3, 4]);
+        storage.align(128).expect("owned storage should realign");
+
+        // retain strengthened alignment when owned storage is cloned
+        for storage in [storage.clone(), storage] {
+            assert_eq!(storage.bytes(), &[1, 2, 3, 4]);
+            assert!((storage.bytes().as_ptr() as usize).is_multiple_of(128));
+        }
+    }
 }
