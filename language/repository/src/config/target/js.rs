@@ -4,8 +4,6 @@ use std::path::PathBuf;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::output::SourceMapMode;
-
 /// JavaScript output configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -277,8 +275,6 @@ pub struct JsOutputOptions {
     pub footer: Option<String>,
     /// Generated code controls for final output rendering.
     pub generated_code: Option<JsGeneratedCodeOptions>,
-    /// Source map emission mode for JavaScript output.
-    pub source_map: Option<SourceMapMode>,
     /// Whether to omit source contents from source maps.
     pub source_map_exclude_sources: bool,
     /// Whether to include debug ids in source maps.

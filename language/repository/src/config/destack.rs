@@ -110,6 +110,13 @@ impl Destack {
 
     /// Complete derived config fields after deserialization.
     pub(crate) fn finish(&mut self) {
+        // canonicalize unordered code selections
+        for target in self.targets.values_mut() {
+            target.code.sort_unstable();
+            target.code.dedup();
+        }
+
+        // install builtin conditions before user declarations
         let mut modes = builtin_modes();
         modes.extend(std::mem::take(&mut self.conditions.modes));
         self.conditions.modes = modes;
@@ -262,6 +269,7 @@ impl DestackFile {
     ) -> Result<Self, serde_json::Error> {
         let mut file: Destack = serde_json::from_value(source.clone())?;
 
+        // complete derived configuration
         file.finish();
         let directory = path.parent().map(PathBuf::from).ok_or_else(|| {
             serde_json::Error::io(Error::new(

@@ -54,7 +54,7 @@ pub(crate) fn profile_key_for_target(
         host,
         runtime,
     )?;
-    let emit = target.emit;
+    let output = target.output;
 
     // comptime environment
     let env = profile_config
@@ -85,7 +85,7 @@ pub(crate) fn profile_key_for_target(
     );
 
     Ok(ProfileKey {
-        emit,
+        output,
         conditions,
         target_arch: target.native.arch.clone(),
         target_vendor: target.native.vendor.clone(),

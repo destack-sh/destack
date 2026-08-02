@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use destack_artifact::{EmitFormat, Host, Platform, Runtime, TargetAbi, TargetVendor};
+use destack_artifact::{Code, Host, Output, Platform, Runtime, TargetAbi, TargetVendor};
 use destack_serde::Reflect;
 use destack_source::TargetId;
 use serde::{Deserialize, Serialize};
@@ -10,6 +10,7 @@ use crate::{CompilerOptions, Policy};
 use super::super::runtime::RuntimeOptions;
 use super::compiler::*;
 use super::condition::*;
+use super::destination::Destination;
 use super::js::*;
 use super::native::*;
 use super::output::*;
@@ -33,8 +34,10 @@ pub struct Target {
 
     /// Policy declarations and rules for this target.
     pub policy: Policy,
-    /// Emitted artifact family (js, bytecode, wasm, native).
-    pub emit: EmitFormat,
+    /// Output produced by this target.
+    pub output: Output,
+    /// Executable representations included in a Program artifact.
+    pub code: Vec<Code>,
     /// Target operating system.
     pub platform: Platform,
     /// Target host environment.
@@ -43,8 +46,10 @@ pub struct Target {
     pub conditions: TargetConditionSet,
     /// Compiler behavior for this target.
     pub compiler: TargetCompilerOptions,
-    /// Output paths and metadata options.
-    pub output: TargetOutputOptions,
+    /// Filesystem output destination.
+    pub destination: Destination,
+    /// Source map emission mode.
+    pub source_map: Option<SourceMapMode>,
     /// JavaScript output configuration.
     pub js: TargetJsOptions,
     /// Native codegen and linking configuration.
@@ -60,8 +65,8 @@ impl Default for Target {
 }
 
 impl Target {
-    /// Create a target with explicit output and host axes.
-    fn new(emit: EmitFormat, host: Host) -> Self {
+    /// Create a target with explicit output, code, and host axes.
+    fn new(output: Output, code: Vec<Code>, host: Host) -> Self {
         Self {
             entry: Vec::new(),
             entrypoint: None,
@@ -69,12 +74,14 @@ impl Target {
             include: Vec::new(),
             exclude: Vec::new(),
             policy: Policy::default(),
-            emit,
+            output,
+            code,
             platform: Platform::Unknown,
             host,
             conditions: TargetConditionSet::default(),
             compiler: TargetCompilerOptions::default(),
-            output: TargetOutputOptions::default(),
+            destination: Destination::default(),
+            source_map: None,
             js: TargetJsOptions::default(),
             native: TargetNativeOptions::default(),
             execution: RuntimeOptions::default(),
@@ -111,12 +118,12 @@ impl Target {
 
     /// Create a target with default JavaScript output.
     pub fn js() -> Self {
-        Self::new(EmitFormat::Js, Host::Browser)
+        Self::new(Output::Bundle, Vec::new(), Host::Browser)
     }
 
     /// Create a target with Destack bytecode output.
     pub fn bytecode() -> Self {
-        let mut target = Self::new(EmitFormat::Bytecode, Host::Native);
+        let mut target = Self::new(Output::Program, vec![Code::Bytecode], Host::Native);
         target.compiler.optimize = OptimizeLevel::O2;
 
         target
@@ -124,7 +131,7 @@ impl Target {
 
     /// Create a target with WASM output for JavaScript hosts.
     pub fn wasm_js() -> Self {
-        let mut target = Self::new(EmitFormat::Wasm, Host::Browser);
+        let mut target = Self::new(Output::Program, vec![Code::Wasm], Host::Browser);
         target.compiler.optimize = OptimizeLevel::O2;
 
         target
@@ -132,7 +139,7 @@ impl Target {
 
     /// Create a target with WASM output for WASI.
     pub fn wasm_wasi() -> Self {
-        let mut target = Self::new(EmitFormat::Wasm, Host::Wasi);
+        let mut target = Self::new(Output::Program, vec![Code::Wasm], Host::Wasi);
         target.compiler.optimize = OptimizeLevel::O2;
 
         target
@@ -140,7 +147,7 @@ impl Target {
 
     /// Create a target with native output.
     pub fn native() -> Self {
-        let mut target = Self::new(EmitFormat::Native, Host::Native);
+        let mut target = Self::new(Output::Program, vec![Code::Native], Host::Native);
         target.compiler.optimize = OptimizeLevel::O2;
 
         target
@@ -184,7 +191,7 @@ impl Target {
 
     /// Derive the output mode from the target configuration.
     pub fn output_mode(&self) -> OutputMode {
-        if self.output.file.is_some() || self.emit.is_single_file() {
+        if self.destination.file.is_some() || matches!(self.output, Output::Program) {
             return OutputMode::File;
         }
 
@@ -235,10 +242,9 @@ impl Target {
 
     /// Return the runtime selected by this target.
     pub fn runtime(&self) -> Runtime {
-        if self.emit.is_script() {
-            Runtime::Js
-        } else {
-            Runtime::Destack
+        match self.output {
+            Output::Bundle => Runtime::Js,
+            Output::Program => Runtime::Destack,
         }
     }
 
@@ -248,10 +254,10 @@ impl Target {
             Some(self.js.mode),
             self.root(),
             self.entry.len(),
-            self.emit,
+            self.output,
             self.js.preserve_modules,
-            self.js.manual_chunks.is_empty(),
-            self.output.file.is_some(),
+            !self.js.manual_chunks.is_empty(),
+            self.destination.file.is_some(),
         )
     }
 
@@ -277,23 +283,17 @@ impl Target {
 
     /// Return whether this target emits any source map data.
     pub fn emits_source_maps(&self) -> bool {
-        self.source_map_mode().is_some()
+        self.source_map.is_some()
     }
 
     /// Return whether this target emits standalone source map outputs.
     pub fn emits_source_map_output(&self) -> bool {
-        self.source_map_mode()
-            .is_some_and(SourceMapMode::emits_output)
+        self.source_map.is_some_and(SourceMapMode::emits_output)
     }
 
     /// Return whether this target inlines source maps into text outputs.
     pub fn uses_inline_source_maps(&self) -> bool {
-        self.source_map_mode().is_some_and(SourceMapMode::is_inline)
-    }
-
-    /// Return the normalized source map mode for this target.
-    pub fn source_map_mode(&self) -> Option<SourceMapMode> {
-        self.js.output.source_map.or(self.output.source_map)
+        self.source_map.is_some_and(SourceMapMode::is_inline)
     }
 
     /// Resolve a target triple string from the target configuration.
@@ -330,63 +330,62 @@ impl Target {
 
     /// Resolve the absolute output directory for this target.
     ///
-    /// If out_dir is relative, it's resolved relative to the package directory.
-    /// If out_dir is absolute, it's returned as-is.
-    pub fn resolve_out_dir(&self, package_dir: &Path) -> PathBuf {
-        if self.output.directory.is_absolute() {
-            self.output.directory.clone()
+    /// Relative destinations resolve from the package directory.
+    pub fn resolve_output_directory(&self, package_directory: &Path) -> PathBuf {
+        if self.destination.directory.is_absolute() {
+            self.destination.directory.clone()
         } else {
-            package_dir.join(&self.output.directory)
+            package_directory.join(&self.destination.directory)
         }
     }
 
     /// Resolve the output file path for a module.
     ///
-    /// The `root_dir` parameter (from compiler) specifies the root of source files.
-    /// Output structure mirrors source structure minus the root_dir prefix.
-    pub fn resolve_out_file(
+    /// Output structure mirrors source structure below the compiler root directory.
+    pub fn resolve_output_file(
         &self,
-        package_dir: &Path,
-        root_dir: Option<&Path>,
+        package_directory: &Path,
+        root_directory: Option<&Path>,
         module_path: &Path,
         extension: &str,
     ) -> PathBuf {
-        let out_dir = self.resolve_out_dir(package_dir);
+        let output_directory = self.resolve_output_directory(package_directory);
 
         // module path
-        let relative = self.relative_module_output_path(package_dir, root_dir, module_path);
+        let relative =
+            self.relative_module_output_path(package_directory, root_directory, module_path);
 
         // change extension and join with output directory
-        out_dir.join(relative.with_extension(extension))
+        output_directory.join(relative.with_extension(extension))
     }
 
     /// Return the relative output path for one emitted module artifact.
     fn relative_module_output_path(
         &self,
-        package_dir: &Path,
-        root_dir: Option<&Path>,
+        package_directory: &Path,
+        root_directory: Option<&Path>,
         module_path: &Path,
     ) -> PathBuf {
         let absolute_module_path = if module_path.is_absolute() {
             module_path.to_path_buf()
         } else {
-            package_dir.join(module_path)
+            package_directory.join(module_path)
         };
         let relative = absolute_module_path
-            .strip_prefix(package_dir)
+            .strip_prefix(package_directory)
             .unwrap_or(module_path);
 
         // preserve modules root
         if let Some(relative) =
-            self.strip_preserve_modules_root(package_dir, &absolute_module_path, relative)
+            self.strip_preserve_modules_root(package_directory, &absolute_module_path, relative)
         {
             return relative.to_path_buf();
         }
 
         // compiler root dir
-        if let Some(root_dir) = root_dir {
+        if let Some(root_directory) = root_directory {
             return absolute_module_path
-                .strip_prefix(root_dir)
+                .strip_prefix(root_directory)
                 .unwrap_or(relative)
                 .to_path_buf();
         }
@@ -397,7 +396,7 @@ impl Target {
     /// Strip the configured preserve-modules root from one module path when possible.
     fn strip_preserve_modules_root<'a>(
         &self,
-        package_dir: &Path,
+        package_directory: &Path,
         module_path: &'a Path,
         package_relative_path: &'a Path,
     ) -> Option<&'a Path> {
@@ -413,7 +412,7 @@ impl Target {
             return module_path.strip_prefix(preserve_modules_root).ok();
         }
 
-        let absolute_root = package_dir.join(preserve_modules_root);
+        let absolute_root = package_directory.join(preserve_modules_root);
 
         module_path.strip_prefix(&absolute_root).ok()
     }
@@ -435,12 +434,12 @@ fn resolved_js_output_mode(
     explicit_mode: Option<JsOutputMode>,
     root: TargetRoot,
     entry_count: usize,
-    emit: EmitFormat,
-    out_file: bool,
-    preserve_modules: bool,
-    manual_chunks_is_empty: bool,
+    output: Output,
+    has_output_file: bool,
+    preserves_modules: bool,
+    has_manual_chunks: bool,
 ) -> JsOutputMode {
-    if out_file || emit.is_single_file() {
+    if has_output_file || matches!(output, Output::Program) {
         return JsOutputMode::SingleFile;
     }
 
@@ -448,11 +447,11 @@ fn resolved_js_output_mode(
         return explicit_mode;
     }
 
-    if preserve_modules {
+    if preserves_modules {
         return JsOutputMode::PreserveModules;
     }
 
-    if !manual_chunks_is_empty {
+    if has_manual_chunks {
         return JsOutputMode::Chunked;
     }
 
@@ -471,22 +470,22 @@ fn is_assembled_target(
     explicit_mode: Option<JsOutputMode>,
     root: TargetRoot,
     entry_count: usize,
-    emit: EmitFormat,
-    preserve_modules: bool,
-    manual_chunks_is_empty: bool,
-    out_file: bool,
+    output: Output,
+    preserves_modules: bool,
+    has_manual_chunks: bool,
+    has_output_file: bool,
 ) -> bool {
     let mode = resolved_js_output_mode(
         explicit_mode,
         root,
         entry_count,
-        emit,
-        out_file,
-        preserve_modules,
-        manual_chunks_is_empty,
+        output,
+        has_output_file,
+        preserves_modules,
+        has_manual_chunks,
     );
 
-    if out_file || emit.is_single_file() {
+    if has_output_file || matches!(output, Output::Program) {
         return true;
     }
 

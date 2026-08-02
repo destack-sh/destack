@@ -253,8 +253,8 @@ mod tests {
     use destack_artifact::{
         ArtifactDependency, ArtifactKey, ArtifactPayload, ArtifactProjection,
         ArtifactProjectionKey, ArtifactVersion, BuildId, Bundle, BundleFile, BundleMode,
-        BundleSection, DirExported, DiskBlobStore, EmitFormat, EnvironmentBound,
-        LanguageEnvironment, SourceDependency,
+        BundleSection, DirExported, DiskBlobStore, EnvironmentBound, LanguageEnvironment,
+        SourceDependency,
     };
     use destack_dir::{GlobalSymbolId, LocalSymbolId};
     use destack_source::{
@@ -393,7 +393,6 @@ mod tests {
             })
             .expect("artifact content should intern");
         let output = Bundle::new(
-            EmitFormat::Js,
             BundleMode::SingleFile,
             vec![BundleFile::new(
                 BundleSection::Entry,
@@ -602,7 +601,6 @@ mod tests {
             })
             .expect("artifact output should intern");
         let output = Bundle::new(
-            EmitFormat::Js,
             BundleMode::SingleFile,
             vec![BundleFile::new(
                 BundleSection::Entry,
@@ -931,7 +929,6 @@ mod tests {
             })
             .expect("pruned content should intern");
         let output = Bundle::new(
-            EmitFormat::Js,
             BundleMode::SingleFile,
             vec![BundleFile::new(
                 BundleSection::Entry,
