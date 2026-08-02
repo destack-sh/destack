@@ -396,43 +396,36 @@ define_language_items! {
     context {
         /// `destack:context/context`.
         context {
-            /// Current execution context.
+            /// Immutable dynamically scoped execution context.
             Context => (Class, "context/context", "Context"),
-
-            /// Current execution context value.
-            CurrentContextValue => (Variable, "context/context", "context", "context.context"),
-
-            /// Typed context key.
-            ContextKey => (Class, "context/key", "ContextKey"),
-
-            /// Scoped context override payload.
-            ContextPatch => (Struct, "context/patch", "ContextPatch"),
-
-            /// Opaque context push token.
-            ContextToken => (Newtype, "context/context", "ContextToken"),
-
-            /// Typed context entry.
-            ContextEntry => (Struct, "context/entry", "ContextEntry"),
 
             /// Current-context intrinsic.
             CurrentContext => (Function, "context/context", "currentContext", "context.current"),
 
-            /// Context-value lookup intrinsic.
-            GetContextValue => (Function, "context/context", "getContextValue", "context.get"),
-
-            /// Context-pop intrinsic.
-            PopContext => (Function, "context/context", "popContext", "context.pop"),
-
-            /// Context-push intrinsic.
-            PushContext => (Function, "context/context", "pushContext", "context.push"),
-
-            /// Required context-value lookup intrinsic.
-            RequireContextValue => (
+            /// Current-context replacement intrinsic.
+            ReplaceContext => (
                 Function,
                 "context/context",
-                "requireContextValue",
-                "context.require"
+                "replaceContext",
+                "context.replace"
             ),
+
+            /// Context-extension intrinsic.
+            BindContext => (Function, "context/context", "bindContext", "context.bind"),
+
+            /// Context-value lookup intrinsic.
+            GetContextValue => (
+                Function,
+                "context/context",
+                "getContextValue",
+                "context.get"
+            ),
+        }
+
+        /// `destack:context/variable`.
+        variable {
+            /// Dynamically scoped execution variable.
+            ContextVar => (Class, "context/variable", "ContextVar"),
         }
     }
 
