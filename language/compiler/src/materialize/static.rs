@@ -82,9 +82,6 @@ impl Compiler {
             dir::Type::Undefined => dir::TypeExpression::Literal {
                 value: dir::TypeLiteral::Undefined,
             },
-            dir::Type::Object => dir::TypeExpression::Literal {
-                value: dir::TypeLiteral::Object,
-            },
             dir::Type::Primitive(primitive) => dir::TypeExpression::Literal {
                 value: (*primitive).into(),
             },

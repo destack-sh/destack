@@ -331,7 +331,7 @@ impl ElaborateState<'_> {
             }
             mir::Type::Isize => "isize".to_string(),
             mir::Type::Usize => "usize".to_string(),
-            mir::Type::Dynamic { constraint } => {
+            mir::Type::Dynamic { constraint, .. } => {
                 let constraint = self.drop_name_stem(*constraint)?;
                 format!("dynamic.{constraint}")
             }

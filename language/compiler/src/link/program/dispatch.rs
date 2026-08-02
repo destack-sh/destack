@@ -1,8 +1,8 @@
 use destack_core::SectionPacker;
 use destack_mir as mir;
 use destack_program::{
-    DispatchTable, DynamicEntry, DynamicShapeBuilder, DynamicSlot, DynamicTableBuilder,
-    VirtualTableBuilder,
+    DispatchTable, DynamicEntry, DynamicNamedEntry, DynamicShapeBuilder, DynamicSlot,
+    DynamicTableBuilder, VirtualTableBuilder,
 };
 
 use super::ProgramLinker;
@@ -62,6 +62,14 @@ impl<'a> DispatchLinker<'a> {
                     .iter()
                     .map(|entry| self.dynamic_entry(entry))
                     .collect(),
+                names: dynamic_table
+                    .names
+                    .iter()
+                    .map(|named| DynamicNamedEntry {
+                        name: named.name,
+                        entry: self.dynamic_entry(&named.entry),
+                    })
+                    .collect(),
             });
         }
 
@@ -75,6 +83,7 @@ impl<'a> DispatchLinker<'a> {
             mir::DynamicEntry::Function { function } => {
                 DynamicEntry::function(self.program.function_id(*function))
             }
+            mir::DynamicEntry::Absent => DynamicEntry::absent(),
         }
     }
 

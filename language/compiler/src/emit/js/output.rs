@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirExpanded, DirImported, DirParsed, EmitFormat, Script, ScriptBody,
-    ScriptLanguage,
+    DirBound, DirChecked, DirDeclared, DirExpanded, DirImported, DirParsed, EmitFormat, Script,
+    ScriptBody, ScriptLanguage,
 };
 use destack_core::StringPool;
 use destack_repository::{Module, Target};

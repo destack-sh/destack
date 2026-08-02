@@ -48,6 +48,7 @@ impl TestProgram {
             memory: elaborated.memory,
             effects: elaborated.effects,
             profile: elaborated.profile,
+            initializer: None,
         };
     }
 }

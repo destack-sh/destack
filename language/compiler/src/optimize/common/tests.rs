@@ -421,6 +421,7 @@ impl TestProgram {
             concrete,
             constraint,
             entries: vec![mir::DynamicEntry::Function { function: callee }],
+            names: Vec::new(),
         };
 
         // index the table through dispatch tables

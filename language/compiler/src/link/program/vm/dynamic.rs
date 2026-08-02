@@ -107,7 +107,7 @@ impl BlockLowerer<'_> {
     fn dynamic_operand(&self, value: mir::Value) -> LinkResult<DynamicOperand> {
         let ty = self.value_type_for_value(value)?;
         let ty = self.function.tree.repr_type(ty);
-        let mir::Type::Dynamic { constraint } = self.function.tree.get(ty) else {
+        let mir::Type::Dynamic { constraint, .. } = self.function.tree.get(ty) else {
             return Err(self.type_mismatch("dynamic value", format!("{ty:?}")));
         };
 

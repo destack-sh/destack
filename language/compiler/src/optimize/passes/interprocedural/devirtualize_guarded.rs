@@ -599,7 +599,7 @@ impl DynamicCall {
 
         match entry {
             mir::DynamicEntry::Function { function } => Some(*function),
-            mir::DynamicEntry::Field { .. } => None,
+            mir::DynamicEntry::Field { .. } | mir::DynamicEntry::Absent => None,
         }
     }
 }
