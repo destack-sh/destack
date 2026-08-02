@@ -1,6 +1,57 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
+/// Artifact produced by one build target.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Default,
+    Serialize,
+    Deserialize,
+    Reflect,
+)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum Output {
+    /// Linked JavaScript files and resources.
+    #[default]
+    Bundle,
+    /// One Destack Program.
+    Program,
+}
+
+/// Executable representation included in one Program.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum Code {
+    /// Destack bytecode.
+    Bytecode,
+    /// Native machine code.
+    Native,
+    /// WebAssembly.
+    Wasm,
+}
+
+impl Code {
+    /// Return the lowercase configuration name.
+    pub fn canonical_tag(self) -> &'static str {
+        match self {
+            Self::Bytecode => "bytecode",
+            Self::Native => "native",
+            Self::Wasm => "wasm",
+        }
+    }
+}
+
 /// Semantic runtime contract for compiled code.
 #[derive(
     Debug,

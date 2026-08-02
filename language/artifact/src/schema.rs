@@ -3,12 +3,12 @@ use destack_serde::SchemaRegistry;
 use crate::{
     ArtifactDependency, ArtifactEventLog, ArtifactKey, ArtifactPayload, ArtifactRecord,
     ArtifactReference, ArtifactSidecar, ArtifactVersion, Asset, Build, BuildLinkage, BuildManifest,
-    BuildProfile, Bundle, BundleFile, BundleMode, BundleSection, Data, DirBound, DirChecked,
+    BuildProfile, Bundle, BundleFile, BundleMode, BundleSection, Code, Data, DirBound, DirChecked,
     DirDeclared, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
-    EmitFormat, EnvironmentBound, EnvironmentDeclared, Host, LanguageEnvironment,
-    LanguageIntrinsics, MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified,
-    ModuleEdges, ModuleGraph, ModuleIndex, ModuleLinted, Object, Platform, Product, ProductTarget,
-    ProgramAnalysis, ProgramIndex, ProgramLinted, Runtime, Script, SourceMap,
+    EnvironmentBound, EnvironmentDeclared, Host, LanguageEnvironment, LanguageIntrinsics,
+    MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleEdges, ModuleGraph,
+    ModuleIndex, ModuleLinted, Object, Output, Platform, Product, ProductTarget, ProgramAnalysis,
+    ProgramIndex, ProgramLinted, Runtime, Script, SourceMap,
 };
 
 /// Include public artifact schema roots.
@@ -23,7 +23,8 @@ pub fn schema(registry: &mut SchemaRegistry) {
 
     registry.register::<BuildProfile>();
     registry.register::<BuildLinkage>();
-    registry.register::<EmitFormat>();
+    registry.register::<Output>();
+    registry.register::<Code>();
     registry.register::<Runtime>();
     registry.register::<Host>();
     registry.register::<Platform>();

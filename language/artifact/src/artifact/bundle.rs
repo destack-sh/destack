@@ -2,8 +2,6 @@ use destack_serde::Reflect;
 use destack_source::{ContentId, FileType, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::EmitFormat;
-
 /// One section of a linked bundle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -97,8 +95,6 @@ impl BundleFile {
 /// One linked file graph for one target.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct Bundle {
-    /// The emitted artifact family.
-    pub emit: EmitFormat,
     /// The target-level assembly mode.
     pub assembly: BundleMode,
     /// The files in this bundle.
@@ -107,12 +103,8 @@ pub struct Bundle {
 
 impl Bundle {
     /// Create one bundle.
-    pub fn new(emit: EmitFormat, assembly: BundleMode, files: Vec<BundleFile>) -> Self {
-        Self {
-            emit,
-            assembly,
-            files,
-        }
+    pub fn new(assembly: BundleMode, files: Vec<BundleFile>) -> Self {
+        Self { assembly, files }
     }
 
     /// Return an iterator over all output files.
