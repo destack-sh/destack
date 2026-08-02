@@ -40,12 +40,19 @@ impl ModuleQueryContext<'_> {
             symbol.declaration?
         };
 
+        self.node_callable_parameters(global_node_id.local_id)
+    }
+
+    /// Return the declared parameters authored at one callable node.
+    pub(crate) fn node_callable_parameters(
+        &self,
+        node_id: dir::LocalNodeIdAny,
+    ) -> Option<&[dir::LocalNodeId<dir::Parameter>]> {
         // read parameters from the exact authored declaration
         let view = self.view();
-        match global_node_id.local_id.ty {
+        match node_id.ty {
             dir::NodeType::Declaration => {
-                let declaration_id =
-                    dir::LocalNodeId::<dir::Declaration>::new(global_node_id.local_id.id);
+                let declaration_id = dir::LocalNodeId::<dir::Declaration>::new(node_id.id);
                 let declaration = view.get::<dir::Declaration>(declaration_id);
                 let dir::Declaration::Function(declaration) = declaration else {
                     return None;
@@ -54,7 +61,7 @@ impl ModuleQueryContext<'_> {
                 Some(&declaration.signature.parameters)
             }
             dir::NodeType::Member => {
-                let member_id = dir::LocalNodeId::<dir::Member>::new(global_node_id.local_id.id);
+                let member_id = dir::LocalNodeId::<dir::Member>::new(node_id.id);
                 let member = view.get::<dir::Member>(member_id);
 
                 match member {
@@ -70,8 +77,7 @@ impl ModuleQueryContext<'_> {
                 }
             }
             dir::NodeType::TypeMember => {
-                let member_id =
-                    dir::LocalNodeId::<dir::TypeMember>::new(global_node_id.local_id.id);
+                let member_id = dir::LocalNodeId::<dir::TypeMember>::new(node_id.id);
                 let member = view.get::<dir::TypeMember>(member_id);
 
                 match member {
@@ -80,22 +86,23 @@ impl ModuleQueryContext<'_> {
                     | dir::TypeMember::AssociatedConst { declared_type, .. } => {
                         self.callable_type_parameters(*declared_type)
                     }
-                    dir::TypeMember::CallSignature { .. }
-                    | dir::TypeMember::ConstructSignature { .. }
-                    | dir::TypeMember::IndexSignature { .. }
+                    dir::TypeMember::CallSignature { signature } => Some(&signature.parameters),
+                    dir::TypeMember::ConstructSignature { signature } => {
+                        Some(&signature.parameters)
+                    }
+                    dir::TypeMember::IndexSignature { .. }
                     | dir::TypeMember::AssociatedType { .. }
                     | dir::TypeMember::Error => None,
                 }
             }
             dir::NodeType::Parameter => {
-                let parameter_id =
-                    dir::LocalNodeId::<dir::Parameter>::new(global_node_id.local_id.id);
+                let parameter_id = dir::LocalNodeId::<dir::Parameter>::new(node_id.id);
                 let parameter = view.get::<dir::Parameter>(parameter_id);
 
                 self.callable_type_parameters(parameter.declared_type())
             }
             dir::NodeType::Pattern => {
-                let pattern_id = dir::LocalNodeId::<dir::Pattern>::new(global_node_id.local_id.id);
+                let pattern_id = dir::LocalNodeId::<dir::Pattern>::new(node_id.id);
 
                 self.binding_callable_parameters(pattern_id)
             }
@@ -163,5 +170,35 @@ impl ProgramQueryContext<'_> {
             .collect::<QueryResult<Vec<_>>>()?;
 
         Ok(Some(names))
+    }
+
+    /// Return parameter names authored at one callable signature node.
+    pub(crate) fn node_parameter_names(
+        &self,
+        node_id: dir::GlobalNodeIdAny,
+    ) -> QueryResult<Option<Vec<Option<String>>>> {
+        let module = self.module(node_id.module_id)?;
+
+        // read the single inline key parameter of index signatures
+        if node_id.local_id.ty == dir::NodeType::TypeMember {
+            let member_id = dir::LocalNodeId::<dir::TypeMember>::new(node_id.local_id.id);
+            if let dir::TypeMember::IndexSignature { name, .. } = module.view().get(member_id) {
+                let name = module.strings().get(*name).to_string();
+
+                return Ok(Some(vec![Some(name)]));
+            }
+        }
+
+        // read the authored parameter list of other signatures
+        let Some(parameters) = module.node_callable_parameters(node_id.local_id) else {
+            return Ok(None);
+        };
+        let view = module.view();
+        let names = parameters
+            .iter()
+            .map(|parameter_id| module.parameter_name(view.get(*parameter_id)))
+            .collect::<QueryResult<Vec<_>>>()?;
+
+        Ok(Some(names.into_iter().map(Some).collect()))
     }
 }

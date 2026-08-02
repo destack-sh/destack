@@ -220,12 +220,14 @@ impl ModuleQueryContext<'_> {
                 dir::CallTarget::Expression { .. } => {
                     self.expression_parameter_names(query, call)?
                 }
-                dir::CallTarget::Dynamic { .. } => {
-                    // FUGU #Incomplete: retain declaration free call parameter names in DIR
-                    return Err(QueryError::missing(format!(
-                        "inlay hint parameters: {call:?}"
-                    )));
-                }
+                dir::CallTarget::Dynamic {
+                    function:
+                        dir::DynamicFunction::CallSignature(node)
+                        | dir::DynamicFunction::IndexRead(node)
+                        | dir::DynamicFunction::IndexWrite(node)
+                        | dir::DynamicFunction::ConstructSignature(node),
+                    ..
+                } => self.signature_call_parameter_names(query, call, *node)?,
             };
             signatures.push(names);
         }
@@ -274,6 +276,22 @@ impl ModuleQueryContext<'_> {
         };
 
         Ok(names.into_iter().map(Some).collect())
+    }
+
+    /// Return authored parameter names for one signature backed call arm.
+    fn signature_call_parameter_names(
+        &self,
+        query: &ProgramQueryContext<'_>,
+        call: dir::GlobalNodeIdAny,
+        node: dir::GlobalNodeIdAny,
+    ) -> QueryResult<Vec<Option<String>>> {
+        let Some(names) = query.node_parameter_names(node)? else {
+            return Err(QueryError::missing(format!(
+                "inlay hint parameters: {call:?}"
+            )));
+        };
+
+        Ok(names)
     }
 
     /// Return authored parameter names for an expression backed call.
@@ -348,6 +366,19 @@ impl ModuleQueryContext<'_> {
             dir::ConstructTarget::Newtype(_) | dir::ConstructTarget::Variant(_) => {
                 Ok(vec![None; resolution.arguments.len()])
             }
+            // read dynamic construction names from their construct signature
+            dir::ConstructTarget::Dynamic {
+                function:
+                    dir::DynamicFunction::ConstructSignature(node)
+                    | dir::DynamicFunction::CallSignature(node)
+                    | dir::DynamicFunction::IndexRead(node)
+                    | dir::DynamicFunction::IndexWrite(node),
+                ..
+            } => self.signature_call_parameter_names(query, call, *node),
+            dir::ConstructTarget::Dynamic {
+                function: dir::DynamicFunction::Symbol(symbol),
+                ..
+            } => self.symbol_call_parameter_names(query, call, *symbol),
         }
     }
 

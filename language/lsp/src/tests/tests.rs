@@ -372,6 +372,15 @@ impl TestDocument {
         }
     }
 
+    /// Build inlay hint parameters for one line range of this document.
+    pub(super) fn inlay_hints(&self, end_line: u32) -> lsp::InlayHintParams {
+        lsp::InlayHintParams {
+            text_document: self.identifier(),
+            range: lsp::Range::new(lsp::Position::new(0, 0), lsp::Position::new(end_line, 0)),
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+        }
+    }
+
     /// Build document link parameters for this document.
     pub(super) fn links(&self) -> lsp::DocumentLinkParams {
         lsp::DocumentLinkParams {
