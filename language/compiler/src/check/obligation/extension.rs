@@ -263,7 +263,38 @@ impl CheckState<'_> {
                     continue;
                 }
 
-                return Ok(Answer::Ready(false));
+                // satisfy undeclared requirements from the target's inherent members
+                let inherent =
+                    answer!(self.inherent_member_candidates(origin, target, &requirement)?);
+                let Some(required) = requirement.ty else {
+                    if inherent.is_empty() {
+                        return Ok(Answer::Ready(false));
+                    }
+
+                    continue;
+                };
+
+                let mut satisfied = false;
+                for candidate in &inherent {
+                    let found = candidate.callable.unwrap_or(candidate.access_type);
+                    let decision = self.decide_member_relation(
+                        origin,
+                        Relation::Assignable,
+                        requirement.role,
+                        found,
+                        required,
+                        substitution.receiver,
+                    )?;
+                    if answer!(decision) {
+                        satisfied = true;
+                        break;
+                    }
+                }
+                if !satisfied {
+                    return Ok(Answer::Ready(false));
+                }
+
+                continue;
             }
 
             // accept an abstract associated requirement by presence
@@ -496,38 +527,54 @@ impl CheckState<'_> {
                     &declared,
                 )?);
 
+                // satisfy undeclared requirements from the target's inherent members
+                if candidates.is_empty() {
+                    return self.inherent_member_candidates(origin, target, requirement);
+                }
+
                 Ok(Answer::Ready(candidates))
             }
             dir::SymbolKind::Struct | dir::SymbolKind::Class | dir::SymbolKind::Enum => {
-                let lookup = answer!(self.body().lookup_inherent_member(
-                    origin,
-                    origin.module(),
-                    target,
-                    requirement.space,
-                    requirement.key,
-                )?);
-                let candidates =
-                    match lookup {
-                        MemberLookup::Missing => Vec::new(),
-                        MemberLookup::Found(candidates) => candidates,
-                        lookup @ MemberLookup::Intersection(_) => lookup
-                            .into_candidates()
-                            .ok_or_else(|| CompilerError::Internal {
-                                message: "nominal implementation has a structural member".into(),
-                            })?,
-                        MemberLookup::Field(_) | MemberLookup::Union(_) => {
-                            return Err(CompilerError::Internal {
-                                message: "nominal implementation has a structural member".into(),
-                            });
-                        }
-                    };
-
-                Ok(Answer::Ready(candidates))
+                self.inherent_member_candidates(origin, target, requirement)
             }
             kind => Err(CompilerError::Internal {
                 message: format!("{kind:?} symbol {implementer:?} cannot implement interfaces"),
             }),
         }
+    }
+
+    /// Return the target's inherent members matching one interface requirement.
+    fn inherent_member_candidates(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+        requirement: &InterfaceMember,
+    ) -> CompilerResult<Answer<Vec<MemberCandidate>>> {
+        let lookup = answer!(self.body().lookup_inherent_member(
+            origin,
+            origin.module(),
+            target,
+            requirement.space,
+            requirement.key,
+        )?);
+        let candidates = match lookup {
+            MemberLookup::Missing => Vec::new(),
+            MemberLookup::Found(candidates) => candidates,
+            lookup @ MemberLookup::Intersection(_) => {
+                lookup
+                    .into_candidates()
+                    .ok_or_else(|| CompilerError::Internal {
+                        message: "nominal implementation has a structural member".into(),
+                    })?
+            }
+            MemberLookup::Field(_) | MemberLookup::Union(_) => {
+                return Err(CompilerError::Internal {
+                    message: "nominal implementation has a structural member".into(),
+                });
+            }
+        };
+
+        Ok(Answer::Ready(candidates))
     }
 
     /// Instantiate one extension interface with its concrete associated types.

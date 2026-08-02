@@ -1595,3 +1595,90 @@ export extension<K, V> of Bag<K, V>
 "#,
     );
 }
+
+#[test]
+fn test_satisfy_extension_implements_with_inherent_members() {
+    let session = TestSession::single(
+        r#"
+interface Greeter {
+    greet(): string;
+}
+
+class Robot {
+    greet(): string {
+        return "beep";
+    }
+}
+
+extension of Robot implements Greeter {}
+
+declare const robot: Robot;
+const greeter: Greeter = robot;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Greeter {
+    greet(): string;
+}
+
+class Robot {
+    greet(): string {
+        return "beep";
+    }
+}
+
+extension of Robot implements Greeter {}
+
+declare const robot: Robot;
+const greeter: Dynamic<Greeter> = robot as Dynamic<Greeter>;
+
+=== checked ===
+interface Greeter {
+/// @type.symbol symbol=Greeter type=Greeter
+/// @definition.interface symbol=Greeter
+/// @definition.method symbol=Greeter.greet source="greet(): string" slot=greet type=(this: this) => string
+
+    greet(): string;
+    /// @type.symbol symbol=Greeter.greet source="greet(): string" type=(this: this) => string
+
+}
+
+class Robot {
+/// @type.symbol symbol=Robot type=Robot
+/// @definition.class symbol=Robot
+/// @definition.method symbol=Robot.greet slot=greet type=(this: this) => string
+
+    greet(): string {
+    /// @type.symbol symbol=Robot.greet type=(this: this) => string
+
+        return "beep";
+    }
+}
+
+extension of Robot implements Greeter {}
+/// @definition.extension symbol=<module>#2 source="extension of Robot implements Greeter {}" form=local target=Robot
+/// @definition.implements symbol=<module>#2 source=Greeter target=Greeter
+/// @definition.implementation symbol=<module>#2 requirement=Greeter.greet target=Robot.greet
+/// @resolution.name source=Robot target=Robot
+/// @resolution.name source=Greeter target=Greeter
+
+declare const robot: Robot;
+/// @type.symbol symbol=robot source=robot type=Robot
+/// @resolution.pattern source=robot kind=binding target=robot
+/// @resolution.name source=Robot target=Robot
+
+const greeter: Greeter = robot;
+/// @type.symbol symbol=greeter source=greeter type=Dynamic<Greeter>
+/// @resolution.pattern source=greeter kind=binding target=greeter
+/// @resolution.name source=Greeter target=Greeter
+/// @resolution.name source=robot target=robot
+/// @resolution.place source=robot placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=robot root=robot
+"#,
+    );
+}
