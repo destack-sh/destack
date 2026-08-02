@@ -1,0 +1,31 @@
+import { Copy } from "destack:memory";
+
+import { bindContext, currentContext, getContextValue } from "./context.ds";
+
+/// One dynamically scoped execution value.
+@languageItem("context.ContextVar")
+export local class ContextVar<T: Copy> {
+    /// Diagnostic name.
+    readonly name: string;
+
+    /// Value outside an overriding scope.
+    readonly defaultValue: T;
+
+    /// Create one context variable.
+    constructor(name: string, defaultValue: T) {
+        this.name = name;
+        this.defaultValue = defaultValue;
+    }
+
+    /// Return the current value.
+    get(): T {
+        return getContextValue(currentContext(), this, this.defaultValue);
+    }
+
+    /// Run `body` with `value` bound to this variable.
+    run<R>(value: T, body: () => R): R {
+        const context = bindContext(currentContext(), this, value);
+
+        return context.run(body);
+    }
+}

@@ -1,4 +1,4 @@
-import { ContextPatch } from "destack:context";
+import { Context } from "destack:context";
 import { RandomSeed } from "destack:runtime";
 import * as test from "destack:test";
 
@@ -13,6 +13,6 @@ export type Options = test.Options & {
     seed?: Seed;
     /// Initial scenario options.
     scenario?: ScenarioOptions;
-    /// Explicit context overrides.
-    context?: ContextPatch;
+    /// Initial execution context.
+    context?: Context;
 };

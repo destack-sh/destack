@@ -1,4 +1,2 @@
-export * from "./context.ds";
-export * from "./entry.ds";
-export * from "./key.ds";
-export * from "./patch.ds";
+export { Context } from "./context.ds";
+export { ContextVar } from "./variable.ds";

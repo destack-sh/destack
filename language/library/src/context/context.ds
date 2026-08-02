@@ -1,287 +1,59 @@
-import { AccessibilityBinding } from "destack:accessibility/binding";
-import { AudioBinding } from "destack:audio/binding";
-import { ComputeBinding } from "destack:compute/binding";
-import { CryptoBinding } from "destack:crypto/binding";
-import { DeviceBinding } from "destack:device/binding";
-import { DisplayBinding } from "destack:display/binding";
-import { FsBinding } from "destack:fs/binding";
-import { GpuBinding } from "destack:gpu/binding";
-import { InputBinding } from "destack:input/binding";
-import { IoBinding } from "destack:io/binding";
-import { IpcBinding } from "destack:ipc/binding";
-import { Copy, Dynamic } from "destack:memory";
-import { MemoryBinding } from "destack:memory/binding";
-import { NetBinding } from "destack:net/binding";
-import { OsBinding } from "destack:os/binding";
-import { ProcessBinding } from "destack:process/binding";
-import { RandomBinding } from "destack:random/binding";
-import { TelemetryBinding } from "destack:telemetry/binding";
-import { TimeBinding } from "destack:time/binding";
-import { TlsBinding } from "destack:tls/binding";
-import { TopologyBinding } from "destack:topology/binding";
-import { TtyBinding } from "destack:tty/binding";
+import { Copy } from "destack:memory";
 
-import { ContextKey } from "./key.ds";
-import { ContextPatch } from "./patch.ds";
+import { ContextVar } from "./variable.ds";
 
-/// Opaque token for one scoped context push.
-@languageItem("context.ContextToken")
-export newtype ContextToken = uint64;
-
-/// Current worker-local execution context.
+/// One immutable dynamically scoped execution context.
 @languageItem("context.Context")
-export class Context {
+export local class Context {
+    /// Prevent direct construction.
+    private constructor() {}
+
     /// Return the current execution context.
     static current(): Context {
         return currentContext();
     }
 
-    /// Run `body` with scoped context overrides.
-    static with<T>(patch: ContextPatch, body: () => T): T {
-        const token = pushContext(patch);
-        const result = body();
-
-        popContext(token);
-
-        return result;
+    /// Return the value of `variable` in this context.
+    get<T: Copy>(variable: ContextVar<T>): T {
+        return getContextValue(this, variable, variable.defaultValue);
     }
 
-    /// Run async `body` with scoped context overrides.
-    static async withAsync<T: Copy>(patch: ContextPatch, body: () => Promise<T>): Promise<T> {
-        const token = pushContext(patch);
-        const result = await body();
+    /// Run `body` with this context.
+    run<R>(body: () => R): R {
+        const previous = replaceContext(this);
 
-        popContext(token);
-
-        return result;
-    }
-
-    /// Current accessibility binding family.
-    get accessibility(): Dynamic<AccessibilityBinding> {
-        return contextAccessibility();
-    }
-
-    /// Current audio binding family.
-    get audio(): Dynamic<AudioBinding> {
-        return contextAudio();
-    }
-
-    /// Current compute binding family.
-    get compute(): Dynamic<ComputeBinding> {
-        return contextCompute();
-    }
-
-    /// Current crypto binding family.
-    get crypto(): Dynamic<CryptoBinding> {
-        return contextCrypto();
-    }
-
-    /// Current device binding family.
-    get device(): Dynamic<DeviceBinding> {
-        return contextDevice();
-    }
-
-    /// Current display binding family.
-    get display(): Dynamic<DisplayBinding> {
-        return contextDisplay();
-    }
-
-    /// Current filesystem binding family.
-    get fs(): Dynamic<FsBinding> {
-        return contextFs();
-    }
-
-    /// Current GPU binding family.
-    get gpu(): Dynamic<GpuBinding> {
-        return contextGpu();
-    }
-
-    /// Current input binding family.
-    get input(): Dynamic<InputBinding> {
-        return contextInput();
-    }
-
-    /// Current IO binding family.
-    get io(): Dynamic<IoBinding> {
-        return contextIo();
-    }
-
-    /// Current IPC binding family.
-    get ipc(): Dynamic<IpcBinding> {
-        return contextIpc();
-    }
-
-    /// Current memory binding family.
-    get memory(): Dynamic<MemoryBinding> {
-        return contextMemory();
-    }
-
-    /// Current network binding family.
-    get net(): Dynamic<NetBinding> {
-        return contextNet();
-    }
-
-    /// Current operating system binding family.
-    get os(): Dynamic<OsBinding> {
-        return contextOs();
-    }
-
-    /// Current process binding family.
-    get process(): Dynamic<ProcessBinding> {
-        return contextProcess();
-    }
-
-    /// Current random binding family.
-    get random(): Dynamic<RandomBinding> {
-        return contextRandom();
-    }
-
-    /// Current telemetry binding family.
-    get telemetry(): Dynamic<TelemetryBinding> {
-        return contextTelemetry();
-    }
-
-    /// Current time binding family.
-    get time(): Dynamic<TimeBinding> {
-        return contextTime();
-    }
-
-    /// Current topology binding family.
-    get topology(): Dynamic<TopologyBinding> {
-        return contextTopology();
-    }
-
-    /// Current TLS binding family.
-    get tls(): Dynamic<TlsBinding> {
-        return contextTls();
-    }
-
-    /// Current TTY binding family.
-    get tty(): Dynamic<TtyBinding> {
-        return contextTty();
-    }
-
-    /// Return one userland context value.
-    get<T>(key: ContextKey<T>): T | undefined {
-        return getContextValue(this, key);
-    }
-
-    /// Return one required userland context value.
-    require<T>(key: ContextKey<T>): T {
-        return requireContextValue(this, key);
+        try {
+            return body();
+        } finally {
+            replaceContext(previous);
+        }
     }
 }
 
-/// Current worker-local execution context.
-@languageItem("context.context")
-@intrinsic("context.context")
-export declare const context: Context;
-
-/// Return the current worker-local context.
+/// Return the current execution context.
 @languageItem("context.current")
 @intrinsic("context.current")
 export declare function currentContext(): Context;
 
-/// Push one scoped context override.
-@languageItem("context.push")
-@intrinsic("context.push")
-export declare function pushContext(patch: ContextPatch): ContextToken;
+/// Replace the current execution context and return its previous value.
+@languageItem("context.replace")
+@intrinsic("context.replace")
+export declare function replaceContext(context: Context): Context;
 
-/// Pop one scoped context override.
-@languageItem("context.pop")
-@intrinsic("context.pop")
-export declare function popContext(token: ContextToken): void;
+/// Extend one execution context with a variable value.
+@languageItem("context.bind")
+@intrinsic("context.bind")
+export declare function bindContext<T: Copy>(
+    context: Context,
+    variable: ContextVar<T>,
+    value: T,
+): Context;
 
-/// Return the current accessibility binding family.
-@intrinsic("context.accessibility")
-export declare function contextAccessibility(): Dynamic<AccessibilityBinding>;
-
-/// Return the current audio binding family.
-@intrinsic("context.audio")
-export declare function contextAudio(): Dynamic<AudioBinding>;
-
-/// Return the current compute binding family.
-@intrinsic("context.compute")
-export declare function contextCompute(): Dynamic<ComputeBinding>;
-
-/// Return the current crypto binding family.
-@intrinsic("context.crypto")
-export declare function contextCrypto(): Dynamic<CryptoBinding>;
-
-/// Return the current device binding family.
-@intrinsic("context.device")
-export declare function contextDevice(): Dynamic<DeviceBinding>;
-
-/// Return the current display binding family.
-@intrinsic("context.display")
-export declare function contextDisplay(): Dynamic<DisplayBinding>;
-
-/// Return the current fs binding family.
-@intrinsic("context.fs")
-export declare function contextFs(): Dynamic<FsBinding>;
-
-/// Return the current gpu binding family.
-@intrinsic("context.gpu")
-export declare function contextGpu(): Dynamic<GpuBinding>;
-
-/// Return the current input binding family.
-@intrinsic("context.input")
-export declare function contextInput(): Dynamic<InputBinding>;
-
-/// Return the current io binding family.
-@intrinsic("context.io")
-export declare function contextIo(): Dynamic<IoBinding>;
-
-/// Return the current ipc binding family.
-@intrinsic("context.ipc")
-export declare function contextIpc(): Dynamic<IpcBinding>;
-
-/// Return the current memory binding family.
-@intrinsic("context.memory")
-export declare function contextMemory(): Dynamic<MemoryBinding>;
-
-/// Return the current net binding family.
-@intrinsic("context.net")
-export declare function contextNet(): Dynamic<NetBinding>;
-
-/// Return the current os binding family.
-@intrinsic("context.os")
-export declare function contextOs(): Dynamic<OsBinding>;
-
-/// Return the current process binding family.
-@intrinsic("context.process")
-export declare function contextProcess(): Dynamic<ProcessBinding>;
-
-/// Return the current random binding family.
-@intrinsic("context.random")
-export declare function contextRandom(): Dynamic<RandomBinding>;
-
-/// Return the current telemetry binding family.
-@intrinsic("context.telemetry")
-export declare function contextTelemetry(): Dynamic<TelemetryBinding>;
-
-/// Return the current time binding family.
-@intrinsic("context.time")
-export declare function contextTime(): Dynamic<TimeBinding>;
-
-/// Return the current topology binding family.
-@intrinsic("context.topology")
-export declare function contextTopology(): Dynamic<TopologyBinding>;
-
-/// Return the current tls binding family.
-@intrinsic("context.tls")
-export declare function contextTls(): Dynamic<TlsBinding>;
-
-/// Return the current tty binding family.
-@intrinsic("context.tty")
-export declare function contextTty(): Dynamic<TtyBinding>;
-
-/// Return one userland context entry value.
+/// Return one variable value from an execution context.
 @languageItem("context.get")
 @intrinsic("context.get")
-export declare function getContextValue<T>(context: Context, key: ContextKey<T>): T | undefined;
-
-/// Return one required userland context entry value.
-@languageItem("context.require")
-@intrinsic("context.require")
-export declare function requireContextValue<T>(context: Context, key: ContextKey<T>): T;
+export declare function getContextValue<T: Copy>(
+    context: Context,
+    variable: ContextVar<T>,
+    defaultValue: T,
+): T;

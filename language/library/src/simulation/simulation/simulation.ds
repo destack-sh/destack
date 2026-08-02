@@ -1,4 +1,4 @@
-import { Context, ContextPatch } from "destack:context";
+import { Context } from "destack:context";
 import { Result, todo } from "destack:error";
 import { HostError } from "destack:error/host";
 import * as runtime from "destack:runtime";
@@ -20,14 +20,14 @@ export class Simulation {
         this.scenario = todo("simulation.Simulation.constructor");
     }
 
-    /// Return context overrides for this simulation.
-    context(&readonly this): ContextPatch {
+    /// Return the execution context captured by this simulation.
+    context(&readonly this): Context {
         todo("simulation.Simulation.context")
     }
 
     /// Run `body` inside this simulation context.
     run<T>(&readonly this, body: () => T): T {
-        Context.with(this.context(), body)
+        this.context().run(body)
     }
 
     /// Describe this simulation world's causal trace.
