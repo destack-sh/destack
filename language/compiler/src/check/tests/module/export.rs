@@ -146,3 +146,96 @@ const second = sibling;
 "#,
     );
 }
+
+#[test]
+fn test_export_transcribable_literals_without_annotations() {
+    let session = TestSession::single(
+        r#"
+export const flag = true;
+export const count = -3;
+export const label = `name`;
+export const pair = [1, 2];
+export const config = { retries: 3, name: "job" };
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+export const flag: true = true;
+export const count: -3 = -3;
+export const label: string = `name`;
+export const pair: float64[] = [1, 2];
+export const config: { retries: float64; name: string } = { retries: 3, name: "job" };
+
+=== checked ===
+export const flag = true;
+/// @type.symbol symbol=flag source=flag type=true
+/// @resolution.pattern source=flag kind=binding target=flag
+
+export const count = -3;
+/// @type.symbol symbol=count source=count type=-3
+/// @resolution.pattern source=count kind=binding target=count
+/// @resolution.operator source=-3 type=-3 operator="-" kind=builtin operands=[3 as 3 families=(integer)]
+
+export const label = `name`;
+/// @type.symbol symbol=label source=label type=string
+/// @resolution.pattern source=label kind=binding target=label
+
+export const pair = [1, 2];
+/// @type.symbol symbol=pair source=pair type=Array<float64>
+/// @resolution.pattern source=pair kind=binding target=pair
+
+export const config = { retries: 3, name: "job" };
+/// @type.symbol symbol=config source=config type={ retries: float64; name: string }
+/// @resolution.pattern source=config kind=binding target=config
+"#,
+    );
+}
+
+#[test]
+fn test_reject_untranscribable_export_initializers() {
+    let session = TestSession::single(
+        r#"
+function seed(): int32 {
+    return 1;
+}
+
+export const computed = seed();
+"#,
+
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function seed(): int32 {
+    return 1;
+}
+
+export const computed = seed();
+
+=== checked ===
+function seed(): int32 {
+/// @type.symbol symbol=seed type=() => int32
+
+    return 1;
+}
+
+export const computed = seed();
+/// @type.symbol symbol=computed source=computed type=<error>
+/// @resolution.pattern source=computed kind=binding target=computed
+/// @resolution.name source=seed target=seed
+/// @resolution.call source=seed() parameters=() return=int32 kind=symbol target=seed
+"#,
+        r#"
+/// @diagnostic.error id=missing-export-binding-type message="exported binding needs a written type"
+/// @diagnostic.label line=6 column=14 span="computed" line_source="export const computed = seed();"
+/// @diagnostic.help message="state the type or initialize with a literal"
+"#,
+    );
+}
