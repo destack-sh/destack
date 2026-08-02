@@ -22,6 +22,12 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::ConstructTarget::Variant(candidate) => {
                 self.lower_variant_construct(resolution, candidate)
             }
+            // new factory(1)
+            dir::ConstructTarget::Dynamic { .. } => Err(LowerError::Unsupported {
+                anchor: self.lowerer.module.into(),
+                construct: "a dynamically dispatched construction".to_string(),
+            }
+            .into()),
         }
     }
 

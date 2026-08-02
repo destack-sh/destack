@@ -646,6 +646,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             dir::ConstructTarget::Class(candidate) => candidate.generic_arguments.as_slice(),
             dir::ConstructTarget::Newtype(candidate) => candidate.generic_arguments.as_slice(),
             dir::ConstructTarget::Variant(candidate) => candidate.generic_arguments.as_slice(),
+            dir::ConstructTarget::Dynamic { .. } => &[],
         };
         if arguments.is_empty() {
             return Ok(());

@@ -568,7 +568,7 @@ impl ModuleQueryContext<'_> {
         // read nominal calls from their exact checked construction
         if let Some(resolution) = construct {
             return Ok(Some(SymbolOccurrence {
-                symbols: vec![resolution.target.symbol()],
+                symbols: resolution.target.symbol().into_iter().collect(),
                 type_id: Some(resolution.return_type),
                 span,
             }));

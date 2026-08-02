@@ -192,6 +192,12 @@ impl CallItem {
             dir::ConstructTarget::Newtype(candidate) => candidate.symbol,
             dir::ConstructTarget::Variant(candidate) => candidate.case.variant,
             dir::ConstructTarget::Class(_) => return Self::from_symbol(query, entry.callee),
+            // skip dynamic constructions, they index no declaration edge
+            dir::ConstructTarget::Dynamic { .. } => {
+                return Err(QueryError::invalid(format!(
+                    "call hierarchy construction {source:?} dispatches dynamically"
+                )));
+            }
         };
 
         // require the indexed edge to name this exact constructor
@@ -217,7 +223,9 @@ impl CallItem {
                 module.newtype_call_item(query, entry.callee, Some(call))
             }
             dir::ConstructTarget::Variant(_) => module.variant_call_item(entry.callee),
-            dir::ConstructTarget::Class(_) => Err(QueryError::invalid("construct call item")),
+            dir::ConstructTarget::Class(_) | dir::ConstructTarget::Dynamic { .. } => {
+                Err(QueryError::invalid("construct call item"))
+            }
         }
     }
 
@@ -388,9 +396,10 @@ impl CallableSelection<'_> {
     /// Return the callable represented by one construction.
     fn from_resolution(resolution: &dir::ConstructResolution) -> CallableSelection<'_> {
         match &resolution.target {
-            dir::ConstructTarget::Class(_) => {
-                CallableSelection::Symbol(resolution.target.call_symbol())
-            }
+            dir::ConstructTarget::Class(candidate) => match candidate.constructor.call_symbol() {
+                Some(symbol) => CallableSelection::Symbol(symbol),
+                None => CallableSelection::Symbol(candidate.symbol),
+            },
             dir::ConstructTarget::Newtype(candidate) => CallableSelection::Newtype {
                 symbol_id: candidate.symbol,
                 call: ConstructorCall::new(&candidate.generic_arguments, resolution),
@@ -398,6 +407,7 @@ impl CallableSelection<'_> {
             dir::ConstructTarget::Variant(candidate) => CallableSelection::Variant {
                 symbol_id: candidate.case.variant,
             },
+            dir::ConstructTarget::Dynamic { .. } => CallableSelection::DeclarationFree,
         }
     }
 }

@@ -6,8 +6,8 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Answer, BodyState, CallableArgument, CandidateVerdict, CheckFailure, CheckOutcome, Decision,
-    DecisionKind, Dependency, Expectation, FlowSite, InferMode, Origin, PlaceUse, SignatureMatch,
-    SignatureSelection, TypeSubstitution, Value, ValueCheck, ValueUse, answer,
+    DecisionKind, Dependency, Expectation, FlowSite, InferMode, Origin, PlaceUse, SignatureFamily,
+    SignatureMatch, SignatureSelection, TypeSubstitution, Value, ValueCheck, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -18,6 +18,15 @@ enum CallableTarget {
     Expression,
     /// Call one declaration-backed function.
     Symbol(dir::GlobalSymbolId),
+    /// Call through one erased interface call signature.
+    CallSignature {
+        /// The signature's source declaration.
+        source: dir::GlobalNodeIdAny,
+        /// The erased receiver value type.
+        receiver: dir::GlobalTypeId,
+        /// The interface constraint declaring the signature.
+        constraint: dir::GlobalTypeId,
+    },
     /// Construct one newtype.
     Newtype(dir::GlobalSymbolId),
     /// Construct one derived tagged variant.
@@ -505,6 +514,32 @@ impl BodyState<'_, '_> {
             for element in elements {
                 let nested = answer!(self.callable_value_overloads(origin, element)?);
                 overloads.extend(nested);
+            }
+
+            return Ok(Answer::Ready(overloads));
+        }
+
+        // call erased interface values through their apparent signatures
+        if let dir::Type::Dynamic(dynamic) = self.ty(ty)? {
+            let signatures = answer!(self.apparent_signatures(
+                origin,
+                dynamic.constraint,
+                SignatureFamily::Call,
+            )?);
+            let mut overloads = SmallVec::with_capacity(signatures.len());
+            for signature in signatures {
+                overloads.push(CallableCandidate {
+                    target: CallableTarget::CallSignature {
+                        source: signature.source,
+                        receiver: ty,
+                        constraint: dynamic.constraint,
+                    },
+                    generic_scope: None,
+                    receiver: None,
+                    member_space: None,
+                    ty: signature.ty,
+                    generic_arguments: Vec::new(),
+                });
             }
 
             return Ok(Answer::Ready(overloads));
@@ -1091,7 +1126,9 @@ impl BodyState<'_, '_> {
         }
 
         match &candidate.target {
-            CallableTarget::Expression | CallableTarget::Symbol(_) => {
+            CallableTarget::Expression
+            | CallableTarget::Symbol(_)
+            | CallableTarget::CallSignature { .. } => {
                 self.commit_call_signature(node, callee, candidate, argument_nodes, signature)
             }
             CallableTarget::Variant(case) => {
@@ -1148,6 +1185,19 @@ impl BodyState<'_, '_> {
             self.select_call_return_type(module, candidate, argument_nodes, signature.return_type)?;
         let target = match &candidate.target {
             CallableTarget::Expression => dir::CallTarget::Expression {
+                generic_arguments: signature.generic_arguments.clone(),
+            },
+            // dispatch erased signature calls through the callee's own table
+            CallableTarget::CallSignature {
+                source,
+                receiver,
+                constraint,
+            } => dir::CallTarget::Dynamic {
+                dispatch: dir::DynamicDispatch {
+                    receiver: dir::AdjustedReceiver::direct(*receiver),
+                    constraint: *constraint,
+                },
+                function: dir::DynamicFunction::CallSignature(*source),
                 generic_arguments: signature.generic_arguments.clone(),
             },
             // drop the receiver static members were selected through

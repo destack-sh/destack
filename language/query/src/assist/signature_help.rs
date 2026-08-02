@@ -320,6 +320,12 @@ impl ModuleQueryContext<'_> {
             dir::ConstructTarget::Class(candidate) => {
                 self.class_signature_item(query, candidate, resolution)?
             }
+            // FUGU #Incomplete: format exact dynamic construct signatures
+            dir::ConstructTarget::Dynamic { .. } => {
+                return Err(QueryError::missing(format!(
+                    "construct signature help: {resolution:?}"
+                )));
+            }
             dir::ConstructTarget::Newtype(candidate) => {
                 let Some(name) = query.symbol_name(candidate.symbol)? else {
                     return Err(QueryError::missing(format!(

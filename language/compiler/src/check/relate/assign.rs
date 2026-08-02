@@ -223,10 +223,26 @@ impl CheckState<'_> {
             (dir::Type::Reference(_), dir::Type::Shape(_)) => {
                 self.decide_reference_shape_assignable(origin, source, target)?
             }
-            (dir::Type::Shape(_) | dir::Type::Object(_), dir::Type::Application(instance))
+            // relate structural and callable values to interface targets
+            (
+                dir::Type::Shape(_)
+                | dir::Type::Object(_)
+                | dir::Type::FunctionSignature(_)
+                | dir::Type::Function(_)
+                | dir::Type::FunctionPointer(_),
+                dir::Type::Application(instance),
+            ) if self
+                .symbol_kind_maybe(instance.symbol)?
+                .is_some_and(|kind| kind.is_interface()) =>
+            {
+                self.decide_interface_relation(origin, Relation::Assignable, source, target)?
+            }
+            // relate callable applications to interface targets
+            (dir::Type::Application(callable), dir::Type::Application(instance))
                 if self
                     .symbol_kind_maybe(instance.symbol)?
-                    .is_some_and(|kind| kind.is_interface()) =>
+                    .is_some_and(|kind| kind.is_interface())
+                    && self.is_function_language_item(callable.symbol)? =>
             {
                 self.decide_interface_relation(origin, Relation::Assignable, source, target)?
             }

@@ -189,3 +189,171 @@ value();
 "#,
     );
 }
+
+#[test]
+fn test_call_an_interface_value_through_its_call_signature() {
+    let session = TestSession::single(
+        r#"
+interface Adder {
+    (left: int32, right: int32): int32;
+}
+
+declare const add: Adder;
+const sum = add(1, 2);
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Adder {
+    (left: int32, right: int32): int32;
+}
+
+declare const add: Dynamic<Adder>;
+const sum: int32 = add(1, 2);
+
+=== checked ===
+interface Adder {
+/// @type.symbol symbol=Adder type=Adder
+/// @definition.interface symbol=Adder
+/// @definition.signature kind=call source="(left: int32, right: int32): int32" type=Function<(int32, int32), int32>
+
+    (left: int32, right: int32): int32;
+}
+
+declare const add: Adder;
+/// @type.symbol symbol=add source=add type=Dynamic<Adder>
+/// @resolution.pattern source=add kind=binding target=add
+/// @resolution.name source=Adder target=Adder
+
+const sum = add(1, 2);
+/// @type.symbol symbol=sum source=sum type=int32
+/// @resolution.pattern source=sum kind=binding target=sum
+/// @resolution.name source=add target=add
+/// @resolution.call source="add(1, 2)" parameters=(int32, int32) arguments=(provided(1) as int32, provided(2) as int32) return=int32 kind=dynamic target="call((left: int32, right: int32): int32)" receiver=Dynamic<Adder> constraint=Adder
+/// @resolution.place source=add placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=add root=add
+"#,
+    );
+}
+
+#[test]
+fn test_construct_through_an_interface_construct_signature() {
+    let session = TestSession::single(
+        r#"
+class Counter {
+    value: int32 = 0;
+}
+
+interface Factory {
+    new (value: int32): Counter;
+}
+
+declare const factory: Factory;
+const counter = new factory(1);
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Counter {
+    value: int32 = 0;
+}
+
+interface Factory {
+    new (value: int32): Counter;
+}
+
+declare const factory: Dynamic<Factory>;
+const counter: Counter = new factory(1);
+
+=== checked ===
+class Counter {
+/// @type.symbol symbol=Counter type=Counter
+/// @definition.class symbol=Counter
+/// @definition.field symbol=Counter.value source="value: int32 = 0" key=value type=int32
+
+    value: int32 = 0;
+    /// @type.symbol symbol=Counter.value source="value: int32 = 0" type=int32
+
+}
+
+interface Factory {
+/// @type.symbol symbol=Factory type=Factory
+/// @definition.interface symbol=Factory
+/// @definition.signature kind=construct source="new (value: int32): Counter" type=(int32) => Counter
+
+    new (value: int32): Counter;
+    /// @resolution.name source=Counter target=Counter
+
+}
+
+declare const factory: Factory;
+/// @type.symbol symbol=factory source=factory type=Dynamic<Factory>
+/// @resolution.pattern source=factory kind=binding target=factory
+/// @resolution.name source=Factory target=Factory
+
+const counter = new factory(1);
+/// @type.symbol symbol=counter source=counter type=Counter
+/// @resolution.pattern source=counter kind=binding target=counter
+/// @resolution.construct source="new factory(1)" parameters=(int32) arguments=(provided(1) as int32) return=Counter kind=dynamic target="construct(new (value: int32): Counter)" receiver=Dynamic<Factory> constraint=Factory
+/// @resolution.name source=factory target=factory
+"#,
+    );
+}
+
+#[test]
+fn test_assign_a_function_to_a_call_signature_interface() {
+    let session = TestSession::single(
+        r#"
+interface Adder {
+    (left: int32, right: int32): int32;
+}
+
+const add: Adder = (left: int32, right: int32): int32 => left + right;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Adder {
+    (left: int32, right: int32): int32;
+}
+
+const add: Dynamic<Adder> = ((left: int32, right: int32): int32 => left + right) as Dynamic<Adder>;
+
+=== checked ===
+interface Adder {
+/// @type.symbol symbol=Adder type=Adder
+/// @definition.interface symbol=Adder
+/// @definition.signature kind=call source="(left: int32, right: int32): int32" type=Function<(int32, int32), int32>
+
+    (left: int32, right: int32): int32;
+}
+
+const add: Adder = (left: int32, right: int32): int32 => left + right;
+/// @type.symbol symbol=add source=add type=Dynamic<Adder>
+/// @resolution.pattern source=add kind=binding target=add
+/// @resolution.name source=Adder target=Adder
+/// @type.symbol symbol=symbol5 source="(left: int32, right: int32): int32 => left + right" type=Function<(int32, int32), int32>
+/// @type.symbol symbol=symbol5.left source="left: int32" type=int32
+/// @type.symbol symbol=symbol5.right source="right: int32" type=int32
+/// @resolution.name source=left target=symbol5.left
+/// @resolution.operator source="left + right" type=int32 operator="+" kind=builtin operands=[left as int32 families=(integer), right as int32 families=(integer)]
+/// @resolution.place source=left placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=left root=symbol5.left
+/// @resolution.name source=right target=symbol5.right
+/// @resolution.place source=right placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=right root=symbol5.right
+"#,
+    );
+}

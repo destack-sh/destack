@@ -1295,6 +1295,14 @@ fn add_construct_resolution_row(
                 "discriminant",
                 builder.scalar_literal_value_label(&candidate.discriminant),
             ),
+        dir::ConstructTarget::Dynamic { dispatch, function } => row
+            .field("kind", "dynamic")
+            .field("target", dynamic_function_label(builder, function))
+            .type_field(
+                "receiver",
+                builder.global_type_label(dispatch.receiver.source),
+            )
+            .type_field("constraint", builder.global_type_label(dispatch.constraint)),
     };
 
     builder.push(row);
@@ -1377,6 +1385,7 @@ fn construct_target_label(
         dir::ConstructTarget::Class(candidate) => builder.symbol_path_label(candidate.symbol),
         dir::ConstructTarget::Newtype(candidate) => builder.symbol_path_label(candidate.symbol),
         dir::ConstructTarget::Variant(candidate) => builder.symbol_path_label(candidate.case.owner),
+        dir::ConstructTarget::Dynamic { function, .. } => dynamic_function_label(builder, function),
     }
 }
 
@@ -1806,6 +1815,7 @@ fn dynamic_function_label(
     let (operation, source) = match function {
         dir::DynamicFunction::Symbol(symbol) => return builder.symbol_path_label(*symbol),
         dir::DynamicFunction::CallSignature(source) => ("call", source),
+        dir::DynamicFunction::ConstructSignature(source) => ("construct", source),
         dir::DynamicFunction::IndexRead(source) => ("index.read", source),
         dir::DynamicFunction::IndexWrite(source) => ("index.write", source),
     };
@@ -1999,7 +2009,8 @@ fn add_call_generic_instances(
             function:
                 dir::DynamicFunction::CallSignature(_)
                 | dir::DynamicFunction::IndexRead(_)
-                | dir::DynamicFunction::IndexWrite(_),
+                | dir::DynamicFunction::IndexWrite(_)
+                | dir::DynamicFunction::ConstructSignature(_),
             ..
         } => {}
     }
@@ -2077,6 +2088,7 @@ fn add_construct_target_generic_instances(
                 &candidate.generic_arguments,
             );
         }
+        dir::ConstructTarget::Dynamic { .. } => {}
     }
 }
 

@@ -5,8 +5,8 @@ use smallvec::SmallVec;
 use crate::check::{
     Answer, BodyState, CallableArgument, CandidateVerdict, CheckFailure, CheckOutcome, Decision,
     DecisionKind, Expectation, FlowSite, NewtypeMatch, NewtypeOverload, NewtypeRejection,
-    NewtypeSignature, Origin, SignatureMatch, SignatureRejection, SignatureSelection,
-    TypeArgumentInference, TypeSubstitution, ValueCheck, ValueUse, answer,
+    NewtypeSignature, Origin, SignatureFamily, SignatureMatch, SignatureRejection,
+    SignatureSelection, TypeArgumentInference, TypeSubstitution, ValueCheck, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -130,6 +130,18 @@ impl BodyState<'_, '_> {
                 });
             }
         };
+
+        // construct value bindings through their inferred value type
+        if self
+            .symbol_kind_maybe(symbol)?
+            .is_some_and(dir::SymbolKind::is_binding)
+        {
+            let target = answer!(self.symbol_type(symbol)?);
+            let target = answer!(self.strip_form(origin, target)?);
+            self.commit_node_type(source, target)?;
+
+            return Ok(Answer::Ready(target));
+        }
 
         // instantiate written arguments and open omitted construct parameters
         let target = answer!(self.instantiate_construct_target(
@@ -306,6 +318,22 @@ impl BodyState<'_, '_> {
         // select the constructed target
         let target = answer!(self.select_construct_target(site, ty, expected_value)?);
         let target = answer!(self.reduce_type_head(origin, target)?);
+
+        // construct erased interface values through their apparent signatures
+        if let dir::Type::Dynamic(dynamic) = self.ty(target)? {
+            return self.select_dynamic_construct(
+                site,
+                node,
+                origin,
+                target,
+                dynamic.constraint,
+                argument_nodes,
+                &arguments,
+                result,
+                &forms,
+            );
+        }
+
         let instance = match self.ty(target)? {
             dir::Type::Application(instance) => instance,
             _ => return self.reject_not_constructible(node, origin, target, ""),
@@ -833,6 +861,216 @@ impl BodyState<'_, '_> {
         let carrier = self.language_type(dir::LanguageItem::Result, &[value, allocation_error])?;
 
         Ok(carrier)
+    }
+
+    /// Select one construction through an erased interface construct signature.
+    fn select_dynamic_construct(
+        &mut self,
+        site: FlowSite,
+        node: dir::GlobalNodeIdAny,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+        constraint: dir::GlobalTypeId,
+        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[CallableArgument],
+        result: ConstructResult,
+        forms: &[dir::Form],
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let module = node.module_id;
+        let signatures =
+            answer!(self.apparent_signatures(origin, constraint, SignatureFamily::Construct,)?);
+        let Some((constraint_module, instance)) = self.nominal_application_maybe(constraint)?
+        else {
+            return self.reject_not_constructible(node, origin, target, "");
+        };
+        if signatures.is_empty() {
+            return self.reject_not_constructible(node, origin, target, "");
+        }
+
+        // select the first applicable construct signature in declaration order
+        let is_single_candidate = signatures.len() == 1;
+        let mut selected = None;
+        let mut rejections = Vec::new();
+        for signature in signatures {
+            if is_single_candidate {
+                selected = Some(signature);
+                break;
+            }
+            let (verdict, rejection) = answer!(self.probe_candidate_noted(
+                |state| {
+                    let outcome = state.attempt_construct(
+                        origin,
+                        module,
+                        constraint_module,
+                        &instance,
+                        target,
+                        signature.ty,
+                        arguments,
+                        None,
+                        None,
+                    )?;
+                    match outcome {
+                        Answer::Ready(matched) => Ok(Answer::Ready(matched.into_candidate())),
+                        Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+                    }
+                },
+                |state, rejection| {
+                    state
+                        .check
+                        .describe_signature_rejection(module, signature.ty, rejection)
+                },
+            )?);
+            match verdict {
+                CandidateVerdict::Rejected => rejections.extend(rejection),
+                CandidateVerdict::Viable | CandidateVerdict::Indeterminate => {
+                    selected = Some(signature);
+
+                    break;
+                }
+            }
+        }
+
+        // confirm the selected signature outside any probe
+        if let Some(signature) = selected {
+            let attempt = self.attempt_construct(
+                origin,
+                module,
+                constraint_module,
+                &instance,
+                target,
+                signature.ty,
+                arguments,
+                None,
+                None,
+            )?;
+
+            match answer!(attempt) {
+                SignatureMatch::Selected(selection) | SignatureMatch::ReturnMismatch(selection) => {
+                    return self.commit_dynamic_construct(
+                        node,
+                        module,
+                        target,
+                        constraint,
+                        signature.source,
+                        argument_nodes,
+                        selection,
+                        result,
+                        forms,
+                    );
+                }
+                // report a lone signature's rejection but keep its committed shape
+                SignatureMatch::Invalid {
+                    selection,
+                    rejection,
+                } if is_single_candidate => {
+                    self.report_signature_rejection(origin, rejection)?;
+
+                    return self.commit_dynamic_construct(
+                        node,
+                        module,
+                        target,
+                        constraint,
+                        signature.source,
+                        argument_nodes,
+                        selection,
+                        result,
+                        forms,
+                    );
+                }
+                SignatureMatch::Invalid { rejection, .. } => {
+                    let description =
+                        self.describe_signature_rejection(module, signature.ty, &rejection)?;
+                    rejections.push(description);
+                }
+                SignatureMatch::Inapplicable(rejection) => {
+                    let description =
+                        self.describe_signature_rejection(module, signature.ty, &rejection)?;
+                    rejections.push(description);
+                }
+            }
+        }
+
+        self.reject_construct(site, node, origin, argument_nodes, &rejections)
+    }
+
+    /// Commit one selected dynamic construction.
+    fn commit_dynamic_construct(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        module: ModuleId,
+        target: dir::GlobalTypeId,
+        constraint: dir::GlobalTypeId,
+        source: dir::GlobalNodeIdAny,
+        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+        signature: SignatureSelection,
+        result: ConstructResult,
+        forms: &[dir::Form],
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        // commit conversions only after the signature has been selected
+        for (argument, coercion) in &signature.coercions {
+            self.commit_coercion(*argument, coercion.clone())?;
+        }
+
+        // dispatch through the callee value's own construct slot
+        let construct_target = dir::ConstructTarget::Dynamic {
+            dispatch: dir::DynamicDispatch {
+                receiver: dir::AdjustedReceiver::direct(target),
+                constraint,
+            },
+            function: dir::DynamicFunction::ConstructSignature(source),
+        };
+
+        self.commit_construct_resolution(
+            node,
+            module,
+            construct_target,
+            argument_nodes,
+            &signature,
+            result,
+            forms,
+        )
+    }
+
+    /// Commit one selected construct target with its produced instance type.
+    fn commit_construct_resolution(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        module: ModuleId,
+        target: dir::ConstructTarget,
+        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+        signature: &SignatureSelection,
+        result: ConstructResult,
+        forms: &[dir::Form],
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        // wrap the produced instance in its destination forms
+        let mut produced = match result {
+            ConstructResult::Direct => signature.return_type,
+            ConstructResult::Fallible => {
+                self.fallible_construct_type(node, signature.return_type)?
+            }
+        };
+        for form in forms.iter().rev().copied() {
+            produced = self.intern_type(dir::Type::Form(dir::FormType {
+                form,
+                value: produced,
+            }))?;
+        }
+
+        // bind the arguments and commit the selection
+        let resolution = dir::ConstructResolution::new(
+            target,
+            self.argument_bindings(
+                Origin::Node(node, None),
+                module,
+                argument_nodes,
+                &signature.parameters,
+            )?,
+            produced,
+        );
+        self.commit_decision(node, Decision::Construct(resolution))?;
+        self.commit_node_type(node, produced)?;
+
+        Ok(Answer::Ready(produced))
     }
 
     /// Reject one construction whose arguments fit no constructor.

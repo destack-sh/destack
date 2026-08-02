@@ -127,11 +127,14 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
             let caller = self.containing_symbol(node_id.local_id)?;
 
             // emit the resolved construct edge
+            let Some(callee) = resolution.target.call_symbol() else {
+                continue;
+            };
             self.entries.push(dir::CallEntry {
                 source,
                 kind: dir::CallKind::Construct,
                 caller,
-                callee: resolution.target.call_symbol(),
+                callee,
                 span,
             });
         }

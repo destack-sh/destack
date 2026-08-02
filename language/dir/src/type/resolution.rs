@@ -727,7 +727,8 @@ impl CallTarget {
                 function:
                     DynamicFunction::CallSignature(_)
                     | DynamicFunction::IndexRead(_)
-                    | DynamicFunction::IndexWrite(_),
+                    | DynamicFunction::IndexWrite(_)
+                    | DynamicFunction::ConstructSignature(_),
                 ..
             } => None,
         }
@@ -791,6 +792,8 @@ pub enum DynamicFunction {
     IndexRead(GlobalNodeIdAny),
     /// Write operation declared by one index signature.
     IndexWrite(GlobalNodeIdAny),
+    /// Construct operation declared by one construct signature.
+    ConstructSignature(GlobalNodeIdAny),
 }
 
 /// Subscript selected at an index expression or destructuring field.
@@ -1576,30 +1579,39 @@ pub enum ConstructTarget {
     /// Shape.Rectangle({ width, height })
     /// ```
     Variant(VariantConstructCandidate),
+    /// Construction through one erased interface construct signature.
+    Dynamic {
+        /// The erased receiver dispatch.
+        dispatch: DynamicDispatch,
+        /// The dispatched construct operation.
+        function: DynamicFunction,
+    },
 }
 
 impl ConstructTarget {
-    /// Get the underlying symbol.
-    pub fn symbol(&self) -> GlobalSymbolId {
+    /// Return the selected declaration symbol, when this target has one.
+    pub fn symbol(&self) -> Option<GlobalSymbolId> {
         match self {
-            Self::Class(candidate) => candidate.symbol,
-            Self::Newtype(candidate) => candidate.symbol,
-            Self::Variant(candidate) => candidate.case.variant,
+            Self::Class(candidate) => Some(candidate.symbol),
+            Self::Newtype(candidate) => Some(candidate.symbol),
+            Self::Variant(candidate) => Some(candidate.case.variant),
+            Self::Dynamic { .. } => None,
         }
     }
 
-    /// Get the callable symbol selected by construction.
-    pub fn call_symbol(&self) -> GlobalSymbolId {
+    /// Return the callable symbol selected by construction, when this target has one.
+    pub fn call_symbol(&self) -> Option<GlobalSymbolId> {
         match self {
             Self::Class(candidate) => match &candidate.constructor {
                 ClassConstructor::Declared { symbol }
-                | ClassConstructor::ForwardedDeclared { symbol, .. } => *symbol,
+                | ClassConstructor::ForwardedDeclared { symbol, .. } => Some(*symbol),
                 ClassConstructor::Default | ClassConstructor::ForwardedDefault { .. } => {
-                    candidate.symbol
+                    Some(candidate.symbol)
                 }
             },
-            Self::Newtype(candidate) => candidate.symbol,
-            Self::Variant(candidate) => candidate.case.variant,
+            Self::Newtype(candidate) => Some(candidate.symbol),
+            Self::Variant(candidate) => Some(candidate.case.variant),
+            Self::Dynamic { .. } => None,
         }
     }
 
@@ -1609,6 +1621,7 @@ impl ConstructTarget {
             Self::Class(candidate) => candidate.map_type_ids(map),
             Self::Newtype(candidate) => candidate.map_type_ids(map),
             Self::Variant(candidate) => candidate.map_type_ids(map),
+            Self::Dynamic { dispatch, .. } => dispatch.map_type_ids(map),
         }
     }
 }
