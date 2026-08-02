@@ -3,7 +3,8 @@ use std::sync::Arc;
 use destack_artifact::{ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactOutcome};
 
 use crate::provider::{
-    ArtifactAttemptOutcome, ArtifactAttemptRecorder, ArtifactBase, ProviderError, ProviderResult,
+    ArtifactAttemptOutcome, ArtifactAttemptRecorder, ArtifactBase, PendingSet, ProviderError,
+    ProviderResult,
 };
 use crate::repository::{Repository, Revision};
 use crate::{ArtifactResolution, DependencySetResolution};
@@ -23,7 +24,7 @@ pub enum ArtifactPlan {
         /// The dependency keys that are not yet terminal.
         frontier: Vec<ArtifactKey>,
         /// The complete dependency set to resume with, when collection finished.
-        pending_set: Option<ArtifactDependencySet>,
+        pending_set: Option<PendingSet>,
     },
     /// The provider must run over the exact dependency set.
     Build {
@@ -42,7 +43,7 @@ impl Repository {
         &self,
         revision: Revision,
         key: ArtifactKey,
-        pending_set: Option<ArtifactDependencySet>,
+        pending_set: Option<PendingSet>,
         recorder: &ArtifactAttemptRecorder,
         collect: &mut dyn FnMut(Option<Arc<ArtifactBase>>) -> ProviderResult<ArtifactDependencySet>,
     ) -> ProviderResult<ArtifactPlan> {
@@ -78,22 +79,35 @@ impl Repository {
             })?;
 
         // assemble a saved pending set or a freshly collected one
-        let mut set = match pending_set {
-            Some(pending_set) => pending_set,
-            None => recorder
-                .span("collect", || collect(base.clone()))
-                .map_err(|error| {
-                    ProviderError::internal(format!("failed to collect artifact {key:?}: {error}"))
-                })?,
+        let (mut set, mut progress) = match pending_set {
+            Some(pending_set) => (pending_set.set, Some(pending_set.resolved)),
+            None => {
+                let set = recorder
+                    .span("collect", || collect(base.clone()))
+                    .map_err(|error| {
+                        ProviderError::internal(format!(
+                            "failed to collect artifact {key:?}: {error}"
+                        ))
+                    })?;
+
+                (set, None)
+            }
         };
         let (dependencies, failed) = loop {
             let resolution = recorder.span("assemble", || {
-                self.resolve_dependency_set(revision, set, base.as_deref(), recorder)
+                self.resolve_dependency_set(
+                    revision,
+                    set,
+                    progress.as_deref(),
+                    base.as_deref(),
+                    recorder,
+                )
             })?;
 
             match resolution {
                 // collect again with the dependencies resolved so far
                 DependencySetResolution::Incomplete => {
+                    progress = None;
                     set = recorder
                         .span("collect", || collect(base.clone()))
                         .map_err(|error| {

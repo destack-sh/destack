@@ -7,8 +7,8 @@ use destack_artifact::{
     ArtifactPayload, ArtifactProvider, ArtifactSidecar, DiagnosticRecord,
 };
 use destack_repository::{
-    ArtifactAttemptOutcome, ArtifactAttemptRecorder, ArtifactBase, ArtifactPlan, ProviderError,
-    ProviderResult, Repository, Revision,
+    ArtifactAttemptOutcome, ArtifactAttemptRecorder, ArtifactBase, ArtifactPlan, PendingSet,
+    ProviderError, ProviderResult, Repository, Revision,
 };
 
 use super::attempt::ProviderAttempt;
@@ -103,7 +103,7 @@ impl Worker {
         &self,
         run: &ArtifactRunState,
         task: Task,
-        pending_set: Option<ArtifactDependencySet>,
+        pending_set: Option<PendingSet>,
     ) -> Result<(), SessionError> {
         let recorder = Arc::new(run.trace().begin(task.key, self.index));
 
@@ -254,7 +254,7 @@ impl Worker {
         &self,
         task: Task,
         frontier: Vec<ArtifactKey>,
-        pending_set: Option<ArtifactDependencySet>,
+        pending_set: Option<PendingSet>,
         recorder: &Arc<ArtifactAttemptRecorder>,
     ) -> Result<(), SessionError> {
         recorder.record_counter("park.frontier", frontier.len() as u64);

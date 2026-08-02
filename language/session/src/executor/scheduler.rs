@@ -1,7 +1,8 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependencySet, ArtifactStage};
+use destack_artifact::ArtifactStage;
+use destack_repository::PendingSet;
 use parking_lot::{Condvar, Mutex};
 
 use super::run::{ArtifactPriority, ArtifactRunId, ArtifactRunState};
@@ -56,7 +57,7 @@ struct TaskEntry {
     /// Tasks waiting for this task to become terminal.
     dependents: Vec<Task>,
     /// Complete dependency set to freeze once this task wakes.
-    pending_set: Option<ArtifactDependencySet>,
+    pending_set: Option<PendingSet>,
 }
 
 /// Scheduler state for one tracked artifact task.
@@ -109,9 +110,7 @@ impl Scheduler {
     }
 
     /// Claim the next runnable task, or none after shutdown.
-    pub(super) fn claim(
-        &self,
-    ) -> Option<(Arc<ArtifactRunState>, Task, Option<ArtifactDependencySet>)> {
+    pub(super) fn claim(&self) -> Option<(Arc<ArtifactRunState>, Task, Option<PendingSet>)> {
         let mut state = self.state.lock();
 
         // wait for runnable work or shutdown
@@ -134,9 +133,7 @@ impl Scheduler {
     }
 
     /// Claim the next runnable task without blocking.
-    pub(super) fn claim_ready(
-        &self,
-    ) -> Option<(Arc<ArtifactRunState>, Task, Option<ArtifactDependencySet>)> {
+    pub(super) fn claim_ready(&self) -> Option<(Arc<ArtifactRunState>, Task, Option<PendingSet>)> {
         let mut state = self.state.lock();
 
         // refuse claims after shutdown
@@ -188,7 +185,7 @@ impl Scheduler {
         &self,
         task: Task,
         dependencies: Vec<Task>,
-        pending_set: Option<ArtifactDependencySet>,
+        pending_set: Option<PendingSet>,
     ) -> Result<(), SessionError> {
         let mut state = self.state.lock();
         state.wait_on(task, dependencies, pending_set)?;
@@ -235,7 +232,7 @@ impl Scheduler {
     fn claim_ready_task(
         &self,
         state: &mut SchedulerState,
-    ) -> Option<(Arc<ArtifactRunState>, Task, Option<ArtifactDependencySet>)> {
+    ) -> Option<(Arc<ArtifactRunState>, Task, Option<PendingSet>)> {
         // scan ready tasks until one is claimable
         while let Some((priority, task)) = state.pop_ready() {
             let Some(entry) = state.tasks.get(&task) else {
@@ -413,7 +410,7 @@ impl SchedulerState {
         &mut self,
         task: Task,
         dependencies: Vec<Task>,
-        pending_set: Option<ArtifactDependencySet>,
+        pending_set: Option<PendingSet>,
     ) -> Result<(), SessionError> {
         // require the worker to return one task it actually claimed
         let Some(entry) = self.tasks.get_mut(&task) else {

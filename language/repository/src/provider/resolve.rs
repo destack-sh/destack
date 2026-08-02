@@ -7,6 +7,15 @@ use crate::ArtifactResolution;
 use crate::provider::{ArtifactAttemptRecorder, ArtifactBase, ProviderError, ProviderResult};
 use crate::repository::{Repository, Revision};
 
+/// One parked attempt's dependency set and its resolved slots.
+#[derive(Debug)]
+pub struct PendingSet {
+    /// The normalized dependency set carried across the park.
+    pub set: ArtifactDependencySet,
+    /// The exact dependency resolved per requirement slot, none while pending.
+    pub resolved: Vec<Option<ArtifactDependency>>,
+}
+
 /// The repository resolution of one collected artifact dependency set.
 #[derive(Debug)]
 pub enum DependencySetResolution {
@@ -17,7 +26,7 @@ pub enum DependencySetResolution {
         /// The declared dependency keys that are not yet terminal.
         frontier: Vec<ArtifactKey>,
         /// The complete dependency set, present when collection did not stop early.
-        pending_set: Option<ArtifactDependencySet>,
+        pending_set: Option<PendingSet>,
     },
     /// The dependency set resolved into exact dependencies.
     Resolved {
@@ -34,20 +43,29 @@ impl Repository {
         &self,
         revision: Revision,
         mut set: ArtifactDependencySet,
+        progress: Option<&[Option<ArtifactDependency>]>,
         base: Option<&ArtifactBase>,
         recorder: &ArtifactAttemptRecorder,
     ) -> ProviderResult<DependencySetResolution> {
         let artifact_requirements = set.requirements.len() as u64;
         let source_dependencies = set.sources.len() as u64;
-        recorder.breakdown("assemble.normalize", || set.normalize());
+
+        // parked sets are already normalized and slot aligned with progress
+        if progress.is_none() {
+            recorder.breakdown("assemble.normalize", || set.normalize());
+        }
         let base = base.filter(|base| set.matches(&base.dependencies));
+        let resolved_slot = |dependency: usize| {
+            progress.and_then(|progress| progress.get(dependency).cloned().flatten())
+        };
         let artifact_keys = set
             .requirements
             .iter()
             .enumerate()
             .filter_map(|(dependency, requirement)| {
                 let is_dirty = base.is_none_or(|base| base.is_dependency_dirty(dependency));
-                is_dirty.then_some(requirement.artifact_key())
+                let is_unresolved = resolved_slot(dependency).is_none();
+                (is_dirty && is_unresolved).then_some(requirement.artifact_key())
             })
             .collect::<Vec<_>>();
         let resolved_requirements = artifact_keys.len() as u64;
@@ -63,23 +81,28 @@ impl Repository {
         let mut resolutions = resolutions.into_iter();
 
         // classify each declared artifact requirement
-        let (dependencies, pending, failed) =
+        let (dependencies, slots, pending, failed) =
             recorder.breakdown("assemble.classify", || -> ProviderResult<_> {
                 let capacity = set.requirements.len() + set.sources.len();
                 let mut dependencies = Vec::with_capacity(capacity);
+                let mut slots = Vec::with_capacity(set.requirements.len());
                 let mut pending = Vec::new();
                 let mut failed = None;
                 for (dependency, requirement) in set.requirements.iter().enumerate() {
-                    let previous = base
-                        .filter(|base| !base.is_dependency_dirty(dependency))
-                        .map(|base| base.dependencies[dependency].clone());
+                    // carry parked progress or the clean base slot forward
+                    let carried = resolved_slot(dependency).or_else(|| {
+                        base.filter(|base| !base.is_dependency_dirty(dependency))
+                            .map(|base| base.dependencies[dependency].clone())
+                    });
 
-                    if let Some(previous) = previous {
-                        dependencies.push(previous);
+                    if let Some(carried) = carried {
+                        slots.push(Some(dependencies.len() as u32));
+                        dependencies.push(carried);
                     } else {
                         let resolution = resolutions.next().ok_or_else(|| {
                             ProviderError::internal("resolved dependencies are incomplete")
                         })?;
+                        let before = dependencies.len();
                         self.resolve_requirement(
                             *requirement,
                             resolution,
@@ -87,6 +110,8 @@ impl Repository {
                             &mut pending,
                             &mut failed,
                         )?;
+                        let is_resolved = dependencies.len() > before;
+                        slots.push(is_resolved.then_some(before as u32));
                     }
                 }
 
@@ -95,7 +120,7 @@ impl Repository {
                     dependencies.push(ArtifactDependency::Source(*source));
                 }
 
-                Ok((dependencies, pending, failed))
+                Ok((dependencies, slots, pending, failed))
             })?;
 
         // resolve immediately when a dependency already failed
@@ -106,9 +131,17 @@ impl Repository {
             });
         }
 
-        // park until the frontier becomes terminal, carrying complete dependency sets
+        // park until the frontier becomes terminal, carrying complete
+        //  dependency sets and the slots resolved so far
         if !pending.is_empty() {
-            let pending_set = (!set.is_partial).then_some(set);
+            let pending_set = (!set.is_partial).then(|| {
+                let resolved = slots
+                    .iter()
+                    .map(|slot| slot.map(|index| dependencies[index as usize].clone()))
+                    .collect();
+
+                PendingSet { set, resolved }
+            });
 
             return Ok(DependencySetResolution::Pending {
                 frontier: pending,
