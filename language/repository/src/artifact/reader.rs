@@ -237,6 +237,11 @@ impl<'a> ArtifactReader<'a> {
         version: Option<ArtifactVersion>,
     ) -> Result<ArtifactVersion, ProviderError> {
         let Some(version) = version else {
+            // report the blocked key so collection requires it
+            if let Some(context) = self.context {
+                context.record_blocked(artifact_key);
+            }
+
             return Err(ProviderError::blocked(artifact_key));
         };
         match self.repository.artifact_table().outcome(&version) {

@@ -10,7 +10,7 @@ use super::string::collect_string_ids;
 use crate::{
     ArtifactDependency, ArtifactError, ArtifactKey, ArtifactPayload, ArtifactPayloadRef,
     ArtifactProjectionFingerprint, ArtifactProjectionKey, ArtifactSidecar, ArtifactVersion,
-    DiagnosticRecord,
+    BuildId, DiagnosticRecord,
 };
 
 /// One persisted artifact.

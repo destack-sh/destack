@@ -276,12 +276,25 @@ impl Formatter<'_, '_, '_> {
 
                 format!("(enum member) {name}: {type_text}")
             }
-            dir::DefinitionMember::TaggedKey(_) | dir::DefinitionMember::TaggedVariant(_) => {
-                // FUGU #Incomplete: retain tagged variant constructor signatures in DIR
+            dir::DefinitionMember::TaggedKey(_) => {
+                // FUGU #Incomplete: retain tagged key constructor signatures in DIR
                 return Err(QueryError::missing(format!(
-                    "tagged variant constructor signature: {:?}",
+                    "tagged key constructor signature: {:?}",
                     member.source()
                 )));
+            }
+            dir::DefinitionMember::TaggedVariant(variant) => {
+                let type_id = self
+                    .module
+                    .types()
+                    .get_symbol_type_id(variant.symbol)
+                    .ok_or(QueryError::missing(format!(
+                        "tagged variant type: {:?}",
+                        variant.symbol
+                    )))?;
+                let signature = self.callable_signature(&name, type_id)?;
+
+                format!("(constructor) {signature}")
             }
             dir::DefinitionMember::CallSignature(_)
             | dir::DefinitionMember::ConstructSignature(_) => {

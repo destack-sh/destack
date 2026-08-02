@@ -88,6 +88,7 @@ impl Linter {
             dependencies.require(ArtifactKey::dir_resolved(module, profile));
             dependencies.require(ArtifactKey::dir_expanded(module, profile));
             dependencies.require(ArtifactKey::dir_exported(module, profile));
+            dependencies.require(ArtifactKey::dir_declared(module, profile));
             dependencies.require(ArtifactKey::dir_checked(module, profile));
         }
 
@@ -105,6 +106,7 @@ impl Linter {
     ) -> Result<(), ProviderError> {
         for module in modules.iter().copied() {
             if self.module(revision, module)?.is_code() {
+                dependencies.require(ArtifactKey::dir_declared(module, profile));
                 dependencies.require(ArtifactKey::dir_checked(module, profile));
                 dependencies.require(ArtifactKey::mir_lowered(module, profile, target));
                 dependencies.require(ArtifactKey::mir_verified(module, profile, target));

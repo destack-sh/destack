@@ -27,6 +27,7 @@ impl Linter {
         }
 
         // require checking before resolving source controls
+        dependencies.require(ArtifactKey::dir_declared(module, profile));
         dependencies.require(ArtifactKey::dir_checked(module, profile));
         let artifacts = self.artifact_reader(context);
         let checked = match artifacts.dir_checked(module, profile) {
@@ -51,8 +52,10 @@ impl Linter {
                 return Ok(dependencies);
             };
 
-            // read the module graph
+            // read the module graph, requiring the root edges first so a
+            //  blocked read schedules the graph
             let graph_key = ArtifactKey::module_graph(profile);
+            dependencies.require_projection(graph_key, ArtifactProjectionKey::ModuleEdges(module));
             let mut roots = environment.globals.clone();
             roots.push(module);
             roots.sort_unstable();

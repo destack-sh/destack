@@ -90,6 +90,9 @@ pub trait ProviderContext: DiagnosticContext {
     /// Record one dependency read during provider execution.
     fn observe(&self, _dependency: ArtifactDependency) {}
 
+    /// Record one blocked artifact read during dependency collection.
+    fn record_blocked(&self, _artifact_key: ArtifactKey) {}
+
     /// Add already-recorded diagnostics produced by this attempt.
     fn emit_diagnostics(&self, diagnostics: Vec<DiagnosticRecord>);
 

@@ -30,7 +30,7 @@ impl ArtifactVersion {
         build_id: BuildId,
         dependencies: impl IntoIterator<Item = ArtifactDependency>,
     ) -> Self {
-        let fingerprint = ArtifactFingerprint::new(key, build_fingerprint, dependencies);
+        let fingerprint = ArtifactFingerprint::new(key, build_id, dependencies);
 
         Self { key, fingerprint }
     }

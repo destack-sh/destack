@@ -489,6 +489,7 @@ impl WalkState<'_, '_> {
                 backing: value,
                 is_tagged: false,
                 tagged_options: None,
+                constructors: Vec::new(),
                 discriminator: None,
                 members: Vec::new(),
             })
@@ -530,6 +531,7 @@ impl WalkState<'_, '_> {
                 backing: value,
                 is_tagged: false,
                 tagged_options: None,
+                constructors: Vec::new(),
                 discriminator: None,
                 members: Vec::new(),
             });

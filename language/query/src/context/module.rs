@@ -73,7 +73,6 @@ impl ModuleArtifacts {
         reader: &ArtifactReader<'_>,
         module_id: ModuleId,
         profile_id: ProfileId,
-        component: ComponentId,
     ) -> ProviderResult<Self> {
         Ok(Self {
             parsed: reader.dir_parsed(module_id)?,
@@ -137,14 +136,15 @@ impl<'a> ModuleQueryContext<'a> {
     }
 
     /// Return the artifact roots for one module query context.
-    pub fn initial_roots(module_id: ModuleId, profile_id: ProfileId) -> [ArtifactKey; 6] {
+    pub fn initial_roots(module_id: ModuleId, profile_id: ProfileId) -> [ArtifactKey; 7] {
         [
             ArtifactKey::dir_parsed(module_id),
             ArtifactKey::dir_bound(module_id, profile_id),
             ArtifactKey::dir_imported(module_id, profile_id),
             ArtifactKey::dir_expanded(module_id, profile_id),
             ArtifactKey::dir_resolved(module_id, profile_id),
-            ArtifactKey::component_graph(profile_id),
+            ArtifactKey::dir_declared(module_id, profile_id),
+            ArtifactKey::dir_checked(module_id, profile_id),
         ]
     }
 
@@ -156,23 +156,13 @@ impl<'a> ModuleQueryContext<'a> {
         profile_id: ProfileId,
         require_artifacts: &dyn Fn(&[ArtifactKey]) -> QueryResult<()>,
     ) -> QueryResult<Self> {
-        // require the module roots and resolve its inference component
+        // require the module stages up to its checked tables
         let roots = Self::initial_roots(module_id, profile_id);
         require_artifacts(&roots)?;
         let reader = ArtifactReader::new(repository, revision);
-        let graph = reader.component_graph_reader(profile_id)?;
-        let component = graph.inference_component(module_id)?.ok_or_else(|| {
-            QueryError::invalid(format!(
-                "module is absent from component graph: {module_id:?}"
-            ))
-        })?;
-
-        // require the exact checked component selected by the graph
-        let checked = ArtifactKey::dir_checked_component(component, profile_id);
-        require_artifacts(&[checked])?;
 
         // read exact dependency-backed artifact payloads
-        let artifacts = ModuleArtifacts::read(&reader, module_id, profile_id, component)?;
+        let artifacts = ModuleArtifacts::read(&reader, module_id, profile_id)?;
 
         Ok(Self::from_artifacts(
             repository, revision, module_id, profile_id, artifacts,

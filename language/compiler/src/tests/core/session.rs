@@ -5,7 +5,7 @@ use std::sync::{Arc, OnceLock};
 use std::{env, thread};
 
 use destack_artifact::{
-    ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion, DirBound, DirChecked,
+    ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion, BuildId, DirBound, DirChecked,
     DirDeclared, DirExpanded, DirExported, DirImported, DirParsed, DirResolved, MemoryBlobStore,
     ModuleGraph, NullArtifactStore,
 };
@@ -1581,6 +1581,7 @@ fn cold_repository_revision() -> (Arc<Repository>, Revision) {
         _ => Execution::Threaded,
     };
     let host = Host::new(
+        BuildId::test(),
         environment,
         Arc::new(MemoryFileSystem::new()),
         shared_blob_store(),

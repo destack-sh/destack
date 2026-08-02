@@ -151,10 +151,11 @@ impl CommandContext<'_> {
         roots: &[ModuleId],
         revision: Revision,
     ) -> CommandResult<ProgramContext> {
-        let root_keys = roots
+        let mut root_keys = roots
             .iter()
             .map(|module| ArtifactKey::dir_checked(*module, profile))
             .collect::<Vec<_>>();
+        root_keys.push(ArtifactKey::module_graph(profile));
         self.provide(revision, &root_keys)?;
 
         // resolve the import closure from the roots and implicit globals

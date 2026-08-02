@@ -402,52 +402,6 @@ impl Repository {
         revision: Revision,
         key: ArtifactKey,
     ) -> Result<Option<String>, RepositoryError> {
-        // label component artifacts through their first member
-        let component = match key {
-            ArtifactKey::DirDeclaredComponent { component, profile } => {
-                Some((component, profile, false))
-            }
-            ArtifactKey::DirCheckedComponent { component, profile } => {
-                Some((component, profile, true))
-            }
-            _ => None,
-        };
-        if let Some((component, profile, is_inference)) = component {
-            let graph_key = ArtifactKey::component_graph(profile);
-            let graph_version = self
-                .artifact_version(revision, &graph_key)?
-                .ok_or_else(|| RepositoryError::InvalidArtifact {
-                    message: format!("component graph {graph_key:?} is missing"),
-                })?;
-            let graph = self
-                .artifact_table()
-                .component_graph(&graph_version)
-                .ok_or_else(|| RepositoryError::InvalidArtifact {
-                    message: format!("component graph payload missing for {graph_version:?}"),
-                })?;
-            let members = if is_inference {
-                graph.inference_members(component)
-            } else {
-                graph.reference_members(component)
-            }
-            .ok_or_else(|| RepositoryError::InvalidArtifact {
-                message: format!("component {component} is absent from its graph"),
-            })?;
-            let module = members
-                .first()
-                .ok_or_else(|| RepositoryError::InvalidArtifact {
-                    message: format!("component {component} has no modules"),
-                })?;
-            let display = self
-                .module_display(revision, *module)?
-                .ok_or(RepositoryError::MissingModule { module: *module })?;
-            if members.len() > 1 {
-                return Ok(Some(format!("{display} (+{} modules)", members.len() - 1)));
-            }
-
-            return Ok(Some(display));
-        }
-
         // label module artifacts through the repository index
         let Some(module) = key.module_id() else {
             return Ok(None);

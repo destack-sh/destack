@@ -126,7 +126,7 @@ impl ModuleLowerer<'_> {
                 let pointer_bytes = builder.pointer_bytes();
                 let carrier = self.constant_type(builder, ty)?;
                 let carrier = builder.tree_mut().get(carrier).clone();
-                let constant = Self::scalar_constant(*value, &carrier, pointer_bytes)?;
+                let constant = self.scalar_constant(*value, &carrier, pointer_bytes)?;
 
                 Ok(mir::GlobalInitializer::Scalar(constant))
             }
@@ -208,6 +208,7 @@ impl ModuleLowerer<'_> {
 
     /// Build one scalar constant at its lowered carrier.
     fn scalar_constant(
+        &self,
         literal: dir::ScalarLiteral,
         carrier: &mir::Type,
         pointer_bytes: u8,
@@ -254,10 +255,13 @@ impl ModuleLowerer<'_> {
                 bits: destack_core::float_to_bits(format.format(), value),
                 format: *format,
             },
-            (literal, carrier) => {
-                return Err(CompilerError::Internal {
-                    message: format!("carrier {carrier:?} for constant {literal:?}"),
-                });
+            // a mismatched carrier is reachable only behind check errors
+            (_, carrier) => {
+                return Err(LowerError::Unsupported {
+                    anchor: self.module.into(),
+                    construct: format!("a module constant at a {carrier:?} carrier"),
+                }
+                .into());
             }
         })
     }

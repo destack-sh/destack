@@ -38,14 +38,26 @@ impl SessionState {
     ) -> ProviderResult<ArtifactDependencySet> {
         let attempt = ProviderAttempt::new(self.repository(), revision, key).with_base(base);
 
-        match key.provider() {
+        let collected = match key.provider() {
             ArtifactProvider::Loader => self
                 .collect_loader(&attempt)
                 .map_err(|error| ProviderError::internal(error.to_string()).into()),
             ArtifactProvider::Compiler => self.compiler().collect(&attempt),
             ArtifactProvider::Linter => self.linter().collect(&attempt),
             ArtifactProvider::Index => self.indexer().collect(&attempt),
+        };
+
+        // require every blocked read so the frontier schedules it
+        let mut set = collected?;
+        let blocked = attempt.take_blocked();
+        if !blocked.is_empty() {
+            for artifact_key in blocked {
+                set.require(artifact_key);
+            }
+            set.mark_partial();
         }
+
+        Ok(set)
     }
 }
 

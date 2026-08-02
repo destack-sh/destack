@@ -142,7 +142,7 @@ impl Repository {
         key: ArtifactKey,
         dependencies: &[ArtifactDependency],
     ) -> ArtifactVersion {
-        ArtifactVersion::new(key, self.build_fingerprint(), dependencies.iter().cloned())
+        ArtifactVersion::new(key, self.host().build_id(), dependencies.iter().cloned())
     }
 
     /// Bind one recorded artifact version to one revision when present.

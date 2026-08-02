@@ -110,8 +110,12 @@ impl Linter {
             return Ok(dependencies);
         }
 
-        // read the module graph before declaring program inputs
+        // read the module graph, requiring the root edges first so a
+        //  blocked read schedules the graph
         let graph_key = ArtifactKey::module_graph(profile);
+        for root in roots.iter().copied() {
+            dependencies.require_projection(graph_key, ArtifactProjectionKey::ModuleEdges(root));
+        }
         let artifacts = self.artifact_reader(context);
         let graph = match artifacts.module_graph_reader(profile) {
             Ok(graph) => graph,
@@ -139,6 +143,7 @@ impl Linter {
 
             let repository_module = self.module(revision, module)?;
             if repository_module.is_code() {
+                dependencies.require(ArtifactKey::dir_declared(module, profile));
                 dependencies.require(ArtifactKey::dir_checked(module, profile));
                 let checked = match artifacts.dir_checked(module, profile) {
                     Ok(checked) => checked,

@@ -286,7 +286,7 @@ impl Executor {
         let trace = run.trace();
 
         trace.span("run.await", || match self.execution {
-            Execution::Inline => self.run_inline(run, goal),
+            Execution::Inline => self.run_inline(run, tasks, goal),
             Execution::Threaded => self.scheduler.wait_until(|| {
                 if let Some(error) = run.error() {
                     return Err(error);

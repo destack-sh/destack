@@ -252,9 +252,9 @@ mod tests {
 
     use destack_artifact::{
         ArtifactDependency, ArtifactKey, ArtifactPayload, ArtifactProjection,
-        ArtifactProjectionKey, ArtifactVersion, Bundle, BundleFile, BundleMode, BundleSection,
-        DirExported, DiskBlobStore, EmitFormat, GlobalEnvironment, LanguageEnvironment,
-        SourceDependency,
+        ArtifactProjectionKey, ArtifactVersion, BuildId, Bundle, BundleFile, BundleMode,
+        BundleSection, DirExported, DiskBlobStore, EmitFormat, GlobalEnvironment,
+        LanguageEnvironment, SourceDependency,
     };
     use destack_dir::{GlobalSymbolId, LocalSymbolId};
     use destack_source::{
@@ -404,6 +404,7 @@ mod tests {
             )],
         );
         let key = ArtifactKey::bundle(package, target);
+
         repository
             .complete_artifact(
                 revision,
@@ -461,6 +462,7 @@ mod tests {
             tree: None,
         };
         let key = ArtifactKey::global_environment(profile);
+
         repository
             .complete_artifact(
                 revision,
@@ -940,6 +942,7 @@ mod tests {
             )],
         );
         let key = ArtifactKey::bundle(package, target);
+
         repository
             .complete_artifact(
                 revision,

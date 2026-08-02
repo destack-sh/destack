@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ArtifactDependency, ArtifactKey, ArtifactProjection, ArtifactProjectionFingerprint,
-    ArtifactVersion, SourceDependency,
+    ArtifactVersion, BuildId, SourceDependency,
 };
 
 /// Deterministic fingerprint of one artifact's observed inputs.
@@ -32,7 +32,7 @@ impl ArtifactFingerprint {
     /// Create one artifact fingerprint from the key, build, and dependency observations.
     pub(crate) fn new(
         key: ArtifactKey,
-        build_fingerprint: &str,
+        build_id: BuildId,
         dependencies: impl IntoIterator<Item = ArtifactDependency>,
     ) -> Self {
         // artifact dependency identities are a set
@@ -46,9 +46,9 @@ impl ArtifactFingerprint {
         // stable fingerprint stream
         let mut hasher = StableHasher::new();
 
-        hasher.update_len_prefixed(b"destack.artifact.inputs.v1");
+        hasher.update_len_prefixed(b"destack.artifact.inputs.v3");
         key.hash(&mut hasher);
-        hasher.update_len_prefixed(build_fingerprint.as_bytes());
+        hasher.update(build_id.as_bytes());
         hasher.update(&(dependencies.len() as u64).to_le_bytes());
         for dependency in &dependencies {
             dependency.hash(&mut hasher);

@@ -165,7 +165,7 @@ impl Indexer {
                     self.module_index_context(&artifacts, module_id, profile_id, &checked)?;
 
                 match kind {
-                    IndexKind::Members => ModuleIndex::Members(MemberIndexer::build(&module)),
+                    IndexKind::Members => ModuleIndex::Members(MemberIndexer::build(&module)?),
                     IndexKind::References => {
                         ModuleIndex::References(ReferenceIndexer::build(&module)?)
                     }

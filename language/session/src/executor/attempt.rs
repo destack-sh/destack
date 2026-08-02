@@ -31,6 +31,8 @@ pub(crate) struct ProviderAttempt {
     sidecars: Mutex<Vec<ArtifactSidecar>>,
     /// The dependencies read during provider execution.
     reads: Mutex<Vec<ArtifactDependency>>,
+    /// The artifact reads blocked during dependency collection.
+    blocked: Mutex<Vec<ArtifactKey>>,
     /// The recorder for this artifact attempt, when the run is timed.
     recorder: Option<Arc<ArtifactAttemptRecorder>>,
 }
@@ -47,6 +49,7 @@ impl ProviderAttempt {
             diagnostics: Mutex::new(Vec::new()),
             sidecars: Mutex::new(Vec::new()),
             reads: Mutex::new(Vec::new()),
+            blocked: Mutex::new(Vec::new()),
             recorder: None,
         }
     }
@@ -273,10 +276,22 @@ impl DiagnosticContext for ProviderAttempt {
     }
 }
 
+impl ProviderAttempt {
+    /// Drain the artifact reads blocked during dependency collection.
+    pub(super) fn take_blocked(&self) -> Vec<ArtifactKey> {
+        std::mem::take(&mut self.blocked.lock())
+    }
+}
+
 impl ProviderContext for ProviderAttempt {
     /// Record one dependency read during provider execution.
     fn observe(&self, dependency: ArtifactDependency) {
         self.reads.lock().push(dependency);
+    }
+
+    /// Record one blocked artifact read during dependency collection.
+    fn record_blocked(&self, artifact_key: ArtifactKey) {
+        self.blocked.lock().push(artifact_key);
     }
 
     /// Return the pinned repository revision for this attempt.

@@ -707,6 +707,8 @@ pub struct NewtypeDefinition {
     pub is_tagged: bool,
     /// The written Tagged derive options, recorded while declaring.
     pub tagged_options: Option<TaggedOptionsDefinition>,
+    /// The constructable backing alternatives in selection order.
+    pub constructors: Vec<NewtypeConstructor>,
     /// The property discriminating derived Tagged variants, filled while checking.
     pub discriminator: Option<StaticKey>,
     /// The members in declaration order.

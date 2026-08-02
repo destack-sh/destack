@@ -1,25 +1,39 @@
-use std::ops::Deref;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, OnceLock};
 
-use destack_artifact::{ArtifactKey, IndexKind, ModuleIndex, PackageNode, ProgramIndex};
+use destack_artifact::{
+    ArtifactKey, GlobalEnvironment, IndexKind, ModuleIndex, PackageNode, ProgramIndex,
+};
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProviderError, Repository, RepositoryError, Revision};
 use destack_source::{ModuleId, PackageId, ProfileId};
+use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
 
 use crate::{Module, ModuleQueryContext, QueryError, QueryMethod, QueryResult};
 
 /// Query context anchored to a program revision.
 pub struct ProgramQueryContext<'a> {
-    /// Shared semantic access for this program.
-    query: QueryContext<'a>,
+    /// The repository used for this query.
+    repository: &'a Repository,
+    /// The revision used for this query.
+    revision: Revision,
+    /// The profile used for module artifacts.
+    profile_id: ProfileId,
+    /// Module ids in stable program order.
+    module_ids: Box<[ModuleId]>,
+    /// Module contexts read by this query.
+    modules: Mutex<FxHashMap<ModuleId, Arc<ModuleQueryContext<'a>>>>,
+    /// Exact artifact requirements for actual query reads.
+    require_artifacts: &'a dyn Fn(&[ArtifactKey]) -> QueryResult<()>,
     /// Lazily built package import-resolution nodes.
     package_nodes: Mutex<FxHashMap<PackageId, Arc<PackageNode>>>,
+    /// Lazily read compiler language and global bindings.
+    global_environment: OnceLock<Result<Arc<GlobalEnvironment>, ProviderError>>,
     /// Lazily read program indexes by family.
     program_indexes: [OnceLock<Result<Arc<ProgramIndex>, ProviderError>>; IndexKind::ALL.len()],
     /// Lazily read module indexes by module and family.
     module_indexes:
-        Box<[[OnceLock<Result<Arc<ModuleIndex>, ProviderError>>; IndexKind::ALL.len()]]>,
+        OnceLock<Box<[[OnceLock<Result<Arc<ModuleIndex>, ProviderError>>; IndexKind::ALL.len()]]>>,
 }
 
 impl std::fmt::Debug for ProgramQueryContext<'_> {
@@ -44,8 +58,7 @@ impl<'a> ProgramQueryContext<'a> {
         method: QueryMethod,
     ) -> QueryResult<Vec<ArtifactKey>> {
         let mut artifacts = Vec::new();
-        let kinds = Self::index_kinds(method);
-        for kind in kinds {
+        for kind in Self::index_kinds(method) {
             artifacts.push(ArtifactKey::program_index(profile_id, *kind));
         }
 
@@ -176,7 +189,7 @@ impl<'a> ProgramQueryContext<'a> {
 
     /// Build the import-resolution node of one package for this program.
     pub(crate) fn package_node(&self, package: PackageId) -> QueryResult<Arc<PackageNode>> {
-        if let Some(node) = self.package_nodes.lock().unwrap().get(&package) {
+        if let Some(node) = self.package_nodes.lock().get(&package) {
             return Ok(Arc::clone(node));
         }
 
@@ -189,10 +202,7 @@ impl<'a> ProgramQueryContext<'a> {
             .package_node(revision, package, profile.conditions())?
             .ok_or_else(|| QueryError::missing(format!("package configuration: {package:?}")))?;
         let node = Arc::new(node);
-        self.package_nodes
-            .lock()
-            .unwrap()
-            .insert(package, Arc::clone(&node));
+        self.package_nodes.lock().insert(package, Arc::clone(&node));
 
         Ok(node)
     }
@@ -381,15 +391,23 @@ impl<'a> ProgramQueryContext<'a> {
         module_ids.sort_unstable();
         module_ids.dedup();
         Ok(Self {
-            query,
+            repository,
+            revision,
+            profile_id,
+            module_ids: module_ids.into_boxed_slice(),
+            modules: Mutex::new(FxHashMap::default()),
+            require_artifacts,
             package_nodes: Mutex::new(FxHashMap::default()),
+            global_environment: OnceLock::new(),
             program_indexes: std::array::from_fn(|_| OnceLock::new()),
-            module_indexes,
+            module_indexes: OnceLock::new(),
         })
     }
 
     /// Read one exact program index artifact.
     fn program_index(&self, kind: IndexKind) -> QueryResult<&ProgramIndex> {
+        let artifact = ArtifactKey::program_index(self.profile_id(), kind);
+        (self.require_artifacts)(&[artifact])?;
         let index = self.program_indexes[kind.ordinal()].get_or_init(|| {
             let artifacts = ArtifactReader::new(self.repository(), self.revision());
 
@@ -404,6 +422,9 @@ impl<'a> ProgramQueryContext<'a> {
 
     /// Read one exact module index artifact.
     fn module_index(&self, module_id: ModuleId, kind: IndexKind) -> QueryResult<&ModuleIndex> {
+        // require the exact module index before reading its payload
+        let artifact = ArtifactKey::module_index(module_id, self.profile_id(), kind);
+        (self.require_artifacts)(&[artifact])?;
         let kind_ordinal = kind.ordinal();
         let ordinal = self.module_ordinal(module_id)?;
         let module_indexes = self.module_indexes.get_or_init(|| {
