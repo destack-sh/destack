@@ -81,6 +81,7 @@ declare const values: [int32; 1];
 /// @type.node source=value type=int32
 /// @resolution.pattern.assign source="value = fallback" kind=default pattern=value value=expression
 /// @resolution.pattern.assign source=value kind=place
+/// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=fallback type=int32
 /// @resolution.name source=fallback target=fallback

@@ -711,19 +711,28 @@ impl BodyState<'_, '_> {
         target_type: dir::GlobalTypeId,
         members: &[DeclaredMember],
     ) -> CompilerResult<Answer<Option<Vec<MemberCandidate>>>> {
-        // specialize parameters determined by the receiver target
+        // specialize parameters from the exact receiver or its lookup subject
         let substitution = match template {
             Some(template) => {
                 let parameters = self.generic_template_parameters(template)?;
                 let mut substitution = TypeSubstitution::default();
-                let pairs = [(target_type, subject)];
+                let receiver_pair = [(target_type, receiver)];
                 if !answer!(self.extend_generic_substitution(
                     origin,
                     &parameters,
                     &mut substitution,
-                    &pairs,
+                    &receiver_pair,
                 )?) {
-                    return Ok(Answer::Ready(None));
+                    substitution = TypeSubstitution::default();
+                    let subject_pair = [(target_type, subject)];
+                    if !answer!(self.extend_generic_substitution(
+                        origin,
+                        &parameters,
+                        &mut substitution,
+                        &subject_pair,
+                    )?) {
+                        return Ok(Answer::Ready(None));
+                    }
                 }
 
                 substitution
@@ -731,6 +740,13 @@ impl BodyState<'_, '_> {
             None => TypeSubstitution::default(),
         };
         let substitution = substitution.with_receiver(receiver);
+
+        // require the extension declaration's substituted constraints
+        if let Some(template) = template
+            && !answer!(self.decide_substitution_constraints(origin, template, &substitution)?)
+        {
+            return Ok(Answer::Ready(None));
+        }
 
         let candidates = answer!(self.extension_member_candidates(
             origin,

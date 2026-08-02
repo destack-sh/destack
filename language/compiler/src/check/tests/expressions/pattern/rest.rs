@@ -9,7 +9,7 @@ declare const values: int32[];
 let [head, ...tail] = values;
 
 head satisfies int32;
-tail satisfies int32[];
+tail satisfies ^int32[];
 "#,
     );
 
@@ -23,7 +23,7 @@ declare const values: int32[];
 let [head, ...tail] = values;
 
 head satisfies int32;
-tail satisfies int32[];
+tail satisfies ^int32[];
 
 === checked ===
 declare const values: int32[];
@@ -34,7 +34,7 @@ let [head, ...tail] = values;
 /// @resolution.pattern source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
 /// @type.symbol symbol=head source=head type=int32
 /// @resolution.pattern source=head kind=binding target=head
-/// @type.symbol symbol=tail source=tail type=Array<int32>
+/// @type.symbol symbol=tail source=tail type=Owned<Array<int32>>
 /// @resolution.pattern source=tail kind=binding target=tail
 /// @type.node source=values type=Array<int32>
 /// @resolution.name source=values target=values
@@ -47,12 +47,16 @@ head satisfies int32;
 /// @resolution.place source=head placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=head root=head
 
-tail satisfies int32[];
-/// @type.node source="tail satisfies int32[]" type=Array<int32>
-/// @type.node source=tail type=Array<int32>
+tail satisfies ^int32[];
+/// @type.node source="tail satisfies ^int32[]" type=Owned<Array<int32>>
+/// @type.node source=tail type=Owned<Array<int32>>
 /// @resolution.name source=tail target=tail
 /// @resolution.place source=tail placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=tail root=tail
+/// @generic.instance source="tail satisfies ^int32[]" id=Array<int32>
+/// @generic.instance source=tail id=Array<int32>
+
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 "#,
     );
 }

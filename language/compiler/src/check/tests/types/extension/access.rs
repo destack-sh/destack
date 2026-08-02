@@ -318,17 +318,17 @@ export extension FixedArrayAccess<T, comptime N: number, comptime A: Access = "r
 
         this.view()
         /// @type.node source=this type=WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A> reduced=Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.'a, A>
-        /// @type.node source=this.view type=<FixedArrayAccess.view.'a>(this: WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>) => int32 & <comptime collections.array.view.A#1: Access = "readonly", collections.array.view#1.'a>(this: WithAccess<&collections.array.view#1.'a FixedArray<T, N>, collections.array.view.A#1>, usize, usize | undefined?) => WithAccess<&collections.array.view#1.'a Slice<T>, collections.array.view.A#1> reduced=<FixedArrayAccess.view.'a>(this: Borrowed<FixedArray<T, N>, FixedArrayAccess.view.'a, A>) => int32 & <comptime collections.array.view.A#1: Access = "readonly", collections.array.view#1.'a>(this: Borrowed<FixedArray<T, N>, collections.array.view#1.'a, collections.array.view.A#1>, usize, usize | undefined?) => Borrowed<Slice<T>, collections.array.view#1.'a, collections.array.view.A#1>
+        /// @type.node source=this.view type=<FixedArrayAccess.view.'a>(this: WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>) => int32 & <comptime collections.fixed-array.view.A: Access = "readonly", collections.fixed-array.view.'a>(this: WithAccess<&collections.fixed-array.view.'a FixedArray<T, N>, collections.fixed-array.view.A>, usize, usize | undefined?) => WithAccess<&collections.fixed-array.view.'a Slice<T>, collections.fixed-array.view.A> reduced=<FixedArrayAccess.view.'a>(this: Borrowed<FixedArray<T, N>, FixedArrayAccess.view.'a, A>) => int32 & <comptime collections.fixed-array.view.A: Access = "readonly", collections.fixed-array.view.'a>(this: Borrowed<FixedArray<T, N>, collections.fixed-array.view.'a, collections.fixed-array.view.A>, usize, usize | undefined?) => Borrowed<Slice<T>, collections.fixed-array.view.'a, collections.fixed-array.view.A>
         /// @type.node source=this.view() type=int32
-        /// @resolution.member source=this.view receiver=Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.'a, A> type=<FixedArrayAccess.view.'a>(this: WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>) => int32 & <comptime collections.array.view.A#1: Access = "readonly", collections.array.view#1.'a>(this: WithAccess<&collections.array.view#1.'a FixedArray<T, N>, collections.array.view.A#1>, usize, usize | undefined?) => WithAccess<&collections.array.view#1.'a Slice<T>, collections.array.view.A#1> kind=existential targets=[FixedArrayAccess.view, collections.array.view#1]
+        /// @resolution.member source=this.view receiver=Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.'a, A> type=<FixedArrayAccess.view.'a>(this: WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>) => int32 & <comptime collections.fixed-array.view.A: Access = "readonly", collections.fixed-array.view.'a>(this: WithAccess<&collections.fixed-array.view.'a FixedArray<T, N>, collections.fixed-array.view.A>, usize, usize | undefined?) => WithAccess<&collections.fixed-array.view.'a Slice<T>, collections.fixed-array.view.A> kind=existential targets=[FixedArrayAccess.view, collections.fixed-array.view]
         /// @resolution.call source=this.view() parameters=() return=int32 kind=symbol target=FixedArrayAccess.view receiver=Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.'a, A> instance="FixedArrayAccess<T, N, A>.view"
         /// @resolution.receiver source=this kind=this declaration=FixedArrayAccess type=WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A>
         /// @resolution.place source=this placement="local" lifetime=FixedArrayAccess.peek.'a access=A
         /// @resolution.access source=this root=this
         /// @generic.instance source=this id="WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A>"
         /// @generic.instance source=this.view id="WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>"
-        /// @generic.instance source=this.view id="WithAccess<&collections.array.view#1.'a FixedArray<T, N>, collections.array.view.A#1>"
-        /// @generic.instance source=this.view id="WithAccess<&collections.array.view#1.'a Slice<T>, collections.array.view.A#1>"
+        /// @generic.instance source=this.view id="WithAccess<&collections.fixed-array.view.'a FixedArray<T, N>, collections.fixed-array.view.A>"
+        /// @generic.instance source=this.view id="WithAccess<&collections.fixed-array.view.'a Slice<T>, collections.fixed-array.view.A>"
         /// @generic.instance source=this.view() id="FixedArrayAccess<T, N, A>.view"
 
     }
@@ -337,8 +337,8 @@ export extension FixedArrayAccess<T, comptime N: number, comptime A: Access = "r
 /// @generic.instance id="FixedArrayAccess<T, N, A>.view" template=FixedArrayAccess.view arguments=(T, N, A)
 /// @generic.instance id="WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A>" template=memory.type.WithAccess arguments=(&FixedArrayAccess.peek.'a FixedArray<T, N>, A)
 /// @generic.instance id="WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>" template=memory.type.WithAccess arguments=(&FixedArrayAccess.view.'a FixedArray<T, N>, A)
-/// @generic.instance id="WithAccess<&collections.array.view#1.'a FixedArray<T, N>, collections.array.view.A#1>" template=memory.type.WithAccess arguments=(&collections.array.view#1.'a FixedArray<T, N>, collections.array.view.A#1)
-/// @generic.instance id="WithAccess<&collections.array.view#1.'a Slice<T>, collections.array.view.A#1>" template=memory.type.WithAccess arguments=(&collections.array.view#1.'a Slice<T>, collections.array.view.A#1)
+/// @generic.instance id="WithAccess<&collections.fixed-array.view.'a FixedArray<T, N>, collections.fixed-array.view.A>" template=memory.type.WithAccess arguments=(&collections.fixed-array.view.'a FixedArray<T, N>, collections.fixed-array.view.A)
+/// @generic.instance id="WithAccess<&collections.fixed-array.view.'a Slice<T>, collections.fixed-array.view.A>" template=memory.type.WithAccess arguments=(&collections.fixed-array.view.'a Slice<T>, collections.fixed-array.view.A)
 "#,
     );
 }
@@ -412,9 +412,9 @@ export extension ArrayAccess<T, comptime A: Access = "readonly"> of Array<T> {
 
         this.view()
         /// @type.node source=this type=WithAccess<&ArrayAccess.peek.'a Array<T>, A> reduced=Borrowed<Array<T>, ArrayAccess.peek.'a, A>
-        /// @type.node source=this.view type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a Array<T>, A>) => int32 & <comptime collections.array.view.A#2: Access = "readonly", collections.array.view#2.'a>(this: WithAccess<&collections.array.view#2.'a Array<T>, collections.array.view.A#2>, usize, usize | undefined?) => WithAccess<&collections.array.view#2.'a Slice<T>, collections.array.view.A#2> reduced=<ArrayAccess.view.'a>(this: Borrowed<Array<T>, ArrayAccess.view.'a, A>) => int32 & <comptime collections.array.view.A#2: Access = "readonly", collections.array.view#2.'a>(this: Borrowed<Array<T>, collections.array.view#2.'a, collections.array.view.A#2>, usize, usize | undefined?) => Borrowed<Slice<T>, collections.array.view#2.'a, collections.array.view.A#2>
+        /// @type.node source=this.view type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a Array<T>, A>) => int32 & <comptime collections.array.view.A: Access = "readonly", collections.array.view.'a>(this: WithAccess<&collections.array.view.'a Array<T>, collections.array.view.A>, usize, usize | undefined?) => WithAccess<&collections.array.view.'a Slice<T>, collections.array.view.A> reduced=<ArrayAccess.view.'a>(this: Borrowed<Array<T>, ArrayAccess.view.'a, A>) => int32 & <comptime collections.array.view.A: Access = "readonly", collections.array.view.'a>(this: Borrowed<Array<T>, collections.array.view.'a, collections.array.view.A>, usize, usize | undefined?) => Borrowed<Slice<T>, collections.array.view.'a, collections.array.view.A>
         /// @type.node source=this.view() type=int32
-        /// @resolution.member source=this.view receiver=Borrowed<Array<T>, ArrayAccess.peek.'a, A> type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a Array<T>, A>) => int32 & <comptime collections.array.view.A#2: Access = "readonly", collections.array.view#2.'a>(this: WithAccess<&collections.array.view#2.'a Array<T>, collections.array.view.A#2>, usize, usize | undefined?) => WithAccess<&collections.array.view#2.'a Slice<T>, collections.array.view.A#2> kind=existential targets=[ArrayAccess.view, collections.array.view#2]
+        /// @resolution.member source=this.view receiver=Borrowed<Array<T>, ArrayAccess.peek.'a, A> type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a Array<T>, A>) => int32 & <comptime collections.array.view.A: Access = "readonly", collections.array.view.'a>(this: WithAccess<&collections.array.view.'a Array<T>, collections.array.view.A>, usize, usize | undefined?) => WithAccess<&collections.array.view.'a Slice<T>, collections.array.view.A> kind=existential targets=[ArrayAccess.view, collections.array.view]
         /// @resolution.call source=this.view() parameters=() return=int32 kind=symbol target=ArrayAccess.view receiver=Borrowed<Array<T>, ArrayAccess.peek.'a, A> instance="ArrayAccess<T, A>.view"
         /// @resolution.receiver source=this kind=this declaration=ArrayAccess type=WithAccess<&ArrayAccess.peek.'a Array<T>, A>
         /// @resolution.place source=this placement="local" lifetime=ArrayAccess.peek.'a access=A
@@ -422,8 +422,8 @@ export extension ArrayAccess<T, comptime A: Access = "readonly"> of Array<T> {
         /// @generic.instance source=this id="WithAccess<&ArrayAccess.peek.'a Array<T>, A>"
         /// @generic.instance source=this id=Array<T>
         /// @generic.instance source=this.view id="WithAccess<&ArrayAccess.view.'a Array<T>, A>"
-        /// @generic.instance source=this.view id="WithAccess<&collections.array.view#2.'a Array<T>, collections.array.view.A#2>"
-        /// @generic.instance source=this.view id="WithAccess<&collections.array.view#2.'a Slice<T>, collections.array.view.A#2>"
+        /// @generic.instance source=this.view id="WithAccess<&collections.array.view.'a Array<T>, collections.array.view.A>"
+        /// @generic.instance source=this.view id="WithAccess<&collections.array.view.'a Slice<T>, collections.array.view.A>"
         /// @generic.instance source=this.view id=Array<T>
         /// @generic.instance source=this.view() id="ArrayAccess<T, A>.view"
 
@@ -433,8 +433,8 @@ export extension ArrayAccess<T, comptime A: Access = "readonly"> of Array<T> {
 /// @generic.instance id="ArrayAccess<T, A>.view" template=ArrayAccess.view arguments=(T, A)
 /// @generic.instance id="WithAccess<&ArrayAccess.peek.'a Array<T>, A>" template=memory.type.WithAccess arguments=(&ArrayAccess.peek.'a Array<T>, A)
 /// @generic.instance id="WithAccess<&ArrayAccess.view.'a Array<T>, A>" template=memory.type.WithAccess arguments=(&ArrayAccess.view.'a Array<T>, A)
-/// @generic.instance id="WithAccess<&collections.array.view#2.'a Array<T>, collections.array.view.A#2>" template=memory.type.WithAccess arguments=(&collections.array.view#2.'a Array<T>, collections.array.view.A#2)
-/// @generic.instance id="WithAccess<&collections.array.view#2.'a Slice<T>, collections.array.view.A#2>" template=memory.type.WithAccess arguments=(&collections.array.view#2.'a Slice<T>, collections.array.view.A#2)
+/// @generic.instance id="WithAccess<&collections.array.view.'a Array<T>, collections.array.view.A>" template=memory.type.WithAccess arguments=(&collections.array.view.'a Array<T>, collections.array.view.A)
+/// @generic.instance id="WithAccess<&collections.array.view.'a Slice<T>, collections.array.view.A>" template=memory.type.WithAccess arguments=(&collections.array.view.'a Slice<T>, collections.array.view.A)
 /// @generic.instance id=Array<T> template=collections.array.Array arguments=(T)
 "#,
     );

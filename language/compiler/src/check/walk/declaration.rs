@@ -1021,12 +1021,12 @@ impl WalkState<'_, '_> {
         // expose members under the extended receiver
         let target_type = self.walk_type_expression(declaration.target_type)?;
         self.push_induced_parameter_site(induction, target_type);
-        let target = self.walk_extension_target(target_type)?;
+        let origin = Origin::Node(source, self.flow().template_scope());
+        let target = self.walk_extension_target(origin, target_type)?;
         let target_name = match &target {
             dir::ExtensionTarget::Rooted { root, .. } => self.check.format_symbol(*root),
             _ => self.check.format_type(target_type),
         };
-        let origin = Origin::Node(source, self.flow().template_scope());
         let ownership = match self.check.default_ownership(origin, target_type)? {
             Answer::Ready(ownership) => ownership,
             Answer::Pending(_) => {
@@ -1720,10 +1720,14 @@ impl WalkState<'_, '_> {
     /// Return one extension target from a walked target annotation.
     fn walk_extension_target(
         &mut self,
+        origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::ExtensionTarget> {
-        // root extensions under the same declaration used for member lookup
-        if let Some(instance) = self.check.apparent_instance(ty)? {
+        // prefer the concrete nominal beneath memory forms
+        let target_instance = self.check.apparent_instance(ty)?;
+        let chain = self.check.form_chain(origin, ty)?;
+        let value_instance = self.check.apparent_instance(chain.base())?;
+        if let Some(instance) = value_instance.or(target_instance) {
             let root = instance.symbol;
 
             return Ok(dir::ExtensionTarget::Rooted { root, ty });

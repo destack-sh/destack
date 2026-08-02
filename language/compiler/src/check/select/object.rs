@@ -559,6 +559,12 @@ impl BodyState<'_, '_> {
                     },
                     candidate,
                 )?);
+                // the owner's own getter must accept its own receiver
+                let Some(call) = call else {
+                    return Err(CompilerError::Internal {
+                        message: format!("getter {:?} rejects its own owner", candidate.symbol),
+                    });
+                };
 
                 let projection = dir::Projection::Call(Box::new(call));
 

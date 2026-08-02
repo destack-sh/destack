@@ -121,6 +121,21 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(true));
         }
 
+        // compare effective ownership before unqualified value types
+        if matches!(source_type, dir::Type::Form(_)) || matches!(target_type, dir::Type::Form(_)) {
+            let source_chain = self.form_chain(origin, source)?;
+            let target_chain = self.form_chain(origin, target)?;
+            let source_ownership = answer!(self.form_ownership(origin, &source_chain)?);
+            let target_ownership = answer!(self.form_ownership(origin, &target_chain)?);
+            if let (Some(source), Some(target)) = (source_ownership, target_ownership)
+                && source != target
+            {
+                return Ok(Answer::Ready(false));
+            }
+
+            return self.type_overlap(origin, source_chain.base(), target_chain.base(), active);
+        }
+
         // reject incompatible properties required by structural types
         if let dir::Type::Shape(shape) | dir::Type::Object(shape) = source_type
             && !answer!(self.shape_may_overlap(origin, source, shape, target, active)?)
@@ -135,29 +150,6 @@ impl CheckState<'_> {
 
         // compare known type constructors by their runtime inhabitants
         match (&source_type, &target_type) {
-            // compare owning forms by their value, and views only against other views
-            (dir::Type::Form(source_form), dir::Type::Form(target_form)) => {
-                if source_form.form.is_view() != target_form.form.is_view() {
-                    Ok(Answer::Ready(false))
-                } else {
-                    self.type_overlap(origin, source_form.value, target_form.value, active)
-                }
-            }
-            (dir::Type::Form(form), _) => {
-                if form.form.is_view() {
-                    Ok(Answer::Ready(false))
-                } else {
-                    self.type_overlap(origin, form.value, target, active)
-                }
-            }
-            (_, dir::Type::Form(form)) => {
-                if form.form.is_view() {
-                    Ok(Answer::Ready(false))
-                } else {
-                    self.type_overlap(origin, source, form.value, active)
-                }
-            }
-
             // variants preserve their member identity within the owner family
             (dir::Type::Variant(source), dir::Type::Variant(target)) => {
                 if source.variant != target.variant {

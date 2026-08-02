@@ -65,7 +65,7 @@ impl CheckState<'_> {
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let value = answer!(self.reduce_type_head(origin, value)?);
+        let value = answer!(self.strip_form(origin, value)?);
 
         // match untagged newtypes through their backing
         if answer!(self.variant_discriminant_domain(origin, value)?).is_none()
@@ -134,7 +134,7 @@ impl CheckState<'_> {
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<UncoveredValue>> {
-        let value = answer!(self.reduce_type_head(origin, value)?);
+        let value = answer!(self.strip_form(origin, value)?);
 
         // test untagged newtypes through their backing
         if let Answer::Ready(None) = self.variant_discriminant_domain(origin, value)?

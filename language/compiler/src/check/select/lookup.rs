@@ -555,7 +555,16 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(MemberLookup::Missing));
         };
 
-        self.lookup_symbol_member(origin, module, receiver, instance, space, key, extensions)
+        self.lookup_symbol_member(
+            origin,
+            module,
+            receiver,
+            lookup_type,
+            instance,
+            space,
+            key,
+            extensions,
+        )
     }
 
     /// Look up one static member on a declaration reference.
@@ -677,6 +686,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         module: ModuleId,
         receiver: dir::GlobalTypeId,
+        subject: dir::GlobalTypeId,
         instance: ApparentInstance,
         space: dir::MemberSpace,
         key: dir::StaticKey,
@@ -699,13 +709,11 @@ impl BodyState<'_, '_> {
 
         match extensions {
             ExtensionFilter::All => {
-                // extension targets name values, so receivers shed memory forms
-                let receiver = answer!(self.strip_form(origin, receiver)?);
                 let lookup = answer!(self.lookup_extension_member(
                     origin,
                     module,
                     receiver,
-                    receiver,
+                    subject,
                     instance.symbol,
                     space,
                     key
@@ -719,7 +727,7 @@ impl BodyState<'_, '_> {
                         return self.lookup_extension_member(
                             origin,
                             module,
-                            apparent,
+                            receiver,
                             apparent,
                             instance.symbol,
                             space,

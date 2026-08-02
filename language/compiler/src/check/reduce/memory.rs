@@ -112,13 +112,13 @@ impl CheckState<'_> {
         if !self.ty(source.base())?.is_placeable() {
             return Ok(Answer::Ready(None));
         }
-        // open source ownership waits for the type that determines its form
-        let Some(ownership) = answer!(self.form_ownership(origin, &source)?) else {
-            let blockers = self.variable_dependencies([source.base()])?;
-
-            return Ok(Answer::ready_unless_blocked(None, blockers));
-        };
-        if !matches!(ownership, dir::Ownership::Managed | dir::Ownership::Owned) {
+        // explicit borrowed and raw values reborrow through the receiver ladder
+        if source.ownership_form().is_some_and(|form| {
+            matches!(
+                form.form.ownership(),
+                Some(dir::Ownership::Borrowed | dir::Ownership::Raw)
+            )
+        }) {
             return Ok(Answer::Ready(None));
         }
 

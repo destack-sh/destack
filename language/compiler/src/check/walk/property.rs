@@ -1076,9 +1076,8 @@ impl WalkState<'_, '_> {
 
     /// Synthesize the implicit receiver form shared by signature and body.
     ///
-    /// Value nominals receive this as an exclusive borrow at one induced
-    /// lifetime, the family's highest form; reference nominals keep the
-    /// managed value, so no form applies.
+    /// Getters receive readonly views, while other bare value receivers borrow exclusively.
+    /// Explicit receiver forms retain their declared form.
     fn implicit_receiver_form(
         &mut self,
         id: dir::LocalNodeId<dir::Member>,
@@ -1092,46 +1091,39 @@ impl WalkState<'_, '_> {
         if signature.this_parameter.is_some() || signature.is_constructor() {
             return Ok(None);
         }
-        // extension members classify through their target application
-        let declaration = match scope.declaration {
-            Some(declaration)
-                if matches!(
-                    self.check.symbol_kind(declaration)?,
-                    dir::SymbolKind::Extension
-                ) =>
-            {
-                match self.check.ty(scope.ty)? {
-                    dir::Type::Application(instance) => Some(instance.symbol),
-                    _ => None,
-                }
-            }
-            other => other,
-        };
-        let is_value_family = match declaration {
-            // read foreign kinds from their module's bound table
-            Some(declaration) if !self.check.is_own_module(declaration.module_id) => {
-                matches!(
-                    self.check.external_binder_kind(declaration),
-                    dir::SymbolKind::Struct | dir::SymbolKind::Enum
-                )
-            }
-            Some(declaration) => matches!(
-                self.check.symbol_kind(declaration)?,
-                dir::SymbolKind::Struct | dir::SymbolKind::Enum
-            ),
-            None => false,
-        };
-        if !is_value_family {
+
+        // preserve every explicitly written receiver form
+        let origin = Origin::Node(
+            id.into_global_any(self.module),
+            self.flow().template_scope(),
+        );
+        let chain = self.check.form_chain(origin, scope.ty)?;
+        if chain.ownership_form().is_some() || chain.is_readonly() {
             return Ok(None);
         }
 
-        // borrow at one induced receiver lifetime; getters only read
-        let access = match signature.role {
-            Some(dir::FunctionRole::Getter) => dir::Access::Readonly,
-            _ => dir::Access::Exclusive,
-        };
+        // readonly getters retain managed ownership or borrow value storage
+        if signature.role == Some(dir::FunctionRole::Getter) {
+            if scope.ownership == Some(dir::Ownership::Managed) {
+                return Ok(Some(dir::Form::Readonly));
+            }
+
+            let lifetime = self.generated_receiver_borrow_lifetime(id.into_any())?;
+            let access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
+                dir::Access::Readonly,
+            )))?;
+
+            return Ok(Some(self.intern_borrow(lifetime, access)?));
+        }
+
+        // bare value methods borrow exclusively
+        if scope.ownership != Some(dir::Ownership::Owned) {
+            return Ok(None);
+        }
         let lifetime = self.generated_receiver_borrow_lifetime(id.into_any())?;
-        let access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(access)))?;
+        let access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
+            dir::Access::Exclusive,
+        )))?;
 
         Ok(Some(self.intern_borrow(lifetime, access)?))
     }

@@ -408,13 +408,13 @@ match (status) {
 }
 
 #[test]
-fn test_variant_pattern_participates_in_exhaustiveness() {
+fn test_match_borrowed_variant_exhaustively() {
     let session = TestSession::single(
         r#"
 @derive(Tagged)
 newtype Status = Ok<string> | Err<int32>;
 
-declare const status: Status;
+declare const status: &readonly Status;
 
 const label = match (status) {
     Status.Ok(value) => "ok"
@@ -431,7 +431,7 @@ const label = match (status) {
 @derive(Tagged)
 newtype Status = Ok<string> | Err<int32>;
 
-declare const status: Status;
+declare const status: &'static readonly Status;
 
 const label: "ok" | "err" = match (status) {
     Status.Ok(value) => "ok"
@@ -455,8 +455,8 @@ newtype Status = Ok<string> | Err<int32>;
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 
-declare const status: Status;
-/// @type.symbol symbol=status source=status type=Status
+declare const status: &readonly Status;
+/// @type.symbol symbol=status source=status type=&'static readonly Status
 /// @resolution.pattern source=status kind=binding target=status
 /// @resolution.name source=Status target=Status
 
@@ -464,9 +464,9 @@ const label = match (status) {
 /// @type.symbol symbol=label source=label type="ok" | "err"
 /// @resolution.pattern source=label kind=binding target=label
 /// @type.node type="ok" | "err"
-/// @type.node source=status type=Status
+/// @type.node source=status type=&'static readonly Status
 /// @resolution.name source=status target=status
-/// @resolution.place source=status placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=status placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=status root=status
 
     Status.Ok(value) => "ok"

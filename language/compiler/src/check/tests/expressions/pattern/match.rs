@@ -158,6 +158,7 @@ switch (selected) {
     /// @type.node source="observed = 1" type=1
     /// @type.node source=observed type=int32
     /// @resolution.pattern.assign source=observed kind=place
+    /// @resolution.access source=observed root=observed
     /// @resolution.assignment source=observed write=binding(observed) type=int32
     /// @type.node source=1 type=1
     /// @type.node source=break type=never
@@ -1111,6 +1112,7 @@ class User {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.name kind=place
+        /// @resolution.access source=this.name root=this keys=[name]
         /// @resolution.assignment source=this.name write="receiver=User, target=field(receiver=User, target=User.name, type=string), type=string" type=string
         /// @type.node source=name type=string
         /// @resolution.name source=name target=User.constructor.name
@@ -1156,7 +1158,7 @@ declare const values: int32[];
 match (values) {
     [head, ...tail] => {
         head satisfies int32;
-        tail satisfies int32[];
+        tail satisfies ^int32[];
     }
 }
 "#,
@@ -1172,7 +1174,7 @@ declare const values: int32[];
 match (values) {
     [head, ...tail] => {
         head satisfies int32;
-        tail satisfies int32[];
+        tail satisfies ^int32[];
     }
 }
 
@@ -1191,7 +1193,7 @@ match (values) {
     /// @resolution.pattern source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
     /// @type.symbol symbol=head source=head type=int32
     /// @resolution.pattern source=head kind=binding target=head
-    /// @type.symbol symbol=tail source=tail type=Array<int32>
+    /// @type.symbol symbol=tail source=tail type=Owned<Array<int32>>
     /// @resolution.pattern source=tail kind=binding target=tail
 
         head satisfies int32;
@@ -1201,15 +1203,19 @@ match (values) {
         /// @resolution.place source=head placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=head root=head
 
-        tail satisfies int32[];
-        /// @type.node source="tail satisfies int32[]" type=Array<int32>
-        /// @type.node source=tail type=Array<int32>
+        tail satisfies ^int32[];
+        /// @type.node source="tail satisfies ^int32[]" type=Owned<Array<int32>>
+        /// @type.node source=tail type=Owned<Array<int32>>
         /// @resolution.name source=tail target=tail
         /// @resolution.place source=tail placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=tail root=tail
+        /// @generic.instance source="tail satisfies ^int32[]" id=Array<int32>
+        /// @generic.instance source=tail id=Array<int32>
 
     }
 }
+
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 "#,
     );
 }

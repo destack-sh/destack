@@ -150,6 +150,7 @@ class Counter {
         /// @resolution.place source=this placement="local" lifetime=Counter.increment.'a access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.assignment source=this.value write="receiver=&Counter.increment.'a exclusive Counter, target=field(receiver=&Counter.increment.'a exclusive Counter, target=Counter.value, type=int32), type=int32" type=int32
         /// @resolution.member source=this.value receiver=&Counter.increment.'a exclusive Counter type=int32 kind=field target_receiver=&Counter.increment.'a exclusive Counter key=value target=Counter.value target_type=int32
         /// @resolution.operator source="this.value + 1" type=int32 operator="+" kind=builtin operands=[this.value as int32 families=(integer), 1 as int32 families=(integer)]
@@ -409,6 +410,7 @@ struct Point {
         /// @resolution.place source=this placement="local" lifetime=Point.scale.'a access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.x kind=place
+        /// @resolution.access source=this.x root=this keys=[x]
         /// @resolution.assignment source=this.x write="receiver=&Point.scale.'a exclusive Point, target=field(receiver=&Point.scale.'a exclusive Point, target=Point.x, type=int32), type=int32" type=int32
         /// @resolution.member source=this.x receiver=&Point.scale.'a exclusive Point type=int32 kind=field target_receiver=&Point.scale.'a exclusive Point key=x target=Point.x target_type=int32
         /// @resolution.operator source="this.x * by" type=int32 operator="*" kind=builtin operands=[this.x as int32 families=(integer), by as int32 families=(integer)]
@@ -597,6 +599,136 @@ function measure(point: readonly Point): int32 {
     /// @resolution.call source=point.length() parameters=() return=int32 kind=symbol target=Point.length receiver=Readonly<Point> adjustments=(Readonly<Point> => direct -> Point, borrow(&'frame readonly Point))
     /// @resolution.place source=point placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=point root=measure.point
+
+}
+"#,
+    );
+}
+
+#[test]
+fn test_default_value_getter_borrows_readonly() {
+    let session = TestSession::single(
+        r#"
+struct Counter {
+    value: int32;
+
+    get current(): int32 {
+        this.value
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Counter {
+    value: int32;
+
+    get current(): int32 {
+        this.value
+    }
+}
+
+=== checked ===
+struct Counter {
+/// @type.symbol symbol=Counter type=Counter
+/// @definition.struct symbol=Counter
+/// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
+/// @definition.method symbol=Counter.current slot=current role=getter type=<Counter.current.'a>(this: &Counter.current.'a readonly this) => int32
+
+    value: int32;
+    /// @type.symbol symbol=Counter.value source="value: int32" type=int32
+
+    get current(): int32 {
+    /// @generic.template symbol=Counter.current parameters=('a)
+    /// @type.symbol symbol=Counter.current type=<Counter.current.'a>(this: &Counter.current.'a readonly this) => int32
+
+        this.value
+        /// @resolution.member source=this.value receiver=&Counter.current.'a readonly Counter type=int32 kind=field target_receiver=&Counter.current.'a readonly Counter key=value target=Counter.value target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.current.'a readonly Counter
+        /// @resolution.place source=this placement="local" lifetime=Counter.current.'a access="readonly"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.value placement="local" lifetime=Counter.current.'a access="readonly"
+        /// @resolution.access source=this.value root=this keys=[value]
+
+    }
+}
+"#,
+    );
+}
+
+#[test]
+fn test_default_managed_getter_reads_through_readonly_view() {
+    let session = TestSession::single(
+        r#"
+class Counter {
+    value: int32 = 0;
+
+    get current(): int32 {
+        this.value
+    }
+}
+
+function read(counter: readonly Counter): int32 {
+    return counter.current;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Counter {
+    value: int32 = 0;
+
+    get current(): int32 {
+        this.value
+    }
+}
+
+function read(counter: readonly Counter): int32 {
+    return counter.current;
+}
+
+=== checked ===
+class Counter {
+/// @type.symbol symbol=Counter type=Counter
+/// @definition.class symbol=Counter
+/// @definition.field symbol=Counter.value source="value: int32 = 0" key=value type=int32
+/// @definition.method symbol=Counter.current slot=current role=getter type=(this: Readonly<this>) => int32
+
+    value: int32 = 0;
+    /// @type.symbol symbol=Counter.value source="value: int32 = 0" type=int32
+
+    get current(): int32 {
+    /// @type.symbol symbol=Counter.current type=(this: Readonly<this>) => int32
+
+        this.value
+        /// @resolution.member source=this.value receiver=Readonly<Counter> type=int32 kind=field target_receiver=Readonly<Counter> key=value target=Counter.value target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Readonly<Counter>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="readonly"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.value placement="local" lifetime="frame" access="readonly"
+        /// @resolution.access source=this.value root=this keys=[value]
+
+    }
+}
+
+function read(counter: readonly Counter): int32 {
+/// @type.symbol symbol=read type=(Readonly<Counter>) => int32
+/// @type.symbol symbol=read.counter source="counter: readonly Counter" type=Readonly<Counter>
+/// @resolution.name source=Counter target=Counter
+
+    return counter.current;
+    /// @resolution.name source=counter target=read.counter
+    /// @resolution.member source=counter.current receiver=Readonly<Counter> type=int32 kind=call target="Counter.current(parameters=(), arguments=(), return=int32)"
+    /// @resolution.place source=counter placement="local" lifetime="frame" access="readonly"
+    /// @resolution.access source=counter root=read.counter
 
 }
 "#,
