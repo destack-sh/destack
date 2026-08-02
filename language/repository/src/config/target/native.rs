@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use destack_artifact::{TargetAbi, TargetArch, TargetVendor};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -12,12 +11,6 @@ use serde::{Deserialize, Serialize};
 pub struct TargetNativeOptions {
     /// Native output shape.
     pub output: NativeOutputKind,
-    /// Target architecture for native codegen.
-    pub arch: Option<TargetArch>,
-    /// Target vendor for native codegen.
-    pub vendor: Option<TargetVendor>,
-    /// Target ABI for native codegen.
-    pub abi: Option<TargetAbi>,
     /// CPU name for native codegen.
     pub cpu: Option<String>,
     /// CPU feature flags for native codegen.

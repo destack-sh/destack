@@ -87,9 +87,9 @@ pub(crate) fn profile_key_for_target(
     Ok(ProfileKey {
         output,
         conditions,
-        target_arch: target.native.arch.clone(),
-        target_vendor: target.native.vendor.clone(),
-        target_abi: target.native.abi.clone(),
+        architecture: target.architecture.clone(),
+        vendor: target.vendor.clone(),
+        abi: target.abi.clone(),
         globals,
         tree,
         derive,

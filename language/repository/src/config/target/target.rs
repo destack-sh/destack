@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use destack_artifact::{Code, Host, Output, Platform, Runtime, TargetAbi, TargetVendor};
+use destack_artifact::{
+    Code, Host, Output, Platform, Runtime, TargetAbi, TargetArch, TargetVendor,
+};
 use destack_serde::Reflect;
 use destack_source::TargetId;
 use serde::{Deserialize, Serialize};
@@ -38,6 +40,12 @@ pub struct Target {
     pub output: Output,
     /// Executable representations included in a Program artifact.
     pub code: Vec<Code>,
+    /// Target architecture.
+    pub architecture: Option<TargetArch>,
+    /// Target vendor.
+    pub vendor: Option<TargetVendor>,
+    /// Target application binary interface.
+    pub abi: Option<TargetAbi>,
     /// Target operating system.
     pub platform: Platform,
     /// Target host environment.
@@ -76,6 +84,9 @@ impl Target {
             policy: Policy::default(),
             output,
             code,
+            architecture: None,
+            vendor: None,
+            abi: None,
             platform: Platform::Unknown,
             host,
             conditions: TargetConditionSet::default(),
@@ -132,6 +143,7 @@ impl Target {
     /// Create a target with WASM output for JavaScript hosts.
     pub fn wasm_js() -> Self {
         let mut target = Self::new(Output::Program, vec![Code::Wasm], Host::Browser);
+        target.architecture = Some(TargetArch::Wasm32);
         target.compiler.optimize = OptimizeLevel::O2;
 
         target
@@ -140,6 +152,7 @@ impl Target {
     /// Create a target with WASM output for WASI.
     pub fn wasm_wasi() -> Self {
         let mut target = Self::new(Output::Program, vec![Code::Wasm], Host::Wasi);
+        target.architecture = Some(TargetArch::Wasm32);
         target.compiler.optimize = OptimizeLevel::O2;
 
         target
@@ -298,26 +311,25 @@ impl Target {
 
     /// Resolve a target triple string from the target configuration.
     pub fn resolved_target_triple(&self) -> Option<String> {
-        let target_arch = self.native.arch.as_ref()?;
+        let architecture = self.architecture.as_ref()?;
         let os = self
             .platform
             .triple_os_component()
-            .or_else(|| self.host.triple_system_component())?;
+            .or_else(|| self.host.triple_system_component())
+            .unwrap_or("unknown");
 
         let vendor = self
-            .native
             .vendor
             .clone()
             .unwrap_or_else(|| TargetVendor::default_for_platform(self.platform));
         let env = self
-            .native
             .abi
             .clone()
             .or_else(|| TargetAbi::default_for_platform(self.platform));
 
         let mut triple = format!(
             "{}-{}-{os}",
-            target_arch.triple_component(),
+            architecture.triple_component(),
             vendor.triple_component()
         );
         if let Some(env) = env {
