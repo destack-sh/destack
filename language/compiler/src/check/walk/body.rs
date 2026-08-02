@@ -7,20 +7,7 @@ use crate::check::{
 };
 use crate::{CompilerError, CompilerResult};
 
-impl CheckState<'_> {
-    /// Return whether the declared stage declares one symbol.
-    pub(in crate::check) fn current_stage_declares(&self, symbol: dir::GlobalSymbolId) -> bool {
-        let Some(module) = self.module_maybe(symbol.module_id) else {
-            return false;
-        };
-        if module.declared.is_none() {
-            return false;
-        }
-
-        module.types.get_symbol_type_id(symbol).is_some()
-            || module.definitions.definition(symbol).is_some()
-    }
-}
+impl CheckState<'_> {}
 
 impl WalkState<'_, '_> {
     /// Visit one module root, walking only the bodies the checking pass owns.

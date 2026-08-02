@@ -329,55 +329,6 @@ impl WalkState<'_, '_> {
         walked
     }
 
-    /// Walk one applied type declaration before its application builds.
-    pub(in crate::check) fn demand_symbol_declaration(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<()> {
-        // declared rows already cover the demanded declaration
-        if self.check.current_stage_declares(symbol) {
-            return Ok(());
-        }
-
-        // load the foreign module the demand classifies against
-        if !self.check.is_own_module(symbol.module_id) {
-            self.check.import_external_module(symbol.module_id)?;
-        }
-
-        // demand only type declarations, entering foreign member frames
-        if !self.check.symbol_kind(symbol)?.is_type_definition() {
-            return Ok(());
-        }
-        if symbol.module_id != self.module {
-            return self.check.demand_module_declaration(symbol);
-        }
-        let Some(declaration) = self
-            .check
-            .module(self.module)
-            .symbol_declaration_node_maybe(symbol.local_id)
-        else {
-            return Ok(());
-        };
-        let node = declaration.into_global(self.module);
-
-        // wait for declarations still walking their structure
-        if self.check.walking_declarations.contains(&node) {
-            return Ok(());
-        }
-        if self.check.walked_declarations.contains(&node) {
-            return Ok(());
-        }
-
-        // walk the demanded declaration and induce its parameters
-        let Ok(id) = declaration.try_into_typed::<dir::Declaration>() else {
-            return Ok(());
-        };
-        self.walk_declaration(id, self.tree.get(id))?;
-        self.check.induce_signature_lifetimes()?;
-
-        Ok(())
-    }
-
     /// Walk one declaration's kind-specific structure.
     fn walk_declaration_kind(
         &mut self,

@@ -851,8 +851,10 @@ impl WalkState<'_, '_> {
             return self.apply_named_refinements(ty, applied);
         }
 
-        // walk the referenced declaration first, so induced parameters exist
-        self.demand_symbol_declaration(symbol)?;
+        // load foreign declarations before reading their templates
+        if !self.check.is_own_module(symbol.module_id) {
+            self.check.import_external_module(symbol.module_id)?;
+        }
 
         // reject positional arguments on non-generic declarations
         let Some(template) = self.check.symbol_template(symbol)? else {

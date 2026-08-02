@@ -1,8 +1,10 @@
 use std::slice::from_ref;
 
+use destack_artifact::DirResolved;
 use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
+use rustc_hash::FxHashMap;
 
 use crate::CompilerResult;
 use crate::check::{
@@ -52,34 +54,6 @@ impl CheckState<'_> {
         for root in &expanded.roots {
             walk.visit_expression_templates(*root, tree.get(*root), pass)?;
         }
-        walk.commit()?;
-
-        Ok(())
-    }
-
-    /// Walk one foreign member declaration on demand.
-    pub(in crate::check) fn demand_module_declaration(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<()> {
-        // demand needs every template walked; unloaded modules are sealed;
-        //  declaration-level cycles resolve inside the demanded frame
-        if !self.templates_ready || !self.is_own_module(symbol.module_id) {
-            return Ok(());
-        }
-
-        // skip symbols the declared stage already declares
-        if self.current_stage_declares(symbol) {
-            return Ok(());
-        }
-
-        let input = self.module(symbol.module_id);
-        let parsed = input.parsed.clone();
-        let expanded = input.expanded.clone();
-        let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
-
-        let mut walk = WalkState::new(symbol.module_id, tree, self);
-        walk.demand_symbol_declaration(symbol)?;
         walk.commit()?;
 
         Ok(())
@@ -359,9 +333,10 @@ impl CheckState<'_> {
         let expanded = input.expanded.clone();
         let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
 
-        // walk and queue expanded module roots
+        // walk and queue module roots, referenced declarations first
+        let roots = ordered_roots(&input.resolved, &input.bindings, &tree, &expanded.roots);
         let mut walk = WalkState::new(module, tree, self);
-        for root in &expanded.roots {
+        for root in &roots {
             match tree.get(*root) {
                 dir::Expression::Declaration(declaration) => {
                     let declaration = *declaration;
@@ -438,4 +413,97 @@ impl WalkState<'_, '_> {
 
         Ok(())
     }
+}
+
+/// Return one module's roots with referenced declarations ordered first.
+///
+/// Reference edges come from the resolve stage: a root walks after the
+/// roots declaring the symbols it references, so induced parameters exist
+/// when applications reach them. Cyclic groups keep their source order.
+fn ordered_roots(
+    resolved: &DirResolved,
+    bindings: &dir::BindingTable<'_>,
+    tree: &dir::View<'_>,
+    roots: &[dir::LocalNodeId<dir::Expression>],
+) -> Vec<dir::LocalNodeId<dir::Expression>> {
+    // map each root to its ordinal for edge building
+    let mut ordinals = FxHashMap::default();
+    for (ordinal, root) in roots.iter().enumerate() {
+        ordinals.insert(root.id, ordinal);
+    }
+
+    // climb one node to the root that owns it
+    let owner = |node: u32| -> Option<usize> {
+        let mut current = node;
+        loop {
+            if let Some(ordinal) = ordinals.get(&current) {
+                return Some(*ordinal);
+            }
+            current = tree.get_parent_id(current)?;
+        }
+    };
+
+    // collect reference edges between distinct roots
+    let module = resolved.references.module_id;
+    let mut edges: Vec<FxIndexSet<usize>> = vec![FxIndexSet::default(); roots.len()];
+    for (node, reference) in &resolved.references.target_by_node {
+        let dir::Reference::Bound(symbols) = reference else {
+            continue;
+        };
+        let Some(consumer) = owner(node.local_id.id) else {
+            continue;
+        };
+        for symbol in symbols {
+            if symbol.module_id != module {
+                continue;
+            }
+            let declaration = bindings.get_symbol(symbol.local_id).declaration;
+            let Some(target) = declaration.and_then(|node| owner(node.local_id.id)) else {
+                continue;
+            };
+            if target != consumer {
+                edges[consumer].insert(target);
+            }
+        }
+    }
+
+    // emit referenced roots before their consumers in source order
+    let mut ordered = Vec::with_capacity(roots.len());
+    let mut states = vec![VisitState::Fresh; roots.len()];
+    let mut stack = Vec::new();
+    for start in 0..roots.len() {
+        if states[start] != VisitState::Fresh {
+            continue;
+        }
+        stack.push((start, 0));
+        while let Some((root, next)) = stack.pop() {
+            if states[root] == VisitState::Emitted {
+                continue;
+            }
+            states[root] = VisitState::Visiting;
+            if let Some(target) = edges[root].get_index(next) {
+                stack.push((root, next + 1));
+                if states[*target] == VisitState::Fresh {
+                    stack.push((*target, 0));
+                }
+
+                continue;
+            }
+            states[root] = VisitState::Emitted;
+            ordered.push(roots[root]);
+        }
+    }
+
+    ordered
+}
+
+/// The visit state of one root during dependency ordering.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum VisitState {
+    /// Not yet reached.
+    Fresh,
+    /// On the visit stack, cycles fall back to source order.
+    Visiting,
+    /// Emitted into the ordered list.
+    Emitted,
 }
