@@ -144,6 +144,50 @@ pub enum Instruction {
         destination: Value,
     },
 
+    // execution contexts
+    /// Load the current execution context.
+    ContextCurrent {
+        /// The SSA value to define with the current context.
+        destination: Value,
+    },
+    /// Replace the current execution context and return its previous value.
+    ContextReplace {
+        /// The SSA value to define with the previous context.
+        destination: Value,
+        /// The new current context.
+        context: Value,
+    },
+    /// Extend one execution context with a variable value.
+    ContextBind {
+        /// The SSA value to define with the extended context.
+        destination: Value,
+        /// The context to extend.
+        context: Value,
+        /// The context variable identity.
+        variable: Value,
+        /// The value to bind.
+        value: Value,
+        /// The physical context node type.
+        node_type: TypeId,
+        /// The result context type.
+        result_type: TypeId,
+    },
+    /// Load one variable value from an execution context.
+    ContextGet {
+        /// The SSA value to define with the selected value.
+        destination: Value,
+        /// The context to search.
+        context: Value,
+        /// The context variable identity.
+        variable: Value,
+        /// The value returned when the variable is unbound.
+        default: Value,
+        /// The physical context node type.
+        node_type: TypeId,
+        /// The result value type.
+        result_type: TypeId,
+    },
+
     // continuations
     /// Create one ready continuation for a coroutine invocation.
     ContinuationNew {
@@ -961,6 +1005,10 @@ impl Instruction {
             Instruction::FunctionBind { destination, .. } => Some(*destination),
             Instruction::FunctionEnvironment { destination, .. } => Some(*destination),
             Instruction::FunctionEnvironmentCurrent { destination, .. } => Some(*destination),
+            Instruction::ContextCurrent { destination, .. }
+            | Instruction::ContextReplace { destination, .. }
+            | Instruction::ContextBind { destination, .. }
+            | Instruction::ContextGet { destination, .. } => Some(*destination),
             Instruction::ContinuationNew { destination, .. } => Some(*destination),
             Instruction::ContinuationDestroy { .. }
             | Instruction::TaskPark { .. }
@@ -1068,6 +1116,20 @@ impl Instruction {
             Instruction::FunctionBind { environment, .. } => smallvec![*environment],
             Instruction::FunctionEnvironment { function, .. } => smallvec![*function],
             Instruction::FunctionEnvironmentCurrent { .. } => smallvec![],
+            Instruction::ContextCurrent { .. } => smallvec![],
+            Instruction::ContextReplace { context, .. } => smallvec![*context],
+            Instruction::ContextBind {
+                context,
+                variable,
+                value,
+                ..
+            } => smallvec![*context, *variable, *value],
+            Instruction::ContextGet {
+                context,
+                variable,
+                default,
+                ..
+            } => smallvec![*context, *variable, *default],
             Instruction::ContinuationNew { .. } => smallvec![],
             Instruction::ContinuationDestroy { continuation } => smallvec![*continuation],
             Instruction::WaiterQueue { waiter, value, .. } => smallvec![*waiter, *value],

@@ -463,6 +463,50 @@ impl Parser {
                         Instruction::FunctionEnvironmentCurrent { destination }
                     }
 
+                    // execution contexts
+                    "context.current" => Instruction::ContextCurrent { destination },
+                    "context.replace" => {
+                        let context = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::ContextReplace {
+                            destination,
+                            context,
+                        }
+                    }
+                    "context.bind" => {
+                        let context = self.parse_value_segment(&mut segment_spans)?;
+                        self.eat_token(TokenType::Comma)?;
+                        let variable = self.parse_value_segment(&mut segment_spans)?;
+                        self.eat_token(TokenType::Comma)?;
+                        let value = self.parse_value_segment(&mut segment_spans)?;
+                        self.eat_token(TokenType::Comma)?;
+                        let node_type = self.parse_type_segment(&mut segment_spans)?;
+                        Instruction::ContextBind {
+                            destination,
+                            context,
+                            variable,
+                            value,
+                            node_type,
+                            result_type: destination_type,
+                        }
+                    }
+                    "context.get" => {
+                        let context = self.parse_value_segment(&mut segment_spans)?;
+                        self.eat_token(TokenType::Comma)?;
+                        let variable = self.parse_value_segment(&mut segment_spans)?;
+                        self.eat_token(TokenType::Comma)?;
+                        let default = self.parse_value_segment(&mut segment_spans)?;
+                        self.eat_token(TokenType::Comma)?;
+                        let node_type = self.parse_type_segment(&mut segment_spans)?;
+                        Instruction::ContextGet {
+                            destination,
+                            context,
+                            variable,
+                            default,
+                            node_type,
+                            result_type: destination_type,
+                        }
+                    }
+
                     // continuation construction
                     "continuation.new" => {
                         let function = self.parse_function_segment(&mut segment_spans)?;

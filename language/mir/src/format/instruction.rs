@@ -257,6 +257,87 @@ impl FormatNode for Instruction {
                     ]
                 )
             }
+            Instruction::ContextCurrent { destination } => {
+                format_typed_destination(*destination, f)?;
+                write!(f, [space(), token("="), space(), token("context.current")])
+            }
+            Instruction::ContextReplace {
+                destination,
+                context,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("context.replace"),
+                        space(),
+                        context
+                    ]
+                )
+            }
+            Instruction::ContextBind {
+                destination,
+                context,
+                variable,
+                value,
+                node_type,
+                ..
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("context.bind"),
+                        space(),
+                        context,
+                        token(","),
+                        space(),
+                        variable,
+                        token(","),
+                        space(),
+                        value,
+                        token(","),
+                        space(),
+                        node_type
+                    ]
+                )
+            }
+            Instruction::ContextGet {
+                destination,
+                context,
+                variable,
+                default,
+                node_type,
+                ..
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("context.get"),
+                        space(),
+                        context,
+                        token(","),
+                        space(),
+                        variable,
+                        token(","),
+                        space(),
+                        default,
+                        token(","),
+                        space(),
+                        node_type
+                    ]
+                )
+            }
             Instruction::ContinuationNew {
                 destination,
                 function,

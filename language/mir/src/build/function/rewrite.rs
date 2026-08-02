@@ -77,6 +77,30 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(function, from, to);
                 }
                 Instruction::FunctionEnvironmentCurrent { .. } => {}
+                Instruction::ContextCurrent { .. } => {}
+                Instruction::ContextReplace { context, .. } => {
+                    Self::replace_value_in_slot(context, from, to);
+                }
+                Instruction::ContextBind {
+                    context,
+                    variable,
+                    value,
+                    ..
+                } => {
+                    Self::replace_value_in_slot(context, from, to);
+                    Self::replace_value_in_slot(variable, from, to);
+                    Self::replace_value_in_slot(value, from, to);
+                }
+                Instruction::ContextGet {
+                    context,
+                    variable,
+                    default,
+                    ..
+                } => {
+                    Self::replace_value_in_slot(context, from, to);
+                    Self::replace_value_in_slot(variable, from, to);
+                    Self::replace_value_in_slot(default, from, to);
+                }
                 Instruction::ContinuationDestroy { continuation } => {
                     Self::replace_value_in_slot(continuation, from, to);
                 }

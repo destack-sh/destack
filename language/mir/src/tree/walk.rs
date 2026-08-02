@@ -155,6 +155,19 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
             walk_type_id(visitor, tree, storage_type);
             walk_type_id(visitor, tree, result_type);
         }
+        Instruction::ContextBind {
+            node_type,
+            result_type,
+            ..
+        }
+        | Instruction::ContextGet {
+            node_type,
+            result_type,
+            ..
+        } => {
+            walk_type_id(visitor, tree, node_type);
+            walk_type_id(visitor, tree, result_type);
+        }
         Instruction::NewSliceZeroed {
             element,
             result_type,
@@ -179,6 +192,8 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
         | Instruction::FunctionBind { .. }
         | Instruction::FunctionEnvironment { .. }
         | Instruction::FunctionEnvironmentCurrent { .. }
+        | Instruction::ContextCurrent { .. }
+        | Instruction::ContextReplace { .. }
         | Instruction::ContinuationNew { .. }
         | Instruction::ContinuationDestroy { .. }
         | Instruction::WaiterQueue { .. }

@@ -371,6 +371,7 @@ impl CostModel {
             | mir::Instruction::ElementAddr { .. } => cost.address += 1,
             mir::Instruction::LocalGet { .. }
             | mir::Instruction::Load { .. }
+            | mir::Instruction::ContextCurrent { .. }
             | mir::Instruction::TensorLoad { .. } => cost.load += 1,
             mir::Instruction::LocalSet { .. }
             | mir::Instruction::Store { .. }
@@ -386,6 +387,7 @@ impl CostModel {
             | mir::Instruction::NewUninit { .. }
             | mir::Instruction::NewSliceZeroed { .. }
             | mir::Instruction::NewSliceUninit { .. }
+            | mir::Instruction::ContextBind { .. }
             | mir::Instruction::ContinuationNew { .. }
             | mir::Instruction::TaskResolve { .. }
             | mir::Instruction::TaskStart { .. }
@@ -399,6 +401,8 @@ impl CostModel {
             mir::Instruction::Drop { .. } => cost.drop += 1,
             mir::Instruction::WaiterQueue { .. }
             | mir::Instruction::WaiterCancel { .. }
+            | mir::Instruction::ContextReplace { .. }
+            | mir::Instruction::ContextGet { .. }
             | mir::Instruction::TaskPark { .. }
             | mir::Instruction::TaskCancel { .. }
             | mir::Instruction::TaskDetach { .. }

@@ -1033,6 +1033,7 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::FunctionBind { .. }
             | mir::Instruction::FunctionEnvironment { .. }
             | mir::Instruction::FunctionEnvironmentCurrent { .. }
+            | mir::Instruction::ContextGet { .. }
             | mir::Instruction::LocalAddr { .. }
             | mir::Instruction::Aggregate { .. }
             | mir::Instruction::FieldGet { .. }
@@ -1286,7 +1287,10 @@ impl<'a> MemoryAccessCollector<'a> {
                 Self::single_effect(effect)
             }
             mir::Instruction::Call { .. } => self.call_effects(instruction_id, instruction),
-            mir::Instruction::Free { .. }
+            mir::Instruction::ContextCurrent { .. }
+            | mir::Instruction::ContextReplace { .. }
+            | mir::Instruction::ContextBind { .. }
+            | mir::Instruction::Free { .. }
             | mir::Instruction::Drop { .. }
             | mir::Instruction::ContinuationNew { .. }
             | mir::Instruction::ContinuationDestroy { .. }

@@ -233,6 +233,10 @@ impl PureExpression {
             | mir::Instruction::FunctionBind { .. }
             | mir::Instruction::FunctionEnvironment { .. }
             | mir::Instruction::FunctionEnvironmentCurrent { .. }
+            | mir::Instruction::ContextCurrent { .. }
+            | mir::Instruction::ContextReplace { .. }
+            | mir::Instruction::ContextBind { .. }
+            | mir::Instruction::ContextGet { .. }
             | mir::Instruction::LocalAddr { .. }
             | mir::Instruction::FieldAddr { .. }
             | mir::Instruction::ElementAddr { .. }

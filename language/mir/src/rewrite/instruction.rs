@@ -76,7 +76,8 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::FunctionAddr { .. }
         | mir::Instruction::FunctionBind { .. }
         | mir::Instruction::FunctionEnvironment { .. }
-        | mir::Instruction::FunctionEnvironmentCurrent { .. } => true,
+        | mir::Instruction::FunctionEnvironmentCurrent { .. }
+        | mir::Instruction::ContextGet { .. } => true,
 
         // borrow producing address computations are not speculatable
         mir::Instruction::FieldAddr { .. }
@@ -110,6 +111,9 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
 
         // calls may have side effects
         mir::Instruction::Call { .. }
+        | mir::Instruction::ContextCurrent { .. }
+        | mir::Instruction::ContextReplace { .. }
+        | mir::Instruction::ContextBind { .. }
         | mir::Instruction::ContinuationNew { .. }
         | mir::Instruction::ContinuationDestroy { .. }
         | mir::Instruction::WaiterQueue { .. }
@@ -264,6 +268,8 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::FunctionBind { .. }
         | mir::Instruction::FunctionEnvironment { .. }
         | mir::Instruction::FunctionEnvironmentCurrent { .. }
+        | mir::Instruction::ContextCurrent { .. }
+        | mir::Instruction::ContextGet { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::NewComplete { .. }
         | mir::Instruction::Assume { .. } => false,
@@ -289,6 +295,8 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
 
         // calls may have side effects
         mir::Instruction::Call { .. }
+        | mir::Instruction::ContextReplace { .. }
+        | mir::Instruction::ContextBind { .. }
         | mir::Instruction::ContinuationNew { .. }
         | mir::Instruction::ContinuationDestroy { .. }
         | mir::Instruction::WaiterQueue { .. }
@@ -333,6 +341,7 @@ pub fn instruction_is_memory_read(instruction: &mir::Instruction) -> bool {
         instruction,
         mir::Instruction::Load { .. }
             | mir::Instruction::LocalGet { .. }
+            | mir::Instruction::ContextCurrent { .. }
             | mir::Instruction::TensorLoad { .. }
             | mir::Instruction::AtomicLoad { .. }
             | mir::Instruction::AtomicCompareExchange { .. }
@@ -561,6 +570,43 @@ pub fn instruction_substitute_uses(
         } => mir::Instruction::FunctionEnvironment {
             destination: *destination,
             function: substitute(function),
+        },
+        mir::Instruction::ContextReplace {
+            destination,
+            context,
+        } => mir::Instruction::ContextReplace {
+            destination: *destination,
+            context: substitute(context),
+        },
+        mir::Instruction::ContextBind {
+            destination,
+            context,
+            variable,
+            value,
+            node_type,
+            result_type,
+        } => mir::Instruction::ContextBind {
+            destination: *destination,
+            context: substitute(context),
+            variable: substitute(variable),
+            value: substitute(value),
+            node_type: *node_type,
+            result_type: *result_type,
+        },
+        mir::Instruction::ContextGet {
+            destination,
+            context,
+            variable,
+            default,
+            node_type,
+            result_type,
+        } => mir::Instruction::ContextGet {
+            destination: *destination,
+            context: substitute(context),
+            variable: substitute(variable),
+            default: substitute(default),
+            node_type: *node_type,
+            result_type: *result_type,
         },
         mir::Instruction::Load {
             destination,
@@ -1215,6 +1261,7 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::Aggregate { .. }
         | mir::Instruction::FunctionEnvironmentCurrent { .. }
+        | mir::Instruction::ContextCurrent { .. }
         | mir::Instruction::NewZeroed { .. }
         | mir::Instruction::NewUninit { .. }
         | mir::Instruction::ProfileIncrement { .. }
@@ -2286,6 +2333,46 @@ pub fn instruction_map(
                 destination: remap(*destination),
             }
         }
+        mir::Instruction::ContextCurrent { destination } => mir::Instruction::ContextCurrent {
+            destination: remap(*destination),
+        },
+        mir::Instruction::ContextReplace {
+            destination,
+            context,
+        } => mir::Instruction::ContextReplace {
+            destination: remap(*destination),
+            context: remap(*context),
+        },
+        mir::Instruction::ContextBind {
+            destination,
+            context,
+            variable,
+            value,
+            node_type,
+            result_type,
+        } => mir::Instruction::ContextBind {
+            destination: remap(*destination),
+            context: remap(*context),
+            variable: remap(*variable),
+            value: remap(*value),
+            node_type: *node_type,
+            result_type: *result_type,
+        },
+        mir::Instruction::ContextGet {
+            destination,
+            context,
+            variable,
+            default,
+            node_type,
+            result_type,
+        } => mir::Instruction::ContextGet {
+            destination: remap(*destination),
+            context: remap(*context),
+            variable: remap(*variable),
+            default: remap(*default),
+            node_type: *node_type,
+            result_type: *result_type,
+        },
         mir::Instruction::ContinuationNew {
             destination,
             function,
@@ -2937,6 +3024,46 @@ pub fn instruction_map_with_locals(
                 destination: remap(*destination),
             }
         }
+        mir::Instruction::ContextCurrent { destination } => mir::Instruction::ContextCurrent {
+            destination: remap(*destination),
+        },
+        mir::Instruction::ContextReplace {
+            destination,
+            context,
+        } => mir::Instruction::ContextReplace {
+            destination: remap(*destination),
+            context: remap(*context),
+        },
+        mir::Instruction::ContextBind {
+            destination,
+            context,
+            variable,
+            value,
+            node_type,
+            result_type,
+        } => mir::Instruction::ContextBind {
+            destination: remap(*destination),
+            context: remap(*context),
+            variable: remap(*variable),
+            value: remap(*value),
+            node_type: *node_type,
+            result_type: *result_type,
+        },
+        mir::Instruction::ContextGet {
+            destination,
+            context,
+            variable,
+            default,
+            node_type,
+            result_type,
+        } => mir::Instruction::ContextGet {
+            destination: remap(*destination),
+            context: remap(*context),
+            variable: remap(*variable),
+            default: remap(*default),
+            node_type: *node_type,
+            result_type: *result_type,
+        },
         mir::Instruction::ContinuationNew {
             destination,
             function,
