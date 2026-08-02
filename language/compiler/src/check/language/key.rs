@@ -278,7 +278,11 @@ impl CheckState<'_> {
 
         // require the canonical registry owner and member declarations
         let target = self.language_symbol(dir::LanguageItem::SymbolFor)?;
-        if self.external_binder_key(target) != Some(dir::StaticKey::Name(name)) {
+        let target_key = self
+            .binding_table(target.module_id)
+            .get_symbol(target.local_id)
+            .key;
+        if target_key != Some(dir::StaticKey::Name(name)) {
             return Ok(None);
         }
         let owner = left.into_global_any(module);

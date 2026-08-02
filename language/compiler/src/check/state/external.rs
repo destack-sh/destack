@@ -196,22 +196,6 @@ impl CheckState<'_> {
         external_modules
     }
 
-    /// Return one foreign symbol's binder kind while declaring.
-    ///
-    /// Kinds are binder facts, so declaring reads a foreign module's bound tables without
-    /// touching its declared types.
-    /// Bound and expanded artifacts precede every declared artifact, so this read keeps the
-
-    /// Return one foreign symbol's bound key without loading its surface.
-    pub(in crate::check) fn external_binder_key(
-        &self,
-        symbol: dir::GlobalSymbolId,
-    ) -> Option<dir::StaticKey> {
-        self.binding_table(symbol.module_id)
-            .get_symbol(symbol.local_id)
-            .key
-    }
-
     /// Import external module state from committed artifacts.
     fn import_external_module_state(
         &mut self,
