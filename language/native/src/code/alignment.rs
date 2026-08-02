@@ -4,8 +4,27 @@ use serde::{Deserialize, Serialize};
 
 /// One native code alignment in bytes.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    Reflect,
+    SectionEntry,
+)]
 pub struct Alignment(u32);
+
+impl Default for Alignment {
+    /// Return one-byte alignment.
+    fn default() -> Self {
+        Self::ONE
+    }
+}
 
 impl Alignment {
     /// One-byte alignment.

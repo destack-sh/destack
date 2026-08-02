@@ -24,8 +24,8 @@ pub struct ConstantSpace {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct StaticSpace {
-    /// The first byte in the static space.
-    pub bytes: *mut u8,
+    /// The static-space offset inside world memory.
+    pub offset: usize,
     /// The static space byte count.
     pub byte_len: usize,
 }

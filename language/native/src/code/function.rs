@@ -8,9 +8,9 @@ use super::CodeRange;
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct Function {
-    /// Typed internal function body.
+    /// Typed native function body.
     pub body: Entry,
-    /// Uniform runtime entry wrapper.
+    /// Canonical engine-transition entry.
     pub entry: Entry,
 }
 

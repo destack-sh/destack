@@ -8,9 +8,9 @@ use super::BlockId;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct Definition {
-    /// Typed internal function body.
+    /// Typed native function body.
     pub body: BlockId,
-    /// Uniform runtime entry wrapper.
+    /// Canonical engine-transition entry.
     pub entry: BlockId,
     /// Coroutine resume entries.
     resumes: EntryRange<Resume>,
@@ -29,9 +29,9 @@ pub struct Resume {
 /// One native function definition under construction.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DefinitionBuilder {
-    /// Typed internal function body.
+    /// Typed native function body.
     body: BlockId,
-    /// Uniform runtime entry wrapper.
+    /// Canonical engine-transition entry.
     entry: BlockId,
     /// Coroutine resume entries.
     resumes: Vec<Resume>,
@@ -72,12 +72,12 @@ impl DefinitionBuilder {
         }
     }
 
-    /// Return the typed internal function body block.
+    /// Return the typed native function body block.
     pub const fn body(&self) -> BlockId {
         self.body
     }
 
-    /// Return the uniform runtime entry block.
+    /// Return the canonical engine-transition entry block.
     pub const fn entry(&self) -> BlockId {
         self.entry
     }

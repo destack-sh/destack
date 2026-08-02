@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::abi;
 
-use super::{CodeMap, CodeMapBuilder, Entry, Function, Unwind, UnwindBuilder};
+use super::{Alignment, CodeMap, CodeMapBuilder, Entry, Function, Unwind, UnwindBuilder};
 
 /// Immutable position-independent native code linked into one Program.
 #[repr(C)]
@@ -12,6 +12,8 @@ use super::{CodeMap, CodeMapBuilder, Entry, Function, Unwind, UnwindBuilder};
 pub struct Code {
     /// Destack native ABI version required by this code.
     pub abi_version: u32,
+    /// Required executable image base alignment.
+    pub alignment: Alignment,
     /// Exact target triple.
     pub target: StringId,
     /// Sorted target CPU features.
@@ -33,6 +35,8 @@ pub struct Code {
 pub struct CodeBuilder {
     /// Exact target triple.
     target: StringId,
+    /// Required executable image base alignment.
+    alignment: Alignment,
     /// Sorted target CPU features.
     features: Vec<StringId>,
     /// Linked native code and literal pools.
@@ -53,6 +57,12 @@ impl Code {
         let bytes = self.bytes(sections);
         let functions = self.functions(sections);
         let resumes = self.resumes(sections);
+        let alignment = self.alignment.bytes() as usize;
+
+        // require the linked image to satisfy its executable base alignment
+        if !self.alignment.is_valid() || !(bytes.as_ptr() as usize).is_multiple_of(alignment) {
+            return false;
+        }
 
         // check every physical function and coroutine entry
         let functions_fit = functions
@@ -79,8 +89,13 @@ impl Code {
         let frames_sorted = frames
             .windows(2)
             .all(|frames| frames[0].return_offset < frames[1].return_offset);
+        let traps = self.map.traps(sections);
+        let traps_fit = traps.iter().all(|trap| trap.fits(bytes.len()));
+        let traps_sorted = traps
+            .windows(2)
+            .all(|traps| traps[0].offset < traps[1].offset);
 
-        frames_fit && frames_sorted && self.map.ranges_fit(sections)
+        frames_fit && frames_sorted && traps_fit && traps_sorted && self.map.ranges_fit(sections)
     }
 
     /// Return sorted target CPU features.
@@ -135,6 +150,7 @@ impl CodeBuilder {
     pub fn new(target: StringId) -> Self {
         Self {
             target,
+            alignment: Alignment::ONE,
             features: Vec::new(),
             bytes: Vec::new(),
             functions: Vec::new(),
@@ -154,8 +170,9 @@ impl CodeBuilder {
     }
 
     /// Set linked native code and literal pools.
-    pub fn bytes(mut self, bytes: impl Into<Vec<u8>>) -> Self {
+    pub fn bytes(mut self, bytes: impl Into<Vec<u8>>, alignment: Alignment) -> Self {
         self.bytes = bytes.into();
+        self.alignment = alignment;
 
         self
     }
@@ -201,13 +218,21 @@ impl CodeBuilder {
             .map(Optional::from)
             .collect::<Vec<_>>();
         let mut bytes = self.bytes;
-        let unwind = self.unwind.map(|unwind| unwind.build(&mut bytes, sections));
+        let (unwind, alignment) = match self.unwind {
+            Some(unwind) => {
+                let (unwind, unwind_alignment) = unwind.build(&mut bytes, sections);
+
+                (Some(unwind), self.alignment.max(unwind_alignment))
+            }
+            None => (None, self.alignment),
+        };
 
         Code {
             abi_version: abi::VERSION,
+            alignment,
             target: self.target,
             features: sections.insert(self.features),
-            bytes: sections.insert_bytes(bytes, 16),
+            bytes: sections.insert_bytes(bytes, alignment.bytes() as usize),
             functions: sections.insert(functions),
             resumes: sections.insert(resumes),
             unwind: Optional::from(unwind),

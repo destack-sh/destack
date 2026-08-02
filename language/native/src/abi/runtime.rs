@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{Activation, RuntimeStatusCode, Space, TaskOutcomeCode, TrapCode, Unwind};
+use super::{Activation, RuntimeStatusCode, Space, TaskOutcomeCode, Unwind};
 
 macro_rules! runtime_operations {
     ($macro:ident) => {
@@ -24,8 +24,7 @@ macro_rules! runtime_operations {
             Stop = 0x0011 => stop: Stop,
             /// Deoptimize native execution.
             Deopt = 0x0012 => deopt: Deopt,
-            /// Report one native trap.
-            Trap = 0x0013 => trap: ReportTrap,
+
             /// Report one payloadless language panic.
             Panic = 0x0014 => panic: Panic,
             /// Report one typed language panic.
@@ -53,19 +52,6 @@ macro_rules! runtime_operations {
             TaskDetach = 0x0028 => task_detach: DetachTask,
             /// Finish one task.
             TaskFinish = 0x0029 => task_finish: FinishTask,
-
-            /// Return the current execution context.
-            ContextCurrent = 0x0030 => context_current: CurrentContext,
-            /// Push one scoped context patch.
-            ContextPush = 0x0031 => context_push: PushContext,
-            /// Pop one scoped context patch.
-            ContextPop = 0x0032 => context_pop: PopContext,
-            /// Read one optional context entry.
-            ContextGet = 0x0033 => context_get: GetContext,
-            /// Read one required context entry.
-            ContextRequire = 0x0034 => context_require: RequireContext,
-            /// Read one builtin binding family.
-            ContextFamily = 0x0035 => context_family: ContextFamily,
 
             /// Call one runtime binding.
             BindingCall = 0x0040 => binding_call: BindingCall,
@@ -172,10 +158,6 @@ pub type Deopt = unsafe extern "C" fn(
     marker: *const u8,
 ) -> RuntimeStatusCode;
 
-/// Report one native trap.
-pub type ReportTrap =
-    unsafe extern "C" fn(activation: *mut Activation, trap: TrapCode) -> RuntimeStatusCode;
-
 /// Start unwinding one payloadless language panic.
 pub type Panic = unsafe extern "C" fn(activation: *mut Activation) -> !;
 
@@ -223,7 +205,7 @@ pub type SuspendTask = unsafe extern "C" fn(
     result: *mut u64,
 ) -> RuntimeStatusCode;
 
-/// Park one waiter until one task settles.
+/// Park one waiter until a task settles.
 pub type ParkTask =
     unsafe extern "C" fn(activation: *mut Activation, task: u64, waiter: u64) -> RuntimeStatusCode;
 
@@ -249,48 +231,6 @@ pub type FinishTask = unsafe extern "C" fn(
     outcome: TaskOutcomeCode,
     result_type: u32,
     result: *const u64,
-) -> RuntimeStatusCode;
-
-/// Return the current worker-local execution context.
-pub type CurrentContext =
-    unsafe extern "C" fn(activation: *mut Activation, result: *mut u64) -> RuntimeStatusCode;
-
-/// Push one typed scoped context patch.
-pub type PushContext = unsafe extern "C" fn(
-    activation: *mut Activation,
-    patch_type: u32,
-    patch: *const u64,
-    result: *mut u64,
-) -> RuntimeStatusCode;
-
-/// Pop one scoped context patch.
-pub type PopContext =
-    unsafe extern "C" fn(activation: *mut Activation, token: u64) -> RuntimeStatusCode;
-
-/// Read one optional typed userland context entry.
-pub type GetContext = unsafe extern "C" fn(
-    activation: *mut Activation,
-    owner: u64,
-    key: u64,
-    result_type: u32,
-    result: *mut u64,
-    is_present: *mut u32,
-) -> RuntimeStatusCode;
-
-/// Read one required typed userland context entry.
-pub type RequireContext = unsafe extern "C" fn(
-    activation: *mut Activation,
-    owner: u64,
-    key: u64,
-    result_type: u32,
-    result: *mut u64,
-) -> RuntimeStatusCode;
-
-/// Read one builtin binding family from the current context.
-pub type ContextFamily = unsafe extern "C" fn(
-    activation: *mut Activation,
-    family: u32,
-    result: *mut u64,
 ) -> RuntimeStatusCode;
 
 /// Call one runtime binding selected by its Program function.

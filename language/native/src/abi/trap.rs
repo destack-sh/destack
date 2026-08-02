@@ -1,13 +1,17 @@
 use std::error::Error;
 use std::fmt;
 
+use destack_core::SectionEntry;
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Native trap code.
 pub type TrapCode = u32;
 
 /// Low-level trap reported by generated native code.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 #[repr(u32)]
 pub enum Trap {
     /// Integer division or remainder used a zero divisor.

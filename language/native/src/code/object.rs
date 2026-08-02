@@ -9,11 +9,11 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::{
-    Block, BlockBuilder, Definition, DefinitionBuilder, ObjectMap, ObjectMapBuilder, ObjectUnwind,
-    ObjectUnwindBuilder, Relocation, Resume, Symbol,
+    Alignment, Block, BlockBuilder, Definition, DefinitionBuilder, ObjectMap, ObjectMapBuilder,
+    ObjectUnwind, ObjectUnwindBuilder, Relocation, Resume, Symbol,
 };
 
-const OBJECT_VERSION: u16 = 1;
+const OBJECT_VERSION: u16 = 2;
 
 /// Relocatable native machine code for one module.
 #[derive(Clone, Debug, Reflect)]
@@ -213,6 +213,11 @@ impl ObjectHeader {
                 .get(frame.block.index())
                 .is_some_and(|block| frame.return_offset <= block.byte_len())
         });
+        let traps = header.map.traps(sections);
+        let traps_fit = traps.iter().all(|trap| trap.fits(blocks));
+        let traps_sorted = traps
+            .windows(2)
+            .all(|traps| (traps[0].block, traps[0].offset) < (traps[1].block, traps[1].offset));
         let unwind_fits = header
             .unwind
             .get()
@@ -221,6 +226,8 @@ impl ObjectHeader {
             || !blocks_fit
             || !definitions_fit
             || !frames_fit
+            || !traps_fit
+            || !traps_sorted
             || !unwind_fits
             || !header.map.ranges_fit(sections)
         {
@@ -448,8 +455,12 @@ impl ObjectBuilder {
             .into_iter()
             .map(|block| block.build(&mut bytes, &mut relocations))
             .collect::<Vec<_>>();
+        let alignment = blocks
+            .iter()
+            .map(|block| block.alignment)
+            .fold(Alignment::ONE, Alignment::max);
         header.blocks = sections.insert(blocks);
-        header.code = sections.insert_bytes(bytes, 16);
+        header.code = sections.insert_bytes(bytes, alignment.bytes() as usize);
         header.relocations = sections.insert(relocations.into_entries());
 
         // pack function and coroutine entries over block identities

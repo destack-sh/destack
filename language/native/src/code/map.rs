@@ -3,16 +3,18 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    FrameLocation, FrameMap, FrameMapBuilder, FrameSource, FrameValue, ObjectFrameMap,
-    ObjectFrameMapBuilder,
+    CodeTrap, FrameLocation, FrameMap, FrameMapBuilder, FrameSource, FrameValue, ObjectFrameMap,
+    ObjectFrameMapBuilder, ObjectTrap,
 };
 
-/// Native frame maps retained by one relocatable object.
+/// Native code map retained by one relocatable object.
 #[repr(C)]
 #[derive(
     Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
 )]
 pub struct ObjectMap {
+    /// Object-local native trap sites.
+    traps: SectionSlice<ObjectTrap>,
     /// Object-local physical frame maps.
     frames: SectionSlice<ObjectFrameMap>,
     /// Canonical native frame values.
@@ -23,12 +25,14 @@ pub struct ObjectMap {
     constants: SectionSlice<u8>,
 }
 
-/// Native frame maps retained by linked code.
+/// Native code map retained by linked code.
 #[repr(C)]
 #[derive(
     Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
 )]
 pub struct CodeMap {
+    /// Linked native trap sites in byte-offset order.
+    traps: SectionSlice<CodeTrap>,
     /// Linked physical frame maps.
     frames: SectionSlice<FrameMap>,
     /// Canonical native frame values.
@@ -42,6 +46,8 @@ pub struct CodeMap {
 /// One relocatable object code map under construction.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ObjectMapBuilder {
+    /// Object-local native trap sites.
+    traps: Vec<ObjectTrap>,
     /// Object-local physical frame maps.
     frames: Vec<ObjectFrameMapBuilder>,
     /// Immutable bytes referenced by constant frame locations.
@@ -51,6 +57,8 @@ pub struct ObjectMapBuilder {
 /// One linked native code map under construction.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CodeMapBuilder {
+    /// Linked native trap sites.
+    traps: Vec<CodeTrap>,
     /// Linked physical frame maps.
     frames: Vec<FrameMapBuilder>,
     /// Immutable bytes referenced by constant frame locations.
@@ -73,6 +81,11 @@ impl ObjectMap {
             self.constants,
             ObjectFrameMap::values_fit,
         )
+    }
+
+    /// Return object-local native trap sites.
+    pub fn traps<'a>(&self, sections: SectionImage<'a>) -> &'a [ObjectTrap] {
+        sections.entries(self.traps)
     }
 
     /// Return object-local physical frame maps.
@@ -122,6 +135,11 @@ impl CodeMap {
         )
     }
 
+    /// Return linked native trap sites in byte-offset order.
+    pub fn traps<'a>(&self, sections: SectionImage<'a>) -> &'a [CodeTrap] {
+        sections.entries(self.traps)
+    }
+
     /// Return linked physical frame maps.
     pub fn frames<'a>(&self, sections: SectionImage<'a>) -> &'a [FrameMap] {
         sections.entries(self.frames)
@@ -158,6 +176,15 @@ impl ObjectMapBuilder {
         Self::default()
     }
 
+    /// Set object-local native trap sites.
+    pub fn traps(mut self, traps: impl IntoIterator<Item = ObjectTrap>) -> Self {
+        self.traps = traps.into_iter().collect();
+        self.traps
+            .sort_unstable_by_key(|trap| (trap.block, trap.offset));
+
+        self
+    }
+
     /// Set object-local physical frame maps.
     pub fn frames(mut self, frames: impl IntoIterator<Item = ObjectFrameMapBuilder>) -> Self {
         self.frames = frames.into_iter().collect();
@@ -177,6 +204,7 @@ impl ObjectMapBuilder {
         let (frames, values, locations) = build_frames(self.frames);
 
         ObjectMap {
+            traps: sections.insert(self.traps),
             frames: sections.insert(frames),
             values: sections.insert(values),
             locations: sections.insert(locations),
@@ -189,6 +217,14 @@ impl CodeMapBuilder {
     /// Create one empty linked code map builder.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Set linked native trap sites.
+    pub fn traps(mut self, traps: impl IntoIterator<Item = CodeTrap>) -> Self {
+        self.traps = traps.into_iter().collect();
+        self.traps.sort_unstable_by_key(|trap| trap.offset);
+
+        self
     }
 
     /// Set linked physical frame maps.
@@ -210,6 +246,7 @@ impl CodeMapBuilder {
         let (frames, values, locations) = build_frames(self.frames);
 
         CodeMap {
+            traps: sections.insert(self.traps),
             frames: sections.insert(frames),
             values: sections.insert(values),
             locations: sections.insert(locations),

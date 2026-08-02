@@ -272,17 +272,29 @@ impl UnwindBuilder {
     }
 
     /// Append linked unwind sections to one native load image.
-    pub(super) fn build(self, image: &mut Vec<u8>, sections: &mut SectionBuilder) -> Unwind {
+    pub(super) fn build(
+        self,
+        image: &mut Vec<u8>,
+        sections: &mut SectionBuilder,
+    ) -> (Unwind, Alignment) {
+        let alignment = self
+            .sections
+            .iter()
+            .map(|section| section.alignment)
+            .fold(Alignment::ONE, Alignment::max);
         let entries = self
             .sections
             .into_iter()
             .map(|section| section.build(image))
             .collect::<Vec<_>>();
 
-        Unwind {
-            format: self.format,
-            sections: sections.insert(entries),
-        }
+        (
+            Unwind {
+                format: self.format,
+                sections: sections.insert(entries),
+            },
+            alignment,
+        )
     }
 }
 

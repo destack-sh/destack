@@ -9,6 +9,7 @@ mod object;
 mod range;
 mod relocation;
 mod symbol;
+mod trap;
 mod unwind;
 
 pub use alignment::*;
@@ -22,4 +23,5 @@ pub use object::*;
 pub use range::*;
 pub use relocation::*;
 pub use symbol::*;
+pub use trap::*;
 pub use unwind::*;
