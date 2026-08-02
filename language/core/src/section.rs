@@ -835,6 +835,11 @@ impl SectionBuilder {
         unsafe { SectionImage::from_bytes_unchecked(self.storage.as_ref()) }
     }
 
+    /// Return the physical alignment required by this image.
+    pub const fn alignment(&self) -> usize {
+        self.storage.alignment
+    }
+
     /// Build immutable aligned section storage.
     pub fn build(self) -> SectionStorage {
         SectionStorage {
@@ -957,14 +962,13 @@ impl<'a> SectionImage<'a> {
             byte_end <= self.bytes.len(),
             "section slice exceeds image bytes"
         );
+        let bytes = self.bytes.as_ptr();
+        let entries = unsafe { bytes.add(byte_offset).cast::<T>() };
         assert_eq!(
-            byte_offset % mem::align_of::<T>(),
+            entries as usize % mem::align_of::<T>(),
             0,
             "section slice is misaligned"
         );
-
-        let bytes = self.bytes.as_ptr();
-        let entries = unsafe { bytes.add(byte_offset).cast::<T>() };
 
         // SAFETY: entries enter the image only through insert<T>.
         // insert<T> copies SectionEntry values into an aligned chunk buffer and records an
@@ -1018,6 +1022,9 @@ impl<'a> SectionLoader<'a> {
                 available: self.bytes.len() as u64,
             });
         }
+        if !(self.bytes.as_ptr() as usize).is_multiple_of(mem::align_of::<T>()) {
+            return Err(SectionImageError::Misaligned);
+        }
         if T::NEEDS_VALIDATION {
             T::validate(&self.bytes[..byte_len], *self)?;
         }
@@ -1038,7 +1045,8 @@ impl<'a> SectionLoader<'a> {
         let Some(byte_end) = byte_offset.checked_add(byte_len) else {
             return Err(SectionImageError::InvalidSection);
         };
-        if byte_end > self.bytes.len() || !byte_offset.is_multiple_of(mem::align_of::<T>()) {
+        let address = self.bytes.as_ptr() as usize + byte_offset;
+        if byte_end > self.bytes.len() || !address.is_multiple_of(mem::align_of::<T>()) {
             return Err(SectionImageError::InvalidSection);
         }
 
