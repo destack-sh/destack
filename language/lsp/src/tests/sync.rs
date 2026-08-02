@@ -267,7 +267,7 @@ async fn test_retain_project_for_open_document() {
     let params = document.hover(position(0, 16));
     let expected = Err(jsonrpc::Error::invalid_params(format!(
         "no Destack project owns {}",
-        document.uri().as_str()
+        document.uri().path().as_str()
     )));
     server
         .assert_request::<lsp::request::HoverRequest>(params, expected)

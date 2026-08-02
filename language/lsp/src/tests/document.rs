@@ -231,6 +231,8 @@ export declare function value(): int32;
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
             "**Signature**\n\n```ds\nexport newtype languageItem = (string,) | ()\n```\n\n\
+             **Documentation**\n\nCompiler language item marker.\n\n\
+             ```\n@languageItem(\"memory.Unique\")\nexport newtype Unique<T> = intrinsic;\n```\n\n\
              **Location**\n\n`destack://decorator/intrinsic.ds:17:16`",
         )),
         range: Some(range(0, 1, 0, 13)),
@@ -243,6 +245,8 @@ export declare function value(): int32;
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
             "**Signature**\n\n```ds\nexport newtype intrinsic = (string,) | ()\n```\n\n\
+             **Documentation**\n\nCompiler intrinsic marker.\n\n\
+             ```\n@intrinsic\ndeclare function typeOf<T>(value: T): Type<T>;\n```\n\n\
              **Location**\n\n`destack://decorator/intrinsic.ds:8:16`",
         )),
         range: Some(range(3, 1, 3, 10)),

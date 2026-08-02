@@ -69,8 +69,11 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
 
         // record nominal construction selections
         for (source, resolution) in self.module.resolutions().construct_entries() {
+            let Some(symbol) = resolution.target.symbol() else {
+                continue;
+            };
             let sources = self.construct_sources(source)?;
-            self.select(sources, vec![resolution.target.symbol()])?;
+            self.select(sources, vec![symbol])?;
         }
 
         Ok(())
@@ -298,7 +301,10 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
             return Ok(());
         }
 
-        let span = self.reference_span(source, source_id, target)?;
+        // skip references without an authored main span
+        let Some(span) = self.reference_span(source, source_id, target)? else {
+            return Ok(());
+        };
 
         // record explicit local aliases without interpreting dependency chains
         let declarations = self.module.resolved().references.declarations(source);
@@ -346,7 +352,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
         source: dir::GlobalNodeIdAny,
         source_id: u32,
         target: dir::GlobalSymbolId,
-    ) -> ProviderResult<Span> {
+    ) -> ProviderResult<Option<Span>> {
         // projected type paths bind the final namespace prefix, not the final source segment
         if source.local_id.ty == dir::NodeType::TypeExpression
             && let Some(dir::Reference::Projected { base, from }) =
@@ -377,19 +383,10 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
                 ))
             })?;
 
-            return Ok(span);
+            return Ok(Some(span));
         }
 
-        self.module
-            .source_index()
-            .get_main(source_id)
-            .ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "authored reference {source:?} to {target:?} has no main span at source node \
-                 {source_id}"
-                ))
-                .into()
-            })
+        Ok(self.module.source_index().get_main(source_id))
     }
 
     /// Return the lexical root span of one qualified type path.
