@@ -230,7 +230,12 @@ impl<'a> BindingTable<'a> {
             seen.push(symbol_id);
 
             symbols.push(symbol_id);
-            current = self.symbol_owner(symbol_id);
+            // anonymous namespaces contribute no path segment
+            current = self.symbol_owner(symbol_id).filter(|owner| {
+                let owner = self.get_symbol(*owner);
+
+                owner.role != SymbolRole::Namespace || owner.name().is_some()
+            });
         }
 
         symbols.reverse();
@@ -254,12 +259,7 @@ impl<'a> BindingTable<'a> {
 
             let scope = self.get_scope_by_id(scope_id);
             if let Some(owner) = scope.owner {
-                let owner_symbol = self.get_symbol(owner);
-                if owner_symbol.role != SymbolRole::Namespace || owner_symbol.name().is_some() {
-                    return Some(owner);
-                }
-
-                return None;
+                return Some(owner);
             }
 
             let parent = scope.parent?;
