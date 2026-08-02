@@ -126,7 +126,7 @@ impl WalkState<'_, '_> {
 
                 match symbols.as_slice() {
                     [] => {
-                        self.check.report_unresolved_reference(
+                        self.check.reject_unresolved_reference(
                             self.module,
                             target.into_any(),
                             &path,
@@ -148,7 +148,7 @@ impl WalkState<'_, '_> {
             }
             dir::Reference::Missing => {
                 self.check
-                    .report_unresolved_reference(self.module, target.into_any(), &path);
+                    .reject_unresolved_reference(self.module, target.into_any(), &path);
 
                 None
             }

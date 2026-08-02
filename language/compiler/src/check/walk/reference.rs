@@ -69,7 +69,7 @@ impl WalkState<'_, '_> {
                     segments: smallvec![name],
                 };
                 self.check
-                    .report_unresolved_reference(self.module, id.into_any(), &path);
+                    .reject_unresolved_reference(self.module, id.into_any(), &path);
                 let error = self.intern_type(dir::Type::Error)?;
                 self.commit_node_type(id, error)?;
             }
@@ -146,7 +146,7 @@ impl WalkState<'_, '_> {
             Some(dir::Reference::Missing) => {
                 if let Some(path) = self.tree.tree().reference_path(id) {
                     self.check
-                        .report_unresolved_reference(self.module, id.into_any(), &path);
+                        .reject_unresolved_reference(self.module, id.into_any(), &path);
                 }
                 let error = self.intern_type(dir::Type::Error)?;
                 self.commit_node_type(id, error)?;

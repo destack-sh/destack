@@ -78,6 +78,10 @@ impl SnapshotTable for dir::ResolutionTable<'_> {
             add_assign_pattern_resolution_row(builder, self, node_id, resolution);
         }
 
+        for (node_id, path) in self.unresolved_entries() {
+            add_unresolved_reference_row(builder, node_id, path);
+        }
+
         let name_count = self.name_entries().count();
         let instantiation_count = self.instantiation_entries().count();
         let label_count = self.label_entries().count();
@@ -302,6 +306,30 @@ fn add_name_resolution_row(
                 .map(|symbol| builder.symbol_path_label(*symbol)),
         )
     };
+
+    builder.push(row);
+}
+
+/// Add one retained unresolved reference row.
+fn add_unresolved_reference_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    path: &dir::Path,
+) {
+    let row = SnapshotRow::new(
+        builder.name_resolution_anchor(node_id),
+        "resolution",
+        "unresolved",
+    )
+    .optional_field("source", builder.name_resolution_source(node_id))
+    .field(
+        "path",
+        path.segments
+            .iter()
+            .map(|segment| builder.strings.get(*segment))
+            .collect::<Vec<_>>()
+            .join("."),
+    );
 
     builder.push(row);
 }

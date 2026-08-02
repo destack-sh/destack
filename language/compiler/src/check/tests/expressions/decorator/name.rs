@@ -19,6 +19,8 @@ const value: 1 = 1;
 
 === checked ===
 @missing
+/// @resolution.unresolved source=missing path=missing
+
 const value = 1;
 /// @type.symbol symbol=value source=value type=1
 /// @resolution.pattern source=value kind=binding target=value

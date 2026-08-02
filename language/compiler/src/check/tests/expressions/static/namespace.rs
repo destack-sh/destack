@@ -99,6 +99,7 @@ import * as dep from "./dep.ds";
 
 dep.value;
 /// @type.node source=dep.value type=<error>
+/// @resolution.unresolved source=dep.value path=dep.value
 
 /// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,

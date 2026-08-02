@@ -92,6 +92,7 @@ const value = do {
 
 scoped;
 /// @type.node source=scoped type=<error>
+/// @resolution.unresolved source=scoped path=scoped
 "#,
         r#"
 /// @diagnostic.error id=unresolved-reference message="cannot find 'scoped'"

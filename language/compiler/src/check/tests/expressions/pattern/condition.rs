@@ -533,6 +533,7 @@ if (let { name } = user) {
 } else {
     name;
     /// @type.node source=name type=<error>
+    /// @resolution.unresolved source=name path=name
 
 }
 "#,

@@ -137,6 +137,7 @@ const first = helper;
 const second = sibling;
 /// @type.symbol symbol=second source=second type=<error>
 /// @resolution.pattern source=second kind=binding target=second
+/// @resolution.unresolved source=sibling path=sibling
 "#,
         r#"
 /// @diagnostic.error id=unresolved-reference message="cannot find 'sibling'"

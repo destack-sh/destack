@@ -10,7 +10,7 @@ use crate::{
     AccessResolution, AssignPatternResolution, AssignmentResolution, CallResolution,
     ConstructResolution, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, GuardResolution,
     InstantiationResolution, LabelResolution, MemberResolution, NameResolution, OperatorResolution,
-    PatternResolution, PlaceResolution, ReceiverResolution, SegmentView, SubscriptResolution,
+    Path, PatternResolution, PlaceResolution, ReceiverResolution, SegmentView, SubscriptResolution,
     TreeResolution,
 };
 
@@ -145,6 +145,11 @@ impl<'a> ResolutionTable<'a> {
         self.visible_entries(|segment| &segment.constructs)
     }
 
+    /// Iterate visible unresolved reference paths.
+    pub fn unresolved_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &Path)> + '_ {
+        self.visible_entries(|segment| &segment.unresolved)
+    }
+
     /// Iterate visible tree resolutions.
     pub fn tree_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &TreeResolution)> + '_ {
         self.visible_entries(|segment| &segment.trees)
@@ -205,6 +210,11 @@ impl<'a> ResolutionTable<'a> {
     /// Get the operator resolution for a node.
     pub fn operator_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&OperatorResolution> {
         self.lookup(node_id, |segment| &segment.operators)
+    }
+
+    /// Get the unresolved reference path recorded for a node.
+    pub fn unresolved_reference(&self, node_id: GlobalNodeIdAny) -> Option<&Path> {
+        self.lookup(node_id, |segment| &segment.unresolved)
     }
 
     /// Get the call resolution for a node.
@@ -336,6 +346,8 @@ pub struct ResolutionSegment {
     pub(crate) patterns: IndexMap<GlobalNodeIdAny, PatternResolution, FxBuildHasher>,
     /// Checked assignment pattern resolutions keyed by DIR node.
     pub(crate) assign_patterns: IndexMap<GlobalNodeIdAny, AssignPatternResolution, FxBuildHasher>,
+    /// Unresolved reference paths keyed by DIR node.
+    pub(crate) unresolved: IndexMap<GlobalNodeIdAny, Path, FxBuildHasher>,
 }
 
 impl ResolutionSegment {
@@ -363,6 +375,8 @@ impl ResolutionSegment {
             .retain(|node, resolution| sealed.subscripts.get(node) != Some(resolution));
         self.assignments
             .retain(|node, resolution| sealed.assignments.get(node) != Some(resolution));
+        self.unresolved
+            .retain(|node, path| sealed.unresolved.get(node) != Some(path));
         self.guards
             .retain(|node, resolution| sealed.guards.get(node) != Some(resolution));
         self.constructs
@@ -475,6 +489,7 @@ impl ResolutionSegment {
             trees: IndexMap::default(),
             patterns: IndexMap::default(),
             assign_patterns: IndexMap::default(),
+            unresolved: IndexMap::default(),
         }
     }
 
@@ -565,6 +580,16 @@ impl ResolutionSegment {
     /// Get the member resolution for a node.
     pub fn member_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&MemberResolution> {
         self.members.get(&node_id)
+    }
+
+    /// Set the unresolved reference path for a node.
+    pub fn set_unresolved_reference(&mut self, node_id: GlobalNodeIdAny, path: Path) {
+        self.unresolved.insert(node_id, path);
+    }
+
+    /// Get the unresolved reference path for a node.
+    pub fn unresolved_reference(&self, node_id: GlobalNodeIdAny) -> Option<&Path> {
+        self.unresolved.get(&node_id)
     }
 
     /// Set the operator resolution for a node.
@@ -843,6 +868,7 @@ impl ResolutionSegment {
             && self.constructs.is_empty()
             && self.trees.is_empty()
             && self.patterns.is_empty()
+            && self.unresolved.is_empty()
             && self.assign_patterns.is_empty()
     }
 

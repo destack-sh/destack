@@ -260,7 +260,22 @@ impl CheckState<'_> {
     }
 
     /// Report an unresolved reference at one source node.
-    pub(in crate::check) fn report_unresolved_reference(
+    pub(in crate::check) fn reject_unresolved_reference(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+        path: &dir::Path,
+    ) {
+        // retain the failed path so quickfixes can plan imports
+        let node = source.into_global(module);
+        self.module_mut(module)
+            .resolutions
+            .set_unresolved_reference(node, path.clone());
+
+        self.report_unresolved_reference(module, source, path);
+    }
+
+    fn report_unresolved_reference(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,

@@ -256,6 +256,7 @@ declare function mesh<...Axes: Missing[]>(value: int32): int32;
 /// @generic.template symbol=mesh parameters=(...Axes: Array<<error>>)
 /// @type.symbol symbol=mesh source="declare function mesh<...Axes: Missing[]>(value: int32): int32" type=<...Axes: Array<<error>>>(int32) => int32
 /// @type.symbol symbol=mesh.Axes source="...Axes: Missing[]" type=Axes
+/// @resolution.unresolved source=Missing path=Missing
 /// @type.symbol symbol=mesh.value source="value: int32" type=int32
 "#,
         r#"

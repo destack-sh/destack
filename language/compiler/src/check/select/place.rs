@@ -897,7 +897,7 @@ impl BodyState<'_, '_> {
                 Ok(Answer::Ready(None))
             }
             Some(dir::Reference::Missing) | None => {
-                self.report_unresolved_reference(source.module_id, source.local_id, path);
+                self.reject_unresolved_reference(source.module_id, source.local_id, path);
                 self.commit_error_node(source)?;
 
                 Ok(Answer::Ready(None))

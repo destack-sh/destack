@@ -1754,6 +1754,7 @@ function render(): Panel {
 === checked ===
 function render(): Panel {
 /// @type.symbol symbol=render type=() => <error>
+/// @resolution.unresolved source=Panel path=Panel
 
     const page = <span/>;
     /// @type.symbol symbol=render.page source=page type=panel.Panel

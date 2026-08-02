@@ -60,6 +60,7 @@ const value = 1;
 const copy = valeu;
 /// @type.symbol symbol=copy source=copy type=<error>
 /// @resolution.pattern source=copy kind=binding target=copy
+/// @resolution.unresolved source=valeu path=valeu
 "#,
         r#"
 /// @diagnostic.error id=unresolved-reference message="cannot find 'valeu'; did you mean 'value'?"
@@ -94,6 +95,7 @@ const JSON = 1;
 const copy = json;
 /// @type.symbol symbol=copy source=copy type=<error>
 /// @resolution.pattern source=copy kind=binding target=copy
+/// @resolution.unresolved source=json path=json
 "#,
         r#"
 /// @diagnostic.error id=unresolved-reference message="cannot find 'json'; did you mean 'JSON'?"

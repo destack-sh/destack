@@ -603,6 +603,7 @@ const value = missing * 2;
 const value = missing * 2;
 /// @type.symbol symbol=value source=value type=<error>
 /// @resolution.pattern source=value kind=binding target=value
+/// @resolution.unresolved source=missing path=missing
 "#,
         r#"
 /// @diagnostic.error id=unresolved-reference message="cannot find 'missing'"
