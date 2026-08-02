@@ -216,8 +216,10 @@ impl CommandContext<'_> {
                     .dir_checked(module, profile)
                     .map_err(|error| error.to_string())?;
 
-                ModuleContext::new(parsed, bound, expanded, exported, resolved, declared, checked)
-                    .map_err(|error| error.to_string().into())
+                ModuleContext::new(
+                    parsed, bound, expanded, exported, resolved, declared, checked,
+                )
+                .map_err(|error| error.to_string().into())
             })
             .collect::<CommandResult<Vec<_>>>()?;
 
