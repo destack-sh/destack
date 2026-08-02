@@ -156,9 +156,15 @@ pub fn colorize_source(file: &File) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::colorize_source;
+    use std::sync::{Arc, Mutex};
+
     use destack_core::Color;
-    use destack_source::{File, FileId, FileType, Uri};
+    use destack_source::{
+        Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, File, FileId,
+        FileType, PrintOptions, Span, Uri, print_diagnostics,
+    };
+
+    use super::{colorize_source, source_colorizer};
 
     #[test]
     fn test_colorize_source_simple() {
@@ -174,6 +180,57 @@ mod tests {
         assert!(colorized.contains("\x1b["));
         assert!(colorized.contains("let"));
         assert!(colorized.contains("42"));
+    }
+
+    /// Highlight keyword and literal tokens in printed diagnostic source rows.
+    #[test]
+    fn test_highlight_printed_diagnostic_source_rows() {
+        let file_id = FileId::new(1);
+        let file = Arc::new(File::from_text(
+            file_id,
+            "<test>".to_string(),
+            Uri::from_string("<test>"),
+            None,
+            FileType::Destack,
+            "const answer: int32 = \"text\";".to_string(),
+        ));
+        let span = Span::new(file_id, 22, 28);
+        let diagnostic = Diagnostic::error(
+            "not-assignable",
+            "mismatch",
+            DiagnosticLabel::message(file.content_id(), DiagnosticTarget::Span(span), "mismatch"),
+        );
+        let diagnostics = DiagnosticCollection::from_diagnostics(vec![diagnostic]);
+
+        // capture the printed lines with the lexical colorizer active
+        let lines = Arc::new(Mutex::new(Vec::<String>::new()));
+        let output = Arc::clone(&lines);
+        let writer = Arc::new(move |line: &str| {
+            output.lock().unwrap().push(line.to_string());
+        });
+        let file_for_id = |id| {
+            if id == file_id {
+                Some(Arc::clone(&file))
+            } else {
+                None
+            }
+        };
+        let options = PrintOptions::new()
+            .with_colorizer(source_colorizer())
+            .with_skip_summary(true)
+            .with_line_writer(writer);
+        print_diagnostics(&file_for_id, &diagnostics, options).unwrap();
+        let rendered = lines.lock().unwrap().join("\n");
+
+        // the const keyword renders magenta and the string literal green
+        assert!(
+            rendered.contains("\u{1b}[35mconst"),
+            "rendered: {rendered:?}"
+        );
+        assert!(
+            rendered.contains("\u{1b}[32m\"text\""),
+            "rendered: {rendered:?}"
+        );
     }
 
     /// Colorize retained comments together with semantic tokens.

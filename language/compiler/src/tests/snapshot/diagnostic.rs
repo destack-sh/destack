@@ -113,6 +113,7 @@ pub(crate) fn render_source_diagnostics(
     });
     let options = PrintOptions::new()
         .with_color(use_color)
+        .with_colorizer(destack_parser::source_colorizer())
         .with_line_writer(writer);
     let file_for_id = |file_id: FileId| repository.file(revision, file_id).ok().flatten();
 
