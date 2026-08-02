@@ -36,7 +36,7 @@ global {
     /// @binding.symbol symbol=schedule role=item kind=function scope=scope1@1 origin=global
     /// @binding.scope scope=schedule kind=function parent=scope1@2 owner=schedule
     /// @binding.owner_scope owner=schedule scope=schedule
-    /// @binding.symbol symbol=task role=local kind=variable scope=schedule@0
+    /// @binding.symbol symbol=task role=local kind=parameter scope=schedule@0
     /// @binding.scope scope=scope3 kind=block parent=schedule@1
 
         task;

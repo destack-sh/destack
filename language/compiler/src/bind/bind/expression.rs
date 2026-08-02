@@ -57,6 +57,7 @@ impl Compiler {
                     export: *export,
                     mutability: Some(*mutability),
                     space: place.map(dir::PlaceModifier::space),
+                    kind: dir::SymbolKind::Variable,
                 };
                 self.bind_declarators(state, tree, declarators, modifiers);
             }
@@ -72,6 +73,7 @@ impl Compiler {
                     export: None,
                     mutability: Some(*mutability),
                     space: None,
+                    kind: dir::SymbolKind::Variable,
                 };
                 self.bind_declarators(state, tree, &[*declarator], modifiers);
                 self.visit_expression_by_id(state, tree, *else_branch);
@@ -87,6 +89,7 @@ impl Compiler {
                     export: *export,
                     mutability: Some(dir::Mutability::Immutable),
                     space: None,
+                    kind: dir::SymbolKind::Variable,
                 };
                 self.bind_declarators(state, tree, declarators, modifiers);
             }
@@ -237,6 +240,7 @@ impl Compiler {
                         export: None,
                         mutability: Some(*mutability),
                         space: None,
+                        kind: dir::SymbolKind::Variable,
                     };
                     self.bind_declarators(state, tree, &[*declarator], modifiers);
                 }
@@ -284,6 +288,7 @@ impl Compiler {
             export: None,
             mutability,
             space: None,
+            kind: dir::SymbolKind::Variable,
         };
         state.push_binding_modifiers(modifiers);
         let pattern_node = tree.get(pattern);
@@ -416,6 +421,7 @@ impl Compiler {
                 export: None,
                 mutability: Some(dir::Mutability::Mutable),
                 space: None,
+                kind: dir::SymbolKind::Variable,
             });
             state.visit_pattern(tree, pattern, pattern_node);
             state.pop_binding_modifiers();
@@ -431,6 +437,7 @@ impl Compiler {
                 export: None,
                 mutability: Some(dir::Mutability::Mutable),
                 space: None,
+                kind: dir::SymbolKind::Variable,
             };
             let symbol_id = state.insert_binding_symbol(dir::StaticKey::Name(*name), modifiers);
             state.declare_symbol(symbol_id, *value);

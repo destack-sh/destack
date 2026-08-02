@@ -144,8 +144,8 @@ function visit({ id }: User, [first]: Items) {
 /// @binding.symbol symbol=visit role=item kind=function scope=<module>@5
 /// @binding.scope scope=visit kind=function parent=<module>@6 owner=visit
 /// @binding.owner_scope owner=visit scope=visit
-/// @binding.symbol symbol=id#2 role=local kind=variable scope=visit@0
-/// @binding.symbol symbol=first#2 role=local kind=variable scope=visit@1
+/// @binding.symbol symbol=id#2 role=local kind=parameter scope=visit@0
+/// @binding.symbol symbol=first#2 role=local kind=parameter scope=visit@1
 /// @binding.scope scope=scope3 kind=block parent=visit@2
 
     id;

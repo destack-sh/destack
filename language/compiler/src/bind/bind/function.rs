@@ -252,7 +252,13 @@ impl Compiler {
         };
 
         // declare parameter symbol
-        let symbol_id = state.insert_binding_symbol(key, BindingModifiers::default());
+        let modifiers = BindingModifiers {
+            export: None,
+            mutability: None,
+            space: None,
+            kind: dir::SymbolKind::Parameter,
+        };
+        let symbol_id = state.insert_binding_symbol(key, modifiers);
 
         state.declare_symbol(symbol_id, node_id);
     }
@@ -265,7 +271,13 @@ impl Compiler {
         pattern_id: dir::LocalNodeId<dir::Pattern>,
     ) {
         // bind pattern in parameter context
-        state.push_binding_modifiers(BindingModifiers::default());
+        let modifiers = BindingModifiers {
+            export: None,
+            mutability: None,
+            space: None,
+            kind: dir::SymbolKind::Parameter,
+        };
+        state.push_binding_modifiers(modifiers);
         let pattern = tree.get(pattern_id);
         state.visit_pattern(tree, pattern_id, pattern);
         state.pop_binding_modifiers();

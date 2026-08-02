@@ -18,6 +18,8 @@ pub(in crate::bind) struct BindingModifiers {
     pub(in crate::bind) mutability: Option<dir::Mutability>,
     /// The explicit storage space attached to introduced value symbols.
     pub(in crate::bind) space: Option<dir::Space>,
+    /// The symbol kind of introduced value symbols.
+    pub(in crate::bind) kind: dir::SymbolKind,
 }
 
 /// State for one bind phase provider run.
@@ -292,7 +294,7 @@ impl<'a> BindState<'a> {
         };
         let symbol_id = self.insert_symbol(
             dir::SymbolRole::Local,
-            dir::SymbolKind::Variable,
+            modifiers.kind,
             Some(key),
             modifiers.export,
             visibility,

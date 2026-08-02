@@ -141,10 +141,9 @@ impl BodyState<'_, '_> {
                 //  and a declaration through its symbol's overload set
                 let mut value_binding = true;
                 for symbol in &symbols {
-                    value_binding &= matches!(
-                        self.symbol_kind_maybe(*symbol)?,
-                        Some(dir::SymbolKind::Variable)
-                    );
+                    value_binding &= self
+                        .symbol_kind_maybe(*symbol)?
+                        .is_some_and(dir::SymbolKind::is_binding);
                 }
                 if value_binding {
                     return self.value_callable_candidates(origin, callee_site);

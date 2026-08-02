@@ -154,7 +154,7 @@ impl WalkState<'_, '_> {
             || self
                 .check
                 .own_symbol_kind(symbol)
-                .is_none_or(|kind| kind != dir::SymbolKind::Variable)
+                .is_none_or(|kind| !kind.is_binding())
         {
             return None;
         }

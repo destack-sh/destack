@@ -221,6 +221,8 @@ pub enum SymbolKind {
     /// Plain variable-like value symbol without a more specific kind.
     #[default]
     Variable,
+    /// Callable value parameter symbol.
+    Parameter,
     /// Imported dependency binding before target resolution.
     Import,
     /// Class symbol.
@@ -308,6 +310,12 @@ impl SymbolKind {
         matches!(self, Self::TypeAlias)
     }
 
+    /// Check whether this kind declares a body-owned value binding.
+    #[inline]
+    pub fn is_binding(self) -> bool {
+        matches!(self, Self::Variable | Self::Parameter)
+    }
+
     /// Return the symbol space normally introduced by this symbol kind.
     pub fn symbol_space(self) -> SymbolSpace {
         match self {
@@ -327,7 +335,8 @@ impl SymbolKind {
             | Self::NewtypeInterface
             | Self::Struct
             | Self::TypeAlias
-            | Self::Variable => SymbolSpace::Declaration,
+            | Self::Variable
+            | Self::Parameter => SymbolSpace::Declaration,
         }
     }
 

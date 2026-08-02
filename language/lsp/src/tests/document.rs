@@ -4,6 +4,8 @@ use super::tests::{TestServer, markdown, position, range};
 
 /// Function index in the advertised semantic token legend.
 const FUNCTION_TOKEN: u32 = 11;
+/// Parameter index in the advertised semantic token legend.
+const PARAMETER_TOKEN: u32 = 7;
 /// Declaration bit in the advertised semantic token modifier legend.
 const DECLARATION_MODIFIER: u32 = 1 << 0;
 /// Deprecated bit in the advertised semantic token modifier legend.
@@ -75,6 +77,82 @@ export function useOld(): void {
                 length: 11,
                 token_type: FUNCTION_TOKEN,
                 token_modifiers_bitset: DEPRECATED_MODIFIER,
+            },
+        ],
+    }));
+    server
+        .assert_request::<lsp::request::SemanticTokensFullRequest>(params, Ok(expected))
+        .await;
+}
+
+/// Classify parameter uses from their parameter symbol kind.
+#[tokio::test]
+async fn test_classify_parameter_uses_as_parameter_tokens() {
+    let manifest = r#"{
+  "name": "lsp-fixture",
+  "targets": {
+    "default": {
+      "include": ["src/**/*.ds"]
+    }
+  },
+  "defaultTarget": "default"
+}
+"#;
+    let source = r#"export function double(value: int32): int32 {
+    return value + value;
+}
+"#;
+    let mut server = TestServer::new("parameter-semantic-tokens");
+    server.write("destack.json", manifest);
+    let document = server.write("src/main.ds", source);
+    server
+        .initialize(lsp::ClientCapabilities::default(), None)
+        .await
+        .unwrap();
+    server.initialized().await;
+
+    // classify the declaration and both body uses as parameter tokens
+    server.open(&document, 1, source).await;
+    server
+        .assert_notification::<lsp::notification::PublishDiagnostics>(
+            lsp::PublishDiagnosticsParams {
+                uri: document.uri().clone(),
+                diagnostics: Vec::new(),
+                version: Some(1),
+            },
+        )
+        .await;
+    let params = document.semantic_tokens();
+    let expected = Some(lsp::SemanticTokensResult::Tokens(lsp::SemanticTokens {
+        result_id: None,
+        data: vec![
+            lsp::SemanticToken {
+                delta_line: 0,
+                delta_start: 16,
+                length: 6,
+                token_type: FUNCTION_TOKEN,
+                token_modifiers_bitset: DECLARATION_MODIFIER,
+            },
+            lsp::SemanticToken {
+                delta_line: 0,
+                delta_start: 7,
+                length: 5,
+                token_type: PARAMETER_TOKEN,
+                token_modifiers_bitset: DECLARATION_MODIFIER,
+            },
+            lsp::SemanticToken {
+                delta_line: 1,
+                delta_start: 11,
+                length: 5,
+                token_type: PARAMETER_TOKEN,
+                token_modifiers_bitset: 0,
+            },
+            lsp::SemanticToken {
+                delta_line: 0,
+                delta_start: 8,
+                length: 5,
+                token_type: PARAMETER_TOKEN,
+                token_modifiers_bitset: 0,
             },
         ],
     }));

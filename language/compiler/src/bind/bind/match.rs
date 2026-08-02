@@ -23,6 +23,7 @@ impl Compiler {
             export: None,
             mutability: Some(dir::Mutability::Immutable),
             space: None,
+            kind: dir::SymbolKind::Variable,
         });
         state.visit_pattern(tree, pattern, pattern_node);
         state.pop_binding_modifiers();

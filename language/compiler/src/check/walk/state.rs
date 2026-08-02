@@ -395,7 +395,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             self.external_symbol_type(symbol)?
         }
         // local variables use body-owned binding types
-        else if self.check.symbol_kind(symbol)? == dir::SymbolKind::Variable {
+        else if self.check.symbol_kind(symbol)?.is_binding() {
             self.binding_type_slot(symbol, Widening::Never)?
         }
         // local declarations use stable declaration types

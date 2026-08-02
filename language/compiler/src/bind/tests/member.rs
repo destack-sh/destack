@@ -55,7 +55,7 @@ struct User<T> {
     /// @binding.scope scope=rename kind=function parent=User@6 owner=rename
     /// @binding.receiver node=member symbol=this#1
     /// @binding.owner_scope owner=rename scope=rename
-    /// @binding.symbol symbol=name role=local kind=variable scope=rename@1
+    /// @binding.symbol symbol=name role=local kind=parameter scope=rename@1
     /// @binding.scope scope=scope5 kind=block parent=rename@2
 
         this;
@@ -74,7 +74,7 @@ interface Reader<T> {
     /// @binding.scope scope=read kind=function parent=Reader@2 owner=read
     /// @binding.receiver node=type_member symbol=this#2
     /// @binding.owner_scope owner=read scope=read
-    /// @binding.symbol symbol=value role=local kind=variable scope=read@1
+    /// @binding.symbol symbol=value role=local kind=parameter scope=read@1
 
     type Item = T;
     /// @binding.symbol symbol=Item role=item kind=associated_type scope=Reader@2 visibility=member

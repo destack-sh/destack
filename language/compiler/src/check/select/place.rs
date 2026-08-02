@@ -124,7 +124,7 @@ impl BodyState<'_, '_> {
         // foreign symbols never denote body places
         if self
             .symbol_kind_maybe(symbol)?
-            .is_none_or(|kind| kind != dir::SymbolKind::Variable)
+            .is_none_or(|kind| !kind.is_binding())
         {
             return Ok(Answer::Ready(None));
         }

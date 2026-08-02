@@ -372,7 +372,10 @@ impl BodyState<'_, '_> {
         if self.is_declaration() && !self.is_own_module(symbol.module_id) {
             self.report_export_type_not_derivable(site.node.module_id, site.node.local_id);
             // checking still records the runtime access path
-            if self.symbol_kind_maybe(*symbol)? == Some(dir::SymbolKind::Variable) {
+            if self
+                .symbol_kind_maybe(*symbol)?
+                .is_some_and(dir::SymbolKind::is_binding)
+            {
                 self.commit_access(site.node, dir::AccessPath::symbol(*symbol))?;
             }
             let ty = self.intern_type(dir::Type::Error)?;
@@ -399,7 +402,10 @@ impl BodyState<'_, '_> {
             }
             None => answer!(self.symbol_type(*symbol)?),
         };
-        if self.symbol_kind_maybe(*symbol)? == Some(dir::SymbolKind::Variable) {
+        if self
+            .symbol_kind_maybe(*symbol)?
+            .is_some_and(dir::SymbolKind::is_binding)
+        {
             self.commit_access(site.node, dir::AccessPath::symbol(*symbol))?;
         }
         let ty = answer!(self.flow_type_at(site, ty)?);

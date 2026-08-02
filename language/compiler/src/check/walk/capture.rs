@@ -71,7 +71,7 @@ impl WalkState<'_, '_> {
             && self
                 .check
                 .own_symbol_kind(symbol)
-                .is_some_and(|kind| kind == dir::SymbolKind::Variable)
+                .is_some_and(dir::SymbolKind::is_binding)
             && !self.is_lexical_receiver_symbol(symbol)
             && !self
                 .check

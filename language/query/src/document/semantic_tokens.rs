@@ -62,6 +62,7 @@ impl SemanticTokenType {
             dir::SymbolKind::Variable
             | dir::SymbolKind::AssociatedConst
             | dir::SymbolKind::GenericValueParameter => Self::Variable,
+            dir::SymbolKind::Parameter => Self::Parameter,
             dir::SymbolKind::Class => Self::Class,
             dir::SymbolKind::Struct => Self::Struct,
             dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface => Self::Interface,

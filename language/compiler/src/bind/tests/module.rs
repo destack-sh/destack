@@ -60,7 +60,7 @@ function wrap<T extends Box<_>, U = T>(value: T): U
 /// @binding.owner_scope owner=wrap scope=wrap
 /// @binding.symbol symbol=T#1 role=local kind=generic_type_parameter scope=wrap@0
 /// @binding.symbol symbol=U role=local kind=generic_type_parameter scope=wrap@1
-/// @binding.symbol symbol=value#1 role=local kind=variable scope=wrap@2
+/// @binding.symbol symbol=value#1 role=local kind=parameter scope=wrap@2
 
 where U: Clone {
 /// @binding.scope scope=scope3 kind=block parent=wrap@3

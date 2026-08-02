@@ -95,8 +95,8 @@ impl From<dir::SymbolKind> for CompletionItemKind {
     /// Convert a symbol type into a completion kind.
     fn from(symbol_kind: dir::SymbolKind) -> Self {
         match symbol_kind {
-            // FUGU #Incomplete: retain callable parameter symbol kinds in DIR
             dir::SymbolKind::Variable => CompletionItemKind::Variable,
+            dir::SymbolKind::Parameter => CompletionItemKind::ValueParameter,
             dir::SymbolKind::AssociatedConst => CompletionItemKind::AssociatedConst,
             dir::SymbolKind::GenericValueParameter => CompletionItemKind::ValueParameter,
             dir::SymbolKind::Class => CompletionItemKind::Class,

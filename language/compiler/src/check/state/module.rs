@@ -686,7 +686,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let is_binding = self.symbol_kind(symbol)? == dir::SymbolKind::Variable;
+        let is_binding = self.symbol_kind(symbol)?.is_binding();
         let existing = if is_binding {
             self.binding_type_maybe(symbol)
         } else {
