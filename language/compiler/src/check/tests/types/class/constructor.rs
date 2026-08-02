@@ -510,3 +510,183 @@ class Box {
 "#,
     );
 }
+
+#[test]
+fn test_call_the_base_constructor_through_super() {
+    let session = TestSession::single(
+        r#"
+class Animal {
+    name: string;
+
+    constructor(name: string) {
+        this.name = name;
+    }
+}
+
+class Dog extends Animal {
+    tricks: int32;
+
+    constructor(name: string, tricks: int32) {
+        super(name);
+        this.tricks = tricks;
+    }
+}
+
+const dog = new Dog("rex", 3);
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Animal {
+    name: string;
+
+    constructor(name: string): this {
+        this.name = name;
+    }
+}
+
+class Dog extends Animal {
+    tricks: int32;
+
+    constructor(name: string, tricks: int32): this {
+        super(name);
+        this.tricks = tricks;
+    }
+}
+
+const dog: Dog = new Dog("rex", 3);
+
+=== checked ===
+class Animal {
+/// @type.symbol symbol=Animal type=Animal
+/// @definition.class symbol=Animal
+/// @definition.field symbol=Animal.name source="name: string" key=name type=string
+/// @definition.method symbol=Animal.constructor slot=constructor role=constructor type=(string) => this
+
+    name: string;
+    /// @type.symbol symbol=Animal.name source="name: string" type=string
+
+    constructor(name: string) {
+    /// @type.symbol symbol=Animal.constructor type=(string) => this
+    /// @type.symbol symbol=Animal.constructor.name source="name: string" type=string
+
+        this.name = name;
+        /// @resolution.receiver source=this kind=this declaration=Animal type=Animal
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.name kind=place
+        /// @resolution.access source=this.name root=this keys=[name]
+        /// @resolution.assignment source=this.name write="receiver=Animal, target=field(receiver=Animal, target=Animal.name, type=string), type=string" type=string
+        /// @resolution.name source=name target=Animal.constructor.name
+        /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=name root=Animal.constructor.name
+
+    }
+}
+
+class Dog extends Animal {
+/// @type.symbol symbol=Dog type=Dog
+/// @definition.class symbol=Dog
+/// @definition.extends symbol=Dog source=Animal target=Animal
+/// @definition.field symbol=Dog.tricks source="tricks: int32" key=tricks type=int32
+/// @definition.method symbol=Dog.constructor slot=constructor role=constructor type=(string, int32) => this
+/// @resolution.name source=Animal target=Animal
+
+    tricks: int32;
+    /// @type.symbol symbol=Dog.tricks source="tricks: int32" type=int32
+
+    constructor(name: string, tricks: int32) {
+    /// @type.symbol symbol=Dog.constructor type=(string, int32) => this
+    /// @type.symbol symbol=Dog.constructor.name source="name: string" type=string
+    /// @type.symbol symbol=Dog.constructor.tricks source="tricks: int32" type=int32
+
+        super(name);
+        /// @resolution.receiver source=super kind=this declaration=Dog type=Dog
+        /// @resolution.access source=super root=this
+        /// @resolution.construct source=super(name) parameters=(string) arguments=(provided(name) as string) return=void kind=class target=Animal constructor=Animal.constructor
+        /// @resolution.name source=name target=Dog.constructor.name
+        /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=name root=Dog.constructor.name
+
+        this.tricks = tricks;
+        /// @resolution.receiver source=this kind=this declaration=Dog type=Dog
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.tricks kind=place
+        /// @resolution.access source=this.tricks root=this keys=[tricks]
+        /// @resolution.assignment source=this.tricks write="receiver=Dog, target=field(receiver=Dog, target=Dog.tricks, type=int32), type=int32" type=int32
+        /// @resolution.name source=tricks target=Dog.constructor.tricks
+        /// @resolution.place source=tricks placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=tricks root=Dog.constructor.tricks
+
+    }
+}
+
+const dog = new Dog("rex", 3);
+/// @type.symbol symbol=dog source=dog type=Dog
+/// @resolution.pattern source=dog kind=binding target=dog
+/// @resolution.construct source="new Dog(\"rex\", 3)" parameters=(string, int32) arguments=(provided("rex") as string, provided(3) as int32) return=Dog kind=class target=Dog constructor=Dog.constructor
+/// @resolution.name source=Dog target=Dog
+"#,
+    );
+}
+
+#[test]
+fn test_forward_a_base_constructor_across_modules() {
+    let session = TestSession::builder()
+        .module(
+            "base.ds",
+            r#"
+export class Animal<T> {
+    tag: T;
+
+    constructor(tag: T) {
+        this.tag = tag;
+    }
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { Animal } from "./base.ds";
+
+class Dog extends Animal<string> {}
+
+const dog = new Dog("rex");
+"#,
+        )
+        .build();
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Animal } from "./base.ds";
+
+class Dog extends Animal<string> {}
+
+const dog: Dog = new Dog("rex");
+
+=== checked ===
+import { Animal } from "./base.ds";
+
+class Dog extends Animal<string> {}
+/// @type.symbol symbol=Dog source="class Dog extends Animal<string> {}" type=Dog
+/// @definition.class symbol=Dog source="class Dog extends Animal<string> {}"
+/// @definition.extends symbol=Dog source=Animal<string> target=base.Animal<string>
+/// @resolution.name source=Animal target=base.Animal
+
+const dog = new Dog("rex");
+/// @type.symbol symbol=dog source=dog type=Dog
+/// @resolution.pattern source=dog kind=binding target=dog
+/// @resolution.construct source="new Dog(\"rex\")" parameters=(string) arguments=(provided("rex") as string) return=Dog kind=class target=Dog constructor=forwarded:base.Animal.symbol5
+/// @resolution.name source=Dog target=Dog
+"#,
+    );
+}

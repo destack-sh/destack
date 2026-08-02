@@ -758,7 +758,7 @@ impl BodyState<'_, '_> {
 
 impl BodyState<'_, '_> {
     /// Commit one rejected call node and produce its failed check.
-    fn reject_call(
+    pub(in crate::check) fn reject_call(
         &mut self,
         node: dir::GlobalNodeIdAny,
         expectation: Option<Expectation>,
@@ -793,6 +793,14 @@ impl BodyState<'_, '_> {
             let argument = argument.into_global_any(module);
             let ty = self.require_node_type(argument)?;
             argument_types.push(ty);
+        }
+
+        // select the base class constructor for a super callee
+        if matches!(
+            self.module(module).view().get(callee),
+            dir::Expression::Super
+        ) {
+            return self.select_super_construct(site, callee, argument_nodes);
         }
 
         // omitted constructor heads use the expected nominal target

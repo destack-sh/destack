@@ -1031,6 +1031,186 @@ impl BodyState<'_, '_> {
         )
     }
 
+    /// Select the base class constructor initialized by one super call.
+    pub(in crate::check) fn select_super_construct(
+        &mut self,
+        site: FlowSite,
+        callee: dir::LocalNodeId<dir::Expression>,
+        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+    ) -> CompilerResult<Answer<ValueCheck>> {
+        let node = site.node;
+        let module = node.module_id;
+        let origin = site.origin();
+        let arguments = self.callable_arguments(module, argument_nodes, ValueUse::Argument)?;
+
+        // read the base instance committed on the super callee
+        let super_ty = self.require_node_type(callee.into_global_any(module))?;
+        let super_ty = answer!(self.reduce_type_head(origin, super_ty)?);
+        if matches!(self.ty(super_ty)?, dir::Type::Error) {
+            return Ok(Answer::Ready(self.reject_call(node, None)?));
+        }
+        let (base_module, instance) = self.require_nominal_application(super_ty)?;
+        let Some(dir::Definition::Class(base)) = self.definition(instance.symbol)? else {
+            return Err(CompilerError::Internal {
+                message: format!("super target {:?} has no class definition", instance.symbol),
+            });
+        };
+        let base = base.clone();
+
+        // collect base constructors including forwarded defaults
+        let mut active = SmallVec::new();
+        let constructors = answer!(self.collect_class_construct_candidates(
+            origin,
+            super_ty,
+            &instance,
+            base.constructors,
+            base.extends,
+            &mut active,
+        )?);
+
+        // select the first applicable base constructor in declaration order
+        let is_single_candidate = constructors.len() == 1;
+        let mut selected = None;
+        let mut rejections = Vec::new();
+        for constructor in constructors {
+            if is_single_candidate {
+                selected = Some(constructor);
+                break;
+            }
+            let (verdict, rejection) = answer!(self.probe_candidate_noted(
+                |state| {
+                    let outcome = state.attempt_construct(
+                        origin,
+                        module,
+                        base_module,
+                        &instance,
+                        super_ty,
+                        constructor.ty,
+                        &arguments,
+                        None,
+                        None,
+                    )?;
+                    match outcome {
+                        Answer::Ready(matched) => Ok(Answer::Ready(matched.into_candidate())),
+                        Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+                    }
+                },
+                |state, rejection| {
+                    state
+                        .check
+                        .describe_signature_rejection(module, constructor.ty, rejection)
+                },
+            )?);
+            match verdict {
+                CandidateVerdict::Rejected => rejections.extend(rejection),
+                CandidateVerdict::Viable | CandidateVerdict::Indeterminate => {
+                    selected = Some(constructor);
+
+                    break;
+                }
+            }
+        }
+
+        // confirm the selected constructor outside any probe
+        if let Some(constructor) = selected {
+            let attempt = self.attempt_construct(
+                origin,
+                module,
+                base_module,
+                &instance,
+                super_ty,
+                constructor.ty,
+                &arguments,
+                None,
+                None,
+            )?;
+
+            match answer!(attempt) {
+                SignatureMatch::Selected(signature)
+                | SignatureMatch::ReturnMismatch(signature)
+                | SignatureMatch::Invalid {
+                    selection: signature,
+                    ..
+                } => {
+                    return self.commit_super_construct(
+                        node,
+                        module,
+                        base_module,
+                        &instance,
+                        constructor.constructor,
+                        argument_nodes,
+                        signature,
+                    );
+                }
+                SignatureMatch::Inapplicable(rejection) => {
+                    let description =
+                        self.describe_signature_rejection(module, constructor.ty, &rejection)?;
+                    rejections.push(description);
+                }
+            }
+        }
+
+        // reject the super call when no base constructor accepts the arguments
+        rejections.truncate(4);
+        let rejected =
+            answer!(self.reject_construct(site, node, origin, argument_nodes, &rejections,)?);
+        let _ = rejected;
+
+        Ok(Answer::Ready(self.reject_call(node, None)?))
+    }
+
+    /// Commit one selected base constructor as the super initialization.
+    fn commit_super_construct(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        module: ModuleId,
+        base_module: ModuleId,
+        instance: &dir::GenericApplication,
+        constructor: dir::ClassConstructor,
+        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+        signature: SignatureSelection,
+    ) -> CompilerResult<Answer<ValueCheck>> {
+        // commit conversions only after the constructor has been selected
+        for (source, coercion) in &signature.coercions {
+            self.commit_coercion(*source, coercion.clone())?;
+        }
+
+        // bind generic arguments from the base instance when inference stayed closed
+        let generic_arguments = if signature.generic_arguments.is_empty() {
+            let arguments = self.type_ids(base_module, instance.arguments)?.to_vec();
+
+            self.symbol_generic_argument_bindings(instance.symbol, &arguments)?
+        } else {
+            signature.generic_arguments.clone()
+        };
+
+        // a super call initializes this and produces no value
+        let produced = self.intern_type(dir::Type::Void)?;
+        let target = dir::ConstructTarget::Class(dir::ClassConstructCandidate {
+            symbol: instance.symbol,
+            constructor,
+            generic_arguments,
+        });
+        let resolution = dir::ConstructResolution::new(
+            target,
+            self.argument_bindings(
+                Origin::Node(node, None),
+                module,
+                argument_nodes,
+                &signature.parameters,
+            )?,
+            produced,
+        );
+        self.commit_decision(node, Decision::Construct(resolution))?;
+        self.commit_node_type(node, produced)?;
+
+        Ok(Answer::Ready(ValueCheck {
+            source: produced,
+            outcome: CheckOutcome::Holds,
+            target: produced,
+        }))
+    }
+
     /// Commit one selected construct target with its produced instance type.
     fn commit_construct_resolution(
         &mut self,
