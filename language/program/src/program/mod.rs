@@ -1,5 +1,6 @@
 mod activation;
 mod binding;
+mod context;
 mod continuation;
 mod dispatch;
 mod drop;
@@ -27,6 +28,7 @@ mod word;
 
 pub use activation::*;
 pub use binding::*;
+pub use context::*;
 pub use continuation::*;
 pub use dispatch::*;
 pub use drop::*;

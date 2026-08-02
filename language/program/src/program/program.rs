@@ -683,9 +683,12 @@ impl Program {
     pub fn visit_continuation_root_slots(
         &self,
         memory: &MemoryMap,
-        continuation: &Continuation,
+        continuation: &mut Continuation,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<()> {
+        visit(RootSlot::HeapReference(
+            continuation.context_mut().reference_mut(),
+        ))?;
         let states = continuation.frames().iter().map(|frame| frame.state());
 
         self.visit_memory_frame_root_slots(memory, continuation.memory(), states, visit)
@@ -695,9 +698,12 @@ impl Program {
     pub fn visit_activation_root_slots(
         &self,
         memory: &MemoryMap,
-        activation: &ActivationImage,
+        activation: &mut ActivationImage,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<()> {
+        visit(RootSlot::HeapReference(
+            activation.context_mut().reference_mut(),
+        ))?;
         let states = activation.frames().iter().map(|frame| frame.state());
 
         self.visit_memory_frame_root_slots(memory, activation.memory(), states, visit)

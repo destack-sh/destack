@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::Result;
 
-use super::{FrameStateId, ProgramPoint};
+use super::{Context, FrameStateId, ProgramPoint};
 
 /// One retained call chain independent of its execution engine.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -17,6 +17,8 @@ pub struct ActivationImage {
     frames: Arc<[FrameImage]>,
     /// Packed live frame bytes inside the owning MemoryMap.
     memory: MemoryRange,
+    /// Dynamically scoped context captured with the call chain.
+    context: Context,
 }
 
 /// Root completion mode preserved by one retained activation.
@@ -35,11 +37,13 @@ impl ActivationImage {
         completion: Completion,
         frames: impl Into<Arc<[FrameImage]>>,
         memory: MemoryRange,
+        context: Context,
     ) -> Self {
         Self {
             completion,
             frames: frames.into(),
             memory,
+            context,
         }
     }
 
@@ -63,12 +67,23 @@ impl ActivationImage {
         self.memory
     }
 
+    /// Return the dynamically scoped context captured with this call chain.
+    pub const fn context(&self) -> Context {
+        self.context
+    }
+
+    /// Borrow the mutable context root retained by this call chain.
+    pub(crate) fn context_mut(&mut self) -> &mut Context {
+        &mut self.context
+    }
+
     /// Inherit this activation into an already-forked memory map.
     pub fn inherit(&self) -> Self {
         Self {
             completion: self.completion,
             frames: self.frames.clone(),
             memory: self.memory,
+            context: self.context,
         }
     }
 

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::Result;
 
-use super::{ActivationImage, Completion, FrameImage, Program, Word};
+use super::{ActivationImage, Completion, Context, FrameImage, Program, Word};
 
 /// One suspended coroutine call chain.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -71,6 +71,16 @@ impl Continuation {
     /// Return packed frame bytes inside the owning MemoryMap.
     pub const fn memory(&self) -> MemoryRange {
         self.image.memory()
+    }
+
+    /// Return the execution context captured by this continuation.
+    pub const fn context(&self) -> Context {
+        self.image.context()
+    }
+
+    /// Borrow the mutable context root retained by this continuation.
+    pub(crate) fn context_mut(&mut self) -> &mut Context {
+        self.image.context_mut()
     }
 }
 
@@ -159,13 +169,13 @@ impl ContinuationTable {
 
     /// Visit mutable heap roots retained by every live continuation.
     pub fn visit_root_slots(
-        &self,
+        &mut self,
         program: &Program,
         memory: &MemoryMap,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<()> {
-        for slot in &self.slots {
-            let Some(continuation) = &slot.continuation else {
+        for slot in &mut self.slots {
+            let Some(continuation) = &mut slot.continuation else {
                 continue;
             };
 

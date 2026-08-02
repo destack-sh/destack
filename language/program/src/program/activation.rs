@@ -2,7 +2,7 @@ use std::fmt;
 
 use destack_heap::{HeapResult, RootSlot};
 
-use crate::{Binding, Continuation, Memory, Task, TaskOutcome, Value, Waiter, Word};
+use crate::{Binding, Context, Continuation, Memory, Task, TaskOutcome, Value, Waiter, Word};
 
 /// Action returned by one runtime poll.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,6 +61,7 @@ pub trait Runtime {
     fn call_binding(
         &mut self,
         memory: Memory<'_>,
+        context: Context,
         binding: &Binding,
         arguments: &[Word],
         result: &mut [Word],
@@ -110,6 +111,8 @@ where
     pub runtime: &'runtime mut R,
     /// Memory available to this call.
     pub memory: Memory<'memory>,
+    /// Current dynamically scoped execution context.
+    pub context: &'runtime mut Context,
 }
 
 impl<R> Activation<'_, '_, R>
@@ -121,6 +124,7 @@ where
         Activation {
             runtime: &mut *self.runtime,
             memory: self.memory.reborrow(),
+            context: &mut *self.context,
         }
     }
 }
@@ -135,6 +139,7 @@ where
             .debug_struct("Activation")
             .field("runtime", &true)
             .field("memory", &self.memory)
+            .field("context", &self.context)
             .finish()
     }
 }
