@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalId, Word};
+use crate::Word;
 
 /// Stable address inside static memory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -11,27 +11,22 @@ pub struct GlobalAddress(u64);
 impl GlobalAddress {
     /// The fixed byte width of one encoded global address.
     pub const BYTE_LEN: usize = std::mem::size_of::<u64>();
+    /// The first offset available to static storage.
+    pub const FIRST_OFFSET: usize = 2;
     /// The canonical null global address.
     pub const NULL: Self = Self(Word::NULL.bits());
     /// The canonical undefined global address.
     pub const UNDEFINED: Self = Self(Word::UNDEFINED.bits());
-    /// The bit width of the byte offset stored in one global address.
-    const BYTE_OFFSET_BITS: u32 = u32::BITS;
-    /// The mask for the byte offset stored in one global address.
-    const BYTE_OFFSET_MASK: u64 = u32::MAX as u64;
 
-    /// Create a global address.
+    /// Create a global address from one storage-relative byte offset.
     #[inline]
-    pub const fn new(global: GlobalId, byte_offset: u32) -> Self {
+    pub const fn new(offset: usize) -> Self {
         assert!(
-            global.0 < u32::MAX,
-            "global id exceeds the address encoding"
+            offset >= Self::FIRST_OFFSET,
+            "global address overlaps nullish values"
         );
 
-        let id = (global.0 as u64 + 1) << Self::BYTE_OFFSET_BITS;
-        let byte_offset = byte_offset as u64;
-
-        Self(id | byte_offset)
+        Self(offset as u64)
     }
 
     /// Create a global address from raw word bits.
@@ -40,24 +35,13 @@ impl GlobalAddress {
         Self(bits)
     }
 
-    /// Return the addressed global id when this address is not nullish.
+    /// Return the storage-relative byte offset when this address is not nullish.
     #[inline]
-    pub const fn global(self) -> Option<GlobalId> {
-        let encoded = (self.0 >> Self::BYTE_OFFSET_BITS) as u32;
-        if encoded == 0 {
+    pub const fn offset(self) -> Option<usize> {
+        if self.is_nullish() || self.0 > usize::MAX as u64 {
             None
         } else {
-            Some(GlobalId(encoded - 1))
-        }
-    }
-
-    /// Return the byte offset inside the addressed global when this address is not nullish.
-    #[inline]
-    pub const fn byte_offset(self) -> Option<usize> {
-        if self.global().is_none() {
-            None
-        } else {
-            Some((self.0 & Self::BYTE_OFFSET_MASK) as usize)
+            Some(self.0 as usize)
         }
     }
 
@@ -88,11 +72,9 @@ impl GlobalAddress {
     /// Add one byte offset to this global address.
     #[inline]
     pub fn add_bytes(self, byte_offset: usize) -> Option<Self> {
-        let global = self.global()?;
-        let byte_offset = self.byte_offset()?.checked_add(byte_offset)?;
-        let byte_offset = u32::try_from(byte_offset).ok()?;
+        let offset = self.offset()?.checked_add(byte_offset)?;
 
-        Some(Self::new(global, byte_offset))
+        Some(Self::new(offset))
     }
 }
 

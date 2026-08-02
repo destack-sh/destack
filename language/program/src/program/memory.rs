@@ -29,6 +29,12 @@ pub struct Memory<'a> {
 }
 
 impl Memory<'_> {
+    /// Return the base native address of world memory.
+    #[inline(always)]
+    pub fn base_address(&self) -> usize {
+        self.local_heap.heap_base_address()
+    }
+
     /// Reborrow this memory for one nested activation.
     pub fn reborrow(&mut self) -> Memory<'_> {
         Memory {
@@ -73,20 +79,12 @@ impl Memory<'_> {
 
     /// Resolve one stable heap edge into an ephemeral native address.
     pub fn address(&self, edge: HeapEdge) -> usize {
-        match edge {
-            HeapEdge::Local(reference) => self.local_heap.heap_base_address() + reference.offset(),
-            HeapEdge::Shared(reference) => {
-                self.shared_heap.heap_base_address() + reference.offset()
-            }
-        }
+        self.base_address() + edge.bits()
     }
 
-    /// Return one heap address as an offset within its selected space.
-    pub fn heap_offset(&self, space: Space, address: usize) -> Option<usize> {
-        match space {
-            Space::Local => address.checked_sub(self.local_heap.heap_base_address()),
-            Space::Shared => address.checked_sub(self.shared_heap.heap_base_address()),
-        }
+    /// Return one heap address as an offset inside world memory.
+    pub fn heap_offset(&self, address: usize) -> Option<usize> {
+        address.checked_sub(self.base_address())
     }
 
     /// Free one uniquely owned heap allocation.

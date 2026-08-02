@@ -10,20 +10,73 @@ use crate::{Global, GlobalAddress};
 
 /// Section-backed static memory image carried by a program.
 #[repr(C)]
-#[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct StaticImage {
     /// Static bytes.
     bytes: SectionSlice<u8>,
+    /// Required byte alignment.
+    alignment: u32,
+    /// Reserved image word.
+    reserved: u32,
+}
+
+/// Static bytes before Program image packing.
+#[derive(Debug)]
+pub struct StaticBytes {
+    /// Initialized bytes.
+    bytes: Vec<u8>,
+    /// Required byte alignment.
+    alignment: usize,
+}
+
+impl Default for StaticBytes {
+    /// Create empty static bytes with byte alignment.
+    fn default() -> Self {
+        Self {
+            bytes: Vec::new(),
+            alignment: 1,
+        }
+    }
+}
+
+impl Default for StaticImage {
+    /// Create one empty static image.
+    fn default() -> Self {
+        Self {
+            bytes: SectionSlice::empty(),
+            alignment: 1,
+            reserved: 0,
+        }
+    }
+}
+
+impl StaticBytes {
+    /// Create initialized static bytes with one required alignment.
+    pub fn new(bytes: Vec<u8>, alignment: usize) -> Self {
+        assert!(
+            alignment.is_power_of_two(),
+            "static alignment must be a power of two"
+        );
+        assert!(
+            u32::try_from(alignment).is_ok(),
+            "static alignment must fit its Program representation"
+        );
+
+        Self { bytes, alignment }
+    }
 }
 
 impl StaticImage {
     /// Pack one static image.
-    pub(crate) fn pack(sections: &mut SectionBuilder, bytes: Vec<u8>) -> Self {
-        let bytes = sections.insert(bytes);
+    pub(crate) fn pack(sections: &mut SectionBuilder, bytes: StaticBytes) -> Self {
+        let alignment = bytes.alignment;
+        let bytes = sections.insert_bytes(bytes.bytes, alignment);
 
-        Self { bytes }
+        Self {
+            bytes,
+            alignment: alignment as u32,
+            reserved: 0,
+        }
     }
 
     /// Borrow one global byte range.
@@ -33,32 +86,36 @@ impl StaticImage {
         sections.entries(self.bytes).get(global.offset()..end)
     }
 
+    /// Return one stable reference to a global in this image.
+    pub fn reference(&self, global: &Global) -> GlobalAddress {
+        GlobalAddress::new(global.offset())
+    }
+
     /// Return a native address for one static byte range.
     pub fn address(
         &self,
         sections: SectionImage<'_>,
-        global: &Global,
         address: GlobalAddress,
         byte_len: usize,
     ) -> Option<usize> {
-        let start = address.byte_offset()?;
+        let start = address.offset()?;
         let end = start.checked_add(byte_len)?;
-        if end > global.byte_len() {
+        let bytes = sections.entries(self.bytes);
+        if end > bytes.len() {
             return None;
         }
 
-        Some(sections.entries(self.bytes).as_ptr() as usize + global.offset() + start)
+        Some(bytes.as_ptr() as usize + start)
     }
 
     /// Return whether static memory owns one byte range.
     pub fn owns_address_range(
         &self,
         sections: SectionImage<'_>,
-        global: &Global,
         address: GlobalAddress,
         byte_len: usize,
     ) -> bool {
-        self.address(sections, global, address, byte_len).is_some()
+        self.address(sections, address, byte_len).is_some()
     }
 
     /// Materialize this image into mutable runtime static memory.
@@ -67,7 +124,7 @@ impl StaticImage {
         sections: SectionImage<'_>,
         memory: Arc<MemoryMap>,
     ) -> MemoryResult<StaticSpace> {
-        StaticSpace::new(memory, sections.entries(self.bytes))
+        StaticSpace::new(memory, sections.entries(self.bytes), self.alignment())
     }
 
     /// Return whether no static bytes exist.
@@ -78,6 +135,23 @@ impl StaticImage {
     /// Return the static byte count.
     pub fn byte_len(&self, sections: SectionImage<'_>) -> usize {
         sections.entries(self.bytes).len()
+    }
+
+    /// Return the required byte alignment.
+    pub const fn alignment(&self) -> usize {
+        self.alignment as usize
+    }
+
+    /// Return whether the stored bytes satisfy their declared alignment.
+    pub(crate) fn is_aligned(&self, sections: SectionImage<'_>) -> bool {
+        let alignment = self.alignment();
+        if !alignment.is_power_of_two() {
+            return false;
+        }
+
+        // accept empty images without inspecting their synthetic slice pointer
+        let bytes = sections.entries(self.bytes);
+        bytes.is_empty() || (bytes.as_ptr() as usize).is_multiple_of(alignment)
     }
 
     /// Return a native projection of this constant image.
@@ -111,8 +185,8 @@ pub struct StaticSpace {
 
 impl StaticSpace {
     /// Create static memory from initial bytes.
-    pub fn new(memory: Arc<MemoryMap>, bytes: &[u8]) -> MemoryResult<Self> {
-        let range = memory.allocate(bytes.len(), 1)?;
+    pub fn new(memory: Arc<MemoryMap>, bytes: &[u8], alignment: usize) -> MemoryResult<Self> {
+        let range = memory.allocate(bytes.len(), alignment)?;
         let space = Self { memory, range };
         space.memory.write_bytes(space.range.offset, bytes)?;
 
@@ -166,45 +240,41 @@ impl StaticSpace {
         bytes.get_mut(global.offset()..end)
     }
 
+    /// Return one stable reference to a global in this space.
+    pub fn reference(&self, global: &Global) -> GlobalAddress {
+        GlobalAddress::new(self.range.offset + global.offset())
+    }
+
     /// Return a native address for one static byte range.
-    pub fn address(
-        &self,
-        global: &Global,
-        address: GlobalAddress,
-        byte_len: usize,
-    ) -> Option<usize> {
-        let start = address.byte_offset()?;
+    pub fn address(&self, address: GlobalAddress, byte_len: usize) -> Option<usize> {
+        let start = address.offset()?;
         let end = start.checked_add(byte_len)?;
-        if end > global.byte_len() {
+        if start < self.range.offset || end > self.range.end() {
             return None;
         }
 
-        Some(self.memory.base_address() + self.range.offset + global.offset() + start)
+        Some(self.memory.base_address() + start)
     }
 
     /// Return a mutable native address for one static byte range.
     pub fn address_mut(
         &mut self,
-        global: &Global,
         address: GlobalAddress,
         byte_len: usize,
     ) -> MemoryResult<Option<usize>> {
-        let Some(start) = address.byte_offset() else {
+        let Some(start) = address.offset() else {
             return Ok(None);
         };
         let Some(end) = start.checked_add(byte_len) else {
             return Ok(None);
         };
-        if end > global.byte_len() {
+        if start < self.range.offset || end > self.range.end() {
             return Ok(None);
         }
 
-        self.memory
-            .make_writable(self.range.offset + global.offset() + start, byte_len)?;
+        self.memory.make_writable(start, byte_len)?;
 
-        Ok(Some(
-            self.memory.base_address() + self.range.offset + global.offset() + start,
-        ))
+        Ok(Some(self.memory.base_address() + start))
     }
 
     /// Return the static byte count.
@@ -212,10 +282,15 @@ impl StaticSpace {
         self.range.byte_len
     }
 
+    /// Return the static range offset inside world memory.
+    pub fn offset(&self) -> usize {
+        self.range.offset
+    }
+
     /// Return a native projection of this static space.
-    pub fn native(&mut self) -> abi::StaticSpace {
+    pub fn native(&self) -> abi::StaticSpace {
         abi::StaticSpace {
-            bytes: (self.memory.base_address() + self.range.offset) as *mut u8,
+            offset: self.range.offset,
             byte_len: self.range.byte_len,
         }
     }
@@ -240,7 +315,7 @@ mod tests {
         let source_memory = Arc::new(
             MemoryMap::reserve(64 * 1024, 8 * 1024).expect("source memory should reserve"),
         );
-        let source = StaticSpace::new(source_memory.clone(), &[1, 2, 3, 4])
+        let source = StaticSpace::new(source_memory.clone(), &[1, 2, 3, 4], 1)
             .expect("source statics should materialize");
         let memory_image = source_memory
             .capture()
@@ -266,7 +341,7 @@ mod tests {
         let memory = Arc::new(
             MemoryMap::reserve(64 * 1024, 8 * 1024).expect("parent memory should reserve"),
         );
-        let parent = StaticSpace::new(memory.clone(), &[1, 2, 3, 4])
+        let parent = StaticSpace::new(memory.clone(), &[1, 2, 3, 4], 1)
             .expect("parent statics should materialize");
         let fork_memory = Arc::new(memory.fork_lazy().expect("world memory should fork"));
         let fork = parent.fork(fork_memory);
@@ -295,13 +370,13 @@ mod tests {
         let memory =
             Arc::new(MemoryMap::reserve(64 * 1024, 8 * 1024).expect("test memory should reserve"));
         let first_offset = {
-            let space = StaticSpace::new(memory.clone(), &[1, 2, 3, 4])
+            let space = StaticSpace::new(memory.clone(), &[1, 2, 3, 4], 1)
                 .expect("first statics should materialize");
 
             space.range.offset
         };
         let second =
-            StaticSpace::new(memory, &[5, 6, 7, 8]).expect("second statics should materialize");
+            StaticSpace::new(memory, &[5, 6, 7, 8], 1).expect("second statics should materialize");
 
         assert_eq!(second.range.offset, first_offset);
     }

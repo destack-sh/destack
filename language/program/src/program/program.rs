@@ -463,39 +463,19 @@ impl Program {
         &self.traces
     }
 
-    /// Return the constant address for one global.
-    pub fn global_address(&self, global: GlobalId) -> Option<GlobalAddress> {
-        self.global(global)?;
-
-        Some(GlobalAddress::new(global, 0))
-    }
-
     /// Resolve one constant byte range to a native address.
     pub fn constant_address(&self, address: GlobalAddress, byte_len: usize) -> Option<usize> {
         let sections = self.sections();
-        let global = self.global(address.global()?)?;
-        if global.location != GlobalLocation::Constant {
-            return None;
-        }
 
-        self.constants.address(sections, global, address, byte_len)
+        self.constants.address(sections, address, byte_len)
     }
 
     /// Return whether constants own one byte range.
     pub fn constants_own_address_range(&self, address: GlobalAddress, byte_len: usize) -> bool {
         let sections = self.sections();
-        let Some(global_id) = address.global() else {
-            return false;
-        };
-        let Some(global) = self.global(global_id) else {
-            return false;
-        };
-        if global.location != GlobalLocation::Constant {
-            return false;
-        }
 
         self.constants
-            .owns_address_range(sections, global, address, byte_len)
+            .owns_address_range(sections, address, byte_len)
     }
 
     /// Return one canonical frame state.

@@ -16,11 +16,12 @@ use crate::{
     BindingBuilder, BindingTable, DispatchTable, DispatchTableBuilder, DropEntry, DropTable,
     FrameTable, FrameTableBuilder, FunctionTable, FunctionTableBuilder, GlobalTable,
     GlobalTableBuilder, LayoutBuilder, LayoutTable, ProgramInfo, ProgramInfoBuilder, SiteTable,
-    SiteTableBuilder, StaticImage, StringEntry, StringTable, TypeTable, TypeTableBuilder,
+    SiteTableBuilder, StaticBytes, StaticImage, StringEntry, StringTable, TypeTable,
+    TypeTableBuilder,
 };
 
 const PROGRAM_MAGIC: u32 = u32::from_le_bytes(*b"DSPG");
-const PROGRAM_VERSION: u16 = 9;
+const PROGRAM_VERSION: u16 = 10;
 
 /// Program image load failure.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,6 +40,8 @@ pub enum ProgramLoadError {
     InvalidRange,
     /// One stored program string is not valid UTF-8.
     InvalidString,
+    /// One static image violates its recorded alignment.
+    InvalidAlignment,
 }
 
 impl fmt::Display for ProgramLoadError {
@@ -56,6 +59,7 @@ impl fmt::Display for ProgramLoadError {
             Self::InvalidLength => formatter.write_str("invalid program image length"),
             Self::InvalidRange => formatter.write_str("invalid program image range"),
             Self::InvalidString => formatter.write_str("invalid program image string"),
+            Self::InvalidAlignment => formatter.write_str("invalid program image alignment"),
         }
     }
 }
@@ -103,11 +107,11 @@ pub struct ProgramBuilder {
     info: Option<ProgramInfoBuilder>,
 
     /// Immutable constant bytes.
-    constants: Vec<u8>,
+    constants: StaticBytes,
     /// Initial shared static bytes.
-    shared_statics: Vec<u8>,
+    shared_statics: StaticBytes,
     /// Initial local static bytes.
-    local_statics: Vec<u8>,
+    local_statics: StaticBytes,
 
     /// Optional linked bytecode.
     bytecode: Option<CodeBuilder>,
@@ -217,12 +221,32 @@ impl ProgramHeader {
             return Err(ProgramLoadError::InvalidString);
         }
 
+        // require every static region to satisfy its recorded physical alignment
+        if !self.constants.is_aligned(sections)
+            || !self.shared_statics.is_aligned(sections)
+            || !self.local_statics.is_aligned(sections)
+        {
+            return Err(ProgramLoadError::InvalidAlignment);
+        }
+
         // reject any relative range outside its owning sibling column
         if !self.ranges_fit(sections) {
             return Err(ProgramLoadError::InvalidRange);
         }
 
         Ok(())
+    }
+
+    /// Return the maximum alignment required by this Program image.
+    fn alignment(&self) -> Result<usize, ProgramLoadError> {
+        let constants = self.constants.alignment();
+        let shared = self.shared_statics.alignment();
+        let local = self.local_statics.alignment();
+        if !constants.is_power_of_two() || !shared.is_power_of_two() || !local.is_power_of_two() {
+            return Err(ProgramLoadError::InvalidAlignment);
+        }
+
+        Ok(constants.max(shared).max(local))
     }
 
     /// Return whether every compact table range fits its sibling column.
@@ -291,9 +315,9 @@ impl ProgramBuilder {
             traces: mir::TraceTable::default(),
             globals: GlobalTableBuilder::default(),
             info: None,
-            constants: Vec::new(),
-            shared_statics: Vec::new(),
-            local_statics: Vec::new(),
+            constants: StaticBytes::default(),
+            shared_statics: StaticBytes::default(),
+            local_statics: StaticBytes::default(),
             bytecode: None,
             native: None,
             wasm: None,
@@ -414,22 +438,22 @@ impl ProgramBuilder {
     }
 
     /// Set immutable constant storage.
-    pub fn constants(mut self, bytes: impl Into<Vec<u8>>) -> Self {
-        self.constants = bytes.into();
+    pub fn constants(mut self, bytes: StaticBytes) -> Self {
+        self.constants = bytes;
 
         self
     }
 
     /// Set initial shared static storage.
-    pub fn shared_statics(mut self, bytes: impl Into<Vec<u8>>) -> Self {
-        self.shared_statics = bytes.into();
+    pub fn shared_statics(mut self, bytes: StaticBytes) -> Self {
+        self.shared_statics = bytes;
 
         self
     }
 
     /// Set initial local static storage.
-    pub fn local_statics(mut self, bytes: impl Into<Vec<u8>>) -> Self {
-        self.local_statics = bytes.into();
+    pub fn local_statics(mut self, bytes: StaticBytes) -> Self {
+        self.local_statics = bytes;
 
         self
     }
@@ -497,9 +521,9 @@ impl ProgramBuilder {
 
 impl Program {
     /// Load one Program from retained aligned image storage.
-    pub fn load(storage: SectionStorage) -> Result<Self, ProgramLoadError> {
+    pub fn load(mut storage: SectionStorage) -> Result<Self, ProgramLoadError> {
         let loader = SectionLoader::new(&storage)?;
-        let header = loader.header::<ProgramHeader>()?;
+        let header = *loader.header::<ProgramHeader>()?;
         if header.magic != PROGRAM_MAGIC {
             return Err(ProgramLoadError::InvalidMagic);
         }
@@ -510,11 +534,16 @@ impl Program {
             return Err(ProgramLoadError::InvalidLength);
         }
 
+        // align copied images while requiring mapped images to satisfy their header
+        storage.align(header.alignment()?)?;
+        let loader = SectionLoader::new(&storage)?;
+        let header = *loader.header::<ProgramHeader>()?;
+
         // SAFETY: SectionLoader validated every absolute section reachable from the header.
         let sections = unsafe { SectionImage::new(&storage) };
         header.validate(sections)?;
 
-        Ok(Self::from_header(*header, storage))
+        Ok(Self::from_header(header, storage))
     }
 
     /// Return the complete mapped Program image bytes.
@@ -546,6 +575,48 @@ impl Program {
             wasm: header.wasm.get(),
             storage,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use destack_memory::MemoryMap;
+
+    use super::*;
+    use crate::{GlobalAddress, GlobalAllocator};
+
+    /// Preserve static alignment through Program packing, loading, and materialization.
+    #[test]
+    fn test_load_overaligned_static_image() {
+        let mut statics = GlobalAllocator::new();
+        let (offset, _) = statics.allocate(64, &[1, 2, 3, 4]);
+        let source = ProgramBuilder::new(Default::default())
+            .local_statics(statics.build())
+            .build();
+
+        // load copied Program bytes into a newly aligned owned image
+        let storage = SectionStorage::from_bytes(source.bytes());
+        let program = Program::load(storage).expect("program should load");
+        let memory = Arc::new(MemoryMap::reserve(64 * 1024, 8 * 1024).expect("reserve memory"));
+        let statics = program
+            .local_statics()
+            .materialize(program.sections(), memory.clone())
+            .expect("materialize statics");
+
+        // preserve both bytes and native alignment in world memory
+        let reference = GlobalAddress::new(statics.offset() + offset);
+        let address = statics
+            .address(reference, 4)
+            .expect("resolve static address");
+        assert!(address.is_multiple_of(64));
+        assert_eq!(
+            memory
+                .read_bytes(statics.offset() + offset, 4)
+                .expect("read static bytes"),
+            [1, 2, 3, 4]
+        );
     }
 }
 

@@ -169,4 +169,9 @@ impl GlobalTableBuilder {
 
         self
     }
+
+    /// Return one global by its final dense id.
+    pub fn get(&self, global: GlobalId) -> Option<&Global> {
+        self.globals.get(global.index())
+    }
 }

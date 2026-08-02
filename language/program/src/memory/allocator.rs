@@ -1,8 +1,21 @@
+use crate::{GlobalAddress, StaticBytes};
+
 /// Construction-time allocator for static global bytes.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct GlobalAllocator {
     /// Static bytes.
     bytes: Vec<u8>,
+    /// Maximum global alignment.
+    alignment: usize,
+}
+
+impl Default for GlobalAllocator {
+    fn default() -> Self {
+        Self {
+            bytes: vec![0; GlobalAddress::FIRST_OFFSET],
+            alignment: 1,
+        }
+    }
 }
 
 impl GlobalAllocator {
@@ -13,9 +26,15 @@ impl GlobalAllocator {
 
     /// Allocate one static global byte range.
     pub fn allocate(&mut self, alignment: usize, bytes: &[u8]) -> (usize, usize) {
+        assert!(
+            alignment.is_power_of_two(),
+            "global alignment must be a power of two"
+        );
+
         // align the next global start
         let offset = align_static_offset(self.bytes.len(), alignment);
         self.bytes.resize(offset, 0);
+        self.alignment = self.alignment.max(alignment);
 
         // append global bytes
         self.bytes.extend_from_slice(bytes);
@@ -23,9 +42,9 @@ impl GlobalAllocator {
         (offset, bytes.len())
     }
 
-    /// Build the initialized static bytes.
-    pub fn build(self) -> Vec<u8> {
-        self.bytes
+    /// Build the initialized and aligned static bytes.
+    pub fn build(self) -> StaticBytes {
+        StaticBytes::new(self.bytes, self.alignment)
     }
 }
 
