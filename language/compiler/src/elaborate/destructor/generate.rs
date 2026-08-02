@@ -425,10 +425,13 @@ impl ElaborateState<'_> {
             mir::Type::Isize => "isize".to_string(),
             mir::Type::Usize => "usize".to_string(),
             mir::Type::Dynamic {
-                constraint, space, ..
+                kind,
+                constraint,
+                storage,
+                ..
             } => {
                 let constraint = self.drop_name_stem(*constraint)?;
-                format!("dynamic.{constraint}.{}", space.label())
+                format!("dynamic.{constraint}.{}.{}", kind.name(), storage.label())
             }
             mir::Type::Reference { kind, pointee, .. } => {
                 let pointee = self.drop_name_stem(*pointee)?;
