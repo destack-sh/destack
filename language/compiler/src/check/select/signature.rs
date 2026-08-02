@@ -254,6 +254,38 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(parameter))
     }
 
+    /// Return the element type one rest parameter accepts per tail argument.
+    pub(in crate::check) fn rest_element_type(
+        &mut self,
+        origin: Origin,
+        rest: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let reduced = answer!(self.check.reduce_type(origin, rest)?);
+
+        // project the element from the collection the annotation names
+        match self.check.ty(reduced)? {
+            dir::Type::Array(array) => Ok(Answer::Ready(Some(array.element))),
+            dir::Type::Slice(slice) => Ok(Answer::Ready(Some(slice.element))),
+            dir::Type::FixedArray(array) => Ok(Answer::Ready(Some(array.element))),
+            dir::Type::Application(instance) => {
+                let item = self.check.language_item(instance.symbol)?;
+                let is_array = matches!(
+                    item,
+                    Some(dir::LanguageItem::Array | dir::LanguageItem::ReadonlyArray)
+                );
+                let arguments = self
+                    .type_ids(reduced.module_id, instance.arguments)?
+                    .to_vec();
+
+                match (is_array, arguments.as_slice()) {
+                    (true, [element, ..]) => Ok(Answer::Ready(Some(*element))),
+                    _ => Ok(Answer::Ready(None)),
+                }
+            }
+            _ => Ok(Answer::Ready(None)),
+        }
+    }
+
     /// Attempt one callable candidate without recording a decision.
     pub(in crate::check) fn attempt_callable(
         &mut self,
@@ -525,6 +557,12 @@ impl BodyState<'_, '_> {
                     parameter_type,
                 )?);
                 let parameter_type = self.settled_root(parameter_type)?;
+                // rest tails relate against the element of the rest type
+                let parameter_type = match parameter.is_rest {
+                    true => answer!(self.rest_element_type(origin, parameter_type)?)
+                        .unwrap_or(parameter_type),
+                    false => parameter_type,
+                };
                 argument_parameters.push((index, argument, parameter_type));
             }
 

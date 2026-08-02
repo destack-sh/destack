@@ -9,22 +9,37 @@ use crate::{CompilerError, CompilerResult};
 
 impl BodyState<'_, '_> {
     /// Return runtime argument bindings for parameters.
+    ///
+    /// A rest binding carries the element type each packed source satisfies;
+    /// the packed collection type stays on the signature parameter.
     pub(in crate::check) fn argument_bindings(
-        &self,
+        &mut self,
+        origin: Origin,
         module: ModuleId,
         arguments: &[dir::LocalNodeId<dir::Argument>],
         parameters: &[dir::FunctionParameterType],
-    ) -> Vec<dir::ArgumentBinding> {
+    ) -> CompilerResult<Vec<dir::ArgumentBinding>> {
         let mut argument_index = 0usize;
         let mut bindings = Vec::with_capacity(parameters.len());
 
         for (parameter, parameter_type) in parameters.iter().enumerate() {
+            let mut ty = parameter_type.ty;
             let argument = if parameter_type.is_rest {
                 let rest = arguments[argument_index..]
                     .iter()
                     .map(|argument| argument.into_global_any(module))
                     .collect();
                 argument_index = arguments.len();
+
+                // selected signatures are settled, the element must project
+                match self.rest_element_type(origin, parameter_type.ty)? {
+                    Answer::Ready(element) => ty = element.unwrap_or(ty),
+                    Answer::Pending(blockers) => {
+                        return Err(CompilerError::Internal {
+                            message: format!("rest element is unsettled at commit: {blockers:?}"),
+                        });
+                    }
+                }
 
                 dir::ArgumentSource::Rest(rest)
             } else if let Some(argument) = arguments.get(argument_index).copied() {
@@ -37,12 +52,12 @@ impl BodyState<'_, '_> {
 
             bindings.push(dir::ArgumentBinding {
                 parameter,
-                ty: parameter_type.ty,
+                ty,
                 argument,
             });
         }
 
-        bindings
+        Ok(bindings)
     }
 
     /// Return argument bindings from already selected argument sources.
