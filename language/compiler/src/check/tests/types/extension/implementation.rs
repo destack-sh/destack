@@ -1103,11 +1103,11 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-interface Eq<in out T> {
+interface Eq<in T> {
     equals(other: &'a readonly T): boolean;
 }
 
-interface Has<in out T> {
+interface Has<in T> {
     has(value: &'a readonly T): boolean;
 }
 
@@ -1123,9 +1123,9 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
 
 === checked ===
 interface Eq<T> {
-/// @generic.template symbol=Eq parameters=(in out T#1)
+/// @generic.template symbol=Eq parameters=(in T#1)
 /// @type.symbol symbol=Eq type=Eq
-/// @definition.interface symbol=Eq template=(in out T#1)
+/// @definition.interface symbol=Eq template=(in T#1)
 /// @definition.where symbol=Eq relation=satisfies left=this right=Eq<T#1>
 /// @definition.method symbol=Eq.equals source="equals(other: &readonly T): boolean" slot=equals type=<Eq.equals.'a>(this: this, &Eq.equals.'a readonly T#1) => boolean
 /// @type.symbol symbol=Eq.T source=T type=T#1
@@ -1139,9 +1139,9 @@ interface Eq<T> {
 }
 
 interface Has<T> {
-/// @generic.template symbol=Has parameters=(in out T#2)
+/// @generic.template symbol=Has parameters=(in T#2)
 /// @type.symbol symbol=Has type=Has
-/// @definition.interface symbol=Has template=(in out T#2)
+/// @definition.interface symbol=Has template=(in T#2)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#2>
 /// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a>(this: this, &Has.has.'a readonly T#2) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#2
@@ -1229,7 +1229,7 @@ export extension<T> of Pack<T> implements Has<T> {
 === annotated ===
 interface Marker {}
 
-interface Has<in out T> {
+interface Has<in T> {
     has(value: &'a readonly T): boolean;
 }
 
@@ -1249,9 +1249,9 @@ interface Marker {}
 /// @definition.interface symbol=Marker source="interface Marker {}"
 
 interface Has<T> {
-/// @generic.template symbol=Has parameters=(in out T#1)
+/// @generic.template symbol=Has parameters=(in T#1)
 /// @type.symbol symbol=Has type=Has
-/// @definition.interface symbol=Has template=(in out T#1)
+/// @definition.interface symbol=Has template=(in T#1)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#1>
 /// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a>(this: this, &Has.has.'a readonly T#1) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#1
@@ -1333,7 +1333,7 @@ export extension<T> of Pack<T> implements Has<T> {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-interface Has<in out T> {
+interface Has<in T> {
     has(value: &'a readonly T): boolean;
 }
 
@@ -1349,9 +1349,9 @@ export extension<T> of Pack<T> implements Has<T> {
 
 === checked ===
 interface Has<T> {
-/// @generic.template symbol=Has parameters=(in out T#1)
+/// @generic.template symbol=Has parameters=(in T#1)
 /// @type.symbol symbol=Has type=Has
-/// @definition.interface symbol=Has template=(in out T#1)
+/// @definition.interface symbol=Has template=(in T#1)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#1>
 /// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a>(this: this, &Has.has.'a readonly T#1) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#1

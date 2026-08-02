@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
@@ -450,6 +451,21 @@ impl CheckState<'_> {
         Ok(positions)
     }
 
+    /// Return whether one borrow form's solved access is readonly.
+    fn borrow_is_readonly(
+        &mut self,
+        module: ModuleId,
+        borrow: dir::BorrowFormId,
+    ) -> CompilerResult<bool> {
+        let access = self.type_borrow(module, borrow)?.access;
+        let is_readonly = matches!(
+            self.ty(access)?,
+            dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly))
+        );
+
+        Ok(is_readonly)
+    }
+
     /// Measure one parameter's occurrences in one type graph.
     fn measure_type(
         &mut self,
@@ -590,6 +606,17 @@ impl CheckState<'_> {
                 // transparent value forms keep the surrounding capability
                 dir::Form::Readonly | dir::Form::Owned | dir::Form::Placed { .. } => {
                     self.measure_type(type_form.value, position, form, parameter)?
+                }
+                // readonly borrows view their pointee without write-back
+                dir::Form::Borrowed(borrow)
+                    if self.borrow_is_readonly(ty.module_id, borrow)? =>
+                {
+                    self.measure_type(
+                        type_form.value,
+                        position,
+                        VarianceForm::Readonly,
+                        parameter,
+                    )?
                 }
                 // independently writable references stay invariant unless deeply readonly
                 dir::Form::Managed | dir::Form::Borrowed(_) | dir::Form::Raw => {

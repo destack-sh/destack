@@ -497,3 +497,102 @@ const same = left == right;
 "#,
     );
 }
+
+#[test]
+fn test_overloaded_equality_accepts_negative_zero_literal() {
+    let session = TestSession::single(
+        r#"
+import { PartialEqual } from "destack:ops";
+
+struct Measure {
+    value: float64;
+}
+
+extension of Measure implements PartialEqual<float64> {
+    equal(other: float64): boolean {
+        return this.value == other;
+    }
+}
+
+declare const measure: Measure;
+const same = measure == -0.0;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { PartialEqual } from "destack:ops";
+
+struct Measure {
+    value: float64;
+}
+
+extension of Measure implements PartialEqual<float64> {
+    equal(other: float64): boolean {
+        return this.value == other;
+    }
+}
+
+declare const measure: Measure;
+const same: boolean = measure == -0.0;
+
+=== checked ===
+import { PartialEqual } from "destack:ops";
+
+struct Measure {
+/// @type.symbol symbol=Measure type=Measure
+/// @definition.struct symbol=Measure
+/// @definition.field symbol=Measure.value source="value: float64" key=value type=float64
+
+    value: float64;
+    /// @type.symbol symbol=Measure.value source="value: float64" type=float64
+
+}
+
+extension of Measure implements PartialEqual<float64> {
+/// @definition.extension symbol=<module>#2 form=local target=Measure
+/// @definition.implements symbol=<module>#2 source=PartialEqual<float64> target=PartialEqual<float64>
+/// @definition.method symbol=equal slot=equal type=<equal.'a>(this: &equal.'a exclusive this, float64) => boolean
+/// @definition.implementation symbol=<module>#2 requirement=ops.equality.PartialEqual.equal target=equal
+/// @resolution.name source=Measure target=Measure
+/// @resolution.name source=PartialEqual target=ops.equality.PartialEqual
+
+    equal(other: float64): boolean {
+    /// @generic.template symbol=equal parent=template#0 parameters=('a)
+    /// @type.symbol symbol=equal type=<equal.'a>(this: &equal.'a exclusive this, float64) => boolean
+    /// @type.symbol symbol=equal.other source="other: float64" type=float64
+
+        return this.value == other;
+        /// @resolution.member source=this.value receiver=&equal.'a exclusive Measure type=float64 kind=field target_receiver=&equal.'a exclusive Measure key=value target=Measure.value target_type=float64
+        /// @resolution.operator source="this.value == other" type=boolean operator="==" kind=builtin operands=[this.value as float64 families=(float), other as float64 families=(float)]
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&equal.'a exclusive Measure
+        /// @resolution.place source=this placement="local" lifetime=equal.'a access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.value placement="local" lifetime=equal.'a access="exclusive"
+        /// @resolution.access source=this.value root=this keys=[value]
+        /// @resolution.name source=other target=equal.other
+        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=other root=equal.other
+
+    }
+}
+
+declare const measure: Measure;
+/// @type.symbol symbol=measure source=measure type=Measure
+/// @resolution.pattern source=measure kind=binding target=measure
+/// @resolution.name source=Measure target=Measure
+
+const same = measure == -0.0;
+/// @type.symbol symbol=same source=same type=boolean
+/// @resolution.pattern source=same kind=binding target=same
+/// @resolution.name source=measure target=measure
+/// @resolution.operator source="measure == -0.0" type=boolean operator="==" kind=call parameters=(float64) arguments=(provided(-0.0) as float64) return=boolean kind=symbol target=equal receiver=Measure adjustments=(borrow(&'static exclusive Measure))
+/// @resolution.place source=measure placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=measure root=measure
+/// @resolution.operator source=-0.0 type=-0 operator="-" kind=builtin operands=[0.0 as 0 families=(float)]
+"#,
+    );
+}
