@@ -226,7 +226,7 @@ impl<'a> StaticEvaluator<'a> {
             "url" => StaticValue::Term(self.string(self.module.uri.as_ref())),
             "path" | "file" | "filename" => StaticValue::Term(self.module_path_value(expression)?),
             "dir" | "dirname" => StaticValue::Term(self.module_dir_value(expression)?),
-            "output" => StaticValue::Term(self.string(self.profile.emit.canonical_tag())),
+            "output" => StaticValue::Term(self.string(self.profile.output.canonical_tag())),
             "platform" => StaticValue::Term(self.string(conditions.platform.canonical_tag())),
             "runtime" => StaticValue::Term(self.string(conditions.runtime.canonical_tag())),
             "target" => StaticValue::Target,
@@ -282,19 +282,19 @@ impl<'a> StaticEvaluator<'a> {
             "family" => self.string(self.profile.conditions.platform.family_tag()),
             "arch" => self.optional_string(
                 self.profile
-                    .target_arch
+                    .architecture
                     .as_ref()
                     .map(|value| value.triple_component()),
             ),
             "vendor" => self.optional_string(
                 self.profile
-                    .target_vendor
+                    .vendor
                     .as_ref()
                     .map(|value| value.triple_component()),
             ),
             "abi" => self.optional_string(
                 self.profile
-                    .target_abi
+                    .abi
                     .as_ref()
                     .map(|value| value.triple_component()),
             ),
