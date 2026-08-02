@@ -21,8 +21,8 @@ export type Platform =
 /// The semantic runtime contract for the build.
 export type Runtime = "destack" | "js";
 
-/// The selected compiler output format.
-export type Output = "js" | "ts" | "wasm" | "native";
+/// The artifact produced by the current build target.
+export type Output = "bundle" | "program";
 
 /// The package release stage.
 export type Stage = "experimental" | "alpha" | "beta" | "stable";
@@ -74,7 +74,7 @@ export interface ImportMeta {
     readonly dir: string | undefined;
     /// Alias of `dir`.
     readonly dirname: string | undefined;
-    /// The selected compiler output format.
+    /// The artifact produced by the current build target.
     readonly output: Output;
     /// The target platform (OS) being compiled for.
     readonly platform: Platform;

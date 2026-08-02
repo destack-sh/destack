@@ -106,7 +106,7 @@ Top-level dependencies are always part of the source graph, while `conditionalDe
 | `import.meta.url` | current module URL | `string` | `"file:///app/src/main.ds"`, `"https://example.com/mod.ds"` |
 | `import.meta.path` | current local file path, when available | `string | undefined` | `"/app/src/main.ds"`, `undefined` |
 | `import.meta.dir` | current local directory, when available | `string | undefined` | `"/app/src"`, `undefined` |
-| `import.meta.output` | output artifact format | `Output` | `"js"`, `"wasm"`, `"native"` |
+| `import.meta.output` | output artifact | `Output` | `"bundle"`, `"program"` |
 | `import.meta.platform` | target operating system | `Platform` | `"linux"`, `"windows"`, `"none"` |
 | `import.meta.host` | target host environment | `Host` | `"browser"`, `"native"`, `"wasi"` |
 | `import.meta.target` | target family and ABI | `Target` | `{ family: "unix", arch: "x64", abi: "gnu" }` |
