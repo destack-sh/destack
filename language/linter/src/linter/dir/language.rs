@@ -30,14 +30,13 @@ impl Dir {
 
         // resolve extension members to their receiver declaration
         let owner = match module.definitions.extension_definition(owner) {
-            Some(extension) if extension.is_inherent() => {
+            Some(extension) => {
                 let Some(target) = extension.target.root() else {
                     return Ok(None);
                 };
 
                 target
             }
-            Some(_) => return Ok(None),
             None => owner,
         };
         let Some(owner) = self.environment.language.item(owner) else {

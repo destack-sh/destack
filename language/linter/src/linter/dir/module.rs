@@ -251,7 +251,19 @@ impl<'a> DirModule<'a> {
             start -= 1;
         }
 
-        Ok(Span::new(span.file, start as u32, span.end))
+        // absorb the line break when only the block close follows
+        let mut end = span.end as usize;
+        if (start == 0 || source[start - 1] == b'\n') && source.get(end) == Some(&b'\n') {
+            let mut next = end + 1;
+            while next < source.len() && matches!(source[next], b' ' | b'\t') {
+                next += 1;
+            }
+            if source.get(next) == Some(&b'}') {
+                end += 1;
+            }
+        }
+
+        Ok(Span::new(span.file, start as u32, end as u32))
     }
 
     /// Return a source anchor for one DIR node.
