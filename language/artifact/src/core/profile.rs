@@ -43,11 +43,11 @@ pub struct ProfileKey {
     /// Active source graph and runtime conditions for the profile.
     pub conditions: ConditionSet,
     /// Target architecture for the profile.
-    pub target_arch: Option<TargetArch>,
+    pub architecture: Option<TargetArch>,
     /// Target vendor for the profile.
-    pub target_vendor: Option<TargetVendor>,
-    /// Target environment for the profile.
-    pub target_abi: Option<TargetAbi>,
+    pub vendor: Option<TargetVendor>,
+    /// Target application binary interface for the profile.
+    pub abi: Option<TargetAbi>,
     /// Normalized global provider roots for the profile.
     pub globals: Vec<String>,
     /// Default tree tag builder provider.

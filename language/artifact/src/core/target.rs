@@ -26,6 +26,16 @@ pub enum Output {
     Program,
 }
 
+impl Output {
+    /// Return the lowercase configuration name.
+    pub fn canonical_tag(self) -> &'static str {
+        match self {
+            Self::Bundle => "bundle",
+            Self::Program => "program",
+        }
+    }
+}
+
 /// Executable representation included in one Program.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
