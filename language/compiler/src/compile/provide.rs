@@ -29,6 +29,9 @@ impl Compiler {
             ArtifactKey::GlobalEnvironment { profile } => {
                 self.collect_global_environment(profile, context)
             }
+            ArtifactKey::GlobalEnvironmentDigest { profile } => {
+                self.collect_global_environment_digest(profile, context)
+            }
             ArtifactKey::ModuleGraph { profile } => self.collect_module_graph(profile, context),
             ArtifactKey::ProgramAnalysis { profile, target } => {
                 self.collect_program_analysis(profile, target, context)
@@ -138,6 +141,9 @@ impl Compiler {
             }
             ArtifactKey::GlobalEnvironment { profile } => {
                 self.provide_global_environment(profile, context)
+            }
+            ArtifactKey::GlobalEnvironmentDigest { profile } => {
+                self.provide_global_environment_digest(profile, context)
             }
             ArtifactKey::ModuleGraph { profile } => self.provide_module_graph(profile, context),
             ArtifactKey::ProgramAnalysis { profile, target } => {

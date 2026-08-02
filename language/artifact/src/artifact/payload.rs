@@ -7,8 +7,8 @@ use destack_source::ContentId;
 use crate::{
     ArtifactKey, ArtifactProjectionFingerprint, ArtifactProjectionKey, Asset, Build, Bundle, Data,
     DirBound, DirChecked, DirDeclared, DirExpanded, DirExported, DirImported, DirMaterialized,
-    DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed, MirElaborated, MirLowered,
-    MirOptimized, MirVerified, ModuleGraph, ModuleIndex, ModuleLinted, Object, Product,
+    DirParsed, DirResolved, GlobalEnvironment, GlobalEnvironmentDigest, MirAnalyzed, MirElaborated,
+    MirLowered, MirOptimized, MirVerified, ModuleGraph, ModuleIndex, ModuleLinted, Object, Product,
     ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 use serde::{Deserialize, Serialize};
@@ -24,6 +24,8 @@ pub enum ArtifactPayload {
     GlobalEnvironment(Arc<GlobalEnvironment>),
     /// Component partition for one profile.
     ModuleGraph(Arc<ModuleGraph>),
+    /// Content digest of the implicit global modules.
+    GlobalEnvironmentDigest(Arc<GlobalEnvironmentDigest>),
     /// Whole-program analysis for one profile and target.
     ProgramAnalysis(Arc<ProgramAnalysis>),
     /// Bound DIR.
@@ -87,6 +89,8 @@ pub enum ArtifactPayloadRef<'a> {
     GlobalEnvironment(&'a GlobalEnvironment),
     /// Component partition for one profile.
     ModuleGraph(&'a ModuleGraph),
+    /// Content digest of the implicit global modules.
+    GlobalEnvironmentDigest(&'a GlobalEnvironmentDigest),
     /// Whole-program analysis for one profile and target.
     ProgramAnalysis(&'a ProgramAnalysis),
     /// Bound DIR.
@@ -157,6 +161,9 @@ impl ArtifactPayload {
                 ) | (
                     ArtifactKey::ModuleGraph { .. },
                     ArtifactPayload::ModuleGraph(_)
+                ) | (
+                    ArtifactKey::GlobalEnvironmentDigest { .. },
+                    ArtifactPayload::GlobalEnvironmentDigest(_)
                 ) | (
                     ArtifactKey::ProgramAnalysis { .. },
                     ArtifactPayload::ProgramAnalysis(_)
@@ -239,6 +246,9 @@ impl ArtifactPayload {
                 ArtifactPayloadRef::GlobalEnvironment(payload.as_ref())
             }
             Self::ModuleGraph(payload) => ArtifactPayloadRef::ModuleGraph(payload.as_ref()),
+            Self::GlobalEnvironmentDigest(payload) => {
+                ArtifactPayloadRef::GlobalEnvironmentDigest(payload.as_ref())
+            }
             Self::ProgramAnalysis(payload) => ArtifactPayloadRef::ProgramAnalysis(payload.as_ref()),
             Self::DirBound(payload) => ArtifactPayloadRef::DirBound(payload.as_ref()),
             Self::DirImported(payload) => ArtifactPayloadRef::DirImported(payload.as_ref()),
@@ -272,6 +282,7 @@ impl ArtifactPayload {
         match self {
             Self::GlobalEnvironment(_) => "global_environment",
             Self::ModuleGraph(_) => "component_graph",
+            Self::GlobalEnvironmentDigest(_) => "global_environment_digest",
             Self::ProgramAnalysis(_) => "program_analysis",
             Self::DirParsed(_) => "dir_parsed",
             Self::Data(_) => "data",
@@ -324,6 +335,9 @@ impl ArtifactPayloadRef<'_> {
     ) -> Option<ArtifactProjectionFingerprint> {
         match (self, projection) {
             (Self::ModuleGraph(payload), projection) => payload.fingerprint_projection(projection),
+            (Self::GlobalEnvironmentDigest(payload), projection) => {
+                payload.fingerprint_projection(projection)
+            }
             (Self::DirResolved(payload), ArtifactProjectionKey::ImportEdges) => {
                 Some(payload.component_edges_fingerprint())
             }

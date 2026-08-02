@@ -3,13 +3,26 @@ use std::iter;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey, ArtifactSidecar,
+    ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey,
+    ArtifactSidecar, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay, DiagnosticError,
+    DiagnosticLike, DiagnosticRecord,
 };
-use destack_repository::{ProfileId, ProviderContext, ProviderError};
-use destack_source::{Content, ModuleId};
+use destack_repository::{
+    ArtifactAttemptRecorder, ArtifactBase, ProfileId, ProviderContext, ProviderError, Revision,
+};
+use destack_source::{Content, DiagnosticLabel, ModuleId};
 
 use crate::check::{AnnotatedSource, CheckState};
 use crate::{Compiler, CompilerError, CompilerResult};
+
+/// The foreign modules one module's check reads: resolution targets with
+/// their full stage fan, and modules the environment digest covers.
+struct ReferencedModules {
+    /// Modules referenced by resolution targets.
+    targets: FxIndexSet<ModuleId>,
+    /// Modules covered by the environment digest.
+    digested: Vec<ModuleId>,
+}
 
 /// Return the modules one module references, or None while their resolve
 /// stages are still building.
@@ -17,23 +30,126 @@ fn referenced_modules(
     artifacts: &destack_repository::ArtifactReader<'_>,
     module: ModuleId,
     profile: ProfileId,
-) -> CompilerResult<Option<FxIndexSet<ModuleId>>> {
+) -> CompilerResult<Option<ReferencedModules>> {
     let resolved = match artifacts.dir_resolved(module, profile) {
         Ok(resolved) => resolved,
         Err(ProviderError::Blocked { .. }) => return Ok(None),
         Err(error) => return Err(error.into()),
     };
-    let global = match artifacts.global_environment_content(profile) {
-        Ok(global) => global,
+    let digest = match artifacts.global_environment_digest(profile) {
+        Ok(digest) => digest,
         Err(ProviderError::Blocked { .. }) => return Ok(None),
         Err(error) => return Err(error.into()),
     };
 
-    let mut references = resolved.target_modules().collect::<FxIndexSet<_>>();
-    references.extend(global.implicit_modules());
-    references.shift_remove(&module);
+    let mut targets = resolved.target_modules().collect::<FxIndexSet<_>>();
+    targets.shift_remove(&module);
+    let digested = digest
+        .modules
+        .iter()
+        .map(|digested| digested.module)
+        .filter(|digested| *digested != module)
+        .collect();
 
-    Ok(Some(references))
+    Ok(Some(ReferencedModules { targets, digested }))
+}
+
+/// Provider context that skips observations the environment digest covers.
+///
+/// Reads of digested modules' bound, expanded, and resolved stages are
+/// already represented by the digest's content projection: the digest
+/// changes exactly when one covered stage content does.
+struct DigestContext<'a> {
+    /// The wrapped provider context.
+    inner: &'a dyn ProviderContext,
+    /// The modules the digest covers.
+    covered: FxIndexSet<ModuleId>,
+}
+
+impl DigestContext<'_> {
+    /// Return whether the digest stands for one observed dependency.
+    fn is_covered(&self, dependency: &ArtifactDependency) -> bool {
+        let key = match dependency {
+            ArtifactDependency::Artifact(version) => version.key,
+            ArtifactDependency::Projection(projection) => projection.projection().artifact,
+            ArtifactDependency::Source(_) => return false,
+        };
+        let covered_stage = matches!(
+            key,
+            ArtifactKey::DirBound { .. }
+                | ArtifactKey::DirExpanded { .. }
+                | ArtifactKey::DirResolved { .. }
+        );
+
+        covered_stage
+            && key
+                .module_id()
+                .is_some_and(|module| self.covered.contains(&module))
+    }
+}
+
+impl DiagnosticContext for DigestContext<'_> {
+    fn label(
+        &self,
+        anchor: &DiagnosticAnchor,
+        message: Option<String>,
+    ) -> Result<DiagnosticLabel, DiagnosticError> {
+        self.inner.label(anchor, message)
+    }
+
+    fn display(&self, display: DiagnosticDisplay) -> Result<String, DiagnosticError> {
+        self.inner.display(display)
+    }
+}
+
+impl ProviderContext for DigestContext<'_> {
+    fn revision(&self) -> Revision {
+        self.inner.revision()
+    }
+
+    fn artifact_key(&self) -> ArtifactKey {
+        self.inner.artifact_key()
+    }
+
+    fn artifact_base(&self) -> Option<&ArtifactBase> {
+        self.inner.artifact_base()
+    }
+
+    fn artifact_dependencies(&self) -> Option<&[ArtifactDependency]> {
+        self.inner.artifact_dependencies()
+    }
+
+    fn emit_events(&self) -> bool {
+        self.inner.emit_events()
+    }
+
+    fn recorder(&self) -> Option<&ArtifactAttemptRecorder> {
+        self.inner.recorder()
+    }
+
+    fn observe(&self, dependency: ArtifactDependency) {
+        if self.is_covered(&dependency) {
+            return;
+        }
+
+        self.inner.observe(dependency);
+    }
+
+    fn record_blocked(&self, artifact_key: ArtifactKey) {
+        self.inner.record_blocked(artifact_key);
+    }
+
+    fn emit_diagnostics(&self, diagnostics: Vec<DiagnosticRecord>) {
+        self.inner.emit_diagnostics(diagnostics);
+    }
+
+    fn emit_sidecar(&self, sidecar: ArtifactSidecar) {
+        self.inner.emit_sidecar(sidecar);
+    }
+
+    fn emit(&self, diagnostic: &dyn DiagnosticLike) -> Result<(), DiagnosticError> {
+        self.inner.emit(diagnostic)
+    }
 }
 
 impl Compiler {
@@ -51,18 +167,24 @@ impl Compiler {
             ArtifactProjectionKey::Content,
         );
 
+        // require the digest, which stands for every covered stage content
+        dependencies.require_projection(
+            ArtifactKey::global_environment_digest(profile),
+            ArtifactProjectionKey::Content,
+        );
+
         // observe package config for check options
         let repository_module = self.module(context.revision(), module)?;
         self.observe_package_config(context, repository_module.package_id, &mut dependencies)?;
 
-        // require the surface stages of referenced modules
+        // require the stage contents of resolution targets
         let artifacts = self.artifact_reader(context);
         let Some(references) = referenced_modules(&artifacts, module, profile)? else {
             dependencies.mark_partial();
 
             return Ok(dependencies);
         };
-        for reference in references {
+        for reference in references.targets {
             dependencies.require_projection(
                 ArtifactKey::dir_bound(reference, profile),
                 ArtifactProjectionKey::Content,
@@ -87,6 +209,20 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
+        // cover digested reads through the digest's content projection
+        let plain = self.artifact_reader(context);
+        let covered = plain
+            .global_environment_digest(profile)
+            .map_err(CompilerError::from)?
+            .modules
+            .iter()
+            .map(|digested| digested.module)
+            .collect::<FxIndexSet<_>>();
+        let digest = DigestContext {
+            inner: context,
+            covered,
+        };
+        let context: &dyn ProviderContext = &digest;
         let artifacts = self.artifact_reader(context);
         let global = artifacts
             .global_environment_content(profile)
@@ -143,6 +279,12 @@ impl Compiler {
         let repository_module = self.module(context.revision(), module)?;
         self.observe_package_config(context, repository_module.package_id, &mut dependencies)?;
 
+        // require the digest, which stands for every covered stage content
+        dependencies.require_projection(
+            ArtifactKey::global_environment_digest(profile),
+            ArtifactProjectionKey::Content,
+        );
+
         // require declared artifacts of direct imports and implicit globals
         let artifacts = self.artifact_reader(context);
         let Some(references) = referenced_modules(&artifacts, module, profile)? else {
@@ -150,7 +292,7 @@ impl Compiler {
 
             return Ok(dependencies);
         };
-        for import in references {
+        for import in references.targets {
             dependencies.require_projection(
                 ArtifactKey::dir_declared(import, profile),
                 ArtifactProjectionKey::Declared,
@@ -169,6 +311,14 @@ impl Compiler {
             );
         }
 
+        // require declared judgments for each digest-covered module
+        for import in references.digested {
+            dependencies.require_projection(
+                ArtifactKey::dir_declared(import, profile),
+                ArtifactProjectionKey::Declared,
+            );
+        }
+
         Ok(dependencies)
     }
 
@@ -179,6 +329,20 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
+        // cover digested reads through the digest's content projection
+        let plain = self.artifact_reader(context);
+        let covered = plain
+            .global_environment_digest(profile)
+            .map_err(CompilerError::from)?
+            .modules
+            .iter()
+            .map(|digested| digested.module)
+            .collect::<FxIndexSet<_>>();
+        let digest = DigestContext {
+            inner: context,
+            covered,
+        };
+        let context: &dyn ProviderContext = &digest;
         let artifacts = self.artifact_reader(context);
         let global = artifacts
             .global_environment_content(profile)

@@ -5,10 +5,11 @@ use crate::{
     ArtifactReference, ArtifactSidecar, ArtifactVersion, Asset, Build, BuildLinkage, BuildManifest,
     BuildProfile, Bundle, BundleFile, BundleMode, BundleSection, Data, DirBound, DirChecked,
     DirDeclared, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
-    EmitFormat, GlobalEnvironment, Host, LanguageEnvironment, LanguageIntrinsics, MirAnalyzed,
-    MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleEdges, ModuleGraph, ModuleIndex,
-    ModuleLinted, Object, ObjectFormat, Platform, Product, ProductTarget, ProgramAnalysis,
-    ProgramIndex, ProgramLinted, Runtime, Script, ScriptBody, ScriptLanguage, SourceMap,
+    EmitFormat, GlobalEnvironment, GlobalEnvironmentDigest, Host, LanguageEnvironment,
+    LanguageIntrinsics, MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified,
+    ModuleEdges, ModuleGraph, ModuleIndex, ModuleLinted, Object, ObjectFormat, Platform, Product,
+    ProductTarget, ProgramAnalysis, ProgramIndex, ProgramLinted, Runtime, Script, ScriptBody,
+    ScriptLanguage, SourceMap,
 };
 
 /// Include public artifact schema roots.
@@ -31,6 +32,7 @@ pub fn schema(registry: &mut SchemaRegistry) {
     registry.register::<Data>();
     registry.register::<ModuleEdges>();
     registry.register::<ModuleGraph>();
+    registry.register::<GlobalEnvironmentDigest>();
     registry.register::<LanguageEnvironment>();
     registry.register::<GlobalEnvironment>();
     registry.register::<LanguageIntrinsics>();

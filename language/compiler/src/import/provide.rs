@@ -2,8 +2,8 @@ use std::iter;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactSidecar,
-    GlobalEnvironment, SourceDependency,
+    ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey,
+    ArtifactSidecar, GlobalEnvironment, GlobalEnvironmentDigest, ModuleDigest, SourceDependency,
 };
 use destack_dir as dir;
 use destack_repository::{ProfileId, ProviderContext};
@@ -61,6 +61,103 @@ impl Compiler {
         };
 
         Ok(ArtifactPayload::GlobalEnvironment(Arc::new(environment)))
+    }
+
+    /// Collect inputs for the environment digest of one profile.
+    pub(crate) fn collect_global_environment_digest(
+        &self,
+        profile: ProfileId,
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<ArtifactDependencySet> {
+        let mut dependencies = ArtifactDependencySet::default();
+        dependencies.require_projection(
+            ArtifactKey::global_environment(profile),
+            ArtifactProjectionKey::Content,
+        );
+
+        // require every implicit stage content the digest follows
+        let artifacts = self.artifact_reader(context);
+        let environment = match artifacts.global_environment(profile) {
+            Ok(environment) => environment,
+            Err(destack_repository::ProviderError::Blocked { .. }) => {
+                dependencies.mark_partial();
+
+                return Ok(dependencies);
+            }
+            Err(error) => return Err(error.into()),
+        };
+        for module in environment.implicit_modules() {
+            dependencies.require_projection(
+                ArtifactKey::dir_bound(module, profile),
+                ArtifactProjectionKey::Content,
+            );
+            dependencies.require_projection(
+                ArtifactKey::dir_expanded(module, profile),
+                ArtifactProjectionKey::Content,
+            );
+            dependencies.require_projection(
+                ArtifactKey::dir_resolved(module, profile),
+                ArtifactProjectionKey::Content,
+            );
+        }
+
+        Ok(dependencies)
+    }
+
+    /// Digest the implicit module contents for one profile.
+    pub(crate) fn provide_global_environment_digest(
+        &self,
+        profile: ProfileId,
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<ArtifactPayload> {
+        let artifacts = self.artifact_reader(context);
+        let environment = artifacts
+            .global_environment(profile)
+            .map_err(CompilerError::from)?;
+
+        // digest each implicit module's stage contents into one fingerprint
+        let mut modules = Vec::new();
+        for module in environment.implicit_modules() {
+            let stages = [
+                self.content_fingerprint(context, ArtifactKey::dir_bound(module, profile))?,
+                self.content_fingerprint(context, ArtifactKey::dir_expanded(module, profile))?,
+                self.content_fingerprint(context, ArtifactKey::dir_resolved(module, profile))?,
+            ];
+            modules.push(ModuleDigest {
+                module,
+                content: destack_artifact::ArtifactProjectionFingerprint::new(&stages),
+            });
+        }
+
+        Ok(ArtifactPayload::GlobalEnvironmentDigest(Arc::new(
+            GlobalEnvironmentDigest { modules },
+        )))
+    }
+
+    /// Return the content projection fingerprint of one digested artifact.
+    fn content_fingerprint(
+        &self,
+        context: &dyn ProviderContext,
+        key: ArtifactKey,
+    ) -> CompilerResult<destack_artifact::ArtifactProjectionFingerprint> {
+        let table = self.repository.artifact_table();
+        let version = self
+            .repository
+            .artifact_version(context.revision(), &key)
+            .map_err(|error| CompilerError::Internal {
+                message: format!("failed to resolve digested artifact {key:?}: {error}"),
+            })?
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("a digested artifact without a bound version: {key:?}"),
+            })?;
+        let projection =
+            destack_artifact::ArtifactProjection::new(key, ArtifactProjectionKey::Content);
+
+        table
+            .projection_fingerprint(&version, &projection)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("a digested artifact without a content projection: {key:?}"),
+            })
     }
 
     /// Collect inputs for imported DIR of one module.
