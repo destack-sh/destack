@@ -26,6 +26,16 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: format!("missing a type for node {}", node.local_id.id),
             })
     }
+
+    /// Return the written expectation one expression was checked against.
+    pub(in crate::lower) fn expected_type_id(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::GlobalTypeId> {
+        let node = expression.into_global_any(self.source);
+
+        self.source().types.get_expected_type_id(node)
+    }
 }
 
 impl FunctionLowerer<'_, '_, '_> {

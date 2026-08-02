@@ -16,6 +16,8 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         let mut sealed = FxIndexMap::default();
         let node_types = self.resolved_node_types(module, failed_applications, &mut sealed)?;
+        let expected_types =
+            self.resolved_expected_types(module, &node_types, failed_applications, &mut sealed)?;
         let symbol_types = self.resolved_symbol_types(module, failed_applications, &mut sealed)?;
         let reduced_types = self.resolved_reduced_types(module, &node_types, &symbol_types)?;
         let symbol_literals = self.static_symbol_literals(module)?;
@@ -32,6 +34,11 @@ impl CheckState<'_> {
             if !carried {
                 state.types_tail.set_node_type(node, ty);
             }
+        }
+
+        // write the expectations that differ from the effective types
+        for (node, ty) in expected_types {
+            state.types_tail.set_expected_type(node, ty);
         }
 
         // write the symbol types this pass inferred
@@ -316,6 +323,40 @@ impl CheckState<'_> {
         for (node, ty) in node_types {
             let ty = self.settled_root(ty)?;
             let ty = self.close_type(ty, failed_applications, sealed)?;
+            resolved.push((node, ty));
+        }
+
+        Ok(resolved)
+    }
+
+    /// Resolve one module's recorded expectations, keeping the rows whose
+    /// written expectation differs from the effective node type.
+    fn resolved_expected_types(
+        &mut self,
+        module: ModuleId,
+        node_types: &[(dir::GlobalNodeIdAny, dir::GlobalTypeId)],
+        failed_applications: &FxIndexSet<dir::GlobalTypeId>,
+        sealed: &mut FxIndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
+    ) -> CompilerResult<Vec<(dir::GlobalNodeIdAny, dir::GlobalTypeId)>> {
+        let expected_types = self
+            .expected_types
+            .iter()
+            .map(|(node, ty)| (*node, *ty))
+            .filter(|(node, _)| node.module_id == module)
+            .collect::<Vec<_>>();
+
+        // settle each expectation and drop rows the node rows already carry
+        let effective = node_types.iter().copied().collect::<FxIndexMap<_, _>>();
+        let mut resolved = Vec::new();
+        for (node, ty) in expected_types {
+            let ty = self.settled_root(ty)?;
+            if self.type_flags(ty)?.has_variable() {
+                continue;
+            }
+            let ty = self.close_type(ty, failed_applications, sealed)?;
+            if effective.get(&node) == Some(&ty) {
+                continue;
+            }
             resolved.push((node, ty));
         }
 

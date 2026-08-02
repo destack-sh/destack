@@ -35,15 +35,13 @@ entry(v0: ref<Point, managed, mutable>):
 function test.main.build(): int32 {
 entry:
     v0: int32 = 7
-    v1: { x: int32 } = aggregate (v0)
-    v2: ref<{ x: int32 }, managed, mutable> = new.complete v1
+    v1: Point = aggregate (v0)
+    v2: ref<Point, managed, mutable> = new.complete v1
     v3: int32 = call test.main.read(v2)
     return v3
 }
 /// @layout.struct name=Point size=4 align=4
 /// @layout.field owner=Point index=0 name=x offset=0 size=4 align=4
-/// @layout.struct name=type@14 size=4 align=4
-/// @layout.field owner=type@14 index=0 name=x offset=0 size=4 align=4
 "#,
     );
 }
@@ -87,8 +85,8 @@ entry:
     v0: int32 = 3
     v1: variant<uint8, int32> { 0uint8 = int32; 1uint8 = void; } = variant.new 0, v0
     v2: ref<Selector, managed, mutable, undefined> = undefined
-    v3: { depth: variant<uint8, int32> { 0uint8 = int32; 1uint8 = void; }, nested: ref<Selector, managed, mutable, undefined> } = aggregate (v1, v2)
-    v4: ref<{ depth: variant<uint8, int32> { 0uint8 = int32; 1uint8 = void; }, nested: ref<Selector, managed, mutable, undefined> }, managed, mutable> = new.complete v3
+    v3: Selector = aggregate (v1, v2)
+    v4: ref<Selector, managed, mutable> = new.complete v3
     v5: int32 = call test.main.pick(v4)
     return v5
 }
@@ -99,9 +97,6 @@ entry:
 /// @layout.discriminant owner=type@5 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@5 index=0 discriminant=0 payload_offset=4
 /// @layout.case owner=type@5 index=1 discriminant=1 payload_offset=4
-/// @layout.struct name=type@17 size=16 align=8
-/// @layout.field owner=type@17 index=0 name=depth offset=8 size=8 align=4
-/// @layout.field owner=type@17 index=1 name=nested offset=0 size=8 align=8
 "#,
     );
 }

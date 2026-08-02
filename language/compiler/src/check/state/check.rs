@@ -59,6 +59,8 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) binding_types: FxIndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Checked source node occurrence types.
     pub(in crate::check) node_types: FxIndexMap<dir::GlobalNodeIdAny, dir::GlobalTypeId>,
+    /// Contextual expected types by source node occurrence.
+    pub(in crate::check) expected_types: FxIndexMap<dir::GlobalNodeIdAny, dir::GlobalTypeId>,
     /// Stable source node decisions.
     pub(in crate::check) decisions: DecisionTable,
 
@@ -170,6 +172,7 @@ impl<'a> CheckState<'a> {
             declaration_types: FxIndexMap::default(),
             binding_types: FxIndexMap::default(),
             node_types: FxIndexMap::default(),
+            expected_types: FxIndexMap::default(),
             decisions: DecisionTable::new(),
             generics: GenericIndex::new(),
             walked_declarations: FxIndexSet::default(),

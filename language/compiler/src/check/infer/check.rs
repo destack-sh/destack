@@ -33,6 +33,13 @@ impl BodyState<'_, '_> {
             }
         };
 
+        // record the written expectation for tools and lowering
+        if is_resolved {
+            self.check
+                .expected_types
+                .insert(site.node, expectation.target);
+        }
+
         // use a resolved contextual type before inference
         if is_resolved {
             let checked = answer!(self.try_check_expression(site, expectation)?);

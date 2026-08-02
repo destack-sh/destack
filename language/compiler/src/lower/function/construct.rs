@@ -344,8 +344,14 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         properties: &[dir::LocalNodeId<dir::Property>],
     ) -> CompilerResult<mir::Value> {
+        // the written expectation names the carrier when reduction hides it
+        let committed = match self.expected_type_id(expression) {
+            Some(expected) => expected,
+            None => self.node_type_id(expression)?,
+        };
+
         // read the concrete class beneath the committed memory forms
-        let mut class = self.lowerer.reduced_type(self.node_type_id(expression)?)?;
+        let mut class = self.lowerer.reduced_type(committed)?;
         while let dir::Type::Form(form) = self.lowerer.ty(class)? {
             class = self.lowerer.reduced_type(form.value)?;
         }
@@ -385,7 +391,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // lower the declared carrier, construction fills its storage row
-        let carrier = self.lower_type(self.node_type_id(expression)?)?;
+        let carrier = self.lower_type(committed)?;
         let (concrete, reference) = match self.builder.tree().get(carrier) {
             mir::Type::Reference { pointee, .. } => (*pointee, Some(carrier)),
             mir::Type::Struct { .. } => (carrier, None),

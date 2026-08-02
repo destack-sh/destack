@@ -120,6 +120,17 @@ impl<'a> TypeTable<'a> {
         None
     }
 
+    /// Get the contextual expected type id for a node.
+    pub fn get_expected_type_id(&self, node_id: GlobalNodeIdAny) -> Option<GlobalTypeId> {
+        for segment in self.segments.iter().rev() {
+            if let Some(type_id) = segment.get_expected_type_id(node_id) {
+                return Some(type_id);
+            }
+        }
+
+        None
+    }
+
     /// Get the solved type id for a symbol.
     pub fn get_symbol_type_id(&self, symbol_id: GlobalSymbolId) -> Option<GlobalTypeId> {
         for segment in self.segments.iter().rev() {
@@ -609,6 +620,9 @@ pub struct TypeSegment {
 
     /// Effective checked type keyed by DIR node occurrence.
     pub(crate) node_types: IndexMap<GlobalNodeIdAny, GlobalTypeId>,
+    /// Contextual expected type keyed by DIR node occurrence, kept only
+    ///  where the written expectation differs from the effective type.
+    pub(crate) expected_types: IndexMap<GlobalNodeIdAny, GlobalTypeId>,
     /// Checked declaration type keyed by symbol.
     pub(crate) symbol_types: IndexMap<GlobalSymbolId, GlobalTypeId>,
     /// Reduced checked type keyed by surface type.
@@ -673,6 +687,7 @@ impl TypeSegment {
             sealed: None,
             sealed_index: FxHashMap::default(),
             node_types: IndexMap::new(),
+            expected_types: IndexMap::new(),
             symbol_types: IndexMap::new(),
             reduced_types: IndexMap::new(),
         }
@@ -701,6 +716,7 @@ impl TypeSegment {
             sealed: None,
             sealed_index: FxHashMap::default(),
             node_types: IndexMap::new(),
+            expected_types: IndexMap::new(),
             symbol_types: IndexMap::new(),
             reduced_types: IndexMap::new(),
         }
@@ -970,6 +986,16 @@ impl TypeSegment {
         self.node_types.get(&node_id).copied()
     }
 
+    /// Set the contextual expected type for a node.
+    pub fn set_expected_type(&mut self, node_id: GlobalNodeIdAny, ty: GlobalTypeId) {
+        self.expected_types.insert(node_id, ty);
+    }
+
+    /// Get the contextual expected type id for a node.
+    pub fn get_expected_type_id(&self, node_id: GlobalNodeIdAny) -> Option<GlobalTypeId> {
+        self.expected_types.get(&node_id).copied()
+    }
+
     /// Set the solved type for a symbol.
     pub fn set_symbol_type(&mut self, symbol_id: GlobalSymbolId, ty: GlobalTypeId) {
         self.symbol_types.insert(symbol_id, ty);
@@ -1126,6 +1152,7 @@ impl TypeSegment {
     pub fn is_empty(&self) -> bool {
         self.types.is_empty()
             && self.node_types.is_empty()
+            && self.expected_types.is_empty()
             && self.symbol_types.is_empty()
             && self.reduced_types.is_empty()
     }
