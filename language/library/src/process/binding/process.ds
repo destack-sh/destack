@@ -1,3 +1,5 @@
+import { Binding } from "destack:binding";
+
 import { ProcessArgumentBinding } from "./argument.ds";
 import { ProcessCgroupBinding } from "./cgroup.ds";
 import { ProcessEnvironmentBinding } from "./environment.ds";
@@ -17,7 +19,7 @@ import { ProcessUmaskBinding } from "./umask.ds";
 import { ProcessWaitBinding } from "./wait.ds";
 import { ProcessWorkdirBinding } from "./workdir.ds";
 
-/// ProcessBinding binding family.
+/// Process binding family.
 @languageItem("process.ProcessBinding")
 export interface ProcessBinding {
     /// Argument bindings.
@@ -57,3 +59,6 @@ export interface ProcessBinding {
     /// Workdir bindings.
     readonly workdir: ProcessWorkdirBinding;
 }
+
+/// Current process binding family.
+export const process = new Binding<ProcessBinding>("process");

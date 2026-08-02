@@ -1,3 +1,5 @@
+import { Binding } from "destack:binding";
+
 import { TtyPtyBinding } from "./pty.ds";
 import { TtyTerminalBinding } from "./terminal.ds";
 import { TtyTermiosBinding } from "./termios.ds";
@@ -12,3 +14,6 @@ export interface TtyBinding {
     /// termios bindings.
     readonly termios: TtyTermiosBinding;
 }
+
+/// Current TTY binding family.
+export const tty = new Binding<TtyBinding>("tty");

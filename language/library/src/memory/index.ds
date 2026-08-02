@@ -1,4 +1,4 @@
-export { MemoryBinding } from "./binding/memory.ds";
+export { memory, MemoryBinding } from "./binding/memory.ds";
 export { Lifetime, StaticLifetime } from "./lifetime.ds";
 export { Access } from "./access.ds";
 export { Place, Placed, Space } from "./place.ds";

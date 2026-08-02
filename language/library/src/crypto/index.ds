@@ -1,3 +1,3 @@
-export { CryptoBinding } from "./binding/crypto.ds";
+export { crypto, CryptoBinding } from "./binding/crypto.ds";
 export * from "./crypto.ds";
 export * as binding from "./binding";

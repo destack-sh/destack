@@ -1,3 +1,5 @@
+import { Binding } from "destack:binding";
+
 import { CryptoAgreementBinding } from "./agreement.ds";
 import { CryptoCertificateBinding } from "./certificate.ds";
 import { CryptoCipherBinding } from "./cipher.ds";
@@ -7,7 +9,7 @@ import { CryptoKeyBinding } from "./key.ds";
 import { CryptoMacBinding } from "./mac.ds";
 import { CryptoStoreBinding } from "./store.ds";
 
-/// CryptoBinding binding family.
+/// Cryptography binding family.
 @languageItem("crypto.CryptoBinding")
 export interface CryptoBinding {
     /// Agreement bindings.
@@ -27,3 +29,6 @@ export interface CryptoBinding {
     /// Store bindings.
     readonly store: CryptoStoreBinding;
 }
+
+/// Current cryptography binding family.
+export const crypto = new Binding<CryptoBinding>("crypto");

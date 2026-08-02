@@ -1,10 +1,12 @@
+import { Binding } from "destack:binding";
+
 import { MemoryAdviseBinding } from "./advise.ds";
 import { MemoryLayoutBinding } from "./layout.ds";
 import { MemoryLockBinding } from "./lock.ds";
 import { MemoryMapBinding } from "./map.ds";
 import { MemoryVirtualBinding } from "./virtual.ds";
 
-/// MemoryBinding binding family.
+/// Memory binding family.
 @languageItem("memory.MemoryBinding")
 export interface MemoryBinding {
     /// Advise bindings.
@@ -18,3 +20,6 @@ export interface MemoryBinding {
     /// Virtual bindings.
     readonly virtual: MemoryVirtualBinding;
 }
+
+/// Current memory binding family.
+export const memory = new Binding<MemoryBinding>("memory");

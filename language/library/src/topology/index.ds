@@ -1,3 +1,4 @@
+export { topology, TopologyBinding } from "./binding/topology.ds";
 export * from "./decorator.ds";
 export * from "./edge.ds";
 export * from "./entity.ds";

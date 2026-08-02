@@ -1,3 +1,5 @@
+import { Binding } from "destack:binding";
+
 import { FsAttributeBinding } from "./attribute.ds";
 import { FsDirectoryBinding } from "./directory.ds";
 import { FsFileBinding } from "./file.ds";
@@ -30,3 +32,6 @@ export interface FsBinding {
     /// Extended attribute bindings.
     readonly xattr: FsXattrBinding;
 }
+
+/// Current filesystem binding family.
+export const fs = new Binding<FsBinding>("fs");

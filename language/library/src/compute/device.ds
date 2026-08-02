@@ -1,6 +1,6 @@
 import { Array, Slice } from "destack:collections";
-import { Context } from "destack:context";
 
+import { compute } from "./binding/compute.ds";
 import { DeviceCapabilities, DeviceFeature } from "./capability.ds";
 import { ComputeError } from "./error.ds";
 
@@ -72,42 +72,42 @@ export newtype Device = intrinsic;
 export extension of Device {
     /// Return all available devices matching `query`.
     static available(query?: DeviceQuery): ^Array<Device> {
-        Context.current().compute.device.available(query)
+        compute.get().device.available(query)
     }
 
     /// Return the default CPU device.
     static cpu(): Device {
-        Context.current().compute.device.cpu()
+        compute.get().device.cpu()
     }
 
     /// Return a GPU device.
     static gpu(index: uint32 = 0): Device {
-        Context.current().compute.device.gpu(index)
+        compute.get().device.gpu(index)
     }
 
     /// Return an accelerator device.
     static accelerator(index: uint32 = 0): Device {
-        Context.current().compute.device.accelerator(index)
+        compute.get().device.accelerator(index)
     }
 
     /// Return the default compute device matching `query`.
     static default(query?: DeviceQuery): Device {
-        Context.current().compute.device.default(query)
+        compute.get().device.default(query)
     }
 
     /// Return the device kind.
     get kind(&readonly this): DeviceKind {
-        Context.current().compute.device.kind(this)
+        compute.get().device.kind(this)
     }
 
     /// Return the human-readable device name.
     get name(&readonly this): &readonly string {
-        Context.current().compute.device.name(this)
+        compute.get().device.name(this)
     }
 
     /// Return this device's runtime properties.
     properties(&readonly this): Result<DeviceProperties, ComputeError> {
-        Context.current().compute.device.properties(this)
+        compute.get().device.properties(this)
     }
 
     /// Return whether this device is the host CPU.

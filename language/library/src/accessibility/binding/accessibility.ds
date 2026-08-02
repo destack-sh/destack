@@ -1,9 +1,11 @@
+import { Binding } from "destack:binding";
+
 import { AccessibilityActionBinding } from "./action.ds";
 import { AccessibilityNotificationBinding } from "./notification.ds";
 import { AccessibilityTextBinding } from "./text.ds";
 import { AccessibilityTreeBinding } from "./tree.ds";
 
-/// AccessibilityBinding binding family.
+/// Accessibility binding family.
 @languageItem("accessibility.AccessibilityBinding")
 export interface AccessibilityBinding {
     /// Action bindings.
@@ -15,3 +17,6 @@ export interface AccessibilityBinding {
     /// Tree bindings.
     readonly tree: AccessibilityTreeBinding;
 }
+
+/// Current accessibility binding family.
+export const accessibility = new Binding<AccessibilityBinding>("accessibility");

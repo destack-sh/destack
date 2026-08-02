@@ -1,5 +1,5 @@
 import { Promise, Task } from "destack:async";
-import { Context } from "destack:context";
+import { telemetry } from "./binding/telemetry.ds";
 import { Copy } from "destack:memory";
 
 import { Fields } from "./field.ds";
@@ -132,7 +132,7 @@ export class Tracer {
 
     /// Start one span.
     start(&readonly this, name: &readonly string, options?: SpanOptions): Span {
-        const context = Context.current().telemetry.createSpanContext(options?.parent);
+        const context = telemetry.get().createSpanContext(options?.parent);
         new Span(name, context, options?.kind, options?.fields, this.sink)
     }
 
@@ -213,7 +213,7 @@ export function spanTask<T>(
 /// Write one trace entry to a trace sink.
 function writeTrace(sink: readonly TraceSink | undefined, entry: TraceEntry): void {
     if (sink == undefined) {
-        Context.current().telemetry.emitTrace(&readonly entry)
+        telemetry.get().emitTrace(&readonly entry)
     } else {
         sink.write(&readonly entry)
     }

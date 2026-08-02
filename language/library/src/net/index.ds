@@ -1,3 +1,3 @@
-export { NetBinding } from "./binding/net.ds";
+export { net, NetBinding } from "./binding/net.ds";
 export * from "./net.ds";
 export * as binding from "./binding";

@@ -1,3 +1,5 @@
+import { Binding } from "destack:binding";
+
 import { TlsConnectionBinding } from "./connection.ds";
 import { TlsContextBinding } from "./context.ds";
 
@@ -9,3 +11,6 @@ export interface TlsBinding {
     /// TLS context bindings.
     readonly context: TlsContextBinding;
 }
+
+/// Current TLS binding family.
+export const tls = new Binding<TlsBinding>("tls");

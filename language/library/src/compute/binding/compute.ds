@@ -1,3 +1,5 @@
+import { Binding } from "destack:binding";
+
 import { ComputeBufferBinding } from "./buffer.ds";
 import { ComputeDeviceBinding } from "./device.ds";
 import { ComputeEventBinding } from "./event.ds";
@@ -21,3 +23,6 @@ export interface ComputeBinding {
     /// Stream bindings.
     readonly stream: ComputeStreamBinding;
 }
+
+/// Current compute binding family.
+export const compute = new Binding<ComputeBinding>("compute");

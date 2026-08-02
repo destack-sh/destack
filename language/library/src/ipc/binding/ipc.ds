@@ -1,3 +1,5 @@
+import { Binding } from "destack:binding";
+
 import { IpcEventBinding } from "./event.ds";
 import { IpcFutexBinding } from "./futex.ds";
 import { IpcMemoryBinding } from "./memory.ds";
@@ -24,3 +26,6 @@ export interface IpcBinding {
     /// Unix socket bindings.
     readonly unix: IpcUnixBinding;
 }
+
+/// Current IPC binding family.
+export const ipc = new Binding<IpcBinding>("ipc");

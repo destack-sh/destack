@@ -1,3 +1,5 @@
+import { Binding } from "destack:binding";
+
 import { RandomEntropyBinding } from "./entropy.ds";
 
 /// Random binding family.
@@ -6,3 +8,6 @@ export interface RandomBinding {
     /// Entropy bindings.
     readonly entropy: RandomEntropyBinding;
 }
+
+/// Current random binding family.
+export const random = new Binding<RandomBinding>("random");

@@ -1,10 +1,12 @@
+import { Binding } from "destack:binding";
+
 import { AudioBackendBinding } from "./backend.ds";
 import { AudioClockBinding } from "./clock.ds";
 import { AudioDeviceBinding } from "./device.ds";
 import { AudioEventBinding } from "./event.ds";
 import { AudioStreamBinding } from "./stream.ds";
 
-/// AudioBinding binding family.
+/// Audio binding family.
 @languageItem("audio.AudioBinding")
 export interface AudioBinding {
     /// Backend bindings.
@@ -18,3 +20,6 @@ export interface AudioBinding {
     /// Stream bindings.
     readonly stream: AudioStreamBinding;
 }
+
+/// Current audio binding family.
+export const audio = new Binding<AudioBinding>("audio");

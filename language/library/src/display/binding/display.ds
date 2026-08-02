@@ -1,3 +1,5 @@
+import { Binding } from "destack:binding";
+
 import { DisplayBackendBinding } from "./backend.ds";
 import { DisplayDragBinding } from "./drag.ds";
 import { DisplayEventBinding } from "./event.ds";
@@ -5,7 +7,7 @@ import { DisplayFrameBinding } from "./frame.ds";
 import { DisplayMonitorBinding } from "./monitor.ds";
 import { DisplayWindowBinding } from "./window.ds";
 
-/// DisplayBinding binding family.
+/// Display binding family.
 @languageItem("display.DisplayBinding")
 export interface DisplayBinding {
     /// Backend bindings.
@@ -21,3 +23,6 @@ export interface DisplayBinding {
     /// Window bindings.
     readonly window: DisplayWindowBinding;
 }
+
+/// Current display binding family.
+export const display = new Binding<DisplayBinding>("display");

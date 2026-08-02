@@ -1,7 +1,7 @@
 import { Slice } from "destack:collections";
-import { Context } from "destack:context";
 import { Result } from "destack:error";
 
+import { compute } from "./binding/compute.ds";
 import { Buffer } from "./buffer.ds";
 import { Device } from "./device.ds";
 import { ComputeError } from "./error.ds";
@@ -119,7 +119,7 @@ export newtype Program = intrinsic;
 export extension of Program {
     /// Return the device that owns this program.
     get device(&readonly this): Device {
-        Context.current().compute.program.device(this)
+        compute.get().program.device(this)
     }
 
     /// Compile `source` for `device`.
@@ -128,7 +128,7 @@ export extension of Program {
         source: ProgramSource,
         options?: ProgramOptions,
     ): Result<Program, ComputeError> {
-        Context.current().compute.program.compile(device, source, options)
+        compute.get().program.compile(device, source, options)
     }
 
     /// Compile `source` for `device` and return diagnostics.
@@ -137,12 +137,12 @@ export extension of Program {
         source: ProgramSource,
         options?: ProgramOptions,
     ): ProgramReport {
-        Context.current().compute.program.build(device, source, options)
+        compute.get().program.build(device, source, options)
     }
 
     /// Return a kernel entry point by name.
     kernel(&readonly this, name: string): Result<Kernel, ComputeError> {
-        Context.current().compute.program.kernel(this, name)
+        compute.get().program.kernel(this, name)
     }
 }
 
@@ -153,18 +153,18 @@ export newtype KernelArgument = intrinsic;
 export extension of KernelArgument {
     /// Encode `value` as one kernel argument.
     static value<T>(value: T): KernelArgument {
-        Context.current().compute.program.argumentValue(value)
+        compute.get().program.argumentValue(value)
     }
 
     /// Encode `buffer` as one kernel argument.
     static buffer<T>(buffer: Buffer<T>): KernelArgument {
-        Context.current().compute.program.argumentBuffer(buffer)
+        compute.get().program.argumentBuffer(buffer)
     }
 
     /// Encode raw argument bytes.
     @unsafe
     static bytes(bytes: [uint8]): KernelArgument {
-        Context.current().compute.program.argumentBytes(bytes)
+        compute.get().program.argumentBytes(bytes)
     }
 }
 
@@ -211,17 +211,17 @@ export newtype Kernel = intrinsic;
 export extension of Kernel {
     /// Return the program that owns this kernel.
     get program(&readonly this): Program {
-        Context.current().compute.program.kernelProgram(this)
+        compute.get().program.kernelProgram(this)
     }
 
     /// Return the kernel entry point name.
     get name(&readonly this): &readonly string {
-        Context.current().compute.program.kernelName(this)
+        compute.get().program.kernelName(this)
     }
 
     /// Return this kernel's signature metadata.
     signature(&readonly this): KernelSignature {
-        Context.current().compute.program.signature(this)
+        compute.get().program.signature(this)
     }
 
     /// Dispatch this kernel on `stream`.
@@ -232,7 +232,7 @@ export extension of Kernel {
         workgroupSize?: WorkgroupSize,
         stream?: &Stream,
     ): Event {
-        Context.current().compute.program.dispatch(
+        compute.get().program.dispatch(
             this,
             arguments,
             workgroups,

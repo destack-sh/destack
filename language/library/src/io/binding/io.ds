@@ -1,3 +1,5 @@
+import { Binding } from "destack:binding";
+
 import { IoCompletionBinding } from "./completion.ds";
 import { IoControlBinding } from "./control.ds";
 import { IoPollBinding } from "./poll.ds";
@@ -15,3 +17,6 @@ export interface IoBinding {
     /// io_uring bindings.
     readonly uring: IoUringBinding;
 }
+
+/// Current IO binding family.
+export const io = new Binding<IoBinding>("io");

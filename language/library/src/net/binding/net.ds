@@ -1,3 +1,5 @@
+import { Binding } from "destack:binding";
+
 import { NetConnectivityBinding } from "./connectivity.ds";
 import { NetInterfaceBinding } from "./interface.ds";
 import { NetOptionsBinding } from "./options.ds";
@@ -27,3 +29,6 @@ export interface NetBinding {
     /// UDP multicast bindings.
     readonly udp: NetUdpBinding;
 }
+
+/// Current network binding family.
+export const net = new Binding<NetBinding>("net");

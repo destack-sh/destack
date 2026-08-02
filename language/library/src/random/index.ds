@@ -1,2 +1,3 @@
+export { random, RandomBinding } from "./binding/random.ds";
 export * from "./random.ds";
 export * as binding from "./binding";

@@ -1,3 +1,5 @@
+import { Binding } from "destack:binding";
+
 import { DeviceBluetoothBinding } from "./bluetooth.ds";
 import { DeviceCameraBinding } from "./camera.ds";
 import { DeviceHidBinding } from "./hid.ds";
@@ -21,3 +23,6 @@ export interface DeviceBinding {
     /// Usb bindings.
     readonly usb: DeviceUsbBinding;
 }
+
+/// Current device binding family.
+export const device = new Binding<DeviceBinding>("device");

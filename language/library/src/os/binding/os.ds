@@ -1,3 +1,5 @@
+import { Binding } from "destack:binding";
+
 import { OsCapacityBinding } from "./capacity.ds";
 import { OsIdentityBinding } from "./identity.ds";
 import { OsPowerBinding } from "./power.ds";
@@ -15,3 +17,6 @@ export interface OsBinding {
     /// Pressure bindings.
     readonly pressure: OsPressureBinding;
 }
+
+/// Current operating system binding family.
+export const os = new Binding<OsBinding>("os");

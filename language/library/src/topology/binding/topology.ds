@@ -1,3 +1,5 @@
+import { Binding } from "destack:binding";
+
 import { TopologyEdgeBinding } from "./edge.ds";
 import { TopologyEntityBinding } from "./entity.ds";
 
@@ -9,3 +11,6 @@ export interface TopologyBinding {
     /// Entity bindings.
     readonly entity: TopologyEntityBinding;
 }
+
+/// Current topology binding family.
+export const topology = new Binding<TopologyBinding>("topology");

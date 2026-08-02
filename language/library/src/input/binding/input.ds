@@ -1,3 +1,5 @@
+import { Binding } from "destack:binding";
+
 import { InputClipboardBinding } from "./clipboard.ds";
 import { InputDeviceBinding } from "./device.ds";
 import { InputEventBinding } from "./event.ds";
@@ -9,7 +11,7 @@ import { InputSensorBinding } from "./sensor.ds";
 import { InputTextBinding } from "./text.ds";
 import { InputTouchBinding } from "./touch.ds";
 
-/// InputBinding binding family.
+/// Input binding family.
 @languageItem("input.InputBinding")
 export interface InputBinding {
     /// Clipboard bindings.
@@ -33,3 +35,6 @@ export interface InputBinding {
     /// Touch bindings.
     readonly touch: InputTouchBinding;
 }
+
+/// Current input binding family.
+export const input = new Binding<InputBinding>("input");

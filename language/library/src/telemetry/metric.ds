@@ -1,4 +1,4 @@
-import { Context } from "destack:context";
+import { telemetry } from "./binding/telemetry.ds";
 import { Duration } from "destack:time";
 
 import { Fields } from "./field.ds";
@@ -207,7 +207,7 @@ export function duration(name: string, value: Duration, fields?: Fields): void {
 /// Write one metric entry.
 function writeMetric(sink: readonly MetricSink | undefined, entry: &readonly MetricEntry): void {
     if (sink == undefined) {
-        Context.current().telemetry.emitMetric(entry)
+        telemetry.get().emitMetric(entry)
     } else {
         sink.write(entry)
     }

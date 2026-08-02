@@ -1,7 +1,8 @@
-import { Context } from "destack:context";
 import { todo } from "destack:error";
 import { HostError } from "destack:error/host";
 import * as runtime from "destack:runtime";
+
+import { random } from "./binding/random.ds";
 
 /// Deterministic random stream seed.
 export type RandomSeed = runtime.RandomSeed;
@@ -59,5 +60,5 @@ export extension of Random {
 
 /// Fill a buffer with host-provided random bytes.
 export function fillBytes(buffer: &[uint8]): Result<void, HostError> {
-    Context.current().random.entropy.fillRandomBytes(buffer)
+    random.get().entropy.fillRandomBytes(buffer)
 }

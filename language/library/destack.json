@@ -35,6 +35,9 @@
     "./bench": {
       "path": "./src/bench/index.ds"
     },
+    "./binding": {
+      "path": "./src/binding/index.ds"
+    },
     "./bytes": {
       "path": "./src/bytes/index.ds"
     },

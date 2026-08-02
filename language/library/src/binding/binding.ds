@@ -1,0 +1,14 @@
+import { ContextVar } from "destack:context";
+import { Dynamic, DynamicSafe } from "destack:memory";
+
+/// One dynamically scoped binding family.
+export local class Binding<T: DynamicSafe> extends ContextVar<Dynamic<T>> {
+    /// Create one binding family with its generated default implementation.
+    constructor(name: string) {
+        super(name, defaultBinding<T>());
+    }
+}
+
+/// Return the generated default implementation of one binding family.
+@intrinsic("binding.default")
+declare function defaultBinding<T: DynamicSafe>(): Dynamic<T>;

@@ -22,4 +22,5 @@ export {
     ProgramText,
 } from "./program.ds";
 export { WorkgroupCount, WorkgroupSize } from "./workgroup.ds";
+export { compute, ComputeBinding } from "./binding/compute.ds";
 export * as binding from "./binding";

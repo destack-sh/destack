@@ -1,5 +1,4 @@
-import { Context } from "destack:context";
-
+import { telemetry } from "./binding/telemetry.ds";
 import { Fields } from "./field.ds";
 import { Level, LogEntry, SpanContext } from "./record.ds";
 
@@ -40,7 +39,7 @@ export class Logger {
             span: options?.span,
         };
 
-        Context.current().telemetry.emitLog(&readonly entry);
+        telemetry.get().emitLog(&readonly entry);
     }
 
     /// Write one trace event.
@@ -90,7 +89,7 @@ export function log(level: Level, name: &readonly string, options?: LogOptions):
         span: options?.span,
     };
 
-    Context.current().telemetry.emitLog(&readonly entry);
+    telemetry.get().emitLog(&readonly entry);
 }
 
 /// Write one trace event.

@@ -1,7 +1,9 @@
+import { Binding } from "destack:binding";
+
 import { TimeClockBinding } from "./clock.ds";
 import { TimeTimerBinding } from "./timer.ds";
 
-/// TimeBinding binding family.
+/// Time binding family.
 @languageItem("time.TimeBinding")
 export interface TimeBinding {
     /// Clock bindings.
@@ -9,3 +11,6 @@ export interface TimeBinding {
     /// Timer bindings.
     readonly timer: TimeTimerBinding;
 }
+
+/// Current time binding family.
+export const time = new Binding<TimeBinding>("time");
