@@ -205,7 +205,6 @@ function seed(): int32 {
 
 export const computed = seed();
 "#,
-
     );
 
     session.assert_dir_checked_and_diagnostics(

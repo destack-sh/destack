@@ -608,15 +608,8 @@ impl CheckState<'_> {
                     self.measure_type(type_form.value, position, form, parameter)?
                 }
                 // readonly borrows view their pointee without write-back
-                dir::Form::Borrowed(borrow)
-                    if self.borrow_is_readonly(ty.module_id, borrow)? =>
-                {
-                    self.measure_type(
-                        type_form.value,
-                        position,
-                        VarianceForm::Readonly,
-                        parameter,
-                    )?
+                dir::Form::Borrowed(borrow) if self.borrow_is_readonly(ty.module_id, borrow)? => {
+                    self.measure_type(type_form.value, position, VarianceForm::Readonly, parameter)?
                 }
                 // independently writable references stay invariant unless deeply readonly
                 dir::Form::Managed | dir::Form::Borrowed(_) | dir::Form::Raw => {
