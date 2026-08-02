@@ -305,6 +305,29 @@ opcodes! {
         signature: "(function: FunctionId, environment: ref) => function",
         operands: [ResultRange, Function, Register],
     }
+
+    // execution contexts
+    CONTEXT_CURRENT = 0x0068 {
+        text: "context.current",
+        signature: "() => context",
+        operands: [Result],
+    }
+    CONTEXT_REPLACE = 0x0069 {
+        text: "context.replace",
+        signature: "(context: context) => context",
+        operands: [Result, Register],
+    }
+    CONTEXT_BIND = 0x006a {
+        text: "context.bind",
+        signature: "(context: context, variable: ref, value: value, site: AllocationSiteId, valueOffset: uint32) => context",
+        operands: [Result, Register, Register, RegisterSpan, Allocation, Unsigned32],
+    }
+    CONTEXT_GET = 0x006b {
+        text: "context.get",
+        signature: "(context: context, variable: ref, default: value, valueOffset: uint32) => value",
+        operands: [ResultRange, Register, Register, RegisterSpan, Unsigned32],
+    }
+
     // slices
     SLICE_VIEW = 0x0070 {
         text: "slice.view",

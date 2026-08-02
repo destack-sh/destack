@@ -160,6 +160,12 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             // function values
             Opcode::FUNCTION_ADDRESS | Opcode::FUNCTION_BIND => self.format_function_value(opcode),
 
+            // execution contexts
+            Opcode::CONTEXT_CURRENT
+            | Opcode::CONTEXT_REPLACE
+            | Opcode::CONTEXT_BIND
+            | Opcode::CONTEXT_GET => self.format_context(opcode),
+
             // slices
             Opcode::SLICE_VIEW => self.format_slice(opcode),
 

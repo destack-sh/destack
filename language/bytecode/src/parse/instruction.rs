@@ -54,6 +54,9 @@ impl Parser<'_> {
             "slice" => self.parse_slice_operation(name, token, function),
             "dynamic" => self.parse_dynamic_operation(name, token, function),
 
+            // execution contexts
+            "context" => self.parse_context_operation(name, token, function),
+
             // new and destruction
             "new" => self.parse_new(name, token, function),
             "free" | "drop" => self.parse_reference_operation(name, token, function),

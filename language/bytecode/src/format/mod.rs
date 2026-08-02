@@ -6,6 +6,7 @@ mod context;
 mod continuation;
 mod control;
 mod dynamic;
+mod formatter;
 mod function;
 mod instruction;
 mod memory;
@@ -28,4 +29,4 @@ mod waiter;
 #[cfg(test)]
 mod tests;
 
-pub use context::*;
+pub use formatter::*;
