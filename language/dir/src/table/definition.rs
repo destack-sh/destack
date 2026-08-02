@@ -11,6 +11,7 @@ use crate::{
     EnumBackingType, EnumVariantValue, FunctionRole, GlobalNodeIdAny, GlobalStaticId,
     GlobalSymbolId, GlobalTypeId, IntegerType, LocalGenericTemplateId, MemberSlot,
     MethodAbstraction, SegmentView, Space, StaticKey,
+    PrimitiveType,
 };
 
 /// Cumulative declaration definitions for one DIR module.
@@ -137,6 +138,15 @@ impl<'a> DefinitionTable<'a> {
             .flat_map(|segment| segment.blanket_extensions().iter().copied())
     }
 
+    /// Return the applicable blanket extensions judged for one receiver family.
+    pub fn blanket_family(&self, family: FamilyKey) -> Option<&[GlobalSymbolId]> {
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.blanket_families.get(&family))
+            .map(Vec::as_slice)
+    }
+
     /// Iterate extensions in phase order.
     pub fn iter_extensions(
         &self,
@@ -183,9 +193,25 @@ pub struct DefinitionSegment {
     pub(crate) extensions_by_target_symbol: IndexMap<GlobalSymbolId, Vec<GlobalSymbolId>>,
     /// Blanket extension symbols.
     pub(crate) blanket_extensions: Vec<GlobalSymbolId>,
+    /// Applicable blanket extensions keyed by judged receiver family.
+    pub(crate) blanket_families: IndexMap<FamilyKey, Vec<GlobalSymbolId>>,
+}
+
+/// One receiver family judged for blanket extension applicability.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum FamilyKey {
+    /// A nominal declaration family.
+    Nominal(GlobalSymbolId),
+    /// A builtin primitive family.
+    Primitive(PrimitiveType),
 }
 
 impl DefinitionSegment {
+    /// Record the applicable blanket extensions for one judged family.
+    pub fn set_blanket_family(&mut self, family: FamilyKey, extensions: Vec<GlobalSymbolId>) {
+        self.blanket_families.insert(family, extensions);
+    }
+
     /// Create a new definition segment.
     pub fn new(module_id: ModuleId) -> Self {
         Self {
@@ -194,6 +220,7 @@ impl DefinitionSegment {
             definitions: IndexMap::new(),
             extensions_by_target_symbol: IndexMap::new(),
             blanket_extensions: Vec::new(),
+            blanket_families: IndexMap::default(),
         }
     }
 
