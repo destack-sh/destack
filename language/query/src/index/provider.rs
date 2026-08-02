@@ -230,7 +230,7 @@ impl Indexer {
         let dependencies = context.artifact_dependencies().ok_or_else(|| {
             ProviderError::internal("program index provider has no frozen dependencies")
         })?;
-        let versions = Self::program_module_versions( dependencies, profile_id, kind)?;
+        let versions = Self::program_module_versions(dependencies, profile_id, kind)?;
         Self::require_program_modules(&versions, &module_ids)?;
         if let Some(started) = started {
             context.emit_span("index_owners", started);
@@ -383,8 +383,7 @@ impl Indexer {
         }
 
         // rebuild when program membership changed
-        let base_versions =
-            Self::program_module_versions( &base.dependencies, profile_id, kind)?;
+        let base_versions = Self::program_module_versions(&base.dependencies, profile_id, kind)?;
         let base_modules = base_versions.keys().copied().collect::<Vec<_>>();
         if base_modules != module_ids {
             return Ok(None);

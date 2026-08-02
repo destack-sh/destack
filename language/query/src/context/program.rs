@@ -1,10 +1,7 @@
 use std::ops::Deref;
 use std::sync::{Arc, Mutex, OnceLock};
 
-use destack_artifact::{
-    ArtifactKey, IndexKind, ModuleIndex, PackageNode,
-    ProgramIndex,
-};
+use destack_artifact::{ArtifactKey, IndexKind, ModuleIndex, PackageNode, ProgramIndex};
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProviderError, Repository, RepositoryError, Revision};
 use destack_source::{ModuleId, PackageId, ProfileId};
@@ -21,7 +18,8 @@ pub struct ProgramQueryContext<'a> {
     /// Lazily read program indexes by family.
     program_indexes: [OnceLock<Result<Arc<ProgramIndex>, ProviderError>>; IndexKind::ALL.len()],
     /// Lazily read module indexes by module and family.
-    module_indexes: Box<[[OnceLock<Result<Arc<ModuleIndex>, ProviderError>>; IndexKind::ALL.len()]]>,
+    module_indexes:
+        Box<[[OnceLock<Result<Arc<ModuleIndex>, ProviderError>>; IndexKind::ALL.len()]]>,
 }
 
 impl std::fmt::Debug for ProgramQueryContext<'_> {

@@ -193,9 +193,7 @@ impl<'context, 'index> MemberIndexer<'context, 'index> {
             dir::DefinitionMember::AssociatedConst(_) => dir::MemberKind::AssociatedConst,
             dir::DefinitionMember::EnumVariant(_)
             | dir::DefinitionMember::TaggedKey(_)
-            | dir::DefinitionMember::TaggedVariant(_) => {
-                dir::MemberKind::Variant
-            }
+            | dir::DefinitionMember::TaggedVariant(_) => dir::MemberKind::Variant,
             dir::DefinitionMember::CallSignature(_) => dir::MemberKind::CallSignature,
             dir::DefinitionMember::ConstructSignature(_) => dir::MemberKind::ConstructSignature,
             dir::DefinitionMember::IndexSignature(_) => dir::MemberKind::IndexSignature,

@@ -2,8 +2,8 @@ use std::slice;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactKey, DirBound, DirChecked, DirDeclared, DirExpanded, DirImported, DirParsed, DirParsedFile,
-    DirResolved,
+    ArtifactKey, DirBound, DirChecked, DirDeclared, DirExpanded, DirImported, DirParsed,
+    DirParsedFile, DirResolved,
 };
 use destack_core::StringPool;
 use destack_dir as dir;
