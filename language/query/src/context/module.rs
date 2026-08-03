@@ -136,7 +136,7 @@ impl<'a> ModuleQueryContext<'a> {
     }
 
     /// Return the artifact roots for one module query context.
-    pub fn initial_roots(module_id: ModuleId, profile_id: ProfileId) -> [ArtifactKey; 7] {
+    pub fn initial_artifacts(module_id: ModuleId, profile_id: ProfileId) -> [ArtifactKey; 7] {
         [
             ArtifactKey::dir_parsed(module_id),
             ArtifactKey::dir_bound(module_id, profile_id),
@@ -157,7 +157,7 @@ impl<'a> ModuleQueryContext<'a> {
         require_artifacts: &dyn Fn(&[ArtifactKey]) -> QueryResult<()>,
     ) -> QueryResult<Self> {
         // require the module stages up to its checked tables
-        let roots = Self::initial_roots(module_id, profile_id);
+        let roots = Self::initial_artifacts(module_id, profile_id);
         require_artifacts(&roots)?;
         let reader = ArtifactReader::new(repository, revision);
 

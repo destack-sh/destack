@@ -10,7 +10,7 @@ use destack_source::{ModuleId, PackageId, ProfileId};
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
 
-use crate::{Module, ModuleQueryContext, QueryError, QueryMethod, QueryResult};
+use crate::{Module, ModuleQueryContext, QueryError, QueryResult};
 
 /// Query context anchored to a program revision.
 pub struct ProgramQueryContext<'a> {
@@ -53,32 +53,6 @@ impl std::fmt::Debug for ProgramQueryContext<'_> {
 }
 
 impl<'a> ProgramQueryContext<'a> {
-    /// Return the artifact roots scheduled before one program query.
-    pub fn initial_roots(
-        repository: &Repository,
-        revision: Revision,
-        profile_id: ProfileId,
-        method: QueryMethod,
-    ) -> QueryResult<Vec<ArtifactKey>> {
-        let mut artifacts = Vec::new();
-        for kind in Self::index_kinds(method) {
-            artifacts.push(ArtifactKey::program_index(profile_id, *kind));
-        }
-
-        // schedule import resolution for every module read by file renames
-        if method == QueryMethod::RenameFiles {
-            for module_id in Self::authored_module_ids(repository, revision)? {
-                artifacts.extend([
-                    ArtifactKey::dir_parsed(module_id),
-                    ArtifactKey::dir_imported(module_id, profile_id),
-                    ArtifactKey::dir_expanded(module_id, profile_id),
-                ]);
-            }
-        }
-
-        Ok(artifacts)
-    }
-
     /// Iterate over the exact modules covered by this program context.
     pub fn modules(&self) -> impl Iterator<Item = Module> + '_ {
         self.module_ids.iter().map(move |module_id| Module {
@@ -211,7 +185,7 @@ impl<'a> ProgramQueryContext<'a> {
     }
 
     /// Return module ids owned by authored workspace packages.
-    fn authored_module_ids(
+    pub(crate) fn authored_module_ids(
         repository: &Repository,
         revision: Revision,
     ) -> QueryResult<Vec<ModuleId>> {
@@ -522,46 +496,6 @@ impl<'a> ProgramQueryContext<'a> {
         let index = self.module_index(module_id, kind)?;
 
         Ok((module_id, index))
-    }
-
-    /// Return the index families read by one query method.
-    fn index_kinds(method: QueryMethod) -> &'static [IndexKind] {
-        use IndexKind::{
-            Calls, Decorators, Exports, Extensions, Heritage, Members, References, Symbols,
-        };
-
-        match method {
-            QueryMethod::Completion => &[Symbols, Exports, Members, Extensions],
-            QueryMethod::CodeLenses => &[References, Heritage],
-            QueryMethod::GotoImplementation | QueryMethod::Supertypes | QueryMethod::Subtypes => {
-                &[Heritage]
-            }
-            QueryMethod::Highlight
-            | QueryMethod::FindReferences
-            | QueryMethod::Rename
-            | QueryMethod::Inline => &[References],
-            QueryMethod::IncomingCalls | QueryMethod::OutgoingCalls => &[Calls],
-            QueryMethod::Decorators => &[Decorators],
-            QueryMethod::CodeActions => &[Symbols, Exports, References],
-            QueryMethod::SearchSymbols => &[Symbols],
-            QueryMethod::Hover
-            | QueryMethod::SignatureHelp
-            | QueryMethod::InlayHints
-            | QueryMethod::FoldingRanges
-            | QueryMethod::SemanticTokens
-            | QueryMethod::SemanticTokensRange
-            | QueryMethod::Outline
-            | QueryMethod::Links
-            | QueryMethod::SelectionRanges
-            | QueryMethod::GotoDefinition
-            | QueryMethod::GotoDeclaration
-            | QueryMethod::GotoTypeDefinition
-            | QueryMethod::CallItem
-            | QueryMethod::TypeItem
-            | QueryMethod::RenameTarget
-            | QueryMethod::RenameFiles
-            | QueryMethod::ExtractVariable => &[],
-        }
     }
 
     /// Return the ordinal for one indexed module.

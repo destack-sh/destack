@@ -21,17 +21,6 @@ use crate::{
     SubtypesResponse, SupertypesRequest, SupertypesResponse, TypeItemRequest, TypeItemResponse,
 };
 
-/// Semantic scope read by one query.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum QueryScope {
-    /// One module context.
-    Module(Module),
-    /// Every module in one semantic program.
-    Program(ProfileId),
-    /// Every selected semantic program.
-    Workspace,
-}
-
 /// Query request envelope.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 #[serde(tag = "kind", content = "params", rename_all = "snake_case")]
@@ -103,50 +92,42 @@ pub enum QueryRequest {
 }
 
 impl QueryRequest {
-    /// Return this request's semantic scope.
-    pub fn scope(&self) -> QueryScope {
+    /// Return the selected program profile when this request reads one program.
+    pub fn profile_id(&self) -> Option<ProfileId> {
         match self {
-            Self::FoldingRanges(params) => QueryScope::Module(params.module),
-            Self::Hover(params) => QueryScope::Module(params.position.module),
-            Self::SignatureHelp(params) => QueryScope::Module(params.position.module),
-            Self::InlayHints(params) => QueryScope::Module(params.range.module),
-            Self::SemanticTokens(params) => QueryScope::Module(params.module),
-            Self::SemanticTokensRange(params) => QueryScope::Module(params.range.module),
-            Self::Outline(params) => QueryScope::Module(params.module),
-            Self::Links(params) => QueryScope::Module(params.module),
-            Self::SelectionRanges(params) => QueryScope::Module(params.module),
-            Self::GotoDefinition(params) => QueryScope::Module(params.position.module),
-            Self::GotoDeclaration(params) => QueryScope::Module(params.position.module),
-            Self::GotoTypeDefinition(params) => QueryScope::Module(params.position.module),
-            Self::CallItem(params) => QueryScope::Module(params.position.module),
-            Self::TypeItem(params) => QueryScope::Module(params.position.module),
-            Self::RenameTarget(params) => QueryScope::Module(params.position.module),
-            Self::ExtractVariable(params) => QueryScope::Module(params.range.module),
-
-            Self::Completion(params) => QueryScope::Program(params.position.module.profile_id),
-            Self::CodeLenses(params) => QueryScope::Program(params.module.profile_id),
-            Self::Highlight(params) => QueryScope::Program(params.position.module.profile_id),
-            Self::GotoImplementation(params) => {
-                QueryScope::Program(params.position.module.profile_id)
-            }
-            Self::FindReferences(params) => QueryScope::Program(params.position.module.profile_id),
-            Self::IncomingCalls(params) => {
-                QueryScope::Program(params.item.target.module.profile_id)
-            }
-            Self::OutgoingCalls(params) => {
-                QueryScope::Program(params.item.target.module.profile_id)
-            }
-            Self::Supertypes(params) => QueryScope::Program(params.item.target.module.profile_id),
-            Self::Subtypes(params) => QueryScope::Program(params.item.target.module.profile_id),
+            Self::Completion(params) => Some(params.position.module.profile_id),
+            Self::Hover(params) => Some(params.position.module.profile_id),
+            Self::SignatureHelp(params) => Some(params.position.module.profile_id),
+            Self::InlayHints(params) => Some(params.range.module.profile_id),
+            Self::CodeLenses(params) => Some(params.module.profile_id),
+            Self::FoldingRanges(params) => Some(params.module.profile_id),
+            Self::SemanticTokens(params) => Some(params.module.profile_id),
+            Self::SemanticTokensRange(params) => Some(params.range.module.profile_id),
+            Self::Outline(params) => Some(params.module.profile_id),
+            Self::Links(params) => Some(params.module.profile_id),
+            Self::Highlight(params) => Some(params.position.module.profile_id),
+            Self::SelectionRanges(params) => Some(params.module.profile_id),
+            Self::GotoDefinition(params) => Some(params.position.module.profile_id),
+            Self::GotoDeclaration(params) => Some(params.position.module.profile_id),
+            Self::GotoTypeDefinition(params) => Some(params.position.module.profile_id),
+            Self::GotoImplementation(params) => Some(params.position.module.profile_id),
+            Self::FindReferences(params) => Some(params.position.module.profile_id),
+            Self::CallItem(params) => Some(params.position.module.profile_id),
+            Self::IncomingCalls(params) => Some(params.item.target.module.profile_id),
+            Self::OutgoingCalls(params) => Some(params.item.target.module.profile_id),
+            Self::TypeItem(params) => Some(params.position.module.profile_id),
+            Self::Supertypes(params) => Some(params.item.target.module.profile_id),
+            Self::Subtypes(params) => Some(params.item.target.module.profile_id),
             Self::Decorators(params) => match params.scope {
-                DecoratorScope::Module(module) => QueryScope::Program(module.profile_id),
-                DecoratorScope::Program(profile_id) => QueryScope::Program(profile_id),
+                DecoratorScope::Module(module) => Some(module.profile_id),
+                DecoratorScope::Program(profile_id) => Some(profile_id),
             },
-            Self::Rename(params) => QueryScope::Program(params.position.module.profile_id),
-            Self::Inline(params) => QueryScope::Program(params.position.module.profile_id),
-            Self::CodeActions(params) => QueryScope::Program(params.range.module.profile_id),
-
-            Self::SearchSymbols(_) | Self::RenameFiles(_) => QueryScope::Workspace,
+            Self::RenameTarget(params) => Some(params.position.module.profile_id),
+            Self::Rename(params) => Some(params.position.module.profile_id),
+            Self::ExtractVariable(params) => Some(params.range.module.profile_id),
+            Self::Inline(params) => Some(params.position.module.profile_id),
+            Self::CodeActions(params) => Some(params.range.module.profile_id),
+            Self::SearchSymbols(_) | Self::RenameFiles(_) => None,
         }
     }
 
