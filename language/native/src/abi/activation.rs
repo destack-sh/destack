@@ -1,4 +1,4 @@
-use super::{ConstantSpace, Exit, ExitCode, Runtime, StaticSpace};
+use super::{ConstantSpace, Exit, Runtime, StaticSpace};
 
 /// Native activation passed to generated code and runtime operations.
 #[repr(C)]
@@ -8,10 +8,10 @@ pub struct Activation {
     pub call: *mut Call,
     /// Runtime operations callable by generated code.
     pub runtime: *const Runtime,
-    /// Program constant bytes.
-    pub constants: ConstantSpace,
     /// The first byte in world memory.
     pub memory_base: *mut u8,
+    /// Program constant bytes.
+    pub constants: ConstantSpace,
     /// Runtime-shared static bytes.
     pub shared_statics: StaticSpace,
     /// Worker-local static bytes.
@@ -33,19 +33,19 @@ pub struct Call {
 }
 
 /// Native entry function.
-pub type Entry = unsafe extern "C" fn(
+pub type Entry = unsafe extern "C-unwind" fn(
     activation: *mut Activation,
     arguments: *const u64,
     result: *mut u64,
-) -> ExitCode;
+);
 
 impl Activation {
     /// Create one native activation.
     pub const fn new(
         call: *mut Call,
         runtime: *const Runtime,
-        constants: ConstantSpace,
         memory_base: *mut u8,
+        constants: ConstantSpace,
         shared_statics: StaticSpace,
         local_statics: StaticSpace,
         context: usize,
@@ -55,8 +55,8 @@ impl Activation {
         Self {
             call,
             runtime,
-            constants,
             memory_base,
+            constants,
             shared_statics,
             local_statics,
             context,

@@ -1,19 +1,13 @@
-use std::error::Error;
-use std::fmt;
-
 use serde::{Deserialize, Serialize};
 
 use super::TrapCode;
 
-/// Native entry exit discriminant.
-pub type ExitCode = u32;
-
-/// Native non-completion exit details.
+/// Native execution exit details.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Exit {
     /// Exit kind written by runtime operations that leave native execution.
-    pub kind: ExitCode,
+    pub kind: ExitKind,
     /// Frame map associated with one non-completion exit.
     pub frame_map: u32,
     /// Trap code associated with trap exits.
@@ -42,77 +36,26 @@ pub enum ExitKind {
     Trapped = 7,
 }
 
-/// Native exit code conversion error.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ExitError {
-    /// The invalid status code.
-    pub code: ExitCode,
-}
-
 #[allow(clippy::new_without_default)]
 impl Exit {
     /// Create one completed native exit record.
     pub const fn new() -> Self {
         Self {
-            kind: ExitKind::Completed.code(),
+            kind: ExitKind::Completed,
             frame_map: 0,
             trap: 0,
         }
     }
 
-    /// Set this record to one language panic exit.
-    pub fn panic(&mut self) -> ExitCode {
-        self.kind = ExitKind::Panicked.code();
-
-        self.kind
-    }
-
     /// Set this record to one debugger stop exit.
-    pub fn stop(&mut self, frame_map: u32) -> ExitCode {
-        self.kind = ExitKind::Stopped.code();
+    pub fn stop(&mut self, frame_map: u32) {
+        self.kind = ExitKind::Stopped;
         self.frame_map = frame_map;
-
-        self.kind
     }
 
     /// Set this record to one deoptimization exit.
-    pub fn deoptimize(&mut self, frame_map: u32) -> ExitCode {
-        self.kind = ExitKind::Deoptimized.code();
+    pub fn deoptimize(&mut self, frame_map: u32) {
+        self.kind = ExitKind::Deoptimized;
         self.frame_map = frame_map;
-
-        self.kind
-    }
-}
-
-impl ExitKind {
-    /// Return the native ABI exit code.
-    pub const fn code(self) -> ExitCode {
-        self as ExitCode
-    }
-}
-
-impl fmt::Display for ExitError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "invalid native exit code {}", self.code)
-    }
-}
-
-impl Error for ExitError {}
-
-impl TryFrom<ExitCode> for ExitKind {
-    type Error = ExitError;
-
-    fn try_from(code: ExitCode) -> Result<Self, Self::Error> {
-        match code {
-            0 => Ok(Self::Completed),
-            1 => Ok(Self::Cancelled),
-            2 => Ok(Self::Awaited),
-            3 => Ok(Self::Yielded),
-            4 => Ok(Self::Panicked),
-            5 => Ok(Self::Stopped),
-            6 => Ok(Self::Deoptimized),
-            7 => Ok(Self::Trapped),
-            code => Err(ExitError { code }),
-        }
     }
 }
