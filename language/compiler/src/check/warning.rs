@@ -76,6 +76,27 @@ pub enum CheckWarning {
         module: ModuleId,
     },
 
+    /// Constant shift amount reaches past the shifted width.
+    ///
+    /// ```ds
+    /// declare const bits: int32;
+    /// const spilled = bits << 32;
+    /// ```
+    #[diagnostic(
+        id = "shift-out-of-range",
+        message = "shift amount {amount} is out of range for '{ty}'"
+    )]
+    ShiftOutOfRange {
+        /// Report the shift expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The constant shift amount.
+        amount: i64,
+        /// The shifted integer type.
+        ty: String,
+    },
+
     // -------------------------------------------------------------------------
     // selection
     // -------------------------------------------------------------------------

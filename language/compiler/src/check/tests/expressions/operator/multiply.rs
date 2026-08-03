@@ -158,7 +158,7 @@ import { Multiply } from "destack:ops";
 
 newtype Meters = float64;
 /// @type.symbol symbol=Meters source="newtype Meters = float64" type=Meters
-/// @definition.newtype symbol=Meters source="newtype Meters = float64" backing=float64
+/// @definition.newtype symbol=Meters source="newtype Meters = float64" backing=float64 constructors=[(float64) => Meters]
 
 extension of Meters implements Multiply<Meters> {
 /// @definition.extension symbol=<module>#2 form=local target=Meters
