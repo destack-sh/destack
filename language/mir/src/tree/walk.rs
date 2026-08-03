@@ -331,7 +331,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
 
     match ty {
         Type::Error => {}
-        Type::Reference { pointee, .. } => {
+        Type::Reference { pointee, .. } | Type::Pointer { pointee, .. } => {
             walk_type_id(visitor, tree, pointee);
         }
         Type::Atomic { value } => {

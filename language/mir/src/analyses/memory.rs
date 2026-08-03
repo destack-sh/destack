@@ -6,41 +6,41 @@ use crate::{AliasResult, TargetLayout};
 
 use super::{ValueDefinitions, ValueTypes};
 
-/// A reference-backed memory location.
+/// One memory location reached through an address-bearing value.
 ///
 /// Alias queries compare these locations to decide whether accesses overlap.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ReferenceLocation {
-    /// The reference value being dereferenced.
-    pub reference: mir::Value,
+pub struct MemoryLocation {
+    /// The address-bearing value being dereferenced.
+    pub address: mir::Value,
     /// Size of the access in bytes, if known.
     pub size: Option<u64>,
-    /// Type being accessed, when known.
-    pub access_type: Option<mir::TypeId>,
-    /// Reference kind for the reference, when known.
+    /// The value type being accessed, when known.
+    pub value_type: Option<mir::TypeId>,
+    /// Reference kind for the address, when known.
     pub reference_kind: Option<mir::ReferenceKind>,
-    /// Storage for the reference, when known.
+    /// Storage for the address, when known.
     pub reference_storage: Option<mir::Storage>,
 }
 
-impl ReferenceLocation {
-    /// Create a location from just a reference with unknown size.
-    pub fn from_reference(reference: mir::Value) -> Self {
+impl MemoryLocation {
+    /// Create a location from an address with unknown size.
+    pub fn from_address(address: mir::Value) -> Self {
         Self {
-            reference,
+            address,
             size: None,
-            access_type: None,
+            value_type: None,
             reference_kind: None,
             reference_storage: None,
         }
     }
 
     /// Create a location with known size.
-    pub fn with_size(reference: mir::Value, size: u64) -> Self {
+    pub fn with_size(address: mir::Value, size: u64) -> Self {
         Self {
-            reference,
+            address,
             size: Some(size),
-            access_type: None,
+            value_type: None,
             reference_kind: None,
             reference_storage: None,
         }
@@ -48,16 +48,16 @@ impl ReferenceLocation {
 
     /// Create a fully specified location.
     pub fn new(
-        reference: mir::Value,
+        address: mir::Value,
         size: Option<u64>,
-        access_type: Option<mir::TypeId>,
+        value_type: Option<mir::TypeId>,
         reference_kind: Option<mir::ReferenceKind>,
         reference_storage: Option<mir::Storage>,
     ) -> Self {
         Self {
-            reference,
+            address,
             size,
-            access_type,
+            value_type,
             reference_kind,
             reference_storage,
         }
@@ -71,8 +71,8 @@ impl ReferenceLocation {
             .unwrap_or(mir::StorageSet::ANY)
     }
 
-    /// Return aliasing for another location with the same reference value.
-    pub fn alias_same_reference(&self, other: &ReferenceLocation) -> AliasResult {
+    /// Return aliasing for another location with the same address value.
+    pub fn alias_same_address(&self, other: &MemoryLocation) -> AliasResult {
         match (self.size, other.size) {
             (Some(left), Some(right)) if left == right => AliasResult::MustAlias,
             (Some(_), Some(_)) => AliasResult::PartialAlias,
@@ -81,7 +81,7 @@ impl ReferenceLocation {
     }
 
     /// Return whether both locations are compatible for value forwarding.
-    pub fn is_compatible_with(&self, other: &ReferenceLocation) -> bool {
+    pub fn is_compatible_with(&self, other: &MemoryLocation) -> bool {
         // compare byte sizes when both sides know them
         if let (Some(left_size), Some(right_size)) = (self.size, other.size)
             && left_size != right_size
@@ -89,8 +89,8 @@ impl ReferenceLocation {
             return false;
         }
 
-        // compare access types when both sides know them
-        if let (Some(left_type), Some(right_type)) = (&self.access_type, &other.access_type)
+        // compare value types when both sides know them
+        if let (Some(left_type), Some(right_type)) = (&self.value_type, &other.value_type)
             && left_type != right_type
         {
             return false;
@@ -100,14 +100,14 @@ impl ReferenceLocation {
     }
 }
 
-/// Memory region touched by one reference-like value or memory access.
+/// Memory region touched by one address-bearing value or direct access.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MemoryRegion {
-    /// Reference based memory access.
-    Reference {
-        /// The reference access payload.
-        access: ReferenceLocation,
-        /// The memory spaces the reference may touch.
+    /// Memory access through an address-bearing value.
+    Address {
+        /// The addressed location.
+        location: MemoryLocation,
+        /// The memory spaces the address may touch.
         spaces: mir::StorageSet,
     },
     /// A precise memory place.
@@ -147,18 +147,18 @@ impl MemoryRegion {
             || matches!(self, Self::Place(place) if matches!(place.root, StorageRoot::LocalSlot(_)))
     }
 
-    /// Create a reference access with optional access type and inferred size.
-    pub fn from_reference(
-        reference: mir::Value,
-        access_type: Option<mir::TypeId>,
+    /// Create an address access with an optional value type and inferred size.
+    pub fn from_address(
+        address: mir::Value,
+        value_type: Option<mir::TypeId>,
         reference_kind: Option<mir::ReferenceKind>,
         reference_storage: Option<mir::Storage>,
         pointer_width_bits: u16,
         tree: &mir::Tree,
     ) -> Self {
-        Self::from_reference_with_size(
-            reference,
-            access_type,
+        Self::from_address_with_size(
+            address,
+            value_type,
             reference_kind,
             reference_storage,
             None,
@@ -167,10 +167,10 @@ impl MemoryRegion {
         )
     }
 
-    /// Create a reference access with an explicit size override.
-    pub fn from_reference_with_size(
-        reference: mir::Value,
-        access_type: Option<mir::TypeId>,
+    /// Create an address access with an explicit size override.
+    pub fn from_address_with_size(
+        address: mir::Value,
+        value_type: Option<mir::TypeId>,
         reference_kind: Option<mir::ReferenceKind>,
         reference_storage: Option<mir::Storage>,
         size: Option<u64>,
@@ -178,16 +178,16 @@ impl MemoryRegion {
         tree: &mir::Tree,
     ) -> Self {
         let inferred_size = size.or_else(|| {
-            access_type
+            value_type
                 .as_ref()
-                .and_then(|access_type| tree.get(*access_type).byte_size(tree, pointer_width_bits))
+                .and_then(|value_type| tree.get(*value_type).byte_size(tree, pointer_width_bits))
         });
 
-        Self::Reference {
-            access: ReferenceLocation::new(
-                reference,
+        Self::Address {
+            location: MemoryLocation::new(
+                address,
                 inferred_size,
-                access_type,
+                value_type,
                 reference_kind,
                 reference_storage,
             ),
@@ -195,10 +195,10 @@ impl MemoryRegion {
         }
     }
 
-    /// Return the reference location when this is reference backed.
-    pub fn reference_location(&self) -> Option<&ReferenceLocation> {
+    /// Return the addressed location when this region has one.
+    pub fn location(&self) -> Option<&MemoryLocation> {
         match self {
-            Self::Reference { access, .. } => Some(access),
+            Self::Address { location, .. } => Some(location),
             _ => None,
         }
     }
@@ -206,17 +206,17 @@ impl MemoryRegion {
     /// Return the memory spaces covered by this region.
     pub fn spaces(&self) -> mir::StorageSet {
         match self {
-            MemoryRegion::Reference { spaces, .. } => *spaces,
+            MemoryRegion::Address { spaces, .. } => *spaces,
             MemoryRegion::Place(place) => place.root.spaces(),
             MemoryRegion::Local(_) => mir::StorageSet::FRAME,
             MemoryRegion::Any { spaces } => *spaces,
         }
     }
 
-    /// Set spaces on imprecise or reference regions.
+    /// Set spaces on imprecise or addressed regions.
     pub fn set_spaces(&mut self, new_spaces: mir::StorageSet) {
         match self {
-            Self::Reference { spaces, .. } | Self::Any { spaces } => {
+            Self::Address { spaces, .. } | Self::Any { spaces } => {
                 *spaces = new_spaces;
             }
             Self::Place(_) | Self::Local(_) => {}
@@ -231,7 +231,7 @@ impl MemoryRegion {
                 !storage.is_disjoint_from(&StorageRoot::LocalSlot(*local))
             }
             MemoryRegion::Any { spaces } => !spaces.is_disjoint(storage.spaces()),
-            MemoryRegion::Reference { spaces, .. } => !spaces.is_disjoint(storage.spaces()),
+            MemoryRegion::Address { spaces, .. } => !spaces.is_disjoint(storage.spaces()),
         }
     }
 }
@@ -331,7 +331,7 @@ impl StorageRoot {
     }
 }
 
-/// Indexed byte offset component in reference arithmetic.
+/// Indexed byte offset component in address arithmetic.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IndexedOffset {
     /// The index value.
@@ -387,9 +387,9 @@ impl MemoryPlace {
     /// Return aliasing with another place under known access locations.
     pub fn alias_with(
         &self,
-        location: &ReferenceLocation,
+        location: &MemoryLocation,
         other: &MemoryPlace,
-        other_location: &ReferenceLocation,
+        other_location: &MemoryLocation,
     ) -> AliasResult {
         // disjoint field paths cannot alias
         if self.fields_are_disjoint_from(other) {
@@ -473,7 +473,7 @@ impl MemoryPlace {
 pub struct MemoryRegionBuilder<'a> {
     /// Cached region results.
     cache: HashMap<mir::Value, MemoryRegion>,
-    /// Value definitions for reference provenance.
+    /// Value definitions for address provenance.
     definitions: &'a ValueDefinitions,
     /// The MIR tree.
     tree: &'a mir::Tree,
@@ -504,23 +504,23 @@ impl<'a> MemoryRegionBuilder<'a> {
         }
     }
 
-    /// Resolve a reference value to a memory region.
-    pub fn region(&mut self, reference: mir::Value) -> MemoryRegion {
+    /// Resolve an address-bearing value to a memory region.
+    pub fn region(&mut self, address: mir::Value) -> MemoryRegion {
         // check cache
-        if let Some(cached) = self.cache.get(&reference) {
+        if let Some(cached) = self.cache.get(&address) {
             return cached.clone();
         }
 
-        let result = self.region_impl(reference);
-        self.cache.insert(reference, result.clone());
+        let result = self.region_impl(address);
+        self.cache.insert(address, result.clone());
         result
     }
 
-    /// Resolve reference provenance in a memory region.
+    /// Resolve address provenance in a memory region.
     pub fn resolve(&mut self, region: &MemoryRegion) -> MemoryRegion {
-        // resolve reference-backed regions through their defining value
-        if let Some(location) = region.reference_location() {
-            self.region(location.reference)
+        // resolve addressed regions through their defining value
+        if let Some(location) = region.location() {
+            self.region(location.address)
         }
         // preserve already resolved regions
         else {
@@ -528,18 +528,18 @@ impl<'a> MemoryRegionBuilder<'a> {
         }
     }
 
-    /// Resolve a reference value to a memory region.
-    fn region_impl(&mut self, reference: mir::Value) -> MemoryRegion {
+    /// Resolve an address-bearing value to a memory region.
+    fn region_impl(&mut self, address: mir::Value) -> MemoryRegion {
         // check if it's a parameter
         for (index, parameter) in self.parameters.iter().enumerate() {
-            if parameter.value == reference {
+            if parameter.value == address {
                 return self.parameter_region(index, parameter);
             }
         }
 
         // check if it's defined by an instruction
-        let Some(instruction_id) = self.definitions.instruction(reference) else {
-            return self.any_region(reference);
+        let Some(instruction_id) = self.definitions.instruction(address) else {
+            return self.any_region(address);
         };
 
         let instruction = self.tree.get(instruction_id);
@@ -547,19 +547,19 @@ impl<'a> MemoryRegionBuilder<'a> {
         match instruction {
             mir::Instruction::NewZeroed { destination, .. }
             | mir::Instruction::NewUninit { destination, .. }
-                if *destination == reference =>
+                if *destination == address =>
             {
-                self.allocation_region(instruction_id, reference)
+                self.allocation_region(instruction_id, address)
             }
             mir::Instruction::NewSliceZeroed { destination, .. }
             | mir::Instruction::NewSliceUninit { destination, .. }
-                if *destination == reference =>
+                if *destination == address =>
             {
-                self.allocation_region(instruction_id, reference)
+                self.allocation_region(instruction_id, address)
             }
             mir::Instruction::NewComplete {
                 destination, value, ..
-            } if *destination == reference => {
+            } if *destination == address => {
                 let value = *value;
 
                 self.region(value)
@@ -570,7 +570,7 @@ impl<'a> MemoryRegionBuilder<'a> {
                 destination,
                 global,
                 ..
-            } if *destination == reference => {
+            } if *destination == address => {
                 let global_id = *global;
                 let global = self.tree.get(global_id);
 
@@ -581,7 +581,7 @@ impl<'a> MemoryRegionBuilder<'a> {
             }
             mir::Instruction::LocalAddr {
                 destination, local, ..
-            } if *destination == reference => {
+            } if *destination == address => {
                 MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::LocalSlot(*local)))
             }
 
@@ -591,7 +591,7 @@ impl<'a> MemoryRegionBuilder<'a> {
                 aggregate,
                 field,
                 ..
-            } if *destination == reference => {
+            } if *destination == address => {
                 let aggregate = *aggregate;
 
                 let mut region = self.region(aggregate);
@@ -608,7 +608,7 @@ impl<'a> MemoryRegionBuilder<'a> {
                 base,
                 index,
                 ..
-            } if *destination == reference => {
+            } if *destination == address => {
                 let base = *base;
                 let index = *index;
 
@@ -627,18 +627,18 @@ impl<'a> MemoryRegionBuilder<'a> {
                 destination,
                 argument,
                 ..
-            } if *destination == reference => {
+            } if *destination == address => {
                 let argument = *argument;
 
                 self.region(argument)
             }
 
             // anything else is imprecise
-            _ => self.any_region(reference),
+            _ => self.any_region(address),
         }
     }
 
-    /// Return a region for a parameter reference.
+    /// Return a region for a parameter address.
     fn parameter_region(&self, index: usize, parameter: &mir::FunctionParameter) -> MemoryRegion {
         let ty = self.tree.get(parameter.ty);
 
@@ -663,9 +663,9 @@ impl<'a> MemoryRegionBuilder<'a> {
     fn allocation_region(
         &self,
         instruction: mir::LocalNodeId<mir::Instruction>,
-        reference: mir::Value,
+        address: mir::Value,
     ) -> MemoryRegion {
-        let ty_id = self.value_type(reference);
+        let ty_id = self.value_type(address);
         let ty = self.tree.get(ty_id);
 
         match (ty.reference_kind(), ty.reference_storage()) {
@@ -684,9 +684,9 @@ impl<'a> MemoryRegionBuilder<'a> {
         }
     }
 
-    /// Return an imprecise region bounded by a reference type when possible.
-    fn any_region(&self, reference: mir::Value) -> MemoryRegion {
-        let ty_id = self.value_type(reference);
+    /// Return an imprecise region bounded by an address type when possible.
+    fn any_region(&self, address: mir::Value) -> MemoryRegion {
+        let ty_id = self.value_type(address);
         let ty = self.tree.get(ty_id);
 
         ty.reference_storage()
@@ -706,7 +706,9 @@ impl<'a> MemoryRegionBuilder<'a> {
             | mir::Type::Slice { element, .. }
             | mir::Type::Tensor { element, .. }
             | mir::Type::TensorView { element, .. } => *element,
-            mir::Type::Reference { pointee, .. } => self.expect_pointee_element(*pointee),
+            mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
+                self.expect_pointee_element(*pointee)
+            }
             _ => panic!("element.address requires an indexed value, got {ty_id:?}"),
         };
 

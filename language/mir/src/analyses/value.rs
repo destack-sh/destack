@@ -415,15 +415,17 @@ impl ValueTypes {
         }
     }
 
-    /// Resolve a reference's referent type when statically known.
-    pub fn reference_referent_type(
+    /// Resolve the pointee type of an address-bearing value when statically known.
+    pub fn pointee_type(
         &self,
-        reference: impl Into<mir::Value>,
+        address: impl Into<mir::Value>,
         tree: &mir::Tree,
     ) -> Option<mir::TypeId> {
-        let type_id = self.expect_value_type(reference);
+        let type_id = self.expect_value_type(address);
         match tree.get(type_id) {
-            mir::Type::Reference { pointee, .. } => Some(*pointee),
+            mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
+                Some(*pointee)
+            }
             mir::Type::Slice { element, .. }
             | mir::Type::Tensor { element, .. }
             | mir::Type::TensorView { element, .. } => Some(*element),

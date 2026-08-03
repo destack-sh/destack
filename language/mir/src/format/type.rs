@@ -321,6 +321,17 @@ fn format_type_inner<'a>(
             format_view_header(*kind, lifetime, *storage, *access, *nullability, pointee, f)?;
             write!(f, [token(">")])
         }
+        Type::Pointer {
+            pointee,
+            access,
+            nullability,
+        } => {
+            write!(f, [token("ptr"), token("<")])?;
+            format_type_id(*pointee, f)?;
+            format_access(*access, f)?;
+            format_nullability(*nullability, f)?;
+            write!(f, [token(">")])
+        }
         Type::FixedArray {
             element,
             length,
@@ -710,7 +721,6 @@ fn format_reference_qualifiers<'a>(
         ReferenceKind::Managed => "managed",
         ReferenceKind::Unique => "unique",
         ReferenceKind::Borrowed => "borrowed",
-        ReferenceKind::Raw => "raw",
     };
 
     write!(f, [token(","), space(), token(kind_token)])?;

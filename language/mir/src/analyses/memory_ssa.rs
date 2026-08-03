@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 
 use crate::{
     AliasAnalysis, Analysis, AnalysisId, ControlFlowGraph, DominatorTree, FunctionAnalysis,
-    FunctionAnalysisCache, MemoryRegion, NodeTable, ReferenceLocation, StorageRoot, TargetLayout,
+    FunctionAnalysisCache, MemoryLocation, MemoryRegion, NodeTable, StorageRoot, TargetLayout,
     ValueDefinitions, ValueTypes, collect_reachable_blocks, compute_dominance_frontiers,
 };
 
@@ -91,8 +91,8 @@ impl MemoryAccessQuery {
 }
 
 impl MemoryAccessEffect {
-    /// Return whether this effect may clobber one reference location.
-    pub fn clobbers_location(&self, location: &ReferenceLocation, alias: &AliasAnalysis) -> bool {
+    /// Return whether this effect may clobber one memory location.
+    pub fn clobbers_location(&self, location: &MemoryLocation, alias: &AliasAnalysis) -> bool {
         if self.is_barrier {
             return true;
         }
@@ -100,27 +100,27 @@ impl MemoryAccessEffect {
         self.writes && self.may_touch_location(location, alias)
     }
 
-    /// Return whether this effect may touch one reference location.
-    pub fn may_touch_location(&self, location: &ReferenceLocation, alias: &AliasAnalysis) -> bool {
+    /// Return whether this effect may touch one memory location.
+    pub fn may_touch_location(&self, location: &MemoryLocation, alias: &AliasAnalysis) -> bool {
         // reject disjoint memory spaces
         if !self.region.spaces().may_alias(location.spaces()) {
             return false;
         }
 
-        // local accesses can touch local address references
+        // local accesses can touch addresses rooted in local storage
         if let MemoryRegion::Local(local) = self.region {
             let storage = StorageRoot::LocalSlot(local);
 
             return alias.may_touch_root(location, &storage);
         }
 
-        // reference accesses use the alias relation
-        if let MemoryRegion::Reference {
-            access: effect_access,
+        // addressed accesses use the alias relation
+        if let MemoryRegion::Address {
+            location: effect_location,
             ..
         } = &self.region
         {
-            return alias.alias(effect_access, location).may_alias();
+            return alias.alias(effect_location, location).may_alias();
         }
 
         // imprecise accesses touch every compatible location
@@ -143,17 +143,17 @@ impl MemoryAccessEffect {
         match (&self.region, &other.region) {
             (MemoryRegion::Local(local), MemoryRegion::Local(other_local)) => local == other_local,
             (
-                MemoryRegion::Reference { access, .. },
-                MemoryRegion::Reference {
-                    access: other_access,
+                MemoryRegion::Address { location, .. },
+                MemoryRegion::Address {
+                    location: other_location,
                     ..
                 },
             ) => {
-                if !access.is_compatible_with(other_access) {
+                if !location.is_compatible_with(other_location) {
                     return false;
                 }
 
-                alias.alias(access, other_access).is_must_alias()
+                alias.alias(location, other_location).is_must_alias()
             }
             _ => false,
         }
@@ -171,17 +171,17 @@ impl MemoryAccessEffect {
             (MemoryRegion::Any { .. }, _) | (_, MemoryRegion::Any { .. }) => true,
             (MemoryRegion::Local(local), MemoryRegion::Local(other)) => local == other,
             (
-                MemoryRegion::Reference { access, .. },
-                MemoryRegion::Reference {
-                    access: other_access,
+                MemoryRegion::Address { location, .. },
+                MemoryRegion::Address {
+                    location: other_location,
                     ..
                 },
             ) => {
-                if !access.is_compatible_with(other_access) {
+                if !location.is_compatible_with(other_location) {
                     return false;
                 }
 
-                alias.alias(access, other_access).may_alias()
+                alias.alias(location, other_location).may_alias()
             }
             _ => false,
         }
@@ -325,25 +325,26 @@ impl MemoryDef {
             return self.effect.writes;
         }
 
-        // resolve reference based queries
-        let Some(reference_location) = query.region.reference_location() else {
+        // resolve addressed queries
+        let Some(location) = query.region.location() else {
             return self.effect.writes;
         };
 
-        // ignore local defs for reference queries
+        // ignore local defs for addressed queries
         if let MemoryRegion::Local(_) = self.effect.region {
             return false;
         }
 
-        // compare reference locations when available
-        if let MemoryRegion::Reference {
-            access: def_access, ..
+        // compare memory locations when available
+        if let MemoryRegion::Address {
+            location: definition,
+            ..
         } = &self.effect.region
         {
-            return alias.alias(def_access, reference_location).may_alias();
+            return alias.alias(definition, location).may_alias();
         }
 
-        // imprecise defs clobber every compatible reference location
+        // imprecise defs clobber every compatible memory location
         matches!(self.effect.region, MemoryRegion::Any { .. })
     }
 
@@ -378,8 +379,8 @@ impl MemoryDef {
             return self.effect.writes;
         }
 
-        // check reference based aliasing
-        let Some(reference_location) = region.reference_location() else {
+        // check address based aliasing
+        let Some(location) = region.location() else {
             return self.effect.writes;
         };
 
@@ -387,15 +388,16 @@ impl MemoryDef {
             return false;
         }
 
-        // compare reference locations when available
-        if let MemoryRegion::Reference {
-            access: def_access, ..
+        // compare memory locations when available
+        if let MemoryRegion::Address {
+            location: definition,
+            ..
         } = &self.effect.region
         {
-            return alias.alias(def_access, reference_location).may_alias();
+            return alias.alias(definition, location).may_alias();
         }
 
-        // imprecise defs clobber every compatible reference location
+        // imprecise defs clobber every compatible memory location
         matches!(self.effect.region, MemoryRegion::Any { .. })
     }
 
@@ -901,9 +903,9 @@ struct MemoryAccessCollector<'a> {
     function: &'a mir::Function,
     /// MIR tree.
     tree: &'a mir::Tree,
-    /// Value type lookup for reference resolution.
+    /// Value type lookup for address resolution.
     value_types: &'a ValueTypes,
-    /// Value definitions for reference provenance.
+    /// Value definitions for address provenance.
     definitions: ValueDefinitions,
     /// Explicit memory access table.
     memory_table: &'a mir::MemoryTable,
@@ -1087,13 +1089,13 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Instruction::TensorLoad { view, .. } => {
                 let view = *view;
 
-                let access_type = self.reference_location_type(view);
+                let value_type = self.address_value_type(view);
                 let reference_kind = self.reference_kind(view);
                 let reference_storage = self.reference_storage(view);
                 let mut effect = MemoryAccessEffect::read(
-                    MemoryRegion::from_reference(
+                    MemoryRegion::from_address(
                         view,
-                        access_type,
+                        value_type,
                         reference_kind,
                         reference_storage,
                         self.target_layout.pointer_bits(),
@@ -1101,20 +1103,20 @@ impl<'a> MemoryAccessCollector<'a> {
                     ),
                     false,
                 );
-                self.apply_reference_region(&mut effect, view);
+                self.apply_address_region(&mut effect, view);
                 Self::single_effect(effect)
             }
             mir::Instruction::TensorStore { view, .. }
             | mir::Instruction::TensorFill { view, .. } => {
                 let view = *view;
 
-                let access_type = self.reference_location_type(view);
+                let value_type = self.address_value_type(view);
                 let reference_kind = self.reference_kind(view);
                 let reference_storage = self.reference_storage(view);
                 let mut effect = MemoryAccessEffect::write(
-                    MemoryRegion::from_reference(
+                    MemoryRegion::from_address(
                         view,
-                        access_type,
+                        value_type,
                         reference_kind,
                         reference_storage,
                         self.target_layout.pointer_bits(),
@@ -1122,7 +1124,7 @@ impl<'a> MemoryAccessCollector<'a> {
                     ),
                     false,
                 );
-                self.apply_reference_region(&mut effect, view);
+                self.apply_address_region(&mut effect, view);
                 Self::single_effect(effect)
             }
             mir::Instruction::TensorCopy { target, source } => {
@@ -1130,11 +1132,11 @@ impl<'a> MemoryAccessCollector<'a> {
                 let source = *source;
 
                 let mut effects = SmallVec::new();
-                let target_access = self.reference_location_type(target);
+                let target_access = self.address_value_type(target);
                 let target_kind = self.reference_kind(target);
                 let target_storage = self.reference_storage(target);
                 let mut target_effect = MemoryAccessEffect::write(
-                    MemoryRegion::from_reference(
+                    MemoryRegion::from_address(
                         target,
                         target_access,
                         target_kind,
@@ -1144,14 +1146,14 @@ impl<'a> MemoryAccessCollector<'a> {
                     ),
                     false,
                 );
-                self.apply_reference_region(&mut target_effect, target);
+                self.apply_address_region(&mut target_effect, target);
                 effects.push(target_effect);
 
-                let source_access = self.reference_location_type(source);
+                let source_access = self.address_value_type(source);
                 let source_kind = self.reference_kind(source);
                 let source_storage = self.reference_storage(source);
                 let mut source_effect = MemoryAccessEffect::read(
-                    MemoryRegion::from_reference(
+                    MemoryRegion::from_address(
                         source,
                         source_access,
                         source_kind,
@@ -1161,7 +1163,7 @@ impl<'a> MemoryAccessCollector<'a> {
                     ),
                     false,
                 );
-                self.apply_reference_region(&mut source_effect, source);
+                self.apply_address_region(&mut source_effect, source);
                 effects.push(source_effect);
 
                 effects
@@ -1169,13 +1171,13 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Instruction::Load { pointer, .. } => {
                 let pointer = *pointer;
 
-                let access_type = self.reference_location_type(pointer);
+                let value_type = self.address_value_type(pointer);
                 let reference_kind = self.reference_kind(pointer);
                 let reference_storage = self.reference_storage(pointer);
                 let mut effect = MemoryAccessEffect::read(
-                    MemoryRegion::from_reference(
+                    MemoryRegion::from_address(
                         pointer,
-                        access_type,
+                        value_type,
                         reference_kind,
                         reference_storage,
                         self.target_layout.pointer_bits(),
@@ -1183,19 +1185,19 @@ impl<'a> MemoryAccessCollector<'a> {
                     ),
                     false,
                 );
-                self.apply_reference_region(&mut effect, pointer);
+                self.apply_address_region(&mut effect, pointer);
                 Self::single_effect(effect)
             }
             mir::Instruction::Store { pointer, .. } => {
                 let pointer = *pointer;
 
-                let access_type = self.reference_location_type(pointer);
+                let value_type = self.address_value_type(pointer);
                 let reference_kind = self.reference_kind(pointer);
                 let reference_storage = self.reference_storage(pointer);
                 let mut effect = MemoryAccessEffect::write(
-                    MemoryRegion::from_reference(
+                    MemoryRegion::from_address(
                         pointer,
-                        access_type,
+                        value_type,
                         reference_kind,
                         reference_storage,
                         self.target_layout.pointer_bits(),
@@ -1203,19 +1205,19 @@ impl<'a> MemoryAccessCollector<'a> {
                     ),
                     false,
                 );
-                self.apply_reference_region(&mut effect, pointer);
+                self.apply_address_region(&mut effect, pointer);
                 Self::single_effect(effect)
             }
             mir::Instruction::AtomicLoad { pointer, .. } => {
                 let pointer = *pointer;
 
-                let access_type = self.reference_location_type(pointer);
+                let value_type = self.address_value_type(pointer);
                 let reference_kind = self.reference_kind(pointer);
                 let reference_storage = self.reference_storage(pointer);
                 let mut effect = MemoryAccessEffect::read(
-                    MemoryRegion::from_reference(
+                    MemoryRegion::from_address(
                         pointer,
-                        access_type,
+                        value_type,
                         reference_kind,
                         reference_storage,
                         self.target_layout.pointer_bits(),
@@ -1223,19 +1225,19 @@ impl<'a> MemoryAccessCollector<'a> {
                     ),
                     true,
                 );
-                self.apply_reference_region(&mut effect, pointer);
+                self.apply_address_region(&mut effect, pointer);
                 Self::single_effect(effect)
             }
             mir::Instruction::AtomicStore { pointer, .. } => {
                 let pointer = *pointer;
 
-                let access_type = self.reference_location_type(pointer);
+                let value_type = self.address_value_type(pointer);
                 let reference_kind = self.reference_kind(pointer);
                 let reference_storage = self.reference_storage(pointer);
                 let mut effect = MemoryAccessEffect::write(
-                    MemoryRegion::from_reference(
+                    MemoryRegion::from_address(
                         pointer,
-                        access_type,
+                        value_type,
                         reference_kind,
                         reference_storage,
                         self.target_layout.pointer_bits(),
@@ -1243,20 +1245,20 @@ impl<'a> MemoryAccessCollector<'a> {
                     ),
                     true,
                 );
-                self.apply_reference_region(&mut effect, pointer);
+                self.apply_address_region(&mut effect, pointer);
                 Self::single_effect(effect)
             }
             mir::Instruction::AtomicCompareExchange { pointer, .. }
             | mir::Instruction::AtomicRmw { pointer, .. } => {
                 let pointer = *pointer;
 
-                let access_type = self.reference_location_type(pointer);
+                let value_type = self.address_value_type(pointer);
                 let reference_kind = self.reference_kind(pointer);
                 let reference_storage = self.reference_storage(pointer);
                 let mut effect = MemoryAccessEffect::read_write(
-                    MemoryRegion::from_reference(
+                    MemoryRegion::from_address(
                         pointer,
-                        access_type,
+                        value_type,
                         reference_kind,
                         reference_storage,
                         self.target_layout.pointer_bits(),
@@ -1264,7 +1266,7 @@ impl<'a> MemoryAccessCollector<'a> {
                     ),
                     true,
                 );
-                self.apply_reference_region(&mut effect, pointer);
+                self.apply_address_region(&mut effect, pointer);
                 Self::single_effect(effect)
             }
             mir::Instruction::AtomicFence { .. } => {
@@ -1384,13 +1386,13 @@ impl<'a> MemoryAccessCollector<'a> {
     fn effect_from_entry(&mut self, access: &mir::MemoryAccess) -> MemoryAccessEffect {
         // resolve the target region
         let region = match access.target {
-            mir::MemoryTarget::Reference(pointer) => {
-                let access_type = self.reference_location_type(pointer);
+            mir::MemoryTarget::Address(pointer) => {
+                let value_type = self.address_value_type(pointer);
                 let reference_kind = self.reference_kind(pointer);
                 let reference_storage = self.reference_storage(pointer);
-                MemoryRegion::from_reference_with_size(
+                MemoryRegion::from_address_with_size(
                     pointer,
-                    access_type,
+                    value_type,
                     reference_kind,
                     reference_storage,
                     access.byte_len,
@@ -1418,9 +1420,9 @@ impl<'a> MemoryAccessCollector<'a> {
         effect
     }
 
-    /// Apply reference region tables to an effect.
-    fn apply_reference_region(&mut self, effect: &mut MemoryAccessEffect, reference: mir::Value) {
-        let spaces = self.reference_storage_set(reference);
+    /// Apply address region tables to an effect.
+    fn apply_address_region(&mut self, effect: &mut MemoryAccessEffect, address: mir::Value) {
+        let spaces = self.address_storage_set(address);
         effect.region.set_spaces(spaces);
     }
 
@@ -1434,13 +1436,13 @@ impl<'a> MemoryAccessCollector<'a> {
         match access.target {
             mir::MemoryTarget::Local(_) => mir::StorageSet::FRAME,
             mir::MemoryTarget::Global(global) => self.tree.get(global).storage.storage_set(),
-            mir::MemoryTarget::Reference(pointer) => self.reference_storage_set(pointer),
+            mir::MemoryTarget::Address(pointer) => self.address_storage_set(pointer),
         }
     }
 
-    /// Resolve the region set for a reference value.
-    fn reference_storage_set(&mut self, reference: mir::Value) -> mir::StorageSet {
-        let Some(storage) = self.value_types.reference_storage(reference, self.tree) else {
+    /// Resolve the memory spaces for an address-bearing value.
+    fn address_storage_set(&mut self, address: mir::Value) -> mir::StorageSet {
+        let Some(storage) = self.value_types.reference_storage(address, self.tree) else {
             return mir::StorageSet::ANY;
         };
 
@@ -1584,14 +1586,14 @@ impl<'a> MemoryAccessCollector<'a> {
                 // emit read and write effects when operands are present
                 match (dst, src) {
                     (Some(dst), Some(src)) => {
-                        let dst_type = self.reference_location_type(*dst);
-                        let src_type = self.reference_location_type(*src);
+                        let dst_type = self.address_value_type(*dst);
+                        let src_type = self.address_value_type(*src);
                         let dst_kind = self.reference_kind(*dst);
                         let src_kind = self.reference_kind(*src);
                         let dst_storage = self.reference_storage(*dst);
                         let src_storage = self.reference_storage(*src);
                         let mut read_effect = MemoryAccessEffect::read(
-                            MemoryRegion::from_reference_with_size(
+                            MemoryRegion::from_address_with_size(
                                 *src,
                                 src_type,
                                 src_kind,
@@ -1602,11 +1604,11 @@ impl<'a> MemoryAccessCollector<'a> {
                             ),
                             false,
                         );
-                        self.apply_reference_region(&mut read_effect, *src);
+                        self.apply_address_region(&mut read_effect, *src);
                         effects.push(read_effect);
 
                         let mut write_effect = MemoryAccessEffect::write(
-                            MemoryRegion::from_reference_with_size(
+                            MemoryRegion::from_address_with_size(
                                 *dst,
                                 dst_type,
                                 dst_kind,
@@ -1617,7 +1619,7 @@ impl<'a> MemoryAccessCollector<'a> {
                             ),
                             false,
                         );
-                        self.apply_reference_region(&mut write_effect, *dst);
+                        self.apply_address_region(&mut write_effect, *dst);
                         effects.push(write_effect);
                     }
                     _ => effects.push(MemoryAccessEffect::read_write(
@@ -1638,11 +1640,11 @@ impl<'a> MemoryAccessCollector<'a> {
                 // emit write effects when operands are present
                 match dst {
                     Some(dst) => {
-                        let dst_type = self.reference_location_type(*dst);
+                        let dst_type = self.address_value_type(*dst);
                         let dst_kind = self.reference_kind(*dst);
                         let dst_storage = self.reference_storage(*dst);
                         let mut effect = MemoryAccessEffect::write(
-                            MemoryRegion::from_reference_with_size(
+                            MemoryRegion::from_address_with_size(
                                 *dst,
                                 dst_type,
                                 dst_kind,
@@ -1653,7 +1655,7 @@ impl<'a> MemoryAccessCollector<'a> {
                             ),
                             false,
                         );
-                        self.apply_reference_region(&mut effect, *dst);
+                        self.apply_address_region(&mut effect, *dst);
                         effects.push(effect);
                     }
                     None => effects.push(MemoryAccessEffect::write(
@@ -1675,14 +1677,14 @@ impl<'a> MemoryAccessCollector<'a> {
                 // emit read effects when operands are present
                 match (left, right) {
                     (Some(left), Some(right)) => {
-                        let left_type = self.reference_location_type(*left);
-                        let right_type = self.reference_location_type(*right);
+                        let left_type = self.address_value_type(*left);
+                        let right_type = self.address_value_type(*right);
                         let left_kind = self.reference_kind(*left);
                         let right_kind = self.reference_kind(*right);
                         let left_storage = self.reference_storage(*left);
                         let right_storage = self.reference_storage(*right);
                         let mut left_effect = MemoryAccessEffect::read(
-                            MemoryRegion::from_reference_with_size(
+                            MemoryRegion::from_address_with_size(
                                 *left,
                                 left_type,
                                 left_kind,
@@ -1693,11 +1695,11 @@ impl<'a> MemoryAccessCollector<'a> {
                             ),
                             false,
                         );
-                        self.apply_reference_region(&mut left_effect, *left);
+                        self.apply_address_region(&mut left_effect, *left);
                         effects.push(left_effect);
 
                         let mut right_effect = MemoryAccessEffect::read(
-                            MemoryRegion::from_reference_with_size(
+                            MemoryRegion::from_address_with_size(
                                 *right,
                                 right_type,
                                 right_kind,
@@ -1708,7 +1710,7 @@ impl<'a> MemoryAccessCollector<'a> {
                             ),
                             false,
                         );
-                        self.apply_reference_region(&mut right_effect, *right);
+                        self.apply_address_region(&mut right_effect, *right);
                         effects.push(right_effect);
                     }
                     _ => effects.push(MemoryAccessEffect::read(
@@ -1728,13 +1730,13 @@ impl<'a> MemoryAccessCollector<'a> {
                 // emit read effects when operands are present
                 match pointer {
                     Some(pointer) => {
-                        let access_type = self.reference_location_type(pointer);
+                        let value_type = self.address_value_type(pointer);
                         let reference_kind = self.reference_kind(pointer);
                         let reference_storage = self.reference_storage(pointer);
                         let mut effect = MemoryAccessEffect::read(
-                            MemoryRegion::from_reference(
+                            MemoryRegion::from_address(
                                 pointer,
-                                access_type,
+                                value_type,
                                 reference_kind,
                                 reference_storage,
                                 self.target_layout.pointer_bits(),
@@ -1742,7 +1744,7 @@ impl<'a> MemoryAccessCollector<'a> {
                             ),
                             false,
                         );
-                        self.apply_reference_region(&mut effect, pointer);
+                        self.apply_address_region(&mut effect, pointer);
                         effects.push(effect);
                     }
                     None => effects.push(MemoryAccessEffect::read(
@@ -1764,12 +1766,12 @@ impl<'a> MemoryAccessCollector<'a> {
                 // emit a volatile effect on the accessed location
                 match pointer {
                     Some(pointer) => {
-                        let access_type = self.reference_location_type(pointer);
+                        let value_type = self.address_value_type(pointer);
                         let reference_kind = self.reference_kind(pointer);
                         let reference_storage = self.reference_storage(pointer);
-                        let region = MemoryRegion::from_reference(
+                        let region = MemoryRegion::from_address(
                             pointer,
-                            access_type,
+                            value_type,
                             reference_kind,
                             reference_storage,
                             self.target_layout.pointer_bits(),
@@ -1779,7 +1781,7 @@ impl<'a> MemoryAccessCollector<'a> {
                             true => MemoryAccessEffect::read(region, true),
                             false => MemoryAccessEffect::write(region, true),
                         };
-                        self.apply_reference_region(&mut effect, pointer);
+                        self.apply_address_region(&mut effect, pointer);
                         effects.push(effect);
                     }
                     None => effects.push(MemoryAccessEffect::read_write(
@@ -1791,7 +1793,7 @@ impl<'a> MemoryAccessCollector<'a> {
                 effects
             }
 
-            // type punning and raw reference ops
+            // representation-only intrinsics
             mir::Intrinsic::Transmute
             | mir::Intrinsic::SpaceCast
             | mir::Intrinsic::PointerByteOffsetFrom
@@ -1860,20 +1862,19 @@ impl<'a> MemoryAccessCollector<'a> {
         effects
     }
 
-    /// Resolve the access type for a reference value.
-    fn reference_location_type(&self, reference: mir::Value) -> Option<mir::TypeId> {
-        self.value_types
-            .reference_referent_type(reference, self.tree)
+    /// Resolve the pointee type for an address-bearing value.
+    fn address_value_type(&self, address: mir::Value) -> Option<mir::TypeId> {
+        self.value_types.pointee_type(address, self.tree)
     }
 
-    /// Resolve the reference kind for a reference value.
-    fn reference_kind(&self, reference: mir::Value) -> Option<mir::ReferenceKind> {
-        self.value_types.reference_kind(reference, self.tree)
+    /// Return the reference kind carried by an address, when applicable.
+    fn reference_kind(&self, address: mir::Value) -> Option<mir::ReferenceKind> {
+        self.value_types.reference_kind(address, self.tree)
     }
 
-    /// Resolve the storage for a reference value.
-    fn reference_storage(&self, reference: mir::Value) -> Option<mir::Storage> {
-        self.value_types.reference_storage(reference, self.tree)
+    /// Return the reference storage carried by an address, when applicable.
+    fn reference_storage(&self, address: mir::Value) -> Option<mir::Storage> {
+        self.value_types.reference_storage(address, self.tree)
     }
 }
 
@@ -2047,20 +2048,20 @@ mod tests {
         }
     }
 
-    /// Extract the reference value from a location when available.
-    fn reference_from_region(location: &MemoryRegion) -> Option<mir::Value> {
-        // unwrap reference backed spaces
+    /// Extract the address value from a location when available.
+    fn address_from_region(location: &MemoryRegion) -> Option<mir::Value> {
+        // unwrap address-backed regions
         match location {
-            MemoryRegion::Reference { access, .. } => Some(access.reference),
+            MemoryRegion::Address { location, .. } => Some(location.address),
             _ => None,
         }
     }
 
     /// Extract the byte size from a location when available.
     fn size_from_region(location: &MemoryRegion) -> Option<u64> {
-        // unwrap reference backed spaces
+        // unwrap address-backed regions
         match location {
-            MemoryRegion::Reference { access, .. } => access.size,
+            MemoryRegion::Address { location, .. } => location.size,
             _ => None,
         }
     }
@@ -2094,8 +2095,8 @@ mod tests {
     fn test_memory_ssa_linear_def_use() {
         let test = TestProgram::new(
             r#"
-function test(v0: ref<int32, raw, mutable>): int32 {
-entry(v0: ref<int32, raw, mutable>):
+function test(v0: ref<int32, borrowed, mutable>): int32 {
+entry(v0: ref<int32, borrowed, mutable>):
     v1: int32 = 1
     store v0, v1
     v2: int32 = load v0
@@ -2137,8 +2138,8 @@ entry(v0: ref<int32, raw, mutable>):
     fn test_memory_ssa_phi_at_join() {
         let test = TestProgram::new(
             r#"
-function test(v0: ref<int32, raw, mutable>, v1: boolean): int32 {
-entry(v0: ref<int32, raw, mutable>, v1: boolean):
+function test(v0: ref<int32, borrowed, mutable>, v1: boolean): int32 {
+entry(v0: ref<int32, borrowed, mutable>, v1: boolean):
     branch v1 => b1 | b2
 
 b1:
@@ -2195,8 +2196,8 @@ function test(): int32 {
     local l1: int32
 
 entry:
-    v0: ref<int32, raw, mutable, frame> = local.address l0
-    v1: ref<int32, raw, mutable, frame> = local.address l1
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, mutable, frame> = local.address l1
     v2: int32 = 1
     store v0, v2
     v3: int32 = 2
@@ -2241,8 +2242,8 @@ function test(): int32 {
     local l1: int32
 
 entry:
-    v0: ref<int32, raw, mutable, frame> = local.address l0
-    v1: ref<int32, raw, mutable, frame> = local.address l1
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, mutable, frame> = local.address l1
     v2: int32 = 1
     store v0, v2
     v3: int32 = 2
@@ -2260,7 +2261,7 @@ entry:
         let load_v0 = instructions[6];
 
         // attach tables that retargets the load to v1
-        test.insert_reference_location(
+        test.insert_address_location(
             load_v0,
             mir::MemoryOperation::Read,
             mir::Value::new(1),
@@ -2286,7 +2287,7 @@ entry:
         assert_eq!(clobber, store_access);
     }
 
-    /// Local accesses are tracked independently of reference memory.
+    /// Local accesses are tracked independently of address memory.
     #[test]
     fn test_memory_ssa_local_access() {
         let test = TestProgram::new(
@@ -2324,7 +2325,7 @@ entry:
         assert_eq!(memory_ssa.defining_access(load_access), Some(store_access));
     }
 
-    /// Local effects touch references built from local addresses.
+    /// Local effects touch addresses built from local addresses.
     #[test]
     fn test_memory_ssa_local_effect_clobbers_local_address() {
         let test = TestProgram::new(
@@ -2351,9 +2352,9 @@ entry:
         // locate the local write and local-address load
         let instructions = test.entry_instructions(function_id);
         let local_set = instructions[1];
-        let location = ReferenceLocation::from_reference(mir::Value::new(1));
+        let location = MemoryLocation::from_address(mir::Value::new(1));
 
-        // local write must clobber the equivalent local-address reference
+        // local write must clobber the equivalent local-address address
         let is_clobbered = memory_ssa
             .instruction_effects(local_set)
             .any(|effect| effect.clobbers_location(&location, &alias));
@@ -2434,8 +2435,8 @@ entry:
     fn test_memory_ssa_memcpy_read_write_effects() {
         let test = TestProgram::new(
             r#"
-function test(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>): int32 {
-entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
+function test(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>): int32 {
+entry(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>):
     v2: int64 = 4
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     v3: int32 = load v0
@@ -2465,13 +2466,12 @@ entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
         assert!(write_effect.writes);
         assert!(!write_effect.reads);
 
-        let read_reference =
-            reference_from_region(&read_effect.region).expect("missing read reference");
-        let write_reference =
-            reference_from_region(&write_effect.region).expect("missing write reference");
+        let read_address = address_from_region(&read_effect.region).expect("missing read address");
+        let write_address =
+            address_from_region(&write_effect.region).expect("missing write address");
 
-        assert_eq!(read_reference, mir::Value::new(1));
-        assert_eq!(write_reference, mir::Value::new(0));
+        assert_eq!(read_address, mir::Value::new(1));
+        assert_eq!(write_address, mir::Value::new(0));
 
         let read_size = size_from_region(&read_effect.region).expect("missing read size");
         let write_size = size_from_region(&write_effect.region).expect("missing write size");
@@ -2485,8 +2485,8 @@ entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
     fn test_memory_ssa_memcmp_read_effects() {
         let test = TestProgram::new(
             r#"
-function test(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>): int32 {
-entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
+function test(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>): int32 {
+entry(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>):
     v2: int64 = 4
     v3: int32 = intrinsic.memory.raw.compareBytes(v0, v1, v2)
     return v3
@@ -2518,8 +2518,8 @@ entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
     fn test_memory_ssa_volatile_marks_effects() {
         let mut test = TestProgram::new(
             r#"
-function test(v0: ref<int32, raw, mutable>): int32 {
-entry(v0: ref<int32, raw, mutable>):
+function test(v0: ref<int32, borrowed, mutable>): int32 {
+entry(v0: ref<int32, borrowed, mutable>):
     v1: int32 = load v0
     store v0, v1
     return v1
@@ -2536,7 +2536,7 @@ entry(v0: ref<int32, raw, mutable>):
         let volatile_store = block.instructions[1];
 
         // attach volatile memory access entries
-        test.insert_reference_location_with_options(
+        test.insert_address_location_with_options(
             volatile_load,
             mir::MemoryOperation::Read,
             mir::Value::new(0),
@@ -2544,7 +2544,7 @@ entry(v0: ref<int32, raw, mutable>):
             true,
             None,
         );
-        test.insert_reference_location_with_options(
+        test.insert_address_location_with_options(
             volatile_store,
             mir::MemoryOperation::Write,
             mir::Value::new(0),
@@ -2578,8 +2578,8 @@ entry(v0: ref<int32, raw, mutable>):
     fn test_memory_ssa_atomic_marks_effects() {
         let test = TestProgram::new(
             r#"
-function test(v0: ref<atomic<int32>, raw, mutable>): int32 {
-entry(v0: ref<atomic<int32>, raw, mutable>):
+function test(v0: ref<atomic<int32>, borrowed, mutable>): int32 {
+entry(v0: ref<atomic<int32>, borrowed, mutable>):
     v1: int32 = atomic.load v0, acquire, scope(device)
     atomic.store v0, v1, release, scope(device)
     return v1
@@ -2648,11 +2648,11 @@ entry:
     fn test_memory_ssa_call_is_any_def() {
         let test = TestProgram::new(
             r#"
-external function imported(ref<int32, raw, mutable>): void
+external function imported(ref<int32, borrowed, mutable>): void
 
-function test(v0: ref<int32, raw, mutable>): int32 {
-entry(v0: ref<int32, raw, mutable>):
-    call imported(v0): (ref<int32, raw, mutable>) => void
+function test(v0: ref<int32, borrowed, mutable>): int32 {
+entry(v0: ref<int32, borrowed, mutable>):
+    call imported(v0): (ref<int32, borrowed, mutable>) => void
     v1: int32 = 0
     return v1
 }
@@ -2689,11 +2689,11 @@ entry(v0: ref<int32, raw, mutable>):
     fn test_memory_ssa_invoke_clobbers_continuation() {
         let test = TestProgram::new(
             r#"
-external function imported(ref<int32, raw, mutable>): void
+external function imported(ref<int32, borrowed, mutable>): void
 
-function test(v0: ref<int32, raw, mutable>): int32 {
-entry(v0: ref<int32, raw, mutable>):
-    invoke imported(v0): (ref<int32, raw, mutable>) => void => b1 | b2
+function test(v0: ref<int32, borrowed, mutable>): int32 {
+entry(v0: ref<int32, borrowed, mutable>):
+    invoke imported(v0): (ref<int32, borrowed, mutable>) => void => b1 | b2
 
 b1:
     v1: int32 = load v0
@@ -2734,11 +2734,11 @@ b2:
     fn test_memory_ssa_skips_no_memory_call() {
         let mut test = TestProgram::new(
             r#"
-external function imported(ref<int32, raw, mutable>): void
+external function imported(ref<int32, borrowed, mutable>): void
 
-function test(v0: ref<int32, raw, mutable>): int32 {
-entry(v0: ref<int32, raw, mutable>):
-    call imported(v0): (ref<int32, raw, mutable>) => void
+function test(v0: ref<int32, borrowed, mutable>): int32 {
+entry(v0: ref<int32, borrowed, mutable>):
+    call imported(v0): (ref<int32, borrowed, mutable>) => void
     v1: int32 = 0
     return v1
 }
@@ -2766,11 +2766,11 @@ entry(v0: ref<int32, raw, mutable>):
         // build the test test
         let mut test = TestProgram::new(
             r#"
-external function imported(ref<int32, raw, mutable>, ref<int32, raw, mutable>): void
+external function imported(ref<int32, borrowed, mutable>, ref<int32, borrowed, mutable>): void
 
-function test(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>): int32 {
-entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
-    call imported(v0, v1): (ref<int32, raw, mutable>, ref<int32, raw, mutable>) => void
+function test(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>): int32 {
+entry(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>):
+    call imported(v0, v1): (ref<int32, borrowed, mutable>, ref<int32, borrowed, mutable>) => void
     v2: int32 = 0
     return v2
 }
@@ -2792,13 +2792,13 @@ entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
         // build explicit access entries
         let read_access = mir::MemoryAccess::plain(
             mir::MemoryOperation::Read,
-            mir::MemoryTarget::Reference(param_values[0]),
+            mir::MemoryTarget::Address(param_values[0]),
             Some(4),
             None,
         );
         let write_access = mir::MemoryAccess::plain(
             mir::MemoryOperation::Write,
-            mir::MemoryTarget::Reference(param_values[1]),
+            mir::MemoryTarget::Address(param_values[1]),
             Some(4),
             None,
         );
@@ -2825,13 +2825,12 @@ entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
         assert!(write_effect.writes);
         assert!(!write_effect.reads);
 
-        // verify references and sizes
-        let read_reference =
-            reference_from_region(&read_effect.region).expect("missing read reference");
-        let write_reference =
-            reference_from_region(&write_effect.region).expect("missing write reference");
-        assert_eq!(read_reference, function.parameters[0].value);
-        assert_eq!(write_reference, function.parameters[1].value);
+        // verify addresses and sizes
+        let read_address = address_from_region(&read_effect.region).expect("missing read address");
+        let write_address =
+            address_from_region(&write_effect.region).expect("missing write address");
+        assert_eq!(read_address, function.parameters[0].value);
+        assert_eq!(write_address, function.parameters[1].value);
 
         let read_size = size_from_region(&read_effect.region).expect("missing read size");
         let write_size = size_from_region(&write_effect.region).expect("missing write size");
@@ -2844,8 +2843,8 @@ entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
     fn test_memory_ssa_loop_phi_in_header() {
         let test = TestProgram::new(
             r#"
-function test(v0: ref<int32, raw, mutable>, v1: int32): int32 {
-entry(v0: ref<int32, raw, mutable>, v1: int32):
+function test(v0: ref<int32, borrowed, mutable>, v1: int32): int32 {
+entry(v0: ref<int32, borrowed, mutable>, v1: int32):
     v2: int32 = 0
     store v0, v2
     jump b1(v2)
@@ -2903,7 +2902,7 @@ entry:
     return v0
 
 b1:
-    v1: ref<int32, raw, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, mutable, frame> = local.address l0
     v2: int32 = 1
     store v1, v2
     return v2

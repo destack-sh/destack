@@ -483,8 +483,8 @@ mod tests {
     fn test_cost_model_counts_operation_families() {
         let program = TestProgram::new(
             r#"
-function test(v0: ref<int32, raw, mutable>): int32 {
-entry(v0: ref<int32, raw, mutable>):
+function test(v0: ref<int32, borrowed, mutable>): int32 {
+entry(v0: ref<int32, borrowed, mutable>):
     v1: int32 = load v0
     v2: int32 = int.add v1, v1
     return v2
@@ -545,8 +545,8 @@ entry(v0: int32):
     fn test_cost_model_counts_memory_protocols() {
         let program = TestProgram::new(
             r#"
-function test(v0: ref<int32, raw, mutable>, v1: ref<atomic<int32>, raw, mutable>, v2: ref<int32, managed, mutable>): void {
-entry(v0: ref<int32, raw, mutable>, v1: ref<atomic<int32>, raw, mutable>, v2: ref<int32, managed, mutable>):
+function test(v0: ref<int32, borrowed, mutable>, v1: ref<atomic<int32>, borrowed, mutable>, v2: ref<int32, managed, mutable>): void {
+entry(v0: ref<int32, borrowed, mutable>, v1: ref<atomic<int32>, borrowed, mutable>, v2: ref<int32, managed, mutable>):
     v3: int32 = load v0
     store v0, v3
     v4: ref<int32, unique, mutable> = new.zeroed int32
@@ -578,8 +578,8 @@ entry(v0: ref<int32, raw, mutable>, v1: ref<atomic<int32>, raw, mutable>, v2: re
     fn test_cost_model_uses_analysis_options() {
         let program = TestProgram::new(
             r#"
-function test(v0: ref<int32, raw, mutable>): int32 {
-entry(v0: ref<int32, raw, mutable>):
+function test(v0: ref<int32, borrowed, mutable>): int32 {
+entry(v0: ref<int32, borrowed, mutable>):
     v1: int32 = load v0
     return v1
 }

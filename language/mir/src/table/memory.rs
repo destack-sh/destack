@@ -186,8 +186,8 @@ pub enum MemoryAccessOrder {
 /// Target of one memory access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum MemoryTarget {
-    /// Access through a reference value.
-    Reference(Value),
+    /// Access through an address-bearing value.
+    Address(Value),
     /// Access through a local slot.
     Local(LocalNodeId<Local>),
     /// Access through a global.

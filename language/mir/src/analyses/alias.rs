@@ -1,9 +1,8 @@
 use crate as mir;
 
 use crate::{
-    Analysis, AnalysisId, FunctionAnalysis, FunctionAnalysisCache, MemoryRegion,
-    MemoryRegionBuilder, ReferenceLocation, StorageRoot, TargetLayout, ValueDefinitions,
-    ValueTypes,
+    Analysis, AnalysisId, FunctionAnalysis, FunctionAnalysisCache, MemoryLocation, MemoryRegion,
+    MemoryRegionBuilder, StorageRoot, TargetLayout, ValueDefinitions, ValueTypes,
 };
 
 /// Alias analysis for one MIR function.
@@ -28,13 +27,13 @@ impl AliasAnalysis {
     }
 
     /// Query whether two memory locations alias.
-    pub fn alias(&self, left: &ReferenceLocation, right: &ReferenceLocation) -> AliasResult {
-        if left.reference == right.reference {
-            return left.alias_same_reference(right);
+    pub fn alias(&self, left: &MemoryLocation, right: &MemoryLocation) -> AliasResult {
+        if left.address == right.address {
+            return left.alias_same_address(right);
         }
 
-        let left_region = self.region(left.reference);
-        let right_region = self.region(right.reference);
+        let left_region = self.region(left.address);
+        let right_region = self.region(right.address);
 
         match (left_region, right_region) {
             (MemoryRegion::Place(left_place), MemoryRegion::Place(right_place)) => {
@@ -66,35 +65,35 @@ impl AliasAnalysis {
         AliasResult::MayAlias
     }
 
-    /// Return true when two reference values may alias.
-    pub fn references_may_alias(&self, left: mir::Value, right: mir::Value) -> bool {
-        let left = ReferenceLocation::from_reference(left);
-        let right = ReferenceLocation::from_reference(right);
+    /// Return true when two address values may alias.
+    pub fn addresses_may_alias(&self, left: mir::Value, right: mir::Value) -> bool {
+        let left = MemoryLocation::from_address(left);
+        let right = MemoryLocation::from_address(right);
 
         self.alias(&left, &right).may_alias()
     }
 
-    /// Return true when two reference values definitely do not alias.
-    pub fn references_no_alias(&self, left: mir::Value, right: mir::Value) -> bool {
-        let left = ReferenceLocation::from_reference(left);
-        let right = ReferenceLocation::from_reference(right);
+    /// Return true when two address values definitely do not alias.
+    pub fn addresses_no_alias(&self, left: mir::Value, right: mir::Value) -> bool {
+        let left = MemoryLocation::from_address(left);
+        let right = MemoryLocation::from_address(right);
 
         self.alias(&left, &right).is_no_alias()
     }
 
-    /// Return whether a reference location may touch one storage root.
-    pub fn may_touch_root(&self, location: &ReferenceLocation, storage: &StorageRoot) -> bool {
-        self.region(location.reference).may_touch_root(storage)
+    /// Return whether an addressed location may touch one storage root.
+    pub fn may_touch_root(&self, location: &MemoryLocation, storage: &StorageRoot) -> bool {
+        self.region(location.address).may_touch_root(storage)
     }
 
-    /// Resolve one reference value into a memory region.
-    fn region(&self, reference: mir::Value) -> &MemoryRegion {
+    /// Resolve one address value into a memory region.
+    fn region(&self, address: mir::Value) -> &MemoryRegion {
         let Some(region) = self
             .regions
-            .get(reference.0 as usize)
+            .get(address.0 as usize)
             .and_then(Option::as_ref)
         else {
-            panic!("missing memory region for reference value: {reference:?}");
+            panic!("missing memory region for address value: {address:?}");
         };
 
         region
@@ -197,8 +196,8 @@ function test(): int32 {
     local l1: int32
 
 entry:
-    v0: ref<int32, raw, mutable, frame> = local.address l0
-    v1: ref<int32, raw, mutable, frame> = local.address l1
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, mutable, frame> = local.address l1
     v2: int32 = 0
     return v2
 }
@@ -212,8 +211,8 @@ entry:
         let addresses = program.local_address_destinations_in_entry(function_id);
 
         // compare two distinct storage roots
-        let left = ReferenceLocation::from_reference(addresses[0]);
-        let right = ReferenceLocation::from_reference(addresses[1]);
+        let left = MemoryLocation::from_address(addresses[0]);
+        let right = MemoryLocation::from_address(addresses[1]);
 
         assert_eq!(alias.alias(&left, &right), AliasResult::NoAlias);
     }

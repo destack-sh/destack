@@ -63,13 +63,26 @@ entry(v0: ref<int32, managed, mutable, nullable>, v1: ref<int32, unique, readonl
     );
 }
 
+/// Formats process-local machine pointers canonically.
+#[test]
+fn test_format_pointer_access_and_nullability() {
+    assert_format(
+        r#"
+function pointers(v0: ptr<int32, readonly>, v1: ptr<int32, mutable, nullish>, v2: ptr<int32, exclusive, nullable>): ptr<int32, mutable, nullish> {
+entry(v0: ptr<int32, readonly>, v1: ptr<int32, mutable, nullish>, v2: ptr<int32, exclusive, nullable>):
+    return v1
+}
+"#,
+    );
+}
+
 /// Formats each reference storage canonically.
 #[test]
 fn test_format_reference_storage() {
     assert_format(
         r#"
-function storage(v0: ref<int32, raw, mutable, shared>, v1: ref<int32, raw, mutable, frame>, v2: ref<int32, raw, mutable, constant>, v3: ref<int32, raw, mutable, global>, v4: ref<int32, raw, mutable, shared global>): ref<int32, raw, mutable, shared> {
-entry(v0: ref<int32, raw, mutable, shared>, v1: ref<int32, raw, mutable, frame>, v2: ref<int32, raw, mutable, constant>, v3: ref<int32, raw, mutable, global>, v4: ref<int32, raw, mutable, shared global>):
+function storage(v0: ref<int32, borrowed, mutable, shared>, v1: ref<int32, borrowed, mutable, frame>, v2: ref<int32, borrowed, mutable, constant>, v3: ref<int32, borrowed, mutable, global>, v4: ref<int32, borrowed, mutable, shared global>): ref<int32, borrowed, mutable, shared> {
+entry(v0: ref<int32, borrowed, mutable, shared>, v1: ref<int32, borrowed, mutable, frame>, v2: ref<int32, borrowed, mutable, constant>, v3: ref<int32, borrowed, mutable, global>, v4: ref<int32, borrowed, mutable, shared global>):
     return v0
 }
 "#,

@@ -97,6 +97,20 @@ impl ModuleBuilder {
         })
     }
 
+    /// Create a process-local machine pointer type.
+    pub fn type_pointer(
+        &mut self,
+        pointee: LocalNodeId<Type>,
+        access: Access,
+        nullability: Nullability,
+    ) -> LocalNodeId<Type> {
+        self.tree.intern_type(Type::Pointer {
+            pointee,
+            access,
+            nullability,
+        })
+    }
+
     /// Create a vector type.
     pub fn type_vector(
         &mut self,

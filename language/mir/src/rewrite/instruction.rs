@@ -154,16 +154,7 @@ pub fn instruction_is_speculatable(instruction: &mir::Instruction, tree: &mir::T
             let result_type = *result_type;
 
             let ty = tree.get(result_type);
-            matches!(
-                ty,
-                mir::Type::Reference {
-                    kind: mir::ReferenceKind::Raw,
-                    ..
-                } | mir::Type::TensorView {
-                    kind: mir::ReferenceKind::Raw,
-                    ..
-                }
-            )
+            matches!(ty, mir::Type::Pointer { .. })
         }
 
         // assumptions and linear transitions must not cross control flow
@@ -1897,10 +1888,10 @@ pub fn clone_instruction_tables(
     if let Some(accesses) = memory.memory_accesses(original) {
         let mut cloned_accesses = accesses.to_vec();
         for access in &mut cloned_accesses {
-            if let mir::MemoryTarget::Reference(value) = access.target
+            if let mir::MemoryTarget::Address(value) = access.target
                 && let Some(&remapped) = value_map.get(&value)
             {
-                access.target = mir::MemoryTarget::Reference(remapped);
+                access.target = mir::MemoryTarget::Address(remapped);
             }
         }
 
@@ -1926,10 +1917,10 @@ pub fn remap_instruction_memory_accesses(
 
     let mut updated = accesses.to_vec();
     for access in &mut updated {
-        if let mir::MemoryTarget::Reference(value) = access.target
+        if let mir::MemoryTarget::Address(value) = access.target
             && let Some(&remapped) = substitutions.get(&value)
         {
-            access.target = mir::MemoryTarget::Reference(remapped);
+            access.target = mir::MemoryTarget::Address(remapped);
         }
     }
 

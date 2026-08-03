@@ -48,7 +48,7 @@ impl ReferenceQualifiers {
             .kind
             .ok_or_else(|| ParseError::invalid(expected, pos))?;
 
-        if matches!(kind, ReferenceKind::Unique | ReferenceKind::Raw) && !self.lifetime.is_empty() {
+        if kind == ReferenceKind::Unique && !self.lifetime.is_empty() {
             return Err(ParseError::invalid("reference lifetime", pos));
         }
 
@@ -404,6 +404,7 @@ impl Parser {
 
         let ty = match name {
             "fn" => self.parse_function_pointer_type()?,
+            "ptr" => self.parse_pointer_type()?,
             "slice" => self.parse_slice_type()?,
             "atomic" => self.parse_atomic_type()?,
             "dynamic" => self.parse_dynamic_type()?,
@@ -468,6 +469,40 @@ impl Parser {
         let signature = self.parse_signature(Vec::new())?;
 
         Ok(Type::FunctionPointer { signature })
+    }
+
+    /// Parse a process-local machine pointer type.
+    fn parse_pointer_type(&mut self) -> ParseResult<Type> {
+        self.bump();
+        self.eat_token(TokenType::LessThan)?;
+        let (pointee, _) = self.parse_type_use_part()?;
+
+        // require the access exposed through the pointer
+        self.eat_token(TokenType::Comma)?;
+        let access = if self.eat_token_if(TokenType::Readonly) {
+            Access::Readonly
+        } else if self.eat_name_if("mutable") {
+            Access::Mutable
+        } else if self.eat_name_if("exclusive") {
+            Access::Exclusive
+        } else {
+            return Err(ParseError::invalid("pointer access", self.pos()));
+        };
+
+        // accept one optional nullability qualifier
+        let nullability = if self.eat_token_if(TokenType::Comma) {
+            self.parse_nullability()?
+                .ok_or_else(|| ParseError::invalid("pointer nullability", self.pos()))?
+        } else {
+            Nullability::None
+        };
+        self.eat_token(TokenType::GreaterThan)?;
+
+        Ok(Type::Pointer {
+            pointee,
+            access,
+            nullability,
+        })
     }
 
     /// Parse a slice type.
@@ -1072,7 +1107,6 @@ impl Parser {
             "managed" => ReferenceKind::Managed,
             "unique" => ReferenceKind::Unique,
             "borrowed" => ReferenceKind::Borrowed,
-            "raw" => ReferenceKind::Raw,
             _ => return Ok(None),
         };
         self.bump();

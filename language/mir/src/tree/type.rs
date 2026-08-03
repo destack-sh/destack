@@ -221,8 +221,6 @@ pub enum ReferenceKind {
     Unique,
     /// Borrowed reference.
     Borrowed,
-    /// Raw pointer reference.
-    Raw,
 }
 
 impl ReferenceKind {
@@ -232,7 +230,6 @@ impl ReferenceKind {
             ReferenceKind::Managed => "managed",
             ReferenceKind::Unique => "unique",
             ReferenceKind::Borrowed => "borrowed",
-            ReferenceKind::Raw => "raw",
         }
     }
 }
@@ -529,7 +526,7 @@ pub enum Type {
     },
     /// Reference with explicit kind and access.
     Reference {
-        /// The reference kind (managed, unique, borrowed, raw).
+        /// The reference kind.
         kind: ReferenceKind,
         /// Lifetime roots for borrowed references.
         lifetime: Lifetime,
@@ -540,6 +537,15 @@ pub enum Type {
         /// The referenced type.
         pointee: TypeId,
         /// The nullish values allowed by this reference.
+        nullability: Nullability,
+    },
+    /// Process-local machine pointer.
+    Pointer {
+        /// The pointed-to type.
+        pointee: TypeId,
+        /// The access exposed through this pointer.
+        access: Access,
+        /// The nullish values allowed by this pointer.
         nullability: Nullability,
     },
     /// Slice into memory, a repeated element with explicit kind and access.
@@ -642,7 +648,7 @@ pub enum Type {
     },
     /// Reference-like view into tensor-shaped memory.
     TensorView {
-        /// The reference kind (managed, unique, borrowed, raw).
+        /// The reference kind.
         kind: ReferenceKind,
         /// Lifetime roots for borrowed tensor views.
         lifetime: Lifetime,
@@ -846,6 +852,7 @@ impl Type {
                 | Type::TypeDescriptor
                 | Type::TypeId
                 | Type::Reference { .. }
+                | Type::Pointer { .. }
                 | Type::Vector { .. }
                 | Type::Continuation { .. }
                 | Type::Waiter { .. }
@@ -856,7 +863,7 @@ impl Type {
     pub fn byte_size(&self, tree: &Tree, pointer_width_bits: u16) -> Option<u64> {
         match self {
             Type::Int { width, .. } => byte_width(*width),
-            Type::Isize | Type::Usize => byte_width(pointer_width_bits),
+            Type::Isize | Type::Usize | Type::Pointer { .. } => byte_width(pointer_width_bits),
             Type::Continuation { .. } | Type::Waiter { .. } => byte_width(u64::BITS as u16),
             Type::Float(format) => byte_width(format.width()),
             Type::Uninit { value } | Type::ManuallyDrop { value } => {
@@ -875,9 +882,9 @@ impl Type {
         }
     }
 
-    /// Whether this type is a raw pointer.
-    pub fn is_raw_pointer(&self) -> bool {
-        self.reference_kind() == Some(ReferenceKind::Raw)
+    /// Whether this type is a process-local machine pointer.
+    pub fn is_pointer(&self) -> bool {
+        matches!(self, Type::Pointer { .. })
     }
 
     /// Whether this type is a managed reference.
@@ -981,7 +988,8 @@ impl Type {
             | Type::Slice { nullability, .. }
             | Type::Tensor { nullability, .. }
             | Type::TensorView { nullability, .. }
-            | Type::Function { nullability, .. } => Some(*nullability),
+            | Type::Function { nullability, .. }
+            | Type::Pointer { nullability, .. } => Some(*nullability),
             _ => None,
         }
     }
@@ -994,7 +1002,8 @@ impl Type {
             | Type::Slice { nullability, .. }
             | Type::Tensor { nullability, .. }
             | Type::TensorView { nullability, .. }
-            | Type::Function { nullability, .. } => nullability,
+            | Type::Function { nullability, .. }
+            | Type::Pointer { nullability, .. } => nullability,
             _ => return false,
         };
         *nullability = value;
@@ -1070,7 +1079,8 @@ impl Type {
             | Type::Usize
             | Type::Float { .. }
             | Type::TypeDescriptor
-            | Type::TypeId => Copy::Yes,
+            | Type::TypeId
+            | Type::Pointer { .. } => Copy::Yes,
 
             // atomic cells are storage, not freely copied values
             Type::Atomic { .. } => Copy::No,
@@ -1092,7 +1102,7 @@ impl Type {
             | Type::TensorView { kind, .. }
             | Type::Function { kind, .. } => match kind {
                 ReferenceKind::Unique => Copy::No,
-                ReferenceKind::Managed | ReferenceKind::Borrowed | ReferenceKind::Raw => Copy::Yes,
+                ReferenceKind::Managed | ReferenceKind::Borrowed => Copy::Yes,
             },
 
             // aggregates have explicit copy

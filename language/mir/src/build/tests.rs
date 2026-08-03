@@ -747,14 +747,7 @@ fn test_type_construction() {
     let i64_type = module.type_int(64, true);
     let f32_type = module.type_float(FloatType::Float32);
     let f64_type = module.type_float(FloatType::Float64);
-    let pointer_type = module.type_reference(
-        ReferenceKind::Raw,
-        Lifetime::empty(),
-        i32_type,
-        Access::Readonly,
-        Storage::Heap(Space::Local),
-        Nullability::None,
-    );
+    let pointer_type = module.type_pointer(i32_type, Access::Readonly, Nullability::None);
     let array_type = module.type_fixed_array(i32_type, 10, Copy::Yes);
     let tuple_type = module.type_tuple(vec![i32_type, i64_type], Copy::Yes);
     let signature = module.type_function_signature(vec![i32_type], i32_type);
@@ -790,13 +783,7 @@ fn test_type_construction() {
     ));
     assert_eq!(tree.get(f32_type), &Type::FLOAT32);
     assert_eq!(tree.get(f64_type), &Type::FLOAT64);
-    assert!(matches!(
-        tree.get(pointer_type),
-        Type::Reference {
-            kind: ReferenceKind::Raw,
-            ..
-        }
-    ));
+    assert!(matches!(tree.get(pointer_type), Type::Pointer { .. }));
     assert!(matches!(
         tree.get(array_type),
         Type::FixedArray { length: 10, .. }
@@ -852,9 +839,9 @@ b2:
     assert_eq!(output, expected);
 }
 
-/// Managed reference type construction.
+/// Constructs reference and pointer access forms.
 #[test]
-fn test_managed_reference_types() {
+fn test_construct_reference_and_pointer_types() {
     use crate::Type;
 
     // setup
@@ -894,22 +881,8 @@ fn test_managed_reference_types() {
         Storage::Heap(Space::Local),
         Nullability::Null,
     );
-    let raw_readonly_type = module.type_reference(
-        ReferenceKind::Raw,
-        Lifetime::empty(),
-        i32_type,
-        Access::Readonly,
-        Storage::Heap(Space::Local),
-        Nullability::None,
-    );
-    let raw_mutable_type = module.type_reference(
-        ReferenceKind::Raw,
-        Lifetime::empty(),
-        i32_type,
-        Access::Mutable,
-        Storage::Heap(Space::Local),
-        Nullability::None,
-    );
+    let pointer_readonly_type = module.type_pointer(i32_type, Access::Readonly, Nullability::None);
+    let pointer_mutable_type = module.type_pointer(i32_type, Access::Mutable, Nullability::None);
 
     // verify types
     let (tree, _strings) = module.finish_tree();
@@ -950,18 +923,16 @@ fn test_managed_reference_types() {
         }
     ));
     assert!(matches!(
-        tree.get(raw_readonly_type),
-        Type::Reference {
-            kind: ReferenceKind::Raw,
+        tree.get(pointer_readonly_type),
+        Type::Pointer {
             access: Access::Readonly,
             nullability: Nullability::None,
             ..
         }
     ));
     assert!(matches!(
-        tree.get(raw_mutable_type),
-        Type::Reference {
-            kind: ReferenceKind::Raw,
+        tree.get(pointer_mutable_type),
+        Type::Pointer {
             access: Access::Mutable,
             nullability: Nullability::None,
             ..

@@ -234,6 +234,16 @@ impl TypeHasher {
                 self.hash_type(*pointee, tree);
                 self.hash_nullability(*nullability);
             }
+            Type::Pointer {
+                pointee,
+                access,
+                nullability,
+            } => {
+                self.hasher.write_u8(31);
+                self.hash_type(*pointee, tree);
+                self.hash_access(*access);
+                self.hash_nullability(*nullability);
+            }
             Type::Slice {
                 kind,
                 lifetime,
@@ -582,7 +592,6 @@ impl TypeHasher {
             ReferenceKind::Managed => 0,
             ReferenceKind::Unique => 1,
             ReferenceKind::Borrowed => 2,
-            ReferenceKind::Raw => 3,
         };
         self.hasher.write_u8(tag);
     }

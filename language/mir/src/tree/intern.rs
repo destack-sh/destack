@@ -263,6 +263,15 @@ impl Tree {
                 pointee: self.intern_representation(pointee),
                 nullability,
             },
+            Type::Pointer {
+                pointee,
+                access,
+                nullability,
+            } => Type::Pointer {
+                pointee: self.intern_representation(pointee),
+                access,
+                nullability,
+            },
             Type::Slice {
                 kind,
                 lifetime: _,
@@ -492,6 +501,15 @@ impl Tree {
                 storage,
                 access,
                 pointee: self.instantiate_type_lifetimes(pointee, arguments),
+                nullability,
+            },
+            Type::Pointer {
+                pointee,
+                access,
+                nullability,
+            } => Type::Pointer {
+                pointee: self.instantiate_type_lifetimes(pointee, arguments),
+                access,
                 nullability,
             },
             Type::Slice {

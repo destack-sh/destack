@@ -248,23 +248,23 @@ impl TestProgram {
         self.memory.insert_memory_accesses(instruction, accesses);
     }
 
-    /// Attach reference memory accesses to an instruction.
-    pub(crate) fn insert_reference_location(
+    /// Attach addressed memory accesses to an instruction.
+    pub(crate) fn insert_address_location(
         &mut self,
         instruction: LocalNodeId<mir::Instruction>,
         kind: mir::MemoryOperation,
-        pointer: mir::Value,
+        address: mir::Value,
         size: Option<u64>,
     ) {
-        self.insert_reference_location_with_options(instruction, kind, pointer, size, false, None);
+        self.insert_address_location_with_options(instruction, kind, address, size, false, None);
     }
 
-    /// Attach reference memory accesses to an instruction with ordering.
-    pub(crate) fn insert_reference_location_with_options(
+    /// Attach addressed memory accesses to an instruction with ordering.
+    pub(crate) fn insert_address_location_with_options(
         &mut self,
         instruction: LocalNodeId<mir::Instruction>,
         kind: mir::MemoryOperation,
-        pointer: mir::Value,
+        address: mir::Value,
         size: Option<u64>,
         is_volatile: bool,
         ordering: Option<mir::MemoryOrdering>,
@@ -281,7 +281,7 @@ impl TestProgram {
         // build the access
         let access = mir::MemoryAccess {
             operation: kind,
-            target: mir::MemoryTarget::Reference(pointer),
+            target: mir::MemoryTarget::Address(address),
             byte_len: size,
             alignment_bytes: None,
             order,
