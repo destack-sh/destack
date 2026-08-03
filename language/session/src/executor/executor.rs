@@ -73,7 +73,20 @@ impl Executor {
         revision: Revision,
         artifact_keys: &[ArtifactKey],
     ) -> Result<(), SessionError> {
-        self.schedule(revision, artifact_keys, ArtifactPriority::Foreground)
+        // cleanly bound keys answer without a run
+        let pending = self
+            .state
+            .repository()
+            .unclean_artifact_keys(revision, artifact_keys)?;
+        if pending.is_empty() {
+            let trace = self.start_trace();
+            trace.finish();
+            self.state.set_last_trace(trace);
+
+            return Ok(());
+        }
+
+        self.schedule(revision, &pending, ArtifactPriority::Foreground)
             .wait()
     }
 

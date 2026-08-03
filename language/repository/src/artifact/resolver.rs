@@ -122,6 +122,25 @@ impl Repository {
         })
     }
 
+    /// Return the keys not yet cleanly bound at one revision.
+    pub fn unclean_artifact_keys(
+        &self,
+        revision: Revision,
+        artifact_keys: &[ArtifactKey],
+    ) -> Result<Vec<ArtifactKey>, RepositoryError> {
+        let revision_state = self.revision(revision)?;
+        let bindings = revision_state.artifacts.snapshot();
+        let mut pending = Vec::new();
+        for artifact_key in artifact_keys {
+            match self.clean_artifact_resolution(&bindings, *artifact_key)? {
+                Some(ArtifactResolution::Terminal { .. }) => {}
+                _ => pending.push(*artifact_key),
+            }
+        }
+
+        Ok(pending)
+    }
+
     /// Return a terminal or absent clean artifact selection.
     fn clean_artifact_resolution(
         &self,
