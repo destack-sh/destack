@@ -1,36 +1,33 @@
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
 
 use destack_lsp_server::jsonrpc;
 use destack_lsp_types as lsp;
 use destack_query as query;
-use destack_repository::Revision;
-use destack_source::{DiagnosticReference, FileId, PatchSet};
-use serde::{Deserialize, Serialize};
-use serde_json::{Value, from_value, to_value};
+use destack_source::DiagnosticReference;
+use serde_json::{Value, from_value};
 
 use super::{Document, DocumentSet};
 use crate::server::internal_error;
 
 /// Code action constraints read from one client request.
-pub(crate) struct ActionContext {
+pub(crate) struct CodeActionContext {
     /// The requested action kinds.
     only: Vec<query::CodeActionKind>,
     /// Exact Destack diagnostics carried by the request.
-    diagnostics: Vec<ActionDiagnostic>,
+    diagnostics: Vec<CodeActionDiagnostic>,
     /// Whether the client supplied an action kind filter.
     is_filtered: bool,
 }
 
 /// One client diagnostic and its exact Destack identity.
-struct ActionDiagnostic {
+struct CodeActionDiagnostic {
     /// The Destack diagnostic identity.
     reference: DiagnosticReference,
     /// The client diagnostic.
     diagnostic: lsp::Diagnostic,
 }
 
-impl ActionContext {
+impl CodeActionContext {
     /// Return whether the client filter excludes every supported action kind.
     pub(crate) fn excludes_all(&self) -> bool {
         self.is_filtered && self.only.is_empty()
@@ -75,7 +72,7 @@ impl ActionContext {
     }
 }
 
-impl TryFrom<&lsp::CodeActionContext> for ActionContext {
+impl TryFrom<&lsp::CodeActionContext> for CodeActionContext {
     type Error = jsonrpc::Error;
 
     /// Decode one LSP code action context.
@@ -100,7 +97,7 @@ impl TryFrom<&lsp::CodeActionContext> for ActionContext {
             let Some(reference) = Self::diagnostic_reference(diagnostic)? else {
                 continue;
             };
-            diagnostics.push(ActionDiagnostic {
+            diagnostics.push(CodeActionDiagnostic {
                 reference,
                 diagnostic: diagnostic.clone(),
             });
@@ -114,7 +111,7 @@ impl TryFrom<&lsp::CodeActionContext> for ActionContext {
     }
 }
 
-impl ActionContext {
+impl CodeActionContext {
     /// Return query action kinds selected by one LSP action kind.
     fn action_kinds(kind: &lsp::CodeActionKind) -> Vec<query::CodeActionKind> {
         let kind = kind.as_str();
@@ -193,43 +190,6 @@ impl ActionContext {
         };
 
         Ok(lsp::CodeActionOrCommand::CodeAction(code_action))
-    }
-}
-
-/// State carried into a code action resolve request.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct ActionContinuation {
-    /// The semantic revision that produced these edits.
-    pub(crate) revision: Revision,
-    /// The file path that anchored the action request.
-    pub(crate) path: PathBuf,
-    /// The workspace edits for the selected code action.
-    pub(crate) patches: PatchSet,
-}
-
-impl ActionContinuation {
-    /// Create code action continuation state.
-    pub(crate) fn new(revision: Revision, path: &Path, patches: PatchSet) -> Self {
-        Self {
-            revision,
-            path: path.to_path_buf(),
-            patches,
-        }
-    }
-
-    /// Serialize continuation state into an LSP data field.
-    pub(crate) fn into_value(self) -> jsonrpc::Result<Value> {
-        to_value(self).map_err(internal_error)
-    }
-
-    /// Deserialize continuation state from an LSP data field.
-    pub(crate) fn from_value(data: Value) -> jsonrpc::Result<Self> {
-        from_value(data).map_err(|error| jsonrpc::Error::invalid_params(error.to_string()))
-    }
-
-    /// Return files edited by the action.
-    pub(crate) fn file_ids(&self) -> impl Iterator<Item = FileId> + '_ {
-        self.patches.files.iter().map(|file| file.file)
     }
 }
 

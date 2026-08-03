@@ -7,7 +7,7 @@ use destack_lsp_server::{Client, LanguageServer, LspService, Server, UriExt, jso
 use destack_lsp_types as lsp;
 use destack_query as query;
 use destack_repository::{Revision, Trace, TraceReport, TraceView};
-use destack_source::{FileId, TextRange, Uri};
+use destack_source::{FileId, PatchSet, TextRange, Uri, WATCHABLE_FILE_TYPES};
 use destack_workspace::{
     DiagnosticRun, DiagnosticsRequest, FileDiagnostics, FileEdit, FileOperation, LocalWorkspace,
     QueryFile, QueryRun, ReloadReason, ReloadRequest, RevisionPolicy, RunQueryRequest,
@@ -17,12 +17,15 @@ use serde_json::to_value;
 
 use super::{ClientCapabilities, ServerSession, ServerSettings, internal_error, workspace_error};
 use crate::query::{
-    ActionContext, ActionContinuation, DiagnosticDelivery, DiagnosticPublisher, Document,
-    DocumentSet, DocumentUri, HierarchyContinuation, SemanticTokenStream, SourceSync,
+    CodeActionContext, DiagnosticDelivery, DiagnosticPublisher, Document, DocumentSet, IntoSource,
+    QueryContinuation, SemanticTokenStream, ToLspUri,
 };
 
 /// Slow artifact attempts included in verbose LSP traces.
 const TRACE_SLOW_ATTEMPTS: usize = 12;
+
+/// Configuration files tracked by the language server.
+const CONFIGURATION_GLOBS: [&str; 1] = ["**/destack.json"];
 
 /// The Destack language server.
 #[derive(Debug)]
@@ -99,7 +102,7 @@ impl DestackLanguageServer {
         self.wait_query(workspace, root, method, run).await
     }
 
-    /// Resolve one LSP document to workspace query state.
+    /// Resolve one LSP document to a pinned query file.
     fn resolve_query_file(&self, uri: &lsp::Uri) -> jsonrpc::Result<Option<QueryFile>> {
         let Some(path) = uri.to_file_path().map(|path| path.into_owned()) else {
             return Ok(None);
@@ -263,7 +266,7 @@ impl DestackLanguageServer {
 
     /// Register file watchers with the client.
     async fn register_file_watchers(&self) -> jsonrpc::Result<()> {
-        let watchers = SourceSync::file_watchers();
+        let watchers = Self::file_watchers();
         let options = lsp::DidChangeWatchedFilesRegistrationOptions { watchers };
         let register_options = Some(to_value(options).map_err(internal_error)?);
         let registration = lsp::Registration {
@@ -275,6 +278,53 @@ impl DestackLanguageServer {
         self.client.register_capability(vec![registration]).await?;
 
         Ok(())
+    }
+
+    /// Build file watcher patterns for the client.
+    fn file_watchers() -> Vec<lsp::FileSystemWatcher> {
+        Self::tracked_file_globs()
+            .into_iter()
+            .map(|pattern| lsp::FileSystemWatcher {
+                glob_pattern: pattern.to_string().into(),
+                kind: None,
+            })
+            .collect()
+    }
+
+    /// Build file operation filters for the client.
+    fn file_operation_filters() -> Vec<lsp::FileOperationFilter> {
+        Self::tracked_file_globs()
+            .into_iter()
+            .map(|glob| lsp::FileOperationFilter {
+                scheme: Some("file".to_string()),
+                pattern: lsp::FileOperationPattern {
+                    glob: glob.to_string(),
+                    matches: Some(lsp::FileOperationPatternKind::File),
+                    options: None,
+                },
+            })
+            .collect()
+    }
+
+    /// Return file globs tracked by the language server.
+    fn tracked_file_globs() -> Vec<&'static str> {
+        let mut patterns = Vec::new();
+        for file_type in WATCHABLE_FILE_TYPES {
+            for pattern in file_type.globs() {
+                if !patterns.contains(pattern) {
+                    patterns.push(pattern);
+                }
+            }
+        }
+
+        // append configuration globs
+        for pattern in CONFIGURATION_GLOBS {
+            if !patterns.contains(&pattern) {
+                patterns.push(pattern);
+            }
+        }
+
+        patterns
     }
 
     /// Reload workspace source.
@@ -360,7 +410,11 @@ impl DestackLanguageServer {
             .map(|path| path.into_owned())
             .ok_or_else(|| jsonrpc::Error::invalid_params("document URI is not a file URI"))?;
         let uri = Uri::from_string(params.text_document.uri.to_string());
-        let changes = SourceSync::text_changes(params.content_changes);
+        let changes = params
+            .content_changes
+            .into_iter()
+            .map(IntoSource::into_source)
+            .collect();
         let workspace = self.workspace(&path)?;
         workspace
             .file(FileOperation::PatchText {
@@ -561,7 +615,7 @@ impl LanguageServer for DestackLanguageServer {
             .map_err(|_| internal_error("language server initialized more than once"))?;
 
         // build file operation filters for root notifications
-        let file_operation_filters = SourceSync::file_operation_filters();
+        let file_operation_filters = Self::file_operation_filters();
 
         // declare server capabilities
         let capabilities = lsp::ServerCapabilities {
@@ -986,7 +1040,7 @@ impl LanguageServer for DestackLanguageServer {
 
             // encode every diagnostic file from this semantic workspace
             for file_diagnostics in diagnostics {
-                let uri = DocumentUri::source(&file_diagnostics.uri).ok_or_else(|| {
+                let uri = file_diagnostics.uri.to_lsp_uri().ok_or_else(|| {
                     internal_error(format!(
                         "diagnostic URI is not representable by LSP: {}",
                         file_diagnostics.uri
@@ -1605,7 +1659,7 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::DocumentRangeFormattingParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::TextEdit>>> {
-        let range = SourceSync::text_range(params.range);
+        let range = params.range.into_source();
         let Some(edit) = self.format_file(&params.text_document.uri, Some(range))? else {
             return Ok(None);
         };
@@ -1634,7 +1688,7 @@ impl LanguageServer for DestackLanguageServer {
             line: end.line,
             character: start_character,
         };
-        let range = SourceSync::text_range(lsp::Range { start, end });
+        let range = lsp::Range { start, end }.into_source();
 
         // format the workspace file
         let uri = &params.text_document_position.text_document.uri;
@@ -1786,7 +1840,7 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         };
         let document = Document::new(query_file.file.clone());
-        let context = ActionContext::try_from(&params.context)?;
+        let context = CodeActionContext::try_from(&params.context)?;
 
         // skip unsupported action filters
         if context.excludes_all() {
@@ -1831,7 +1885,7 @@ impl LanguageServer for DestackLanguageServer {
         for action in actions.iter() {
             let (edit, data) = if is_code_action_edit_deferred {
                 let continuation =
-                    ActionContinuation::new(revision, &query_file.path, action.patches.clone());
+                    QueryContinuation::new(&query_file.path, revision, action.patches.clone());
                 let data = continuation.into_value()?;
 
                 (None, Some(data))
@@ -1863,11 +1917,11 @@ impl LanguageServer for DestackLanguageServer {
             ));
         };
 
-        let resolved = ActionContinuation::from_value(data)?;
+        let resolved = QueryContinuation::<PatchSet>::from_value(Some(&data))?;
 
-        let file_ids = resolved.file_ids();
+        let file_ids = resolved.value.files.iter().map(|file| file.file);
         let documents = self.load_documents(&resolved.path, resolved.revision, file_ids)?;
-        params.edit = Some(documents.workspace_edit(&resolved.patches)?);
+        params.edit = Some(documents.workspace_edit(&resolved.value)?);
 
         Ok(params)
     }
@@ -2047,11 +2101,11 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<Vec<lsp::CallHierarchyIncomingCall>>> {
         // read the hierarchy continuation
         let continuation =
-            HierarchyContinuation::<query::CallItem>::from_value(params.item.data.as_ref())?;
-        let HierarchyContinuation {
+            QueryContinuation::<query::CallItem>::from_value(params.item.data.as_ref())?;
+        let QueryContinuation {
             path,
             revision,
-            item,
+            value: item,
         } = continuation;
 
         // query incoming calls
@@ -2082,11 +2136,11 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<Vec<lsp::CallHierarchyOutgoingCall>>> {
         // read the hierarchy continuation
         let continuation =
-            HierarchyContinuation::<query::CallItem>::from_value(params.item.data.as_ref())?;
-        let HierarchyContinuation {
+            QueryContinuation::<query::CallItem>::from_value(params.item.data.as_ref())?;
+        let QueryContinuation {
             path,
             revision,
-            item,
+            value: item,
         } = continuation;
         let source_file_id = item.target.span.file;
 
@@ -2151,11 +2205,11 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<Vec<lsp::TypeHierarchyItem>>> {
         // read the hierarchy continuation
         let continuation =
-            HierarchyContinuation::<query::TypeItem>::from_value(params.item.data.as_ref())?;
-        let HierarchyContinuation {
+            QueryContinuation::<query::TypeItem>::from_value(params.item.data.as_ref())?;
+        let QueryContinuation {
             path,
             revision,
-            item,
+            value: item,
         } = continuation;
 
         // query supertypes
@@ -2186,11 +2240,11 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<Vec<lsp::TypeHierarchyItem>>> {
         // read the hierarchy continuation
         let continuation =
-            HierarchyContinuation::<query::TypeItem>::from_value(params.item.data.as_ref())?;
-        let HierarchyContinuation {
+            QueryContinuation::<query::TypeItem>::from_value(params.item.data.as_ref())?;
+        let QueryContinuation {
             path,
             revision,
-            item,
+            value: item,
         } = continuation;
 
         // query subtypes

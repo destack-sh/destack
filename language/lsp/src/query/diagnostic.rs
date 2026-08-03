@@ -16,7 +16,7 @@ use destack_source::{
 use destack_workspace::{DiagnosticsRequest, FileDiagnostics, LocalWorkspace, Workspace};
 use parking_lot::Mutex;
 
-use super::{Document, DocumentSet, DocumentUri};
+use super::{Document, DocumentSet, ToLspUri};
 use crate::server::{internal_error, workspace_error};
 
 /// Delay used to replace superseded diagnostic work.
@@ -172,7 +172,7 @@ impl DiagnosticPublisher {
 
         // publish every file in the current result
         for file_diagnostics in diagnostics {
-            let uri = DocumentUri::source(&file_diagnostics.uri).ok_or_else(|| {
+            let uri = file_diagnostics.uri.to_lsp_uri().ok_or_else(|| {
                 internal_error(format!(
                     "diagnostic URI is not representable by LSP: {}",
                     file_diagnostics.uri

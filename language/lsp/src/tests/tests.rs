@@ -12,6 +12,7 @@ use serde_json::{Value, from_value, to_value};
 use tower::{Service, ServiceExt};
 
 use crate::DestackLanguageServer;
+use crate::query::ToLspUri;
 
 /// The single-target workspace manifest test fixtures share.
 pub(super) const MANIFEST: &str = r#"{
@@ -587,5 +588,5 @@ pub(super) fn markdown(value: impl Into<String>) -> lsp::MarkupContent {
 
 /// Build one LSP URI from a filesystem path.
 fn uri(path: impl AsRef<Path>) -> lsp::Uri {
-    crate::query::DocumentUri::path(path).unwrap()
+    path.as_ref().to_lsp_uri().unwrap()
 }

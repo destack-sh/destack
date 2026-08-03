@@ -1,58 +1,12 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use destack_lsp_server::jsonrpc;
 use destack_lsp_types as lsp;
 use destack_query as query;
 use destack_repository::Revision;
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
-use serde_json::{from_value, to_value};
 
-use super::{Document, DocumentSet};
+use super::{Document, DocumentSet, QueryContinuation};
 use crate::server::internal_error;
-
-/// State carried between hierarchy requests.
-#[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct HierarchyContinuation<T> {
-    /// The workspace path that anchors the query program.
-    pub(crate) path: PathBuf,
-    /// The semantic revision that produced the item.
-    pub(crate) revision: Revision,
-    /// The query item expanded by the next request.
-    pub(crate) item: T,
-}
-
-impl<T> HierarchyContinuation<T> {
-    /// Create hierarchy continuation state.
-    pub(crate) fn new(path: &Path, revision: Revision, item: T) -> Self {
-        Self {
-            path: path.to_path_buf(),
-            revision,
-            item,
-        }
-    }
-}
-
-impl<T: Serialize> HierarchyContinuation<T> {
-    /// Serialize hierarchy continuation state into an LSP data field.
-    pub(crate) fn into_value(self) -> jsonrpc::Result<serde_json::Value> {
-        to_value(self).map_err(internal_error)
-    }
-}
-
-impl<T: DeserializeOwned> HierarchyContinuation<T> {
-    /// Deserialize hierarchy continuation state from an LSP data field.
-    pub(crate) fn from_value(data: Option<&serde_json::Value>) -> jsonrpc::Result<Self> {
-        let data = data
-            .ok_or_else(|| jsonrpc::Error::invalid_params("hierarchy item has no query payload"))?;
-
-        from_value(data.clone()).map_err(|error| {
-            jsonrpc::Error::invalid_params(format!(
-                "hierarchy item has an invalid query payload: {error}"
-            ))
-        })
-    }
-}
 
 impl DocumentSet {
     /// Encode one navigation target as an LSP location link.
@@ -118,7 +72,7 @@ impl DocumentSet {
             query::CallItemKind::Constructor => lsp::SymbolKind::CONSTRUCTOR,
         };
 
-        let continuation = HierarchyContinuation::new(path, revision, item.clone());
+        let continuation = QueryContinuation::new(path, revision, item.clone());
         let data = Some(continuation.into_value()?);
 
         Ok(lsp::CallHierarchyItem {
@@ -208,7 +162,7 @@ impl DocumentSet {
             document.ranges(item.target.span, item.target.selection_span)?;
         let kind = Document::symbol_kind(item.kind);
 
-        let continuation = HierarchyContinuation::new(path, revision, item.clone());
+        let continuation = QueryContinuation::new(path, revision, item.clone());
         let data = Some(continuation.into_value()?);
 
         Ok(lsp::TypeHierarchyItem {

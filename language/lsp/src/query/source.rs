@@ -5,12 +5,80 @@ use std::sync::Arc;
 use destack_lsp_server::{UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_repository::Revision;
-use destack_source::{
-    File, FileId, PatchSet, Span, TextChange, TextPosition, TextRange, Uri, WATCHABLE_FILE_TYPES,
-};
+use destack_source::{File, FileId, PatchSet, Span, TextChange, TextPosition, TextRange, Uri};
 use destack_workspace::{FileEdit, Workspace};
 
 use crate::server::{internal_error, workspace_error};
+
+/// Convert one LSP value into a Destack source value.
+pub(crate) trait IntoSource {
+    /// The converted Destack source value.
+    type Source;
+
+    /// Convert this value.
+    fn into_source(self) -> Self::Source;
+}
+
+impl IntoSource for lsp::Position {
+    type Source = TextPosition;
+
+    /// Convert this LSP position into a source position.
+    fn into_source(self) -> TextPosition {
+        TextPosition {
+            line: self.line,
+            character: self.character,
+        }
+    }
+}
+
+impl IntoSource for lsp::Range {
+    type Source = TextRange;
+
+    /// Convert this LSP range into a source range.
+    fn into_source(self) -> TextRange {
+        TextRange {
+            start: self.start.into_source(),
+            end: self.end.into_source(),
+        }
+    }
+}
+
+impl IntoSource for lsp::TextDocumentContentChangeEvent {
+    type Source = TextChange;
+
+    /// Convert this LSP document change into a source change.
+    fn into_source(self) -> TextChange {
+        TextChange {
+            range: self.range.map(IntoSource::into_source),
+            text: self.text,
+        }
+    }
+}
+
+/// Convert one path-like value into an LSP URI.
+pub(crate) trait ToLspUri {
+    /// Convert this value when LSP can represent it.
+    fn to_lsp_uri(&self) -> Option<lsp::Uri>;
+}
+
+impl ToLspUri for Path {
+    /// Convert this file system path into an LSP URI.
+    fn to_lsp_uri(&self) -> Option<lsp::Uri> {
+        lsp::Uri::from_file_path(self)
+    }
+}
+
+impl ToLspUri for Uri {
+    /// Convert this source URI or absolute path into an LSP URI.
+    fn to_lsp_uri(&self) -> Option<lsp::Uri> {
+        let value = self.as_ref();
+        if Path::new(value).is_absolute() {
+            Path::new(value).to_lsp_uri()
+        } else {
+            value.parse().ok()
+        }
+    }
+}
 
 /// One source document at a workspace revision.
 pub(crate) struct Document {
@@ -36,7 +104,7 @@ impl Document {
 
     /// Build the document URI.
     pub(crate) fn uri(&self) -> jsonrpc::Result<lsp::Uri> {
-        let Some(uri) = DocumentUri::source(&self.file.uri) else {
+        let Some(uri) = self.file.uri.to_lsp_uri() else {
             return Err(internal_error(format!(
                 "source file {:?} has no representable LSP URI: {}",
                 self.file.id, self.file.uri
@@ -329,109 +397,5 @@ impl DocumentSet {
             document_changes: None,
             change_annotations: None,
         })
-    }
-}
-
-/// Globs for configuration files tracked by the LSP.
-const CONFIGURATION_GLOBS: [&str; 1] = ["**/destack.json"];
-
-/// LSP source synchronization rules.
-pub(crate) struct SourceSync;
-
-impl SourceSync {
-    /// Build file watcher patterns for the client.
-    pub(crate) fn file_watchers() -> Vec<lsp::FileSystemWatcher> {
-        Self::tracked_file_globs()
-            .into_iter()
-            .map(|pattern| lsp::FileSystemWatcher {
-                glob_pattern: pattern.to_string().into(),
-                kind: None,
-            })
-            .collect()
-    }
-
-    /// Build file operation filters for the client.
-    pub(crate) fn file_operation_filters() -> Vec<lsp::FileOperationFilter> {
-        Self::tracked_file_globs()
-            .into_iter()
-            .map(|glob| lsp::FileOperationFilter {
-                scheme: Some("file".to_string()),
-                pattern: lsp::FileOperationPattern {
-                    glob: glob.to_string(),
-                    matches: Some(lsp::FileOperationPatternKind::File),
-                    options: None,
-                },
-            })
-            .collect()
-    }
-
-    /// Build source text changes from LSP text changes.
-    pub(crate) fn text_changes(
-        changes: Vec<lsp::TextDocumentContentChangeEvent>,
-    ) -> Vec<TextChange> {
-        changes
-            .into_iter()
-            .map(|change| TextChange {
-                range: change.range.map(Self::text_range),
-                text: change.text,
-            })
-            .collect()
-    }
-
-    /// Build a source text range from one LSP text range.
-    pub(crate) fn text_range(range: lsp::Range) -> TextRange {
-        TextRange {
-            start: Self::text_position(range.start),
-            end: Self::text_position(range.end),
-        }
-    }
-
-    /// Build a source text position from one LSP text position.
-    fn text_position(position: lsp::Position) -> TextPosition {
-        TextPosition {
-            line: position.line,
-            character: position.character,
-        }
-    }
-
-    /// Build the file globs tracked by the LSP.
-    fn tracked_file_globs() -> Vec<&'static str> {
-        let mut patterns = Vec::new();
-        for file_type in WATCHABLE_FILE_TYPES {
-            for pattern in file_type.globs() {
-                if !patterns.contains(pattern) {
-                    patterns.push(pattern);
-                }
-            }
-        }
-
-        // append configuration globs
-        for pattern in CONFIGURATION_GLOBS {
-            if !patterns.contains(&pattern) {
-                patterns.push(pattern);
-            }
-        }
-
-        patterns
-    }
-}
-
-/// LSP document URI construction.
-pub(crate) struct DocumentUri;
-
-impl DocumentUri {
-    /// Build an LSP URI for a file system path.
-    pub(crate) fn path(path: impl AsRef<Path>) -> Option<lsp::Uri> {
-        lsp::Uri::from_file_path(path)
-    }
-
-    /// Build an LSP URI from one source URI or absolute path.
-    pub(crate) fn source(uri: &Uri) -> Option<lsp::Uri> {
-        let value = uri.as_ref();
-        if Path::new(value).is_absolute() {
-            Self::path(value)
-        } else {
-            value.parse().ok()
-        }
     }
 }
