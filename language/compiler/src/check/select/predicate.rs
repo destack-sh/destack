@@ -59,7 +59,7 @@ impl BodyState<'_, '_> {
         // reject failed target expressions without a second diagnostic
         if matches!(
             self.decision_kind(target_node),
-            Some(DecisionKind::Rejected)
+            Some(DecisionKind::Rejected | DecisionKind::Poisoned)
         ) {
             self.commit_decision(node, Decision::Rejected)?;
             self.commit_error_node(node)?;
@@ -134,7 +134,7 @@ impl BodyState<'_, '_> {
 
                 Some((resolution.symbol, Some(arguments)))
             }
-            DecisionKind::Rejected => return Ok(Answer::Ready(None)),
+            DecisionKind::Rejected | DecisionKind::Poisoned => return Ok(Answer::Ready(None)),
             _ => None,
         };
         let Some((symbol, arguments)) = target else {

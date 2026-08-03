@@ -474,6 +474,14 @@ impl CheckState<'_> {
                 let member = self.type_member(id.module_id, member)?;
                 // members live beneath memory forms, so owners shed them
                 let owner = blocked!(id, self.strip_form(origin, member.owner)?);
+
+                // error owners poison their projections
+                if matches!(self.ty(owner)?, dir::Type::Error) {
+                    let error = self.intern_type(dir::Type::Error)?;
+
+                    return Ok(HeadReduction::Closed(error));
+                }
+
                 // unqualified projections select one declaring interface
                 let mut qualifier = member.qualifier;
                 if qualifier.is_none() {

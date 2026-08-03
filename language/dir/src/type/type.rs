@@ -17,7 +17,7 @@ pub enum Type {
     /// One open inference variable.
     Variable(TypeVariableId),
 
-    /// Error type that could not be resolved.
+    /// Placeholder type for an already-reported error.
     Error,
     /// Never type `never`.
     Never,

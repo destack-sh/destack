@@ -37,6 +37,8 @@ pub(in crate::check) enum Decision {
     AssignPattern(dir::AssignPatternResolution),
     /// Rejected node with reported diagnostics.
     Rejected,
+    /// Poisoned node with an already-reported error.
+    Poisoned,
 }
 
 impl Decision {
@@ -57,6 +59,7 @@ impl Decision {
             Self::Pattern(_) => DecisionKind::Pattern,
             Self::AssignPattern(_) => DecisionKind::AssignPattern,
             Self::Rejected => DecisionKind::Rejected,
+            Self::Poisoned => DecisionKind::Poisoned,
         }
     }
 }
@@ -92,6 +95,8 @@ pub(in crate::check) enum DecisionKind {
     AssignPattern,
     /// Rejected node with reported diagnostics.
     Rejected,
+    /// Poisoned node with an already-reported error.
+    Poisoned,
 }
 
 /// Decided node kinds for one checked component.
@@ -178,7 +183,7 @@ impl CheckState<'_> {
             Decision::AssignPattern(resolution) => {
                 resolutions.set_assign_pattern_resolution(node, resolution)
             }
-            Decision::Rejected => {}
+            Decision::Rejected | Decision::Poisoned => {}
         }
 
         self.record_event(CheckEvent::NodeDecided { node });
@@ -220,8 +225,17 @@ impl CheckState<'_> {
             Decision::AssignPattern(resolution) => {
                 resolutions.assign_pattern_resolution(node) == Some(resolution)
             }
-            Decision::Rejected => true,
+            Decision::Rejected | Decision::Poisoned => true,
         }
+    }
+
+    /// Poison one node whose operand already reported an error.
+    pub(in crate::check) fn poison_node(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.commit_decision(node, Decision::Poisoned)?;
+        self.commit_error_node(node)
     }
 
     /// Return one node's decided kind.

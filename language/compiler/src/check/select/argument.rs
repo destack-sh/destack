@@ -90,6 +90,7 @@ impl BodyState<'_, '_> {
         argument: dir::LocalNodeId<dir::Argument>,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let module = site.node.module_id;
+        // fall back to the error type when the argument has no parsed expression
         let Some(value) = self.argument_expression(module, argument) else {
             let error = self.intern_type(dir::Type::Error)?;
 

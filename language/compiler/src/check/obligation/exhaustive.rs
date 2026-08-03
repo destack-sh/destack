@@ -25,8 +25,7 @@ impl CheckState<'_> {
 
             match self.decision_kind(arm.pattern.into_any()) {
                 Some(DecisionKind::Pattern) => patterns.push(arm.pattern),
-                // rejected patterns already reported and hold vacuously
-                Some(DecisionKind::Rejected) => {
+                Some(DecisionKind::Rejected | DecisionKind::Poisoned) => {
                     return Ok(Answer::Ready(ObligationCheck::holds()));
                 }
                 decision => {

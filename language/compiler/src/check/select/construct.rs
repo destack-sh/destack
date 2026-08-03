@@ -113,7 +113,7 @@ impl BodyState<'_, '_> {
                     return Ok(Answer::Ready(error));
                 }
             },
-            (Some(DecisionKind::Rejected), _) => {
+            (Some(DecisionKind::Rejected | DecisionKind::Poisoned), _) => {
                 let error = self.intern_type(dir::Type::Error)?;
 
                 return Ok(Answer::Ready(error));
@@ -1046,8 +1046,9 @@ impl BodyState<'_, '_> {
         // read the base instance committed on the super callee
         let super_ty = self.require_node_type(callee.into_global_any(module))?;
         let super_ty = answer!(self.reduce_type_head(origin, super_ty)?);
+        // poison the call when the super type already reported an error
         if matches!(self.ty(super_ty)?, dir::Type::Error) {
-            return Ok(Answer::Ready(self.reject_call(node, None)?));
+            return Ok(Answer::Ready(self.poison_call(node, None)?));
         }
         let (base_module, instance) = self.require_nominal_application(super_ty)?;
         let Some(dir::Definition::Class(base)) = self.definition(instance.symbol)? else {

@@ -268,7 +268,9 @@ impl CheckState<'_> {
             .cloned();
         let resolution = match (kind, resolution) {
             (Some(DecisionKind::Pattern), Some(resolution)) => resolution,
-            (Some(DecisionKind::Rejected), None) => return Ok(Answer::Ready(false)),
+            (Some(DecisionKind::Rejected | DecisionKind::Poisoned), None) => {
+                return Ok(Answer::Ready(false));
+            }
             (Some(kind), resolution) => {
                 return Err(CompilerError::Internal {
                     message: format!(

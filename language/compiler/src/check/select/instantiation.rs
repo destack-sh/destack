@@ -268,7 +268,7 @@ impl BodyState<'_, '_> {
                     return Ok(Answer::Ready(()));
                 }
             },
-            (Some(DecisionKind::Rejected), _) => {
+            (Some(DecisionKind::Rejected | DecisionKind::Poisoned), _) => {
                 self.commit_decision(node, Decision::Rejected)?;
                 self.commit_error_node(node)?;
 

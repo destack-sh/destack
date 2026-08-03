@@ -207,7 +207,7 @@ impl CheckState<'_> {
         // skip rejected operations, which establish no runtime equality
         let Some(resolution) = resolution else {
             return match kind {
-                Some(DecisionKind::Rejected) => Ok(None),
+                Some(DecisionKind::Rejected | DecisionKind::Poisoned) => Ok(None),
                 Some(kind) => Err(CompilerError::Internal {
                     message: format!(
                         "equality operation {} decided as {kind:?} without an operator resolution",
@@ -376,7 +376,7 @@ impl CheckState<'_> {
         // skip rejected guards, which establish no runtime predicate
         match (kind, resolution) {
             (Some(DecisionKind::Guard), Some(resolution)) => Ok(resolution.predicate().narrowed),
-            (Some(DecisionKind::Rejected), None) => Ok(None),
+            (Some(DecisionKind::Rejected | DecisionKind::Poisoned), None) => Ok(None),
             (Some(kind), resolution) => Err(CompilerError::Internal {
                 message: format!(
                     "guard {guard:?} decided as {kind:?} with resolution {resolution:?}"
@@ -405,7 +405,9 @@ impl CheckState<'_> {
             (Some(DecisionKind::Pattern), Some(resolution)) => {
                 self.pattern_resolution_predicate_target(origin, pattern, &resolution)
             }
-            (Some(DecisionKind::Rejected), None) => Ok(Answer::Ready(None)),
+            (Some(DecisionKind::Rejected | DecisionKind::Poisoned), None) => {
+                Ok(Answer::Ready(None))
+            }
             (Some(kind), resolution) => Err(CompilerError::Internal {
                 message: format!(
                     "pattern {pattern:?} decided as {kind:?} with resolution {resolution:?}"

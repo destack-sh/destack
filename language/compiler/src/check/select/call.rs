@@ -254,7 +254,7 @@ impl BodyState<'_, '_> {
                 Ok(Answer::Ready(Some(candidates)))
             }
             // skip rejected callees, they already reported a diagnostic
-            Some(DecisionKind::Rejected) => Ok(Answer::Ready(None)),
+            Some(DecisionKind::Rejected | DecisionKind::Poisoned) => Ok(Answer::Ready(None)),
             Some(other) => Err(CompilerError::Internal {
                 message: format!("call callee {callee_node:?} decided as {other:?}"),
             }),
@@ -312,7 +312,9 @@ impl BodyState<'_, '_> {
                 for target in targets {
                     let dir::MemberTarget::Symbol(candidate) = target else {
                         return Err(CompilerError::Internal {
-                            message: "member overload set contains a non-symbol target".to_string(),
+                            message: format!(
+                                "member overload set contains a non-symbol target: {targets:?}"
+                            ),
                         });
                     };
                     if let Some(candidate) =
@@ -774,6 +776,22 @@ impl BodyState<'_, '_> {
         })
     }
 
+    /// Poison one call whose operand already reported an error.
+    pub(in crate::check) fn poison_call(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        expectation: Option<Expectation>,
+    ) -> CompilerResult<ValueCheck> {
+        let source = self.poison_node(node)?;
+        let target = expectation.map_or(source, |expectation| expectation.target);
+
+        Ok(ValueCheck {
+            source,
+            outcome: CheckOutcome::Fails(CheckFailure::Relation),
+            target,
+        })
+    }
+
     /// Select the callable meaning of one call node.
     pub(in crate::check) fn select_call(
         &mut self,
@@ -844,6 +862,10 @@ impl BodyState<'_, '_> {
         if candidates.is_empty() {
             let callee_type = self.require_node_type(callee_site.node)?;
             let callee_type = answer!(self.flow_type_at(callee_site, callee_type)?);
+            // poison instead of reporting again when the callee already reported an error
+            if self.any_error_operand(&[callee_type])? {
+                return Ok(Answer::Ready(self.poison_call(node, expectation)?));
+            }
             self.report_not_callable(origin, callee_type)?;
             return Ok(Answer::Ready(self.reject_call(node, expectation)?));
         }

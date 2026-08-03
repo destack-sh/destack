@@ -59,6 +59,14 @@ impl BodyState<'_, '_> {
         let node = site.node;
         let origin = site.origin();
 
+        // poison the node when either operand already reported an error
+        if matches!(self.ty(left)?, dir::Type::Error) || matches!(self.ty(right)?, dir::Type::Error)
+        {
+            self.poison_node(node)?;
+
+            return Ok(Answer::Ready(()));
+        }
+
         // equality and logic produce builtin results directly
         let nullish_or_never = matches!(
             self.ty(left)?,
@@ -392,6 +400,13 @@ impl BodyState<'_, '_> {
 
         let operand = answer!(self.operand_type(origin, operand_site)?);
 
+        // poison the node when the operand already reported an error
+        if matches!(self.ty(operand)?, dir::Type::Error) {
+            self.poison_node(node)?;
+
+            return Ok(Answer::Ready(()));
+        }
+
         // builtin logical not produces a boolean
         if matches!(operator, dir::UnaryOperator::Not) {
             let result = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
@@ -650,6 +665,18 @@ impl BodyState<'_, '_> {
                     ))?,
                     _ => left,
                 };
+
+                // constant shift amounts must stay below the shifted width
+                if let dir::Type::Primitive(dir::PrimitiveType::Integer(dir::IntegerType::Fixed {
+                    width,
+                    ..
+                })) = self.ty(result)?
+                    && let dir::Type::Literal(dir::ScalarLiteral::Integer(amount)) =
+                        self.ty(right)?
+                    && (amount < 0 || amount >= i64::from(width))
+                {
+                    self.report_shift_out_of_range(origin, amount, result)?;
+                }
 
                 Ok(Answer::Ready(Some((result, [result, result]))))
             }
@@ -1086,14 +1113,13 @@ impl BodyState<'_, '_> {
         operator: String,
         operands: &[dir::GlobalTypeId],
     ) -> CompilerResult<Answer<()>> {
-        // errored operands already reported, so the rejection stays silent
-        let tainted = operands.iter().any(|operand| {
-            self.type_flags(*operand)
-                .is_ok_and(|flags| flags.has_error())
-        });
-        if !tainted {
-            self.report_no_matching_operator(origin, operator, OperatorOperands::Types(operands))?;
+        // poison instead of reporting again when an operand already reported an error
+        if self.any_error_operand(operands)? {
+            self.poison_node(node)?;
+
+            return Ok(Answer::Ready(()));
         }
+        self.report_no_matching_operator(origin, operator, OperatorOperands::Types(operands))?;
         self.commit_decision(node, Decision::Rejected)?;
         self.commit_error_node(node)?;
 

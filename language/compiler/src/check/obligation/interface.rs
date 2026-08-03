@@ -13,8 +13,8 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<ObligationCheck>> {
         let ty = answer!(self.reduce_type_head(origin, ty)?);
 
-        // skip an error operand, an earlier failure reported already
-        if self.type_flags(ty)?.has_error() {
+        // hold without checking once an operand already reported an error
+        if self.any_error_operand(&[ty])? {
             return Ok(Answer::Ready(ObligationCheck::holds()));
         }
         if answer!(self.satisfies_auto_interface(origin, ty, interface)?) {
