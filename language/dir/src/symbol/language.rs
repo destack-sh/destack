@@ -124,8 +124,8 @@ macro_rules! define_language_items {
                 }
             }
 
-            /// Return the scalar domain admitted by this marker item.
-            pub fn marker_domain(&self) -> Option<ScalarDomain> {
+            /// Return the scalar domain this item's interface admits.
+            pub fn scalar_domain(&self) -> Option<ScalarDomain> {
                 match self {
                     Self::Integer => Some(ScalarDomain::Integer),
                     Self::Float => Some(ScalarDomain::Float),

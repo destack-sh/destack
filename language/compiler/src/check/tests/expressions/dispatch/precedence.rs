@@ -184,7 +184,7 @@ enum Mode {
 newtype Port<comptime M: Mode = Mode.Read> = int32;
 /// @generic.template symbol=Port parameters=(comptime M: Mode = Mode.Read)
 /// @type.symbol symbol=Port source="newtype Port<comptime M: Mode = Mode.Read> = int32" type=Port
-/// @definition.newtype symbol=Port source="newtype Port<comptime M: Mode = Mode.Read> = int32" template=(comptime M: Mode = Mode.Read) backing=int32
+/// @definition.newtype symbol=Port source="newtype Port<comptime M: Mode = Mode.Read> = int32" template=(comptime M: Mode = Mode.Read) backing=int32 constructors=[<comptime M: Mode = Mode.Read>(int32) => Port<M>]
 /// @type.symbol symbol=Port.M source="comptime M: Mode = Mode.Read" type=M
 /// @resolution.name source=Mode target=Mode
 /// @type.node source=Mode type=Mode
@@ -298,7 +298,7 @@ struct Err<E> {
 newtype Outcome<T, E> = Ok<T> | Err<E>;
 /// @generic.template symbol=Outcome parameters=(out T#2, out E#2)
 /// @type.symbol symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" type=Outcome
-/// @definition.newtype symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) backing=Ok<T#2> | Err<E#2>
+/// @definition.newtype symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) backing=Ok<T#2> | Err<E#2> constructors=[<T#2, E#2>(Ok<T#2>) => Outcome<T#2, E#2>, <T#2, E#2>(Err<E#2>) => Outcome<T#2, E#2>, <T#2, E#2>(Ok<T#2> | Err<E#2>) => Outcome<T#2, E#2>]
 /// @type.symbol symbol=Outcome.T source=T type=T#2
 /// @type.symbol symbol=Outcome.E source=E type=E#2
 /// @resolution.name source=Ok target=Ok
@@ -839,7 +839,7 @@ struct Err<E> {
 newtype Outcome<T, E> = Ok<T> | Err<E>;
 /// @generic.template symbol=Outcome parameters=(out T#2, out E#2)
 /// @type.symbol symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" type=Outcome
-/// @definition.newtype symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) backing=Ok<T#2> | Err<E#2>
+/// @definition.newtype symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) backing=Ok<T#2> | Err<E#2> constructors=[<T#2, E#2>(Ok<T#2>) => Outcome<T#2, E#2>, <T#2, E#2>(Err<E#2>) => Outcome<T#2, E#2>, <T#2, E#2>(Ok<T#2> | Err<E#2>) => Outcome<T#2, E#2>]
 /// @type.symbol symbol=Outcome.T source=T type=T#2
 /// @type.symbol symbol=Outcome.E source=E type=E#2
 /// @resolution.name source=Ok target=Ok

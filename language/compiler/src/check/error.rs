@@ -2692,7 +2692,8 @@ pub enum CheckError {
     /// ```
     #[diagnostic(
         id = "duplicate-member",
-        message = "member '{member}' is already declared"
+        message = "member '{member}' is already declared",
+        optional_message = " for '{target}' by another visible extension"
     )]
     DuplicateMember {
         /// Report the later declaration.
@@ -2701,6 +2702,8 @@ pub enum CheckError {
         module: ModuleId,
         /// The repeated member name.
         member: String,
+        /// The extended target when another extension owns the slot.
+        target: Option<String>,
     },
 
     /// Class field is not definitely initialized.

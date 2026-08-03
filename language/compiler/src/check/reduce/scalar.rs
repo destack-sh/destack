@@ -197,11 +197,9 @@ impl CheckState<'_> {
 
         // scalar marker interfaces admit their complete domain
         if let dir::Type::Application(instance) = ty {
-            let domain = match self.language_item(instance.symbol)? {
-                Some(dir::LanguageItem::Integer) => Some(dir::ScalarDomain::Integer),
-                Some(dir::LanguageItem::Float) => Some(dir::ScalarDomain::Float),
-                _ => None,
-            };
+            let domain = self
+                .language_item(instance.symbol)?
+                .and_then(|item| item.scalar_domain());
             if let Some(domain) = domain {
                 return Ok(Answer::Ready(Some(
                     dir::ScalarFamily::Domain(domain).into(),

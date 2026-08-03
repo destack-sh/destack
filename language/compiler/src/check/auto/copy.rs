@@ -161,10 +161,11 @@ impl CheckState<'_> {
         instance: dir::GenericApplication,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Answer<bool>> {
-        if matches!(
-            self.language_item(instance.symbol)?,
-            Some(dir::LanguageItem::Copy | dir::LanguageItem::Integer | dir::LanguageItem::Float)
-        ) {
+        // admit the copy capability and the scalar markers by definition
+        let item = self.language_item(instance.symbol)?;
+        if matches!(item, Some(dir::LanguageItem::Copy))
+            || item.is_some_and(|item| item.scalar_domain().is_some())
+        {
             return Ok(Answer::Ready(true));
         }
 

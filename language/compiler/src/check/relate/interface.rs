@@ -110,6 +110,22 @@ impl CheckState<'_> {
             return self.decide_relation(origin, relation, dynamic.constraint, target);
         }
 
+        // prove builtin marker interfaces from scalar domains
+        let marker = self
+            .language_item(target_instance.symbol)?
+            .and_then(|item| item.scalar_domain());
+        if let Some(marker) = marker {
+            let domain = match self.ty(source)? {
+                dir::Type::Primitive(primitive) => Some(primitive.scalar_domain()),
+                dir::Type::Literal(literal) => literal.scalar_domain(),
+                dir::Type::Range(range) => range.scalar_domain(),
+                _ => None,
+            };
+            if let Some(domain) = domain {
+                return Ok(Answer::Ready(domain == marker));
+            }
+        }
+
         // find the target interface in the source heritage closure
         let application = if let dir::Type::Application(source_instance) = self.ty(source)? {
             if source_instance.symbol == target_instance.symbol {

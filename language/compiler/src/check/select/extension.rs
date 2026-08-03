@@ -22,7 +22,26 @@ impl BodyState<'_, '_> {
         space: dir::MemberSpace,
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<MemberLookup>> {
-        let extensions = self.visible_extensions(module, symbol)?;
+        let mut extensions = self.visible_extensions(module, symbol)?;
+
+        // primitive receivers also reach extensions declared over their format
+        for ty in [receiver, subject] {
+            let value = answer!(self.strip_form(origin, ty)?);
+            let dir::Type::Primitive(primitive) = self.ty(value)? else {
+                continue;
+            };
+            let Some(environment) = &self.check.environment_declared else {
+                continue;
+            };
+            let Some(implicit) = environment.extensions_by_primitive.get(&primitive) else {
+                continue;
+            };
+            for symbol in implicit.clone() {
+                if !extensions.contains(&symbol) {
+                    extensions.push(symbol);
+                }
+            }
+        }
 
         // visit extension declarations in resolution order
         let mut candidates = Vec::new();
@@ -131,6 +150,24 @@ impl BodyState<'_, '_> {
             }
         }
 
+        // collect the implicit extensions rooted at the target
+        if let Some(environment) = &self.check.environment_declared {
+            if let Some(implicit) = environment.extensions_by_root.get(&target) {
+                for symbol in implicit {
+                    if !symbols.contains(symbol) {
+                        symbols.push(*symbol);
+                    }
+                }
+            }
+
+            // collect the implicit open blanket extensions
+            for symbol in &environment.blanket_extensions {
+                if !symbols.contains(symbol) {
+                    symbols.push(*symbol);
+                }
+            }
+        }
+
         // collect explicitly imported extension symbols
         let imported = self
             .module(module)
@@ -150,6 +187,26 @@ impl BodyState<'_, '_> {
         }
 
         Ok(symbols)
+    }
+
+    /// Collect the declared members of one extension matching a selection key.
+    pub(in crate::check) fn matching_extension_members(
+        &mut self,
+        members: &[dir::DefinitionMember],
+        space: dir::MemberSpace,
+        key: dir::StaticKey,
+    ) -> CompilerResult<Answer<SmallVec<[DeclaredMember; 2]>>> {
+        let mut matched = SmallVec::new();
+        for member in members {
+            let Some(member) = answer!(self.declared_member(member)?) else {
+                continue;
+            };
+            if member.matches(space, key) {
+                matched.push(member);
+            }
+        }
+
+        Ok(Answer::Ready(matched))
     }
 
     /// Decide whether a visible extension implements one interface for a receiver.
@@ -204,7 +261,12 @@ impl BodyState<'_, '_> {
         excluded: Option<dir::GlobalSymbolId>,
     ) -> CompilerResult<Answer<bool>> {
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
-        let extensions = answer!(self.visible_implementation_extensions(origin, module, receiver)?);
+        let extensions = answer!(self.visible_implementation_extensions(
+            origin,
+            module,
+            receiver,
+            interface.symbol,
+        )?);
 
         // try each visible implementation declaration
         for extension_symbol in extensions {
@@ -216,11 +278,7 @@ impl BodyState<'_, '_> {
             }
             let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)?
             else {
-                return Err(CompilerError::Internal {
-                    message: format!(
-                        "indexed implementation symbol {extension_symbol:?} has no extension definition"
-                    ),
-                });
+                continue;
             };
             if !extension.is_visible_from(module) {
                 continue;
@@ -430,33 +488,124 @@ impl BodyState<'_, '_> {
         origin: Origin,
         module: ModuleId,
         receiver: dir::GlobalTypeId,
+        interface: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<SmallVec<[dir::GlobalSymbolId; 4]>>> {
-        let receiver = answer!(self.strip_form(origin, receiver)?);
-        let scope = match self.nominal_application_maybe(receiver)? {
-            Some((_, instance)) => Some(instance.symbol),
-            None => self
-                .ty(receiver)?
-                .representation_item()
-                .map(|item| self.language_symbol(item))
-                .transpose()?,
-        };
-        let Some(scope) = scope else {
-            let extensions = self.visible_blanket_extensions(module)?;
+        let mut parameters = SmallVec::new();
+        let mut symbols = SmallVec::new();
+        answer!(self.collect_implementation_extensions(
+            origin,
+            module,
+            receiver,
+            &mut parameters,
+            &mut symbols,
+        )?);
 
-            return Ok(Answer::Ready(extensions));
-        };
-
-        if !self.is_own_module(scope.module_id) {
-            self.import_external_module(scope.module_id)?;
+        // admit the implicit implementors of the interface
+        let interface = self.resolve_symbol_alias(interface)?;
+        if let Some(environment) = &self.check.environment_declared
+            && let Some(implementors) = environment.implementations_by_interface.get(&interface)
+        {
+            for symbol in implementors.clone() {
+                if !symbols.contains(&symbol) {
+                    symbols.push(symbol);
+                }
+            }
         }
 
-        let extensions = self.visible_extensions(module, scope)?;
+        Ok(Answer::Ready(symbols))
+    }
 
-        Ok(Answer::Ready(extensions))
+    /// Collect the implementation extension candidates for one receiver head.
+    fn collect_implementation_extensions(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        receiver: dir::GlobalTypeId,
+        parameters: &mut SmallVec<[dir::GlobalGenericParameterId; 4]>,
+        symbols: &mut SmallVec<[dir::GlobalSymbolId; 4]>,
+    ) -> CompilerResult<Answer<()>> {
+        let receiver = answer!(self.strip_form(origin, receiver)?);
+        match self.ty(receiver)? {
+            // rigid parameters implement through blankets and their bound scopes
+            dir::Type::Parameter(parameter) => {
+                if parameters.contains(&parameter) {
+                    return Ok(Answer::Ready(()));
+                }
+                for symbol in self.visible_blanket_extensions(module)? {
+                    if !symbols.contains(&symbol) {
+                        symbols.push(symbol);
+                    }
+                }
+                let bounds = self.parameter_bounds(origin, parameter)?;
+                parameters.push(parameter);
+                for bound in bounds {
+                    let collected = self.collect_implementation_extensions(
+                        origin, module, bound, parameters, symbols,
+                    );
+                    match collected {
+                        Ok(Answer::Ready(())) => {}
+                        other => {
+                            parameters.pop();
+
+                            return other;
+                        }
+                    }
+                }
+                parameters.pop();
+
+                Ok(Answer::Ready(()))
+            }
+
+            // composite receivers implement through their element scopes
+            dir::Type::Union(dir::UnionType { elements, .. })
+            | dir::Type::Intersection(dir::IntersectionType { elements, .. }) => {
+                let elements = self.type_ids(receiver.module_id, elements)?.to_vec();
+                for element in elements {
+                    answer!(self.collect_implementation_extensions(
+                        origin, module, element, parameters, symbols,
+                    )?);
+                }
+
+                Ok(Answer::Ready(()))
+            }
+
+            _ => {
+                let scope = match self.nominal_application_maybe(receiver)? {
+                    Some((_, instance)) => Some(instance.symbol),
+                    None => self
+                        .ty(receiver)?
+                        .representation_item()
+                        .map(|item| self.language_symbol(item))
+                        .transpose()?,
+                };
+                let Some(scope) = scope else {
+                    for symbol in self.visible_blanket_extensions(module)? {
+                        if !symbols.contains(&symbol) {
+                            symbols.push(symbol);
+                        }
+                    }
+
+                    return Ok(Answer::Ready(()));
+                };
+
+                if !self.is_own_module(scope.module_id) {
+                    self.import_external_module(scope.module_id)?;
+                }
+
+                // visible extensions already include the prelude's symbols
+                for symbol in self.visible_extensions(module, scope)? {
+                    if !symbols.contains(&symbol) {
+                        symbols.push(symbol);
+                    }
+                }
+
+                Ok(Answer::Ready(()))
+            }
+        }
     }
 
     /// Collect blanket extension symbols visible from one module.
-    fn visible_blanket_extensions(
+    pub(in crate::check) fn visible_blanket_extensions(
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<SmallVec<[dir::GlobalSymbolId; 4]>> {
@@ -467,7 +616,16 @@ impl BodyState<'_, '_> {
             symbols.extend(state.definitions.blanket_extensions().iter().copied());
         }
 
-        // collect imported extension symbols
+        // collect the implicit open blanket extension symbols
+        if let Some(environment) = &self.check.environment_declared {
+            for symbol in &environment.blanket_extensions {
+                if !symbols.contains(symbol) {
+                    symbols.push(*symbol);
+                }
+            }
+        }
+
+        // collect imported blanket extension symbols
         let imported = self
             .module(module)
             .resolved
@@ -476,10 +634,11 @@ impl BodyState<'_, '_> {
             .map(|(_, symbol)| symbol)
             .collect::<SmallVec<[_; 8]>>();
         for symbol in imported {
-            let is_extension = self
-                .definition(symbol)?
-                .is_some_and(|definition| matches!(definition, dir::Definition::Extension(_)));
-            if is_extension && !symbols.contains(&symbol) {
+            let is_blanket = matches!(
+                self.definition(symbol)?,
+                Some(dir::Definition::Extension(extension)) if extension.target.is_blanket()
+            );
+            if is_blanket && !symbols.contains(&symbol) {
                 symbols.push(symbol);
             }
         }
@@ -504,27 +663,23 @@ impl BodyState<'_, '_> {
         }
 
         // read the extension members
-        let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)? else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "indexed extension symbol {extension_symbol:?} has no extension definition"
-                ),
-            });
+        let extension = match self.definition(extension_symbol)? {
+            Some(dir::Definition::Extension(extension)) => extension,
+            Some(_) => {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "indexed extension symbol {extension_symbol:?} has no extension definition"
+                    ),
+                });
+            }
+            None => return Ok(Answer::Ready(MemberLookup::Missing)),
         };
         if !extension.is_visible_from(module) {
             return Ok(Answer::Ready(MemberLookup::Missing));
         }
         let target_type = extension.target.r#type();
         let definition_members = extension.members.clone();
-        let mut matched = SmallVec::<[_; 2]>::new();
-        for member in &definition_members {
-            let Some(member) = answer!(self.declared_member(member)?) else {
-                continue;
-            };
-            if member.matches(space, key) {
-                matched.push(member);
-            }
-        }
+        let matched = answer!(self.matching_extension_members(&definition_members, space, key)?);
         if matched.is_empty() {
             return Ok(Answer::Ready(MemberLookup::Missing));
         }
@@ -574,12 +729,16 @@ impl BodyState<'_, '_> {
         }
 
         // read matching static members from extensions of this declaration
-        let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)? else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "indexed extension symbol {extension_symbol:?} has no extension definition"
-                ),
-            });
+        let extension = match self.definition(extension_symbol)? {
+            Some(dir::Definition::Extension(extension)) => extension,
+            Some(_) => {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "indexed extension symbol {extension_symbol:?} has no extension definition"
+                    ),
+                });
+            }
+            None => return Ok(Answer::Ready(MemberLookup::Missing)),
         };
         if !extension.is_visible_from(module) {
             return Ok(Answer::Ready(MemberLookup::Missing));
@@ -588,15 +747,11 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(MemberLookup::Missing));
         }
         let definition_members = extension.members.clone();
-        let mut members = SmallVec::<[_; 2]>::new();
-        for member in &definition_members {
-            let Some(member) = answer!(self.declared_member(member)?) else {
-                continue;
-            };
-            if member.matches(dir::MemberSpace::Static, key) {
-                members.push(member);
-            }
-        }
+        let members = answer!(self.matching_extension_members(
+            &definition_members,
+            dir::MemberSpace::Static,
+            key
+        )?);
         if members.is_empty() {
             return Ok(Answer::Ready(MemberLookup::Missing));
         }
@@ -626,6 +781,7 @@ impl BodyState<'_, '_> {
             candidates.push(MemberCandidate {
                 symbol: member.symbol,
                 owner: extension_symbol,
+                origin: dir::MemberOrigin::RootedExtension,
                 space: dir::MemberSpace::Static,
                 role: member.role,
                 access_type,
@@ -649,6 +805,14 @@ impl BodyState<'_, '_> {
         substitution: &TypeSubstitution,
         members: &[DeclaredMember],
     ) -> CompilerResult<Answer<Vec<MemberCandidate>>> {
+        // blanket declarations sit farther than rooted extensions
+        let member_origin = match self.definition(extension_symbol)? {
+            Some(dir::Definition::Extension(extension)) if extension.target.is_blanket() => {
+                dir::MemberOrigin::BlanketExtension
+            }
+            _ => dir::MemberOrigin::RootedExtension,
+        };
+
         let mut candidates = Vec::new();
 
         // substitute extension parameters in each matching member
@@ -685,6 +849,7 @@ impl BodyState<'_, '_> {
             candidates.push(MemberCandidate {
                 symbol: member.symbol,
                 owner: extension_symbol,
+                origin: member_origin,
                 space: member.space,
                 role: member.role,
                 access_type,
@@ -711,42 +876,26 @@ impl BodyState<'_, '_> {
         target_type: dir::GlobalTypeId,
         members: &[DeclaredMember],
     ) -> CompilerResult<Answer<Option<Vec<MemberCandidate>>>> {
-        // specialize parameters from the exact receiver or its lookup subject
-        let substitution = match template {
-            Some(template) => {
-                let parameters = self.generic_template_parameters(template)?;
-                let mut substitution = TypeSubstitution::default();
-                let receiver_pair = [(target_type, receiver)];
-                if !answer!(self.extend_generic_substitution(
-                    origin,
-                    &parameters,
-                    &mut substitution,
-                    &receiver_pair,
-                )?) {
-                    substitution = TypeSubstitution::default();
-                    let subject_pair = [(target_type, subject)];
-                    if !answer!(self.extend_generic_substitution(
-                        origin,
-                        &parameters,
-                        &mut substitution,
-                        &subject_pair,
-                    )?) {
-                        return Ok(Answer::Ready(None));
-                    }
-                }
-
-                substitution
-            }
-            None => TypeSubstitution::default(),
-        };
-        let substitution = substitution.with_receiver(receiver);
-
-        // require the extension declaration's substituted constraints
-        if let Some(template) = template
-            && !answer!(self.decide_substitution_constraints(origin, template, &substitution)?)
-        {
-            return Ok(Answer::Ready(None));
+        // judge the exact receiver first, then its widened lookup subject
+        let mut substitution = answer!(self.match_extension_subject(
+            origin,
+            receiver,
+            receiver,
+            template,
+            target_type
+        )?);
+        if substitution.is_none() && subject != receiver {
+            substitution = answer!(self.match_extension_subject(
+                origin,
+                receiver,
+                subject,
+                template,
+                target_type
+            )?);
         }
+        let Some(substitution) = substitution else {
+            return Ok(Answer::Ready(None));
+        };
 
         let candidates = answer!(self.extension_member_candidates(
             origin,
@@ -759,5 +908,46 @@ impl BodyState<'_, '_> {
         }
 
         Ok(Answer::Ready(Some(candidates)))
+    }
+
+    /// Match one lookup subject against an extension target and its constraints.
+    pub(in crate::check) fn match_extension_subject(
+        &mut self,
+        origin: Origin,
+        receiver: dir::GlobalTypeId,
+        subject: dir::GlobalTypeId,
+        template: Option<GenericTemplateId>,
+        target_type: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<TypeSubstitution>>> {
+        // matching binds the extension parameters through the target header
+        let mut substitution = TypeSubstitution::default();
+        if let Some(template) = template {
+            let parameters = self.generic_template_parameters(template)?;
+            let subject_pair = [(target_type, subject)];
+            if !answer!(self.extend_generic_substitution(
+                origin,
+                &parameters,
+                &mut substitution,
+                &subject_pair,
+            )?) {
+                return Ok(Answer::Ready(None));
+            }
+        }
+        let substitution = substitution.with_receiver(receiver);
+
+        // require the subject to satisfy the bound target
+        let target = self.substitute_type(target_type, &substitution)?;
+        if !answer!(self.decide_relation(origin, Relation::Assignable, subject, target)?) {
+            return Ok(Answer::Ready(None));
+        }
+
+        // require the extension declaration's substituted constraints
+        if let Some(template) = template
+            && !answer!(self.decide_substitution_constraints(origin, template, &substitution)?)
+        {
+            return Ok(Answer::Ready(None));
+        }
+
+        Ok(Answer::Ready(Some(substitution)))
     }
 }

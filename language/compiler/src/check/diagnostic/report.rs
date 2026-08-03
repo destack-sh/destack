@@ -502,6 +502,25 @@ impl CheckState<'_> {
         self.module_mut(module).warnings.push(diagnostic);
     }
 
+    /// Report one constant shift amount past the shifted width.
+    pub(in crate::check) fn report_shift_out_of_range(
+        &mut self,
+        origin: Origin,
+        amount: i64,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let warning = CheckWarning::ShiftOutOfRange {
+            anchor,
+            module,
+            amount,
+            ty: self.format_type_at(module, ty),
+        };
+        self.module_mut(module).warnings.push(warning.into());
+
+        Ok(())
+    }
+
     /// Report unreachable code at one source node.
     pub(in crate::check) fn report_unreachable_code(
         &mut self,
@@ -1359,6 +1378,24 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Report one duplicate property slot owned by another visible extension.
+    pub(in crate::check) fn report_duplicate_extension_member(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        key: &dir::StaticKey,
+        target: String,
+    ) {
+        let (module, anchor) = self.source_anchor(source);
+        let member = self.format_static_key(key);
+        let error = CheckError::DuplicateMember {
+            anchor,
+            module,
+            member,
+            target: Some(target),
+        };
+        self.report(module, error);
+    }
+
     /// Report one operator application that matches no overload.
     pub(in crate::check) fn report_no_matching_operator(
         &mut self,
@@ -1709,8 +1746,8 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         failure: CheckFailure,
     ) -> CompilerResult<()> {
-        // skip pairs with an error operand, an earlier failure reported already
-        if self.type_flags(source)?.has_error() || self.type_flags(target)?.has_error() {
+        // skip reporting once source or target already reported an error
+        if self.any_error_operand(&[source, target])? {
             return Ok(());
         }
 
@@ -2691,6 +2728,7 @@ impl CheckState<'_> {
         let (module, anchor) = self.source_anchor(source);
         let member = self.format_static_key(key);
         let error = CheckError::DuplicateMember {
+            target: None,
             anchor,
             module,
             member,

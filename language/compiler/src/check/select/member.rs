@@ -340,6 +340,8 @@ pub(in crate::check) struct MemberCandidate {
     pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The declaration that exposed the member.
     pub(in crate::check) owner: dir::GlobalSymbolId,
+    /// The declaring surface the member came from.
+    pub(in crate::check) origin: dir::MemberOrigin,
     /// The member space that selected this candidate.
     pub(in crate::check) space: dir::MemberSpace,
     /// How the member behaves at a use site.
@@ -367,6 +369,18 @@ pub(in crate::check) enum LookupReceiver {
     Direct(ReceiverSteps),
     /// Erased receiver already selected for dynamic dispatch.
     Dynamic(dir::DynamicDispatch),
+}
+
+impl MemberCandidate {
+    /// Return this candidate's ratified selection precedence.
+    fn precedence(&self) -> (dir::MemberOrigin, bool) {
+        let is_adjusted = match &self.receiver {
+            LookupReceiver::Direct(steps) => !steps.is_empty(),
+            LookupReceiver::Dynamic(_) => true,
+        };
+
+        (self.origin, is_adjusted)
+    }
 }
 
 impl LookupReceiver {
@@ -562,6 +576,22 @@ impl BodyState<'_, '_> {
                 Ok(Answer::Ready(Some(dir::OperationResolution::One(access))))
             }
             MemberLookup::Found(candidates) => {
+                // keep the candidates the ratified precedence ranks first
+                let best = candidates.iter().map(MemberCandidate::precedence).min();
+                let candidates = candidates
+                    .iter()
+                    .filter(|candidate| Some(candidate.precedence()) == best)
+                    .collect::<Vec<_>>();
+
+                // keep the first single-slot declaration among the survivors
+                let single_slot = candidates
+                    .iter()
+                    .position(|candidate| candidate.role != MemberRole::Method);
+                let candidates = match single_slot {
+                    Some(first) => vec![candidates[first]],
+                    None => candidates,
+                };
+
                 let mut targets = Vec::new();
                 let mut types = Vec::new();
                 for candidate in candidates {
@@ -957,9 +987,9 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         key: String,
     ) -> CompilerResult<Answer<()>> {
-        if self.type_flags(receiver)?.has_error() {
-            self.commit_decision(node, Decision::Rejected)?;
-            self.commit_error_node(node)?;
+        // poison instead of reporting again when the receiver already reported an error
+        if self.any_error_operand(&[receiver])? {
+            self.poison_node(node)?;
 
             return Ok(Answer::Ready(()));
         }

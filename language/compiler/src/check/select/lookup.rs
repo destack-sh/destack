@@ -270,6 +270,11 @@ impl BodyState<'_, '_> {
             | dir::Type::Array(_)
             | dir::Type::Slice(_)
             | dir::Type::FixedArray(_) => {
+                // widen literal subjects to their carrier before lookup
+                let subject = match self.ty(subject)? {
+                    dir::Type::Literal(literal) => self.intern_type(literal.widen())?,
+                    _ => subject,
+                };
                 let lookup = answer!(self.lookup_apparent_instance_member(
                     origin, module, receiver, subject, space, key, extensions,
                 )?);
@@ -815,6 +820,7 @@ impl BodyState<'_, '_> {
             candidates.push(MemberCandidate {
                 symbol: member.symbol,
                 owner: symbol,
+                origin: dir::MemberOrigin::Declaration,
                 space: dir::MemberSpace::Static,
                 role: member.role,
                 access_type,
@@ -905,6 +911,7 @@ impl BodyState<'_, '_> {
             candidates.push(MemberCandidate {
                 symbol,
                 owner: instance.symbol,
+                origin: dir::MemberOrigin::Declaration,
                 space,
                 role: member.role,
                 access_type,

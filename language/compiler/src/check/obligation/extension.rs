@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CheckState, InterfaceMember, MemberCandidate, MemberLookup, ObligationCheck,
+    Answer, BodyState, CheckState, InterfaceMember, MemberCandidate, MemberLookup, ObligationCheck,
     ObligationFailure, Origin, Relation, TypeSubstitution, answer,
 };
 use crate::{CompilerError, CompilerResult};
@@ -848,4 +848,210 @@ impl CheckState<'_> {
 
         source.local_id.id > other_source.local_id.id
     }
+}
+
+impl BodyState<'_, '_> {
+    /// Reject duplicate property slots across visible extensions.
+    pub(in crate::check) fn check_duplicate_extension_members(
+        &mut self,
+        module: ModuleId,
+    ) -> CompilerResult<Answer<ObligationCheck>> {
+        // collect the extensions this module declares
+        let declared = {
+            let state = self.check.module(module);
+            let Some(declared) = &state.declared else {
+                return Ok(Answer::Ready(ObligationCheck::holds()));
+            };
+            declared
+                .definitions
+                .iter_definitions()
+                .filter_map(|(symbol, definition)| match definition {
+                    dir::Definition::Extension(extension) => Some((symbol, extension.clone())),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        };
+
+        for (extension_symbol, extension) in declared {
+            let origin = Origin::Symbol(extension_symbol);
+
+            let slots = answer!(self.property_slots(origin, &extension.members)?);
+            if slots.is_empty() {
+                continue;
+            }
+            let target = self.format_type(extension.target.r#type());
+
+            // gather competitors sharing the target root or ground head
+            let root = extension.target.root();
+            let competitors = match root {
+                Some(root) => self.visible_extensions(module, root)?,
+                None => self.visible_blanket_extensions(module)?,
+            };
+            let ground = match root {
+                Some(_) => None,
+                None => match self.ty(extension.target.r#type())? {
+                    dir::Type::Primitive(primitive) => Some(primitive),
+                    // skip parameterized blankets, use sites judge their overlap
+                    _ => continue,
+                },
+            };
+
+            for competitor_symbol in competitors {
+                // leave same-module collisions to source order
+                if competitor_symbol == extension_symbol || competitor_symbol.module_id == module {
+                    continue;
+                }
+                let Some(dir::Definition::Extension(competitor)) =
+                    self.definition(competitor_symbol)?
+                else {
+                    continue;
+                };
+                let competes = match root {
+                    Some(root) => competitor.target.root() == Some(root),
+                    None => competitor.target.is_blanket(),
+                };
+                if !competes {
+                    continue;
+                }
+                let competitor_target = competitor.target.r#type();
+                let members = competitor.members.clone();
+                if ground.is_some()
+                    && !matches!(
+                        self.ty(competitor_target)?,
+                        dir::Type::Primitive(primitive) if Some(primitive) == ground
+                    )
+                {
+                    continue;
+                }
+
+                let other = answer!(self.property_slots(origin, &members)?);
+                for slot in &slots {
+                    let duplicated = other.iter().any(|candidate| {
+                        candidate.key == slot.key
+                            && candidate.space == slot.space
+                            && candidate.form == slot.form
+                            && ((candidate.reads && slot.reads)
+                                || (candidate.writes && slot.writes))
+                    });
+                    if duplicated {
+                        self.check.report_duplicate_extension_member(
+                            slot.source,
+                            &slot.key,
+                            target.clone(),
+                        );
+                    }
+                }
+            }
+        }
+
+        Ok(Answer::Ready(ObligationCheck::holds()))
+    }
+
+    /// Collect the property slot surface of one extension declaration.
+    fn property_slots(
+        &mut self,
+        origin: Origin,
+        members: &[dir::DefinitionMember],
+    ) -> CompilerResult<Answer<Vec<PropertySlot>>> {
+        let mut slots = Vec::new();
+        for member in members {
+            let (reads, writes) = match member {
+                dir::DefinitionMember::Field(field) => (true, !field.is_readonly),
+                dir::DefinitionMember::Method(method) => match method.role {
+                    Some(dir::FunctionRole::Getter) => (true, false),
+                    Some(dir::FunctionRole::Setter) => (false, true),
+                    // methods union as overloads and never collide
+                    _ => continue,
+                },
+                _ => continue,
+            };
+            let Some(key) = member.key() else {
+                continue;
+            };
+            let Some(ty) = answer!(self.definition_member_type(member)?) else {
+                continue;
+            };
+            let this = self
+                .signature_head(ty)?
+                .and_then(|signature| signature.this_parameter);
+            let Some(form) = answer!(self.slot_receiver(origin, this)?) else {
+                continue;
+            };
+
+            slots.push(PropertySlot {
+                key,
+                space: member.space(),
+                reads,
+                writes,
+                form,
+                source: member.source(),
+            });
+        }
+
+        Ok(Answer::Ready(slots))
+    }
+
+    /// Return the comparable declared receiver of one property slot.
+    fn slot_receiver(
+        &mut self,
+        origin: Origin,
+        this: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<Answer<Option<SlotReceiver>>> {
+        let Some(this) = this else {
+            return Ok(Answer::Ready(Some(SlotReceiver::Default)));
+        };
+        let head = answer!(self.reduce_type_head(origin, this)?);
+        let form = match self.ty(head)? {
+            dir::Type::Form(form) => match form.form {
+                // borrows compare by their access value
+                dir::Form::Borrowed(borrow) => {
+                    let borrow = self.check.type_borrow(head.module_id, borrow)?;
+                    let access = answer!(self.reduce_type_head(origin, borrow.access)?);
+                    let access = match self.ty(access)? {
+                        dir::Type::Literal(dir::ScalarLiteral::String(name)) => Some(name),
+                        _ => None,
+                    };
+
+                    Some(SlotReceiver::Borrowed(access))
+                }
+                dir::Form::Owned => Some(SlotReceiver::Owned),
+                dir::Form::Raw => Some(SlotReceiver::Raw),
+                _ => Some(SlotReceiver::Default),
+            },
+            // conversion receivers never collide with plain slots
+            dir::Type::Application(_) => None,
+            _ => Some(SlotReceiver::Default),
+        };
+
+        Ok(Answer::Ready(form))
+    }
+}
+
+/// One single-slot property surface entry compared for duplicates.
+struct PropertySlot {
+    /// The member key.
+    key: dir::StaticKey,
+    /// The member space declaring the slot.
+    space: dir::MemberSpace,
+    /// Whether the slot serves reads.
+    reads: bool,
+    /// Whether the slot serves writes.
+    writes: bool,
+    /// The comparable declared receiver form.
+    form: SlotReceiver,
+    /// The declaring member source node.
+    source: dir::GlobalNodeIdAny,
+}
+
+/// The comparable declared receiver of one property slot.
+#[derive(PartialEq)]
+enum SlotReceiver {
+    /// The family-default managed receiver.
+    Default,
+    /// A borrowed receiver compared by access.
+    Borrowed(Option<dir::StringId>),
+    /// An owned receiver.
+    Owned,
+    /// A raw pointer receiver.
+    Raw,
 }

@@ -352,11 +352,18 @@ pub enum MemberKind {
     Variant,
 }
 
-/// Indexed member origin.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+/// The declaring surface one member came from.
+///
+/// Nearer surfaces shadow farther ones during selection: declarations shadow
+/// rooted extensions, which shadow blanket extensions.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
+)]
 pub enum MemberOrigin {
-    /// Definition table member.
-    Definition,
-    /// Extension definition member.
-    Extension,
+    /// A member declared by the owning declaration itself.
+    Declaration,
+    /// A member declared by an extension rooted at its target.
+    RootedExtension,
+    /// A member declared by an open blanket extension.
+    BlanketExtension,
 }
