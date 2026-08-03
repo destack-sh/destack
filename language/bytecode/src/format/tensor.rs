@@ -3,6 +3,8 @@ use crate::{
     RegisterSpan, ScatterOperation, TensorOperand, TensorOperation,
 };
 use destack_fir::format::{FormatError, FormatResult};
+use destack_fir::prelude::*;
+use destack_fir::write;
 
 use super::instruction::InstructionFormatter;
 
@@ -138,11 +140,11 @@ impl InstructionFormatter<'_, '_, '_> {
 
     /// Write one tensor register span and runtime layout.
     fn write_tensor_value(&mut self, tensor: TensorOperand) -> FormatResult<()> {
-        self.write_token("(")?;
         self.write_span(tensor.registers)?;
-        self.write_comma()?;
+        write!(self.formatter, [space(), token("@"), space()])?;
         self.write_text(&format!("l{}", tensor.layout.0))?;
-        self.write_token(")")
+
+        Ok(())
     }
 
     /// Write one bracketed tensor operand list.

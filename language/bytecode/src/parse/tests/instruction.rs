@@ -7,9 +7,10 @@ use super::TestParser;
 fn test_parse_runtime_instructions() {
     let (_, opcodes) = TestParser::new(
         r#"
-function f0 {    breakpoint
-    profile.increment counter(4)
-    profile.sample sampler(7), r0
+function f0 {
+    breakpoint
+    profile.increment c4
+    profile.sample s7, r0
     return
 }
 "#,

@@ -5,6 +5,20 @@ use crate::{
 
 use super::function::FunctionParser;
 
+/// One operation-specific scalar check argument.
+enum CheckArgument {
+    /// No additional argument.
+    None,
+    /// One static bit width.
+    Width(u16),
+    /// One target scalar representation.
+    Target(Scalar),
+    /// One dynamic scalar bound.
+    Register(RegisterId),
+    /// One dynamic start and length.
+    Range(RegisterId, RegisterId),
+}
+
 impl Parser<'_> {
     /// Parse one control operation.
     pub(super) fn parse_control_operation(
@@ -314,50 +328,58 @@ impl Parser<'_> {
 
     /// Parse one scalar check before its failure destination.
     fn parse_scalar_check(&mut self, name: &str, token: Token) -> ParseResult<InstructionBuilder> {
-        // parse the operation and scalar suffix
-        let (operation_name, scalar_name) = name
-            .rsplit_once('.')
-            .ok_or_else(|| ParseError::new("check operation has no scalar type", token.span))?;
-        let operation = ScalarCheck::from_name(operation_name)
+        let operation = ScalarCheck::from_name(name)
             .ok_or_else(|| ParseError::new("unknown check operation", token.span))?;
-        let scalar = Scalar::from_name(scalar_name)
-            .filter(|scalar| operation.supports(*scalar))
-            .ok_or_else(|| ParseError::new("invalid check scalar type", token.span))?;
 
-        // parse the primary scalar input
+        // parse the primary scalar input and operation-specific argument
         let value = self.parse_register()?;
-        let opcode = Opcode::check(operation, scalar)
-            .ok_or_else(|| ParseError::new("invalid check operand", token.span))?;
-        let mut instruction = InstructionBuilder::new(opcode);
-        instruction.register(value);
-
-        // parse operation-specific bounds
-        match operation {
+        let argument = match operation {
             ScalarCheck::Shift => {
                 self.eat_token(TokenType::Comma)?;
-                instruction.u16(self.parse_u16()?);
+                CheckArgument::Width(self.parse_u16()?)
             }
-            ScalarCheck::Narrow => {
-                self.eat_token(TokenType::Arrow)?;
-                instruction.scalar(self.parse_scalar_name()?);
-            }
+            ScalarCheck::Narrow => CheckArgument::None,
             ScalarCheck::Bounds => {
                 let bound = self.parse_check_value()?;
-                instruction.register(bound);
+                CheckArgument::Register(bound)
             }
             ScalarCheck::Range => {
                 let start = self.parse_check_value()?;
                 let length = self.parse_check_value()?;
-                instruction.register(start);
-                instruction.register(length);
+                CheckArgument::Range(start, length)
             }
             ScalarCheck::AddOverflow
             | ScalarCheck::SubtractOverflow
             | ScalarCheck::MultiplyOverflow => {
                 let right = self.parse_check_value()?;
-                instruction.register(right);
+                CheckArgument::Register(right)
             }
-            ScalarCheck::Nonzero => {}
+            ScalarCheck::Nonzero => CheckArgument::None,
+        };
+
+        // parse the source and optional target representations
+        let scalar = self.parse_scalar_representation()?;
+        let argument = if operation == ScalarCheck::Narrow {
+            self.eat_token(TokenType::Arrow)?;
+            CheckArgument::Target(self.parse_scalar_name()?)
+        } else {
+            argument
+        };
+        let opcode = Opcode::check(operation, scalar)
+            .ok_or_else(|| ParseError::new("invalid check operand", token.span))?;
+
+        // encode the complete typed check
+        let mut instruction = InstructionBuilder::new(opcode);
+        instruction.register(value);
+        match argument {
+            CheckArgument::None => {}
+            CheckArgument::Width(width) => instruction.u16(width),
+            CheckArgument::Target(target) => instruction.scalar(target),
+            CheckArgument::Register(register) => instruction.register(register),
+            CheckArgument::Range(start, length) => {
+                instruction.register(start);
+                instruction.register(length);
+            }
         }
 
         Ok(instruction)
@@ -378,19 +400,9 @@ impl Parser<'_> {
         token: Token,
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        // resolve the exact comparison and scalar suffix
-        let mut components = name.split('.');
-        let branch = components.next();
-        let comparison_name = components.next();
-        let scalar_name = components.next();
-        if branch != Some("branch") || components.next().is_some() {
-            return Err(ParseError::new("invalid branch operation", token.span));
-        }
-        let comparison_name = comparison_name
-            .ok_or_else(|| ParseError::new("branch has no comparison", token.span))?;
-        let scalar = scalar_name
-            .and_then(Scalar::from_name)
-            .ok_or_else(|| ParseError::new("branch has no scalar type", token.span))?;
+        let comparison_name = name
+            .strip_prefix("branch.")
+            .ok_or_else(|| ParseError::new("invalid branch operation", token.span))?;
         let comparison = Comparison::from_name(comparison_name)
             .ok_or_else(|| ParseError::new("unknown branch comparison", token.span))?;
 
@@ -398,6 +410,8 @@ impl Parser<'_> {
         let left = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let right = self.parse_register()?;
+        let scalar = self.parse_scalar_representation()?;
+
         // parse both branch destinations
         self.eat_token(TokenType::FatArrow)?;
         let success = self.parse_label()?;

@@ -1,6 +1,4 @@
 use destack_fir::format::{FormatError, FormatResult};
-use destack_fir::prelude::*;
-use destack_fir::write;
 
 use crate::{MemoryOperation, Opcode, RegisterSpan, Scalar};
 
@@ -29,7 +27,7 @@ impl InstructionFormatter<'_, '_, '_> {
         let byte_len = self.u32()?.to_string();
 
         // write the pointer, value, and exact copied byte length
-        write!(self.formatter, [token("store"), space()])?;
+        self.write_opcode("store")?;
         self.write_register(pointer)?;
         self.write_comma()?;
         self.write_span(value)?;
@@ -43,108 +41,109 @@ impl InstructionFormatter<'_, '_, '_> {
         operation: MemoryOperation,
         scalar: Scalar,
     ) -> FormatResult<()> {
-        let operation_name = operation.name();
-        let scalar_name = scalar.name();
+        self.write_opcode(operation.name())?;
 
         // load one scalar value
         if operation == MemoryOperation::Load {
-            let name = format!("{operation_name}.{scalar_name}");
-            self.write_opcode(&name)?;
             self.result()?;
             let pointer = self.register_id()?;
             self.write_comma()?;
-            self.write_register(pointer)
+            self.write_register(pointer)?;
         }
         // store one scalar value
         else {
             let pointer = self.register_id()?;
             let value = self.register_id()?;
-            self.write_text(operation_name)?;
-            self.write_token(".")?;
-            self.write_text(scalar_name)?;
-            self.write_token(" ")?;
             self.write_register(pointer)?;
-            write!(self.formatter, [token(","), space()])?;
-            self.write_register(value)
+            self.write_comma()?;
+            self.write_register(value)?;
         }
+
+        self.write_scalar_representation(scalar)
     }
 
-    /// Format one byte-range operation.
-    pub(super) fn format_bytes(&mut self, opcode: Opcode) -> FormatResult<()> {
+    /// Format one byte range operation.
+    pub(super) fn format_range(&mut self, opcode: Opcode) -> FormatResult<()> {
         match opcode {
-            Opcode::COPY_BYTES | Opcode::MOVE_BYTES => self.format_byte_transfer(opcode),
-            Opcode::FILL_BYTES => self.format_byte_fill(),
-            Opcode::COMPARE_BYTES => self.format_byte_compare(),
+            Opcode::MEMORY_COPY | Opcode::MEMORY_MOVE => self.format_transfer(opcode, false),
+            Opcode::MEMORY_COPY_IMMEDIATE | Opcode::MEMORY_MOVE_IMMEDIATE => {
+                self.format_transfer(opcode, true)
+            }
+            Opcode::MEMORY_FILL => self.format_fill(false),
+            Opcode::MEMORY_FILL_IMMEDIATE => self.format_fill(true),
+            Opcode::MEMORY_COMPARE => self.format_compare(false),
+            Opcode::MEMORY_COMPARE_IMMEDIATE => self.format_compare(true),
             _ => Err(FormatError::SyntaxError {
-                message: "invalid byte-range opcode",
+                message: "invalid byte range opcode",
             }),
         }
     }
 
     /// Format one byte copy or move.
-    fn format_byte_transfer(&mut self, opcode: Opcode) -> FormatResult<()> {
-        // decode the target, source, and byte length
+    fn format_transfer(&mut self, opcode: Opcode, is_immediate: bool) -> FormatResult<()> {
         let target = self.register_id()?;
         let source = self.register_id()?;
-        let byte_len = self.register_id()?;
         let name = self.opcode_name(opcode)?;
 
-        // preserve source to target order in text
-        self.write_text(name)?;
-        self.write_token(" ")?;
-        self.write_register(source)?;
-        write!(self.formatter, [space(), token("->"), space()])?;
+        // write target, source, and byte length
+        self.write_opcode(name)?;
         self.write_register(target)?;
-        write!(self.formatter, [token(","), space()])?;
-        self.write_register(byte_len)
+        self.write_comma()?;
+        self.write_register(source)?;
+        self.write_comma()?;
+        self.write_length(is_immediate)
     }
 
     /// Format one byte fill.
-    fn format_byte_fill(&mut self) -> FormatResult<()> {
-        // decode the complete fill range
+    fn format_fill(&mut self, is_immediate: bool) -> FormatResult<()> {
         let target = self.register_id()?;
         let byte = self.register_id()?;
-        let byte_len = self.register_id()?;
-        let name = self.opcode_name(Opcode::FILL_BYTES)?;
 
-        // write the fill range
-        write!(self.formatter, [token(name), space()])?;
+        // write the complete fill range
+        self.write_opcode("memory.fill")?;
         self.write_register(target)?;
-        write!(self.formatter, [token(","), space()])?;
+        self.write_comma()?;
         self.write_register(byte)?;
-        write!(self.formatter, [token(","), space()])?;
-        self.write_register(byte_len)
+        self.write_comma()?;
+        self.write_length(is_immediate)
     }
 
     /// Format one byte comparison.
-    fn format_byte_compare(&mut self) -> FormatResult<()> {
-        // decode the signed result and comparison range
+    fn format_compare(&mut self, is_immediate: bool) -> FormatResult<()> {
         let result = self.register_id()?;
         let left = self.register_id()?;
         let right = self.register_id()?;
-        let byte_len = self.register_id()?;
-        let name = self.opcode_name(Opcode::COMPARE_BYTES)?;
 
-        // write the comparison range
-        self.write_opcode(name)?;
+        // write the comparison result and byte range
+        self.write_opcode("memory.compare")?;
         self.write_register(result)?;
         self.write_comma()?;
         self.write_register(left)?;
-        write!(self.formatter, [token(","), space()])?;
+        self.write_comma()?;
         self.write_register(right)?;
-        write!(self.formatter, [token(","), space()])?;
-        self.write_register(byte_len)
+        self.write_comma()?;
+        self.write_length(is_immediate)
+    }
+
+    /// Format one register or immediate byte length.
+    fn write_length(&mut self, is_immediate: bool) -> FormatResult<()> {
+        if is_immediate {
+            let length = self.u32()?.to_string();
+
+            self.write_text(&length)
+        } else {
+            let length = self.register_id()?;
+
+            self.write_register(length)
+        }
     }
 
     /// Format one prefetch hint.
     pub(super) fn format_prefetch(&mut self, opcode: Opcode) -> FormatResult<()> {
-        // decode the hinted pointer
         let pointer = self.register_id()?;
         let name = self.opcode_name(opcode)?;
 
-        // write the prefetch hint
-        self.write_text(name)?;
-        self.write_token(" ")?;
+        self.write_opcode(name)?;
         self.write_register(pointer)
     }
 }

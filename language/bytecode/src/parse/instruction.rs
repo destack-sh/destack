@@ -1,6 +1,5 @@
 use crate::{
-    Label, Opcode, Operand, ParseError, ParseResult, Parser, RegisterId, RegisterSpan, Scalar,
-    Token, TokenType,
+    Label, Opcode, Operand, ParseError, ParseResult, Parser, RegisterSpan, Scalar, Token, TokenType,
 };
 
 use super::function::FunctionParser;
@@ -28,7 +27,7 @@ impl Parser<'_> {
             "constant" => self.parse_constant_operation(name, token, function),
 
             // scalar, vector, tensor, and register values
-            "int" | "float" => self.parse_numeric_operation(name, token, function),
+            "boolean" | "int" | "float" => self.parse_numeric_operation(name, token, function),
             "vector" => self.parse_vector_operation(name, token, function),
             "tensor" => self.parse_tensor_operation(name, token, function),
             "select" | "equal" => self.parse_value_operation(name, token, function),
@@ -43,8 +42,8 @@ impl Parser<'_> {
             "frame" | "global" => self.parse_address(name, token, function),
             "pointer" => self.parse_pointer_operation(name, token, function),
 
-            // byte ranges, prefetch, and memory
-            "copy" | "move" | "fill" | "compare" | "prefetch" | "load" | "store" => {
+            // memory ranges, prefetch, and scalar memory
+            "memory" | "prefetch" | "load" | "store" => {
                 self.parse_memory_operation(name, token, function)
             }
             "atomic" => self.parse_atomic_operation(name, token, function),
@@ -132,6 +131,25 @@ impl Parser<'_> {
         Ok(definitions)
     }
 
+    /// Parse one exact number of physical destinations before opcode selection.
+    pub(super) fn parse_results(
+        &mut self,
+        count: usize,
+        has_inputs: bool,
+    ) -> ParseResult<Vec<RegisterSpan>> {
+        let mut results = Vec::with_capacity(count);
+
+        // parse each destination in source order
+        for index in 0..count {
+            results.push(self.parse_register_span()?);
+            if index + 1 < count || has_inputs {
+                self.eat_token(TokenType::Comma)?;
+            }
+        }
+
+        Ok(results)
+    }
+
     /// Return whether the next token starts a register result list.
     pub(super) fn is_register(&mut self) -> bool {
         let token = self.peek();
@@ -180,19 +198,6 @@ impl Parser<'_> {
             .ok_or_else(|| ParseError::new("expected allocation site id", token.span))?;
 
         Ok(index)
-    }
-
-    /// Parse one exact number of comma-separated registers.
-    pub(super) fn parse_exact_registers(&mut self, count: usize) -> ParseResult<Vec<RegisterId>> {
-        let mut registers = Vec::with_capacity(count);
-        for index in 0..count {
-            if index > 0 {
-                self.eat_token(TokenType::Comma)?;
-            }
-            registers.push(self.parse_register()?);
-        }
-
-        Ok(registers)
     }
 
     /// Parse one comma-separated unsigned 16-bit list.

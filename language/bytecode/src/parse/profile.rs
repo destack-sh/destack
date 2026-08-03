@@ -23,18 +23,24 @@ impl Parser<'_> {
 
         // increment one function-local counter
         if opcode == Opcode::PROFILE_INCREMENT {
-            self.eat_name("counter")?;
-            self.eat_token(TokenType::OpenParenthesis)?;
-            let counter = CounterId(self.parse_u32()?);
-            self.eat_token(TokenType::CloseParenthesis)?;
+            let token = self.eat_token(TokenType::Identifier)?;
+            let counter = self
+                .text(token)
+                .strip_prefix('c')
+                .and_then(|index| index.parse().ok())
+                .map(CounterId)
+                .ok_or_else(|| ParseError::new("expected counter id", token.span))?;
             instruction.counter(counter);
         }
         // sample one function-local sampler
         else {
-            self.eat_name("sampler")?;
-            self.eat_token(TokenType::OpenParenthesis)?;
-            let sampler = SamplerId(self.parse_u32()?);
-            self.eat_token(TokenType::CloseParenthesis)?;
+            let token = self.eat_token(TokenType::Identifier)?;
+            let sampler = self
+                .text(token)
+                .strip_prefix('s')
+                .and_then(|index| index.parse().ok())
+                .map(SamplerId)
+                .ok_or_else(|| ParseError::new("expected sampler id", token.span))?;
             instruction.sampler(sampler);
             self.eat_token(TokenType::Comma)?;
             let value = self.parse_register()?;

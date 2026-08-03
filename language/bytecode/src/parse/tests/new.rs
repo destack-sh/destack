@@ -9,8 +9,9 @@ use super::TestParser;
 fn test_parse_new() {
     let (object, opcodes) = TestParser::new(
         r#"
-function f0 {    new.local.managed.zeroed r1, a0
-    new.local.managed.slice.uninit r2:r3, a1, r0
+function f0 {
+    new.zeroed r1, a0: ref<managed, local>
+    new.slice.uninit r2:r3, a1, r0: ref<managed, local>
     return r1
 }
 "#,

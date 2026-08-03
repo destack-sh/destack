@@ -16,7 +16,7 @@ impl InstructionFormatter<'_, '_, '_> {
         operation: AtomicOperation,
         scalar: Scalar,
     ) -> FormatResult<()> {
-        let name = format!("atomic.{}.{}", operation.name(), scalar.name());
+        let name = format!("atomic.{}", operation.name());
         self.write_opcode(&name)?;
         self.write_atomic_results(operation)?;
 
@@ -33,10 +33,12 @@ impl InstructionFormatter<'_, '_, '_> {
 
         // write operation specific operands and memory access
         if operation.is_compare_exchange() {
-            self.format_compare_exchange_access()
+            self.format_compare_exchange_access()?;
         } else {
-            self.format_atomic_access()
+            self.format_atomic_access()?;
         }
+
+        self.write_scalar_representation(scalar)
     }
 
     /// Format the logical results of one atomic operation.

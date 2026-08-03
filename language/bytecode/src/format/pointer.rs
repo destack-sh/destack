@@ -7,31 +7,14 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one pointer operation.
     pub(super) fn format_pointer(&mut self, opcode: Opcode) -> FormatResult<()> {
         match opcode {
-            Opcode::POINTER_FRAME | Opcode::POINTER_CONSTANT | Opcode::POINTER_MEMORY => {
-                self.format_pointer_reference(opcode)
-            }
             Opcode::POINTER_ADD_IMMEDIATE => self.format_pointer_add_immediate(),
             Opcode::POINTER_ADD => self.format_pointer_add(),
             Opcode::POINTER_ADD_SCALED => self.format_pointer_add_scaled(),
-            Opcode::POINTER_BYTE_OFFSET_FROM => self.format_pointer_byte_offset_from(),
+            Opcode::POINTER_DIFF => self.format_pointer_diff(),
             _ => Err(FormatError::SyntaxError {
                 message: "invalid pointer opcode",
             }),
         }
-    }
-
-    /// Format one stable reference materialization.
-    fn format_pointer_reference(&mut self, opcode: Opcode) -> FormatResult<()> {
-        let result = self.register_id()?;
-        let reference = self.register_id()?;
-        let name = opcode.name().ok_or(FormatError::SyntaxError {
-            message: "unnamed pointer opcode",
-        })?;
-
-        self.write_opcode(name)?;
-        self.write_result(result)?;
-        self.write_comma()?;
-        self.write_register(reference)
     }
 
     /// Format one immediate pointer addition.
@@ -80,13 +63,13 @@ impl InstructionFormatter<'_, '_, '_> {
     }
 
     /// Format one signed byte offset between two pointers.
-    fn format_pointer_byte_offset_from(&mut self) -> FormatResult<()> {
+    fn format_pointer_diff(&mut self) -> FormatResult<()> {
         let result = self.register_id()?;
         let pointer = self.register_id()?;
         let origin = self.register_id()?;
 
         // write the pointer and its origin
-        self.write_opcode("pointer.byteOffsetFrom")?;
+        self.write_opcode("pointer.diff")?;
         self.write_register(result)?;
         self.write_comma()?;
         self.write_register(pointer)?;

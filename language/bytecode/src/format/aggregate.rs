@@ -33,14 +33,14 @@ impl InstructionFormatter<'_, '_, '_> {
 
         // write each exact physical source placement
         self.write_comma()?;
-        self.write_token("(")?;
+        self.write_token("[")?;
         for (index, placement) in placements.into_iter().enumerate() {
             if index > 0 {
                 write!(self.formatter, [token(","), soft_line_break_or_space()])?;
             }
             self.write_placement(placement)?;
         }
-        self.write_token(")")
+        self.write_token("]")
     }
 
     /// Format one value extraction by byte range.
@@ -57,7 +57,7 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_span(source)?;
         self.write_comma()?;
         self.write_text(&byte_offset)?;
-        self.write_comma()?;
+        self.write_token(":")?;
         self.write_text(&byte_len)
     }
 
@@ -77,7 +77,7 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_span(aggregate)?;
         self.write_comma()?;
         self.write_text(&byte_offset)?;
-        self.write_comma()?;
+        self.write_token(":")?;
         self.write_text(&byte_len)?;
         self.write_comma()?;
         self.write_span(value)
@@ -124,13 +124,11 @@ impl InstructionFormatter<'_, '_, '_> {
         let byte_offset = placement.byte_offset.to_string();
         let byte_len = placement.byte_len.to_string();
 
-        write!(self.formatter, [token("[")])?;
-        self.write_register(placement.registers.start)?;
-        self.write_comma()?;
+        self.write_span(placement.registers)?;
+        write!(self.formatter, [space(), token("@"), space()])?;
         self.write_text(&byte_offset)?;
-        self.write_comma()?;
-        self.write_text(&byte_len)?;
-        self.write_token("]")
+        self.write_token(":")?;
+        self.write_text(&byte_len)
     }
 
     /// Read one relocated runtime layout name.

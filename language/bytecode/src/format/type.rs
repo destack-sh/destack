@@ -2,7 +2,41 @@ use destack_fir::format::{Format, FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{BytecodeFormatContext, BytecodeFormatter, TypeId, ValueTag, ValueType};
+use crate::{BytecodeFormatContext, BytecodeFormatter, Scalar, TypeId, ValueTag, ValueType};
+
+use super::instruction::InstructionFormatter;
+
+impl InstructionFormatter<'_, '_, '_> {
+    /// Write one trailing value representation.
+    pub(super) fn write_representation(&mut self, ty: ValueType) -> FormatResult<()> {
+        write!(self.formatter, [token(":"), space(), &ty])
+    }
+
+    /// Write one trailing scalar representation.
+    pub(super) fn write_scalar_representation(&mut self, scalar: Scalar) -> FormatResult<()> {
+        write!(self.formatter, [token(":"), space(), token(scalar.name())])
+    }
+
+    /// Write one trailing conversion representation.
+    pub(super) fn write_conversion(
+        &mut self,
+        source: ValueType,
+        target: ValueType,
+    ) -> FormatResult<()> {
+        write!(
+            self.formatter,
+            [
+                token(":"),
+                space(),
+                &source,
+                space(),
+                token("->"),
+                space(),
+                &target
+            ]
+        )
+    }
+}
 
 impl<'a> BytecodeFormatContext<'a> {
     /// Return one canonical value type text.

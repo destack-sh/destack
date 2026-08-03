@@ -6,6 +6,20 @@ use crate::{
 };
 
 impl Parser<'_> {
+    /// Parse one trailing value representation.
+    pub(super) fn parse_representation(&mut self) -> ParseResult<ValueType> {
+        self.eat_token(TokenType::Colon)?;
+
+        self.parse_value_type()
+    }
+
+    /// Parse one trailing scalar representation.
+    pub(super) fn parse_scalar_representation(&mut self) -> ParseResult<Scalar> {
+        self.eat_token(TokenType::Colon)?;
+
+        self.parse_scalar_name()
+    }
+
     /// Parse one logical bytecode value type.
     pub(super) fn parse_value_type(&mut self) -> ParseResult<ValueType> {
         let token = self.eat_token(TokenType::Identifier)?;
@@ -148,7 +162,7 @@ impl Parser<'_> {
     }
 
     /// Parse one reference ownership name.
-    fn parse_reference_kind(&mut self) -> ParseResult<ReferenceKind> {
+    pub(super) fn parse_reference_kind(&mut self) -> ParseResult<ReferenceKind> {
         let kind = self.eat_token(TokenType::Identifier)?;
 
         ReferenceKind::from_name(self.text(kind))
@@ -156,7 +170,7 @@ impl Parser<'_> {
     }
 
     /// Parse one reference storage.
-    fn parse_storage(&mut self) -> ParseResult<Storage> {
+    pub(super) fn parse_storage(&mut self) -> ParseResult<Storage> {
         let token = self.eat_token(TokenType::Identifier)?;
         let mut name = self.text(token);
         if name == "shared" && self.peek_name("global") {

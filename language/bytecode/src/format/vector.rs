@@ -2,7 +2,7 @@ use destack_fir::format::{FormatError, FormatResult};
 
 use crate::{
     ConvertMode, FloatOperation, IntegerOperation, ReduceOperation, RegisterId, RegisterSpan,
-    VectorOperation, VectorType,
+    ValueType, VectorOperation, VectorType,
 };
 
 use super::instruction::InstructionFormatter;
@@ -30,10 +30,11 @@ impl InstructionFormatter<'_, '_, '_> {
         let result = self.read_span()?;
         let value = self.register_id()?;
         let vector = self.vector_type()?;
-        self.write_vector_opcode("splat", vector)?;
+        self.write_vector_opcode("splat")?;
         self.write_span(result)?;
         self.write_comma()?;
-        self.write_register(value)
+        self.write_register(value)?;
+        self.write_representation(ValueType::vector(vector))
     }
 
     /// Format one vector lane insertion.
@@ -43,14 +44,15 @@ impl InstructionFormatter<'_, '_, '_> {
         let index = self.register_id()?;
         let value = self.register_id()?;
         let vector = self.vector_type()?;
-        self.write_vector_opcode("insert", vector)?;
+        self.write_vector_opcode("insert")?;
         self.write_span(result)?;
         self.write_comma()?;
         self.write_span(input)?;
         self.write_comma()?;
         self.write_register(index)?;
         self.write_comma()?;
-        self.write_register(value)
+        self.write_register(value)?;
+        self.write_representation(ValueType::vector(vector))
     }
 
     /// Format one vector lane extraction.
@@ -59,12 +61,13 @@ impl InstructionFormatter<'_, '_, '_> {
         let input = self.read_span()?;
         let index = self.register_id()?;
         let vector = self.vector_type()?;
-        self.write_vector_opcode("extract", vector)?;
+        self.write_vector_opcode("extract")?;
         self.write_register(result)?;
         self.write_comma()?;
         self.write_span(input)?;
         self.write_comma()?;
-        self.write_register(index)
+        self.write_register(index)?;
+        self.write_representation(ValueType::vector(vector))
     }
 
     /// Format one vector lane shuffle.
@@ -73,12 +76,13 @@ impl InstructionFormatter<'_, '_, '_> {
         let inputs = self.register_ids()?;
         let lanes = self.u16_list()?;
         let vector = self.vector_type()?;
-        self.write_vector_opcode("shuffle", vector)?;
+        self.write_vector_opcode("shuffle")?;
         self.write_span(result)?;
         self.write_comma()?;
         self.write_vector_spans(&inputs, vector)?;
         self.write_comma()?;
-        self.write_u16s(&lanes)
+        self.write_u16s(&lanes)?;
+        self.write_representation(ValueType::vector(vector))
     }
 
     /// Format one elementwise vector operation.
@@ -88,10 +92,11 @@ impl InstructionFormatter<'_, '_, '_> {
         let vector = self.vector_type()?;
         let operator = self.u16()?;
         let operator = self.vector_operator(vector, operator, false)?;
-        self.write_vector_opcode(&operator, vector)?;
+        self.write_vector_opcode(&operator)?;
         self.write_span(result)?;
         self.write_comma()?;
-        self.write_vector_spans(&inputs, vector)
+        self.write_vector_spans(&inputs, vector)?;
+        self.write_representation(ValueType::vector(vector))
     }
 
     /// Format one vector comparison.
@@ -102,10 +107,11 @@ impl InstructionFormatter<'_, '_, '_> {
         let operator = self.u16()?;
         let operator = self.vector_operator(vector, operator, true)?;
         let operation = format!("compare.{operator}");
-        self.write_vector_opcode(&operation, vector)?;
+        self.write_vector_opcode(&operation)?;
         self.write_span(result)?;
         self.write_comma()?;
-        self.write_vector_spans(&inputs, vector)
+        self.write_vector_spans(&inputs, vector)?;
+        self.write_representation(ValueType::vector(vector))
     }
 
     /// Format one vector lane selection.
@@ -118,14 +124,15 @@ impl InstructionFormatter<'_, '_, '_> {
             });
         };
         let vector = self.vector_type()?;
-        self.write_vector_opcode("select", vector)?;
+        self.write_vector_opcode("select")?;
         self.write_span(result)?;
         self.write_comma()?;
         self.write_span(RegisterSpan::new(*condition, vector.mask().word_count()))?;
         self.write_comma()?;
         self.write_span(RegisterSpan::new(*left, vector.word_count()))?;
         self.write_comma()?;
-        self.write_span(RegisterSpan::new(*right, vector.word_count()))
+        self.write_span(RegisterSpan::new(*right, vector.word_count()))?;
+        self.write_representation(ValueType::vector(vector))
     }
 
     /// Format one vector reduction.
@@ -138,10 +145,11 @@ impl InstructionFormatter<'_, '_, '_> {
                 message: "vector reduction has an invalid operation",
             })?;
         let operation = format!("reduce.{}", operation.name());
-        self.write_vector_opcode(&operation, vector)?;
+        self.write_vector_opcode(&operation)?;
         self.write_register(result)?;
         self.write_comma()?;
-        self.write_span(input)
+        self.write_span(input)?;
+        self.write_representation(ValueType::vector(vector))
     }
 
     /// Format one vector conversion.
@@ -153,16 +161,12 @@ impl InstructionFormatter<'_, '_, '_> {
         let mode = ConvertMode::from_code(self.u16()? as u8).ok_or(FormatError::SyntaxError {
             message: "vector conversion has an invalid mode",
         })?;
-        let operation = format!(
-            "vector.convert.{}.{}.{}",
-            mode.name(),
-            source.name(),
-            target.name()
-        );
+        let operation = format!("vector.convert.{}", mode.name());
         self.write_opcode(&operation)?;
         self.write_span(result)?;
         self.write_comma()?;
-        self.write_span(input)
+        self.write_span(input)?;
+        self.write_conversion(ValueType::vector(source), ValueType::vector(target))
     }
 
     /// Format one vector load.
@@ -170,10 +174,11 @@ impl InstructionFormatter<'_, '_, '_> {
         let result = self.read_span()?;
         let pointer = self.register_id()?;
         let vector = self.vector_type()?;
-        self.write_vector_opcode("load", vector)?;
+        self.write_vector_opcode("load")?;
         self.write_span(result)?;
         self.write_comma()?;
-        self.write_register(pointer)
+        self.write_register(pointer)?;
+        self.write_representation(ValueType::vector(vector))
     }
 
     /// Format one vector store.
@@ -181,17 +186,16 @@ impl InstructionFormatter<'_, '_, '_> {
         let pointer = self.register_id()?;
         let value = self.read_span()?;
         let vector = self.vector_type()?;
-        let operation = format!("vector.store.{}", vector.name());
-        self.write_text(&operation)?;
-        self.write_token(" ")?;
+        self.write_opcode("vector.store")?;
         self.write_register(pointer)?;
         self.write_comma()?;
-        self.write_span(value)
+        self.write_span(value)?;
+        self.write_representation(ValueType::vector(vector))
     }
 
-    /// Write one vector opcode and its representation suffix.
-    fn write_vector_opcode(&mut self, operation: &str, vector: VectorType) -> FormatResult<()> {
-        let operation = format!("vector.{operation}.{}", vector.name());
+    /// Write one vector opcode.
+    fn write_vector_opcode(&mut self, operation: &str) -> FormatResult<()> {
+        let operation = format!("vector.{operation}");
 
         self.write_opcode(&operation)
     }

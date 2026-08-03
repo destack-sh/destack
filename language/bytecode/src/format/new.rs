@@ -2,7 +2,7 @@ use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{New, NewKind, RegisterSpan, RelocationTag};
+use crate::{New, NewKind, RegisterSpan, RelocationTag, ValueType};
 
 use super::instruction::InstructionFormatter;
 
@@ -25,15 +25,9 @@ impl InstructionFormatter<'_, '_, '_> {
             });
         }
         let allocation = format!("a{index}");
-        let memory_space = operation.space.name().ok_or(FormatError::SyntaxError {
-            message: "new operation has an invalid space",
-        })?;
-        let ownership = operation.ownership.name().ok_or(FormatError::SyntaxError {
-            message: "new operation has an invalid ownership",
-        })?;
 
         // write the canonical operation and allocation site
-        let mut name = format!("new.{memory_space}.{ownership}");
+        let mut name = "new".to_string();
         if operation.kind == NewKind::Slice {
             name.push_str(".slice");
         }
@@ -53,6 +47,10 @@ impl InstructionFormatter<'_, '_, '_> {
             self.write_comma()?;
             self.write_register(length)?;
         }
+
+        // write ownership and heap storage once
+        let reference = operation.reference();
+        self.write_representation(ValueType::reference(reference.kind(), reference.storage()))?;
 
         // write explicit success and failure edges
         if operation.is_fallible {

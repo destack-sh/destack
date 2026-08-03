@@ -11,7 +11,8 @@ use super::TestParser;
 fn test_load_object_image() {
     let image = TestParser::new(
         r#"
-function f0 {    constant.int32 r0, 42
+function f0 {
+    constant r0, 42: int32
     return r0
 }
 "#,

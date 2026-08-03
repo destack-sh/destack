@@ -1,6 +1,6 @@
 use crate::{
-    InstructionBuilder, New, NewKind, Opcode, ParseError, ParseResult, Parser, RelocationTag,
-    Token, TokenType,
+    Initialization, InstructionBuilder, New, NewKind, Opcode, ParseError, ParseResult, Parser,
+    RelocationTag, Token, TokenType,
 };
 
 use super::function::FunctionParser;
@@ -13,21 +13,34 @@ impl Parser<'_> {
         token: Token,
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        let operation = New::from_name(name)
-            .ok_or_else(|| ParseError::new("invalid new operation", token.span))?;
-        let opcode = Opcode::new(operation)
-            .ok_or_else(|| ParseError::new("invalid new operation", token.span))?;
-        let results = self.parse_definitions(opcode)?;
+        let (kind, initialization, is_fallible) = self.parse_new_name(name, token)?;
+        let results = self.parse_results(1, true)?;
 
         // encode the direct allocation site identity
         let allocation = self.parse_allocation_id()?;
-        let mut instruction = InstructionBuilder::new(opcode);
-        instruction.relocation(RelocationTag::ALLOCATION, allocation);
 
         // encode the variable slice length
-        if operation.kind == NewKind::Slice {
+        let length = if kind == NewKind::Slice {
             self.eat_token(TokenType::Comma)?;
-            let length = self.parse_register()?;
+            Some(self.parse_register()?)
+        } else {
+            None
+        };
+
+        // select ownership and heap space from the trailing representation
+        let reference = self
+            .parse_representation()?
+            .reference_type()
+            .ok_or_else(|| {
+                ParseError::new("new requires a reference representation", token.span)
+            })?;
+        let operation = New::select(reference, kind, initialization, is_fallible)
+            .ok_or_else(|| ParseError::new("invalid new representation", token.span))?;
+        let opcode = Opcode::new(operation)
+            .ok_or_else(|| ParseError::new("invalid new operation", token.span))?;
+        let mut instruction = InstructionBuilder::new(opcode);
+        instruction.relocation(RelocationTag::ALLOCATION, allocation);
+        if let Some(length) = length {
             instruction.register(length);
         }
 
@@ -39,6 +52,48 @@ impl Parser<'_> {
             instruction.branch(self.parse_label()?);
         }
 
-        function.emit(instruction, &results, self.empty_span())
+        function.emit(instruction, &results, token.span)
+    }
+
+    /// Parse one allocation form without ownership or storage qualifiers.
+    fn parse_new_name(
+        &self,
+        name: &str,
+        token: Token,
+    ) -> ParseResult<(NewKind, Initialization, bool)> {
+        let mut components = name.split('.');
+        if components.next() != Some("new") {
+            return Err(ParseError::new("invalid new operation", token.span));
+        }
+
+        // parse value or slice initialization
+        let component = components
+            .next()
+            .ok_or_else(|| ParseError::new("new operation has no initialization", token.span))?;
+        let (kind, initialization) = if component == "slice" {
+            let initialization = components
+                .next()
+                .and_then(Initialization::from_name)
+                .ok_or_else(|| ParseError::new("invalid slice initialization", token.span))?;
+
+            (NewKind::Slice, initialization)
+        } else {
+            let initialization = Initialization::from_name(component)
+                .ok_or_else(|| ParseError::new("invalid value initialization", token.span))?;
+
+            (NewKind::Value, initialization)
+        };
+
+        // parse optional fallibility and reject trailing components
+        let is_fallible = match components.next() {
+            Some("try") => true,
+            None => false,
+            Some(_) => return Err(ParseError::new("invalid new operation", token.span)),
+        };
+        if components.next().is_some() {
+            return Err(ParseError::new("invalid new operation", token.span));
+        }
+
+        Ok((kind, initialization, is_fallible))
     }
 }

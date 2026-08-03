@@ -18,30 +18,14 @@ impl Parser<'_> {
             .strip_prefix("vector.")
             .ok_or_else(|| ParseError::new("expected vector operation", token.span))?;
 
-        // conversions carry both source and target representations in the opcode
-        if let Some(conversion) = operation.strip_prefix("convert.") {
-            let (conversion, target) = conversion.rsplit_once('.').ok_or_else(|| {
-                ParseError::new("vector conversion has no target representation", token.span)
-            })?;
-            let (mode, source) = conversion.rsplit_once('.').ok_or_else(|| {
-                ParseError::new("vector conversion has no source representation", token.span)
-            })?;
-            let source = VectorType::from_name(source).ok_or_else(|| {
-                ParseError::new("invalid vector source representation", token.span)
-            })?;
-            let target = VectorType::from_name(target).ok_or_else(|| {
-                ParseError::new("invalid vector target representation", token.span)
-            })?;
+        // conversions carry both source and target representations
+        if let Some(mode) = operation.strip_prefix("convert.") {
             let results = self.parse_definitions(Opcode::vector(VectorOperation::Convert))?;
 
-            return self.parse_vector_convert(mode, source, target, token, &results, function);
+            return self.parse_vector_convert(mode, token, &results, function);
         }
 
-        // every other vector opcode ends in its one exact representation
-        let (operation, vector) = operation
-            .rsplit_once('.')
-            .and_then(|(operation, name)| VectorType::from_name(name).map(|ty| (operation, ty)))
-            .ok_or_else(|| ParseError::new("expected vector representation", token.span))?;
+        // select the semantic operation before its trailing representation
         let kind = match operation {
             "splat" => VectorOperation::Splat,
             "insert" => VectorOperation::Insert,
@@ -57,20 +41,20 @@ impl Parser<'_> {
         let results = self.parse_definitions(Opcode::vector(kind))?;
 
         match operation {
-            "splat" => self.parse_vector_splat(vector, &results, function),
-            "insert" => self.parse_vector_insert(vector, &results, function),
-            "extract" => self.parse_vector_extract(vector, &results, function),
-            "shuffle" => self.parse_vector_shuffle(vector, token, &results, function),
-            "select" => self.parse_vector_select(vector, token, &results, function),
-            "load" => self.parse_vector_load(vector, &results, function),
-            "store" => self.parse_vector_store(vector, &results, function),
+            "splat" => self.parse_vector_splat(&results, function),
+            "insert" => self.parse_vector_insert(&results, function),
+            "extract" => self.parse_vector_extract(&results, function),
+            "shuffle" => self.parse_vector_shuffle(token, &results, function),
+            "select" => self.parse_vector_select(token, &results, function),
+            "load" => self.parse_vector_load(&results, function),
+            "store" => self.parse_vector_store(&results, function),
             operation => {
                 if let Some(operator) = operation.strip_prefix("compare.") {
-                    self.parse_vector_compare(operator, vector, token, &results, function)
+                    self.parse_vector_compare(operator, token, &results, function)
                 } else if let Some(reduction) = operation.strip_prefix("reduce.") {
-                    self.parse_vector_reduce(reduction, vector, token, &results, function)
+                    self.parse_vector_reduce(reduction, token, &results, function)
                 } else {
-                    self.parse_vector_element(operation, vector, token, &results, function)
+                    self.parse_vector_element(operation, token, &results, function)
                 }
             }
         }
@@ -79,11 +63,11 @@ impl Parser<'_> {
     /// Parse one scalar splat across every vector lane.
     fn parse_vector_splat(
         &mut self,
-        vector: VectorType,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let value = self.parse_register()?;
+        let vector = self.parse_vector_representation()?;
         let mut instruction = InstructionBuilder::new(Opcode::vector(VectorOperation::Splat));
         instruction.register(value);
         instruction.vector_type(vector);
@@ -94,7 +78,6 @@ impl Parser<'_> {
     /// Parse one scalar lane insertion.
     fn parse_vector_insert(
         &mut self,
-        vector: VectorType,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
@@ -103,6 +86,7 @@ impl Parser<'_> {
         let index = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let value = self.parse_register()?;
+        let vector = self.parse_vector_representation()?;
         let mut instruction = InstructionBuilder::new(Opcode::vector(VectorOperation::Insert));
         instruction.span(input);
         instruction.register(index);
@@ -115,13 +99,13 @@ impl Parser<'_> {
     /// Parse one scalar lane extraction.
     fn parse_vector_extract(
         &mut self,
-        vector: VectorType,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let input = self.parse_register_span()?;
         self.eat_token(TokenType::Comma)?;
         let index = self.parse_register()?;
+        let vector = self.parse_vector_representation()?;
         let mut instruction = InstructionBuilder::new(Opcode::vector(VectorOperation::Extract));
         instruction.span(input);
         instruction.register(index);
@@ -133,7 +117,6 @@ impl Parser<'_> {
     /// Parse one two-input lane shuffle.
     fn parse_vector_shuffle(
         &mut self,
-        vector: VectorType,
         token: Token,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
@@ -142,6 +125,7 @@ impl Parser<'_> {
         self.eat_token(TokenType::Comma)?;
         self.eat_token(TokenType::OpenBracket)?;
         let lanes = self.parse_u16_list(TokenType::CloseBracket)?;
+        let vector = self.parse_vector_representation()?;
         let mut instruction = InstructionBuilder::new(Opcode::vector(VectorOperation::Shuffle));
         instruction
             .span_starts(&inputs)
@@ -158,12 +142,12 @@ impl Parser<'_> {
     fn parse_vector_compare(
         &mut self,
         operator: &str,
-        vector: VectorType,
         token: Token,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let inputs = self.parse_vector_spans(2)?;
+        let vector = self.parse_vector_representation()?;
         let operator = self.vector_operator(operator, vector.scalar, token)?;
         let mut instruction = InstructionBuilder::new(Opcode::vector(VectorOperation::Compare));
         instruction
@@ -178,7 +162,6 @@ impl Parser<'_> {
     /// Parse one lane selection.
     fn parse_vector_select(
         &mut self,
-        vector: VectorType,
         token: Token,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
@@ -186,6 +169,7 @@ impl Parser<'_> {
         let condition = self.parse_register_span()?;
         self.eat_token(TokenType::Comma)?;
         let values = self.parse_vector_spans(2)?;
+        let vector = self.parse_vector_representation()?;
         let spans = [condition, values[0], values[1]];
         let mut instruction = InstructionBuilder::new(Opcode::vector(VectorOperation::Select));
         instruction
@@ -200,7 +184,6 @@ impl Parser<'_> {
     fn parse_vector_reduce(
         &mut self,
         reduction: &str,
-        vector: VectorType,
         token: Token,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
@@ -208,6 +191,7 @@ impl Parser<'_> {
         let operation = ReduceOperation::from_name(reduction)
             .ok_or_else(|| ParseError::new("expected vector reduction", token.span))?;
         let input = self.parse_register_span()?;
+        let vector = self.parse_vector_representation()?;
         let mut instruction = InstructionBuilder::new(Opcode::vector(VectorOperation::Reduce));
         instruction.span(input);
         instruction.vector_type(vector);
@@ -220,8 +204,6 @@ impl Parser<'_> {
     fn parse_vector_convert(
         &mut self,
         mode: &str,
-        source: VectorType,
-        target: VectorType,
         token: Token,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
@@ -229,6 +211,9 @@ impl Parser<'_> {
         let mode = ConvertMode::from_name(mode)
             .ok_or_else(|| ParseError::new("expected vector conversion mode", token.span))?;
         let input = self.parse_register_span()?;
+        let source = self.parse_vector_representation()?;
+        self.eat_token(TokenType::Arrow)?;
+        let target = self.parse_vector_type()?;
         let mut instruction = InstructionBuilder::new(Opcode::vector(VectorOperation::Convert));
         instruction.span(input);
         instruction.vector_type(source);
@@ -241,11 +226,11 @@ impl Parser<'_> {
     /// Parse one vector load.
     fn parse_vector_load(
         &mut self,
-        vector: VectorType,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let pointer = self.parse_register()?;
+        let vector = self.parse_vector_representation()?;
         let mut instruction = InstructionBuilder::new(Opcode::vector(VectorOperation::Load));
         instruction.register(pointer);
         instruction.vector_type(vector);
@@ -256,13 +241,13 @@ impl Parser<'_> {
     /// Parse one vector store.
     fn parse_vector_store(
         &mut self,
-        vector: VectorType,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let pointer = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let value = self.parse_register_span()?;
+        let vector = self.parse_vector_representation()?;
         let mut instruction = InstructionBuilder::new(Opcode::vector(VectorOperation::Store));
         instruction.register(pointer);
         instruction.span(value);
@@ -275,11 +260,12 @@ impl Parser<'_> {
     fn parse_vector_element(
         &mut self,
         name: &str,
-        vector: VectorType,
         token: Token,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
+        let inputs = self.parse_vector_spans_until_representation()?;
+        let vector = self.parse_vector_representation()?;
         let operator = if vector.scalar.is_float() {
             FloatOperation::from_name(name)
                 .map(|operation| (operation as u16, operation.input_count()))
@@ -288,7 +274,9 @@ impl Parser<'_> {
                 .map(|operation| (operation as u16, operation.input_count()))
         }
         .ok_or_else(|| ParseError::new("expected vector operation", token.span))?;
-        let inputs = self.parse_vector_spans(operator.1)?;
+        if inputs.len() != operator.1 {
+            return Err(ParseError::new("invalid vector input count", token.span));
+        }
         let mut instruction = InstructionBuilder::new(Opcode::vector(VectorOperation::Element));
         instruction
             .span_starts(&inputs)
@@ -310,6 +298,30 @@ impl Parser<'_> {
         }
 
         Ok(spans)
+    }
+
+    /// Parse vector inputs up to their trailing representation.
+    fn parse_vector_spans_until_representation(&mut self) -> ParseResult<Vec<RegisterSpan>> {
+        let mut spans = vec![self.parse_register_span()?];
+        while self.eat_token_if(TokenType::Comma) {
+            spans.push(self.parse_register_span()?);
+        }
+
+        Ok(spans)
+    }
+
+    /// Parse one trailing vector representation.
+    fn parse_vector_representation(&mut self) -> ParseResult<VectorType> {
+        self.eat_token(TokenType::Colon)?;
+
+        self.parse_vector_type()
+    }
+
+    /// Parse one vector value type without its separator.
+    fn parse_vector_type(&mut self) -> ParseResult<VectorType> {
+        self.parse_value_type()?
+            .vector_type()
+            .ok_or_else(|| ParseError::new("expected vector representation", self.previous().span))
     }
 
     /// Resolve one vector operator for its scalar representation.

@@ -5,7 +5,7 @@ use crate::{Lexer, TokenType};
 /// Lex declarations, dotted operations, and control arrows into exact token categories.
 #[test]
 fn test_lex_bytecode_source() {
-    let source = "function f0 {\ninvoke r1, f1, r0 => b0 | b1\n}";
+    let source = "function f0 {\ninvoke r1, f1(r0) => b0 | b1\n}";
     let tokens = Lexer::lex(FileId::new(7), source);
     let tokens = tokens
         .iter()
@@ -28,8 +28,9 @@ fn test_lex_bytecode_source() {
             (TokenType::Identifier, "r1"),
             (TokenType::Comma, ","),
             (TokenType::Identifier, "f1"),
-            (TokenType::Comma, ","),
+            (TokenType::OpenParenthesis, "("),
             (TokenType::Identifier, "r0"),
+            (TokenType::CloseParenthesis, ")"),
             (TokenType::FatArrow, "=>"),
             (TokenType::Identifier, "b0"),
             (TokenType::Pipe, "|"),

@@ -117,7 +117,9 @@ impl Parser<'_> {
     /// Parse one contiguous register span with an inclusive end.
     pub(super) fn parse_register_span(&mut self) -> ParseResult<RegisterSpan> {
         let start = self.parse_register()?;
-        let word_count = if self.eat_token_if(TokenType::Colon) {
+        let position = self.cursor.position();
+        let has_end = self.eat_token_if(TokenType::Colon) && self.is_register();
+        let word_count = if has_end {
             let end = self.parse_register()?;
             if end.0 < start.0 {
                 return Err(ParseError::new(
@@ -128,6 +130,8 @@ impl Parser<'_> {
 
             end.0 - start.0 + 1
         } else {
+            self.cursor.seek(position);
+
             1
         };
 

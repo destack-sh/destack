@@ -1,39 +1,33 @@
 use super::assert_format_eq;
 
-/// Format pointer materialization and calculation canonically.
+/// Format frame and global addresses with pointer calculations canonically.
 #[test]
 fn test_format_pointer_operations() {
     assert_format_eq(
         r#"
 function f0 {
     frame.address r2, r0:r1
-pointer.frame r3,r2
-global.address.constant r4,g0
-global.address.local r5,g1
-global.address.shared r6,g2
-pointer.constant r7,r4
-pointer.memory r8,r5
-pointer.add r9, r7,16
-pointer.add r10, r3,r0
-pointer.add r11, r3,r0,8
-pointer.byteOffsetFrom r12,r11,r9
-return r12
+global.address.constant r3,g0
+global.address.local r4,g1
+global.address.shared r5,g2
+pointer.add r6, r3,16
+pointer.add r7, r2,r0
+pointer.add r8, r2,r0,8
+pointer.diff r9,r8,r6
+return r9
 }
 "#,
         r#"
 function f0 {
     frame.address r2, r0:r1
-    pointer.frame r3, r2
-    global.address.constant r4, g0
-    global.address.local r5, g1
-    global.address.shared r6, g2
-    pointer.constant r7, r4
-    pointer.memory r8, r5
-    pointer.add r9, r7, 16
-    pointer.add r10, r3, r0
-    pointer.add r11, r3, r0, 8
-    pointer.byteOffsetFrom r12, r11, r9
-    return r12
+    global.address.constant r3, g0
+    global.address.local r4, g1
+    global.address.shared r5, g2
+    pointer.add r6, r3, 16
+    pointer.add r7, r2, r0
+    pointer.add r8, r2, r0, 8
+    pointer.diff r9, r8, r6
+    return r9
 }
 "#,
     );

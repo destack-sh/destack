@@ -7,9 +7,9 @@ fn test_format_control_flow() {
         r#"
 function f0 {
     branch r0,b0,b1
-b0:constant.boolean r1,true
+b0:constant r1, true: boolean
 return r1
-b1:constant.boolean r1,false
+b1:constant r1, false: boolean
 return r1
 }
 "#,
@@ -18,11 +18,11 @@ function f0 {
     branch r0, b0, b1
 
 b0:
-    constant.boolean r1, true
+    constant r1, true: boolean
     return r1
 
 b1:
-    constant.boolean r1, false
+    constant r1, false: boolean
     return r1
 }
 "#,
@@ -35,11 +35,18 @@ fn test_format_checked_control_flow() {
     assert_format_eq(
         r#"
 function f0 {
-    check.nonzero.int32 r0 else b3
+    check.nonzero r0:int32 else b3
+check.shift r0,32:int32 else b3
+check.narrow r0:int64->int32 else b3
+check.add.overflow r0,r1:int32 else b3
+check.sub.overflow r0,r1:int32 else b3
+check.mul.overflow r0,r1:int32 else b3
+check.bounds r0,r1:uint64 else b3
+check.range r0,r1,r2:uint64 else b3
 poll
 check.type r2, t0 else b3
 check.nullish r3 else b3
-branch.lt.int32 r0,r1=>b0,b2
+branch.lt r0,r1:int32=>b0,b2
 b0:
 switch r0{0=>b1,default=>b2}
 b1:
@@ -52,11 +59,18 @@ trap bounds
 "#,
         r#"
 function f0 {
-    check.nonzero.int32 r0 else b3
+    check.nonzero r0: int32 else b3
+    check.shift r0, 32: int32 else b3
+    check.narrow r0: int64 -> int32 else b3
+    check.add.overflow r0, r1: int32 else b3
+    check.sub.overflow r0, r1: int32 else b3
+    check.mul.overflow r0, r1: int32 else b3
+    check.bounds r0, r1: uint64 else b3
+    check.range r0, r1, r2: uint64 else b3
     poll
     check.type r2, t0 else b3
     check.nullish r3 else b3
-    branch.lt.int32 r0, r1 => b0, b2
+    branch.lt r0, r1: int32 => b0, b2
 
 b0:
     switch r0 { 0 => b1, default => b2 }

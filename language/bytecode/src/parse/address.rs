@@ -12,23 +12,22 @@ impl Parser<'_> {
         token: Token,
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        let opcode = match name {
-            "frame.address" => Opcode::FRAME_ADDRESS,
-            "global.address.constant" => Opcode::GLOBAL_ADDRESS_CONSTANT,
-            "global.address.local" => Opcode::GLOBAL_ADDRESS_LOCAL,
-            "global.address.shared" => Opcode::GLOBAL_ADDRESS_SHARED,
-            _ => return Err(ParseError::new("unknown address operation", token.span)),
-        };
-        let results = self.parse_definitions(opcode)?;
+        match name {
+            "frame.address" => {
+                let results = self.parse_definitions(Opcode::FRAME_ADDRESS)?;
 
-        match opcode {
-            Opcode::FRAME_ADDRESS => self.parse_frame_address(&results, function),
-            Opcode::GLOBAL_ADDRESS_CONSTANT
-            | Opcode::GLOBAL_ADDRESS_LOCAL
-            | Opcode::GLOBAL_ADDRESS_SHARED => {
-                self.parse_global_address(opcode, &results, function)
+                self.parse_frame_address(&results, function)
             }
-            _ => Err(ParseError::new("invalid address operation", token.span)),
+            "global.address.constant" => {
+                self.parse_global_address(Opcode::GLOBAL_ADDRESS_CONSTANT, token, function)
+            }
+            "global.address.local" => {
+                self.parse_global_address(Opcode::GLOBAL_ADDRESS_LOCAL, token, function)
+            }
+            "global.address.shared" => {
+                self.parse_global_address(Opcode::GLOBAL_ADDRESS_SHARED, token, function)
+            }
+            _ => Err(ParseError::new("unknown address operation", token.span)),
         }
     }
 
@@ -49,9 +48,10 @@ impl Parser<'_> {
     fn parse_global_address(
         &mut self,
         opcode: Opcode,
-        results: &[RegisterSpan],
+        operation: Token,
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
+        let results = self.parse_results(1, true)?;
         let token = self.eat_token(TokenType::Identifier)?;
         let global = self
             .text(token)
@@ -61,6 +61,6 @@ impl Parser<'_> {
         let mut instruction = InstructionBuilder::new(opcode);
         instruction.global(global);
 
-        function.emit(instruction, results, self.empty_span())
+        function.emit(instruction, &results, operation.span)
     }
 }

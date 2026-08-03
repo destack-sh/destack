@@ -22,6 +22,30 @@ impl New {
     /// The number of stable `new` operation encodings.
     pub(crate) const CODE_COUNT: u16 = 32;
 
+    /// Select one exact allocation operation.
+    pub const fn select(
+        reference: ReferenceType,
+        kind: NewKind,
+        initialization: Initialization,
+        is_fallible: bool,
+    ) -> Option<Self> {
+        let Some(space) = reference.storage().heap_space() else {
+            return None;
+        };
+        let ownership = reference.kind();
+        if !matches!(ownership, ReferenceKind::MANAGED | ReferenceKind::UNIQUE) {
+            return None;
+        }
+
+        Some(Self {
+            space,
+            ownership,
+            kind,
+            initialization,
+            is_fallible,
+        })
+    }
+
     /// Return the reference representation produced by this operation.
     pub const fn reference(self) -> ReferenceType {
         ReferenceType::new(self.ownership, Storage::heap(self.space))
@@ -93,46 +117,6 @@ impl New {
             Initialization::Uninit
         };
         let is_fallible = code & (1 << 4) != 0;
-
-        Some(Self {
-            space,
-            ownership,
-            kind,
-            initialization,
-            is_fallible,
-        })
-    }
-
-    /// Parse one canonical `new` operation name.
-    pub fn from_name(name: &str) -> Option<Self> {
-        let mut components = name.split('.');
-        if components.next() != Some("new") {
-            return None;
-        }
-
-        // parse the required operation qualifiers
-        let space = components.next().and_then(Space::from_name)?;
-        let ownership = components.next().and_then(ReferenceKind::from_name)?;
-        let component = components.next()?;
-        let (kind, initialization) = if component == "slice" {
-            let initialization = components.next().and_then(Initialization::from_name)?;
-
-            (NewKind::Slice, initialization)
-        } else {
-            let initialization = Initialization::from_name(component)?;
-
-            (NewKind::Value, initialization)
-        };
-
-        // accept one optional fallibility suffix and no trailing components
-        let is_fallible = match components.next() {
-            Some("try") => true,
-            None => false,
-            Some(_) => return None,
-        };
-        if components.next().is_some() {
-            return None;
-        }
 
         Some(Self {
             space,

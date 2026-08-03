@@ -78,8 +78,11 @@ impl InstructionFormatter<'_, '_, '_> {
         // write the packed physical argument span
         let (start, word_count) = self.register_span_id()?;
         let arguments = RegisterSpan::new(start, word_count);
-        self.write_comma()?;
-        self.write_span(arguments)?;
+        self.write_token("(")?;
+        if arguments.word_count > 0 {
+            self.write_span(arguments)?;
+        }
+        self.write_token(")")?;
 
         // write explicit normal and unwind successors
         if is_invoke {
@@ -169,33 +172,35 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Write one decoded call target.
     fn write_call_target(&mut self, target: &CallTarget) -> FormatResult<()> {
         match target {
-            CallTarget::Direct { name, .. } => self.write_text(name),
-            CallTarget::Indirect { value, .. } => self.write_span(*value),
+            CallTarget::Direct { name } => self.write_text(name),
+            CallTarget::Indirect { value } => self.write_span(*value),
             CallTarget::Virtual {
                 receiver,
                 reference,
                 dispatch_offset,
                 slot,
-                ..
             } => {
                 let dispatch_offset = dispatch_offset.to_string();
                 let slot = slot.to_string();
                 self.write_register(*receiver)?;
-                self.write_comma()?;
+                self.write_token(":")?;
+                write!(self.formatter, [space()])?;
                 write!(
                     self.formatter,
                     [&ValueType::reference(reference.kind(), reference.storage())]
                 )?;
-                self.write_comma()?;
+                self.write_token("[")?;
                 self.write_text(&dispatch_offset)?;
                 self.write_comma()?;
-                self.write_text(&slot)
+                self.write_text(&slot)?;
+                self.write_token("]")
             }
-            CallTarget::Dynamic { receiver, slot, .. } => {
+            CallTarget::Dynamic { receiver, slot } => {
                 let slot = slot.to_string();
                 self.write_span(*receiver)?;
-                self.write_comma()?;
+                self.write_token("[")?;
                 self.write_text(&slot)?;
+                self.write_token("]")?;
 
                 Ok(())
             }

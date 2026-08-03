@@ -6,13 +6,13 @@ fn test_format_scalar_operations() {
     assert_format_eq(
         r#"
 function f0 {
-    int.add.overflowing.int32 r2,r3, r0,r1
+    int.add.overflowing r2,r3, r0,r1: int32
 return r2:r3
 }
 "#,
         r#"
 function f0 {
-    int.add.overflowing.int32 r2, r3, r0, r1
+    int.add.overflowing r2, r3, r0, r1: int32
     return r2:r3
 }
 "#,
@@ -25,21 +25,21 @@ fn test_format_casts() {
     assert_format_eq(
         r#"
 function f0 {
-    cast.truncate.int64.int32 r4, r0
-cast.floatToInt.u.float64.uint64 r5, r1
-cast.intToPointer.uint64.pointer r6, r3
-cast.pointerToInt.pointer.uint64 r7, r2
-cast.floatTruncate.float64.float32 r8, r1
+    cast.truncate r4, r0: int64 -> int32
+cast.floatToInt.u r5, r1: float64 -> uint64
+cast.intToPointer r6, r3: uint64 -> pointer
+cast.pointerToInt r7, r2: pointer -> uint64
+cast.floatTruncate r8, r1: float64 -> float32
 return r4:r8
 }
 "#,
         r#"
 function f0 {
-    cast.truncate.int64.int32 r4, r0
-    cast.floatToInt.u.float64.uint64 r5, r1
-    cast.intToPointer.uint64.pointer r6, r3
-    cast.pointerToInt.pointer.uint64 r7, r2
-    cast.floatTruncate.float64.float32 r8, r1
+    cast.truncate r4, r0: int64 -> int32
+    cast.floatToInt.u r5, r1: float64 -> uint64
+    cast.intToPointer r6, r3: uint64 -> pointer
+    cast.pointerToInt r7, r2: pointer -> uint64
+    cast.floatTruncate r8, r1: float64 -> float32
     return r4:r8
 }
 "#,
@@ -52,15 +52,15 @@ fn test_format_wide_literals() {
     assert_format_eq(
         r#"
 function f0 {
-    constant.int128 r0, -1
-constant.uint128 r2, 340282366920938463463374607431768211455
+    constant r0, -1: int128
+constant r2, 340282366920938463463374607431768211455: uint128
 return r0:r3
 }
 "#,
         r#"
 function f0 {
-    constant.int128 r0, -1
-    constant.uint128 r2, 340282366920938463463374607431768211455
+    constant r0, -1: int128
+    constant r2, 340282366920938463463374607431768211455: uint128
     return r0:r3
 }
 "#,
@@ -73,17 +73,17 @@ fn test_format_non_finite_literals() {
     assert_format_eq(
         r#"
 function f0 {
-    constant.float16 r0, bits(0x7e01)
-constant.float32 r1, Infinity
-constant.float64 r2, -Infinity
+    constant r0, bits(0x7e01): float16
+constant r1, Infinity: float32
+constant r2, -Infinity: float64
 return r0:r2
 }
 "#,
         r#"
 function f0 {
-    constant.float16 r0, bits(0x7e01)
-    constant.float32 r1, Infinity
-    constant.float64 r2, -Infinity
+    constant r0, bits(0x7e01): float16
+    constant r1, Infinity: float32
+    constant r2, -Infinity: float64
     return r0:r2
 }
 "#,

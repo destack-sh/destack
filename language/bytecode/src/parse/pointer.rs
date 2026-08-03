@@ -12,40 +12,19 @@ impl Parser<'_> {
         token: Token,
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        let opcode = match name {
-            "pointer.frame" => Opcode::POINTER_FRAME,
-            "pointer.constant" => Opcode::POINTER_CONSTANT,
-            "pointer.memory" => Opcode::POINTER_MEMORY,
-            "pointer.add" => Opcode::POINTER_ADD,
-            "pointer.byteOffsetFrom" => Opcode::POINTER_BYTE_OFFSET_FROM,
-            _ => return Err(ParseError::new("unknown pointer operation", token.span)),
-        };
-        let results = self.parse_definitions(opcode)?;
+        match name {
+            "pointer.add" => {
+                let results = self.parse_definitions(Opcode::POINTER_ADD)?;
 
-        match opcode {
-            Opcode::POINTER_FRAME | Opcode::POINTER_CONSTANT | Opcode::POINTER_MEMORY => {
-                self.parse_pointer_reference(opcode, &results, function)
+                self.parse_pointer_add(token, &results, function)
             }
-            Opcode::POINTER_ADD => self.parse_pointer_add(token, &results, function),
-            Opcode::POINTER_BYTE_OFFSET_FROM => {
-                self.parse_pointer_byte_offset_from(&results, function)
+            "pointer.diff" => {
+                let results = self.parse_definitions(Opcode::POINTER_DIFF)?;
+
+                self.parse_pointer_diff(&results, function)
             }
-            _ => Err(ParseError::new("invalid pointer operation", token.span)),
+            _ => Err(ParseError::new("unknown pointer operation", token.span)),
         }
-    }
-
-    /// Materialize one stable reference as a pointer.
-    fn parse_pointer_reference(
-        &mut self,
-        opcode: Opcode,
-        results: &[RegisterSpan],
-        function: &mut FunctionParser,
-    ) -> ParseResult<()> {
-        let reference = self.parse_register()?;
-        let mut instruction = InstructionBuilder::new(opcode);
-        instruction.register(reference);
-
-        function.emit(instruction, results, self.empty_span())
     }
 
     /// Parse one immediate, register, or scaled pointer addition.
@@ -95,7 +74,7 @@ impl Parser<'_> {
     }
 
     /// Parse one signed byte offset between two pointers.
-    fn parse_pointer_byte_offset_from(
+    fn parse_pointer_diff(
         &mut self,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
@@ -105,7 +84,7 @@ impl Parser<'_> {
         let origin = self.parse_register()?;
 
         // encode the signed byte offset from the origin
-        let mut instruction = InstructionBuilder::new(Opcode::POINTER_BYTE_OFFSET_FROM);
+        let mut instruction = InstructionBuilder::new(Opcode::POINTER_DIFF);
         instruction.register(pointer);
         instruction.register(origin);
 

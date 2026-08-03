@@ -163,6 +163,15 @@ impl AtomicOperation {
         matches!(self, Self::CompareExchange | Self::CompareExchangeWeak)
     }
 
+    /// Return the number of values produced by this operation.
+    pub const fn result_count(self) -> usize {
+        match self {
+            Self::Store => 0,
+            Self::CompareExchange | Self::CompareExchangeWeak => 2,
+            _ => 1,
+        }
+    }
+
     /// Return the logical result type for this operation and scalar.
     pub const fn result_type(self, scalar: Scalar) -> ValueType {
         ValueType::scalar(scalar)

@@ -133,7 +133,7 @@ opcodes! {
         operands: [Result, Register, Register],
     }
     CONSTANT_TYPE = 0x0015 {
-        text: "constant.type",
+        text: "constant",
         signature: "(type: TypeId) => typeId",
         operands: [Result, Type],
     }
@@ -167,27 +167,27 @@ opcodes! {
 
     // constants
     CONSTANT_INT128 = 0x0021 {
-        text: "constant.int128",
+        text: "constant",
         signature: "(bits: int128) => int128",
         operands: [ResultRange, Bits128],
     }
     CONSTANT_UINT128 = 0x0022 {
-        text: "constant.uint128",
+        text: "constant",
         signature: "(bits: uint128) => uint128",
         operands: [ResultRange, Bits128],
     }
     CONSTANT_NULL = 0x0023 {
-        text: "constant.null",
+        text: "constant",
         signature: "() => value",
         operands: [ResultRange],
     }
     CONSTANT_UNDEFINED = 0x0024 {
-        text: "constant.undefined",
+        text: "constant",
         signature: "() => value",
         operands: [ResultRange],
     }
     CONSTANT_ZEROED = 0x0026 {
-        text: "constant.zeroed",
+        text: "constant",
         signature: "() => uninit",
         operands: [ResultRange],
     }
@@ -195,38 +195,23 @@ opcodes! {
     // references and pointers
     FRAME_ADDRESS = 0x0030 {
         text: "frame.address",
-        signature: "(value: value) => ref<frame>",
+        signature: "(value: value) => pointer",
         operands: [Result, RegisterSpan],
     }
     GLOBAL_ADDRESS_CONSTANT = 0x0031 {
         text: "global.address.constant",
-        signature: "(global: GlobalId) => ref<constant>",
+        signature: "(global: GlobalId) => pointer",
         operands: [Result, Global],
     }
     GLOBAL_ADDRESS_LOCAL = 0x0032 {
         text: "global.address.local",
-        signature: "(global: GlobalId) => ref<localGlobal>",
+        signature: "(global: GlobalId) => pointer",
         operands: [Result, Global],
     }
     GLOBAL_ADDRESS_SHARED = 0x0033 {
         text: "global.address.shared",
-        signature: "(global: GlobalId) => ref<sharedGlobal>",
+        signature: "(global: GlobalId) => pointer",
         operands: [Result, Global],
-    }
-    POINTER_FRAME = 0x0034 {
-        text: "pointer.frame",
-        signature: "(reference: ref<frame>) => pointer",
-        operands: [Result, Register],
-    }
-    POINTER_CONSTANT = 0x0035 {
-        text: "pointer.constant",
-        signature: "(reference: ref<constant>) => pointer",
-        operands: [Result, Register],
-    }
-    POINTER_MEMORY = 0x0036 {
-        text: "pointer.memory",
-        signature: "(reference: ref<memory>) => pointer",
-        operands: [Result, Register],
     }
     POINTER_ADD_IMMEDIATE = 0x0038 {
         text: "pointer.add",
@@ -243,32 +228,52 @@ opcodes! {
         signature: "(base: pointer, offset: int64, scale: uint32) => pointer",
         operands: [Result, Register, Register, Unsigned32],
     }
-    POINTER_BYTE_OFFSET_FROM = 0x003b {
-        text: "pointer.byteOffsetFrom",
+    POINTER_DIFF = 0x003b {
+        text: "pointer.diff",
         signature: "(pointer: pointer, origin: pointer) => int64",
         operands: [Result, Register, Register],
     }
 
-    // byte ranges
-    COPY_BYTES = 0x0040 {
-        text: "copy.bytes",
-        signature: "(source: pointer, target: pointer, byteLength: uint64) => void",
+    // memory ranges
+    MEMORY_COPY = 0x0040 {
+        text: "memory.copy",
+        signature: "(target: pointer, source: pointer, byteLength: uint64) => void",
         operands: [Register, Register, Register],
     }
-    MOVE_BYTES = 0x0041 {
-        text: "move.bytes",
-        signature: "(source: pointer, target: pointer, byteLength: uint64) => void",
+    MEMORY_MOVE = 0x0041 {
+        text: "memory.move",
+        signature: "(target: pointer, source: pointer, byteLength: uint64) => void",
         operands: [Register, Register, Register],
     }
-    FILL_BYTES = 0x0042 {
-        text: "fill.bytes",
+    MEMORY_FILL = 0x0042 {
+        text: "memory.fill",
         signature: "(target: pointer, byte: uint8, byteLength: uint64) => void",
         operands: [Register, Register, Register],
     }
-    COMPARE_BYTES = 0x0043 {
-        text: "compare.bytes",
+    MEMORY_COMPARE = 0x0043 {
+        text: "memory.compare",
         signature: "(left: pointer, right: pointer, byteLength: uint64) => int32",
         operands: [Result, Register, Register, Register],
+    }
+    MEMORY_COPY_IMMEDIATE = 0x0044 {
+        text: "memory.copy",
+        signature: "(target: pointer, source: pointer, byteLength: uint32) => void",
+        operands: [Register, Register, Unsigned32],
+    }
+    MEMORY_MOVE_IMMEDIATE = 0x0045 {
+        text: "memory.move",
+        signature: "(target: pointer, source: pointer, byteLength: uint32) => void",
+        operands: [Register, Register, Unsigned32],
+    }
+    MEMORY_FILL_IMMEDIATE = 0x0046 {
+        text: "memory.fill",
+        signature: "(target: pointer, byte: uint8, byteLength: uint32) => void",
+        operands: [Register, Register, Unsigned32],
+    }
+    MEMORY_COMPARE_IMMEDIATE = 0x0047 {
+        text: "memory.compare",
+        signature: "(left: pointer, right: pointer, byteLength: uint32) => int32",
+        operands: [Result, Register, Register, Unsigned32],
     }
 
     // prefetch

@@ -9,9 +9,8 @@ external function imported
 
 function f0 {
     frame.address r1, r0
-    pointer.frame r2, r1
-move r3, r0
-return r3
+move r2, r0
+return r2
 }
 "#,
         r#"
@@ -19,9 +18,8 @@ external function imported
 
 function f0 {
     frame.address r1, r0
-    pointer.frame r2, r1
-    move r3, r0
-    return r3
+    move r2, r0
+    return r2
 }
 "#,
     );

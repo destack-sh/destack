@@ -40,14 +40,14 @@ impl Parser<'_> {
         results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        self.eat_token(TokenType::OpenParenthesis)?;
+        self.eat_token(TokenType::OpenBracket)?;
         let mut placements = Vec::new();
 
         // parse each physical source placement
-        while !self.eat_token_if(TokenType::CloseParenthesis) {
+        while !self.eat_token_if(TokenType::CloseBracket) {
             placements.push(self.parse_placement()?);
             if !self.eat_token_if(TokenType::Comma) {
-                self.eat_token(TokenType::CloseParenthesis)?;
+                self.eat_token(TokenType::CloseBracket)?;
 
                 break;
             }
@@ -71,7 +71,7 @@ impl Parser<'_> {
         let source = self.parse_register_span()?;
         self.eat_token(TokenType::Comma)?;
         let byte_offset = self.parse_u32()?;
-        self.eat_token(TokenType::Comma)?;
+        self.eat_token(TokenType::Colon)?;
         let byte_len = self.parse_u32()?;
 
         // encode the exact copied byte range
@@ -92,7 +92,7 @@ impl Parser<'_> {
         let aggregate = self.parse_register_span()?;
         self.eat_token(TokenType::Comma)?;
         let byte_offset = self.parse_u32()?;
-        self.eat_token(TokenType::Comma)?;
+        self.eat_token(TokenType::Colon)?;
         let byte_len = self.parse_u32()?;
         self.eat_token(TokenType::Comma)?;
         let value = self.parse_register_span()?;
@@ -151,13 +151,11 @@ impl Parser<'_> {
 
     /// Parse one physical aggregate placement.
     fn parse_placement(&mut self) -> ParseResult<Placement> {
-        self.eat_token(TokenType::OpenBracket)?;
         let registers = self.parse_register_span()?;
-        self.eat_token(TokenType::Comma)?;
+        self.eat_token(TokenType::At)?;
         let byte_offset = self.parse_u32()?;
-        self.eat_token(TokenType::Comma)?;
+        self.eat_token(TokenType::Colon)?;
         let byte_len = self.parse_u32()?;
-        self.eat_token(TokenType::CloseBracket)?;
 
         Ok(Placement::new(registers, byte_offset, byte_len))
     }

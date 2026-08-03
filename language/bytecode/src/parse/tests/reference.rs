@@ -11,13 +11,14 @@ fn test_parse_reference_operations() {
     let (object, opcodes) = TestParser::new(
         r#"
 external function f0
-function f1 {    load r4, r0, 8
+function f1 {
+    load r4, r0, 8
     store r0, r4, 8
-    pin.local.managed r4
-    unpin.local.managed r4
-    barrier.local.managed r4, r3, r3
+    pin r4: ref<managed, local>
+    unpin r4: ref<managed, local>
+    barrier r4, r3, r3: ref<managed, local>
     drop r0, f0
-    free.local.unique r2
+    free r2: ref<unique, local>
     return r4
 }
 "#,

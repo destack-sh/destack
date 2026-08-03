@@ -100,11 +100,9 @@ impl Parser<'_> {
 
     /// Parse one tensor register span and runtime layout.
     fn parse_tensor_value(&mut self) -> ParseResult<TensorOperand> {
-        self.eat_token(TokenType::OpenParenthesis)?;
         let registers = self.parse_register_span()?;
-        self.eat_token(TokenType::Comma)?;
+        self.eat_token(TokenType::At)?;
         let layout = self.parse_layout_id()?;
-        self.eat_token(TokenType::CloseParenthesis)?;
 
         Ok(TensorOperand::new(registers, layout))
     }

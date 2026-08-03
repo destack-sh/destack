@@ -136,19 +136,20 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::GLOBAL_ADDRESS_CONSTANT
             | Opcode::GLOBAL_ADDRESS_LOCAL
             | Opcode::GLOBAL_ADDRESS_SHARED => self.format_address(opcode),
-            Opcode::POINTER_FRAME
-            | Opcode::POINTER_CONSTANT
-            | Opcode::POINTER_MEMORY
-            | Opcode::POINTER_ADD_IMMEDIATE
+            Opcode::POINTER_ADD_IMMEDIATE
             | Opcode::POINTER_ADD
             | Opcode::POINTER_ADD_SCALED
-            | Opcode::POINTER_BYTE_OFFSET_FROM => self.format_pointer(opcode),
+            | Opcode::POINTER_DIFF => self.format_pointer(opcode),
 
-            // byte ranges
-            Opcode::COPY_BYTES
-            | Opcode::MOVE_BYTES
-            | Opcode::FILL_BYTES
-            | Opcode::COMPARE_BYTES => self.format_bytes(opcode),
+            // memory ranges
+            Opcode::MEMORY_COPY
+            | Opcode::MEMORY_MOVE
+            | Opcode::MEMORY_FILL
+            | Opcode::MEMORY_COMPARE
+            | Opcode::MEMORY_COPY_IMMEDIATE
+            | Opcode::MEMORY_MOVE_IMMEDIATE
+            | Opcode::MEMORY_FILL_IMMEDIATE
+            | Opcode::MEMORY_COMPARE_IMMEDIATE => self.format_range(opcode),
 
             // prefetch
             Opcode::PREFETCH_READ | Opcode::PREFETCH_WRITE => self.format_prefetch(opcode),

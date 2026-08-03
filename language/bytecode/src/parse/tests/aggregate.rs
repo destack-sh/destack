@@ -7,9 +7,10 @@ use super::TestParser;
 fn test_parse_aggregate_operations() {
     let (object, opcodes) = TestParser::new(
         r#"
-function f0 {    aggregate r2:r3, ([r0, 0, 4], [r1, 8, 8])
-    extract r4, r2:r3, 0, 4
-    insert r5:r6, r2:r3, 8, 8, r1
+function f0 {
+    aggregate r2:r3, [r0 @ 0:4, r1 @ 8:8]
+    extract r4, r2:r3, 0:4
+    insert r5:r6, r2:r3, 8:8, r1
     variant.new r7:r8, l1, 1, r0
     variant.tag r9, r7:r8, l1
     return r4

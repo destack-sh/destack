@@ -1,8 +1,5 @@
-use destack_fir::format::{FormatError, FormatResult};
-use destack_fir::prelude::*;
-use destack_fir::write;
-
 use crate::Opcode;
+use destack_fir::format::{FormatError, FormatResult};
 
 use super::instruction::InstructionFormatter;
 
@@ -19,26 +16,17 @@ impl InstructionFormatter<'_, '_, '_> {
             }
         };
         let instrument = if opcode == Opcode::PROFILE_INCREMENT {
-            self.counter()?.0.to_string()
+            format!("c{}", self.counter()?.0)
         } else {
-            self.sampler()?.0.to_string()
+            format!("s{}", self.sampler()?.0)
         };
-        let instrument_name = if opcode == Opcode::PROFILE_INCREMENT {
-            "counter("
-        } else {
-            "sampler("
-        };
-        write!(
-            self.formatter,
-            [token(name), space(), token(instrument_name)]
-        )?;
+        self.write_opcode(name)?;
         self.write_text(&instrument)?;
-        self.write_token(")")?;
 
         // append the sampled register when present
         if opcode == Opcode::PROFILE_SAMPLE {
             let value = self.register_id()?;
-            write!(self.formatter, [token(","), space()])?;
+            self.write_comma()?;
             self.write_register(value)?;
         }
 

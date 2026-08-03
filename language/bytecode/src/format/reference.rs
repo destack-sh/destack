@@ -2,7 +2,7 @@ use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{Opcode, ReferenceType, RegisterSpan, RelocationTag};
+use crate::{Opcode, RegisterSpan, RelocationTag, ValueType};
 
 use super::instruction::InstructionFormatter;
 
@@ -28,10 +28,9 @@ impl InstructionFormatter<'_, '_, '_> {
         let name = self.opcode_name(opcode)?;
 
         // write the lifetime operation
-        self.write_reference_opcode(name, reference)?;
+        self.write_opcode(name)?;
         self.write_register(value)?;
-
-        Ok(())
+        self.write_representation(ValueType::reference(reference.kind(), reference.storage()))
     }
 
     /// Format one explicit value destruction.
@@ -62,32 +61,12 @@ impl InstructionFormatter<'_, '_, '_> {
         let byte_len = self.register_id()?;
 
         // write the barrier range
-        self.write_reference_opcode("barrier", reference)?;
+        self.write_opcode("barrier")?;
         self.write_register(object)?;
         write!(self.formatter, [token(","), space()])?;
         self.write_register(offset)?;
         write!(self.formatter, [token(","), space()])?;
-        self.write_register(byte_len)
-    }
-
-    /// Write one operation selected by reference space and ownership.
-    pub(super) fn write_reference_opcode(
-        &mut self,
-        operation: &str,
-        reference: ReferenceType,
-    ) -> FormatResult<()> {
-        let space = reference
-            .storage()
-            .heap_space()
-            .and_then(|space| space.name())
-            .ok_or(FormatError::SyntaxError {
-                message: "reference operation requires heap storage",
-            })?;
-        let kind = reference.kind().name().ok_or(FormatError::SyntaxError {
-            message: "reference operation has an invalid ownership",
-        })?;
-        let name = format!("{operation}.{space}.{kind}");
-
-        self.write_opcode(&name)
+        self.write_register(byte_len)?;
+        self.write_representation(ValueType::reference(reference.kind(), reference.storage()))
     }
 }

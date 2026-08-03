@@ -7,16 +7,16 @@ fn test_format_runtime_instructions() {
         r#"
 function f0 {
     breakpoint
-profile.increment counter(3)
-profile.sample sampler(4),r0
+profile.increment c3
+profile.sample s4,r0
 return
 }
 "#,
         r#"
 function f0 {
     breakpoint
-    profile.increment counter(3)
-    profile.sample sampler(4), r0
+    profile.increment c3
+    profile.sample s4, r0
     return
 }
 "#,

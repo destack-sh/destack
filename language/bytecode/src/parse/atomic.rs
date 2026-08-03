@@ -1,6 +1,6 @@
 use crate::{
     AtomicAccess, AtomicOperation, AtomicOrder, CompareExchangeAccess, ExecutionScope, FenceAccess,
-    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterId, RegisterSpan, Scalar,
+    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterId, RegisterSpan,
     StorageSet, Token, TokenType,
 };
 
@@ -20,12 +20,15 @@ impl Parser<'_> {
 
             return self.parse_atomic_fence(&results, function);
         }
-        let (operation, scalar) = self.parse_atomic_name(name, token)?;
-        let opcode = Opcode::atomic(operation, scalar)
-            .ok_or_else(|| ParseError::new("invalid atomic operation", token.span))?;
-        let results = self.parse_definitions(opcode)?;
 
-        self.parse_atomic_access(operation, scalar, token, &results, function)
+        // parse one scalar atomic operation
+        let operation = name
+            .strip_prefix("atomic.")
+            .and_then(AtomicOperation::from_name)
+            .ok_or_else(|| ParseError::new("expected atomic operation", token.span))?;
+        let results = self.parse_results(operation.result_count(), true)?;
+
+        self.parse_atomic_access(operation, token, &results, function)
     }
 
     /// Parse one atomic fence.
@@ -65,7 +68,6 @@ impl Parser<'_> {
     fn parse_atomic_access(
         &mut self,
         operation: AtomicOperation,
-        scalar: Scalar,
         token: Token,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
@@ -74,53 +76,26 @@ impl Parser<'_> {
         let pointer = self.parse_register()?;
         let value = self.parse_atomic_value(operation)?;
 
-        // encode regular operands
+        // parse operation specific operands, access, and representation
+        let replacement = self.parse_atomic_replacement(operation)?;
+        self.eat_token(TokenType::Comma)?;
+        let access = self.parse_atomic_access_bits(operation, token)?;
+        let scalar = self.parse_scalar_representation()?;
         let opcode = Opcode::atomic(operation, scalar)
             .ok_or_else(|| ParseError::new("invalid atomic operation", token.span))?;
+
+        // encode the complete typed access
         let mut instruction = InstructionBuilder::new(opcode);
         instruction.register(pointer);
         if let Some(value) = value {
             instruction.register(value);
         }
-
-        // encode operation specific operands
-        if let Some(replacement) = self.parse_atomic_replacement(operation)? {
+        if let Some(replacement) = replacement {
             instruction.register(replacement);
         }
-        // encode operation specific memory access
-        self.eat_token(TokenType::Comma)?;
-        let access = self.parse_atomic_access_bits(operation, token)?;
         instruction.u16(access);
 
         function.emit(instruction, results, self.empty_span())
-    }
-
-    /// Parse one typed atomic operation name.
-    fn parse_atomic_name(
-        &self,
-        name: &str,
-        token: Token,
-    ) -> ParseResult<(AtomicOperation, Scalar)> {
-        let name = name
-            .strip_prefix("atomic.")
-            .ok_or_else(|| ParseError::new("expected atomic operation", token.span))?;
-        let (operation, scalar) = name
-            .rsplit_once('.')
-            .ok_or_else(|| ParseError::new("expected atomic scalar type", token.span))?;
-        let operation = AtomicOperation::from_name(operation)
-            .ok_or_else(|| ParseError::new("expected atomic operation", token.span))?;
-        let scalar = Scalar::from_name(scalar)
-            .ok_or_else(|| ParseError::new("expected atomic scalar type", token.span))?;
-
-        // reject operation and scalar combinations outside the ISA
-        if !operation.supports(scalar) {
-            return Err(ParseError::new(
-                "atomic operation does not support its scalar type",
-                token.span,
-            ));
-        }
-
-        Ok((operation, scalar))
     }
 
     /// Parse the scalar input required by one atomic operation.

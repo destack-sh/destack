@@ -1,6 +1,6 @@
 use crate::{
-    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, ReferenceKind, ReferenceType,
-    RegisterSpan, RelocationTag, Space, Storage, Token, TokenType,
+    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, ReferenceType, RegisterSpan,
+    RelocationTag, Token, TokenType,
 };
 
 use super::function::FunctionParser;
@@ -13,14 +13,7 @@ impl Parser<'_> {
         token: Token,
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        let (operation, reference) = if name == "drop" {
-            (name, None)
-        } else {
-            let (operation, reference) = self.parse_reference_name(name, token)?;
-
-            (operation, Some(reference))
-        };
-        let opcode = match operation {
+        let opcode = match name {
             "free" => Opcode::FREE,
             "drop" => Opcode::DROP,
             "pin" => Opcode::PIN,
@@ -30,12 +23,12 @@ impl Parser<'_> {
         };
         let results = self.parse_definitions(opcode)?;
 
-        match (operation, reference) {
-            ("free" | "pin" | "unpin", Some(reference)) => {
-                self.parse_reference_lifetime(opcode, reference, &results, function)
+        match name {
+            "free" | "pin" | "unpin" => {
+                self.parse_reference_lifetime(opcode, token, &results, function)
             }
-            ("drop", None) => self.parse_drop(&results, function),
-            ("barrier", Some(reference)) => self.parse_barrier(reference, &results, function),
+            "drop" => self.parse_drop(&results, function),
+            "barrier" => self.parse_barrier(token, &results, function),
             _ => Err(ParseError::new("invalid reference operation", token.span)),
         }
     }
@@ -44,11 +37,12 @@ impl Parser<'_> {
     fn parse_reference_lifetime(
         &mut self,
         opcode: Opcode,
-        reference: ReferenceType,
+        token: Token,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let value = self.parse_register()?;
+        let reference = self.parse_reference_representation(token)?;
 
         // encode the lifetime transition
         let mut instruction = InstructionBuilder::new(opcode);
@@ -81,7 +75,7 @@ impl Parser<'_> {
     /// Parse one managed reference write barrier.
     fn parse_barrier(
         &mut self,
-        reference: ReferenceType,
+        token: Token,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
@@ -91,6 +85,7 @@ impl Parser<'_> {
         let offset = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let byte_len = self.parse_register()?;
+        let reference = self.parse_reference_representation(token)?;
 
         // encode the write barrier
         let mut instruction = InstructionBuilder::new(Opcode::BARRIER);
@@ -102,23 +97,11 @@ impl Parser<'_> {
         function.emit(instruction, results, self.empty_span())
     }
 
-    /// Parse one operation name selected by reference space and ownership.
-    pub(super) fn parse_reference_name<'a>(
-        &self,
-        name: &'a str,
-        token: Token,
-    ) -> ParseResult<(&'a str, ReferenceType)> {
-        let (name, kind) = name
-            .rsplit_once('.')
-            .ok_or_else(|| ParseError::new("reference operation has no ownership", token.span))?;
-        let (operation, space) = name
-            .rsplit_once('.')
-            .ok_or_else(|| ParseError::new("reference operation has no space", token.span))?;
-        let kind = ReferenceKind::from_name(kind)
-            .ok_or_else(|| ParseError::new("unknown reference ownership", token.span))?;
-        let space = Space::from_name(space)
-            .ok_or_else(|| ParseError::new("unknown reference space", token.span))?;
+    /// Parse one trailing reference representation.
+    fn parse_reference_representation(&mut self, token: Token) -> ParseResult<ReferenceType> {
+        let ty = self.parse_representation()?;
 
-        Ok((operation, ReferenceType::new(kind, Storage::heap(space))))
+        ty.reference_type()
+            .ok_or_else(|| ParseError::new("expected reference representation", token.span))
     }
 }

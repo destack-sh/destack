@@ -7,14 +7,14 @@ fn test_format_slice_operations() {
         r#"
 function f0 {
     slice.view r3:r4, r0:r1,8,r2,r2
-extract r5, r3:r4,8,8
+extract r5, r3:r4,8:8
 return r3:r5
 }
 "#,
         r#"
 function f0 {
     slice.view r3:r4, r0:r1, 8, r2, r2
-    extract r5, r3:r4, 8, 8
+    extract r5, r3:r4, 8:8
     return r3:r5
 }
 "#,

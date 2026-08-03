@@ -9,9 +9,10 @@ fn test_parse_function_values() {
         r#"
 external function f0
 
-function f1 {    function.bind r2:r3, f0, r0
-    extract r4, r2:r3, 8, 8
-    call.indirect r5, r2:r3, r1
+function f1 {
+    function.bind r2:r3, f0, r0
+    extract r4, r2:r3, 8:8
+    call.indirect r5, r2:r3(r1)
     return r5
 }
 "#,

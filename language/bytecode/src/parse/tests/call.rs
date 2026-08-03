@@ -7,7 +7,9 @@ use super::TestParser;
 fn test_parse_direct_call() {
     let (object, opcodes) = TestParser::new(
         r#"
-function f0 {    call r1, f1, r0
+function f0 {
+    call r1, f1(r0)
+    call r2, f1()
     return r1
 }
 
@@ -15,7 +17,7 @@ external function f1
 "#,
     )
     .parse_opcodes(FunctionId(0));
-    assert_eq!(opcodes, vec![Opcode::CALL, Opcode::RETURN]);
+    assert_eq!(opcodes, vec![Opcode::CALL, Opcode::CALL, Opcode::RETURN]);
     assert!(object.functions()[1].code().is_none());
     assert_eq!(object.relocations()[0].tag, RelocationTag::FUNCTION);
 }
@@ -26,7 +28,8 @@ fn test_parse_invoke_edges() {
     let (_, opcodes) = TestParser::new(
         r#"
 external function f0
-function f1 {    invoke r1, f0, r0 => b0 | b1
+function f1 {
+    invoke r1, f0(r0) => b0 | b1
 
 b0:
     return r1

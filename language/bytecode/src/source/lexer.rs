@@ -173,6 +173,7 @@ impl<'a> Lexer<'a> {
             ';' => TokenType::Semicolon,
             ',' => TokenType::Comma,
             '|' => TokenType::Pipe,
+            '@' => TokenType::At,
             '*' => TokenType::Star,
             '=' => TokenType::Equal,
             _ => return None,
