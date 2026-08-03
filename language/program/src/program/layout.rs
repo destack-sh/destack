@@ -871,8 +871,6 @@ pub enum TensorDimensionKind {
 pub struct VariantLayout {
     /// The logical discriminant type.
     pub discriminant: TypeId,
-    /// The logical payload storage type.
-    pub storage: TypeId,
     /// The physical discriminant encoding.
     pub encoding: VariantEncoding,
     /// The variant cases.
@@ -1094,7 +1092,6 @@ impl LayoutShapeBuilder {
             }
             Self::Variant(variant) => LayoutShape::Variant(VariantLayout {
                 discriminant: variant.discriminant,
-                storage: variant.storage,
                 encoding: variant.encoding,
                 cases: cases.append(variant.cases),
             }),
@@ -1240,8 +1237,6 @@ impl TensorViewLayoutBuilder {
 pub struct VariantLayoutBuilder {
     /// The logical discriminant type.
     discriminant: TypeId,
-    /// The logical payload storage type.
-    storage: TypeId,
     /// The physical discriminant encoding.
     encoding: VariantEncoding,
     /// The variant cases.
@@ -1250,10 +1245,9 @@ pub struct VariantLayoutBuilder {
 
 impl VariantLayoutBuilder {
     /// Create one variant layout builder.
-    pub fn new(discriminant: TypeId, storage: TypeId, encoding: VariantEncoding) -> Self {
+    pub fn new(discriminant: TypeId, encoding: VariantEncoding) -> Self {
         Self {
             discriminant,
-            storage,
             encoding,
             cases: Vec::new(),
         }
@@ -1352,14 +1346,11 @@ mod tests {
         let encoding = VariantEncoding::Niche {
             field: DiscriminantField::scalar(0, 8),
             untagged_case: 0,
-            niche_case_start: 1,
-            niche_case_end: 1,
             niche_start: 0u128.into(),
         };
         let layout = LayoutBuilder {
             shape: LayoutShapeBuilder::Variant(VariantLayoutBuilder {
                 discriminant: TypeId(1),
-                storage: TypeId(2),
                 encoding,
                 cases: vec![
                     VariantCaseLayout {

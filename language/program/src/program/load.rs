@@ -181,7 +181,7 @@ impl ProgramHeader {
     /// Stable Program image marker.
     const MAGIC: u32 = u32::from_le_bytes(*b"DSPG");
     /// Stable Program image format version.
-    const VERSION: u16 = 11;
+    const VERSION: u16 = 12;
 
     /// Create one empty Program header for a target layout.
     fn new(target_layout: TargetLayout) -> Self {
@@ -585,6 +585,8 @@ impl Program {
     }
 }
 
+const _: () = assert!(align_of::<ProgramHeader>() == 16);
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -626,5 +628,3 @@ mod tests {
         );
     }
 }
-
-const _: () = assert!(align_of::<ProgramHeader>() == 16);
