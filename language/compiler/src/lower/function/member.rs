@@ -195,7 +195,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // load fields through addresses for reference receivers
         if let Some(layer) = self
             .lowerer
-            .peel_reference(receiver, &self.type_substitution)?
+            .peel_indirection(receiver, &self.type_substitution)?
         {
             let address = self.emit_field_address(value, index, result_type, layer.access);
 
@@ -262,7 +262,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // locate storage in the selected receiver
         let stored = match self
             .lowerer
-            .peel_reference(field.receiver.ty(), &self.type_substitution)?
+            .peel_indirection(field.receiver.ty(), &self.type_substitution)?
         {
             Some(layer) => layer.stored,
             None => self

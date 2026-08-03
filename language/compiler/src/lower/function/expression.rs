@@ -88,7 +88,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     CoercionValue::Runtime(value)
                         if self
                             .lowerer
-                            .has_reference_representation(source, &self.type_substitution)? =>
+                            .has_indirect_representation(source, &self.type_substitution)? =>
                     {
                         self.builder.cast(mir::CastOperator::Bitcast, value, target)
                     }
@@ -158,7 +158,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let source = self.node_type_id(expression)?;
         if self
             .lowerer
-            .has_reference_representation(source, &self.type_substitution)?
+            .has_indirect_representation(source, &self.type_substitution)?
         {
             let value = self.lower_expression_value(expression)?;
 

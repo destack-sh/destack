@@ -106,7 +106,7 @@ impl<'a> FunctionBuilder<'a> {
         let global_ty = self.tree.get(global).ty;
         let global_storage = self.tree.get(global).storage;
         let global_pointer = self.tree.intern_type(Type::Reference {
-            kind: ReferenceKind::Raw,
+            kind: ReferenceKind::Borrowed,
             lifetime: Lifetime::empty(),
             storage: Storage::Global(global_storage),
             access: Access::Mutable,

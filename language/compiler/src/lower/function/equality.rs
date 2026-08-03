@@ -14,8 +14,8 @@ pub(in crate::lower) enum LoweredOperand {
         /// The scalar domain.
         domain: dir::ScalarDomain,
     },
-    /// One reference value.
-    Reference(mir::Value),
+    /// One address-bearing value.
+    Address(mir::Value),
     /// One materialized variant value and its logical carrier.
     Variant {
         /// The lowered value.
@@ -73,12 +73,12 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let ty = self.node_type_id(expression)?;
-        let Some(layer) = self.lowerer.peel_reference(ty, &self.type_substitution)? else {
+        let Some(layer) = self.lowerer.peel_indirection(ty, &self.type_substitution)? else {
             return Ok(ty);
         };
         if self
             .lowerer
-            .peel_reference(layer.stored, &self.type_substitution)?
+            .peel_indirection(layer.stored, &self.type_substitution)?
             .is_some()
         {
             return Ok(ty);
@@ -113,13 +113,13 @@ impl FunctionLowerer<'_, '_, '_> {
         }
         let mut value = self.lower_expression(expression)?;
 
-        // read non-reference values through their borrowed views
+        // read inline values through their indirect carriers
         if let Some(layer) = self
             .lowerer
-            .peel_reference(carrier, &self.type_substitution)?
+            .peel_indirection(carrier, &self.type_substitution)?
             && !self
                 .lowerer
-                .has_reference_representation(layer.stored, &self.type_substitution)?
+                .has_indirect_representation(layer.stored, &self.type_substitution)?
         {
             carrier = layer.stored;
             let pointee = self.lower_type(carrier)?;
@@ -214,9 +214,10 @@ impl FunctionLowerer<'_, '_, '_> {
 
         match ty {
             // reference-family carriers compare by identity
-            mir::Type::Reference { .. } | mir::Type::Slice { .. } | mir::Type::Dynamic { .. } => {
-                Ok(LoweredOperand::Reference(value))
-            }
+            mir::Type::Dynamic { .. }
+            | mir::Type::Reference { .. }
+            | mir::Type::Pointer { .. }
+            | mir::Type::Slice { .. } => Ok(LoweredOperand::Address(value)),
             other => Err(CompilerError::Internal {
                 message: format!("an equality type lowered to the unsupported carrier {other:?}"),
             }),
@@ -276,7 +277,7 @@ impl FunctionLowerer<'_, '_, '_> {
             },
         ) = (left, right)
         else {
-            return self.lower_reference_equality(left, operator, right);
+            return self.lower_address_equality(left, operator, right);
         };
         if left_domain != right_domain {
             return Err(CompilerError::Internal {
@@ -452,7 +453,7 @@ impl FunctionLowerer<'_, '_, '_> {
             },
         ) = (left, right)
         else {
-            return self.lower_reference_equality(left, dir::BinaryOperator::EqualStrict, right);
+            return self.lower_address_equality(left, dir::BinaryOperator::EqualStrict, right);
         };
         if left_domain != right_domain {
             return Err(CompilerError::Internal {
@@ -477,8 +478,8 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.binary_op(operator, left_value, right_value))
     }
 
-    /// Lower equality involving references or unmaterialized nullish values.
-    fn lower_reference_equality(
+    /// Lower equality involving addresses or unmaterialized nullish values.
+    fn lower_address_equality(
         &mut self,
         left: LoweredOperand,
         operator: dir::BinaryOperator,
@@ -490,7 +491,7 @@ impl FunctionLowerer<'_, '_, '_> {
             other => {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
-                    construct: format!("the '{}' operator on references", other.text()),
+                    construct: format!("the '{}' operator on pointers or references", other.text()),
                 }
                 .into());
             }
@@ -509,18 +510,18 @@ impl FunctionLowerer<'_, '_, '_> {
             _ => {}
         }
 
-        // materialize nullish niches at the compared reference carrier
+        // materialize nullish niches at the compared address carrier
         let (left, right) = match (left, right) {
-            (LoweredOperand::Reference(left), LoweredOperand::Reference(right)) => (left, right),
-            (LoweredOperand::Reference(reference), nullish) => {
-                let nullish = self.lower_nullish(nullish, reference)?;
+            (LoweredOperand::Address(left), LoweredOperand::Address(right)) => (left, right),
+            (LoweredOperand::Address(address), nullish) => {
+                let nullish = self.lower_nullish(nullish, address)?;
 
-                (reference, nullish)
+                (address, nullish)
             }
-            (nullish, LoweredOperand::Reference(reference)) => {
-                let nullish = self.lower_nullish(nullish, reference)?;
+            (nullish, LoweredOperand::Address(address)) => {
+                let nullish = self.lower_nullish(nullish, address)?;
 
-                (nullish, reference)
+                (nullish, address)
             }
             _ => {
                 return Err(CompilerError::Internal {
@@ -536,15 +537,15 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.binary_op(operator, left, right))
     }
 
-    /// Materialize one nullish operand at a reference value's carrier.
+    /// Materialize one nullish operand at an address value's carrier.
     fn lower_nullish(
         &mut self,
         operand: LoweredOperand,
-        reference: mir::Value,
+        address: mir::Value,
     ) -> CompilerResult<mir::Value> {
-        let Some(carrier) = self.builder.value_type(reference) else {
+        let Some(carrier) = self.builder.value_type(address) else {
             return Err(CompilerError::Internal {
-                message: "an untyped reference in an equality comparison".to_string(),
+                message: "an untyped address in an equality comparison".to_string(),
             });
         };
         let constant = match operand {

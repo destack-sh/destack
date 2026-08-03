@@ -5,11 +5,11 @@ use destack_source::ModuleId;
 use crate::lower::{ModuleLowerer, TypeLowerer, TypeSubstitution};
 use crate::{CompilerError, CompilerResult, LowerError};
 
-/// One reference layer peeled from a value type.
+/// One indirect layer peeled from a value type.
 pub(in crate::lower) struct Indirection {
-    /// The type the reference stores.
+    /// The type stored behind the indirection.
     pub(in crate::lower) stored: dir::GlobalTypeId,
-    /// The access exposed through the reference.
+    /// The access exposed through the indirection.
     pub(in crate::lower) access: mir::Access,
 }
 
@@ -27,7 +27,7 @@ impl TypeLowerer<'_, '_> {
         };
 
         match form.form {
-            // narrow the access of the next reference layer inward
+            // narrow the access of the next indirect layer inward
             dir::Form::Readonly => match self.lowerer.ty(form.value)? {
                 dir::Type::Form(_) => self.lower_form(form.value, Some(mir::Access::Readonly)),
                 // lower readonly over a pure value at the narrowed access
@@ -64,13 +64,10 @@ impl TypeLowerer<'_, '_> {
                 )
             }
 
-            // reference the payload of raw layers without safety
-            dir::Form::Raw => self.lower_reference(
-                mir::ReferenceKind::Raw,
-                mir::Lifetime::empty(),
-                access.unwrap_or(mir::Access::Mutable),
-                form.value,
-            ),
+            // raw layers produce process-local machine pointers
+            dir::Form::Raw => {
+                self.lower_pointer(form.value, access.unwrap_or(mir::Access::Mutable))
+            }
 
             // owned fat references fuse into one unique carrier
             dir::Form::Owned
@@ -168,6 +165,21 @@ impl TypeLowerer<'_, '_> {
         }))
     }
 
+    /// Lower one raw form into a process-local machine pointer.
+    fn lower_pointer(
+        &mut self,
+        payload: dir::GlobalTypeId,
+        access: mir::Access,
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        let pointee = self.lower_pointee(payload)?;
+
+        Ok(self.tree.intern_type(mir::Type::Pointer {
+            pointee,
+            access,
+            nullability: mir::Nullability::None,
+        }))
+    }
+
     /// Lower one type as the pointee behind a reference or owner.
     ///
     /// The pointee is the declared storage for nominal families and the
@@ -215,7 +227,7 @@ impl TypeLowerer<'_, '_> {
         // reference families receive the access on their implicit managed layer
         if self
             .lowerer
-            .has_reference_representation(id, self.type_substitution)?
+            .has_indirect_representation(id, self.type_substitution)?
         {
             return self.lower_reference(
                 mir::ReferenceKind::Managed,
@@ -230,8 +242,8 @@ impl TypeLowerer<'_, '_> {
 }
 
 impl ModuleLowerer<'_> {
-    /// Return the outermost reference layer of one value type, when one exists.
-    pub(in crate::lower) fn peel_reference(
+    /// Return the outermost indirect layer of one value type, when one exists.
+    pub(in crate::lower) fn peel_indirection(
         &self,
         id: dir::GlobalTypeId,
         type_substitution: &TypeSubstitution,
@@ -239,7 +251,7 @@ impl ModuleLowerer<'_> {
         let id = type_substitution.resolve(self, id)?;
 
         match self.ty(id)? {
-            // reference the payload of form layers by constructor
+            // form layers select their indirection by constructor
             dir::Type::Form(form) => match form.form {
                 dir::Form::Managed | dir::Form::Raw => Ok(Some(Indirection {
                     stored: type_substitution.resolve(self, form.value)?,
@@ -260,7 +272,7 @@ impl ModuleLowerer<'_> {
                 }
                 // narrow the layer beneath views
                 dir::Form::Readonly => {
-                    let layer = self.peel_reference(form.value, type_substitution)?;
+                    let layer = self.peel_indirection(form.value, type_substitution)?;
 
                     Ok(layer.map(|layer| Indirection {
                         access: mir::Access::Readonly,
@@ -281,13 +293,13 @@ impl ModuleLowerer<'_> {
             // nullable unions reference through their carrier
             dir::Type::Union(union) => {
                 match self.decompose_nullish_union(id.module_id, &union, type_substitution)? {
-                    Some((_, carrier)) => self.peel_reference(carrier, type_substitution),
+                    Some((_, carrier)) => self.peel_indirection(carrier, type_substitution),
                     None => Ok(None),
                 }
             }
 
             // bare reference families carry an implicit managed layer
-            _ => match self.has_reference_representation(id, type_substitution)? {
+            _ => match self.has_indirect_representation(id, type_substitution)? {
                 true => Ok(Some(Indirection {
                     stored: id,
                     access: mir::Access::Mutable,
@@ -317,8 +329,8 @@ impl ModuleLowerer<'_> {
         }
     }
 
-    /// Return whether one type is carried by a reference at runtime.
-    pub(in crate::lower) fn has_reference_representation(
+    /// Return whether one type has an indirect runtime representation.
+    pub(in crate::lower) fn has_indirect_representation(
         &self,
         id: dir::GlobalTypeId,
         type_substitution: &TypeSubstitution,
@@ -333,7 +345,7 @@ impl ModuleLowerer<'_> {
                 dir::Form::Owned => self.is_reference_carrier(form.value, type_substitution),
                 // views and placement answer for the layer beneath
                 dir::Form::Readonly | dir::Form::Placed { .. } => {
-                    self.has_reference_representation(form.value, type_substitution)
+                    self.has_indirect_representation(form.value, type_substitution)
                 }
             },
 
@@ -341,7 +353,7 @@ impl ModuleLowerer<'_> {
             dir::Type::Union(union) => {
                 match self.decompose_nullish_union(id.module_id, &union, type_substitution)? {
                     Some((_, carrier)) => {
-                        self.has_reference_representation(carrier, type_substitution)
+                        self.has_indirect_representation(carrier, type_substitution)
                     }
                     None => Ok(false),
                 }
@@ -445,7 +457,7 @@ impl ModuleLowerer<'_> {
             return Ok(None);
         };
         let carrier = type_substitution.resolve(self, *carrier)?;
-        if !self.has_reference_representation(carrier, type_substitution)? {
+        if !self.has_indirect_representation(carrier, type_substitution)? {
             return Ok(None);
         }
         let nullability = match nullability {

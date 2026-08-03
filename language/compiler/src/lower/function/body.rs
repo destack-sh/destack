@@ -217,7 +217,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<NominalInstance> {
-        let stored = match self.lowerer.peel_reference(id, &self.type_substitution)? {
+        let stored = match self.lowerer.peel_indirection(id, &self.type_substitution)? {
             Some(reference) => reference.stored,
             None => self.lowerer.peel_owned(id, &self.type_substitution)?,
         };

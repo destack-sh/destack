@@ -174,6 +174,7 @@ impl<'tree> LayoutBuilder<'tree> {
             | mir::Type::Dynamic { .. }
             | mir::Type::Application { .. }
             | mir::Type::Reference { .. }
+            | mir::Type::Pointer { .. }
             | mir::Type::Slice { .. }
             | mir::Type::Uninit { .. }
             | mir::Type::ManuallyDrop { .. }
@@ -278,6 +279,14 @@ impl<'tree> LayoutBuilder<'tree> {
                 size: self.pointer_bytes(),
                 alignment: self.pointer_alignment(),
                 trace_map: Self::reference_trace(kind, storage),
+            }),
+
+            // process-local pointers occupy one untraced machine word
+            mir::Type::Pointer { .. } => Ok(mir::Layout {
+                shape: mir::LayoutShape::Scalar,
+                size: self.pointer_bytes(),
+                alignment: self.pointer_alignment(),
+                trace_map: mir::TraceMap::Empty,
             }),
 
             // slices store their base reference followed by one element count
@@ -551,11 +560,6 @@ impl<'tree> LayoutBuilder<'tree> {
 
     /// Return the trace map for one reference value.
     fn reference_trace(kind: mir::ReferenceKind, storage: mir::Storage) -> mir::TraceMap {
-        // raw pointers never participate in managed tracing or frame relocation
-        if kind == mir::ReferenceKind::Raw {
-            return mir::TraceMap::Empty;
-        }
-
         // frame references must be rewritten when continuations move
         if storage == mir::Storage::Frame {
             return mir::TraceMap::Fixed {

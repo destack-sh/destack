@@ -350,8 +350,8 @@ function bump(pointer: *int32): void {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function test.main.bump(v0: ref<int32, raw, mutable>): void {
-entry(v0: ref<int32, raw, mutable>):
+function test.main.bump(v0: ptr<int32, mutable>): void {
+entry(v0: ptr<int32, mutable>):
     v1: int32 = load v0
     store v0, v1
     return
@@ -365,10 +365,10 @@ fn test_lower_volatile_pointer_access_to_its_operations() {
     let session = TestSession::single(
         r#"
 @intrinsic("memory.ptr.readVolatile")
-declare function readVolatile<T>(source: *T): ^T;
+declare function readVolatile<T: Copy>(source: *T): ^T;
 
 @intrinsic("memory.ptr.writeVolatile")
-declare function writeVolatile<T>(destination: *T, value: ^T): void;
+declare function writeVolatile<T: Copy>(destination: *T, value: ^T): void;
 
 function mirror(pointer: *int32): void {
     writeVolatile<int32>(pointer, readVolatile<int32>(pointer));
@@ -379,8 +379,8 @@ function mirror(pointer: *int32): void {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function test.main.mirror(v0: ref<int32, raw, mutable>): void {
-entry(v0: ref<int32, raw, mutable>):
+function test.main.mirror(v0: ptr<int32, mutable>): void {
+entry(v0: ptr<int32, mutable>):
     v1: int32 = intrinsic.memory.ptr.readVolatile(v0)
     v2: void = intrinsic.memory.ptr.writeVolatile(v0, v1)
     return
@@ -405,8 +405,8 @@ function exchange(pointer: *int32, value: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function test.main.exchange(v0: ref<int32, raw, mutable>, v1: int32): int32 {
-entry(v0: ref<int32, raw, mutable>, v1: int32):
+function test.main.exchange(v0: ptr<int32, mutable>, v1: int32): int32 {
+entry(v0: ptr<int32, mutable>, v1: int32):
     v2: int32 = load v0
     store v0, v1
     return v2
@@ -431,8 +431,8 @@ function flip(first: *int32, second: *int32): void {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function test.main.flip(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>): void {
-entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
+function test.main.flip(v0: ptr<int32, mutable>, v1: ptr<int32, mutable>): void {
+entry(v0: ptr<int32, mutable>, v1: ptr<int32, mutable>):
     v2: int32 = load v0
     v3: int32 = load v1
     store v0, v3
@@ -459,8 +459,8 @@ function destroy(pointer: *int32): void {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function test.main.destroy(v0: ref<int32, raw, mutable>): void {
-entry(v0: ref<int32, raw, mutable>):
+function test.main.destroy(v0: ptr<int32, mutable>): void {
+entry(v0: ptr<int32, mutable>):
     v1: int32 = load v0
     drop v1
     return
@@ -534,10 +534,10 @@ function empty(): *int64 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function test.main.empty(): ref<int64, raw, mutable> {
+function test.main.empty(): ptr<int64, mutable> {
 entry:
     v0: uint64 = 8
-    v1: ref<int64, raw, mutable> = intrinsic.memory.raw.transmute(v0)
+    v1: ptr<int64, mutable> = intrinsic.memory.raw.transmute(v0)
     return v1
 }
 "#,
@@ -563,14 +563,14 @@ function distance(pointer: *int32, origin: *int32): int {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function test.main.distance(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>): int64 {
-entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
+function test.main.distance(v0: ptr<int32, mutable>, v1: ptr<int32, mutable>): int64 {
+entry(v0: ptr<int32, mutable>, v1: ptr<int32, mutable>):
     v2: int64 = 2
     v3: int64 = 4
     v4: int64 = intrinsic.memory.raw.transmute(v0)
     v5: int64 = int.mul v2, v3
     v6: int64 = int.add v4, v5
-    v7: ref<int32, raw, mutable> = intrinsic.memory.raw.transmute(v6)
+    v7: ptr<int32, mutable> = intrinsic.memory.raw.transmute(v6)
     v8: int64 = 4
     v9: int64 = intrinsic.memory.ptr.byteOffsetFrom(v7, v1)
     v10: int64 = int.div.s v9, v8

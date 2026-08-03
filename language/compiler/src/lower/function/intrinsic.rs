@@ -421,10 +421,13 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "an untyped pointer operand".to_string(),
             });
         };
-        let mir::Type::Reference { pointee, .. } = self.builder.tree().get(pointer_type) else {
-            return Err(CompilerError::Internal {
-                message: "an address through a non-reference operand".to_string(),
-            });
+        let pointee = match self.builder.tree().get(pointer_type) {
+            mir::Type::Pointer { pointee, .. } | mir::Type::Reference { pointee, .. } => pointee,
+            _ => {
+                return Err(CompilerError::Internal {
+                    message: "a pointer operation on a value without a pointee".to_string(),
+                });
+            }
         };
 
         Ok(*pointee)
