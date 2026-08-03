@@ -129,6 +129,8 @@ pub enum SampleValue {
     GlobalReference(GlobalAddress),
     /// Function pointer value.
     FunctionPointer(u64),
+    /// Process-local machine pointer value.
+    Pointer(u64),
 }
 
 impl Profile {
@@ -246,6 +248,7 @@ impl SampleKey {
                 SampleValue::GlobalReference(GlobalAddress::from_bits(self.0))
             }
             WordLayout::FunctionPointer => SampleValue::FunctionPointer(self.0),
+            WordLayout::Pointer => SampleValue::Pointer(self.0),
         };
 
         Some(value)

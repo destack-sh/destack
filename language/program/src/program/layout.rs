@@ -309,6 +309,8 @@ pub enum WordLayout {
     GlobalReference,
     /// Function pointer.
     FunctionPointer,
+    /// Process-local machine pointer.
+    Pointer,
 }
 
 impl WordLayout {
@@ -337,7 +339,8 @@ impl WordLayout {
             Self::LocalReference
             | Self::SharedReference
             | Self::FrameReference
-            | Self::FunctionPointer => pointer_bytes,
+            | Self::FunctionPointer
+            | Self::Pointer => pointer_bytes,
             Self::GlobalReference => GlobalAddress::BYTE_LEN,
         }
     }
@@ -358,7 +361,8 @@ impl WordLayout {
             | Self::SharedReference
             | Self::FrameReference
             | Self::GlobalReference
-            | Self::FunctionPointer => Word::from_bits(raw),
+            | Self::FunctionPointer
+            | Self::Pointer => Word::from_bits(raw),
         }
     }
 
@@ -379,7 +383,8 @@ impl WordLayout {
             | Self::SharedReference
             | Self::FrameReference
             | Self::GlobalReference
-            | Self::FunctionPointer => value.bits(),
+            | Self::FunctionPointer
+            | Self::Pointer => value.bits(),
         }
     }
 
@@ -468,6 +473,7 @@ impl Layout {
             }) => Some(WordLayout::Float64),
             LayoutShape::Reference(reference) => reference.word_layout(),
             LayoutShape::FunctionPointer(_) => Some(WordLayout::FunctionPointer),
+            LayoutShape::Pointer(_) => Some(WordLayout::Pointer),
             LayoutShape::Tensor(tensor) => tensor.reference.word_layout(),
             _ => None,
         }
@@ -497,6 +503,8 @@ pub enum LayoutShape {
     Scalar(ScalarFormat),
     /// Reference storage.
     Reference(ReferenceLayout),
+    /// Process-local machine pointer storage.
+    Pointer(PointerLayout),
     /// Function pointer storage.
     FunctionPointer(SignatureId),
     /// Struct storage.
@@ -573,7 +581,6 @@ impl ReferenceLayout {
             ReferenceKind::Managed => 1,
             ReferenceKind::Unique => 2,
             ReferenceKind::Borrowed => 3,
-            ReferenceKind::Raw => 4,
         };
         let access = match access {
             Access::Readonly => 0,
@@ -606,7 +613,6 @@ impl ReferenceLayout {
             1 => Some(ReferenceKind::Managed),
             2 => Some(ReferenceKind::Unique),
             3 => Some(ReferenceKind::Borrowed),
-            4 => Some(ReferenceKind::Raw),
             _ => None,
         }
     }
@@ -642,10 +648,7 @@ impl ReferenceLayout {
 
     /// Return the traced heap space when this reference names heap storage.
     pub fn heap_space(self) -> Option<Space> {
-        let kind = self.kind()?;
-        if kind == ReferenceKind::Raw {
-            return None;
-        }
+        self.kind()?;
 
         match self.storage()? {
             Storage::Heap(space) => Some(space),
@@ -687,6 +690,71 @@ impl ReferenceLayout {
 }
 
 const _: () = assert!(std::mem::size_of::<ReferenceLayout>() == 8);
+
+/// Concrete layout for one process-local machine pointer.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct PointerLayout {
+    /// The pointed-to value type.
+    pub pointee: TypeId,
+    /// Packed access and nullability.
+    bits: u8,
+    /// Explicit initialized row padding.
+    padding: [u8; 3],
+}
+
+impl PointerLayout {
+    /// Mask for the packed pointer access.
+    const ACCESS_MASK: u8 = 0x3;
+    /// Mask for the packed pointer nullability.
+    const NULLABILITY_MASK: u8 = 0x3;
+    /// Shift for the packed nullability.
+    const NULLABILITY_SHIFT: u8 = 2;
+
+    /// Create one process-local pointer layout.
+    pub const fn new(pointee: TypeId, access: Access, nullability: Nullability) -> Self {
+        let access = match access {
+            Access::Readonly => 0,
+            Access::Mutable => 1,
+            Access::Exclusive => 2,
+        };
+        let nullability = match nullability {
+            Nullability::None => 0,
+            Nullability::Null => 1,
+            Nullability::Undefined => 2,
+            Nullability::NullOrUndefined => 3,
+        };
+        let bits = access | (nullability << Self::NULLABILITY_SHIFT);
+
+        Self {
+            pointee,
+            bits,
+            padding: [0; 3],
+        }
+    }
+
+    /// Return the access exposed through this pointer.
+    pub const fn access(self) -> Option<Access> {
+        match self.bits & Self::ACCESS_MASK {
+            0 => Some(Access::Readonly),
+            1 => Some(Access::Mutable),
+            2 => Some(Access::Exclusive),
+            _ => None,
+        }
+    }
+
+    /// Return the nullish values allowed by this pointer.
+    pub const fn nullability(self) -> Nullability {
+        match (self.bits >> Self::NULLABILITY_SHIFT) & Self::NULLABILITY_MASK {
+            1 => Nullability::Null,
+            2 => Nullability::Undefined,
+            3 => Nullability::NullOrUndefined,
+            _ => Nullability::None,
+        }
+    }
+}
+
+const _: () = assert!(std::mem::size_of::<PointerLayout>() == 8);
 
 /// Concrete layout for one dynamic value.
 #[repr(C)]
@@ -968,6 +1036,8 @@ pub enum LayoutShapeBuilder {
     Scalar(ScalarFormat),
     /// Reference storage.
     Reference(ReferenceLayout),
+    /// Process-local machine pointer storage.
+    Pointer(PointerLayout),
     /// Function pointer storage.
     FunctionPointer(SignatureId),
     /// Struct storage.
@@ -1009,6 +1079,7 @@ impl LayoutShapeBuilder {
             Self::None => LayoutShape::None,
             Self::Scalar(scalar) => LayoutShape::Scalar(scalar),
             Self::Reference(reference) => LayoutShape::Reference(reference),
+            Self::Pointer(pointer) => LayoutShape::Pointer(pointer),
             Self::FunctionPointer(signature) => LayoutShape::FunctionPointer(signature),
             Self::Struct(layout_fields) => LayoutShape::Struct(fields.append(layout_fields)),
             Self::Tuple(layout_fields) => LayoutShape::Tuple(fields.append(layout_fields)),
@@ -1260,15 +1331,6 @@ mod tests {
 
         assert_eq!(reference.heap_space(), Some(Space::Shared));
         assert_eq!(reference.word_layout(), Some(WordLayout::SharedReference));
-    }
-
-    /// Raw references use relative storage coordinates and do not trace heap storage.
-    #[test]
-    fn test_reference_layout_rejects_raw_heap_tracing() {
-        let reference = reference(ReferenceKind::Raw, Storage::Heap(Space::Local));
-
-        assert_eq!(reference.heap_space(), None);
-        assert_eq!(reference.word_layout(), Some(WordLayout::LocalReference));
     }
 
     /// Frame and global references are not heap edges.
