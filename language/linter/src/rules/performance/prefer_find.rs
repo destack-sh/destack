@@ -228,4 +228,27 @@ function firstPositive(values: Values): int32 | undefined {
 
         session.assert_no_diagnostics();
     }
+
+    /// Accept a user extension whose method shares the canonical Array member name.
+    #[test]
+    fn test_accepts_user_array_filter_extension() {
+        let session = TestSession::new(
+            &PREFER_FIND,
+            r#"
+import { Array } from "destack:collections";
+
+extension<T> of Array<T> {
+    filter(predicate: (value: T) => boolean, trace: boolean): Array<T> {
+        return this;
+    }
+}
+
+function firstPositive(values: int32[]): int32 | undefined {
+    return values.filter((value) => value > 0, true).at(0);
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
 }

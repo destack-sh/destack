@@ -28,15 +28,16 @@ impl Dir {
         };
         let owner = owner.into_global(symbol.module_id);
 
-        // resolve extension members to their receiver declaration
+        // resolve inherent extension members to their receiver declaration
         let owner = match module.definitions.extension_definition(owner) {
-            Some(extension) => {
+            Some(extension) if extension.is_inherent() => {
                 let Some(target) = extension.target.root() else {
                     return Ok(None);
                 };
 
                 target
             }
+            Some(_) => return Ok(None),
             None => owner,
         };
         let Some(owner) = self.environment.language.item(owner) else {
