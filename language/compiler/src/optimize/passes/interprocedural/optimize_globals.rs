@@ -15,7 +15,7 @@ declare_pass! {
     /// global value: int32 = 42
     /// function root(): int32 {
     /// entry:
-    ///     v0: ref<int32, raw, mutable> = global.address value
+    ///     v0: ref<int32, borrowed, mutable> = global.address value
     ///     v1: int32 = load v0
     ///     return v1
     /// }
@@ -25,7 +25,7 @@ declare_pass! {
     /// readonly global value: int32 = 42
     /// function root(): int32 {
     /// entry:
-    ///     v0: ref<int32, raw, mutable> = global.address value
+    ///     v0: ref<int32, borrowed, mutable> = global.address value
     ///     v1: int32 = load v0
     ///     return v1
     /// }
@@ -553,7 +553,7 @@ global value: int32 = 42
 
 function root(): int32 {
 entry:
-    v0: ref<int32, raw, mutable> = global.address value
+    v0: ref<int32, borrowed, mutable> = global.address value
     v1: int32 = load v0
     return v1
 }
@@ -564,7 +564,7 @@ readonly global value: int32 = 42
 
 function root(): int32 {
 entry:
-    v0: ref<int32, raw, mutable> = global.address value
+    v0: ref<int32, borrowed, mutable> = global.address value
     v1: int32 = load v0
     return v1
 }
@@ -583,7 +583,7 @@ global value: int32 = 0
 
 function root(): void {
 entry:
-    v0: ref<int32, raw, mutable> = global.address value
+    v0: ref<int32, borrowed, mutable> = global.address value
     v1: int32 = 1
     store v0, v1
     return
@@ -603,8 +603,8 @@ global value: int32 = 0
 
 function root(): void {
 entry:
-    v0: ref<int32, raw, mutable> = global.address value
-    v1: ref<int32, raw, mutable> = intrinsic.space.cast(v0)
+    v0: ref<int32, borrowed, mutable> = global.address value
+    v1: ref<int32, borrowed, mutable> = intrinsic.space.cast(v0)
     v2: int32 = 1
     store v1, v2
     return
@@ -622,9 +622,9 @@ entry:
         let input = r#"
 global value: int32 = 42
 
-function root(): ref<int32, raw, mutable> {
+function root(): ref<int32, borrowed, mutable> {
 entry:
-    v0: ref<int32, raw, mutable> = global.address value
+    v0: ref<int32, borrowed, mutable> = global.address value
     return v0
 }
 "#;
@@ -640,8 +640,8 @@ entry:
         let input = r#"
 global value: int32 = 0
 
-function write(v0: ref<int32, raw, mutable>): void {
-entry(v0: ref<int32, raw, mutable>):
+function write(v0: ref<int32, borrowed, mutable>): void {
+entry(v0: ref<int32, borrowed, mutable>):
     v1: int32 = 1
     store v0, v1
     return
@@ -649,8 +649,8 @@ entry(v0: ref<int32, raw, mutable>):
 
 function root(): void {
 entry:
-    v1: ref<int32, raw, mutable> = global.address value
-    invoke write(v1): (ref<int32, raw, mutable>) => void => b1 | b2
+    v1: ref<int32, borrowed, mutable> = global.address value
+    invoke write(v1): (ref<int32, borrowed, mutable>) => void => b1 | b2
 
 b1:
     return

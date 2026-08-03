@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, MemorySSA, Mutation, PureExpression, ReferenceLocation,
+    AliasAnalysis, MemorySSA, Mutation, PureExpression, MemoryLocation,
     instruction_has_side_effects, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
 };
@@ -171,7 +171,7 @@ fn eliminate_common_subexpressions_in_block(
             let destination = *destination;
             let pointer = *pointer;
 
-            let location = ReferenceLocation::from_reference(pointer);
+            let location = MemoryLocation::from_address(pointer);
             if let Some(existing) = find_load_redundancy(&load_table, &location, alias) {
                 substitutions.insert(destination, existing);
                 to_remove.insert(instruction_id);
@@ -263,7 +263,7 @@ fn eliminate_common_subexpressions_in_block(
 #[derive(Clone)]
 struct LoadEntry {
     /// Memory location for the load.
-    location: ReferenceLocation,
+    location: MemoryLocation,
     /// The value produced by the load.
     value: mir::Value,
 }
@@ -271,13 +271,13 @@ struct LoadEntry {
 /// Find a redundant load using alias analysis.
 fn find_load_redundancy(
     load_table: &[LoadEntry],
-    location: &ReferenceLocation,
+    location: &MemoryLocation,
     alias: &AliasAnalysis,
 ) -> Option<mir::Value> {
     // scan load table from most recent to oldest
     for entry in load_table.iter().rev() {
         // treat identical pointers as a must alias
-        if entry.location.reference == location.reference {
+        if entry.location.address == location.address {
             return Some(entry.value);
         }
 
@@ -560,7 +560,7 @@ entry(v0: (int32, int32)):
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = load v0
     v2: int32 = load v0
     v3: int32 = int.add v1, v2
@@ -572,7 +572,7 @@ function test(): int32 {
     local l0: int32
 
 entry:
-    v0: ref<int32, raw, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = load v0
     v3: int32 = int.add v1, v1
     return v3
@@ -591,7 +591,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = load v0
     v2: int32 = 1
     store v0, v2
@@ -734,7 +734,7 @@ b2(v6: int32):
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = load v0
     v2: int32 = load v0
     v3: int32 = load v0
@@ -761,7 +761,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = load v0
     v2: int32 = load v0
     return v2

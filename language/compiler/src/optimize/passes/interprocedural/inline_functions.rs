@@ -1517,7 +1517,7 @@ entry:
             .expect("missing inlined access entries");
         assert_eq!(accesses.len(), 1);
         match accesses[0].target {
-            mir::MemoryTarget::Reference(value) => {
+            mir::MemoryTarget::Address(value) => {
                 assert_eq!(value, inlined_pointer);
             }
             _ => panic!("unexpected access target"),

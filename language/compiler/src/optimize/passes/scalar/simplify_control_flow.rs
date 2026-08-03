@@ -2980,7 +2980,7 @@ readonly global flag: boolean = true
 
 function test(): int32 {
 entry:
-    v0: ref<boolean, raw, readonly> = global.address flag
+    v0: ref<boolean, borrowed, readonly> = global.address flag
     v1: boolean = load v0
     v2: int32 = 1
     v3: int32 = 2
@@ -2998,7 +2998,7 @@ readonly global flag: boolean = true
 
 function test(): int32 {
 entry:
-    v0: ref<boolean, raw, readonly> = global.address flag
+    v0: ref<boolean, borrowed, readonly> = global.address flag
     v1: boolean = load v0
     v2: int32 = 1
     v3: int32 = 2

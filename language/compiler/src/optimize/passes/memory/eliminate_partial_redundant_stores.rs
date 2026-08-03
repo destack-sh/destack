@@ -22,7 +22,7 @@ declare_pass! {
     /// function before(v0: boolean, v1: int32): void {
     ///     local l0: int32
     /// b0(v0: boolean, v1: int32):
-    ///     v2 = local.address l0 -> ref<int32, raw, mutable, frame>
+    ///     v2 = local.address l0 -> ref<int32, borrowed, mutable, frame>
     ///     branch v0 => b1 | b2
     /// b1:
     ///     store v2, v1
@@ -39,7 +39,7 @@ declare_pass! {
     /// function after(v0: boolean, v1: int32): void {
     ///     local l0: int32
     /// b0(v0: boolean, v1: int32):
-    ///     v2 = local.address l0 -> ref<int32, raw, mutable, frame>
+    ///     v2 = local.address l0 -> ref<int32, borrowed, mutable, frame>
     ///     branch v0 => b1 | b2
     /// b1:
     ///     store v2, v1
@@ -333,7 +333,7 @@ fn store_access_info(
     // ensure the effect location matches the store kind
     match kind {
         StoreKind::Store => {
-            if !matches!(def_access.effect.region, MemoryRegion::Reference { .. }) {
+            if !matches!(def_access.effect.region, MemoryRegion::Address { .. }) {
                 return None;
             }
         }
@@ -620,8 +620,8 @@ fn clone_store_metadata(
     let mut cloned = Vec::with_capacity(accesses.len());
     for access in accesses {
         let mut updated = access.clone();
-        if let (Some(pointer), mir::MemoryTarget::Reference(_)) = (pointer, updated.target) {
-            updated.target = mir::MemoryTarget::Reference(pointer);
+        if let (Some(pointer), mir::MemoryTarget::Address(_)) = (pointer, updated.target) {
+            updated.target = mir::MemoryTarget::Address(pointer);
         }
         cloned.push(updated);
     }
@@ -641,7 +641,7 @@ mod tests {
 function test(v0: boolean, v1: int32): void {
     local l0: int32
 entry(v0: boolean, v1: int32):
-    v2: ref<int32, raw, mutable, frame> = local.address l0
+    v2: ref<int32, borrowed, mutable, frame> = local.address l0
     branch v0 => b1 | b2
 
 b1:
@@ -661,7 +661,7 @@ b3:
 function test(v0: boolean, v1: int32): void {
     local l0: int32
 entry(v0: boolean, v1: int32):
-    v2: ref<int32, raw, mutable, frame> = local.address l0
+    v2: ref<int32, borrowed, mutable, frame> = local.address l0
     branch v0 => b1 | b2
 
 b1:
@@ -689,7 +689,7 @@ b3:
 function test(v0: boolean, v1: int32): void {
     local l0: int32
 entry(v0: boolean, v1: int32):
-    v2: ref<int32, raw, mutable, frame> = local.address l0
+    v2: ref<int32, borrowed, mutable, frame> = local.address l0
     branch v0 => b1 | b2
 
 b1:
@@ -725,7 +725,7 @@ b2:
     jump b3
 
 b3:
-    v1: ref<int32, raw, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, mutable, frame> = local.address l0
     v2: int32 = 1
     store v1, v2
     return
@@ -744,7 +744,7 @@ b3:
 function test(v0: boolean, v1: int32): void {
     local l0: int32
 entry(v0: boolean, v1: int32):
-    v2: ref<int32, raw, mutable, frame> = local.address l0
+    v2: ref<int32, borrowed, mutable, frame> = local.address l0
     branch v0 => b1 | b2
 
 b1:

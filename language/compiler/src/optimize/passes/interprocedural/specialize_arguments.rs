@@ -916,7 +916,7 @@ entry:
             .expect("missing specialized access entries");
         assert_eq!(accesses.len(), 1);
         match accesses[0].target {
-            mir::MemoryTarget::Reference(value) => {
+            mir::MemoryTarget::Address(value) => {
                 assert_eq!(value, specialized_pointer);
             }
             _ => panic!("unexpected access target"),

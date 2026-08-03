@@ -656,7 +656,7 @@ b3(v9: int32):
                         .memory_accesses(instruction_id)
                         .expect("missing tables for hoisted add");
                     assert_eq!(accesses.len(), 1);
-                    assert_eq!(accesses[0].target, mir::MemoryTarget::Reference(then_arg));
+                    assert_eq!(accesses[0].target, mir::MemoryTarget::Address(then_arg));
                     saw_then = true;
                 }
                 mir::Instruction::Binary {
@@ -669,7 +669,7 @@ b3(v9: int32):
                         .memory_accesses(instruction_id)
                         .expect("missing tables for hoisted sub");
                     assert_eq!(accesses.len(), 1);
-                    assert_eq!(accesses[0].target, mir::MemoryTarget::Reference(else_arg));
+                    assert_eq!(accesses[0].target, mir::MemoryTarget::Address(else_arg));
                     saw_else = true;
                 }
                 _ => {}

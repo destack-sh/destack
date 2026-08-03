@@ -471,8 +471,8 @@ entry:
     #[test]
     fn test_preserve_store_side_effects() {
         let input = r#"
-function test(v0: ref<int32, raw, mutable>, v1: int32): void {
-entry(v0: ref<int32, raw, mutable>, v1: int32):
+function test(v0: ref<int32, borrowed, mutable>, v1: int32): void {
+entry(v0: ref<int32, borrowed, mutable>, v1: int32):
     v2: boolean = false
     jump b1
 

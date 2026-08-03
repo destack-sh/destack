@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, MemorySSA, Mutation, ReferenceLocation, instruction_has_side_effects,
+    AliasAnalysis, MemorySSA, Mutation, MemoryLocation, instruction_has_side_effects,
 };
 
 declare_pass! {
@@ -299,7 +299,7 @@ fn store_overwritten_in_block(
     memory_ssa: &MemorySSA,
 ) -> bool {
     // build a memory location for the stored pointer
-    let location = ReferenceLocation::from_reference(pointer);
+    let location = MemoryLocation::from_address(pointer);
 
     // scan later instructions in the block
     for instruction_id in instruction_ids.iter().skip(start + 1).copied() {
@@ -311,10 +311,10 @@ fn store_overwritten_in_block(
             ..
         } = instruction
         {
-            let other_loc = ReferenceLocation::from_reference(*other_reference);
+            let other_loc = MemoryLocation::from_address(*other_reference);
             let alias_result = alias.alias(&location, &other_loc);
 
-            if alias_result.is_must_alias() || location.reference == other_loc.reference {
+            if alias_result.is_must_alias() || location.address == other_loc.address {
                 return true;
             }
             if alias_result.may_alias() {
@@ -494,7 +494,7 @@ b2:
 function test(): void {
     local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = load v0
     return
 }
@@ -533,7 +533,7 @@ entry:
 function test(): void {
     local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = 1
     store v0, v1
     v2: int32 = 2
@@ -892,7 +892,7 @@ entry(v0: int32):
 function test(): void {
     local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = 1
     v2: int32 = 2
     store v0, v1
@@ -907,7 +907,7 @@ function test(): void {
     local l0: int32
 
 entry:
-    v0: ref<int32, raw, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v2: int32 = 2
     store v0, v2
     return
@@ -928,7 +928,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = 1
     store v0, v1
     v2: int32 = load v0

@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     AliasAnalysis, ControlFlowGraph, DominatorTree, LoopAnalysis, MemorySSA, Mutation,
-    ReferenceLocation, ValueDefinitions, build_use_def_maps, instruction_is_memory_read,
+    MemoryLocation, ValueDefinitions, build_use_def_maps, instruction_is_memory_read,
     instruction_is_speculatable,
 };
 
@@ -342,7 +342,7 @@ fn memory_read_can_sink(
     match instruction {
         mir::Instruction::Load { pointer, .. } => {
             // check for clobbering memory operations
-            let location = ReferenceLocation::from_reference(*pointer);
+            let location = MemoryLocation::from_address(*pointer);
             for &later_id in &block.instructions[index + 1..] {
                 let is_clobbered = memory_ssa
                     .instruction_effects(later_id)
@@ -553,7 +553,7 @@ b1:
 function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, mutable, frame> = local.address l0
     v2: int32 = load v1
     branch v0 => b1 | b2
 
@@ -790,8 +790,8 @@ b3:
     #[test]
     fn test_preserve_load_with_intervening_store() {
         let input = r#"
-function test(v0: ref<int32, raw, mutable>, v1: boolean, v2: int32): int32 {
-entry(v0: ref<int32, raw, mutable>, v1: boolean, v2: int32):
+function test(v0: ref<int32, borrowed, mutable>, v1: boolean, v2: int32): int32 {
+entry(v0: ref<int32, borrowed, mutable>, v1: boolean, v2: int32):
     v3: int32 = load v0
     store v0, v2
     branch v1 => b1 | b2
@@ -815,8 +815,8 @@ b2:
     #[test]
     fn test_sink_load_no_intervening_ops() {
         let input = r#"
-function test(v0: ref<int32, raw, mutable>, v1: boolean): int32 {
-entry(v0: ref<int32, raw, mutable>, v1: boolean):
+function test(v0: ref<int32, borrowed, mutable>, v1: boolean): int32 {
+entry(v0: ref<int32, borrowed, mutable>, v1: boolean):
     v2: int32 = load v0
     v3: int32 = 0
     branch v1 => b1 | b2
@@ -832,8 +832,8 @@ b2:
         // v3 (const) is only used in b2
         // both are sunk to their respective successors
         let expected = r#"
-function test(v0: ref<int32, raw, mutable>, v1: boolean): int32 {
-entry(v0: ref<int32, raw, mutable>, v1: boolean):
+function test(v0: ref<int32, borrowed, mutable>, v1: boolean): int32 {
+entry(v0: ref<int32, borrowed, mutable>, v1: boolean):
     branch v1 => b1 | b2
 
 b1:
@@ -854,8 +854,8 @@ b2:
     #[test]
     fn test_sink_pure_past_store() {
         let input = r#"
-function test(v0: int32, v1: ref<int32, raw, mutable>, v2: boolean): int32 {
-entry(v0: int32, v1: ref<int32, raw, mutable>, v2: boolean):
+function test(v0: int32, v1: ref<int32, borrowed, mutable>, v2: boolean): int32 {
+entry(v0: int32, v1: ref<int32, borrowed, mutable>, v2: boolean):
     v3: int32 = 1
     v4: int32 = int.add v0, v3
     store v1, v0
@@ -871,8 +871,8 @@ b2:
         // v4 is a pure computation (int.add) used only in b1
         // it can be sunk past the store since it doesn't read memory
         let expected = r#"
-function test(v0: int32, v1: ref<int32, raw, mutable>, v2: boolean): int32 {
-entry(v0: int32, v1: ref<int32, raw, mutable>, v2: boolean):
+function test(v0: int32, v1: ref<int32, borrowed, mutable>, v2: boolean): int32 {
+entry(v0: int32, v1: ref<int32, borrowed, mutable>, v2: boolean):
     v3: int32 = 1
     store v1, v0
     branch v2 => b1 | b2

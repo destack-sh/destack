@@ -318,10 +318,10 @@ impl ScopedValueTable {
                         }
                     }
                     (
-                        MemoryRegion::Reference { access: a, .. },
-                        MemoryRegion::Reference { access: b, .. },
+                        MemoryRegion::Address { location: a, .. },
+                        MemoryRegion::Address { location: b, .. },
                     ) => {
-                        if a.reference == b.reference {
+                        if a.address == b.address {
                             if a.is_compatible_with(b) {
                                 return Some(entry.value);
                             }
@@ -1272,7 +1272,7 @@ b1:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = load v0
     jump b1
 
@@ -1287,7 +1287,7 @@ function test(): int32 {
     local l0: int32
 
 entry:
-    v0: ref<int32, raw, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = load v0
     jump b1
 
@@ -1309,7 +1309,7 @@ b1:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = load v0
     v2: int32 = 1
     store v0, v2
@@ -1330,8 +1330,8 @@ b1:
     #[test]
     fn test_no_forward_load_size_mismatch() {
         let input = r#"
-function test(v0: ref<int32, raw, mutable>): int32 {
-entry(v0: ref<int32, raw, mutable>):
+function test(v0: ref<int32, borrowed, mutable>): int32 {
+entry(v0: ref<int32, borrowed, mutable>):
     v1: int32 = load v0
     v2: int32 = load v0
     v3: int32 = int.add v1, v2
@@ -1370,29 +1370,29 @@ entry(v0: ref<int32, raw, mutable>):
     #[test]
     fn test_forward_loads_across_no_memory_call() {
         let input = r#"
-external function imported(ref<int32, raw, mutable>): void
+external function imported(ref<int32, borrowed, mutable>): void
 
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = load v0
-    call imported(v0): (ref<int32, raw, mutable>) => void
+    call imported(v0): (ref<int32, borrowed, mutable>) => void
     v2: int32 = load v0
     v3: int32 = int.add v1, v2
     return v3
 }
 "#;
         let expected = r#"
-external function imported(ref<int32, raw, mutable>): void
+external function imported(ref<int32, borrowed, mutable>): void
 
 function test(): int32 {
     local l0: int32
 
 entry:
-    v0: ref<int32, raw, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = load v0
-    call imported(v0): (ref<int32, raw, mutable>) => void
+    call imported(v0): (ref<int32, borrowed, mutable>) => void
     v3: int32 = int.add v1, v1
     return v3
 }

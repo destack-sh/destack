@@ -149,7 +149,7 @@ readonly global dead: int32 = 2
 
 export function root(): int32 {
 entry:
-    v0: ref<int32, raw, readonly> = global.address live
+    v0: ref<int32, borrowed, readonly> = global.address live
     v1: int32 = load v0
     return v1
 }
@@ -162,7 +162,7 @@ external readonly global dead: int32
 
 export function root(): int32 {
 entry:
-    v0: ref<int32, raw, readonly> = global.address live
+    v0: ref<int32, borrowed, readonly> = global.address live
     v1: int32 = load v0
     return v1
 }

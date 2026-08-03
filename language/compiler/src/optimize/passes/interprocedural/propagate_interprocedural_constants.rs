@@ -469,7 +469,7 @@ entry(v0: int32):
 
 function root(): int32 {
 entry:
-    v0: ref<int32, raw, readonly> = global.address value
+    v0: ref<int32, borrowed, readonly> = global.address value
     v1: int32 = load v0
     v2: int32 = call callee(v1): (int32) => int32
     return v2
@@ -486,7 +486,7 @@ entry(v0: int32):
 
 function root(): int32 {
 entry:
-    v0: ref<int32, raw, readonly> = global.address value
+    v0: ref<int32, borrowed, readonly> = global.address value
     v1: int32 = load v0
     v2: int32 = call callee(v1): (int32) => int32
     return v2

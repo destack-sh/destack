@@ -426,7 +426,7 @@ impl TestProgram {
         // build the access
         let access = mir::MemoryAccess {
             operation: kind,
-            target: mir::MemoryTarget::Reference(pointer),
+            target: mir::MemoryTarget::Address(pointer),
             byte_len: size,
             alignment_bytes: None,
             order,
@@ -1437,19 +1437,16 @@ entry:
         assert!(!instruction_is_speculatable(&element_addr, &tree));
     }
 
-    /// Raw address instructions are speculatable with typed checks.
+    /// Pointer address instructions are speculatable with typed checks.
     #[test]
-    fn test_instruction_is_speculatable_allows_raw_addresses() {
+    fn test_instruction_is_speculatable_allows_pointer_addresses() {
         let mut tree = mir::Tree::new();
 
         let pointee = tree.intern_type(mir::Type::Int {
             width: 32,
             is_signed: true,
         });
-        let raw_ref = tree.intern_type(mir::Type::Reference {
-            kind: mir::ReferenceKind::Raw,
-            lifetime: mir::Lifetime::empty(),
-            storage: mir::Storage::Frame,
+        let pointer = tree.intern_type(mir::Type::Pointer {
             access: mir::Access::Mutable,
             pointee,
             nullability: mir::Nullability::None,
@@ -1466,10 +1463,10 @@ entry:
         let destination = mir::Value::new(0);
         let local = mir::LocalNodeId::new(0);
 
-        let raw_addr = mir::Instruction::LocalAddr {
+        let pointer_addr = mir::Instruction::LocalAddr {
             destination,
             local,
-            result_type: raw_ref,
+            result_type: pointer,
         };
         let borrowed_addr = mir::Instruction::LocalAddr {
             destination,
@@ -1477,7 +1474,7 @@ entry:
             result_type: borrowed_ref,
         };
 
-        assert!(instruction_is_speculatable(&raw_addr, &tree));
+        assert!(instruction_is_speculatable(&pointer_addr, &tree));
         assert!(!instruction_is_speculatable(&borrowed_addr, &tree));
     }
 }

@@ -457,7 +457,7 @@ fn run_recognize_loop_idioms(
 
             let use_memcpy =
                 arrays_are_value_types(pattern.dest_array, pattern.src_array, &value_types, tree)
-                    || aa.references_no_alias(pattern.store_pointer, pattern.load_pointer);
+                    || aa.addresses_no_alias(pattern.store_pointer, pattern.load_pointer);
             let intrinsic = if use_memcpy {
                 mir::Intrinsic::Memcpy
             } else {
@@ -775,10 +775,12 @@ fn array_element_type(
 
     match ty {
         mir::Type::FixedArray { element, .. } => Some(*element),
-        mir::Type::Reference { pointee, .. } => match tree.get(*pointee) {
-            mir::Type::FixedArray { element, .. } => Some(*element),
-            _ => None,
-        },
+        mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
+            match tree.get(*pointee) {
+                mir::Type::FixedArray { element, .. } => Some(*element),
+                _ => None,
+            }
+        }
         _ => None,
     }
 }
@@ -899,7 +901,7 @@ fn emit_memset(
 ) {
     // materialize the fill constant
     let element_type = match tree.get(element_addr_type) {
-        mir::Type::Reference { pointee, .. } => Some(*pointee),
+        mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => Some(*pointee),
         mir::Type::TensorView { element, .. } => Some(*element),
         _ => None,
     };
