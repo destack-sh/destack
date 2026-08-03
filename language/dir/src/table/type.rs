@@ -618,14 +618,13 @@ pub struct TypeSegment {
     #[serde(skip)]
     sealed_index: FxHashMap<u64, SmallVec<[LocalTypeId; 1]>>,
 
-    /// Effective checked type keyed by DIR node occurrence.
+    /// Effective checked type by node.
     pub(crate) node_types: IndexMap<GlobalNodeIdAny, GlobalTypeId>,
-    /// Contextual expected type keyed by DIR node occurrence, kept only
-    ///  where the written expectation differs from the effective type.
+    /// Contextual expected type by node (when different from effective type).
     pub(crate) expected_types: IndexMap<GlobalNodeIdAny, GlobalTypeId>,
-    /// Checked declaration type keyed by symbol.
+    /// Checked declaration type by symbol.
     pub(crate) symbol_types: IndexMap<GlobalSymbolId, GlobalTypeId>,
-    /// Reduced checked type keyed by surface type.
+    /// Reduced checked type by surface type.
     pub(crate) reduced_types: IndexMap<GlobalTypeId, GlobalTypeId>,
 }
 

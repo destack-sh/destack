@@ -371,6 +371,7 @@ impl SymbolKind {
                 | Self::Import
                 | Self::Newtype
                 | Self::GenericValueParameter
+                | Self::Parameter
                 | Self::Struct
                 | Self::Variable
         )
