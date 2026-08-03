@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{StaticKey, StringId, StringMapping, SymbolKind};
+use crate::{ScalarDomain, StaticKey, StringId, StringMapping, SymbolKind};
 
 /// One keyed member of a canonical language item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -121,6 +121,15 @@ macro_rules! define_language_items {
             pub fn export_name(&self) -> &'static str {
                 match self {
                     $($($(Self::$name => $export,)*)*)*
+                }
+            }
+
+            /// Return the scalar domain admitted by this marker item.
+            pub fn marker_domain(&self) -> Option<ScalarDomain> {
+                match self {
+                    Self::Integer => Some(ScalarDomain::Integer),
+                    Self::Float => Some(ScalarDomain::Float),
+                    _ => None,
                 }
             }
 

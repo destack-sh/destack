@@ -27,6 +27,20 @@ pub enum PrimitiveType {
 }
 
 impl PrimitiveType {
+    /// Return the written source spelling.
+    pub fn as_str(self) -> String {
+        match self {
+            Self::Boolean => "boolean".to_string(),
+            Self::String => "string".to_string(),
+            Self::Character => "char".to_string(),
+            Self::Bigint => "bigint".to_string(),
+            Self::Symbol => "symbol".to_string(),
+            Self::UniqueSymbol => "unique symbol".to_string(),
+            Self::Integer(integer) => integer.as_str(),
+            Self::Float(float) => float.as_str().to_string(),
+        }
+    }
+
     /// Return this primitive's scalar domain.
     pub fn scalar_domain(self) -> ScalarDomain {
         match self {

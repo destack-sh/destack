@@ -10,8 +10,7 @@ use smallvec::SmallVec;
 use crate::{
     EnumBackingType, EnumVariantValue, FunctionRole, GlobalNodeIdAny, GlobalStaticId,
     GlobalSymbolId, GlobalTypeId, IntegerType, LocalGenericTemplateId, MemberSlot,
-    MethodAbstraction, SegmentView, Space, StaticKey,
-    PrimitiveType,
+    MethodAbstraction, PrimitiveType, SegmentView, Space, StaticKey,
 };
 
 /// Cumulative declaration definitions for one DIR module.
