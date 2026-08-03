@@ -5,7 +5,7 @@ use super::assert_format_eq;
 fn test_format_reference_operations() {
     assert_format_eq(
         r#"
-function f0
+external function f0
 
 function f1 {
     load r4, r0,8
@@ -19,7 +19,7 @@ return r4
 }
 "#,
         r#"
-function f0
+external function f0
 
 function f1 {
     load r4, r0, 8

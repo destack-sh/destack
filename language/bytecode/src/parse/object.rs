@@ -5,7 +5,7 @@ impl Parser<'_> {
     pub fn parse(&mut self) -> ParseResult<Object> {
         while !self.peek_is(TokenType::End) {
             let token = self.peek();
-            if !self.peek_name("function") {
+            if !self.peek_name("external") && !self.peek_name("function") {
                 return Err(ParseError::new("expected bytecode function", token.span));
             }
 

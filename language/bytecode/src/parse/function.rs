@@ -46,15 +46,18 @@ impl FunctionParser {
 impl Parser<'_> {
     /// Parse one physical bytecode function declaration or definition.
     pub(super) fn parse_function(&mut self) -> ParseResult<()> {
+        let is_external = self.eat_name_if("external");
         self.eat_name("function")?;
         let token = self.eat_token(TokenType::Identifier)?;
         let name = self.text(token).to_string();
         let function_id = self.function_id(name);
 
-        // declarations have no physical body
-        if !self.eat_token_if(TokenType::OpenBrace) {
+        // external declarations have no physical body
+        if is_external {
             return Ok(());
         }
+
+        self.eat_token(TokenType::OpenBrace)?;
         if self.functions[function_id.index()].code().is_some() {
             return Err(ParseError::new(
                 "function is already defined",

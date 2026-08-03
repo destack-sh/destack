@@ -5,7 +5,7 @@ use super::assert_format_eq;
 fn test_format_calls() {
     assert_format_eq(
         r#"
-function f0
+external function f0
 
 function f1 {
     int.add.int32 r3, r1,r2
@@ -28,7 +28,7 @@ b1:unwind.resume
 }
 "#,
         r#"
-function f0
+external function f0
 
 function f1 {
     int.add.int32 r3, r1, r2

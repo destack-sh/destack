@@ -17,15 +17,33 @@ impl Function {
         formatter: &mut BytecodeFormatter<'a, '_>,
     ) -> FormatResult<()> {
         let name = formatter.context().function_name(id)?.to_string();
-        write!(formatter, [token("function"), space(), copied_text(&name)])?;
 
         // declarations carry no executable state
         let Some(code) = self.code() else {
-            return Ok(());
+            return write!(
+                formatter,
+                [
+                    token("external"),
+                    space(),
+                    token("function"),
+                    space(),
+                    copied_text(&name)
+                ]
+            );
         };
 
         // open the physical function body
-        write!(formatter, [space(), token("{"), hard_line_break()])?;
+        write!(
+            formatter,
+            [
+                token("function"),
+                space(),
+                copied_text(&name),
+                space(),
+                token("{"),
+                hard_line_break()
+            ]
+        )?;
         formatter.context_mut().begin_function(id, code)?;
 
         self.format_body(code, formatter)?;

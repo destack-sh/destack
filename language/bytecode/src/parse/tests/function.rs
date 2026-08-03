@@ -7,8 +7,7 @@ use super::TestParser;
 fn test_parse_function_values() {
     let (object, opcodes) = TestParser::new(
         r#"
-function f0 {    return r1
-}
+external function f0
 
 function f1 {    function.bind r2:r3, f0, r0
     extract r4, r2:r3, 8, 8

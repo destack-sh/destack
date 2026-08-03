@@ -11,7 +11,7 @@ function f0 {    call r1, f1, r0
     return r1
 }
 
-function f1
+external function f1
 "#,
     )
     .parse_opcodes(FunctionId(0));
@@ -25,7 +25,7 @@ function f1
 fn test_parse_invoke_edges() {
     let (_, opcodes) = TestParser::new(
         r#"
-function f0
+external function f0
 function f1 {    invoke r1, f0, r0 => b0 | b1
 
 b0:
