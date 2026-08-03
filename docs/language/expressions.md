@@ -67,7 +67,8 @@ next satisfies Function<(), number>;
 const read = () => count;
 ```
 
-All `Function`s are fat pointers capable of capturing an environment by default, and when a true thin pointer is required, we can just use `FunctionPointer`.
+`Function` is a repeatable fat pointer capable of capturing an environment by default, while `OnceFunction` is an affine fat pointer consumed by its first invocation.
+When a true thin pointer is required, use `FunctionPointer`.
 Thus, `Function`s also behave more like `Dynamic` by default, and explicit generics are required to force monomorphisation:
 
 ```ds
@@ -127,6 +128,12 @@ class Client {
 ```
 
 Of course, closures with custom capture behavior must still follow general ownership rules - for example, if one closure moves a binding, later uses or captures of that binding are rejected.
+For a closure that consumes itself, we can use `OnceFunction` instead:
+
+```ds
+@capture("move")
+let close: OnceFunction<(), Result<void, IOError>> = () => socket.close();
+```
 
 ## Continuations
 
