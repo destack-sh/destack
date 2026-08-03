@@ -127,7 +127,8 @@ impl TraceMap {
                     .find(|case| case.discriminant.bits() == discriminant)
             }
             encoding @ VariantEncoding::Niche { .. } => {
-                let index = encoding.decode_niche(scalar)? as usize;
+                let case_count = u32::try_from(cases.len()).ok()?;
+                let index = encoding.decode_niche(scalar, case_count)? as usize;
 
                 cases.get(index)
             }

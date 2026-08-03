@@ -132,7 +132,7 @@ Composite type token forms
 ==================================
 
 type @AtomicCounter = atomic<uint32>;
-type @Outcome = variant<uint8, { ok: int32; error: int32 }> {
+type @Outcome = variant<uint8> {
     0uint8 = int32;
     1uint8 = int32;
 };

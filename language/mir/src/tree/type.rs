@@ -604,12 +604,10 @@ pub enum Type {
         /// Copy of this newtype.
         copy: Copy,
     },
-    /// Sum value with one logical discriminant and payload storage.
+    /// Sum value with one logical discriminant and case payloads.
     Variant {
         /// The logical discriminant type.
         discriminant: TypeId,
-        /// The logical payload storage type.
-        storage: TypeId,
         /// The cases keyed by discriminant value.
         cases: Vec<VariantCase>,
         /// Copy of this variant type.
@@ -801,15 +799,6 @@ impl Type {
             }
             Type::Tuple { elements, .. } => elements.get(index as usize).copied(),
             Type::Newtype { inner, .. } if index == 0 => Some(*inner),
-            Type::Variant {
-                discriminant,
-                storage,
-                ..
-            } => match index {
-                0 => Some(*discriminant),
-                1 => Some(*storage),
-                _ => None,
-            },
             _ => None,
         }
     }
@@ -1148,7 +1137,7 @@ pub enum FloatType {
 
 impl FloatType {
     /// Return the bit width.
-    pub fn width(self) -> u16 {
+    pub const fn width(self) -> u16 {
         match self {
             FloatType::Float16 | FloatType::Bfloat16 => 16,
             FloatType::Float32 => 32,

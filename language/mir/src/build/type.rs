@@ -235,7 +235,6 @@ impl ModuleBuilder {
     pub fn type_variant(
         &mut self,
         discriminant: LocalNodeId<Type>,
-        storage: LocalNodeId<Type>,
         cases: Vec<(Constant, LocalNodeId<Type>)>,
         copy: Copy,
     ) -> LocalNodeId<Type> {
@@ -246,7 +245,6 @@ impl ModuleBuilder {
 
         self.tree.intern_type(Type::Variant {
             discriminant,
-            storage,
             cases,
             copy,
         })

@@ -933,8 +933,6 @@ impl Parser {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
         let discriminant = self.parse_type()?;
-        self.eat_token(TokenType::Comma)?;
-        let (storage, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::GreaterThan)?;
         self.eat_token(TokenType::OpenBrace)?;
 
@@ -960,7 +958,6 @@ impl Parser {
 
         Ok(Type::Variant {
             discriminant,
-            storage,
             cases,
             copy: Copy::No,
         })

@@ -368,12 +368,10 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         }
         Type::Variant {
             discriminant,
-            storage,
             cases,
             copy: _,
         } => {
             walk_type_id(visitor, tree, discriminant);
-            walk_type_id(visitor, tree, storage);
             for case in cases {
                 walk_type_id(visitor, tree, &case.ty);
             }

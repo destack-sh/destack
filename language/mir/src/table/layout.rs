@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 use destack_core::{SectionEntry, StringId};
 use destack_serde::Reflect;
 
-use crate::{LocalNodeId, TensorFormat, TensorSharding, TensorViewFormat, TraceMap, Type};
+use crate::{
+    FloatType, LocalNodeId, TensorFormat, TensorSharding, TensorViewFormat, TraceMap, Type,
+};
 
 /// Canonical layout table for one MIR module.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Reflect)]
@@ -97,10 +99,14 @@ impl LayoutId {
 }
 
 /// Concrete memory layout for one MIR type.
+///
+/// Initialized values store zero in every padding byte.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Layout<T = LocalNodeId<Type>, L = LayoutId> {
     /// The layout shape.
     pub shape: LayoutShape<T, L>,
+    /// The physical value representation.
+    pub representation: Representation,
     /// Total size in bytes, including trailing padding.
     pub size: u32,
     /// Alignment requirement in bytes.
@@ -111,9 +117,10 @@ pub struct Layout<T = LocalNodeId<Type>, L = LayoutId> {
 
 impl Layout {
     /// Create one scalar layout of the given size and alignment.
-    pub const fn scalar(size: u32, alignment: u32) -> Self {
+    pub const fn scalar(scalar: Scalar, size: u32, alignment: u32) -> Self {
         Self {
             shape: LayoutShape::Scalar,
+            representation: Representation::Scalar(scalar),
             size,
             alignment,
             trace_map: TraceMap::Empty,
@@ -168,14 +175,160 @@ impl<T, L> Layout<T, L> {
         matches!(self.shape, LayoutShape::Slice)
     }
 
-    /// Return whether this layout has one scalar representation.
-    pub const fn is_scalar(&self) -> bool {
-        matches!(self.shape, LayoutShape::Scalar | LayoutShape::Tensor(_))
-    }
-
     /// Return the aligned stride of this layout.
     pub fn stride(&self) -> usize {
         self.byte_len().next_multiple_of(self.alignment as usize)
+    }
+}
+
+/// Physical representation of one MIR value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum Representation {
+    /// One scalar register value.
+    Scalar(Scalar),
+    /// Two scalar register values in canonical byte order.
+    ScalarPair([ScalarField; 2]),
+    /// One native vector register value.
+    Vector(Vector),
+    /// Canonical bytes addressed in memory.
+    Memory,
+}
+
+/// One scalar machine value and its valid bit range.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct Scalar {
+    /// The scalar machine primitive.
+    pub primitive: Primitive,
+    /// The scalar values admitted by the type.
+    pub validity: Validity,
+}
+
+impl Scalar {
+    /// Create one scalar admitting every primitive bit pattern.
+    pub const fn new(primitive: Primitive) -> Self {
+        Self {
+            validity: Validity::all(primitive.bit_width()),
+            primitive,
+        }
+    }
+
+    /// Create one scalar with an explicit valid bit range.
+    pub const fn with_validity(primitive: Primitive, validity: Validity) -> Self {
+        Self {
+            primitive,
+            validity,
+        }
+    }
+
+    /// Return the scalar width in bits.
+    pub const fn bit_width(self) -> u16 {
+        self.primitive.bit_width()
+    }
+
+    /// Return the mask covering every scalar bit.
+    pub const fn bit_mask(self) -> u128 {
+        scalar_mask(self.bit_width())
+    }
+}
+
+/// One scalar primitive understood by physical backends.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum Primitive {
+    /// An integer bit string.
+    Integer { width: u16 },
+    /// A floating point value.
+    Float(FloatType),
+    /// A process or program pointer.
+    Pointer { width: u16 },
+}
+
+impl Primitive {
+    /// Return the primitive width in bits.
+    pub const fn bit_width(self) -> u16 {
+        match self {
+            Self::Integer { width } | Self::Pointer { width } => width,
+            Self::Float(format) => format.width(),
+        }
+    }
+}
+
+/// One inclusive wrapping range of valid scalar bits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct Validity {
+    /// The first valid scalar value.
+    pub start: Discriminant,
+    /// The last valid scalar value.
+    pub end: Discriminant,
+}
+
+impl Validity {
+    /// Create one inclusive wrapping valid range.
+    pub const fn new(start: u128, end: u128) -> Self {
+        Self {
+            start: Discriminant::from_bits(start),
+            end: Discriminant::from_bits(end),
+        }
+    }
+
+    /// Admit every bit pattern of one scalar width.
+    pub const fn all(width: u16) -> Self {
+        Self::new(0, scalar_mask(width))
+    }
+
+    /// Return the contiguous wrapping range outside this validity range.
+    pub const fn invalid(self, width: u16) -> Option<(Discriminant, u128)> {
+        let mask = scalar_mask(width);
+        let start = self.start.bits() & mask;
+        let end = self.end.bits() & mask;
+        let invalid_start = end.wrapping_add(1) & mask;
+        if invalid_start == start {
+            return None;
+        }
+        let invalid_end = start.wrapping_sub(1) & mask;
+        let count = invalid_end.wrapping_sub(invalid_start) & mask;
+
+        Some((Discriminant::from_bits(invalid_start), count + 1))
+    }
+}
+
+/// One scalar field inside a pair representation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct ScalarField {
+    /// The scalar field representation.
+    pub scalar: Scalar,
+    /// The canonical byte offset.
+    pub offset: u32,
+}
+
+impl ScalarField {
+    /// Create one scalar field.
+    pub const fn new(scalar: Scalar, offset: u32) -> Self {
+        Self { scalar, offset }
+    }
+}
+
+/// One native vector representation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct Vector {
+    /// The scalar lane representation.
+    pub element: Scalar,
+    /// The fixed lane count.
+    pub lanes: u32,
+}
+
+impl Vector {
+    /// Create one native vector representation.
+    pub const fn new(element: Scalar, lanes: u32) -> Self {
+        Self { element, lanes }
+    }
+}
+
+/// Return the low-bit mask for one scalar width.
+const fn scalar_mask(width: u16) -> u128 {
+    if width == u128::BITS as u16 {
+        u128::MAX
+    } else {
+        (1u128 << width) - 1
     }
 }
 
@@ -321,8 +474,6 @@ pub struct TensorViewLayout<T = LocalNodeId<Type>> {
 pub struct VariantLayout<T = LocalNodeId<Type>> {
     /// The logical discriminant type.
     pub discriminant: T,
-    /// The logical payload storage type.
-    pub storage: T,
     /// The physical discriminant encoding.
     pub encoding: VariantEncoding,
     /// The variant cases.
@@ -449,10 +600,6 @@ pub enum VariantEncoding {
         field: DiscriminantField,
         /// The case represented by every value outside the niche range.
         untagged_case: u32,
-        /// The first case represented in the niche range.
-        niche_case_start: u32,
-        /// The last case represented in the niche range.
-        niche_case_end: u32,
         /// The first physical niche value.
         niche_start: Discriminant,
     },
@@ -469,49 +616,56 @@ impl VariantEncoding {
     }
 
     /// Decode one physical scalar into a zero-based case index when niche encoded.
-    pub const fn decode_niche(self, scalar: u128) -> Option<u32> {
+    pub const fn decode_niche(self, scalar: u128, case_count: u32) -> Option<u32> {
         let Self::Niche {
             field,
             untagged_case,
-            niche_case_start,
-            niche_case_end,
             niche_start,
         } = self
         else {
             return None;
         };
+        if case_count == 0 || untagged_case >= case_count {
+            return None;
+        }
+
+        let niche_count = case_count - 1;
         let value = field.extract(scalar);
         let relative = value.wrapping_sub(niche_start.bits()) & field.value_mask();
-        let niche_count = niche_case_end - niche_case_start;
+        if relative < niche_count as u128 {
+            let case = relative as u32;
+            let case = if case >= untagged_case {
+                case + 1
+            } else {
+                case
+            };
 
-        if relative <= niche_count as u128 {
-            Some(niche_case_start + relative as u32)
+            Some(case)
         } else {
             Some(untagged_case)
         }
     }
 
     /// Encode one niche case into an existing physical scalar.
-    pub const fn encode_niche(self, scalar: u128, case: u32) -> Option<u128> {
+    pub const fn encode_niche(self, scalar: u128, case: u32, case_count: u32) -> Option<u128> {
         let Self::Niche {
             field,
             untagged_case,
-            niche_case_start,
-            niche_case_end,
             niche_start,
         } = self
         else {
             return None;
         };
+        if case >= case_count || untagged_case >= case_count {
+            return None;
+        }
 
         if case == untagged_case {
             return Some(scalar);
         }
-        if case < niche_case_start || case > niche_case_end {
-            return None;
-        }
 
-        let relative = (case - niche_case_start) as u128;
+        let relative = if case > untagged_case { case - 1 } else { case };
+        let relative = relative as u128;
         let value = niche_start.bits().wrapping_add(relative) & field.value_mask();
 
         Some(field.insert(scalar, value))
@@ -589,15 +743,13 @@ mod tests {
     fn test_decode_niche_variant() {
         let encoding = VariantEncoding::Niche {
             field: DiscriminantField::scalar(0, 1),
-            untagged_case: 0,
-            niche_case_start: 1,
-            niche_case_end: 2,
+            untagged_case: 1,
             niche_start: Discriminant::from_bits(254),
         };
 
-        assert_eq!(encoding.decode_niche(254), Some(1));
-        assert_eq!(encoding.decode_niche(255), Some(2));
-        assert_eq!(encoding.decode_niche(1), Some(0));
+        assert_eq!(encoding.decode_niche(254, 3), Some(0));
+        assert_eq!(encoding.decode_niche(255, 3), Some(2));
+        assert_eq!(encoding.decode_niche(1, 3), Some(1));
     }
 
     /// Encode niche cases without disturbing adjacent payload bits.
@@ -610,15 +762,14 @@ mod tests {
                 bit_offset: 4,
                 bit_len: 4,
             },
-            untagged_case: 0,
-            niche_case_start: 1,
-            niche_case_end: 2,
+            untagged_case: 1,
             niche_start: Discriminant::from_bits(14),
         };
         let scalar = 0xA00B;
 
-        assert_eq!(encoding.encode_niche(scalar, 1), Some(0xA0EB));
-        assert_eq!(encoding.encode_niche(scalar, 2), Some(0xA0FB));
-        assert_eq!(encoding.encode_niche(scalar, 3), None);
+        assert_eq!(encoding.encode_niche(scalar, 0, 3), Some(0xA0EB));
+        assert_eq!(encoding.encode_niche(scalar, 1, 3), Some(scalar));
+        assert_eq!(encoding.encode_niche(scalar, 2, 3), Some(0xA0FB));
+        assert_eq!(encoding.encode_niche(scalar, 3, 3), None);
     }
 }

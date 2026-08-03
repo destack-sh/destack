@@ -360,12 +360,10 @@ impl Tree {
             },
             Type::Variant {
                 discriminant,
-                storage,
                 cases,
                 copy,
             } => Type::Variant {
                 discriminant: self.intern_representation(discriminant),
-                storage: self.intern_representation(storage),
                 cases: cases
                     .into_iter()
                     .map(|case| VariantCase {
@@ -610,12 +608,10 @@ impl Tree {
             },
             Type::Variant {
                 discriminant,
-                storage,
                 cases,
                 copy,
             } => Type::Variant {
                 discriminant: self.instantiate_type_lifetimes(discriminant, arguments),
-                storage: self.instantiate_type_lifetimes(storage, arguments),
                 cases: cases
                     .into_iter()
                     .map(|case| VariantCase {

@@ -95,7 +95,7 @@ type @AtomicCounter = atomic<uint32>;
 //                    ^^^^^^ support.type.dsm
 //                           ^^^^^^ support.type.dsm
 
-type @Outcome = variant<uint8, { ok: int32; error: int32 }> {
+type @Outcome = variant<uint8> {
 //              ^^^^^^^ support.type.dsm
 //                      ^^^^^ support.type.dsm
     0uint8 = int32;

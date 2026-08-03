@@ -298,13 +298,11 @@ impl TypeHasher {
             }
             Type::Variant {
                 discriminant,
-                storage,
                 cases,
                 copy,
             } => {
                 self.hasher.write_u8(21);
                 self.hash_type(*discriminant, tree);
-                self.hash_type(*storage, tree);
                 self.hash_length(cases.len());
                 for case in cases {
                     self.hash_constant(&case.discriminant);

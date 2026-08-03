@@ -308,12 +308,10 @@ impl Tree {
             Type::Uninit { value } => self.type_lifetime_inner(*value, lifetime_args, visited),
             Type::Variant {
                 discriminant,
-                storage,
                 cases,
                 ..
             } => {
                 let discriminant = self.type_lifetime_inner(*discriminant, lifetime_args, visited);
-                let storage = self.type_lifetime_inner(*storage, lifetime_args, visited);
                 let nested_lifetimes = cases
                     .iter()
                     .filter_map(|case| self.type_lifetime_inner(case.ty, lifetime_args, visited));
@@ -321,7 +319,6 @@ impl Tree {
                 Some(Lifetime::new(
                     discriminant
                         .into_iter()
-                        .chain(storage)
                         .chain(nested_lifetimes)
                         .flat_map(|lifetime| lifetime.terms.into_iter()),
                 ))
@@ -368,12 +365,10 @@ impl Tree {
             Type::Uninit { value } => self.type_contains_borrowed_refs(*value),
             Type::Variant {
                 discriminant,
-                storage,
                 cases,
                 ..
             } => {
                 self.type_contains_borrowed_refs(*discriminant)
-                    || self.type_contains_borrowed_refs(*storage)
                     || cases
                         .iter()
                         .any(|case| self.type_contains_borrowed_refs(case.ty))

@@ -401,20 +401,12 @@ fn format_type_inner<'a>(
         }
         Type::Variant {
             discriminant,
-            storage,
             cases,
             copy: _,
         } => {
             write!(
                 f,
-                [
-                    token("variant"),
-                    token("<"),
-                    FormatTypeId(*discriminant),
-                    token(","),
-                    space(),
-                    FormatTypeId(*storage)
-                ]
+                [token("variant"), token("<"), FormatTypeId(*discriminant)]
             )?;
             write!(f, [token(">"), space(), token("{")])?;
             if !cases.is_empty() {
