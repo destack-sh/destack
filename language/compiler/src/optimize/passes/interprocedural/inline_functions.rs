@@ -1745,7 +1745,7 @@ entry0:
         let input = r#"
 function callee(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.add v0, v1
@@ -1766,7 +1766,7 @@ entry(v0: int32, v1: int32, v2: boolean):
         let expected = r#"
 function callee(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.add v0, v1
@@ -1782,7 +1782,7 @@ entry(v0: int32, v1: int32, v2: boolean):
     jump b1(v0, v1, v2)
 
 b1(v4: int32, v5: int32, v6: boolean):
-    branch v6, b2, b3
+    branch v6 => b2 | b3
 
 b2:
     v7: int32 = int.add v4, v5

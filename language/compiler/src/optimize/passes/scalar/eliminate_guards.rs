@@ -14,9 +14,9 @@ declare_pass! {
     /// function before(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
     /// b0(v0: uint32, v1: uint32, v2: [uint32; 4]):
     ///     v3 = int.eq v0, v1
-    ///     branch v3, b1, b2
+    ///     branch v3 => b1 | b2
     /// b1:
-    ///     check bounds.u v0, v1, v2 => b3, b4
+    ///     check bounds.u v0, v1, v2 => b3 | b4
     /// b3:
     ///     return v0
     /// b4:
@@ -30,7 +30,7 @@ declare_pass! {
     /// function after(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
     /// b0(v0: uint32, v1: uint32, v2: [uint32; 4]):
     ///     v3 = int.eq v0, v1
-    ///     branch v3, b1, b2
+    ///     branch v3 => b1 | b2
     /// b1:
     ///     jump b3
     /// b3:
@@ -134,10 +134,10 @@ mod tests {
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
-    branch v3, b1, b2
+    branch v3 => b1 | b2
 
 b1:
-    check bounds.u v0, v1, v2 => b3, b4
+    check bounds.u v0, v1, v2 => b3 | b4
 
 b2:
     return v1
@@ -153,10 +153,10 @@ b4:
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
-    branch v3, b1, b2
+    branch v3 => b1 | b2
 
 b1:
-    check bounds.u v0, v1, v2 => b3, b4
+    check bounds.u v0, v1, v2 => b3 | b4
 
 b2:
     return v1
@@ -182,7 +182,7 @@ function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
     assume v3
-    check bounds.u v0, v1, v2 => b1, b2
+    check bounds.u v0, v1, v2 => b1 | b2
 
 b1:
     return v0
@@ -196,7 +196,7 @@ function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
     assume v3
-    check bounds.u v0, v1, v2 => b1, b2
+    check bounds.u v0, v1, v2 => b1 | b2
 
 b1:
     return v0
@@ -218,7 +218,7 @@ b2:
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = false
-    check bounds.u v0, v1, v2 => b1, b2
+    check bounds.u v0, v1, v2 => b1 | b2
 
 b1:
     return v0
@@ -231,7 +231,7 @@ b2:
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = false
-    check bounds.u v0, v1, v2 => b1, b2
+    check bounds.u v0, v1, v2 => b1 | b2
 
 b1:
     return v0
@@ -254,13 +254,13 @@ function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
     v4: boolean = int.not v3
-    branch v3, b1, b2
+    branch v3 => b1 | b2
 
 b1:
     return v0
 
 b2:
-    check bounds.u v0, v1, v2 => b3, b4
+    check bounds.u v0, v1, v2 => b3 | b4
 
 b3:
     return v1
@@ -274,13 +274,13 @@ function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
     v4: boolean = int.not v3
-    branch v3, b1, b2
+    branch v3 => b1 | b2
 
 b1:
     return v0
 
 b2:
-    check bounds.u v0, v1, v2 => b3, b4
+    check bounds.u v0, v1, v2 => b3 | b4
 
 b3:
     return v1
@@ -302,10 +302,10 @@ b4:
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
-    branch v3, b1(v3), b2(v3)
+    branch v3 => b1(v3) | b2(v3)
 
 b1(v4: boolean):
-    check bounds.u v0, v1, v2 => b3, b4
+    check bounds.u v0, v1, v2 => b3 | b4
 
 b2(v5: boolean):
     return v1
@@ -321,10 +321,10 @@ b4:
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
-    branch v3, b1(v3), b2(v3)
+    branch v3 => b1(v3) | b2(v3)
 
 b1(v4: boolean):
-    check bounds.u v0, v1, v2 => b3, b4
+    check bounds.u v0, v1, v2 => b3 | b4
 
 b2(v5: boolean):
     return v1
@@ -348,10 +348,10 @@ b4:
         let input = r#"
 function test(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]): uint32 {
 entry(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]):
-    check bounds.u v1, v2, v3 => b1, b2
+    check bounds.u v1, v2, v3 => b1 | b2
 
 b1:
-    check bounds.u v1, v2, v3 => b3, b4
+    check bounds.u v1, v2, v3 => b3 | b4
 
 b2:
     return v2
@@ -366,10 +366,10 @@ b4:
         let expected = r#"
 function test(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]): uint32 {
 entry(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]):
-    check bounds.u v1, v2, v3 => b1, b2
+    check bounds.u v1, v2, v3 => b1 | b2
 
 b1:
-    check bounds.u v1, v2, v3 => b3, b4
+    check bounds.u v1, v2, v3 => b3 | b4
 
 b2:
     return v2
@@ -395,7 +395,7 @@ function test(v0: boolean, v1: [uint32; 4]): uint32 {
 entry(v0: boolean, v1: [uint32; 4]):
     v2: uint32 = 2
     v3: uint32 = 4
-    check bounds.u v2, v3, v1 => b1, b2
+    check bounds.u v2, v3, v1 => b1 | b2
 
 b1:
     return v2
@@ -432,7 +432,7 @@ function test(v0: boolean, v1: [uint32; 0]): uint32 {
 entry(v0: boolean, v1: [uint32; 0]):
     v2: uint32 = 0
     v3: uint32 = 0
-    check bounds.u v2, v3, v1 => b1, b2
+    check bounds.u v2, v3, v1 => b1 | b2
 
 b1:
     unreachable
@@ -468,7 +468,7 @@ b2:
 function test(v0: boolean): int32 {
 entry(v0: boolean):
     v1: int32 = 4
-    check div.zero v1 => b1, b2
+    check div.zero v1 => b1 | b2
 
 b1:
     return v1
@@ -503,7 +503,7 @@ b2:
 function test(v0: boolean): int32 {
 entry(v0: boolean):
     v1: int32 = 0
-    check div.zero v1 => b1, b2
+    check div.zero v1 => b1 | b2
 
 b1:
     unreachable
@@ -538,7 +538,7 @@ b2:
 function test(v0: boolean): uint8 {
 entry(v0: boolean):
     v1: uint8 = 3
-    check shift.range.u v1, 8 => b1, b2
+    check shift.range.u v1, 8 => b1 | b2
 
 b1:
     return v1
@@ -573,7 +573,7 @@ b2:
 function test(v0: boolean): uint8 {
 entry(v0: boolean):
     v1: uint8 = 8
-    check shift.range.u v1, 8 => b1, b2
+    check shift.range.u v1, 8 => b1 | b2
 
 b1:
     unreachable
@@ -608,7 +608,7 @@ b2:
 function test(v0: boolean): uint16 {
 entry(v0: boolean):
     v1: uint16 = 12
-    check narrow.range.u v1, 8 => b1, b2
+    check narrow.range.u v1, 8 => b1 | b2
 
 b1:
     return v1
@@ -643,7 +643,7 @@ b2:
 function test(v0: boolean): uint16 {
 entry(v0: boolean):
     v1: uint16 = 300
-    check narrow.range.u v1, 8 => b1, b2
+    check narrow.range.u v1, 8 => b1 | b2
 
 b1:
     unreachable
@@ -679,7 +679,7 @@ function test(v0: boolean): int8 {
 entry(v0: boolean):
     v1: int8 = 1
     v2: int8 = 2
-    check int.add.overflow.s v1, v2 => b1, b2
+    check int.add.overflow.s v1, v2 => b1 | b2
 
 b1:
     return v1
@@ -716,7 +716,7 @@ function test(v0: boolean): int8 {
 entry(v0: boolean):
     v1: int8 = 120
     v2: int8 = 120
-    check int.add.overflow.s v1, v2 => b1, b2
+    check int.add.overflow.s v1, v2 => b1 | b2
 
 b1:
     unreachable

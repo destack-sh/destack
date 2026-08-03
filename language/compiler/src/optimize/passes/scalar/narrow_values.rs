@@ -495,7 +495,7 @@ entry(v0: [uint8; 8]):
     v1: uint32 = 2
     v2: uint32 = 4
     v3: boolean = int.lt.u v1, v2
-    check bounds.u v1, v2, v0 => b1, b2
+    check bounds.u v1, v2, v0 => b1 | b2
 
 b1:
     v4: uint8 = field.get v0, 0
@@ -514,7 +514,7 @@ entry(v0: [uint8; 8]):
     v5: uint8 = cast.truncate v1 -> uint8
     v6: uint8 = cast.truncate v2 -> uint8
     v3: boolean = int.lt.u v5, v6
-    check bounds.u v5, v6, v0 => b1, b2
+    check bounds.u v5, v6, v0 => b1 | b2
 
 b1:
     v4: uint8 = field.get v0, 0
@@ -555,7 +555,7 @@ entry(v0: [uint8; 8]):
     v1: uint32 = 2
     v2: uint64 = 4
     v3: boolean = int.lt.u v1, v2
-    check bounds.u v1, v2, v0 => b1, b2
+    check bounds.u v1, v2, v0 => b1 | b2
 
 b1:
     return

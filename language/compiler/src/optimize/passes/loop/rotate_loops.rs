@@ -225,16 +225,16 @@ fn find_rotation_candidate(
 /// Transform:
 /// ```text
 /// preheader: jump header(args)
-/// header(params): branch cond, body(args), exit(args)
+/// header(params): branch cond => body(args) | exit(args)
 /// body: ... -> latch
 /// latch: ... jump header(args)
 /// ```
 ///
 /// Into:
 /// ```text
-/// preheader: branch cond, body(args), exit(args)  [guard]
+/// preheader: branch cond => body(args) | exit(args)  [guard]
 /// body: ... -> latch
-/// latch: branch cond', body(args), exit(args)     [rotated condition]
+/// latch: branch cond' => body(args) | exit(args)     [rotated condition]
 /// (header is now dead and will be removed by DCE)
 /// ```
 fn rotate_loop(
@@ -362,7 +362,7 @@ entry(v0: boolean):
     jump b1
 
 b1:
-    branch v0, b2, b3
+    branch v0 => b2 | b3
 
 b2:
     jump b1
@@ -379,7 +379,7 @@ b3:
         let expected = r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
-    branch v0, b2, b1
+    branch v0 => b2 | b1
 
 b1:
     jump b3
@@ -388,7 +388,7 @@ b2:
     jump b2_1
 
 b2_1:
-    branch v0, b5, b4
+    branch v0 => b5 | b4
 
 b4:
     jump b3
@@ -419,7 +419,7 @@ entry(v0: int32, v1: int32):
     jump b1(v2, v3)
 
 b1(v4: int32, v5: boolean):
-    branch v5, b2(v4, v5), b3(v4)
+    branch v5 => b2(v4, v5) | b3(v4)
 
 b2(v6: int32, v7: boolean):
     v8: int32 = 1
@@ -441,7 +441,7 @@ function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 0
     v3: boolean = int.lt.s v2, v1
-    branch v3, b2(v2, v3), b1(v2)
+    branch v3 => b2(v2, v3) | b1(v2)
 
 b1(v14: int32):
     jump b6(v14)
@@ -453,7 +453,7 @@ b3(v6: int32, v7: boolean):
     v8: int32 = 1
     v9: int32 = int.add v6, v8
     v10: boolean = int.lt.s v9, v1
-    branch v10, b5(v9, v10), b4(v9)
+    branch v10 => b5(v9, v10) | b4(v9)
 
 b4(v17: int32):
     jump b6(v17)
@@ -481,7 +481,7 @@ entry(v0: boolean):
     jump b1
 
 b1:
-    branch v0, b3, b2
+    branch v0 => b3 | b2
 
 b2:
     jump b1
@@ -495,7 +495,7 @@ b3:
         let expected = r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
-    branch v0, b2, b1
+    branch v0 => b2 | b1
 
 b1:
     jump b2_1
@@ -504,7 +504,7 @@ b2:
     jump b3
 
 b2_1:
-    branch v0, b5, b4
+    branch v0 => b5 | b4
 
 b4:
     jump b2_1
@@ -534,7 +534,7 @@ entry(v0: boolean, v1: int32):
 b1:
     v2: int32 = 1
     v3: int32 = int.add v1, v2
-    branch v0, b2, b3
+    branch v0 => b2 | b3
 
 b2:
     jump b1
@@ -560,7 +560,7 @@ entry(v0: boolean):
     jump b1
 
 b1:
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return
@@ -586,7 +586,7 @@ b1:
     jump b2
 
 b2:
-    branch v0, b1, b3
+    branch v0 => b1 | b3
 
 b3:
     return
@@ -611,7 +611,7 @@ entry(v0: boolean, v1: int32):
     jump b1(v1)
 
 b1(v2: int32):
-    branch v0, b2, b3
+    branch v0 => b2 | b3
 
 b2:
     v3: int32 = 1
@@ -661,7 +661,7 @@ entry(v0: int32, v1: int32):
     jump b1(v2, v3, v4)
 
 b1(v5: int32, v6: int32, v7: boolean):
-    branch v7, b2(v5, v6, v7), b3(v5, v6)
+    branch v7 => b2(v5, v6, v7) | b3(v5, v6)
 
 b2(v8: int32, v9: int32, v10: boolean):
     v11: int32 = int.add v8, v9
@@ -685,7 +685,7 @@ entry(v0: int32, v1: int32):
     v2: int32 = 0
     v3: int32 = 1
     v4: boolean = int.lt.s v2, v0
-    branch v4, b2(v2, v3, v4), b1(v2, v3)
+    branch v4 => b2(v2, v3, v4) | b1(v2, v3)
 
 b1(v20: int32, v21: int32):
     jump b6(v20, v21)
@@ -697,7 +697,7 @@ b3(v8: int32, v9: int32, v10: boolean):
     v11: int32 = int.add v8, v9
     v12: int32 = int.add v9, v3
     v13: boolean = int.lt.s v11, v0
-    branch v13, b5(v11, v12, v13), b4(v11, v12)
+    branch v13 => b5(v11, v12, v13) | b4(v11, v12)
 
 b4(v25: int32, v26: int32):
     jump b6(v25, v26)

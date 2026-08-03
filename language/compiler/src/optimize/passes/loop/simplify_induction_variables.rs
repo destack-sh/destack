@@ -26,7 +26,7 @@ declare_pass! {
     ///     v4 = 1int32
     ///     v5 = int.add v1, v4
     ///     v6 = int.lt.s v5, v0
-    ///     branch v6, b1(v5, v5), b2(v2)
+    ///     branch v6 => b1(v5, v5) | b2(v2)
     /// b2(v7: int32):
     ///     return v7
     /// }
@@ -42,7 +42,7 @@ declare_pass! {
     ///     v4 = 1int32
     ///     v5 = int.add v1, v4
     ///     v6 = int.lt.s v5, v0
-    ///     branch v6, b1(v5), b2(v1)
+    ///     branch v6 => b1(v5) | b2(v1)
     /// b2(v7: int32):
     ///     return v7
     /// }
@@ -625,7 +625,7 @@ b1(v2: int32, v3: int32):
     v5: int32 = 1
     v6: int32 = int.add v2, v5
     v7: boolean = int.lt.s v6, v0
-    branch v7, b1(v6, v6), b2(v3)
+    branch v7 => b1(v6, v6) | b2(v3)
 
 b2(v8: int32):
     return v8
@@ -644,7 +644,7 @@ b1(v2: int32):
     v5: int32 = 1
     v6: int32 = int.add v2, v5
     v7: boolean = int.lt.s v6, v0
-    branch v7, b1(v6), b2(v2)
+    branch v7 => b1(v6) | b2(v2)
 
 b2(v8: int32):
     return v8
@@ -673,7 +673,7 @@ b1(v4: int32, v5: int32):
     v6: int32 = int.add v4, v2
     v7: int32 = int.add v5, v3
     v8: boolean = int.lt.s v6, v0
-    branch v8, b1(v6, v7), b2(v5)
+    branch v8 => b1(v6, v7) | b2(v5)
 
 b2(v9: int32):
     return v9
@@ -702,7 +702,7 @@ b1(v2: int32, v3: int32, v4: int32):
     v7: int32 = 1
     v8: int32 = int.add v2, v7
     v9: boolean = int.lt.s v8, v0
-    branch v9, b1(v8, v8, v8), b2(v4)
+    branch v9 => b1(v8, v8, v8) | b2(v4)
 
 b2(v10: int32):
     return v10
@@ -722,7 +722,7 @@ b1(v2: int32):
     v7: int32 = 1
     v8: int32 = int.add v2, v7
     v9: boolean = int.lt.s v8, v0
-    branch v9, b1(v8), b2(v2)
+    branch v9 => b1(v8) | b2(v2)
 
 b2(v10: int32):
     return v10
@@ -753,7 +753,7 @@ b2(v4: int32, v5: int32):
     v7: int32 = 1
     v8: int32 = int.add v4, v7
     v9: boolean = int.lt.s v8, v0
-    branch v9, b2(v8, v8), b3(v5)
+    branch v9 => b2(v8, v8) | b3(v5)
 
 b3(v10: int32):
     return v10
@@ -775,7 +775,7 @@ b2(v4: int32):
     v7: int32 = 1
     v8: int32 = int.add v4, v7
     v9: boolean = int.lt.s v8, v0
-    branch v9, b2(v8), b3(v4)
+    branch v9 => b2(v8) | b3(v4)
 
 b3(v10: int32):
     return v10
@@ -805,7 +805,7 @@ b1(v5: int32, v6: uint32):
     v7: int32 = int.add v5, v3
     v8: uint32 = int.add v6, v4
     v9: boolean = int.lt.s v7, v0
-    branch v9, b1(v7, v8), b2(v5)
+    branch v9 => b1(v7, v8) | b2(v5)
 
 b2(v10: int32):
     return v10
@@ -833,7 +833,7 @@ entry(v0: [int32; 4]):
 b1(v4: uint32, v5: uint32):
     v6: uint32 = int.add v4, v2
     v7: boolean = int.lt.u v6, v3
-    check bounds.u v6, v3, v0 => b1(v6, v6), b2
+    check bounds.u v6, v3, v0 => b1(v6, v6) | b2
 
 b2:
     return
@@ -852,7 +852,7 @@ entry(v0: [int32; 4]):
 b1(v4: uint32):
     v6: uint32 = int.add v4, v2
     v7: boolean = int.lt.u v6, v3
-    check bounds.u v6, v3, v0 => b1(v6), b2
+    check bounds.u v6, v3, v0 => b1(v6) | b2
 
 b2:
     return
@@ -928,7 +928,7 @@ b1(v4: int32, v5: int32):
     v6: int32 = int.add v4, v2
     v7: int32 = int.add v5, v2
     v8: boolean = int.lt.s v6, v3
-    branch v8, b1(v6, v7), b2(v5)
+    branch v8 => b1(v6, v7) | b2(v5)
 
 b2(v9: int32):
     return v9
@@ -949,7 +949,7 @@ b1(v4: int32):
     v6: int32 = int.add v4, v2
     v7: int32 = int.add v11, v2
     v8: boolean = int.lt.s v6, v3
-    branch v8, b1(v6), b2(v11)
+    branch v8 => b1(v6) | b2(v11)
 
 b2(v9: int32):
     return v9
@@ -977,7 +977,7 @@ b1(v3: int32, v4: int32):
     v5: int32 = int.add v3, v2
     v6: int32 = int.add v4, v2
     v7: boolean = int.lt.s v5, v0
-    branch v7, b1(v5, v6), b2(v4)
+    branch v7 => b1(v5, v6) | b2(v4)
 
 b2(v8: int32):
     return v8
@@ -996,7 +996,7 @@ b1(v3: int32):
     v5: int32 = int.add v3, v2
     v6: int32 = int.add v3, v2
     v7: boolean = int.lt.s v5, v0
-    branch v7, b1(v5), b2(v3)
+    branch v7 => b1(v5) | b2(v3)
 
 b2(v8: int32):
     return v8
@@ -1024,7 +1024,7 @@ b1(v2: int32, v3: int32):
     v5: int32 = 1
     v6: int32 = int.add v2, v5
     v7: boolean = int.lt.s v6, v0
-    branch v7, b1(v6, v6), b2(v3)
+    branch v7 => b1(v6, v6) | b2(v3)
 
 b2(v8: int32):
     return v8

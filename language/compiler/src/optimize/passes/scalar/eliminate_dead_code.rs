@@ -453,7 +453,7 @@ function test(v0: boolean): int32 {
 entry(v0: boolean):
     v1: int32 = 1
     v2: int32 = 2
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v3: int32 = 3
@@ -471,7 +471,7 @@ b2:
 function test(v0: boolean): int32 {
 entry(v0: boolean):
     v1: int32 = 1
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     return v1
@@ -578,7 +578,7 @@ entry:
     v0: int32 = 1
     v1: int32 = 2
     v2: boolean = int.gt.s v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v0
@@ -635,7 +635,7 @@ entry(v0: boolean):
     v1: int32 = 1
     v2: int32 = 2
     v3: int32 = 3
-    branch v0, b1(v1), b1(v2)
+    branch v0 => b1(v1) | b1(v2)
 
 b1(v4: int32):
     return v4
@@ -648,7 +648,7 @@ function test(v0: boolean): int32 {
 entry(v0: boolean):
     v1: int32 = 1
     v2: int32 = 2
-    branch v0, b1(v1), b1(v2)
+    branch v0 => b1(v1) | b1(v2)
 
 b1(v4: int32):
     return v4
@@ -703,7 +703,7 @@ entry:
 b1:
     v2: boolean = int.lt.s v0, v1
     v3: int32 = 999
-    branch v2, b2, b3
+    branch v2 => b2 | b3
 
 b2:
     v4: int32 = 1
@@ -726,7 +726,7 @@ entry:
 
 b1:
     v2: boolean = int.lt.s v0, v1
-    branch v2, b2, b3
+    branch v2 => b2 | b3
 
 b2:
     jump b1
@@ -750,7 +750,7 @@ b3:
 function test(v0: boolean): int32 {
 entry(v0: boolean):
     v1: int32 = 1
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v2: int32 = 2
@@ -772,7 +772,7 @@ b3(v6: int32):
 function test(v0: boolean): int32 {
 entry(v0: boolean):
     v1: int32 = 1
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     jump b3(v1)

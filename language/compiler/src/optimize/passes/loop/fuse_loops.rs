@@ -30,7 +30,7 @@ declare_pass! {
     ///     jump b1(v3)
     /// b1(v5: uint32):
     ///     v6 = int.lt.u v5, v0
-    ///     branch v6, b2(v5), b3
+    ///     branch v6 => b2(v5) | b3
     /// b2(v7: uint32):
     ///     v8 = element.address v1, v7 -> ref<int32, raw, mutable, frame>
     ///     v9 = 1int32
@@ -41,7 +41,7 @@ declare_pass! {
     ///     jump b4(v3)
     /// b4(v11: uint32):
     ///     v12 = int.lt.u v11, v0
-    ///     branch v12, b5(v11), b6
+    ///     branch v12 => b5(v11) | b6
     /// b5(v13: uint32):
     ///     v14 = element.address v2, v13 -> ref<int32, raw, mutable, frame>
     ///     v15 = 2int32
@@ -65,7 +65,7 @@ declare_pass! {
     ///     jump b1(v3)
     /// b1(v5: uint32):
     ///     v6 = int.lt.u v5, v0
-    ///     branch v6, b2(v5), b6
+    ///     branch v6 => b2(v5) | b6
     /// b2(v7: uint32):
     ///     v8 = element.address v1, v7 -> ref<int32, raw, mutable, frame>
     ///     v9 = 1int32
@@ -935,7 +935,7 @@ entry(v0: uint32):
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v0
-    branch v6, b2(v5), b3
+    branch v6 => b2(v5) | b3
 
 b2(v7: uint32):
     v8: ref<int32, raw, mutable, frame> = element.address v1, v7
@@ -949,7 +949,7 @@ b3:
 
 b4(v11: uint32):
     v12: boolean = int.lt.u v11, v0
-    branch v12, b5(v11), b6
+    branch v12 => b5(v11) | b6
 
 b5(v13: uint32):
     v14: ref<int32, raw, mutable, frame> = element.address v2, v13
@@ -977,7 +977,7 @@ entry(v0: uint32):
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v0
-    branch v6, b2(v5), b3
+    branch v6 => b2(v5) | b3
 
 b2(v7: uint32):
     v8: ref<int32, raw, mutable, frame> = element.address v1, v7
@@ -1016,7 +1016,7 @@ entry(v0: uint32):
 
 b1(v6: uint32, v7: uint32):
     v8: boolean = int.lt.u v6, v0
-    branch v8, b2(v6, v7), b3
+    branch v8 => b2(v6, v7) | b3
 
 b2(v9: uint32, v10: uint32):
     v11: ref<int32, raw, mutable, frame> = element.address v1, v9
@@ -1029,7 +1029,7 @@ b3:
 
 b4(v13: uint32, v14: uint32):
     v15: boolean = int.lt.u v13, v0
-    branch v15, b5(v13, v14), b6
+    branch v15 => b5(v13, v14) | b6
 
 b5(v16: uint32, v17: uint32):
     v18: ref<int32, raw, mutable, frame> = element.address v2, v16
@@ -1057,7 +1057,7 @@ entry(v0: uint32):
 
 b1(v6: uint32, v7: uint32):
     v8: boolean = int.lt.u v6, v0
-    branch v8, b2(v6, v7), b3
+    branch v8 => b2(v6, v7) | b3
 
 b2(v9: uint32, v10: uint32):
     v11: ref<int32, raw, mutable, frame> = element.address v1, v9
@@ -1091,7 +1091,7 @@ entry(v0: uint32):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v0
-    branch v5, b2(v4), b3
+    branch v5 => b2(v4) | b3
 
 b2(v6: uint32):
     v7: ref<int32, raw, mutable, frame> = element.address v1, v6
@@ -1105,7 +1105,7 @@ b3:
 
 b4(v10: uint32):
     v11: boolean = int.lt.u v10, v0
-    branch v11, b5(v10), b6
+    branch v11 => b5(v10) | b6
 
 b5(v12: uint32):
     v13: ref<int32, raw, mutable, frame> = element.address v1, v12
@@ -1140,7 +1140,7 @@ entry(v0: uint32):
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v0
-    branch v6, b2(v5), b3
+    branch v6 => b2(v5) | b3
 
 b2(v7: uint32):
     v8: ref<int32, raw, mutable, frame> = element.address v1, v7
@@ -1155,7 +1155,7 @@ b3:
 
 b4(v12: uint32):
     v13: boolean = int.lt.u v12, v0
-    branch v13, b5(v12), b6
+    branch v13 => b5(v12) | b6
 
 b5(v14: uint32):
     v15: ref<int32, raw, mutable, frame> = element.address v2, v14
@@ -1190,7 +1190,7 @@ entry(v0: uint32, v1: uint32):
 
 b1(v6: uint32):
     v7: boolean = int.lt.u v6, v0
-    branch v7, b2(v6), b3
+    branch v7 => b2(v6) | b3
 
 b2(v8: uint32):
     v9: ref<int32, raw, mutable, frame> = element.address v2, v8
@@ -1204,7 +1204,7 @@ b3:
 
 b4(v12: uint32):
     v13: boolean = int.lt.u v12, v1
-    branch v13, b5(v12), b6
+    branch v13 => b5(v12) | b6
 
 b5(v14: uint32):
     v15: ref<int32, raw, mutable, frame> = element.address v3, v14
@@ -1239,7 +1239,7 @@ entry(v0: uint32):
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v0
-    branch v6, b2(v5), b3
+    branch v6 => b2(v5) | b3
 
 b2(v7: uint32):
     v8: ref<int32, raw, mutable, frame> = element.address v1, v7
@@ -1254,7 +1254,7 @@ b3:
 b4(v11: uint32):
     v12: int32 = load v2
     v13: boolean = int.lt.u v11, v0
-    branch v13, b5(v11), b6
+    branch v13 => b5(v11) | b6
 
 b5(v14: uint32):
     v15: ref<int32, raw, mutable, frame> = element.address v2, v14
@@ -1289,7 +1289,7 @@ entry(v0: uint32):
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v0
-    branch v6, b2(v5), b3
+    branch v6 => b2(v5) | b3
 
 b2(v7: uint32):
     v8: ref<int32, raw, mutable, frame> = element.address v1, v7
@@ -1304,7 +1304,7 @@ b3:
 b4(v11: uint32):
     v12: uint32 = int.add v11, v4
     v13: boolean = int.lt.u v11, v0
-    branch v13, b5(v11), b6
+    branch v13 => b5(v11) | b6
 
 b5(v14: uint32):
     v15: ref<int32, raw, mutable, frame> = element.address v2, v14
@@ -1339,7 +1339,7 @@ entry(v0: uint32):
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v0
-    branch v6, b2(v5), b3
+    branch v6 => b2(v5) | b3
 
 b2(v7: uint32):
     v8: ref<int32, raw, mutable, frame> = element.address v1, v7
@@ -1353,7 +1353,7 @@ b3:
 
 b4(v11: uint32):
     v12: boolean = int.lt.u v11, v0
-    branch v12, b5(v11), b6
+    branch v12 => b5(v11) | b6
 
 b5(v13: uint32):
     call touch(v13): (uint32) => void
@@ -1394,7 +1394,7 @@ entry(v0: uint32):
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v0
-    branch v6, b2(v5), b3
+    branch v6 => b2(v5) | b3
 
 b2(v7: uint32):
     v8: ref<int32, raw, mutable, frame> = element.address v1, v7
@@ -1411,7 +1411,7 @@ b4(v11: uint32):
 
 b5(v12: uint32):
     v13: boolean = int.lt.u v12, v0
-    branch v13, b6(v12), b7
+    branch v13 => b6(v12) | b7
 
 b6(v14: uint32):
     v15: ref<int32, raw, mutable, frame> = element.address v2, v14
@@ -1448,7 +1448,7 @@ entry(v0: uint32):
 
 b1(v7: uint32, v8: uint32):
     v9: boolean = int.lt.u v7, v0
-    branch v9, b2(v7, v8), b3
+    branch v9 => b2(v7, v8) | b3
 
 b2(v10: uint32, v11: uint32):
     v12: ref<int32, raw, mutable, frame> = element.address v1, v10
@@ -1462,7 +1462,7 @@ b3:
 
 b4(v15: uint32, v16: uint32):
     v17: boolean = int.lt.u v15, v0
-    branch v17, b5(v15, v16), b6
+    branch v17 => b5(v15, v16) | b6
 
 b5(v18: uint32, v19: uint32):
     v20: ref<int32, raw, mutable, frame> = element.address v2, v18
@@ -1498,7 +1498,7 @@ entry(v0: uint32):
 
 b1(v6: uint32):
     v7: boolean = int.lt.u v6, v0
-    branch v7, b2(v6), b3
+    branch v7 => b2(v6) | b3
 
 b2(v8: uint32):
     v9: ref<int32, raw, mutable, frame> = element.address v1, v8
@@ -1512,7 +1512,7 @@ b3:
 
 b4(v12: uint32):
     v13: boolean = int.lt.u v12, v0
-    branch v13, b5(v12), b6
+    branch v13 => b5(v12) | b6
 
 b5(v14: uint32):
     v15: ref<int32, raw, mutable, frame> = element.address v2, v14

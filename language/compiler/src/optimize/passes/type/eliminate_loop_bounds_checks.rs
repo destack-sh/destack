@@ -24,10 +24,10 @@ declare_pass! {
     ///     jump b1(v1)
     /// b1(v4: uint32):
     ///     v5 = int.lt.u v4, v3
-    ///     branch v5, b2, b3
+    ///     branch v5 => b2 | b3
     /// b2:
     ///     v6 = int.lt.u v4, v3
-    ///     check bounds.u v4, v3, v0 => b4, b5
+    ///     check bounds.u v4, v3, v0 => b4 | b5
     /// b4:
     ///     v7 = int.add v4, v2
     ///     jump b1(v7)
@@ -47,7 +47,7 @@ declare_pass! {
     ///     jump b1(v1)
     /// b1(v4: uint32):
     ///     v5 = int.lt.u v4, v3
-    ///     branch v5, b2, b3
+    ///     branch v5 => b2 | b3
     /// b2:
     ///     v6 = int.lt.u v4, v3
     ///     jump b4
@@ -925,11 +925,11 @@ entry(v0: [int32; 4]):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v3
-    branch v5, b2, b5
+    branch v5 => b2 | b5
 
 b2:
     v6: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 => b3, b4
+    check bounds.u v4, v3, v0 => b3 | b4
 
 b3:
     v7: uint32 = int.add v4, v2
@@ -954,7 +954,7 @@ entry(v0: [int32; 4]):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v3
-    branch v5, b2, b5
+    branch v5 => b2 | b5
 
 b2:
     v6: boolean = int.lt.u v4, v3
@@ -992,12 +992,12 @@ entry(v0: [int32; 4]):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 => b2, b3
+    check bounds.u v4, v3, v0 => b2 | b3
 
 b2:
     v6: uint32 = int.add v4, v2
     v7: boolean = int.lt.u v6, v3
-    branch v7, b1(v6), b4
+    branch v7 => b1(v6) | b4
 
 b3:
     unreachable
@@ -1018,12 +1018,12 @@ entry(v0: [int32; 4]):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 => b2, b3
+    check bounds.u v4, v3, v0 => b2 | b3
 
 b2:
     v6: uint32 = int.add v4, v2
     v7: boolean = int.lt.u v6, v3
-    branch v7, b1(v6), b4
+    branch v7 => b1(v6) | b4
 
 b3:
     unreachable
@@ -1053,11 +1053,11 @@ entry(v0: [int32; 4]):
 
 b1(v4: uint32):
     v5: boolean = int.ge.u v4, v3
-    branch v5, b5, b2
+    branch v5 => b5 | b2
 
 b2:
     v6: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 => b3, b4
+    check bounds.u v4, v3, v0 => b3 | b4
 
 b3:
     v7: uint32 = int.add v4, v2
@@ -1082,7 +1082,7 @@ entry(v0: [int32; 4]):
 
 b1(v4: uint32):
     v5: boolean = int.ge.u v4, v3
-    branch v5, b5, b2
+    branch v5 => b5 | b2
 
 b2:
     v6: boolean = int.lt.u v4, v3
@@ -1119,11 +1119,11 @@ entry(v0: [int32; 4], v1: int32):
 
 b1(v4: int32):
     v5: boolean = int.lt.s v4, v3
-    branch v5, b2, b5
+    branch v5 => b2 | b5
 
 b2:
     v6: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 => b3, b4
+    check bounds.s v4, v3, v0 => b3 | b4
 
 b3:
     v7: int32 = int.add v4, v2
@@ -1147,11 +1147,11 @@ entry(v0: [int32; 4], v1: int32):
 
 b1(v4: int32):
     v5: boolean = int.lt.s v4, v3
-    branch v5, b2, b5
+    branch v5 => b2 | b5
 
 b2:
     v6: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 => b3, b4
+    check bounds.s v4, v3, v0 => b3 | b4
 
 b3:
     v7: int32 = int.add v4, v2
@@ -1185,11 +1185,11 @@ entry(v0: [int32; 4]):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v3
-    branch v5, b2(v4), b5
+    branch v5 => b2(v4) | b5
 
 b2(v6: uint32):
     v7: boolean = int.lt.u v6, v3
-    check bounds.u v6, v3, v0 => b3, b4
+    check bounds.u v6, v3, v0 => b3 | b4
 
 b3:
     v8: uint32 = int.add v6, v2
@@ -1214,7 +1214,7 @@ entry(v0: [int32; 4]):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v3
-    branch v5, b2(v4), b5
+    branch v5 => b2(v4) | b5
 
 b2(v6: uint32):
     v7: boolean = int.lt.u v6, v3
@@ -1251,15 +1251,15 @@ entry(v0: [int32; 8], v1: int32):
 
 b1(v4: int32):
     v5: boolean = int.ge.s v4, v2
-    branch v5, b2, b6
+    branch v5 => b2 | b6
 
 b2:
     v6: boolean = int.lt.s v4, v3
-    branch v6, b3, b6
+    branch v6 => b3 | b6
 
 b3:
     v7: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 => b4, b5
+    check bounds.s v4, v3, v0 => b4 | b5
 
 b4:
     v8: int32 = 1
@@ -1284,11 +1284,11 @@ entry(v0: [int32; 8], v1: int32):
 
 b1(v4: int32):
     v5: boolean = int.ge.s v4, v2
-    branch v5, b2, b6
+    branch v5 => b2 | b6
 
 b2:
     v6: boolean = int.lt.s v4, v3
-    branch v6, b3, b6
+    branch v6 => b3 | b6
 
 b3:
     v7: boolean = int.lt.s v4, v3
@@ -1326,15 +1326,15 @@ entry(v0: [int32; 8], v1: int32):
 
 b1(v4: int32):
     v5: boolean = int.ge.s v4, v2
-    branch v5, b2, b6
+    branch v5 => b2 | b6
 
 b2:
     v6: boolean = int.lt.s v4, v3
-    branch v6, b3, b6
+    branch v6 => b3 | b6
 
 b3:
     v7: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 => b4, b5
+    check bounds.s v4, v3, v0 => b4 | b5
 
 b4:
     v8: int32 = 1
@@ -1359,11 +1359,11 @@ entry(v0: [int32; 8], v1: int32):
 
 b1(v4: int32):
     v5: boolean = int.ge.s v4, v2
-    branch v5, b2, b6
+    branch v5 => b2 | b6
 
 b2:
     v6: boolean = int.lt.s v4, v3
-    branch v6, b3, b6
+    branch v6 => b3 | b6
 
 b3:
     v7: boolean = int.lt.s v4, v3
@@ -1401,15 +1401,15 @@ entry(v0: [int32; 8], v1: int32):
 
 b1(v4: int32):
     v5: boolean = int.le.s v2, v4
-    branch v5, b2, b6
+    branch v5 => b2 | b6
 
 b2:
     v6: boolean = int.lt.s v4, v3
-    branch v6, b3, b6
+    branch v6 => b3 | b6
 
 b3:
     v7: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 => b4, b5
+    check bounds.s v4, v3, v0 => b4 | b5
 
 b4:
     v8: int32 = 1
@@ -1434,11 +1434,11 @@ entry(v0: [int32; 8], v1: int32):
 
 b1(v4: int32):
     v5: boolean = int.le.s v2, v4
-    branch v5, b2, b6
+    branch v5 => b2 | b6
 
 b2:
     v6: boolean = int.lt.s v4, v3
-    branch v6, b3, b6
+    branch v6 => b3 | b6
 
 b3:
     v7: boolean = int.lt.s v4, v3
@@ -1478,14 +1478,14 @@ entry(v0: [uint32; 4]):
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v3
     v6: boolean = int.not v5
-    branch v6, b2, b3
+    branch v6 => b2 | b3
 
 b2:
     return
 
 b3:
     v7: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 => b4, b5
+    check bounds.u v4, v3, v0 => b4 | b5
 
 b4:
     v8: uint32 = int.add v4, v2
@@ -1507,7 +1507,7 @@ entry(v0: [uint32; 4]):
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v3
     v6: boolean = int.not v5
-    branch v6, b2, b3
+    branch v6 => b2 | b3
 
 b2:
     return
@@ -1545,11 +1545,11 @@ entry(v0: [int32; 4]):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 => b2, b5
+    check bounds.u v4, v3, v0 => b2 | b5
 
 b2:
     v6: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 => b3, b4
+    check bounds.u v4, v3, v0 => b3 | b4
 
 b3:
     v7: uint32 = int.add v4, v2
@@ -1574,7 +1574,7 @@ entry(v0: [int32; 4]):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 => b2, b5
+    check bounds.u v4, v3, v0 => b2 | b5
 
 b2:
     v6: boolean = int.lt.u v4, v3
@@ -1611,11 +1611,11 @@ entry(v0: [int32; 4], v1: int32):
 
 b1(v4: int32):
     v5: boolean = int.lt.u v4, v3
-    branch v5, b2, b5
+    branch v5 => b2 | b5
 
 b2:
     v6: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 => b3, b4
+    check bounds.s v4, v3, v0 => b3 | b4
 
 b3:
     v7: int32 = int.add v4, v2
@@ -1639,11 +1639,11 @@ entry(v0: [int32; 4], v1: int32):
 
 b1(v4: int32):
     v5: boolean = int.lt.u v4, v3
-    branch v5, b2, b5
+    branch v5 => b2 | b5
 
 b2:
     v6: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 => b3, b4
+    check bounds.s v4, v3, v0 => b3 | b4
 
 b3:
     v7: int32 = int.add v4, v2
@@ -1678,11 +1678,11 @@ entry(v0: [int32; 8]):
 b1(v4: uint32):
     v5: uint32 = int.add v4, v2
     v6: boolean = int.lt.u v5, v3
-    branch v6, b2, b5
+    branch v6 => b2 | b5
 
 b2:
     v7: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 => b3, b4
+    check bounds.u v4, v3, v0 => b3 | b4
 
 b3:
     v8: uint32 = int.add v4, v2
@@ -1708,7 +1708,7 @@ entry(v0: [int32; 8]):
 b1(v4: uint32):
     v5: uint32 = int.add v4, v2
     v6: boolean = int.lt.u v5, v3
-    branch v6, b2, b5
+    branch v6 => b2 | b5
 
 b2:
     v7: boolean = int.lt.u v4, v3
@@ -1746,12 +1746,12 @@ entry(v0: [int32; 8]):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v3
-    branch v5, b2, b5
+    branch v5 => b2 | b5
 
 b2:
     v6: uint32 = int.add v4, v2
     v7: boolean = int.lt.u v6, v3
-    check bounds.u v6, v3, v0 => b3, b4
+    check bounds.u v6, v3, v0 => b3 | b4
 
 b3:
     v8: uint32 = int.add v4, v2
@@ -1776,12 +1776,12 @@ entry(v0: [int32; 8]):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v3
-    branch v5, b2, b5
+    branch v5 => b2 | b5
 
 b2:
     v6: uint32 = int.add v4, v2
     v7: boolean = int.lt.u v6, v3
-    check bounds.u v6, v3, v0 => b3, b4
+    check bounds.u v6, v3, v0 => b3 | b4
 
 b3:
     v8: uint32 = int.add v4, v2
@@ -1816,11 +1816,11 @@ entry(v0: [int32; 8]):
 b1(v4: uint32):
     v5: uint32 = int.sub v3, v2
     v6: boolean = int.lt.u v4, v5
-    branch v6, b2, b5
+    branch v6 => b2 | b5
 
 b2:
     v7: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 => b3, b4
+    check bounds.u v4, v3, v0 => b3 | b4
 
 b3:
     v8: uint32 = int.add v4, v2
@@ -1846,7 +1846,7 @@ entry(v0: [int32; 8]):
 b1(v4: uint32):
     v5: uint32 = int.sub v3, v2
     v6: boolean = int.lt.u v4, v5
-    branch v6, b2, b5
+    branch v6 => b2 | b5
 
 b2:
     v7: boolean = int.lt.u v4, v3
@@ -1885,11 +1885,11 @@ entry(v0: [int32; 8]):
 b1(v4: uint32):
     v5: uint32 = int.add v3, v2
     v6: boolean = int.lt.u v4, v5
-    branch v6, b2, b5
+    branch v6 => b2 | b5
 
 b2:
     v7: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 => b3, b4
+    check bounds.u v4, v3, v0 => b3 | b4
 
 b3:
     v8: uint32 = int.add v4, v2
@@ -1915,11 +1915,11 @@ entry(v0: [int32; 8]):
 b1(v4: uint32):
     v5: uint32 = int.add v3, v2
     v6: boolean = int.lt.u v4, v5
-    branch v6, b2, b5
+    branch v6 => b2 | b5
 
 b2:
     v7: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 => b3, b4
+    check bounds.u v4, v3, v0 => b3 | b4
 
 b3:
     v8: uint32 = int.add v4, v2

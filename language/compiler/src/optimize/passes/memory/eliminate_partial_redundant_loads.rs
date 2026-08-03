@@ -23,7 +23,7 @@ declare_pass! {
     ///     local l0: int32
     /// b0(v0: boolean):
     ///     v1 = local.address l0 -> ref<int32, raw, mutable, frame>
-    ///     branch v0, b1, b2
+    ///     branch v0 => b1 | b2
     /// b1:
     ///     jump b3
     /// b2:
@@ -39,7 +39,7 @@ declare_pass! {
     ///     local l0: int32
     /// b0(v0: boolean):
     ///     v1 = local.address l0 -> ref<int32, raw, mutable, frame>
-    ///     branch v0, b1, b2
+    ///     branch v0 => b1 | b2
     /// b1:
     ///     v4 = load v1 -> int32
     ///     jump b3(v4)
@@ -562,7 +562,7 @@ function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
     v1: ref<int32, raw, mutable, frame> = local.address l0
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v2: int32 = 1
@@ -586,7 +586,7 @@ function test(v0: boolean): int32 {
 
 entry(v0: boolean):
     v1: ref<int32, raw, mutable, frame> = local.address l0
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v2: int32 = 1
@@ -617,7 +617,7 @@ b3(v5: int32):
 function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     jump b3
@@ -645,7 +645,7 @@ function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
     v1: ref<int32, raw, mutable, frame> = local.address l0
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     jump b3
@@ -674,7 +674,7 @@ function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
     v1: ref<int32, raw, mutable, frame> = local.address l0
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v2: int32 = 1
@@ -701,7 +701,7 @@ function test(v0: boolean): int32 {
 
 entry(v0: boolean):
     v1: ref<int32, raw, mutable, frame> = local.address l0
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v2: int32 = 1
@@ -745,7 +745,7 @@ function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
     v1: ref<int32, raw, mutable, frame> = local.address l0
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     jump b3
@@ -786,7 +786,7 @@ function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
     v1: ref<int32, raw, mutable, frame> = local.address l0
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     jump b3
@@ -815,13 +815,13 @@ function test(v0: boolean, v1: boolean): int32 {
     local l0: int32
 entry(v0: boolean, v1: boolean):
     v2: ref<int32, raw, mutable, frame> = local.address l0
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v3: int32 = 1
     store v2, v3
     v4: int32 = load v2
-    branch v1, b3, b4
+    branch v1 => b3 | b4
 
 b2:
     jump b3
@@ -842,13 +842,13 @@ function test(v0: boolean, v1: boolean): int32 {
 
 entry(v0: boolean, v1: boolean):
     v2: ref<int32, raw, mutable, frame> = local.address l0
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v3: int32 = 1
     store v2, v3
     v4: int32 = load v2
-    branch v1, b3(v4), b4
+    branch v1 => b3(v4) | b4
 
 b2:
     v8: int32 = load v2
@@ -876,7 +876,7 @@ function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
     v1: ref<int32, raw, mutable, frame> = local.address l0
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v2: int32 = 1
@@ -902,7 +902,7 @@ function test(v0: boolean): int32 {
 
 entry(v0: boolean):
     v1: ref<int32, raw, mutable, frame> = local.address l0
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v2: int32 = 1
@@ -936,12 +936,12 @@ function test(v0: boolean, v1: boolean): int32 {
     local l0: int32
 entry(v0: boolean, v1: boolean):
     v2: ref<int32, raw, mutable, frame> = local.address l0
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v3: int32 = 1
     store v2, v3
-    branch v1, b3, b4
+    branch v1 => b3 | b4
 
 b2:
     v4: int32 = 2
@@ -964,12 +964,12 @@ function test(v0: boolean, v1: boolean): int32 {
 
 entry(v0: boolean, v1: boolean):
     v2: ref<int32, raw, mutable, frame> = local.address l0
-    branch v0, b1, b3
+    branch v0 => b1 | b3
 
 b1:
     v3: int32 = 1
     store v2, v3
-    branch v1, b2, b5
+    branch v1 => b2 | b5
 
 b2:
     v8: int32 = load v2

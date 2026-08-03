@@ -21,7 +21,7 @@ declare_pass! {
     /// ```mir
     /// function before(v0: int32, v1: int32, v2: boolean): int32 {
     /// b0(v0: int32, v1: int32, v2: boolean):
-    ///     branch v2, b1, b2
+    ///     branch v2 => b1 | b2
     /// b1:
     ///     v3 = int.add v0, v1
     ///     jump b3
@@ -36,7 +36,7 @@ declare_pass! {
     /// ```mir
     /// function after(v0: int32, v1: int32, v2: boolean): int32 {
     /// b0(v0: int32, v1: int32, v2: boolean):
-    ///     branch v2, b1, b2
+    ///     branch v2 => b1 | b2
     /// b1:
     ///     v3 = int.add v0, v1
     ///     jump b3(v3)
@@ -756,7 +756,7 @@ mod tests {
         let input = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.add v0, v1
@@ -774,7 +774,7 @@ b3:
         let expected = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.add v0, v1
@@ -800,14 +800,14 @@ b3(v5: int32):
         let input = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.add v0, v1
     jump b3
 
 b2:
-    branch v2, b3, b4
+    branch v2 => b3 | b4
 
 b3:
     v4: int32 = int.add v0, v1
@@ -821,14 +821,14 @@ b4:
         let expected = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.add v0, v1
     jump b4(v3)
 
 b2:
-    branch v2, b3, b5
+    branch v2 => b3 | b5
 
 b3:
     v6: int32 = int.add v0, v1
@@ -945,12 +945,12 @@ b4(v6: int32, v8: int32):
         let input = r#"
 function test(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]): uint32 {
 entry(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v4: uint32 = int.add v0, v1
     v5: boolean = int.lt.u v0, v1
-    check bounds.u v0, v1, v3 => b3, b4
+    check bounds.u v0, v1, v3 => b3 | b4
 
 b2:
     jump b3
@@ -967,12 +967,12 @@ b4:
         let expected = r#"
 function test(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]): uint32 {
 entry(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
-    branch v2, b1, b3
+    branch v2 => b1 | b3
 
 b1:
     v4: uint32 = int.add v0, v1
     v5: boolean = int.lt.u v0, v1
-    check bounds.u v0, v1, v3 => b2, b5
+    check bounds.u v0, v1, v3 => b2 | b5
 
 b2:
     jump b4(v4)
@@ -1000,12 +1000,12 @@ b5:
         let input = r#"
 function test(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]): uint32 {
 entry(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v4: uint32 = int.add v0, v1
     v5: boolean = int.lt.u v0, v1
-    check bounds.u v0, v1, v3 => b3, b4
+    check bounds.u v0, v1, v3 => b3 | b4
 
 b2:
     jump b4
@@ -1022,12 +1022,12 @@ b4:
         let expected = r#"
 function test(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]): uint32 {
 entry(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
-    branch v2, b1, b3
+    branch v2 => b1 | b3
 
 b1:
     v4: uint32 = int.add v0, v1
     v5: boolean = int.lt.u v0, v1
-    check bounds.u v0, v1, v3 => b4, b2
+    check bounds.u v0, v1, v3 => b4 | b2
 
 b2:
     jump b5(v4)
@@ -1055,7 +1055,7 @@ b5(v7: uint32):
         let input = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.div.s v0, v1
@@ -1081,7 +1081,7 @@ b3:
         let input = r#"
 function test(v0: float32, v1: boolean): int32 {
 entry(v0: float32, v1: boolean):
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b1:
     v2: int32 = cast.floatToInt.s v0 -> int32
@@ -1107,7 +1107,7 @@ b3:
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: int32 = call getValue(): () => int32
@@ -1139,7 +1139,7 @@ entry:
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: int32 = 1
@@ -1167,7 +1167,7 @@ b3:
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     v3: int32 = int.add v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     jump b3

@@ -22,7 +22,7 @@ declare_pass! {
     ///     v1 = local.address l0 -> ref<int32, raw, mutable, frame>
     ///     v2 = 7int32
     ///     store v1, v2
-    ///     branch v0, b1, b2
+    ///     branch v0 => b1 | b2
     /// b1:
     ///     v3 = load v1 -> int32
     ///     return v3
@@ -37,7 +37,7 @@ declare_pass! {
     /// b0(v0: boolean):
     ///     v1 = local.address l0 -> ref<int32, raw, mutable, frame>
     ///     v2 = 7int32
-    ///     branch v0, b1, b2
+    ///     branch v0 => b1 | b2
     /// b1:
     ///     store v1, v2
     ///     v3 = load v1 -> int32
@@ -469,7 +469,7 @@ entry(v0: boolean):
     v1: ref<int32, raw, mutable, frame> = local.address l0
     v2: int32 = 7
     store v1, v2
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v3: int32 = load v1
@@ -486,7 +486,7 @@ function test(v0: boolean): int32 {
 entry(v0: boolean):
     v1: ref<int32, raw, mutable, frame> = local.address l0
     v2: int32 = 7
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     store v1, v2
@@ -516,7 +516,7 @@ entry(v0: boolean):
     v1: ref<int32, raw, mutable, frame> = local.address l0
     v2: int32 = 7
     store v1, v2
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v3: int32 = load v1
@@ -541,7 +541,7 @@ function test(v0: boolean, v1: ref<int32, raw, mutable, global>): void {
 entry(v0: boolean, v1: ref<int32, raw, mutable, global>):
     v2: int32 = 1
     store v1, v2
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     return

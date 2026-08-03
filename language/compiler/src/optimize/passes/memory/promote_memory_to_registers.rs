@@ -1071,7 +1071,7 @@ function test(v0: boolean, v1: int32): int32 {
 
 entry(v0: boolean, v1: int32):
     local.set l0, v1
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v2: int32 = 1
@@ -1093,7 +1093,7 @@ b3:
         let expected = r#"
 function test(v0: boolean, v1: int32): int32 {
 entry(v0: boolean, v1: int32):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v2: int32 = 1
@@ -1191,7 +1191,7 @@ entry(v0: int32):
 b1:
     v2: int32 = local.get l0
     v3: boolean = int.lt.s v2, v0
-    branch v3, b2, b3
+    branch v3 => b2 | b3
 
 b2:
     v4: int32 = 1
@@ -1214,7 +1214,7 @@ entry(v0: int32):
 
 b1(v7: int32):
     v3: boolean = int.lt.s v7, v0
-    branch v3, b2, b3
+    branch v3 => b2 | b3
 
 b2:
     v4: int32 = 1

@@ -25,10 +25,10 @@ declare_pass! {
     ///     jump b1(v3)
     /// b1(v5: uint32):
     ///     v6 = int.lt.u v5, v2
-    ///     branch v6, b2, b3
+    ///     branch v6 => b2 | b3
     /// b2:
     ///     v7 = int.lt.u v5, v1
-    ///     check bounds.u v5, v1, v0 => b4, b5
+    ///     check bounds.u v5, v1, v0 => b4 | b5
     /// b4:
     ///     v8 = element.address v0, v5
     ///     v9 = 1uint8
@@ -48,13 +48,13 @@ declare_pass! {
     ///     v3 = 0uint32
     ///     v4 = 1uint32
     ///     v11 = int.le.u v2, v1
-    ///     branch v11, b6(v3), b1(v3)
+    ///     branch v11 => b6(v3) | b1(v3)
     /// b1(v5: uint32):
     ///     v6 = int.lt.u v5, v2
-    ///     branch v6, b2, b3
+    ///     branch v6 => b2 | b3
     /// b2:
     ///     v7 = int.lt.u v5, v1
-    ///     check bounds.u v5, v1, v0 => b4, b5
+    ///     check bounds.u v5, v1, v0 => b4 | b5
     /// b4:
     ///     v8 = element.address v0, v5
     ///     v9 = 1uint8
@@ -67,7 +67,7 @@ declare_pass! {
     ///     return
     /// b6(v12: uint32):
     ///     v13 = int.lt.u v12, v2
-    ///     branch v13, b7, b3
+    ///     branch v13 => b7 | b3
     /// b7:
     ///     v14 = element.address v0, v12
     ///     v15 = 1uint8
@@ -653,11 +653,11 @@ entry(v0: [uint8; 8], v1: uint32, v2: uint32):
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v2
-    branch v6, b2, b5
+    branch v6 => b2 | b5
 
 b2:
     v7: boolean = int.lt.u v5, v1
-    check bounds.u v5, v1, v0 => b3, b4
+    check bounds.u v5, v1, v0 => b3 | b4
 
 b3:
     v8: ref<uint8, borrowed, mutable> = element.address v0, v5
@@ -680,15 +680,15 @@ entry(v0: [uint8; 8], v1: uint32, v2: uint32):
     v3: uint32 = 0
     v4: uint32 = 1
     v11: boolean = int.le.u v2, v1
-    branch v11, b6(v3), b1(v3)
+    branch v11 => b6(v3) | b1(v3)
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v2
-    branch v6, b2, b5
+    branch v6 => b2 | b5
 
 b2:
     v7: boolean = int.lt.u v5, v1
-    check bounds.u v5, v1, v0 => b3, b4
+    check bounds.u v5, v1, v0 => b3 | b4
 
 b3:
     v8: ref<uint8, borrowed, mutable> = element.address v0, v5
@@ -705,7 +705,7 @@ b5:
 
 b6(v12: uint32):
     v13: boolean = int.lt.u v12, v2
-    branch v13, b7, b5
+    branch v13 => b7 | b5
 
 b7:
     v14: boolean = int.lt.u v12, v1
@@ -737,11 +737,11 @@ entry(v0: [uint8; 8], v1: uint32, v2: uint32):
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v2
-    branch v6, b2, b5
+    branch v6 => b2 | b5
 
 b2:
     v7: boolean = int.lt.u v5, v1
-    check bounds.u v5, v1, v0 => b3, b4
+    check bounds.u v5, v1, v0 => b3 | b4
 
 b3:
     v8: ref<uint8, borrowed, mutable> = element.address v0, v5
@@ -764,15 +764,15 @@ entry(v0: [uint8; 8], v1: uint32, v2: uint32):
     v3: uint32 = 2
     v4: uint32 = 1
     v11: boolean = int.le.u v2, v1
-    branch v11, b6(v3), b1(v3)
+    branch v11 => b6(v3) | b1(v3)
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v2
-    branch v6, b2, b5
+    branch v6 => b2 | b5
 
 b2:
     v7: boolean = int.lt.u v5, v1
-    check bounds.u v5, v1, v0 => b3, b4
+    check bounds.u v5, v1, v0 => b3 | b4
 
 b3:
     v8: ref<uint8, borrowed, mutable> = element.address v0, v5
@@ -789,7 +789,7 @@ b5:
 
 b6(v12: uint32):
     v13: boolean = int.lt.u v12, v2
-    branch v13, b7, b5
+    branch v13 => b7 | b5
 
 b7:
     v14: boolean = int.lt.u v12, v1
@@ -821,11 +821,11 @@ entry(v0: [int32; 8], v1: int32, v2: int32):
 
 b1(v5: int32):
     v6: boolean = int.lt.s v5, v2
-    branch v6, b2, b3
+    branch v6 => b2 | b3
 
 b2:
     v7: boolean = int.lt.s v5, v1
-    check bounds.s v5, v1, v0 => b4, b5
+    check bounds.s v5, v1, v0 => b4 | b5
 
 b3:
     return
@@ -859,11 +859,11 @@ entry(v0: [uint8; 8], v1: int32, v2: uint32):
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v2
-    branch v6, b2, b3
+    branch v6 => b2 | b3
 
 b2:
     v7: boolean = int.lt.u v5, v2
-    check bounds.u v5, v1, v0 => b4, b5
+    check bounds.u v5, v1, v0 => b4 | b5
 
 b3:
     return
@@ -897,11 +897,11 @@ entry(v0: [uint8; 8], v1: uint32, v2: uint32):
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v2
-    branch v6, b2, b5
+    branch v6 => b2 | b5
 
 b2:
     v7: boolean = int.lt.u v5, v1
-    check bounds.u v5, v1, v0 => b3, b4
+    check bounds.u v5, v1, v0 => b3 | b4
 
 b3:
     v8: ref<uint8, borrowed, mutable> = element.address v0, v5
@@ -924,15 +924,15 @@ entry(v0: [uint8; 8], v1: uint32, v2: uint32):
     v3: uint32 = 0
     v4: uint32 = 2
     v11: boolean = int.le.u v2, v1
-    branch v11, b6(v3), b1(v3)
+    branch v11 => b6(v3) | b1(v3)
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v2
-    branch v6, b2, b5
+    branch v6 => b2 | b5
 
 b2:
     v7: boolean = int.lt.u v5, v1
-    check bounds.u v5, v1, v0 => b3, b4
+    check bounds.u v5, v1, v0 => b3 | b4
 
 b3:
     v8: ref<uint8, borrowed, mutable> = element.address v0, v5
@@ -949,7 +949,7 @@ b5:
 
 b6(v12: uint32):
     v13: boolean = int.lt.u v12, v2
-    branch v13, b7, b5
+    branch v13 => b7 | b5
 
 b7:
     v14: boolean = int.lt.u v12, v1
@@ -981,11 +981,11 @@ entry(v0: [uint8; 8], v1: uint32, v2: uint32):
 
 b1(v5: uint32):
     v6: boolean = int.le.u v5, v2
-    branch v6, b2, b5
+    branch v6 => b2 | b5
 
 b2:
     v7: boolean = int.lt.u v5, v1
-    check bounds.u v5, v1, v0 => b3, b4
+    check bounds.u v5, v1, v0 => b3 | b4
 
 b3:
     v8: ref<uint8, borrowed, mutable> = element.address v0, v5

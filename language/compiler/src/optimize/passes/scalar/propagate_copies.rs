@@ -536,7 +536,7 @@ mod tests {
         let input = r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     jump b3(v0)
@@ -553,7 +553,7 @@ b3(v1: int32):
         let expected = r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     jump b3
@@ -578,7 +578,7 @@ b3:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     jump b3(v0)
@@ -667,7 +667,7 @@ b2:
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v2: int32 = 10
@@ -687,7 +687,7 @@ b3(v4: int32, v5: int32):
         let expected = r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v2: int32 = 10

@@ -708,7 +708,7 @@ entry:
     v1: int32 = 7
     v2: boolean = true
     store v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     jump b3
@@ -729,7 +729,7 @@ entry:
     v1: int32 = 7
     v2: boolean = true
     store v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     jump b3
@@ -1037,7 +1037,7 @@ entry(v0: boolean):
     v1: ref<int32, raw, mutable, frame> = local.address l0
     v2: int32 = 42
     store v1, v2
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v3: int32 = load v1
@@ -1059,7 +1059,7 @@ entry(v0: boolean):
     v1: ref<int32, raw, mutable, frame> = local.address l0
     v2: int32 = 42
     store v1, v2
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     jump b3(v2)
@@ -1083,7 +1083,7 @@ b3(v5: int32):
         let input = r#"
 function test(v0: boolean, v1: ref<int32, raw, mutable>): int32 {
 entry(v0: boolean, v1: ref<int32, raw, mutable>):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v2: int32 = 42

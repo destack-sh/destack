@@ -19,7 +19,7 @@ declare_pass! {
     /// ```mir
     /// function before(v0: int32, v1: int32, v2: boolean): int32 {
     /// b0(v0: int32, v1: int32, v2: boolean):
-    ///     branch v2, b1, b2
+    ///     branch v2 => b1 | b2
     /// b1:
     ///     v3 = int.add v0, v1
     ///     jump b3(v3)
@@ -35,7 +35,7 @@ declare_pass! {
     /// function after(v0: int32, v1: int32, v2: boolean): int32 {
     /// b0(v0: int32, v1: int32, v2: boolean):
     ///     v6 = int.add v0, v1
-    ///     branch v2, b1, b2
+    ///     branch v2 => b1 | b2
     /// b1:
     ///     jump b3(v6)
     /// b2:
@@ -492,7 +492,7 @@ mod tests {
         let input = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.add v0, v1
@@ -512,7 +512,7 @@ b3(v5: int32):
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     v6: int32 = int.add v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     jump b3(v6)
@@ -538,7 +538,7 @@ b3(v5: int32):
         let input = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.div.s v0, v1
@@ -566,7 +566,7 @@ b3(v5: int32):
         let input = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.add v0, v1
@@ -594,7 +594,7 @@ b3(v5: int32):
         let input = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.add v0, v1
@@ -617,7 +617,7 @@ function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     v8: int32 = int.add v0, v1
     v9: int32 = int.add v8, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     jump b3(v9)
@@ -643,7 +643,7 @@ b3(v7: int32):
         let input = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1(v0, v1), b2(v0, v1)
+    branch v2 => b1(v0, v1) | b2(v0, v1)
 
 b1(v3: int32, v4: int32):
     v5: int32 = int.add v3, v4
@@ -663,7 +663,7 @@ b3(v9: int32):
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     v10: int32 = int.add v0, v1
-    branch v2, b1(v0, v1), b2(v0, v1)
+    branch v2 => b1(v0, v1) | b2(v0, v1)
 
 b1(v3: int32, v4: int32):
     jump b3(v10)
@@ -689,7 +689,7 @@ b3(v9: int32):
         let input = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.mul v0, v1
@@ -711,7 +711,7 @@ b3(v7: int32):
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     v8: int32 = int.add v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.mul v0, v1
@@ -739,7 +739,7 @@ b3(v7: int32):
         let input = r#"
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.add v0, v1

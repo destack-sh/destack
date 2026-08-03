@@ -1226,7 +1226,7 @@ function test(v0: boolean): void {
     local l0: Point
 entry(v0: boolean):
     v1: ref<Point, raw, mutable, frame> = local.address l0
-    branch v0, b1(v1), b2
+    branch v0 => b1(v1) | b2
 
 b1(v2: ref<Point, raw, mutable>):
     return
@@ -1249,7 +1249,7 @@ function test(v0: boolean): int32 {
     local l0: [int32; 2]
 entry(v0: boolean):
     v1: int64 = 0
-    branch v0, b1(v1), b1(v1)
+    branch v0 => b1(v1) | b1(v1)
 
 b1(v2: int64):
     v3: ref<[int32; 2], raw, mutable, frame> = local.address l0
@@ -1269,7 +1269,7 @@ entry(v0: boolean):
     v7: ref<int32, raw, mutable, frame> = local.address l0
     v8: ref<int32, raw, mutable, frame> = local.address l1
     v1: int64 = 0
-    branch v0, b1(v1), b1(v1)
+    branch v0 => b1(v1) | b1(v1)
 
 b1(v2: int64):
     v5: int32 = 42

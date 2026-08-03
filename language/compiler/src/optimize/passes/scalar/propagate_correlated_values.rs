@@ -19,7 +19,7 @@ declare_pass! {
     /// function before(v0: int32, v1: int32): int32 {
     /// b0(v0: int32, v1: int32):
     ///     v2 = int.eq v0, v1
-    ///     branch v2, b1, b2
+    ///     branch v2 => b1 | b2
     /// b1:
     ///     v3 = int.add v0, v1
     ///     jump b3(v3)
@@ -35,7 +35,7 @@ declare_pass! {
     /// function after(v0: int32, v1: int32): int32 {
     /// b0(v0: int32, v1: int32):
     ///     v2 = int.eq v0, v1
-    ///     branch v2, b1, b2
+    ///     branch v2 => b1 | b2
     /// b1:
     ///     v3 = int.add v0, v0
     ///     jump b3(v3)
@@ -786,7 +786,7 @@ mod tests {
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.add v0, v1
@@ -806,7 +806,7 @@ b3(v5: int32):
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.add v0, v0
@@ -835,7 +835,7 @@ b3(v5: int32):
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: boolean = int.ne v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.add v0, v1
@@ -852,7 +852,7 @@ b2:
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: boolean = int.ne v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.add v0, v1
@@ -879,7 +879,7 @@ function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 7
     v3: boolean = int.eq v0, v2
-    branch v3, b1, b2
+    branch v3 => b1 | b2
 
 b1:
     v4: int32 = int.add v0, v1
@@ -896,7 +896,7 @@ function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 7
     v3: boolean = int.eq v0, v2
-    branch v3, b1, b2
+    branch v3 => b1 | b2
 
 b1:
     v4: int32 = int.add v2, v1
@@ -921,7 +921,7 @@ b2:
 function test(v0: float64, v1: float64): float64 {
 entry(v0: float64, v1: float64):
     v2: boolean = float.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: float64 = float.add v0, v1
@@ -947,7 +947,7 @@ b2:
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     jump b3
@@ -966,7 +966,7 @@ b3:
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     jump b3
@@ -995,7 +995,7 @@ function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: boolean = int.eq v0, v1
     v3: boolean = int.not v2
-    branch v3, b1, b2
+    branch v3 => b1 | b2
 
 b1:
     v4: int32 = int.sub v0, v1
@@ -1013,7 +1013,7 @@ function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: boolean = int.eq v0, v1
     v3: boolean = int.not v2
-    branch v3, b1, b2
+    branch v3 => b1 | b2
 
 b1:
     v4: int32 = int.sub v0, v1
@@ -1039,7 +1039,7 @@ b2:
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
-    check bounds.u v0, v1, v2 => b1, b2
+    check bounds.u v0, v1, v2 => b1 | b2
 
 b1:
     v4: uint32 = int.add v0, v1
@@ -1055,7 +1055,7 @@ b2:
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
-    check bounds.u v0, v1, v2 => b1, b2
+    check bounds.u v0, v1, v2 => b1 | b2
 
 b1:
     v4: uint32 = int.add v0, v1
@@ -1080,7 +1080,7 @@ b2:
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.add v0, v1
@@ -1106,7 +1106,7 @@ function test(v0: int32): boolean {
 entry(v0: int32):
     v1: int32 = 5
     v2: boolean = int.lt.s v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: boolean = int.lt.s v0, v1
@@ -1123,7 +1123,7 @@ function test(v0: int32): boolean {
 entry(v0: int32):
     v1: int32 = 5
     v2: boolean = int.lt.s v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: boolean = true
@@ -1149,7 +1149,7 @@ function test(v0: int32): boolean {
 entry(v0: int32):
     v1: int32 = 5
     v2: boolean = int.lt.s v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v2
@@ -1166,7 +1166,7 @@ function test(v0: int32): boolean {
 entry(v0: int32):
     v1: int32 = 5
     v2: boolean = int.lt.s v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v2

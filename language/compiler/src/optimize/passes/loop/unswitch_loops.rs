@@ -21,7 +21,7 @@ declare_pass! {
     /// b0(v0: boolean):
     ///     jump b1
     /// b1:
-    ///     branch v0, b2, b3
+    ///     branch v0 => b2 | b3
     /// b2:
     ///     jump b1
     /// b3:
@@ -32,7 +32,7 @@ declare_pass! {
     /// ```mir
     /// function after(v0: boolean): void {
     /// b0(v0: boolean):
-    ///     branch v0, b1, b2
+    ///     branch v0 => b1 | b2
     /// b1:
     ///     jump b3
     /// b2:
@@ -728,13 +728,13 @@ entry(v0: boolean, v1: boolean):
     jump b1
 
 b1:
-    branch v0, b2, b3
+    branch v0 => b2 | b3
 
 b2:
     jump b1
 
 b3:
-    branch v1, b1, b4
+    branch v1 => b1 | b4
 
 b4:
     return
@@ -747,7 +747,7 @@ b4:
         let expected = r#"
 function test(v0: boolean, v1: boolean): void {
 entry(v0: boolean, v1: boolean):
-    branch v0, b1, b6
+    branch v0 => b1 | b6
 
 b1:
     jump b2
@@ -756,7 +756,7 @@ b2:
     jump b5
 
 b3:
-    branch v1, b5, b4
+    branch v1 => b5 | b4
 
 b4:
     return
@@ -771,7 +771,7 @@ b7:
     jump b9
 
 b8:
-    branch v1, b9, b4
+    branch v1 => b9 | b4
 
 b9:
     jump b6
@@ -793,13 +793,13 @@ entry(v0: boolean, v1: boolean):
     jump b1
 
 b1:
-    branch v0, b2, b3
+    branch v0 => b2 | b3
 
 b2:
-    branch v1, b1, b4
+    branch v1 => b1 | b4
 
 b3:
-    branch v1, b1, b4
+    branch v1 => b1 | b4
 
 b4:
     return
@@ -809,16 +809,16 @@ b4:
         let expected = r#"
 function test(v0: boolean, v1: boolean): void {
 entry(v0: boolean, v1: boolean):
-    branch v0, b1, b6
+    branch v0 => b1 | b6
 
 b1:
     jump b2
 
 b2:
-    branch v1, b5, b4
+    branch v1 => b5 | b4
 
 b3:
-    branch v1, b5, b4
+    branch v1 => b5 | b4
 
 b4:
     return
@@ -830,10 +830,10 @@ b6:
     jump b8
 
 b7:
-    branch v1, b9, b4
+    branch v1 => b9 | b4
 
 b8:
-    branch v1, b9, b4
+    branch v1 => b9 | b4
 
 b9:
     jump b6
@@ -857,7 +857,7 @@ entry(v0: int32, v1: boolean):
 b1(v3: int32):
     v4: int32 = 10
     v5: boolean = int.lt.s v3, v4
-    branch v5, b2, b3
+    branch v5 => b2 | b3
 
 b2:
     v6: int32 = 1
@@ -887,7 +887,7 @@ b1:
     jump b2
 
 b2:
-    branch v0, b1, b3
+    branch v0 => b1 | b3
 
 b3:
     return
@@ -898,7 +898,7 @@ b3:
         let expected = r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
-    branch v0, b1, b4
+    branch v0 => b1 | b4
 
 b1:
     jump b2
@@ -931,7 +931,7 @@ entry(v0: boolean):
     jump b1
 
 b1:
-    branch v0, b2, b3
+    branch v0 => b2 | b3
 
 b2:
     return
@@ -957,10 +957,10 @@ entry(v0: boolean, v1: boolean):
     jump b1
 
 b1:
-    branch v0, b2, b2
+    branch v0 => b2 | b2
 
 b2:
-    branch v1, b1, b1
+    branch v1 => b1 | b1
 
 b3:
     return
@@ -983,10 +983,10 @@ entry(v0: boolean):
     jump b1
 
 b1:
-    branch v0, b2, b2
+    branch v0 => b2 | b2
 
 b2:
-    branch v0, b1, b3
+    branch v0 => b1 | b3
 
 b3:
     return
@@ -997,10 +997,10 @@ b3:
         let expected = r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
-    branch v0, b1, b4
+    branch v0 => b1 | b4
 
 b1:
-    branch v0, b2, b2
+    branch v0 => b2 | b2
 
 b2:
     jump b1
@@ -1009,7 +1009,7 @@ b3:
     return
 
 b4:
-    branch v0, b5, b5
+    branch v0 => b5 | b5
 
 b5:
     jump b3
@@ -1047,7 +1047,7 @@ entry(v0: boolean, v1: int32):
     jump b1(v2)
 
 b1(v3: int32):
-    branch v0, b2(v3), b3(v3)
+    branch v0 => b2(v3) | b3(v3)
 
 b2(v4: int32):
     v5: int32 = 1
@@ -1058,7 +1058,7 @@ b3(v7: int32):
     v8: int32 = 2
     v9: int32 = int.add v7, v8
     v10: boolean = int.lt.s v9, v1
-    branch v10, b1(v9), b4(v9)
+    branch v10 => b1(v9) | b4(v9)
 
 b4(v11: int32):
     return v11
@@ -1069,7 +1069,7 @@ b4(v11: int32):
 function test(v0: boolean, v1: int32): int32 {
 entry(v0: boolean, v1: int32):
     v2: int32 = 0
-    branch v0, b1(v2), b6(v2)
+    branch v0 => b1(v2) | b6(v2)
 
 b1(v3: int32):
     jump b2(v3)
@@ -1083,7 +1083,7 @@ b3(v7: int32):
     v8: int32 = 2
     v9: int32 = int.add v7, v8
     v10: boolean = int.lt.s v9, v1
-    branch v10, b5(v9), b4(v9)
+    branch v10 => b5(v9) | b4(v9)
 
 b4(v11: int32):
     return v11
@@ -1103,7 +1103,7 @@ b8(v17: int32):
     v18: int32 = 2
     v19: int32 = int.add v17, v18
     v20: boolean = int.lt.s v19, v1
-    branch v20, b9(v19), b4(v19)
+    branch v20 => b9(v19) | b4(v19)
 
 b9(v21: int32):
     jump b6(v21)
@@ -1124,7 +1124,7 @@ entry(v0: boolean):
     jump b1(v0)
 
 b1(v1: boolean):
-    branch v1, b2, b3
+    branch v1 => b2 | b3
 
 b2:
     jump b1(v1)
@@ -1136,7 +1136,7 @@ b3:
         let expected = r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
-    branch v0, b1(v0), b4(v0)
+    branch v0 => b1(v0) | b4(v0)
 
 b1(v1: boolean):
     jump b2
@@ -1170,7 +1170,7 @@ entry(v0: boolean, v1: uint32, v2: [uint8; 8]):
     jump b1(v1)
 
 b1(v3: uint32):
-    check bounds.u v3, v1, v2 => b2, b3
+    check bounds.u v3, v1, v2 => b2 | b3
 
 b2:
     jump b1(v3)
@@ -1186,7 +1186,7 @@ entry(v0: boolean, v1: uint32, v2: [uint8; 8]):
     jump b1(v1)
 
 b1(v3: uint32):
-    check bounds.u v3, v1, v2 => b2, b3
+    check bounds.u v3, v1, v2 => b2 | b3
 
 b2:
     jump b1(v3)
@@ -1212,7 +1212,7 @@ entry(v0: boolean):
 
 b1:
     v1: boolean = select v0, v0, v0
-    branch v1, b2, b3
+    branch v1 => b2 | b3
 
 b2:
     jump b1
@@ -1226,7 +1226,7 @@ b3:
 function test(v0: boolean): void {
 entry(v0: boolean):
     v3: boolean = select v0, v0, v0
-    branch v3, b1, b4
+    branch v3 => b1 | b4
 
 b1:
     v1: boolean = select v0, v0, v0
@@ -1270,10 +1270,10 @@ entry(v0: boolean, v1: boolean):
     jump b1()
 
 b1:
-{instructions}    branch v0, b2(), b3()
+{instructions}    branch v0 => b2() | b3()
 
 b2:
-    branch v1, b1(), b4()
+    branch v1 => b1() | b4()
 
 b3:
     return
@@ -1301,13 +1301,13 @@ b1:
     jump b2
 
 b2:
-    branch v0, b3, b4
+    branch v0 => b3 | b4
 
 b3:
     jump b2
 
 b4:
-    branch v1, b1, b5
+    branch v1 => b1 | b5
 
 b5:
     return
@@ -1321,7 +1321,7 @@ entry(v0: boolean, v1: boolean):
     jump b1
 
 b1:
-    branch v0, b2, b6
+    branch v0 => b2 | b6
 
 b2:
     jump b3
@@ -1330,7 +1330,7 @@ b3:
     jump b2
 
 b4:
-    branch v1, b1, b5
+    branch v1 => b1 | b5
 
 b5:
     return
@@ -1358,7 +1358,7 @@ entry:
     jump b1
 
 b1:
-    branch v0, b2, b3
+    branch v0 => b2 | b3
 
 b2:
     jump b1
@@ -1383,7 +1383,7 @@ entry(v0: boolean):
     jump b1
 
 b1:
-    branch v0, b2, b3
+    branch v0 => b2 | b3
 
 b2:
     jump b1

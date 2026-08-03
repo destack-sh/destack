@@ -27,10 +27,10 @@ declare_pass! {
     ///     jump b1(v1)
     /// b1(v5: uint32):
     ///     v6 = int.lt.u v5, v2
-    ///     branch v6, b2(v1), b6
+    ///     branch v6 => b2(v1) | b6
     /// b2(v7: uint32):
     ///     v8 = int.lt.u v7, v2
-    ///     branch v8, b3(v7), b4
+    ///     branch v8 => b3(v7) | b4
     /// b3(v9: uint32):
     ///     v10 = load v4 -> int32
     ///     v11 = int.add v9, v3
@@ -54,10 +54,10 @@ declare_pass! {
     ///     jump b2(v1)
     /// b1(v5: uint32):
     ///     v6 = int.lt.u v5, v2
-    ///     branch v6, b4, b3
+    ///     branch v6 => b4 | b3
     /// b2(v7: uint32):
     ///     v8 = int.lt.u v7, v2
-    ///     branch v8, b1(v1), b6
+    ///     branch v8 => b1(v1) | b6
     /// b3(v9: uint32):
     ///     v10 = load v4 -> int32
     ///     v11 = int.add v9, v3
@@ -481,11 +481,11 @@ entry(v0: uint32):
 
 b1(v6: uint32):
     v7: boolean = int.lt.u v6, v2
-    branch v7, b2(v1), b5
+    branch v7 => b2(v1) | b5
 
 b2(v8: uint32):
     v9: boolean = int.lt.u v8, v2
-    branch v9, b3, b4
+    branch v9 => b3 | b4
 
 b3:
     v10: int32 = load v4
@@ -514,11 +514,11 @@ entry(v0: uint32):
 
 b1(v6: uint32):
     v7: boolean = int.lt.u v6, v2
-    branch v7, b4, b3
+    branch v7 => b4 | b3
 
 b2(v8: uint32):
     v9: boolean = int.lt.u v8, v2
-    branch v9, b1(v1), b5
+    branch v9 => b1(v1) | b5
 
 b3:
     v10: int32 = load v4
@@ -554,11 +554,11 @@ entry(v0: uint32):
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v2
-    branch v6, b2(v1), b5
+    branch v6 => b2(v1) | b5
 
 b2(v7: uint32):
     v8: boolean = int.lt.u v7, v2
-    branch v8, b3(v7), b4
+    branch v8 => b3(v7) | b4
 
 b3(v9: uint32):
     store v4, v9
@@ -594,11 +594,11 @@ entry(v0: uint32):
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v2
-    branch v6, b2(v1), b6
+    branch v6 => b2(v1) | b6
 
 b2(v7: uint32):
     v8: boolean = int.lt.u v7, v2
-    branch v8, b3, b4
+    branch v8 => b3 | b4
 
 b3:
     v9: int32 = load v4
@@ -639,11 +639,11 @@ entry(v0: uint32):
 b1(v6: uint32):
     v7: boolean = int.lt.u v6, v2
     v8: uint32 = int.add v6, v3
-    branch v7, b2(v1, v8), b5
+    branch v7 => b2(v1, v8) | b5
 
 b2(v9: uint32, v10: uint32):
     v11: boolean = int.lt.u v9, v2
-    branch v11, b3, b4
+    branch v11 => b3 | b4
 
 b3:
     v12: int32 = load v4
@@ -680,17 +680,17 @@ entry(v0: uint32):
 
 b1(v6: uint32):
     v7: boolean = int.lt.u v6, v2
-    branch v7, b2(v1), b5
+    branch v7 => b2(v1) | b5
 
 b2(v8: uint32):
     v9: boolean = int.lt.u v8, v2
-    branch v9, b3, b4
+    branch v9 => b3 | b4
 
 b3:
     v10: int32 = load v4
     v11: uint32 = int.add v8, v3
     v12: boolean = int.lt.u v8, v2
-    branch v12, b2(v11), b4
+    branch v12 => b2(v11) | b4
 
 b4:
     v13: uint32 = int.add v6, v3
@@ -722,11 +722,11 @@ entry(v0: uint32):
 
 b1(v6: uint32):
     v7: boolean = int.lt.u v6, v2
-    branch v7, b2(v1), b5
+    branch v7 => b2(v1) | b5
 
 b2(v8: uint32):
     v9: boolean = int.lt.u v8, v2
-    branch v9, b3, b4(v8)
+    branch v9 => b3 | b4(v8)
 
 b3:
     v10: int32 = load v4
@@ -759,18 +759,18 @@ entry(v0: boolean, v1: uint32):
     v4: uint32 = 1
     v5: ref<int32, raw, mutable, frame> = local.address l0
     v6: int32 = 0
-    branch v0, b2(v2), b1(v2)
+    branch v0 => b2(v2) | b1(v2)
 
 b1(v7: uint32):
     jump b2(v7)
 
 b2(v8: uint32):
     v9: boolean = int.lt.u v8, v3
-    branch v9, b3(v2), b6
+    branch v9 => b3(v2) | b6
 
 b3(v10: uint32):
     v11: boolean = int.lt.u v10, v3
-    branch v11, b4, b5
+    branch v11 => b4 | b5
 
 b4:
     v12: int32 = load v5
@@ -795,18 +795,18 @@ entry(v0: boolean, v1: uint32):
     v4: uint32 = 1
     v5: ref<int32, raw, mutable, frame> = local.address l0
     v6: int32 = 0
-    branch v0, b2(v2), b1(v2)
+    branch v0 => b2(v2) | b1(v2)
 
 b1(v7: uint32):
     jump b2(v7)
 
 b2(v8: uint32):
     v9: boolean = int.lt.u v8, v3
-    branch v9, b3(v2), b6
+    branch v9 => b3(v2) | b6
 
 b3(v10: uint32):
     v11: boolean = int.lt.u v10, v3
-    branch v11, b4, b5
+    branch v11 => b4 | b5
 
 b4:
     v12: int32 = load v5
@@ -843,11 +843,11 @@ entry(v0: uint32):
 
 b1(v6: uint32):
     v7: boolean = int.lt.u v6, v2
-    branch v7, b2(v1), b6
+    branch v7 => b2(v1) | b6
 
 b2(v8: uint32):
     v9: boolean = int.lt.u v8, v2
-    branch v9, b3, b4
+    branch v9 => b3 | b4
 
 b3:
     v10: int32 = load v4
@@ -887,11 +887,11 @@ entry(v0: uint32):
 
 b1(v6: uint32):
     v7: boolean = int.lt.u v6, v2
-    branch v7, b2(v1), b5
+    branch v7 => b2(v1) | b5
 
 b2(v8: uint32):
     v9: boolean = int.lt.u v8, v2
-    branch v9, b3, b4(v8)
+    branch v9 => b3 | b4(v8)
 
 b3:
     v10: int32 = load v4
@@ -920,11 +920,11 @@ entry(v0: uint32):
 
 b1(v6: uint32):
     v7: boolean = int.lt.u v6, v2
-    branch v7, b2(v1), b5
+    branch v7 => b2(v1) | b5
 
 b2(v8: uint32):
     v9: boolean = int.lt.u v8, v2
-    branch v9, b3, b4(v8)
+    branch v9 => b3 | b4(v8)
 
 b3:
     v10: int32 = load v4
@@ -961,11 +961,11 @@ entry(v0: uint32):
 
 b1(v6: uint32):
     v7: boolean = int.lt.u v6, v2
-    branch v7, b2(v1), b5(v6)
+    branch v7 => b2(v1) | b5(v6)
 
 b2(v8: uint32):
     v9: boolean = int.lt.u v8, v2
-    branch v9, b3, b4
+    branch v9 => b3 | b4
 
 b3:
     v10: int32 = load v4
@@ -994,11 +994,11 @@ entry(v0: uint32):
 
 b1(v6: uint32):
     v7: boolean = int.lt.u v6, v2
-    branch v7, b2(v1), b5(v6)
+    branch v7 => b2(v1) | b5(v6)
 
 b2(v8: uint32):
     v9: boolean = int.lt.u v8, v2
-    branch v9, b3, b4
+    branch v9 => b3 | b4
 
 b3:
     v10: int32 = load v4

@@ -28,7 +28,7 @@ declare_pass! {
     /// b1:
     ///     v1 = 1int32
     ///     v2 = int.add v1, v1
-    ///     branch v0, b1, b2
+    ///     branch v0 => b1 | b2
     /// b2:
     ///     return
     /// }
@@ -379,7 +379,7 @@ entry:
     jump b1
 
 b1:
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return
@@ -414,7 +414,7 @@ entry(v0: int32):
 b1(v3: int32):
     v4: int32 = 1
     v5: int32 = int.add v3, v4
-    branch v1, b1(v5), b2
+    branch v1 => b1(v5) | b2
 
 b2:
     return
@@ -448,7 +448,7 @@ entry:
 
 b1:
     call sideEffect(): () => int32
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return
@@ -478,7 +478,7 @@ entry(v0: ref<int32, raw, mutable>, v1: int32):
 
 b1:
     store v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b2:
     return
@@ -502,7 +502,7 @@ entry:
 
 b1:
     v1: int32 = 1
-    branch v0, b1, b2(v1)
+    branch v0 => b1 | b2(v1)
 
 b2(v2: int32):
     return v2
@@ -526,7 +526,7 @@ entry:
 
 b1:
     v1: int32 = 1
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     v2: int32 = int.add v1, v1
@@ -550,10 +550,10 @@ entry(v0: boolean):
     jump b1
 
 b1:
-    branch v1, b2, b3
+    branch v1 => b2 | b3
 
 b2:
-    branch v0, b1, b4
+    branch v0 => b1 | b4
 
 b3:
     return
@@ -591,7 +591,7 @@ entry:
     jump b1
 
 b1:
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return
@@ -634,12 +634,12 @@ b1(v3: int32):
     jump b2
 
 b2:
-    branch v4, b2, b3
+    branch v4 => b2 | b3
 
 b3:
     v5: int32 = 1
     v6: int32 = int.add v3, v5
-    branch v0, b1(v6), b4(v6)
+    branch v0 => b1(v6) | b4(v6)
 
 b4(v7: int32):
     return v7
@@ -658,7 +658,7 @@ b1(v3: int32):
 b3:
     v5: int32 = 1
     v6: int32 = int.add v3, v5
-    branch v0, b1(v6), b4(v6)
+    branch v0 => b1(v6) | b4(v6)
 
 b4(v7: int32):
     return v7
@@ -683,7 +683,7 @@ entry(v0: int32):
 b1(v3: int32):
     v4: int32 = 1
     v5: int32 = int.add v3, v4
-    branch v1, b1(v5), b2(v3)
+    branch v1 => b1(v5) | b2(v3)
 
 b2(v6: int32):
     return v6
@@ -717,7 +717,7 @@ entry(v0: ref<int32, unique, mutable>):
 
 b1:
     free v0
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b2:
     return

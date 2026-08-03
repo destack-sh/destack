@@ -1035,7 +1035,7 @@ function callee(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
     v2: boolean = int.lt.s v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v0

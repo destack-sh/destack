@@ -30,7 +30,7 @@ declare_pass! {
     ///     jump b1(v3)
     /// b1(v5: uint32):
     ///     v6 = int.lt.u v5, v0
-    ///     branch v6, b2(v5), b3
+    ///     branch v6 => b2(v5) | b3
     /// b2(v7: uint32):
     ///     v8 = element.address v1, v7 -> ref<int32, raw, mutable, frame>
     ///     v9 = 1int32
@@ -57,7 +57,7 @@ declare_pass! {
     ///     jump b1(v3)
     /// b1(v5: uint32):
     ///     v6 = int.lt.u v5, v0
-    ///     branch v6, b2(v5), b4(v3)
+    ///     branch v6 => b2(v5) | b4(v3)
     /// b2(v7: uint32):
     ///     v8 = element.address v1, v7 -> ref<int32, raw, mutable, frame>
     ///     v9 = 1int32
@@ -68,7 +68,7 @@ declare_pass! {
     ///     return
     /// b4(v13: uint32):
     ///     v14 = int.lt.u v13, v0
-    ///     branch v14, b5(v13), b3
+    ///     branch v14 => b5(v13) | b3
     /// b5(v15: uint32):
     ///     v10 = element.address v2, v15 -> ref<int32, raw, mutable, frame>
     ///     v11 = 2int32
@@ -784,7 +784,7 @@ entry(v0: uint32):
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v0
-    branch v6, b2(v5), b3
+    branch v6 => b2(v5) | b3
 
 b2(v7: uint32):
     v8: ref<int32, raw, mutable, frame> = element.address v1, v7
@@ -815,7 +815,7 @@ entry(v0: uint32):
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v0
-    branch v6, b2(v5), b4(v3)
+    branch v6 => b2(v5) | b4(v3)
 
 b2(v7: uint32):
     v8: ref<int32, raw, mutable, frame> = element.address v1, v7
@@ -829,7 +829,7 @@ b3:
 
 b4(v13: uint32):
     v14: boolean = int.lt.u v13, v0
-    branch v14, b5(v13), b3
+    branch v14 => b5(v13) | b3
 
 b5(v15: uint32):
     v18: ref<int32, raw, mutable, frame> = element.address v2, v15
@@ -859,7 +859,7 @@ entry(v0: uint32):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v0
-    branch v5, b2(v4), b3
+    branch v5 => b2(v4) | b3
 
 b2(v6: uint32):
     v7: ref<int32, raw, mutable, frame> = element.address v1, v6
@@ -895,7 +895,7 @@ entry(v0: uint32):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v0
-    branch v5, b2(v4), b3
+    branch v5 => b2(v4) | b3
 
 b2(v6: uint32):
     call touch(v6): (uint32) => void
@@ -938,7 +938,7 @@ entry(v0: uint32):
 
 b1(v6: uint32):
     v7: boolean = int.lt.u v6, v0
-    branch v7, b2(v6), b3
+    branch v7 => b2(v6) | b3
 
 b2(v8: uint32):
     v9: ref<int32, raw, mutable, frame> = element.address v1, v8
@@ -972,7 +972,7 @@ entry(v0: uint32):
 
 b1(v6: uint32):
     v7: boolean = int.lt.u v6, v0
-    branch v7, b2(v6), b4(v4)
+    branch v7 => b2(v6) | b4(v4)
 
 b2(v8: uint32):
     v9: ref<int32, raw, mutable, frame> = element.address v1, v8
@@ -987,7 +987,7 @@ b3:
 
 b4(v15: uint32):
     v16: boolean = int.lt.u v15, v0
-    branch v16, b5(v15), b3
+    branch v16 => b5(v15) | b3
 
 b5(v17: uint32):
     v21: ref<int32, raw, mutable, frame> = element.address v3, v17
@@ -1018,7 +1018,7 @@ entry(v0: uint32):
 
 b1(v3: uint32):
     v4: boolean = int.lt.u v3, v0
-    branch v4, b2(v3), b3
+    branch v4 => b2(v3) | b3
 
 b2(v5: uint32):
     v6: int32 = 10
@@ -1045,7 +1045,7 @@ entry(v0: uint32):
 
 b1(v3: uint32):
     v4: boolean = int.lt.u v3, v0
-    branch v4, b2(v3), b4(v1)
+    branch v4 => b2(v3) | b4(v1)
 
 b2(v5: uint32):
     v6: int32 = 10
@@ -1058,7 +1058,7 @@ b3:
 
 b4(v9: uint32):
     v10: boolean = int.lt.u v9, v0
-    branch v10, b5(v9), b3
+    branch v10 => b5(v9) | b3
 
 b5(v11: uint32):
     v13: int32 = 20
@@ -1088,7 +1088,7 @@ entry(v0: uint32):
 b1(v4: uint32):
     v5: int32 = load v1
     v6: boolean = int.lt.u v4, v0
-    branch v6, b2(v4), b3
+    branch v6 => b2(v4) | b3
 
 b2(v7: uint32):
     v8: ref<int32, raw, mutable, frame> = element.address v1, v7
@@ -1121,7 +1121,7 @@ entry(v0: uint32):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v0
-    branch v5, b2(v4), b3
+    branch v5 => b2(v4) | b3
 
 b2(v6: uint32):
     v7: ref<int32, raw, mutable, frame> = element.address v1, v6
@@ -1150,14 +1150,14 @@ entry(v0: boolean, v1: uint32):
     v2: ref<[int32; 16], raw, mutable, frame> = local.address l0
     v3: uint32 = 0
     v4: uint32 = 1
-    branch v0, b2(v3), b1(v3)
+    branch v0 => b2(v3) | b1(v3)
 
 b1(v5: uint32):
     jump b2(v5)
 
 b2(v6: uint32):
     v7: boolean = int.lt.u v6, v1
-    branch v7, b3(v6), b4
+    branch v7 => b3(v6) | b4
 
 b3(v8: uint32):
     v9: ref<int32, raw, mutable, frame> = element.address v2, v8
@@ -1178,14 +1178,14 @@ entry(v0: boolean, v1: uint32):
     v2: ref<[int32; 16], raw, mutable, frame> = local.address l0
     v3: uint32 = 0
     v4: uint32 = 1
-    branch v0, b2(v3), b1(v3)
+    branch v0 => b2(v3) | b1(v3)
 
 b1(v5: uint32):
     jump b2(v5)
 
 b2(v6: uint32):
     v7: boolean = int.lt.u v6, v1
-    branch v7, b3(v6), b4
+    branch v7 => b3(v6) | b4
 
 b3(v8: uint32):
     v9: ref<int32, raw, mutable, frame> = element.address v2, v8
@@ -1220,7 +1220,7 @@ entry(v0: uint32):
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v0
-    branch v6, b2(v5), b3
+    branch v6 => b2(v5) | b3
 
 b2(v7: uint32):
     v8: ref<int32, raw, mutable, frame> = element.address v1, v7
@@ -1259,7 +1259,7 @@ entry(v0: uint32):
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v0
-    branch v6, b2(v5), b3
+    branch v6 => b2(v5) | b3
 
 b2(v7: uint32):
     v8: ref<int32, raw, mutable, frame> = element.address v1, v7
@@ -1294,7 +1294,7 @@ entry(v0: uint32):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v0
-    branch v5, b2(v4), b3(v4)
+    branch v5 => b2(v4) | b3(v4)
 
 b2(v6: uint32):
     v7: ref<int32, raw, mutable, frame> = element.address v1, v6
@@ -1327,7 +1327,7 @@ entry(v0: uint32):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v0
-    branch v5, b2(v4), b4
+    branch v5 => b2(v4) | b4
 
 b2(v6: uint32):
     v7: ref<int32, raw, mutable, frame> = element.address v1, v6
@@ -1363,14 +1363,14 @@ entry(v0: uint32):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v0
-    branch v5, b2(v4), b3
+    branch v5 => b2(v4) | b3
 
 b2(v6: uint32):
     v7: ref<int32, raw, mutable, frame> = element.address v1, v6
     v8: int32 = 1
     store v7, v8
     v9: boolean = int.lt.u v6, v0
-    branch v9, b1(v6), b3
+    branch v9 => b1(v6) | b3
 
 b3:
     return

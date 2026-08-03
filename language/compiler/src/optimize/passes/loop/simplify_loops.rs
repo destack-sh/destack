@@ -664,13 +664,13 @@ mod tests {
         let input = r#"
 function test(v0: boolean, v1: boolean): void {
 entry(v0: boolean, v1: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     jump b2
 
 b2:
-    branch v1, b2, b3
+    branch v1 => b2 | b3
 
 b3:
     return
@@ -679,13 +679,13 @@ b3:
         let expected = r#"
 function test(v0: boolean, v1: boolean): void {
 entry(v0: boolean, v1: boolean):
-    branch v0, b1, b4
+    branch v0 => b1 | b4
 
 b1:
     jump b4
 
 b2:
-    branch v1, b2, b3
+    branch v1 => b2 | b3
 
 b3:
     return
@@ -708,7 +708,7 @@ entry(v0: boolean):
     jump b1
 
 b1:
-    branch v0, b2, b3
+    branch v0 => b2 | b3
 
 b2:
     jump b1
@@ -729,7 +729,7 @@ b3:
         let input = r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
-    branch v0, entry(v0), b1
+    branch v0 => entry(v0) | b1
 
 b1:
     return
@@ -742,7 +742,7 @@ entry(v0: boolean):
     jump entry_1(v0)
 
 entry_1(v1: boolean):
-    branch v1, entry_1(v1), b1
+    branch v1 => entry_1(v1) | b1
 
 b1:
     return
@@ -772,10 +772,10 @@ b1:
         let input = r#"
 function test(v0: boolean, v1: boolean): void {
 entry(v0: boolean, v1: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b2:
     return
@@ -786,10 +786,10 @@ b2:
         let expected = r#"
 function test(v0: boolean, v1: boolean): void {
 entry(v0: boolean, v1: boolean):
-    branch v0, b3, b2
+    branch v0 => b3 | b2
 
 b1:
-    branch v1, b1, b4
+    branch v1 => b1 | b4
 
 b2:
     return
@@ -815,7 +815,7 @@ entry(v0: boolean):
     jump b1
 
 b1:
-    branch v0, b2, b3
+    branch v0 => b2 | b3
 
 b2:
     jump b1
@@ -836,13 +836,13 @@ b3:
         let input = r#"
 function test(v0: boolean, v1: int32): int32 {
 entry(v0: boolean, v1: int32):
-    branch v0, b1(v1), b2(v1)
+    branch v0 => b1(v1) | b2(v1)
 
 b1(v2: int32):
     jump b2(v2)
 
 b2(v3: int32):
-    branch v0, b2(v3), b3
+    branch v0 => b2(v3) | b3
 
 b3:
     return v3
@@ -852,13 +852,13 @@ b3:
         let expected = r#"
 function test(v0: boolean, v1: int32): int32 {
 entry(v0: boolean, v1: int32):
-    branch v0, b1(v1), b4(v1)
+    branch v0 => b1(v1) | b4(v1)
 
 b1(v2: int32):
     jump b4(v2)
 
 b2(v3: int32):
-    branch v0, b2(v3), b3
+    branch v0 => b2(v3) | b3
 
 b3:
     return v3
@@ -882,7 +882,7 @@ entry(v0: int32, v1: boolean):
     switch v0, b1, 0 => b1, 1 => b2
 
 b1:
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b2:
     return
@@ -895,7 +895,7 @@ entry(v0: int32, v1: boolean):
     switch v0, b3, 0 => b3, 1 => b2
 
 b1:
-    branch v1, b1, b4
+    branch v1 => b1 | b4
 
 b2:
     return
@@ -959,13 +959,13 @@ entry(v0: boolean, v1: boolean):
     jump b1
 
 b1:
-    branch v0, b2, b3
+    branch v0 => b2 | b3
 
 b2:
     jump b1
 
 b3:
-    branch v1, b1, b4
+    branch v1 => b1 | b4
 
 b4:
     return
@@ -978,13 +978,13 @@ entry(v0: boolean, v1: boolean):
     jump b1
 
 b1:
-    branch v0, b2, b3
+    branch v0 => b2 | b3
 
 b2:
     jump b5
 
 b3:
-    branch v1, b5, b4
+    branch v1 => b5 | b4
 
 b4:
     return
@@ -1009,7 +1009,7 @@ entry(v0: boolean, v1: boolean):
     jump b1(v2)
 
 b1(v3: int32):
-    branch v0, b2, b3
+    branch v0 => b2 | b3
 
 b2:
     v4: int32 = 1
@@ -1017,7 +1017,7 @@ b2:
     jump b1(v5)
 
 b3:
-    branch v1, b4, b5
+    branch v1 => b4 | b5
 
 b4:
     v6: int32 = 10
@@ -1036,7 +1036,7 @@ entry(v0: boolean, v1: boolean):
     jump b1(v2)
 
 b1(v3: int32):
-    branch v0, b2, b3
+    branch v0 => b2 | b3
 
 b2:
     v4: int32 = 1
@@ -1044,7 +1044,7 @@ b2:
     jump b6(v5)
 
 b3:
-    branch v1, b4, b5
+    branch v1 => b4 | b5
 
 b4:
     v6: int32 = 10
@@ -1070,10 +1070,10 @@ b6(v8: int32):
         let input = r#"
 function test(v0: boolean, v1: boolean): void {
 entry(v0: boolean, v1: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b2:
     return
@@ -1084,10 +1084,10 @@ b2:
         let expected = r#"
 function test(v0: boolean, v1: boolean): void {
 entry(v0: boolean, v1: boolean):
-    branch v0, b3, b2
+    branch v0 => b3 | b2
 
 b1:
-    branch v1, b1, b4
+    branch v1 => b1 | b4
 
 b2:
     return
@@ -1111,12 +1111,12 @@ b4:
 function test(v0: boolean, v1: boolean): int32 {
 entry(v0: boolean, v1: boolean):
     v2: int32 = 0
-    branch v0, b1(v2), b2(v2)
+    branch v0 => b1(v2) | b2(v2)
 
 b1(v3: int32):
     v4: int32 = 1
     v5: int32 = int.add v3, v4
-    branch v1, b1(v5), b2(v5)
+    branch v1 => b1(v5) | b2(v5)
 
 b2(v6: int32):
     return v6
@@ -1127,12 +1127,12 @@ b2(v6: int32):
 function test(v0: boolean, v1: boolean): int32 {
 entry(v0: boolean, v1: boolean):
     v2: int32 = 0
-    branch v0, b3(v2), b2(v2)
+    branch v0 => b3(v2) | b2(v2)
 
 b1(v3: int32):
     v4: int32 = 1
     v5: int32 = int.add v3, v4
-    branch v1, b1(v5), b4(v5)
+    branch v1 => b1(v5) | b4(v5)
 
 b2(v6: int32):
     return v6
@@ -1159,7 +1159,7 @@ entry(v0: boolean):
     jump b1
 
 b1:
-    branch v0, b2, b3
+    branch v0 => b2 | b3
 
 b2:
     jump b1
@@ -1181,13 +1181,13 @@ b3:
         let input = r#"
 function test(v0: boolean, v1: boolean, v2: boolean): void {
 entry(v0: boolean, v1: boolean, v2: boolean):
-    branch v0, b1, b4
+    branch v0 => b1 | b4
 
 b1:
-    branch v1, b2, b3
+    branch v1 => b2 | b3
 
 b2:
-    branch v2, b2, b1
+    branch v2 => b2 | b1
 
 b3:
     jump b1
@@ -1204,13 +1204,13 @@ b4:
         let expected = r#"
 function test(v0: boolean, v1: boolean, v2: boolean): void {
 entry(v0: boolean, v1: boolean, v2: boolean):
-    branch v0, b5, b4
+    branch v0 => b5 | b4
 
 b1:
-    branch v1, b6, b3
+    branch v1 => b6 | b3
 
 b2:
-    branch v2, b2, b7
+    branch v2 => b2 | b7
 
 b3:
     jump b7
@@ -1240,16 +1240,16 @@ b7:
         let input = r#"
 function test(v0: boolean, v1: boolean, v2: boolean, v3: boolean): void {
 entry(v0: boolean, v1: boolean, v2: boolean, v3: boolean):
-    branch v0, b1, b4
+    branch v0 => b1 | b4
 
 b1:
-    branch v1, b2, b4
+    branch v1 => b2 | b4
 
 b2:
-    branch v2, b3, b1
+    branch v2 => b3 | b1
 
 b3:
-    branch v3, b3, b2
+    branch v3 => b3 | b2
 
 b4:
     return
@@ -1262,16 +1262,16 @@ b4:
         let expected = r#"
 function test(v0: boolean, v1: boolean, v2: boolean, v3: boolean): void {
 entry(v0: boolean, v1: boolean, v2: boolean, v3: boolean):
-    branch v0, b5, b4
+    branch v0 => b5 | b4
 
 b1:
-    branch v1, b6, b8
+    branch v1 => b6 | b8
 
 b2:
-    branch v2, b7, b1
+    branch v2 => b7 | b1
 
 b3:
-    branch v3, b3, b2
+    branch v3 => b3 | b2
 
 b4:
     return
@@ -1302,16 +1302,16 @@ b8:
         let input = r#"
 function test(v0: boolean, v1: boolean, v2: boolean): void {
 entry(v0: boolean, v1: boolean, v2: boolean):
-    branch v0, b1, b4
+    branch v0 => b1 | b4
 
 b1:
-    branch v1, b2, b3
+    branch v1 => b2 | b3
 
 b2:
     jump b1
 
 b3:
-    branch v2, b1, b4
+    branch v2 => b1 | b4
 
 b4:
     return
@@ -1321,16 +1321,16 @@ b4:
         let expected = r#"
 function test(v0: boolean, v1: boolean, v2: boolean): void {
 entry(v0: boolean, v1: boolean, v2: boolean):
-    branch v0, b5, b4
+    branch v0 => b5 | b4
 
 b1:
-    branch v1, b2, b3
+    branch v1 => b2 | b3
 
 b2:
     jump b6
 
 b3:
-    branch v2, b6, b7
+    branch v2 => b6 | b7
 
 b4:
     return
@@ -1358,16 +1358,16 @@ b7:
         let input = r#"
 function test(v0: boolean, v1: boolean, v2: boolean, v3: boolean): void {
 entry(v0: boolean, v1: boolean, v2: boolean, v3: boolean):
-    branch v0, b1, b4
+    branch v0 => b1 | b4
 
 b1:
-    branch v1, b2, b3
+    branch v1 => b2 | b3
 
 b2:
-    branch v2, b1, b4
+    branch v2 => b1 | b4
 
 b3:
-    branch v3, b1, b4
+    branch v3 => b1 | b4
 
 b4:
     return
@@ -1377,16 +1377,16 @@ b4:
         let expected = r#"
 function test(v0: boolean, v1: boolean, v2: boolean, v3: boolean): void {
 entry(v0: boolean, v1: boolean, v2: boolean, v3: boolean):
-    branch v0, b5, b4
+    branch v0 => b5 | b4
 
 b1:
-    branch v1, b2, b3
+    branch v1 => b2 | b3
 
 b2:
-    branch v2, b6, b7
+    branch v2 => b6 | b7
 
 b3:
-    branch v3, b6, b7
+    branch v3 => b6 | b7
 
 b4:
     return
@@ -1414,7 +1414,7 @@ function test(v0: boolean): int32 {
 entry(v0: boolean):
     v1: int32 = 1
     v2: int32 = 2
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     return v1
@@ -1436,13 +1436,13 @@ b2:
         let input = r#"
 function test(v0: boolean, v1: boolean): void {
 entry(v0: boolean, v1: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
-    branch v1, b2, b3
+    branch v1 => b2 | b3
 
 b2:
-    branch v1, b1, b3
+    branch v1 => b1 | b3
 
 b3:
     return
@@ -1461,16 +1461,16 @@ b3:
         let input = r#"
 function test(v0: boolean, v1: boolean, v2: boolean): void {
 entry(v0: boolean, v1: boolean, v2: boolean):
-    branch v0, b1, b3
+    branch v0 => b1 | b3
 
 b1:
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b2:
-    branch v2, b3, b4
+    branch v2 => b3 | b4
 
 b3:
-    branch v1, b3, b4
+    branch v1 => b3 | b4
 
 b4:
     return
@@ -1483,16 +1483,16 @@ b4:
         let expected = r#"
 function test(v0: boolean, v1: boolean, v2: boolean): void {
 entry(v0: boolean, v1: boolean, v2: boolean):
-    branch v0, b5, b6
+    branch v0 => b5 | b6
 
 b1:
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b2:
-    branch v2, b6, b4
+    branch v2 => b6 | b4
 
 b3:
-    branch v1, b3, b7
+    branch v1 => b3 | b7
 
 b4:
     return

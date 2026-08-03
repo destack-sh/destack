@@ -21,10 +21,10 @@ declare_pass! {
     ///     v1 = 2uint32
     ///     v2 = 4uint32
     ///     v3 = int.lt.u v1, v2
-    ///     check bounds.u v1, v2, v0 => b1, b2
+    ///     check bounds.u v1, v2, v0 => b1 | b2
     /// b1:
     ///     v4 = int.lt.u v1, v2
-    ///     check bounds.u v1, v2, v0 => b3, b2
+    ///     check bounds.u v1, v2, v0 => b3 | b2
     /// b3:
     ///     return
     /// b2:
@@ -38,7 +38,7 @@ declare_pass! {
     ///     v1 = 2uint32
     ///     v2 = 4uint32
     ///     v3 = int.lt.u v1, v2
-    ///     check bounds.u v1, v2, v0 => b1, b2
+    ///     check bounds.u v1, v2, v0 => b1 | b2
     /// b1:
     ///     v4 = int.lt.u v1, v2
     ///     jump b3
@@ -1577,7 +1577,7 @@ entry(v0: [int32; 4]):
     v1: uint32 = 2
     v2: uint32 = 4
     v3: boolean = int.lt.u v1, v2
-    branch v3, b1, b2
+    branch v3 => b1 | b2
 
 b1:
     v4: int32 = field.get v0, 0
@@ -1606,7 +1606,7 @@ entry(v0: [int32; 4]):
     v1: uint32 = 2
     v2: uint32 = 4
     v3: boolean = int.lt.u v1, v2
-    check bounds.u v1, v2, v0 => b1, b2
+    check bounds.u v1, v2, v0 => b1 | b2
 
 b1:
     v4: int32 = field.get v0, 0
@@ -1650,11 +1650,11 @@ function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
     v3: boolean = int.lt.u v1, v2
-    branch v3, b1, b2
+    branch v3 => b1 | b2
 
 b1:
     v4: boolean = int.lt.u v1, v2
-    branch v4, b3, b2
+    branch v4 => b3 | b2
 
 b2:
     unreachable
@@ -1682,11 +1682,11 @@ function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
     v3: boolean = int.lt.u v1, v2
-    check bounds.u v1, v2, v0 => b1, b2
+    check bounds.u v1, v2, v0 => b1 | b2
 
 b1:
     v4: boolean = int.lt.u v1, v2
-    check bounds.u v1, v2, v0 => b3, b2
+    check bounds.u v1, v2, v0 => b3 | b2
 
 b2:
     unreachable
@@ -1703,7 +1703,7 @@ function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
     v3: boolean = int.lt.u v1, v2
-    check bounds.u v1, v2, v0 => b1, b2
+    check bounds.u v1, v2, v0 => b1 | b2
 
 b1:
     v4: boolean = int.lt.u v1, v2
@@ -1733,7 +1733,7 @@ function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
     v3: boolean = int.lt.u v1, v2
-    branch v3, b1, b2
+    branch v3 => b1 | b2
 
 b1:
     v4: int32 = field.get v0, 0
@@ -1763,7 +1763,7 @@ entry(v0: [int32; 8]):
     v4: boolean = int.ge.s v1, v2
     v5: boolean = int.lt.s v1, v3
     v6: boolean = int.and v4, v5
-    branch v6, b1, b2
+    branch v6 => b1 | b2
 
 b1:
     v7: int32 = field.get v0, 0
@@ -1793,7 +1793,7 @@ entry(v0: [int32; 16], v1: uint32):
     v3: boolean = int.lt.u v1, v2
     assume v3
     v4: boolean = int.lt.u v1, v2
-    check bounds.u v1, v2, v0 => b1, b2
+    check bounds.u v1, v2, v0 => b1 | b2
 
 b1:
     v5: int32 = field.get v0, 0
@@ -1841,10 +1841,10 @@ entry(v0: [int32; 8], v1: int32):
     v4: boolean = int.ge.s v1, v2
     v5: boolean = int.lt.s v1, v3
     v6: boolean = int.and v4, v5
-    branch v6, b1, b2
+    branch v6 => b1 | b2
 
 b1:
-    check bounds.s v1, v3, v0 => b3, b2
+    check bounds.s v1, v3, v0 => b3 | b2
 
 b2:
     unreachable
@@ -1864,7 +1864,7 @@ entry(v0: [int32; 8], v1: int32):
     v4: boolean = int.ge.s v1, v2
     v5: boolean = int.lt.s v1, v3
     v6: boolean = int.and v4, v5
-    branch v6, b1, b2
+    branch v6 => b1 | b2
 
 b1:
     jump b3
@@ -1893,7 +1893,7 @@ function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
     v3: boolean = int.lt.u v1, v2
-    branch v3, b1, b2
+    branch v3 => b1 | b2
 
 b1:
     jump b3
@@ -1903,7 +1903,7 @@ b2:
 
 b3:
     v4: boolean = int.lt.u v1, v2
-    check bounds.u v1, v2, v0 => b4, b2
+    check bounds.u v1, v2, v0 => b4 | b2
 
 b4:
     v5: int32 = field.get v0, 0
@@ -1917,7 +1917,7 @@ function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
     v3: boolean = int.lt.u v1, v2
-    branch v3, b1, b2
+    branch v3 => b1 | b2
 
 b1:
     jump b3
@@ -1950,11 +1950,11 @@ function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
     v3: boolean = int.lt.u v1, v2
-    branch v3, b1(v1), b2
+    branch v3 => b1(v1) | b2
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v2
-    check bounds.u v4, v2, v0 => b3, b2
+    check bounds.u v4, v2, v0 => b3 | b2
 
 b2:
     unreachable
@@ -1971,7 +1971,7 @@ function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
     v3: boolean = int.lt.u v1, v2
-    branch v3, b1(v1), b2
+    branch v3 => b1(v1) | b2
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v2
@@ -2002,7 +2002,7 @@ entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 2
     v3: uint32 = 4
     v4: boolean = int.ge.u v2, v3
-    branch v4, b2, b1
+    branch v4 => b2 | b1
 
 b1:
     v5: int32 = field.get v0, 0
@@ -2035,7 +2035,7 @@ entry(v0: [int32; 4], v1: uint32):
 
 b1:
     v4: boolean = int.lt.u v1, v2
-    check bounds.u v1, v2, v0 => b2, b3
+    check bounds.u v1, v2, v0 => b2 | b3
 
 b2:
     v5: int32 = field.get v0, 0
@@ -2083,11 +2083,11 @@ function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
     v3: boolean = int.lt.u v1, v2
-    branch v3, b1(v1), b2
+    branch v3 => b1(v1) | b2
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v2
-    check bounds.u v4, v2, v0 => b3, b4
+    check bounds.u v4, v2, v0 => b3 | b4
 
 b2:
     jump b1(v1)
@@ -2116,11 +2116,11 @@ function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
     v3: boolean = int.lt.u v1, v2
-    branch v3, b1(v1), b2
+    branch v3 => b1(v1) | b2
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v2
-    check bounds.u v4, v2, v0 => b3, b4
+    check bounds.u v4, v2, v0 => b3 | b4
 
 b2:
     v6: uint32 = 1
@@ -2150,7 +2150,7 @@ function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
     v3: boolean = int.lt.u v1, v2
-    branch v3, b1, b2
+    branch v3 => b1 | b2
 
 b1:
     v4: int32 = field.get v0, 0
@@ -2178,11 +2178,11 @@ entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 3
     v3: uint32 = 4
     v4: boolean = int.le.u v1, v2
-    branch v4, b1, b2
+    branch v4 => b1 | b2
 
 b1:
     v5: boolean = int.lt.u v1, v3
-    check bounds.u v1, v3, v0 => b3, b2
+    check bounds.u v1, v3, v0 => b3 | b2
 
 b2:
     unreachable
@@ -2200,7 +2200,7 @@ entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 3
     v3: uint32 = 4
     v4: boolean = int.le.u v1, v2
-    branch v4, b1, b2
+    branch v4 => b1 | b2
 
 b1:
     v5: boolean = int.lt.u v1, v3

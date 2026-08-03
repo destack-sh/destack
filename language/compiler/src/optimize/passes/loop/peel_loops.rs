@@ -25,7 +25,7 @@ declare_pass! {
     ///     v4 = 1uint32
     ///     v5 = int.add v2, v4
     ///     v6 = int.lt.u v5, v0
-    ///     branch v6, b1(v5), b2
+    ///     branch v6 => b1(v5) | b2
     /// b2:
     ///     return v3
     /// }
@@ -41,7 +41,7 @@ declare_pass! {
     ///     v4 = 1uint32
     ///     v5 = int.add v2, v4
     ///     v6 = int.lt.u v5, v0
-    ///     branch v6, b1(v5), b2
+    ///     branch v6 => b1(v5) | b2
     /// b2:
     ///     return v3
     /// b3(v7: uint32):
@@ -49,7 +49,7 @@ declare_pass! {
     ///     v9 = 1uint32
     ///     v10 = int.add v7, v9
     ///     v11 = int.lt.u v10, v0
-    ///     branch v11, b1(v10), b2
+    ///     branch v11 => b1(v10) | b2
     /// }
     /// ```
     #[pass(id = "peel-loops")]
@@ -302,7 +302,7 @@ b1(v2: uint32):
     v4: uint32 = 1
     v5: uint32 = int.add v2, v4
     v6: boolean = int.lt.u v5, v0
-    branch v6, b1(v5), b2
+    branch v6 => b1(v5) | b2
 
 b2:
     return v3
@@ -320,7 +320,7 @@ b1(v2: uint32):
     v4: uint32 = 1
     v5: uint32 = int.add v2, v4
     v6: boolean = int.lt.u v5, v0
-    branch v6, b1(v5), b2
+    branch v6 => b1(v5) | b2
 
 b2:
     return v3
@@ -330,7 +330,7 @@ b3(v7: uint32):
     v9: uint32 = 1
     v10: uint32 = int.add v7, v9
     v11: boolean = int.lt.u v10, v0
-    branch v11, b1(v10), b2
+    branch v11 => b1(v10) | b2
 }
 "#;
 
@@ -351,7 +351,7 @@ entry(v0: uint32):
 
 b1(v3: uint32):
     v4: boolean = int.lt.u v3, v0
-    branch v4, b2(v3), b3
+    branch v4 => b2(v3) | b3
 
 b2(v5: uint32):
     v6: uint32 = int.add v5, v2
@@ -379,10 +379,10 @@ entry(v0: uint32, v1: boolean):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v0
-    branch v5, b2(v4), b4
+    branch v5 => b2(v4) | b4
 
 b2(v6: uint32):
-    branch v1, b3(v6), b5
+    branch v1 => b3(v6) | b5
 
 b3(v7: uint32):
     v8: uint32 = int.add v7, v3

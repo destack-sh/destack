@@ -32,7 +32,7 @@ declare_pass! {
     ///     jump b1
     /// b1:
     ///     v3 = int.add v1, v2
-    ///     branch v0, b1, b2
+    ///     branch v0 => b1 | b2
     /// b2:
     ///     return v3
     /// }
@@ -45,7 +45,7 @@ declare_pass! {
     ///     v3 = int.add v1, v2
     ///     jump b1
     /// b1:
-    ///     branch v0, b1, b2
+    ///     branch v0 => b1 | b2
     /// b2:
     ///     return v3
     /// }
@@ -930,7 +930,7 @@ entry(v0: boolean):
 
 b1:
     v1: int32 = 42
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return v1
@@ -944,7 +944,7 @@ entry(v0: boolean):
     jump b1
 
 b1:
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return v1
@@ -966,7 +966,7 @@ entry(v0: boolean, v1: int32, v2: int32):
 
 b1:
     v3: int32 = int.add v1, v2
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return v3
@@ -980,7 +980,7 @@ entry(v0: boolean, v1: int32, v2: int32):
     jump b1
 
 b1:
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return v3
@@ -1004,7 +1004,7 @@ b1:
     v2: int32 = 10
     v3: int32 = int.add v1, v2
     v4: int32 = int.mul v3, v2
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return v4
@@ -1020,7 +1020,7 @@ entry(v0: boolean, v1: int32):
     jump b1
 
 b1:
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return v4
@@ -1043,7 +1043,7 @@ entry(v0: boolean, v1: int32):
 b1(v2: int32):
     v3: int32 = 1
     v4: int32 = int.add v2, v3
-    branch v0, b1(v4), b2
+    branch v0 => b1(v4) | b2
 
 b2:
     return v4
@@ -1059,7 +1059,7 @@ entry(v0: boolean, v1: int32):
 
 b1(v2: int32):
     v4: int32 = int.add v2, v3
-    branch v0, b1(v4), b2
+    branch v0 => b1(v4) | b2
 
 b2:
     return v4
@@ -1096,7 +1096,7 @@ entry(v0: boolean, v1: int32, v2: int32):
     jump b1
 
 b1:
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return v3
@@ -1122,10 +1122,10 @@ b1:
 b2:
     v3: int32 = 5
     v4: int32 = int.add v2, v3
-    branch v1, b2, b3
+    branch v1 => b2 | b3
 
 b3:
-    branch v0, b1, b4
+    branch v0 => b1 | b4
 
 b4:
     return v4
@@ -1142,10 +1142,10 @@ b1:
     jump b2
 
 b2:
-    branch v1, b2, b3
+    branch v1 => b2 | b3
 
 b3:
-    branch v0, b1, b4
+    branch v0 => b1 | b4
 
 b4:
     return v4
@@ -1170,7 +1170,7 @@ entry(v0: boolean):
 
 b1:
     v3: int32 = intrinsic.memory.raw.compareBytes(v1, v1, v2)
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return v3
@@ -1187,7 +1187,7 @@ entry(v0: boolean):
     jump b1
 
 b1:
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return v3
@@ -1210,7 +1210,7 @@ entry(v0: boolean):
 
 b1:
     v1: int32 = call getValue(): () => int32
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return v1
@@ -1240,7 +1240,7 @@ entry(v0: boolean):
 
 b1:
     v1: ref<int32, managed, mutable> = new.zeroed int32
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return v1
@@ -1272,7 +1272,7 @@ b1:
     v4: int32 = 2
     store v2, v4
     v5: int32 = load v1
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return v5
@@ -1293,7 +1293,7 @@ entry(v0: boolean):
 
 b1:
     store v2, v4
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return v5
@@ -1322,7 +1322,7 @@ b1:
     v3: int32 = load v1
     v4: int32 = 2
     store v1, v4
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return v3
@@ -1342,7 +1342,7 @@ entry(v0: boolean):
 b1:
     v3: int32 = load v1
     store v1, v4
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return v3
@@ -1368,7 +1368,7 @@ entry(v0: boolean, v1: boolean):
     jump b1
 
 b1:
-    branch v0, b2, b3
+    branch v0 => b2 | b3
 
 b2:
     v4: int32 = load v2
@@ -1378,7 +1378,7 @@ b3:
     jump b4(v3)
 
 b4(v5: int32):
-    branch v1, b1, b5
+    branch v1 => b1 | b5
 
 b5:
     return v5
@@ -1405,7 +1405,7 @@ entry(v0: boolean):
 
 b1:
     v2: int32 = local.get l0
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return v2
@@ -1422,7 +1422,7 @@ entry(v0: boolean):
     jump b1
 
 b1:
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return v2
@@ -1450,7 +1450,7 @@ entry(v0: boolean):
 b1:
     v3: int32 = load v1
     call touch(v1): (ref<int32, raw, mutable>) => void
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return v3
@@ -1478,7 +1478,7 @@ entry(v0: boolean, v1: boolean, v2: int32):
 
 b1:
     v3: int32 = 10
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     jump b3
@@ -1486,7 +1486,7 @@ b2:
 b3:
     v4: int32 = 20
     v5: int32 = int.add v2, v4
-    branch v1, b3, b4
+    branch v1 => b3 | b4
 
 b4:
     v6: int32 = int.add v3, v5
@@ -1502,7 +1502,7 @@ entry(v0: boolean, v1: boolean, v2: int32):
     jump b1
 
 b1:
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     v4: int32 = 20
@@ -1510,7 +1510,7 @@ b2:
     jump b3
 
 b3:
-    branch v1, b3, b4
+    branch v1 => b3 | b4
 
 b4:
     v6: int32 = int.add v3, v5
@@ -1538,7 +1538,7 @@ entry:
 b1(v4: int32):
     v5: int32 = int.div.s v2, v3
     v6: boolean = int.lt.s v4, v1
-    branch v6, b2, b3
+    branch v6 => b2 | b3
 
 b2:
     v7: int32 = int.add v4, v1
@@ -1560,7 +1560,7 @@ entry:
 
 b1(v4: int32):
     v6: boolean = int.lt.s v4, v1
-    branch v6, b2, b3
+    branch v6 => b2 | b3
 
 b2:
     v7: int32 = int.add v4, v1
@@ -1591,7 +1591,7 @@ entry(v0: int32):
 b1(v4: int32):
     v5: int32 = int.div.s v3, v0
     v6: boolean = int.lt.s v4, v2
-    branch v6, b2, b3
+    branch v6 => b2 | b3
 
 b2:
     v7: int32 = int.add v4, v2

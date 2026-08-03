@@ -1336,7 +1336,7 @@ function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 0
     v3: boolean = int.eq v0, v2
-    branch v3, b1, b2
+    branch v3 => b1 | b2
 
 b1:
     return v1
@@ -1354,7 +1354,7 @@ function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 0
     v3: boolean = int.eq v0, v2
-    branch v3, b1, b2
+    branch v3 => b1 | b2
 
 b1:
     return v1
@@ -1380,7 +1380,7 @@ function test(v0: int32): void {
 entry(v0: int32):
     v1: int32 = 0
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return
@@ -1397,7 +1397,7 @@ function test(v0: int32): void {
 entry(v0: int32):
     v1: int32 = 0
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return
@@ -1422,7 +1422,7 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
     v2: boolean = int.le.s v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v1
@@ -1440,7 +1440,7 @@ function test(v0: int32, v6: int32): int32 {
 entry(v0: int32, v6: int32):
     v1: int32 = 1
     v2: boolean = int.le.s v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v6
@@ -1465,7 +1465,7 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v1
@@ -1524,7 +1524,7 @@ function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 0
     v3: boolean = int.eq v1, v2
-    branch v3, b1, b2
+    branch v3 => b1 | b2
 
 b1:
     return v0
@@ -1540,7 +1540,7 @@ function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = 0
     v3: boolean = int.eq v1, v2
-    branch v3, b1, b2
+    branch v3 => b1 | b2
 
 b1:
     return v0
@@ -1603,7 +1603,7 @@ function test(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
     v3: int32 = 0
     v4: boolean = int.eq v0, v3
-    branch v4, b1, b2
+    branch v4 => b1 | b2
 
 b1:
     return v1
@@ -1621,7 +1621,7 @@ function test(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
     v3: int32 = 0
     v4: boolean = int.eq v0, v3
-    branch v4, b1, b2
+    branch v4 => b1 | b2
 
 b1:
     return v1
@@ -1647,7 +1647,7 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
     v2: boolean = int.lt.s v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.negate v0
@@ -1657,7 +1657,7 @@ b1:
 b2:
     v5: int32 = 10
     v6: boolean = int.gt.s v0, v5
-    branch v6, b3, b4
+    branch v6 => b3 | b4
 
 b3:
     v7: int32 = int.sub v0, v5
@@ -1673,7 +1673,7 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
     v2: boolean = int.lt.s v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = int.negate v0
@@ -1682,7 +1682,7 @@ b1:
 b2:
     v5: int32 = 10
     v6: boolean = int.gt.s v0, v5
-    branch v6, b3, b4
+    branch v6 => b3 | b4
 
 b3:
     v7: int32 = int.sub v0, v5
@@ -1705,7 +1705,7 @@ b4:
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: boolean = int.gt.s v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = call test(v1, v0): (int32, int32) => int32
@@ -1719,7 +1719,7 @@ b2:
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: boolean = int.gt.s v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     jump entry(v1, v0)
@@ -1776,7 +1776,7 @@ function even(v0: int32): boolean {
 entry(v0: int32):
     v1: int32 = 0
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: boolean = true
@@ -1793,7 +1793,7 @@ function odd(v0: int32): boolean {
 entry(v0: int32):
     v1: int32 = 0
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: boolean = false
@@ -1811,7 +1811,7 @@ function even(v0: int32): boolean {
 entry(v0: int32):
     v1: int32 = 0
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: boolean = true
@@ -1827,7 +1827,7 @@ function odd(v0: int32): boolean {
 entry(v0: int32):
     v1: int32 = 0
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: boolean = false
@@ -1853,7 +1853,7 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v1
@@ -1871,7 +1871,7 @@ function test(v0: int32, v7: int32): int32 {
 entry(v0: int32, v7: int32):
     v1: int32 = 0
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v7
@@ -1897,7 +1897,7 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v1
@@ -1915,7 +1915,7 @@ function test(v0: int32, v7: int32): int32 {
 entry(v0: int32, v7: int32):
     v1: int32 = 0
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v7
@@ -1941,7 +1941,7 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = 5
@@ -1961,7 +1961,7 @@ function test(v0: int32, v8: int32): int32 {
 entry(v0: int32, v8: int32):
     v1: int32 = 0
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = 5
@@ -1989,7 +1989,7 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
     v2: boolean = int.le.s v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v1
@@ -2016,7 +2016,7 @@ function test(v0: int32, v1: boolean): int32 {
 entry(v0: int32, v1: boolean):
     v2: int32 = 0
     v3: boolean = int.eq v0, v2
-    branch v3, b1, b2
+    branch v3 => b1 | b2
 
 b1:
     v4: int32 = 1
@@ -2025,7 +2025,7 @@ b1:
 b2:
     v5: int32 = 1
     v6: int32 = int.sub v0, v5
-    branch v1, b3, b4
+    branch v1 => b3 | b4
 
 b3:
     v7: int32 = call test(v6, v1): (int32, boolean) => int32
@@ -2054,7 +2054,7 @@ function factorial(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
     v2: boolean = int.le.s v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v1
@@ -2079,7 +2079,7 @@ function factorial(v0: int32, v6: int32): int32 {
 entry(v0: int32, v6: int32):
     v1: int32 = 1
     v2: boolean = int.le.s v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v6
@@ -2111,7 +2111,7 @@ export function factorial(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
     v2: boolean = int.le.s v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v1
@@ -2136,7 +2136,7 @@ function factorial_impl(v0: int32, v6: int32): int32 {
 entry(v0: int32, v6: int32):
     v1: int32 = 1
     v2: boolean = int.le.s v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v6
@@ -2217,7 +2217,7 @@ entry(v0: int32):
     v1: int32 = 0
     v2: boolean = int.eq v0, v1
     v3: int32 = -1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v3
@@ -2236,7 +2236,7 @@ entry(v0: int32, v8: int32):
     v1: int32 = 0
     v2: boolean = int.eq v0, v1
     v3: int32 = -1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v8
@@ -2262,7 +2262,7 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 0
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v1
@@ -2280,7 +2280,7 @@ function test(v0: int32, v7: int32): int32 {
 entry(v0: int32, v7: int32):
     v1: int32 = 0
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v7

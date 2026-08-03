@@ -1063,7 +1063,7 @@ function test(v0: boolean): int32 {
 entry(v0: boolean):
     v1: ref<int32, raw, mutable, frame> = local.address l0
     v2: int32 = 7
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     store v1, v2
@@ -1085,7 +1085,7 @@ function test(v0: boolean): int32 {
 entry(v0: boolean):
     v1: ref<int32, raw, mutable, frame> = local.address l0
     v2: int32 = 7
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     store v1, v2
@@ -1116,7 +1116,7 @@ entry(v0: boolean):
     v1: ref<int32, raw, mutable, frame> = local.address l0
     v2: int32 = 7
     v3: int32 = 9
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     store v1, v2

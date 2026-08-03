@@ -19,7 +19,7 @@ declare_pass! {
     /// ```mir
     /// function before(v0: boolean): int32 {
     /// b0(v0: boolean):
-    ///     branch v0, b1, b2
+    ///     branch v0 => b1 | b2
     /// b2:
     ///     v1 = 2int32
     ///     return v1
@@ -32,7 +32,7 @@ declare_pass! {
     /// ```mir
     /// function after(v0: boolean): int32 {
     /// b0(v0: boolean):
-    ///     branch v0, b1, b2
+    ///     branch v0 => b1 | b2
     /// b1:
     ///     v2 = 1int32
     ///     return v2
@@ -813,7 +813,7 @@ mod tests {
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b2, b1
+    branch v0 => b2 | b1
 
 b1:
     v1: int32 = 2
@@ -828,7 +828,7 @@ b2:
         let expected = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b2, b1
+    branch v0 => b2 | b1
 
 b1:
     v1: int32 = 2
@@ -859,7 +859,7 @@ b2:
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b2, b1
+    branch v0 => b2 | b1
 
 b1:
     v1: int32 = 2
@@ -884,7 +884,7 @@ b2:
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b2, b1
+    branch v0 => b2 | b1
 
 b1:
     v1: int32 = 2
@@ -899,7 +899,7 @@ b2:
         let expected = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b3, b1
+    branch v0 => b3 | b1
 
 b1:
     v1: int32 = 2
@@ -984,7 +984,7 @@ function test(v0: uint32, v1: [uint32; 8]): int32 {
 entry(v0: uint32, v1: [uint32; 8]):
     v2: uint32 = 1
     v3: boolean = int.lt.u v0, v2
-    check bounds.u v0, v2, v1 => b2, b1
+    check bounds.u v0, v2, v1 => b2 | b1
 
 b1:
     v4: int32 = 2
@@ -1001,7 +1001,7 @@ function test(v0: uint32, v1: [uint32; 8]): int32 {
 entry(v0: uint32, v1: [uint32; 8]):
     v2: uint32 = 1
     v3: boolean = int.lt.u v0, v2
-    check bounds.u v0, v2, v1 => b1, b3
+    check bounds.u v0, v2, v1 => b1 | b3
 
 b1:
     v5: int32 = 1
@@ -1035,7 +1035,7 @@ b3:
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: int32 = 1
@@ -1050,7 +1050,7 @@ b2:
         let expected = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b2, b1
+    branch v0 => b2 | b1
 
 b1:
     v2: int32 = 2
@@ -1081,7 +1081,7 @@ b2:
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b2, b1
+    branch v0 => b2 | b1
 
 b1:
     jump b2
@@ -1095,7 +1095,7 @@ b2:
         let expected = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b3
+    branch v0 => b1 | b3
 
 b1:
     v2: int32 = 1
@@ -1129,7 +1129,7 @@ b3:
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b3
+    branch v0 => b1 | b3
 
 b1:
     v1: int32 = 1
@@ -1148,7 +1148,7 @@ b3:
         let expected = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: int32 = 1

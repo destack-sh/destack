@@ -23,7 +23,7 @@ declare_pass! {
     /// function before(): int32 {
     /// b0:
     ///     v0 = true
-    ///     branch v0, b1, b2
+    ///     branch v0 => b1 | b2
     /// b1:
     ///     v1 = 10int32
     ///     jump b3(v1)
@@ -1246,7 +1246,7 @@ mod tests {
 function test(): int32 {
 entry:
     v0: boolean = true
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: int32 = 10
@@ -1289,7 +1289,7 @@ b2(v3: int32):
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: int32 = 3
@@ -1307,7 +1307,7 @@ b3(v3: int32):
         let expected = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: int32 = 3
@@ -1335,7 +1335,7 @@ b3(v3: int32):
         let input = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: int32 = 3
@@ -1364,7 +1364,7 @@ function test(v0: boolean): int32 {
 entry(v0: boolean):
     v1: int32 = 1
     v2: int32 = 2
-    branch v0, b1(v1), b1(v2)
+    branch v0 => b1(v1) | b1(v2)
 
 b1(v3: int32):
     v4: int32 = int.add v3, v3
@@ -1426,7 +1426,7 @@ function test(): int32 {
 entry:
     v0: ref<boolean, raw, readonly> = global.address flag
     v1: boolean = load v0
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b1:
     v2: int32 = 1
@@ -1453,7 +1453,7 @@ function test(): int32 {
 entry:
     v0: ref<boolean, raw, mutable> = global.address flag
     v1: boolean = load v0
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b1:
     v2: int32 = 1

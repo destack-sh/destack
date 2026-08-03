@@ -699,7 +699,7 @@ function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     v3: int32 = int.add v0, v1
     v4: int32 = int.add v0, v1
-    branch v2, b1(v4), b2(v4)
+    branch v2 => b1(v4) | b2(v4)
 
 b1(v5: int32):
     return v5
@@ -713,7 +713,7 @@ b2(v6: int32):
 function test(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     v3: int32 = int.add v0, v1
-    branch v2, b1(v3), b2(v3)
+    branch v2 => b1(v3) | b2(v3)
 
 b1(v5: int32):
     return v5

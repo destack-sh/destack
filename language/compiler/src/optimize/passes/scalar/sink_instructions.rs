@@ -22,7 +22,7 @@ declare_pass! {
     /// b0(v0: int32, v1: boolean):
     ///     v2 = 1int32
     ///     v3 = int.add v0, v2
-    ///     branch v1, b1, b2
+    ///     branch v1 => b1 | b2
     /// b1:
     ///     return v3
     /// b2:
@@ -34,7 +34,7 @@ declare_pass! {
     /// function after(v0: int32, v1: boolean): int32 {
     /// b0(v0: int32, v1: boolean):
     ///     v2 = 1int32
-    ///     branch v1, b1, b2
+    ///     branch v1 => b1 | b2
     /// b1:
     ///     v3 = int.add v0, v2
     ///     return v3
@@ -390,7 +390,7 @@ function test(v0: int32, v1: boolean): int32 {
 entry(v0: int32, v1: boolean):
     v2: int32 = 1
     v3: int32 = int.add v0, v2
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b1:
     return v3
@@ -403,7 +403,7 @@ b2:
 function test(v0: int32, v1: boolean): int32 {
 entry(v0: int32, v1: boolean):
     v2: int32 = 1
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b1:
     v3: int32 = int.add v0, v2
@@ -428,7 +428,7 @@ entry(v0: int32):
     v2: int32 = int.add v0, v1
     v3: int32 = 10
     v4: boolean = int.lt.s v2, v3
-    branch v4, b1, b2
+    branch v4 => b1 | b2
 
 b1:
     return v2
@@ -454,7 +454,7 @@ function test(v0: ref<int32, unique, mutable>, v1: boolean): int32 {
 entry(v0: ref<int32, unique, mutable>, v1: boolean):
     v2: int32 = 1
     free v0
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b1:
     return v2
@@ -469,7 +469,7 @@ b2:
 function test(v0: ref<int32, unique, mutable>, v1: boolean): int32 {
 entry(v0: ref<int32, unique, mutable>, v1: boolean):
     free v0
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b1:
     v2: int32 = 1
@@ -493,7 +493,7 @@ function test(v0: int32, v1: boolean): int32 {
 entry(v0: int32, v1: boolean):
     v2: int32 = 1
     v3: int32 = int.add v0, v2
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b1:
     return v3
@@ -555,7 +555,7 @@ function test(v0: boolean): int32 {
 entry(v0: boolean):
     v1: ref<int32, raw, mutable, frame> = local.address l0
     v2: int32 = load v1
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     return v2
@@ -600,7 +600,7 @@ function test(v0: int32, v1: boolean): int32 {
 entry(v0: int32, v1: boolean):
     v2: int32 = 1
     v3: int32 = int.add v0, v2
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b1:
     jump b3
@@ -629,7 +629,7 @@ entry(v0: int32, v1: boolean):
     jump b1
 
 b1:
-    branch v1, b2, b3
+    branch v1 => b2 | b3
 
 b2:
     v4: int32 = int.add v3, v3
@@ -672,7 +672,7 @@ entry(v0: int32, v1: boolean):
     v2: int32 = 1
     v3: int32 = int.add v0, v2
     v4: int32 = int.add v3, v2
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b1:
     return v4
@@ -689,7 +689,7 @@ function test(v0: int32, v1: boolean): int32 {
 entry(v0: int32, v1: boolean):
     v2: int32 = 1
     v3: int32 = int.add v0, v2
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b1:
     v4: int32 = int.add v3, v2
@@ -732,7 +732,7 @@ entry(v0: int32, v1: boolean):
 b1:
     v2: int32 = 1
     v3: int32 = int.add v0, v2
-    branch v1, b2, b3
+    branch v1 => b2 | b3
 
 b2:
     v4: int32 = int.add v3, v2
@@ -767,7 +767,7 @@ b1:
     jump b2
 
 b2:
-    branch v1, b1, b3
+    branch v1 => b1 | b3
 
 b3:
     return v3
@@ -794,7 +794,7 @@ function test(v0: ref<int32, raw, mutable>, v1: boolean, v2: int32): int32 {
 entry(v0: ref<int32, raw, mutable>, v1: boolean, v2: int32):
     v3: int32 = load v0
     store v0, v2
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b1:
     return v3
@@ -819,7 +819,7 @@ function test(v0: ref<int32, raw, mutable>, v1: boolean): int32 {
 entry(v0: ref<int32, raw, mutable>, v1: boolean):
     v2: int32 = load v0
     v3: int32 = 0
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b1:
     return v2
@@ -834,7 +834,7 @@ b2:
         let expected = r#"
 function test(v0: ref<int32, raw, mutable>, v1: boolean): int32 {
 entry(v0: ref<int32, raw, mutable>, v1: boolean):
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b1:
     v2: int32 = load v0
@@ -859,7 +859,7 @@ entry(v0: int32, v1: ref<int32, raw, mutable>, v2: boolean):
     v3: int32 = 1
     v4: int32 = int.add v0, v3
     store v1, v0
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v4
@@ -875,7 +875,7 @@ function test(v0: int32, v1: ref<int32, raw, mutable>, v2: boolean): int32 {
 entry(v0: int32, v1: ref<int32, raw, mutable>, v2: boolean):
     v3: int32 = 1
     store v1, v0
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v4: int32 = int.add v0, v3
