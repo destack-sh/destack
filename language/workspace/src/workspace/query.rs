@@ -137,8 +137,8 @@ pub struct QueryRun {
     selected_profile_ids: Vec<ProfileId>,
     /// Trace spanning artifact provision and query execution.
     trace: Arc<Trace>,
-    /// Semantic artifacts that must provide ready payloads.
-    required: ArtifactRun,
+    /// Artifact work started by exact query reads.
+    artifacts: ArtifactRun,
     /// Diagnostic artifacts that may have failed terminal outcomes.
     diagnostics: Option<ArtifactRun>,
 }
@@ -151,7 +151,7 @@ impl std::fmt::Debug for QueryRun {
             .field("revision", &self.session.revision())
             .field("method", &self.request.method())
             .field("selected_profile_ids", &self.selected_profile_ids)
-            .field("required", &self.required)
+            .field("artifacts", &self.artifacts)
             .field("diagnostics", &self.diagnostics)
             .finish()
     }
@@ -170,7 +170,7 @@ impl QueryRun {
 
     /// Cancel this query when its caller abandons the operation.
     pub fn guard(&self) -> RunGuard {
-        let mut cancellations = vec![self.required.cancellation()];
+        let mut cancellations = vec![self.artifacts.cancellation()];
         if let Some(diagnostics) = self.diagnostics.as_ref() {
             cancellations.push(diagnostics.cancellation());
         }
@@ -185,18 +185,17 @@ impl QueryRun {
             request,
             selected_profile_ids,
             trace,
-            required,
+            artifacts,
             diagnostics,
         } = self;
         let query_trace = trace.clone();
         let result = (|| {
-            required.wait_ready()?;
             if let Some(diagnostics) = diagnostics {
                 diagnostics.complete()?;
             }
             let revision = session.revision();
             let require_artifacts = |artifact_keys: &[ArtifactKey]| {
-                required
+                artifacts
                     .require(artifact_keys)
                     .map_err(QueryError::artifact)
             };
@@ -211,7 +210,7 @@ impl QueryRun {
 
             Ok(RunQueryResponse { revision, response })
         })();
-        drop(required);
+        drop(artifacts);
         session.session().finish_trace(trace);
 
         result
@@ -258,27 +257,27 @@ impl LocalWorkspace {
             }
         };
 
-        // select every program only when the request reads all selected programs
-        let selected_profile_ids = if request.request.profile_id().is_none() {
-            session.selected_profile_ids()?
-        } else {
-            Vec::new()
-        };
-
-        // schedule known query artifacts into one operation trace
-        let initial = request.request.initial_artifacts(
-            session.repository(),
-            session.revision(),
-            &selected_profile_ids,
-        )?;
-        let diagnostics = request.request.diagnostic_artifacts();
         let trace = session.session().start_trace();
-        let required = session.session().schedule_artifacts_traced(
+
+        // select every program only when the request reads all selected programs
+        let selected_profile_ids = trace.span("profiles", || {
+            if request.request.profile_id().is_none() {
+                session.selected_profile_ids()
+            } else {
+                Ok(Vec::new())
+            }
+        })?;
+
+        // open one cancellable artifact run for exact query reads
+        let artifacts = session.session().schedule_artifacts_traced(
             session.revision(),
-            &initial,
+            &[],
             ArtifactPriority::Foreground,
             trace.clone(),
         );
+
+        // complete diagnostics separately because failed checks carry diagnostics
+        let diagnostics = request.request.diagnostic_artifacts();
         let diagnostics = (!diagnostics.is_empty()).then(|| {
             session.session().schedule_artifacts_traced(
                 session.revision(),
@@ -293,7 +292,7 @@ impl LocalWorkspace {
             request: request.request,
             selected_profile_ids,
             trace,
-            required,
+            artifacts,
             diagnostics,
         })
     }
