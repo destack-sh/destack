@@ -26,7 +26,7 @@ type Mode = variant<int64, void> { 1int64 = void; 2int64 = void; };
 
 function test.main.pick(v0: boolean): Mode {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: Mode = variant.new 0

@@ -18,7 +18,7 @@ function test.main.both(v0: boolean, v1: boolean): boolean {
 
 entry(v0: boolean, v1: boolean):
     local.set l0, v0
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     local.set l0, v1
@@ -50,7 +50,7 @@ function test.main.either(v0: boolean, v1: boolean): boolean {
 
 entry(v0: boolean, v1: boolean):
     local.set l0, v0
-    branch v0, b2, b1
+    branch v0 => b2 | b1
 
 b1:
     local.set l0, v1

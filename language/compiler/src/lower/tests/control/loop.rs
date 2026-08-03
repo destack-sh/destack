@@ -33,7 +33,7 @@ entry(v0: int32):
 b1:
     v3: int32 = local.get l1
     v4: boolean = int.lt.s v3, v0
-    branch v4, b2, b3
+    branch v4 => b2 | b3
 
 b2:
     v5: int32 = local.get l0
@@ -84,14 +84,14 @@ entry(v0: int32):
 
 b1:
     v2: boolean = true
-    branch v2, b2, b3
+    branch v2 => b2 | b3
 
 b2:
     v3: int32 = local.get l0
     v4: int32 = local.get l0
     v5: int32 = int.mul v3, v4
     v6: boolean = int.gt.s v5, v0
-    branch v6, b4, b5
+    branch v6 => b4 | b5
 
 b3:
     v10: int32 = local.get l0
@@ -142,7 +142,7 @@ entry(v0: int32):
 b1:
     v3: int32 = local.get l1
     v4: boolean = int.lt.s v3, v0
-    branch v4, b2, b4
+    branch v4 => b2 | b4
 
 b2:
     v5: int32 = local.get l0
@@ -194,7 +194,7 @@ b1:
     v1: int64 = local.get l0
     v2: int64 = 0
     v3: boolean = int.gt.s v1, v2
-    branch v3, b2, b3
+    branch v3 => b2 | b3
 
 b2:
     v4: int64 = local.get l0
@@ -246,7 +246,7 @@ b1:
     v4: int32 = local.get l0
     v5: int32 = 100
     v6: boolean = int.gt.s v4, v5
-    branch v6, b3, b4
+    branch v6 => b3 | b4
 
 b2:
     v7: int32 = local.get l0
@@ -299,7 +299,7 @@ entry(v0: int32):
 b1:
     v3: int32 = local.get l1
     v4: boolean = int.lt.s v3, v0
-    branch v4, b2, b4
+    branch v4 => b2 | b4
 
 b2:
     v5: int32 = 0
@@ -320,14 +320,14 @@ b4:
 b5:
     v6: int32 = local.get l2
     v7: boolean = int.lt.s v6, v0
-    branch v7, b6, b8
+    branch v7 => b6 | b8
 
 b6:
     v8: int32 = local.get l1
     v9: int32 = local.get l2
     v10: int32 = int.mul v8, v9
     v11: boolean = int.gt.s v10, v0
-    branch v11, b9, b10
+    branch v11 => b9 | b10
 
 b7:
     v15: int32 = local.get l2

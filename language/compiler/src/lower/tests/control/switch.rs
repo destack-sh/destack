@@ -90,7 +90,7 @@ function select(value: int32, first: int32, second: int32): int32 {
 function test.main.select(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
     v3: boolean = int.eq v0, v1
-    branch v3, b2, b5
+    branch v3 => b2 | b5
 
 b1:
     return
@@ -109,7 +109,7 @@ b4:
 
 b5:
     v4: boolean = int.eq v0, v2
-    branch v4, b4, b6
+    branch v4 => b4 | b6
 
 b6:
     jump b3
@@ -148,7 +148,7 @@ entry(v0: Meters):
     v3: Meters = aggregate (v2)
     v4: int32 = field.get v3, 0
     v5: boolean = int.eq v1, v4
-    branch v5, b2, b4
+    branch v5 => b2 | b4
 
 b1:
     return
@@ -192,7 +192,7 @@ entry(v0: variant<uint8, void> { 0uint8 = void; 1uint8 = void; }):
     v2: uint8 = variant.tag v0
     v3: uint8 = variant.tag v1
     v4: boolean = int.eq v2, v3
-    branch v4, b2, b4
+    branch v4 => b2 | b4
 
 b1:
     return
@@ -251,7 +251,7 @@ entry(v0: variant<uint8, Ready> { 0uint8 = Ready; 1uint8 = Pending; }):
     v4: uint8 = variant.tag v0
     v5: uint8 = variant.tag v3
     v6: boolean = int.eq v4, v5
-    branch v6, b2, b4
+    branch v6 => b2 | b4
 
 b1:
     return

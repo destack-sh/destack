@@ -35,7 +35,7 @@ entry(v0: int32, v1: int32, v2: boolean):
 
 function test.main.pick<int32>(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v0
@@ -46,7 +46,7 @@ b2:
 
 function test.main.pick<float64>(v0: float64, v1: float64, v2: boolean): float64 {
 entry(v0: float64, v1: float64, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v0
@@ -214,7 +214,7 @@ entry(v0: boolean):
 
 function test.main.pick<float64>(v0: float64, v1: float64, v2: boolean): float64 {
 entry(v0: float64, v1: float64, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v0
@@ -264,7 +264,7 @@ entry(v0: int32, v1: int32, v2: boolean):
 
 function test.main.pick<int32>(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v0
@@ -313,7 +313,7 @@ entry(v0: int32, v1: int32, v2: boolean):
 
 function test.lib.pick<int32>(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v0
@@ -377,7 +377,7 @@ entry(v0: int32, v1: int32, v2: boolean):
 
 function test.lib.pick<int32>(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v0
@@ -431,7 +431,7 @@ entry(v0: int32, v1: int32, v2: boolean):
 
 function app.main.pick<int32>(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v0

@@ -19,7 +19,7 @@ function max(a: int32, b: int32): int32 {
 function test.main.max(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: boolean = int.gt.s v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return v0
@@ -50,7 +50,7 @@ function pick(flag: boolean, a: int32, b: int32): int32 {
         r#"
 function test.main.pick(v0: boolean, v1: int32, v2: int32): int32 {
 entry(v0: boolean, v1: int32, v2: int32):
-    branch v0, b1, b3
+    branch v0 => b1 | b3
 
 b1:
     return v1
@@ -83,7 +83,7 @@ function test.main.clamp(v0: float32, v1: float32): float32 {
 
 entry(v0: float32, v1: float32):
     v2: boolean = float.gt v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     local.set l0, v1

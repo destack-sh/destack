@@ -206,7 +206,7 @@ function test.main.read(v0: ref<Counter, managed, mutable, nullable>): int32 {
 entry(v0: ref<Counter, managed, mutable, nullable>):
     v1: ref<Counter, managed, mutable, nullable> = null
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = 0
@@ -224,7 +224,7 @@ entry(v0: ref<Counter, managed, mutable>):
     v2: int32 = load v1
     v3: int32 = 10
     v4: boolean = int.gt.s v2, v3
-    branch v4, b1, b2
+    branch v4 => b1 | b2
 
 b1:
     v5: ref<Counter, managed, mutable, nullable> = null
@@ -288,7 +288,7 @@ function test.main.lookup(v0: ref<Counter, managed, mutable, undefined>): int32 
 entry(v0: ref<Counter, managed, mutable, undefined>):
     v1: ref<Counter, managed, mutable, undefined> = undefined
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = -1
@@ -304,7 +304,7 @@ function test.main.classify(v0: ref<Counter, managed, mutable, nullish>): int32 
 entry(v0: ref<Counter, managed, mutable, nullish>):
     v1: ref<Counter, managed, mutable, nullish> = null
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = 0
@@ -313,7 +313,7 @@ b1:
 b2:
     v4: ref<Counter, managed, mutable, nullish> = undefined
     v5: boolean = int.eq v0, v4
-    branch v5, b3, b4
+    branch v5 => b3 | b4
 
 b3:
     v6: int32 = 1

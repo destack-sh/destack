@@ -18,7 +18,7 @@ function pick(flag: boolean, count: int32): int32 | boolean {
         r#"
 function test.main.pick(v0: boolean, v1: int32): variant<uint8, int32> { 0uint8 = int32; 1uint8 = boolean; } {
 entry(v0: boolean, v1: int32):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v2: variant<uint8, int32> { 0uint8 = int32; 1uint8 = boolean; } = variant.new 0, v1
