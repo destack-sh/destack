@@ -38,6 +38,38 @@ impl Repository {
         Ok(version)
     }
 
+    /// Return the bound dependency keys of one revision-scoped artifact.
+    pub fn artifact_dependency_keys(
+        &self,
+        revision: Revision,
+        artifact_key: &ArtifactKey,
+    ) -> Result<Vec<ArtifactKey>, RepositoryError> {
+        let revision_state = self.revision(revision)?;
+        let Some(artifact) = self.artifact_table().artifact_id(*artifact_key) else {
+            return Ok(Vec::new());
+        };
+        let Some(state) = revision_state.artifacts.state(artifact) else {
+            return Ok(Vec::new());
+        };
+        let Some(binding) = self.artifact_table().binding(state.binding) else {
+            return Ok(Vec::new());
+        };
+
+        let keys = binding
+            .dependencies
+            .iter()
+            .filter_map(|dependency| match dependency {
+                ArtifactDependency::Artifact(version) => Some(version.key),
+                ArtifactDependency::Projection(projection) => {
+                    Some(projection.projection().artifact)
+                }
+                ArtifactDependency::Source(_) => None,
+            })
+            .collect();
+
+        Ok(keys)
+    }
+
     /// Return the terminal outcome for one exact current revision binding.
     pub fn current_artifact_outcome(
         &self,

@@ -12,8 +12,8 @@ use destack_artifact::{
 use destack_dir as dir;
 use destack_mir::{MirFormatContext, MirFormatOptions, format_mir};
 use destack_repository::{
-    ArtifactReader, DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Ref,
-    Repository, Revision, Settings, TraceReport, TraceSnapshot, TraceView,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Ref, Repository,
+    Revision, Settings, Trace, TraceAggregate, TraceReport, TraceSnapshot, TraceView,
 };
 use destack_session::{Session, SessionError};
 use destack_source::{Content, MemoryFileSystem, ModuleId, ProfileId, TargetId};
@@ -35,6 +35,7 @@ const DEFAULT_DESTACK_JSON: &str = r#"{
 const WORKERS_ENV: &str = "DESTACK_TEST_WORKERS";
 const TRACE_ENV: &str = "DESTACK_TEST_TRACE";
 const TIMINGS_ENV: &str = "DESTACK_TIMINGS";
+const PROFILE_ENV: &str = "DESTACK_PROFILE";
 const TRACE_SLOW_ARTIFACTS_ENV: &str = "DESTACK_TEST_TRACE_SLOW_ARTIFACTS";
 const TRACE_SLOW_MS_ENV: &str = "DESTACK_TEST_TRACE_SLOW_MS";
 const DEFAULT_TRACE_SLOW_ARTIFACTS: usize = 8;
@@ -163,7 +164,8 @@ impl TestSession {
         .expect("compiler test session should start");
         let is_tracing = env::var_os(TRACE_ENV).is_some()
             || env::var_os(TIMINGS_ENV).is_some()
-            || env::var_os(TRACE_SLOW_MS_ENV).is_some();
+            || env::var_os(TRACE_SLOW_MS_ENV).is_some()
+            || env::var_os(PROFILE_ENV).is_some();
         session.set_tracing(is_tracing);
 
         Self {
@@ -1197,10 +1199,14 @@ impl TestSession {
             .ok()
             .and_then(|value| value.parse::<u128>().ok())
         else {
-            return self.session.require(self.revision, key);
+            let result = self.session.require(self.revision, key);
+            self.merge_profile();
+
+            return result;
         };
         let started = std::time::Instant::now();
         let result = self.session.require(self.revision, key);
+        self.merge_profile();
 
         // print the run trace when it exceeds the requested threshold
         if started.elapsed().as_millis() > threshold {
@@ -1259,6 +1265,35 @@ impl TestSession {
             .print();
     }
 
+    /// Merge the last run's trace into the shared profile aggregate.
+    fn merge_profile(&self) {
+        let Some(path) = env::var_os(PROFILE_ENV) else {
+            return;
+        };
+        let Some(trace) = self.session.last_trace() else {
+            return;
+        };
+
+        static AGGREGATE: OnceLock<std::sync::Mutex<(TraceAggregate, Option<Arc<Trace>>)>> =
+            OnceLock::new();
+        let aggregate = AGGREGATE.get_or_init(Default::default);
+        let mut aggregate = aggregate.lock().expect("profile aggregate should lock");
+        let (aggregate, merged) = &mut *aggregate;
+
+        // merge each run trace once, then flush the running table
+        if merged
+            .as_ref()
+            .is_some_and(|last| Arc::ptr_eq(last, &trace))
+        {
+            return;
+        }
+        aggregate.merge(&trace);
+        *merged = Some(trace);
+        if aggregate.runs() % 64 == 0 {
+            std::fs::write(&path, aggregate.render()).expect("profile table should write");
+        }
+    }
+
     /// Print the artifact trace when the test trace filter matches.
     fn print_trace_if_requested(&self, label: &str) {
         let Ok(filter) = env::var(TRACE_ENV) else {
@@ -1311,16 +1346,14 @@ impl TestSession {
             .map(|foreign| (self.dir_bound(foreign), self.dir_expanded(foreign)))
             .collect::<Vec<_>>();
 
-        // include builtin labels for language item references
+        // include labels for the external modules the entry's passes read
         let builtins = self
-            .repository
-            .builtin_module_ids(self.revision)
-            .expect("builtin test modules should resolve")
+            .entry_external_modules(entry)
             .into_iter()
             .filter(|module_id| *module_id != entry.module.id)
             .collect::<Vec<_>>();
 
-        // provide every builtin label artifact in one run, then read directly
+        // provide every referenced label artifact in one run, then read directly
         let keys = builtins
             .iter()
             .flat_map(|module_id| {
@@ -1331,7 +1364,7 @@ impl TestSession {
             })
             .collect::<Vec<_>>();
         self.require_all(keys)
-            .expect("test builtin label artifacts should be ready");
+            .expect("test referenced label artifacts should be ready");
         let reader = self.repository.artifact_reader(self.revision);
         for module_id in builtins {
             let bound = reader
@@ -1387,31 +1420,69 @@ impl TestSession {
             .collect()
     }
 
-    /// Return the transitive external modules of one entry module.
+    /// Return the external modules the entry's declare and check passes read.
     fn entry_external_modules(&self, entry: &TestModule) -> Vec<ModuleId> {
-        let graph = self.module_graph(entry.profile);
-        let mut roots = vec![entry.module.id];
-
-        // include the ambient extension layer the checked output references
-        for extension in graph.cross_module_extensions() {
-            roots.push(extension.symbol.module_id);
-        }
-
-        // include the implicit modules whose extensions render in snapshots
-        let reader = ArtifactReader::new(self.repository.as_ref(), self.revision);
-        if let Ok(environment) = reader.environment_declared(entry.profile) {
-            let rooted = environment.extensions_by_root.values().flatten();
-            let ground = environment.extensions_by_primitive.values().flatten();
-            for extension in rooted.chain(ground).chain(&environment.blanket_extensions) {
-                roots.push(extension.module_id);
+        let keys = [
+            ArtifactKey::dir_declared(entry.module.id, entry.profile),
+            ArtifactKey::dir_checked(entry.module.id, entry.profile),
+        ];
+        let mut modules = destack_core::FxIndexSet::default();
+        for key in keys {
+            let dependencies = self
+                .repository
+                .artifact_dependency_keys(self.revision, &key)
+                .expect("test artifact dependencies should read");
+            for dependency in dependencies {
+                if let Some(module) = dependency.module_id()
+                    && module != entry.module.id
+                {
+                    modules.insert(module);
+                }
             }
         }
 
-        graph
-            .reachable(&roots)
-            .into_iter()
-            .filter(|module| *module != entry.module.id)
-            .collect()
+        // include the modules behind the bound environment's name surface
+        let reader = self.repository.artifact_reader(self.revision);
+        if let Ok(environment) = reader.environment_bound_content(entry.profile) {
+            let language = environment.language.items_by_symbol.keys().copied();
+            let builtins = environment.language.symbols.values().copied();
+            for symbol in language.chain(builtins) {
+                if symbol.module_id != entry.module.id {
+                    modules.insert(symbol.module_id);
+                }
+            }
+            for targets in environment.global_targets_by_key.values() {
+                for target in targets {
+                    let module = match target {
+                        dir::ImportTarget::Symbol(symbol) => symbol.module_id,
+                        dir::ImportTarget::Namespace(module) => *module,
+                    };
+                    if module != entry.module.id {
+                        modules.insert(module);
+                    }
+                }
+            }
+        }
+
+        // include the modules of resolved import and language item symbols
+        let resolved = self.dir_resolved(entry);
+        for (_, target) in resolved.imports.symbol_targets() {
+            if target.module_id != entry.module.id {
+                modules.insert(target.module_id);
+            }
+        }
+        for symbol in resolved.imports.language_symbols() {
+            if symbol.module_id != entry.module.id {
+                modules.insert(symbol.module_id);
+            }
+        }
+        for module in resolved.references.target_modules() {
+            if module != entry.module.id {
+                modules.insert(module);
+            }
+        }
+
+        modules.into_iter().collect()
     }
 
     /// Read the module graph for one profile.
