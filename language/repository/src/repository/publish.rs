@@ -85,8 +85,8 @@ impl Repository {
             }
             // file additions and removals invalidate only the sets they change
             else {
-                let new_packages = self.package_index_for_files(base_revision_id, files.clone())?;
-                let listing = self.files.entries.entries(files.clone());
+                let new_packages = self.package_index_for_files(base_revision_id, files)?;
+                let listing = self.files.entries.entries(files);
                 let new_modules =
                     self.module_index_for_files(base_revision_id, &listing, &new_packages)?;
                 let mut new_package_ids = new_packages.package_ids().collect::<Vec<_>>();
