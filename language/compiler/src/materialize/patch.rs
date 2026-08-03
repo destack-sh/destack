@@ -1,8 +1,8 @@
 use crate::Compiler;
 
 use destack_dir as dir;
-use destack_source::ModuleId;
 use destack_repository::ProfileId;
+use destack_source::ModuleId;
 
 use super::ComptimeOutput;
 
@@ -26,8 +26,15 @@ impl Compiler {
         tree_patch: &mut dir::Patch,
         comptime_patch: ComptimePatch,
     ) {
-        let _ = (module_id, profile_id, tree, types, tree_patch, comptime_patch);
+        let _ = (
+            module_id,
+            profile_id,
+            tree,
+            types,
+            tree_patch,
+            comptime_patch,
+        );
 
-        todo!("FUGU #Incomplete: apply comptime output through DIR patch")
+        todo!("TODO #Incomplete: apply comptime output through DIR patch")
     }
 }

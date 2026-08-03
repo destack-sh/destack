@@ -40,7 +40,7 @@ impl Compiler {
             .dir_checked(module, profile)
             .map_err(CompilerError::from)?;
 
-        // FUGU #Incomplete: implement proper materialization
+        // TODO #Incomplete: implement proper materialization
         let materialized = DirMaterialized {
             patch: dir::Patch::new(&parsed.tree, "materialize"),
             bindings: Arc::new(dir::BindingSegment::from_base(&expanded.bindings)),

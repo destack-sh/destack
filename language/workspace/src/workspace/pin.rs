@@ -132,7 +132,7 @@ impl SessionPin {
         for (target_id, profile_id) in self.selected_targets()? {
             for module_id in modules.iter().copied() {
                 if module_id.package_id == target_id.package_id() {
-                    // FUGU #Incomplete: should request module_linted but that is not ready yet
+                    // TODO #Broken: should request module_linted but that is not ready yet
                     artifacts.push(ArtifactKey::dir_checked(module_id, profile_id));
                 }
             }

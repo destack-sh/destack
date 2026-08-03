@@ -37,7 +37,7 @@ impl Compiler {
             .dir_bound(module, profile)
             .map_err(CompilerError::from)?;
 
-        // FUGU #Incomplete: implement proper expansion
+        // TODO #Incomplete: implement proper expansion
         let expanded = DirExpanded {
             patch: dir::Patch::new(&parsed.tree, "expand"),
             bindings: Arc::new(dir::BindingSegment::from_base(&bound.bindings)),

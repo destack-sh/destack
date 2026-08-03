@@ -119,9 +119,7 @@ impl Parser {
                 TokenType::OpenBracket => {
                     Some(self.parse_index(left, PostfixPosition::Direct, context, false)?)
                 }
-                TokenType::Dot => {
-                    Some(self.parse_dot_postfix(start, left, context, false)?)
-                }
+                TokenType::Dot => Some(self.parse_dot_postfix(start, left, context, false)?),
                 // ?. makes the access it introduces optional
                 TokenType::Maybe if self.peek_token_type_at(1) == TokenType::Dot => {
                     self.bump();
