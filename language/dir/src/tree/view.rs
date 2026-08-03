@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
+use destack_core::FxIndexSet as IndexSet;
 use destack_source::{FileId, NodeSpanType, Span};
-use indexmap::IndexSet;
 use smallvec::SmallVec;
 
 use crate::{

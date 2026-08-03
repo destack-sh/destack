@@ -1,8 +1,8 @@
 use destack_serde::Reflect;
 use std::fmt::Display;
 
+use destack_core::FxIndexMap as IndexMap;
 use destack_source::ModuleId;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
@@ -168,7 +168,8 @@ impl ScopeIndex {
                 }
 
                 // promote large scopes to keyed lookup
-                let mut table = IndexMap::with_capacity(entries.len() + 1);
+                let mut table =
+                    IndexMap::with_capacity_and_hasher(entries.len() + 1, Default::default());
                 for entry in entries.drain(..) {
                     table.insert(entry.key, entry.indices);
                 }

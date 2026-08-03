@@ -1,8 +1,8 @@
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
+use destack_core::FxIndexMap as IndexMap;
 use destack_serde::Reflect;
-use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHasher};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -69,7 +69,7 @@ impl<'a> TypeTable<'a> {
 
     /// Iterate effective checked types keyed by DIR node.
     pub fn node_types(&self) -> impl Iterator<Item = (GlobalNodeIdAny, GlobalTypeId)> + '_ {
-        let mut entries = IndexMap::new();
+        let mut entries = IndexMap::default();
 
         // apply later segment values over earlier ones
         for segment in self.segments.iter() {
@@ -83,7 +83,7 @@ impl<'a> TypeTable<'a> {
 
     /// Iterate solved symbol types.
     pub fn symbol_types(&self) -> impl Iterator<Item = (GlobalSymbolId, GlobalTypeId)> + '_ {
-        let mut entries = IndexMap::new();
+        let mut entries = IndexMap::default();
 
         // apply later segment values over earlier ones
         for segment in self.segments.iter() {
@@ -97,7 +97,7 @@ impl<'a> TypeTable<'a> {
 
     /// Iterate checked reduced types.
     pub fn reduced_types(&self) -> impl Iterator<Item = (GlobalTypeId, GlobalTypeId)> + '_ {
-        let mut entries = IndexMap::new();
+        let mut entries = IndexMap::default();
 
         // apply later segment values over earlier ones
         for segment in self.segments.iter() {
@@ -686,10 +686,10 @@ impl TypeSegment {
             hashes: Vec::new(),
             sealed: None,
             sealed_index: FxHashMap::default(),
-            node_types: IndexMap::new(),
-            expected_types: IndexMap::new(),
-            symbol_types: IndexMap::new(),
-            reduced_types: IndexMap::new(),
+            node_types: IndexMap::default(),
+            expected_types: IndexMap::default(),
+            symbol_types: IndexMap::default(),
+            reduced_types: IndexMap::default(),
         }
     }
 
@@ -715,10 +715,10 @@ impl TypeSegment {
             hashes: Vec::new(),
             sealed: None,
             sealed_index: FxHashMap::default(),
-            node_types: IndexMap::new(),
-            expected_types: IndexMap::new(),
-            symbol_types: IndexMap::new(),
-            reduced_types: IndexMap::new(),
+            node_types: IndexMap::default(),
+            expected_types: IndexMap::default(),
+            symbol_types: IndexMap::default(),
+            reduced_types: IndexMap::default(),
         }
     }
 

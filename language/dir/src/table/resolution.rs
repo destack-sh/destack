@@ -1,9 +1,8 @@
 use destack_serde::Reflect;
 use std::sync::Arc;
 
+use destack_core::FxIndexMap as IndexMap;
 use destack_source::ModuleId;
-use indexmap::IndexMap;
-use rustc_hash::FxBuildHasher;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -274,7 +273,7 @@ impl<'a> ResolutionTable<'a> {
     fn lookup<T>(
         &self,
         node_id: GlobalNodeIdAny,
-        column: impl Fn(&ResolutionSegment) -> &IndexMap<GlobalNodeIdAny, T, FxBuildHasher>,
+        column: impl Fn(&ResolutionSegment) -> &IndexMap<GlobalNodeIdAny, T>,
     ) -> Option<&T> {
         for segment in self.segments.iter().rev() {
             if let Some(resolution) = column(segment).get(&node_id) {
@@ -288,7 +287,7 @@ impl<'a> ResolutionTable<'a> {
     /// Iterate the visible entries in one resolution column.
     fn visible_entries<'b, T: 'b>(
         &'b self,
-        column: impl Fn(&ResolutionSegment) -> &IndexMap<GlobalNodeIdAny, T, FxBuildHasher> + Copy + 'b,
+        column: impl Fn(&ResolutionSegment) -> &IndexMap<GlobalNodeIdAny, T> + Copy + 'b,
     ) -> impl Iterator<Item = (GlobalNodeIdAny, &'b T)> + 'b {
         self.segments
             .iter()
@@ -315,39 +314,39 @@ pub struct ResolutionSegment {
     /// The module id of the resolution segment.
     pub module_id: ModuleId,
     /// Checked lexical or path resolutions keyed by DIR node.
-    pub(crate) names: IndexMap<GlobalNodeIdAny, NameResolution, FxBuildHasher>,
+    pub(crate) names: IndexMap<GlobalNodeIdAny, NameResolution>,
     /// Checked generic instantiations keyed by DIR node.
-    pub(crate) instantiations: IndexMap<GlobalNodeIdAny, InstantiationResolution, FxBuildHasher>,
+    pub(crate) instantiations: IndexMap<GlobalNodeIdAny, InstantiationResolution>,
     /// Checked label resolutions keyed by DIR node.
-    pub(crate) labels: IndexMap<GlobalNodeIdAny, LabelResolution, FxBuildHasher>,
+    pub(crate) labels: IndexMap<GlobalNodeIdAny, LabelResolution>,
     /// Checked receiver resolutions keyed by DIR node.
-    pub(crate) receivers: IndexMap<GlobalNodeIdAny, ReceiverResolution, FxBuildHasher>,
+    pub(crate) receivers: IndexMap<GlobalNodeIdAny, ReceiverResolution>,
     /// Checked stable storage accesses keyed by DIR node.
-    pub(crate) accesses: IndexMap<GlobalNodeIdAny, AccessResolution, FxBuildHasher>,
+    pub(crate) accesses: IndexMap<GlobalNodeIdAny, AccessResolution>,
     /// Checked member resolutions keyed by DIR node.
-    pub(crate) members: IndexMap<GlobalNodeIdAny, MemberResolution, FxBuildHasher>,
+    pub(crate) members: IndexMap<GlobalNodeIdAny, MemberResolution>,
     /// Checked operator resolutions keyed by DIR node.
-    pub(crate) operators: IndexMap<GlobalNodeIdAny, OperatorResolution, FxBuildHasher>,
+    pub(crate) operators: IndexMap<GlobalNodeIdAny, OperatorResolution>,
     /// Checked call resolutions keyed by DIR node.
-    pub(crate) calls: IndexMap<GlobalNodeIdAny, CallResolution, FxBuildHasher>,
+    pub(crate) calls: IndexMap<GlobalNodeIdAny, CallResolution>,
     /// Checked subscript resolutions keyed by DIR node.
-    pub(crate) subscripts: IndexMap<GlobalNodeIdAny, SubscriptResolution, FxBuildHasher>,
+    pub(crate) subscripts: IndexMap<GlobalNodeIdAny, SubscriptResolution>,
     /// Checked place resolutions keyed by DIR node.
-    pub(crate) places: IndexMap<GlobalNodeIdAny, PlaceResolution, FxBuildHasher>,
+    pub(crate) places: IndexMap<GlobalNodeIdAny, PlaceResolution>,
     /// Checked assignment resolutions keyed by DIR node.
-    pub(crate) assignments: IndexMap<GlobalNodeIdAny, AssignmentResolution, FxBuildHasher>,
+    pub(crate) assignments: IndexMap<GlobalNodeIdAny, AssignmentResolution>,
     /// Checked guard resolutions keyed by DIR node.
-    pub(crate) guards: IndexMap<GlobalNodeIdAny, GuardResolution, FxBuildHasher>,
+    pub(crate) guards: IndexMap<GlobalNodeIdAny, GuardResolution>,
     /// Checked construct resolutions keyed by DIR node.
-    pub(crate) constructs: IndexMap<GlobalNodeIdAny, ConstructResolution, FxBuildHasher>,
+    pub(crate) constructs: IndexMap<GlobalNodeIdAny, ConstructResolution>,
     /// Checked tree literal resolutions keyed by expression node.
-    pub(crate) trees: IndexMap<GlobalNodeIdAny, TreeResolution, FxBuildHasher>,
+    pub(crate) trees: IndexMap<GlobalNodeIdAny, TreeResolution>,
     /// Checked pattern resolutions keyed by DIR node.
-    pub(crate) patterns: IndexMap<GlobalNodeIdAny, PatternResolution, FxBuildHasher>,
+    pub(crate) patterns: IndexMap<GlobalNodeIdAny, PatternResolution>,
     /// Checked assignment pattern resolutions keyed by DIR node.
-    pub(crate) assign_patterns: IndexMap<GlobalNodeIdAny, AssignPatternResolution, FxBuildHasher>,
+    pub(crate) assign_patterns: IndexMap<GlobalNodeIdAny, AssignPatternResolution>,
     /// Unresolved reference paths keyed by DIR node.
-    pub(crate) unresolved: IndexMap<GlobalNodeIdAny, Path, FxBuildHasher>,
+    pub(crate) unresolved: IndexMap<GlobalNodeIdAny, Path>,
 }
 
 impl ResolutionSegment {
@@ -461,7 +460,7 @@ impl ResolutionSegment {
     }
 
     /// Drop map entries added past one length.
-    fn truncate_map<T>(map: &mut IndexMap<GlobalNodeIdAny, T, FxBuildHasher>, length: usize) {
+    fn truncate_map<T>(map: &mut IndexMap<GlobalNodeIdAny, T>, length: usize) {
         while map.len() > length {
             map.pop();
         }

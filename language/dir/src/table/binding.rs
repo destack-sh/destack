@@ -2,8 +2,8 @@ use destack_serde::Reflect;
 use std::fmt::Debug;
 use std::sync::Arc;
 
+use destack_core::FxIndexMap as IndexMap;
 use destack_source::ModuleId;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -489,12 +489,12 @@ impl BindingSegment {
             first_scope_id: 0,
             symbols: Arena::new(),
             scopes: Arena::new(),
-            symbol_by_declaration: IndexMap::new(),
-            implicit_receiver_by_node: IndexMap::new(),
-            scope_by_node: IndexMap::new(),
-            scope_by_owner: IndexMap::new(),
-            replaced_symbol_by_id: IndexMap::new(),
-            replaced_scope_by_id: IndexMap::new(),
+            symbol_by_declaration: IndexMap::default(),
+            implicit_receiver_by_node: IndexMap::default(),
+            scope_by_node: IndexMap::default(),
+            scope_by_owner: IndexMap::default(),
+            replaced_symbol_by_id: IndexMap::default(),
+            replaced_scope_by_id: IndexMap::default(),
         }
     }
 
@@ -506,12 +506,12 @@ impl BindingSegment {
             first_scope_id: base.scope_count(),
             symbols: Arena::new(),
             scopes: Arena::new(),
-            symbol_by_declaration: IndexMap::new(),
-            implicit_receiver_by_node: IndexMap::new(),
-            scope_by_node: IndexMap::new(),
-            scope_by_owner: IndexMap::new(),
-            replaced_symbol_by_id: IndexMap::new(),
-            replaced_scope_by_id: IndexMap::new(),
+            symbol_by_declaration: IndexMap::default(),
+            implicit_receiver_by_node: IndexMap::default(),
+            scope_by_node: IndexMap::default(),
+            scope_by_owner: IndexMap::default(),
+            replaced_symbol_by_id: IndexMap::default(),
+            replaced_scope_by_id: IndexMap::default(),
         }
     }
 
@@ -523,12 +523,12 @@ impl BindingSegment {
             first_scope_id: base.scope_count(),
             symbols: Arena::new(),
             scopes: Arena::new(),
-            symbol_by_declaration: IndexMap::new(),
-            implicit_receiver_by_node: IndexMap::new(),
-            scope_by_node: IndexMap::new(),
-            scope_by_owner: IndexMap::new(),
-            replaced_symbol_by_id: IndexMap::new(),
-            replaced_scope_by_id: IndexMap::new(),
+            symbol_by_declaration: IndexMap::default(),
+            implicit_receiver_by_node: IndexMap::default(),
+            scope_by_node: IndexMap::default(),
+            scope_by_owner: IndexMap::default(),
+            replaced_symbol_by_id: IndexMap::default(),
+            replaced_scope_by_id: IndexMap::default(),
         }
     }
 

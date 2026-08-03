@@ -1,8 +1,8 @@
 use destack_serde::Reflect;
 use std::sync::Arc;
 
+use destack_core::FxIndexMap as IndexMap;
 use destack_source::ModuleId;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -142,7 +142,7 @@ impl DecoratorSegment {
             module_id,
             first_application_id: 0,
             applications: Arena::new(),
-            applications_by_owner: IndexMap::new(),
+            applications_by_owner: IndexMap::default(),
         }
     }
 
@@ -152,7 +152,7 @@ impl DecoratorSegment {
             module_id: base.module_id,
             first_application_id: base.application_count(),
             applications: Arena::new(),
-            applications_by_owner: IndexMap::new(),
+            applications_by_owner: IndexMap::default(),
         }
     }
 

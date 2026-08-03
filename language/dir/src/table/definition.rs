@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
-use destack_core::{StringId, StringPool};
+use destack_core::{FxIndexMap as IndexMap, StringId, StringPool};
 use destack_serde::Reflect;
 use destack_source::ModuleId;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
@@ -152,7 +151,7 @@ impl<'a> DefinitionTable<'a> {
 
     /// Iterate definitions in phase order.
     pub fn iter_definitions(&self) -> impl Iterator<Item = (GlobalSymbolId, &Definition)> + '_ {
-        let mut definitions = IndexMap::new();
+        let mut definitions = IndexMap::default();
 
         // apply later segment values over earlier ones
         for segment in self.segments.iter() {
@@ -199,9 +198,9 @@ impl DefinitionSegment {
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
-            sources: IndexMap::new(),
-            definitions: IndexMap::new(),
-            extensions_by_target_symbol: IndexMap::new(),
+            sources: IndexMap::default(),
+            definitions: IndexMap::default(),
+            extensions_by_target_symbol: IndexMap::default(),
             blanket_extensions: Vec::new(),
         }
     }

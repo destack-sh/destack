@@ -1,6 +1,6 @@
+use destack_core::FxIndexMap as IndexMap;
 use destack_serde::Reflect;
 use destack_source::ModuleId;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{ExportForm, ExportKey, LocalSymbolId, NamedExport, StarExport};
@@ -23,8 +23,8 @@ impl ExportTable {
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
-            export_by_key: IndexMap::new(),
-            form_by_symbol: IndexMap::new(),
+            export_by_key: IndexMap::default(),
+            form_by_symbol: IndexMap::default(),
             star_exports: Vec::new(),
         }
     }

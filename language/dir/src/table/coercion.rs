@@ -1,9 +1,9 @@
 use std::mem;
 use std::sync::Arc;
 
+use destack_core::FxIndexMap as IndexMap;
 use destack_serde::Reflect;
 use destack_source::ModuleId;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{CastOrigin, GlobalNodeIdAny, GlobalTypeId, ScalarLiteral, SegmentView, Type};
@@ -348,7 +348,7 @@ impl CoercionSegment {
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
-            coercions: IndexMap::new(),
+            coercions: IndexMap::default(),
         }
     }
 

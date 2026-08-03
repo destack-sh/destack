@@ -1,8 +1,8 @@
 use std::slice;
 
+use destack_core::FxIndexMap as IndexMap;
 use destack_serde::Reflect;
 use destack_source::ModuleId;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
@@ -36,9 +36,9 @@ impl ImportTable {
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
-            resolution_by_symbol: IndexMap::new(),
-            global_target_by_key: IndexMap::new(),
-            language_symbol_by_item: IndexMap::new(),
+            resolution_by_symbol: IndexMap::default(),
+            global_target_by_key: IndexMap::default(),
+            language_symbol_by_item: IndexMap::default(),
             tree_target: None,
         }
     }

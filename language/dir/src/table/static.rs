@@ -1,8 +1,8 @@
 use destack_serde::Reflect;
 use std::sync::Arc;
 
+use destack_core::FxIndexMap as IndexMap;
 use destack_source::ModuleId;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -69,7 +69,7 @@ impl<'a> StaticTable<'a> {
 
     /// Iterate effective static values keyed by symbol.
     pub fn symbol_statics(&self) -> impl Iterator<Item = (GlobalSymbolId, GlobalStaticId)> + '_ {
-        let mut entries = IndexMap::new();
+        let mut entries = IndexMap::default();
 
         // apply later segment values over earlier ones
         for segment in self.segments.iter() {
@@ -192,8 +192,8 @@ impl StaticSegment {
             module_id,
             first_static_id: 0,
             statics: Arena::new(),
-            static_by_symbol_id: IndexMap::new(),
-            gates: IndexMap::new(),
+            static_by_symbol_id: IndexMap::default(),
+            gates: IndexMap::default(),
         }
     }
 
@@ -203,8 +203,8 @@ impl StaticSegment {
             module_id: base.module_id,
             first_static_id: base.static_count(),
             statics: Arena::new(),
-            static_by_symbol_id: IndexMap::new(),
-            gates: IndexMap::new(),
+            static_by_symbol_id: IndexMap::default(),
+            gates: IndexMap::default(),
         }
     }
 

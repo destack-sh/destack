@@ -1,6 +1,6 @@
+use destack_core::FxIndexMap as IndexMap;
 use destack_serde::Reflect;
 use destack_source::ModuleId;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{GlobalEntry, IndirectGlobalEntry, LocalGlobalEntry, LocalSymbolId, StaticKey};
@@ -19,7 +19,7 @@ impl GlobalTable {
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
-            entries_by_key: IndexMap::new(),
+            entries_by_key: IndexMap::default(),
         }
     }
 

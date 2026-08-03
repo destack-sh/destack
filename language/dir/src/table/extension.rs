@@ -1,6 +1,6 @@
+use destack_core::FxIndexMap as IndexMap;
 use destack_serde::Reflect;
 use destack_source::ModuleId;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{GlobalSymbolId, LocalSymbolId};
@@ -19,7 +19,7 @@ impl ExtensionTable {
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
-            target_by_symbol: IndexMap::new(),
+            target_by_symbol: IndexMap::default(),
         }
     }
 

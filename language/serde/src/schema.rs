@@ -333,7 +333,7 @@ impl<K: Reflect, V: Reflect, S> Reflect for IndexMap<K, V, S> {
     }
 }
 
-impl<T: Reflect> Reflect for IndexSet<T> {
+impl<T: Reflect, S> Reflect for IndexSet<T, S> {
     fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
         SchemaRef::Sequence(Box::new(T::reflect(registry)))
     }

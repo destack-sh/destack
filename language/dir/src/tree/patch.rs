@@ -1,6 +1,6 @@
+use destack_core::{FxIndexMap as IndexMap, FxIndexSet as IndexSet};
 use destack_serde::Reflect;
 use destack_source::ModuleId;
-use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 
 use crate::{LocalNodeIdAny, Tree};
@@ -29,9 +29,9 @@ impl Patch {
             name: name.into(),
             module_id: base.module_id,
             tree: Tree::from_base(base, 0),
-            replacement_by_node: IndexMap::new(),
-            deleted_nodes: IndexSet::new(),
-            parent_by_node: IndexMap::new(),
+            replacement_by_node: IndexMap::default(),
+            deleted_nodes: IndexSet::default(),
+            parent_by_node: IndexMap::default(),
         }
     }
 

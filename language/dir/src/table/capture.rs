@@ -1,8 +1,8 @@
 use destack_serde::Reflect;
 use std::sync::Arc;
 
+use destack_core::FxIndexMap as IndexMap;
 use destack_source::ModuleId;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{Arena, GlobalScopeId, GlobalSymbolId, GlobalTypeId, SegmentView, StringId};
@@ -142,7 +142,7 @@ impl CaptureSegment {
             module_id,
             first_frame_id: 0,
             frames: Arena::new(),
-            capture_by_function: IndexMap::new(),
+            capture_by_function: IndexMap::default(),
         }
     }
 
@@ -152,7 +152,7 @@ impl CaptureSegment {
             module_id: base.module_id,
             first_frame_id: base.frame_count(),
             frames: Arena::new(),
-            capture_by_function: IndexMap::new(),
+            capture_by_function: IndexMap::default(),
         }
     }
 
