@@ -197,6 +197,8 @@ pub(crate) struct SourceDelta {
     sources: Arc<[SourceDependency]>,
     /// Whether package or module discovery inputs changed.
     is_discovery_changed: bool,
+    /// Whether a package config file changed.
+    is_config_changed: bool,
 }
 
 impl SourceDelta {
@@ -204,6 +206,7 @@ impl SourceDelta {
     pub(crate) fn new(
         sources: impl IntoIterator<Item = SourceDependency>,
         is_discovery_changed: bool,
+        is_config_changed: bool,
     ) -> Self {
         let mut sources = sources.into_iter().collect::<Vec<_>>();
         sources.sort_unstable();
@@ -212,6 +215,7 @@ impl SourceDelta {
         Self {
             sources: sources.into(),
             is_discovery_changed,
+            is_config_changed,
         }
     }
 
@@ -232,6 +236,11 @@ impl SourceDelta {
     /// Return whether package or module discovery inputs changed.
     pub(crate) fn is_discovery_changed(&self) -> bool {
         self.is_discovery_changed
+    }
+
+    /// Return whether a package config file changed.
+    pub(crate) fn is_config_changed(&self) -> bool {
+        self.is_config_changed
     }
 }
 

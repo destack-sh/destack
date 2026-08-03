@@ -74,12 +74,35 @@ impl Repository {
         let (files, mut delta) =
             self.apply_edits(base_revision_id, base_revision.files(), edits)?;
         if delta.is_discovery_changed() {
-            let packages = self.package_ids(base_revision_id)?;
-            let modules = self.module_ids(base_revision_id)?;
-            delta.extend([
-                SourceDependency::packages(&packages),
-                SourceDependency::modules(&modules),
-            ]);
+            // config edits invalidate both discovery sets outright
+            if delta.is_config_changed() {
+                let packages = self.package_ids(base_revision_id)?;
+                let modules = self.module_ids(base_revision_id)?;
+                delta.extend([
+                    SourceDependency::packages(&packages),
+                    SourceDependency::modules(&modules),
+                ]);
+            }
+            // file additions and removals invalidate only the sets they change
+            else {
+                let new_packages = self.package_index_for_files(base_revision_id, files.clone())?;
+                let listing = self.files.entries.entries(files.clone());
+                let new_modules =
+                    self.module_index_for_files(base_revision_id, &listing, &new_packages)?;
+                let mut new_package_ids = new_packages.package_ids().collect::<Vec<_>>();
+                new_package_ids.sort_unstable();
+                new_package_ids.dedup();
+                let mut new_module_ids = new_modules.module_ids().collect::<Vec<_>>();
+                new_module_ids.sort_unstable();
+                new_module_ids.dedup();
+
+                if self.package_ids(base_revision_id)? != new_package_ids {
+                    delta.extend([SourceDependency::packages(&new_package_ids)]);
+                }
+                if self.module_ids(base_revision_id)? != new_module_ids {
+                    delta.extend([SourceDependency::modules(&new_module_ids)]);
+                }
+            }
         }
         let artifacts = base_revision
             .artifacts
@@ -166,6 +189,7 @@ impl Repository {
     {
         let mut changed_sources = Vec::new();
         let mut is_discovery_changed = false;
+        let mut is_config_changed = false;
 
         for edit in edits {
             match edit {
@@ -175,6 +199,7 @@ impl Repository {
                     content,
                 } => {
                     let logical_path = normalize_logical_path(&logical_path);
+                    is_config_changed |= is_package_config_path(&logical_path);
                     let file_id = FileId::from_logical_str(&logical_path);
                     if self.files.entries.contains(files, &file_id) {
                         return Err(RepositoryError::FileAlreadyExists { path: logical_path });
@@ -201,8 +226,9 @@ impl Repository {
                     let file_id = FileId::from_logical_str(&logical_path);
                     let previous = self.files.entries.get(files, &file_id);
                     let is_existing = previous.is_some();
-                    let is_package_config = logical_path.rsplit('/').next() == Some("destack.json");
+                    let is_package_config = is_package_config_path(&logical_path);
                     is_discovery_changed |= !is_existing || is_package_config;
+                    is_config_changed |= is_package_config;
                     if !is_existing {
                         self.observe_module_path(base_revision, file_id, &mut changed_sources)?;
                     }
@@ -223,6 +249,7 @@ impl Repository {
                 // remove the requested file payload
                 Edit::RemoveFile { logical_path } => {
                     let logical_path = normalize_logical_path(&logical_path);
+                    is_config_changed |= is_package_config_path(&logical_path);
                     let file_id = FileId::from_logical_str(&logical_path);
                     let previous = self.files.entries.get(files, &file_id).ok_or_else(|| {
                         RepositoryError::MissingFile {
@@ -246,6 +273,8 @@ impl Repository {
 
                     let from = normalize_logical_path(&from);
                     let to = normalize_logical_path(&to);
+                    is_config_changed |=
+                        is_package_config_path(&from) || is_package_config_path(&to);
                     let from_file_id = FileId::from_logical_str(&from);
                     let from_file = self
                         .files
@@ -276,7 +305,12 @@ impl Repository {
 
         Ok((
             files,
-            SourceDelta::new(changed_sources, is_discovery_changed),
+            SourceDelta::new(changed_sources, is_discovery_changed, is_config_changed),
         ))
     }
+}
+
+/// Return whether one logical path names a package config file.
+fn is_package_config_path(logical_path: &str) -> bool {
+    logical_path.rsplit('/').next() == Some("destack.json")
 }

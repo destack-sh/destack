@@ -355,7 +355,20 @@ impl Repository {
 
         let packages = self.package_index(revision)?;
         let files = self.revision_files(revision)?;
-        let mut modules = self.build_modules(revision, files.as_ref(), packages.as_ref())?;
+        let modules = self.module_index_for_files(revision, files.as_ref(), packages.as_ref())?;
+        let modules = revision_cache.modules.get_or_init(|| Arc::new(modules));
+
+        Ok(Arc::clone(modules))
+    }
+
+    /// Build the module index over one file listing and package index.
+    pub(crate) fn module_index_for_files(
+        &self,
+        revision: Revision,
+        files: &[(FileId, FileEntry)],
+        packages: &PackageIndex,
+    ) -> Result<ModuleIndex, RepositoryError> {
+        let mut modules = self.build_modules(revision, files, packages)?;
 
         // include embedded modules only when no authored Builtin Package replaces them
         let package = packages.package(self.embedded_builtin.package_id()).ok_or(
@@ -367,10 +380,7 @@ impl Repository {
             modules.extend(self.embedded_builtin.modules());
         }
 
-        let modules = Arc::new(ModuleIndex::new(modules));
-        let modules = revision_cache.modules.get_or_init(|| modules);
-
-        Ok(Arc::clone(modules))
+        Ok(ModuleIndex::new(modules))
     }
 
     /// Return one module for one revision and module id.
