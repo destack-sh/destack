@@ -16,7 +16,7 @@ const value = 42;
 
 ## Auto Imports
 
-### [ignored] Import an exported function
+### Import an exported function
 
 An unresolved exported name offers an import action.
 
@@ -52,9 +52,9 @@ diagnostics none
 @code_actions.none
 ```
 
-### [ignored] Import an exported type
+### Import an exported type
 
-A missing type reference offers a plain import that preserves its type symbol space.
+A missing type reference offers a named import that preserves its type symbol space.
 
 ```ds library.ds
 export type Options = {
@@ -76,7 +76,7 @@ diagnostic unresolved-reference main.ds#range
 @code_actions.patch action=0 range=main.ds#insertion text="import { Options } from \"./library\";\n"
 ```
 
-### [ignored] Return every import candidate
+### Return every import candidate
 
 Equal exported names produce stable actions, and only the first candidate is preferred.
 
@@ -105,7 +105,7 @@ diagnostic unresolved-reference main.ds#range
 @code_actions.patch action=1 range=main.ds#insertion text="import { greet } from \"./alpha\";\n"
 ```
 
-### [ignored] Extend an existing import
+### Extend an existing import
 
 An existing import from the target module receives the missing named specifier.
 
@@ -116,7 +116,7 @@ export function beta(): void {}
 
 ```ds main.ds
 import { alpha } from "./library";
-               ^ insertion
+              ^ insertion
 
 alpha();
 beta();
@@ -130,7 +130,7 @@ diagnostic unresolved-reference main.ds#range
 @code_actions.patch action=0 range=main.ds#insertion text=", beta"
 ```
 
-### [ignored] Import a default declaration
+### Import a default declaration
 
 A missing default export receives a default import.
 

@@ -111,7 +111,7 @@ function read(): int32 {
 @completion.item label=targetValue kind=constant replace=main.ds#prefix detail=int32 preselect=true matches=0,1,2,3,4,5,6
 ```
 
-### [ignored] Complete a function call
+### Complete a function call
 
 A function completion includes its signature, documentation, and call snippet.
 
@@ -129,6 +129,28 @@ const result = formatN;
 @completion.item label=formatName kind=function replace=main.ds#prefix detail="(name: string, width: int32) => string" documentation="Format one name." insert="formatName(${1:name}, ${2:width})$0" snippet=true preselect=true matches=0,1,2,3,4,5,6
 ```
 
+### Complete an imported function alias
+
+An imported alias keeps its local name and uses the target declaration's callable type.
+
+```ds library.ds
+/// Welcome one user.
+export function greet(name: string): string {
+    return name;
+}
+```
+
+```ds main.ds
+import { greet as welcome } from "./library";
+
+const message = wel;
+                ^^^ prefix
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=welcome kind=function replace=main.ds#prefix detail="(name: string) => string" documentation="Welcome one user." insert="welcome(${1:name})$0" snippet=true preselect=true matches=0,1,2
+```
+
 ### Match a camel-case prefix
 
 Lexical matching returns the character positions used for ranking and highlighting.
@@ -143,7 +165,7 @@ const result = cv;
 @completion.item label=currentValue kind=constant replace=main.ds#prefix detail=1 preselect=true matches=0,7
 ```
 
-### [ignored] Mark a deprecated declaration
+### Mark a deprecated declaration
 
 Completion returns deprecation, documentation, and the callable edit together.
 
@@ -162,7 +184,7 @@ const result = legacy;
 
 ## Members
 
-### [ignored] Complete struct fields
+### Complete struct fields
 
 Member completion lists the receiver's fields.
 
@@ -182,7 +204,44 @@ function read(point: Point): int32 {
 @completion.item label=x kind=field replace=main.ds#member detail=int32 preselect=true matches=0
 ```
 
-### [ignored] Complete an instance method
+### Complete a structural field
+
+Structural field completion shows the field type.
+
+```ds main.ds
+declare const point: { x: int32; label: string };
+
+const label = point.la;
+                    ^^ prefix
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=label kind=field replace=main.ds#prefix detail=string preselect=true matches=0,1
+```
+
+### Complete an inherited interface field
+
+Interface completion includes members inherited from its base declarations.
+
+```ds main.ds
+interface Named {
+    name: string;
+}
+
+interface User extends Named {
+    id: int32;
+}
+
+declare const user: User;
+const name = user.na;
+                  ^^ prefix
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=name kind=field replace=main.ds#prefix detail=string preselect=true matches=0,1
+```
+
+### Complete an instance method
 
 Method completion includes its callable type and insertion snippet.
 
@@ -204,7 +263,7 @@ function read(buffer: Buffer): uint8 {
 @completion.item label=read kind=method replace=main.ds#prefix detail="(index: uint64) => uint8" documentation="Read one byte." insert="read(${1:index})$0" snippet=true preselect=true matches=0,1
 ```
 
-### [ignored] Separate static and instance members
+### Separate static and instance members
 
 Type receivers expose static members and value receivers expose instance members.
 
@@ -233,7 +292,7 @@ value.cre;
 @completion.none
 ```
 
-### [ignored] Complete an extension method
+### Complete an extension method
 
 Member completion includes extension methods for the receiver type.
 
@@ -256,7 +315,57 @@ function calculate(value: Calculator): int32 {
 @completion.item label=sum kind=method replace=main.ds#prefix detail="(left: int32, right: int32) => int32" insert="sum(${1:left}, ${2:right})$0" snippet=true preselect=true matches=0,1
 ```
 
-### [ignored] Complete an optional-chain member
+### [ignored] Complete an applied extension method
+
+A generic extension method uses the receiver's applied type arguments.
+
+```ds main.ds
+struct Box<Value> {
+    value: Value;
+}
+
+extension<Value> of Box<Value> {
+    unwrap(): Value {
+        return this.value;
+    }
+}
+
+function read(box: Box<string>): string {
+    return box.unw;
+               ^^^ prefix
+}
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=unwrap kind=method replace=main.ds#prefix detail="() => string" insert="unwrap()" preselect=true matches=0,1,2
+```
+
+### [ignored] Complete an applicable blanket extension
+
+A blanket extension appears when its receiver constraint is satisfied.
+
+```ds main.ds
+interface Named {}
+
+struct User implements Named {}
+
+extension<Value: Named> of Value {
+    displayName(): string {
+        return "user";
+    }
+}
+
+function display(user: User): string {
+    return user.dis;
+                ^^^ prefix
+}
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=displayName kind=method replace=main.ds#prefix detail="() => string" insert="displayName()" preselect=true matches=0,1,2
+```
+
+### Complete an optional-chain member
 
 Optional chaining completes the same members as direct access.
 
@@ -328,7 +437,7 @@ function radius(shape: Circle | Square): float64 {
 @completion.none
 ```
 
-### [ignored] Complete an associated constant
+### Complete an associated constant
 
 A nominal type receiver exposes its associated values.
 
@@ -368,26 +477,7 @@ library.gr;
 
 ### [ignored] Complete a required method
 
-A class body can insert a missing interface method as one complete declaration.
-
-```ds main.ds
-interface Service {
-    run(value: int32): void;
-}
-
-class Application implements Service {
-    ru
-    ^^ prefix
-}
-```
-
-```query completion main.ds#prefix@end
-@completion.item label=run kind=method replace=main.ds#prefix detail="Implement Service.run" insert="run(value: int32): void {\n    $0\n}" snippet=true preselect=true matches=0,1
-```
-
-### [ignored] Omit methods that are already implemented
-
-Implementation completion lists only missing required members.
+A class body can insert the entire missing interface method.
 
 ```ds main.ds
 interface Service {
@@ -398,13 +488,13 @@ interface Service {
 class Application implements Service {
     run(value: int32): void {}
 
-    ru
+    st
     ^^ prefix
 }
 ```
 
 ```query completion main.ds#prefix@end
-@completion.none
+@completion.item label=stop kind=method replace=main.ds#prefix detail="Implement Service.stop" insert="stop(): void {\n    $0\n}" snippet=true preselect=true matches=0,1
 ```
 
 ## Types
@@ -481,7 +571,7 @@ declare const packet: Pack;
 
 ## Enum Members
 
-### [ignored] Complete an enum member
+### Complete an enum member
 
 Member completion uses the enum receiver type.
 
@@ -496,7 +586,7 @@ const color = Color.R;
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=Red kind=enum_member replace=main.ds#prefix detail=Color preselect=true matches=0
+@completion.item label=Red kind=enum_member replace=main.ds#prefix detail=Color.Red preselect=true matches=0
 ```
 
 ### [ignored] Complete a tagged variant
@@ -553,7 +643,7 @@ const result = Poi;
 @completion.item label=Point kind=struct replace=main.ds#prefix detail=Point insert="Point { x: ${1}, y: ${2} }$0" snippet=true preselect=true matches=0,1,2
 ```
 
-### [ignored] Complete a newtype constructor
+### Complete a newtype constructor
 
 A newtype completion includes its constructor signature and call snippet.
 
@@ -570,7 +660,7 @@ const result = UserI;
 
 ## Object Literals
 
-### [ignored] Complete a missing field
+### Complete a missing field
 
 Object completion omits fields already present in the literal.
 
@@ -713,7 +803,7 @@ import { greet, gr } from "./library.ds";
 
 ### Complete a type declaration in an import
 
-A plain import exposes declarations from their original symbol spaces.
+A named import exposes declarations from their original symbol spaces.
 
 ```ds library.ds
 export type Options = {
@@ -773,7 +863,7 @@ function main(): void {
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix detail="Auto import from ./library" preselect=true auto_import=true matches=0,1,2
+@completion.item label=greet kind=function replace=main.ds#prefix detail="Auto import from ./library" insert="greet()" preselect=true auto_import=true matches=0,1,2
 @completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
 ```
 
@@ -795,7 +885,7 @@ function main(): void {
 ```
 
 ```query completion main.ds#prefix@end trigger=incomplete include_auto_imports=true
-@completion.item label=target kind=function replace=main.ds#prefix detail="Auto import from ./library" preselect=true auto_import=true matches=0
+@completion.item label=target kind=function replace=main.ds#prefix detail="Auto import from ./library" insert="target()" preselect=true auto_import=true matches=0
 @completion.additional_edit item=0 range=main.ds#insertion text="import { target } from \"./library\";\n"
 ```
 
@@ -988,13 +1078,13 @@ gre
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix detail="Auto import from ./library.ds" preselect=true auto_import=true matches=0,1,2
+@completion.item label=greet kind=function replace=main.ds#prefix detail="Auto import from ./library.ds" insert="greet()" preselect=true auto_import=true matches=0,1,2
 @completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./library.ds\";\n"
 ```
 
 ### Auto-import a type declaration
 
-A type completion inserts a plain import that preserves the declaration's symbol space.
+A type completion inserts a named import that preserves the declaration's symbol space.
 
 ```ds library.ds
 export type Widget = {
@@ -1032,7 +1122,7 @@ const message = gre;
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix detail="Auto import from ./library" preselect=true auto_import=true matches=0,1,2
+@completion.item label=greet kind=function replace=main.ds#prefix detail="Auto import from ./library" insert="greet(${1:name})$0" snippet=true preselect=true auto_import=true matches=0,1,2
 @completion.additional_edit item=0 range=main.ds#insertion text="import greet from \"./library\";\n"
 ```
 
@@ -1058,7 +1148,7 @@ const value = par;
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=parse kind=function replace=main.ds#prefix detail="Auto import from ./library" preselect=true auto_import=true matches=0,1,2
+@completion.item label=parse kind=function replace=main.ds#prefix detail="Auto import from ./library" insert="parse(${1:value})$0" snippet=true preselect=true auto_import=true matches=0,1,2
 @completion.additional_edit item=0 range=main.ds#insertion text="import { parse } from \"./library\";\n"
 ```
 
@@ -1271,11 +1361,102 @@ const value = The;
 @completion.additional_edit item=0 range=packages/app/main.ds#insertion text="import { Theme } from \"@acme/theme\";\n"
 ```
 
+### Add a named binding to an existing import
+
+An auto import extends the matching named import declaration.
+
+```ds library.ds
+export function alpha(): void {}
+export function beta(): void {}
+```
+
+```ds main.ds
+import { alpha } from "./library";
+              ^ insertion
+
+const value = bet;
+              ^^^ prefix
+```
+
+```query completion main.ds#prefix@end include_auto_imports=true
+@completion.item label=beta kind=function replace=main.ds#prefix detail="Auto import from ./library" insert="beta()" preselect=true auto_import=true matches=0,1,2
+@completion.additional_edit item=0 range=main.ds#insertion text=", beta"
+```
+
+### Add a named binding beside a default import
+
+An auto import adds a named clause after the existing default binding.
+
+```ds library.ds
+export default function build(): void {}
+export function beta(): void {}
+```
+
+```ds main.ds
+import build from "./library";
+            ^ default_end
+
+const value = bet;
+              ^^^ prefix
+```
+
+```query completion main.ds#prefix@end include_auto_imports=true
+@completion.item label=beta kind=function replace=main.ds#prefix detail="Auto import from ./library" insert="beta()" preselect=true auto_import=true matches=0,1,2
+@completion.additional_edit item=0 range=main.ds#default_end text=", { beta }"
+```
+
+### Add a default binding beside named imports
+
+An auto import adds the default binding before the existing named clause.
+
+```ds library.ds
+export default function build(): void {}
+export function value(): void {}
+```
+
+```ds main.ds
+import { value } from "./library";
+       ^ insertion
+
+const result = bui;
+               ^^^ prefix
+```
+
+```query completion main.ds#prefix@end include_auto_imports=true
+@completion.item label=build kind=function replace=main.ds#prefix detail="Auto import from ./library" insert="build()" preselect=true auto_import=true matches=0,1,2
+@completion.additional_edit item=0 range=main.ds#insertion text="build, "
+```
+
+### Insert a new import after an earlier import
+
+An auto import preserves a complete line between consecutive declarations.
+
+```ds alpha.ds
+export function alpha(): void {}
+```
+
+```ds beta.ds
+export function beta(): void {}
+```
+
+```ds main.ds
+import { alpha } from "./alpha";
+                                ^ insertion
+
+const value = bet;
+              ^^^ prefix
+```
+
+```query completion main.ds#prefix@end include_auto_imports=true
+@completion.item label=beta kind=function replace=main.ds#prefix detail="Auto import from ./beta" insert="beta()" preselect=true auto_import=true matches=0,1,2
+@completion.additional_edit item=0 range=main.ds#insertion text="\nimport { beta } from \"./beta\";"
+```
+
 ## Empty Results
 
-### Return no completion for an ordinary string
+### Return no completion for a string literal
 
-Completion remains suppressed inside ordinary string contents.
+Completion remains suppressed inside string literal contents.
 
 ```ds main.ds
 const value = "gre";
@@ -1317,9 +1498,9 @@ const value = Gree;
 
 ## Import Paths
 
-### [ignored] Complete relative modules and folders
+### Complete relative modules and folders
 
-Import path completion lists matching repository entries.
+Import path completion lists matching modules in the current package.
 
 ```ds utilities/helpers.ds
 export function help(): void {}
@@ -1335,11 +1516,11 @@ import {} from "./u";
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=user kind=module replace=main.ds#prefix preselect=true matches=0
+@completion.item label=user kind=module replace=main.ds#prefix matches=0
 @completion.item label=utilities/ kind=folder replace=main.ds#prefix matches=0
 ```
 
-### [ignored] Complete a module inside a folder
+### Complete a module inside a folder
 
 Path completion continues within the requested directory.
 
