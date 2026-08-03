@@ -1,6 +1,13 @@
-/// Callable value type.
+/// Repeatable callable value type.
 @languageItem("types.Function")
 export newtype Function<Parameters: readonly (...unknown[],) = (), Return = unknown> = intrinsic;
+
+/// Callable value consumed by its first invocation.
+@languageItem("types.OnceFunction")
+export newtype OnceFunction<
+    Parameters: readonly (...unknown[],) = (),
+    Return = unknown,
+> = intrinsic;
 
 /// Thin callable value type.
 @languageItem("types.FunctionPointer")
