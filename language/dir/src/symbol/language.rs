@@ -1553,6 +1553,9 @@ define_language_items! {
             /// Callable value type.
             Function => (Newtype, "types/function", "Function"),
 
+            /// Affine callable value type.
+            OnceFunction => (Newtype, "types/function", "OnceFunction"),
+
             /// Thin callable value type.
             FunctionPointer => (Newtype, "types/function", "FunctionPointer"),
 

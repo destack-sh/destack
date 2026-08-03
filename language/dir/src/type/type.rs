@@ -2320,6 +2320,17 @@ pub struct FunctionParameterType {
 pub struct FunctionType {
     /// The function signature.
     pub signature: GlobalTypeId,
+    /// The permitted number of invocations.
+    pub multiplicity: Multiplicity,
+}
+
+/// Permitted invocation count for a callable value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum Multiplicity {
+    /// The callable may be invoked any number of times.
+    Repeatable,
+    /// The callable may be invoked at most once.
+    Once,
 }
 
 /// A thin callable value with no captured environment.
