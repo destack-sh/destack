@@ -4,9 +4,9 @@ use std::iter;
 use destack_artifact::{MirOptimized, Point};
 use destack_mir as mir;
 
-/// Emitted points keyed by MIR operation identity.
+/// Object points keyed by MIR operation identity.
 #[derive(Debug)]
-pub(super) struct PointIndex {
+pub(super) struct PointMap {
     /// Instruction points.
     instructions: HashMap<mir::LocalNodeId<mir::Instruction>, Point>,
     /// Block entry points.
@@ -15,14 +15,14 @@ pub(super) struct PointIndex {
     terminators: HashMap<mir::BlockId, Point>,
 }
 
-impl PointIndex {
-    /// Index every emitted operation in executable block order.
+impl PointMap {
+    /// Map every MIR operation into canonical executable order.
     pub(super) fn build(optimized: &MirOptimized) -> Self {
         let mut instructions = HashMap::new();
         let mut blocks = HashMap::new();
         let mut terminators = HashMap::new();
 
-        // assign function-local operation indices in emitted bytecode order
+        // assign function-local operation indices in canonical execution order
         for (function_id, function) in optimized.tree.iter_nodes::<mir::Function>() {
             let Some(body) = &function.body else {
                 continue;

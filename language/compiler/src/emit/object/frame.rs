@@ -4,14 +4,14 @@ use destack_source::ModuleId;
 
 use crate::EmitError;
 
-use super::point::PointIndex;
+use super::point::PointMap;
 
-/// Emit engine-neutral logical frame states from MIR liveness.
+/// Logical frame-state emitter for optimized MIR.
 pub(super) struct FrameEmitter<'a> {
     /// Optimized MIR containing the emitted functions.
     optimized: &'a MirOptimized,
     /// Object-local operation identities.
-    points: &'a PointIndex,
+    points: &'a PointMap,
     /// Module receiving frame diagnostics.
     module: ModuleId,
 }
@@ -21,7 +21,7 @@ impl<'a> FrameEmitter<'a> {
     pub(super) const fn new(
         module: ModuleId,
         optimized: &'a MirOptimized,
-        points: &'a PointIndex,
+        points: &'a PointMap,
     ) -> Self {
         Self {
             optimized,

@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use destack_artifact::{
     FramePoint, FrameState, Function, Global, MirOptimized, Object, ObjectBuilder, Point, Type,
 };
@@ -12,26 +10,28 @@ use destack_webassembly as wasm;
 use crate::EmitError;
 
 use super::frame::FrameEmitter;
-use super::point::PointIndex;
-use super::site::Sites;
+use super::point::PointMap;
+use super::site::SiteEmitter;
 
-/// Emit one relocatable object from optimized MIR.
+/// Relocatable object emitter for optimized MIR.
 #[derive(Debug)]
 pub struct ObjectEmitter {
     /// Relocatable object under construction.
     object: ObjectBuilder,
-    /// Object type indices keyed by MIR identity.
-    type_indices: HashMap<mir::TypeId, usize>,
-    /// Object function indices keyed by MIR identity.
-    function_indices: HashMap<mir::FunctionId, usize>,
-    /// Object global indices keyed by MIR identity.
-    global_indices: HashMap<mir::GlobalId, usize>,
+    /// MIR types in object-local identity order.
+    types: Vec<mir::TypeId>,
+    /// MIR functions in object-local identity order.
+    functions: Vec<mir::FunctionId>,
+    /// MIR globals in object-local identity order.
+    globals: Vec<mir::GlobalId>,
+    /// Dynamic table identities sorted by concrete and constraint type.
+    dynamics: Vec<(mir::TypeId, mir::TypeId, u32)>,
     /// Object program points keyed by MIR operation identity.
-    points: PointIndex,
+    points: PointMap,
     /// Engine-neutral logical frame states.
     frames: Vec<FrameState>,
-    /// Allocation indices keyed by object-local program point.
-    allocation_indices: HashMap<Point, u32>,
+    /// Allocation points in object-local identity order.
+    allocation_points: Vec<Point>,
 }
 
 impl ObjectEmitter {
@@ -42,80 +42,78 @@ impl ObjectEmitter {
         dependencies: impl IntoIterator<Item = ModuleId>,
     ) -> Result<Self, EmitError> {
         // assign stable object type identities
-        let mut type_indices = HashMap::new();
-        let types = optimized.tree.iter_nodes::<mir::Type>().enumerate().map(
-            |(index, (id, definition))| {
-                type_indices.insert(id, index);
-                let name = optimized
-                    .tree
-                    .type_declaration(id)
-                    .map(|declaration| optimized.tree.get(declaration).name);
-
-                Type {
-                    id,
-                    fingerprint: optimized.tree.type_fingerprint(id),
-                    definition: definition.clone(),
-                    symbol: optimized.tree.type_symbol(id),
-                    name,
-                    lineage: optimized.types.lineage(id).cloned(),
-                }
-            },
-        );
+        let mut types = Vec::new();
+        let mut type_ids = Vec::new();
+        for (id, definition) in optimized.tree.iter_nodes::<mir::Type>() {
+            type_ids.push(id);
+            let name = optimized
+                .tree
+                .type_declaration(id)
+                .map(|declaration| optimized.tree.get(declaration).name);
+            types.push(Type {
+                id,
+                fingerprint: optimized.tree.type_fingerprint(id),
+                definition: definition.clone(),
+                symbol: optimized.tree.type_symbol(id),
+                name,
+                lineage: optimized.types.lineage(id).cloned(),
+            });
+        }
 
         // assign stable object function identities
-        let mut function_indices = HashMap::new();
-        let functions = optimized
-            .tree
-            .iter_nodes::<mir::Function>()
-            .enumerate()
-            .map(|(index, (id, function))| {
-                function_indices.insert(id, index);
-
-                Function {
-                    id,
-                    name: function.name,
-                    symbol: function.symbol,
-                    linkage: function.linkage,
-                    coroutine: function.coroutine,
-                    lifetimes: function.lifetimes.clone(),
-                    parameters: function
-                        .parameters
-                        .iter()
-                        .map(mir::FunctionParameter::signature_parameter)
-                        .collect(),
-                    result: function.return_type,
-                    environment: function.environment,
-                    binding: function.binding.clone(),
-                }
+        let mut functions = Vec::new();
+        let mut function_ids = Vec::new();
+        for (id, function) in optimized.tree.iter_nodes::<mir::Function>() {
+            function_ids.push(id);
+            functions.push(Function {
+                id,
+                name: function.name,
+                symbol: function.symbol,
+                linkage: function.linkage,
+                coroutine: function.coroutine,
+                lifetimes: function.lifetimes.clone(),
+                parameters: function
+                    .parameters
+                    .iter()
+                    .map(mir::FunctionParameter::signature_parameter)
+                    .collect(),
+                result: function.return_type,
+                environment: function.environment,
+                binding: function.binding.clone(),
             });
+        }
 
         // assign stable object global identities
-        let mut global_indices = HashMap::new();
-        let globals =
-            optimized
-                .tree
-                .iter_nodes::<mir::Global>()
-                .enumerate()
-                .map(|(index, (id, global))| {
-                    global_indices.insert(id, index);
+        let mut globals = Vec::new();
+        let mut global_ids = Vec::new();
+        for (id, global) in optimized.tree.iter_nodes::<mir::Global>() {
+            global_ids.push(id);
+            globals.push(Global {
+                id,
+                name: global.name,
+                symbol: global.symbol,
+                ty: global.ty,
+                mutability: global.mutability,
+                storage: global.storage,
+                linkage: global.linkage,
+                initializer: global.initializer.clone(),
+            });
+        }
 
-                    Global {
-                        id,
-                        name: global.name,
-                        symbol: global.symbol,
-                        ty: global.ty,
-                        mutability: global.mutability,
-                        storage: global.storage,
-                        linkage: global.linkage,
-                        initializer: global.initializer.clone(),
-                    }
-                });
+        // assign stable object dynamic table identities
+        let mut dynamics = optimized
+            .dispatch
+            .iter_dynamic_tables()
+            .enumerate()
+            .map(|(index, table)| (table.concrete, table.constraint, index as u32))
+            .collect::<Vec<_>>();
+        dynamics.sort_unstable_by_key(|(concrete, constraint, _)| (*concrete, *constraint));
 
         // collect execution metadata under object-local identities
-        let points = PointIndex::build(optimized);
+        let points = PointMap::build(optimized);
         let frames = FrameEmitter::new(module, optimized, &points).emit()?;
-        let sites = Sites::emit(module, optimized, &points)?;
-        let allocation_indices = sites.allocation_indices;
+        let sites = SiteEmitter::emit(module, optimized, &points)?;
+        let allocation_points = sites.allocations.iter().map(|site| site.point).collect();
 
         // build code-independent object state
         let object = ObjectBuilder::new(optimized.target)
@@ -137,28 +135,48 @@ impl ObjectEmitter {
 
         Ok(Self {
             object,
-            type_indices,
-            function_indices,
-            global_indices,
+            types: type_ids,
+            functions: function_ids,
+            globals: global_ids,
+            dynamics,
             points,
             frames,
-            allocation_indices,
+            allocation_points,
         })
     }
 
     /// Return the object index assigned to one MIR type.
     pub(crate) fn type_index(&self, ty: mir::TypeId) -> Option<usize> {
-        self.type_indices.get(&ty).copied()
+        self.types.binary_search(&ty).ok()
     }
 
     /// Return the object index assigned to one MIR function.
     pub(crate) fn function_index(&self, function: mir::FunctionId) -> Option<usize> {
-        self.function_indices.get(&function).copied()
+        self.functions.binary_search(&function).ok()
+    }
+
+    /// Return MIR functions in object-local identity order.
+    pub(crate) fn functions(&self) -> &[mir::FunctionId] {
+        &self.functions
     }
 
     /// Return the object index assigned to one MIR global.
     pub(crate) fn global_index(&self, global: mir::GlobalId) -> Option<usize> {
-        self.global_indices.get(&global).copied()
+        self.globals.binary_search(&global).ok()
+    }
+
+    /// Return the object index assigned to one dynamic implementation table.
+    pub(crate) fn dynamic_index(
+        &self,
+        concrete: mir::TypeId,
+        constraint: mir::TypeId,
+    ) -> Option<u32> {
+        self.dynamics
+            .binary_search_by_key(&(concrete, constraint), |(concrete, constraint, _)| {
+                (*concrete, *constraint)
+            })
+            .ok()
+            .map(|index| self.dynamics[index].2)
     }
 
     /// Return one MIR instruction's object-local program point.
@@ -184,7 +202,7 @@ impl ObjectEmitter {
         &self.frames
     }
 
-    /// Return the logical frame state at one operation coordinate.
+    /// Return the logical frame state at one operation point.
     pub(crate) fn frame(&self, point: FramePoint) -> Option<&FrameState> {
         self.frames
             .binary_search_by_key(&point, |frame| frame.point)
@@ -192,8 +210,8 @@ impl ObjectEmitter {
             .and_then(|index| self.frames.get(index))
     }
 
-    /// Return the object-local logical frame-state index at one coordinate.
-    #[cfg(feature = "native")]
+    /// Return the object-local logical frame-state index at one point.
+    #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
     pub(crate) fn frame_index(&self, point: FramePoint) -> Option<u32> {
         self.frames
             .binary_search_by_key(&point, |frame| frame.point)
@@ -203,7 +221,17 @@ impl ObjectEmitter {
 
     /// Return the allocation index assigned to one object-local program point.
     pub(crate) fn allocation_index(&self, point: Point) -> Option<u32> {
-        self.allocation_indices.get(&point).copied()
+        self.allocation_points
+            .binary_search(&point)
+            .ok()
+            .map(|index| index as u32)
+    }
+
+    /// Attach relocatable bytecode.
+    pub fn bytecode(mut self, code: bytecode::Object) -> Self {
+        self.object = self.object.bytecode(code);
+
+        self
     }
 
     /// Attach relocatable native code.
@@ -220,14 +248,14 @@ impl ObjectEmitter {
         self
     }
 
-    /// Build the object with its required bytecode.
-    pub fn build(self, bytecode: bytecode::Object) -> Object {
-        self.object.frames(self.frames).build(bytecode)
+    /// Build the object with its selected execution forms.
+    pub fn build(self) -> Object {
+        self.object.frames(self.frames).build()
     }
 
-    /// Build one invalid object input diagnostic for a module.
-    pub(super) fn invalid(module: ModuleId, message: &str) -> EmitError {
-        EmitError::UnexpectedConstruct {
+    /// Build one internal object emission diagnostic.
+    pub(super) fn internal(module: ModuleId, message: &str) -> EmitError {
+        EmitError::Internal {
             anchor: module.into(),
             module,
             message: message.to_owned(),

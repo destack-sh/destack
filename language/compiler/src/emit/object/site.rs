@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use destack_artifact::{
     AllocationSite, CallMode, CallSite, ContinuationSite, CounterSite, EdgeSite, MemorySite,
     MirOptimized, Point, SampleSite, Suspension, SuspensionSite,
@@ -10,15 +8,13 @@ use destack_source::ModuleId;
 use crate::EmitError;
 
 use super::ObjectEmitter;
-use super::point::PointIndex;
+use super::point::PointMap;
 
-/// Object-local sites emitted from optimized MIR.
+/// Object-local site emitter for optimized MIR.
 #[derive(Debug, Default)]
-pub(super) struct Sites {
+pub(super) struct SiteEmitter {
     /// Allocation sites.
     pub(super) allocations: Vec<AllocationSite>,
-    /// Allocation indices keyed by object-local program point.
-    pub(super) allocation_indices: HashMap<Point, u32>,
     /// Addressable memory sites.
     pub(super) memory: Vec<MemorySite>,
     /// Function call sites.
@@ -36,12 +32,12 @@ pub(super) struct Sites {
 }
 
 #[allow(clippy::too_many_arguments)]
-impl Sites {
+impl SiteEmitter {
     /// Emit every object-local site in stable operation order.
     pub(super) fn emit(
         module: ModuleId,
         optimized: &MirOptimized,
-        points: &PointIndex,
+        points: &PointMap,
     ) -> Result<Self, EmitError> {
         let mut sites = Self::default();
 
@@ -52,13 +48,15 @@ impl Sites {
             };
 
             // emit instruction and terminator sites in logical operation order
-            for block_id in body.blocks() {
-                let block = optimized.tree.get(*block_id);
+            let mut blocks = body.blocks().to_vec();
+            points.order_blocks(&mut blocks);
+            for block_id in blocks {
+                let block = optimized.tree.get(block_id);
                 for instruction_id in &block.instructions {
                     sites.emit_instruction(module, optimized, points, function, *instruction_id)?;
                 }
 
-                sites.emit_terminator(module, optimized, points, function, *block_id)?;
+                sites.emit_terminator(module, optimized, points, function, block_id)?;
             }
         }
 
@@ -70,7 +68,7 @@ impl Sites {
         &mut self,
         module: ModuleId,
         optimized: &MirOptimized,
-        points: &PointIndex,
+        points: &PointMap,
         function: &mir::Function,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
     ) -> Result<(), EmitError> {
@@ -88,11 +86,22 @@ impl Sites {
                 storage_type,
                 result_type,
                 ..
-            } => self.push_allocation(Self::allocation(
+            } => self.allocations.push(Self::allocation(
                 module,
                 optimized,
                 point,
                 *storage_type,
+                *result_type,
+            )?),
+            mir::Instruction::ContextBind {
+                node_type,
+                result_type,
+                ..
+            } => self.allocations.push(Self::allocation(
+                module,
+                optimized,
+                point,
+                *node_type,
                 *result_type,
             )?),
             mir::Instruction::NewSliceZeroed {
@@ -104,13 +113,41 @@ impl Sites {
                 element,
                 result_type,
                 ..
-            } => self.push_allocation(Self::allocation(
+            } => self.allocations.push(Self::allocation(
                 module,
                 optimized,
                 point,
                 *element,
                 *result_type,
             )?),
+            mir::Instruction::TensorSplat { destination, .. }
+            | mir::Instruction::TensorReshape { destination, .. }
+            | mir::Instruction::TensorBroadcast { destination, .. }
+            | mir::Instruction::TensorTranspose { destination, .. }
+            | mir::Instruction::TensorCast { destination, .. }
+            | mir::Instruction::TensorSlice { destination, .. }
+            | mir::Instruction::TensorPad { destination, .. }
+            | mir::Instruction::TensorConcat { destination, .. }
+            | mir::Instruction::TensorCompare { destination, .. }
+            | mir::Instruction::TensorSelect { destination, .. }
+            | mir::Instruction::TensorReduce { destination, .. }
+            | mir::Instruction::TensorIndexReduce { destination, .. }
+            | mir::Instruction::TensorDot { destination, .. }
+            | mir::Instruction::TensorConvolution { destination, .. }
+            | mir::Instruction::TensorGather { destination, .. }
+            | mir::Instruction::TensorScatter { destination, .. }
+            | mir::Instruction::TensorConvert { destination, .. } => {
+                let result_type = function
+                    .value_type(*destination)
+                    .ok_or_else(|| ObjectEmitter::internal(module, "missing tensor result type"))?;
+                self.allocations.push(Self::allocation(
+                    module,
+                    optimized,
+                    point,
+                    result_type,
+                    result_type,
+                )?);
+            }
             _ => {}
         }
 
@@ -146,7 +183,7 @@ impl Sites {
             mir::Instruction::ProfileSample { sampler, value } => {
                 let value_type = function
                     .value_type(*value)
-                    .ok_or_else(|| ObjectEmitter::invalid(module, "missing sample value type"))?;
+                    .ok_or_else(|| ObjectEmitter::internal(module, "missing sample value type"))?;
                 self.samples.push(SampleSite {
                     point,
                     sampler: *sampler,
@@ -164,7 +201,7 @@ impl Sites {
         &mut self,
         module: ModuleId,
         optimized: &MirOptimized,
-        points: &PointIndex,
+        points: &PointMap,
         function: &mir::Function,
         block_id: mir::BlockId,
     ) -> Result<(), EmitError> {
@@ -185,7 +222,7 @@ impl Sites {
                 ..
             } => {
                 let result_type = Self::success_type(module, optimized, success)?;
-                self.push_allocation(Self::allocation(
+                self.allocations.push(Self::allocation(
                     module,
                     optimized,
                     point,
@@ -200,7 +237,7 @@ impl Sites {
                 element, success, ..
             } => {
                 let result_type = Self::success_type(module, optimized, success)?;
-                self.push_allocation(Self::allocation(
+                self.allocations.push(Self::allocation(
                     module,
                     optimized,
                     point,
@@ -326,7 +363,7 @@ impl Sites {
     fn suspension(
         module: ModuleId,
         optimized: &MirOptimized,
-        points: &PointIndex,
+        points: &PointMap,
         function: &mir::Function,
         point: Point,
         operation: Suspension,
@@ -338,7 +375,7 @@ impl Sites {
     ) -> Result<SuspensionSite, EmitError> {
         let value_type = function
             .value_type(value)
-            .ok_or_else(|| ObjectEmitter::invalid(module, "missing suspension value type"))?;
+            .ok_or_else(|| ObjectEmitter::internal(module, "missing suspension value type"))?;
         let resume_type = Self::success_type(module, optimized, resume)?;
         let complete_type = complete
             .map(|target| Self::success_type(module, optimized, target))
@@ -357,14 +394,6 @@ impl Sites {
         })
     }
 
-    /// Append one allocation site under its dense object-local identity.
-    fn push_allocation(&mut self, site: AllocationSite) {
-        let index = self.allocations.len() as u32;
-        let previous = self.allocation_indices.insert(site.point, index);
-        assert!(previous.is_none(), "duplicate allocation point");
-        self.allocations.push(site);
-    }
-
     /// Build one allocation site.
     fn allocation(
         module: ModuleId,
@@ -375,7 +404,7 @@ impl Sites {
     ) -> Result<AllocationSite, EmitError> {
         let space = Self::reference_storage(optimized, result_type)
             .and_then(mir::Storage::heap_space)
-            .ok_or_else(|| ObjectEmitter::invalid(module, "missing allocation space"))?;
+            .ok_or_else(|| ObjectEmitter::internal(module, "missing allocation space"))?;
 
         Ok(AllocationSite {
             point,
@@ -396,13 +425,13 @@ impl Sites {
         let (storage, value_type) = match access.target {
             mir::MemoryTarget::Reference(value) => {
                 let ty = function.value_type(value).ok_or_else(|| {
-                    ObjectEmitter::invalid(module, "missing memory reference type")
+                    ObjectEmitter::internal(module, "missing memory reference type")
                 })?;
                 let storage = Self::reference_storage(optimized, ty).ok_or_else(|| {
-                    ObjectEmitter::invalid(module, "missing memory reference storage")
+                    ObjectEmitter::internal(module, "missing memory reference storage")
                 })?;
                 let value_type = Self::reference_value_type(optimized, ty).ok_or_else(|| {
-                    ObjectEmitter::invalid(module, "missing memory reference value type")
+                    ObjectEmitter::internal(module, "missing memory reference value type")
                 })?;
 
                 (storage, value_type)
@@ -446,12 +475,12 @@ impl Sites {
                 receiver, class, ..
             } => {
                 let receiver_type = function.value_type(receiver).ok_or_else(|| {
-                    ObjectEmitter::invalid(module, "missing virtual receiver type")
+                    ObjectEmitter::internal(module, "missing virtual receiver type")
                 })?;
                 let space = Self::reference_storage(optimized, receiver_type)
                     .and_then(mir::Storage::heap_space)
                     .ok_or_else(|| {
-                        ObjectEmitter::invalid(module, "missing virtual receiver space")
+                        ObjectEmitter::internal(module, "missing virtual receiver space")
                     })?;
 
                 (Some(space), Some(class))
@@ -462,12 +491,12 @@ impl Sites {
                 ..
             } => {
                 let receiver_type = function.value_type(receiver).ok_or_else(|| {
-                    ObjectEmitter::invalid(module, "missing dynamic receiver type")
+                    ObjectEmitter::internal(module, "missing dynamic receiver type")
                 })?;
                 let space = Self::reference_storage(optimized, receiver_type)
                     .and_then(mir::Storage::heap_space)
                     .ok_or_else(|| {
-                        ObjectEmitter::invalid(module, "missing dynamic receiver space")
+                        ObjectEmitter::internal(module, "missing dynamic receiver space")
                     })?;
 
                 (Some(space), Some(constraint))
@@ -500,7 +529,7 @@ impl Sites {
             .parameters
             .first()
             .map(|parameter| parameter.ty)
-            .ok_or_else(|| ObjectEmitter::invalid(module, "missing successor result type"))
+            .ok_or_else(|| ObjectEmitter::internal(module, "missing successor result type"))
     }
 
     /// Return the transparent storage type for one MIR type.
