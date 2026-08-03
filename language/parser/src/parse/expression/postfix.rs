@@ -5,7 +5,7 @@ use crate::{ParseStart, Parser, ParserError, ParserResult};
 use destack_core::StringId;
 use destack_dir::{
     Declaration, Expression, FunctionDeclaration, FunctionForm, GenericArgument, LocalNodeId,
-    NodeType, Path, PostfixPosition, ScalarLiteral, TokenType, TypeExpression, UnaryOperator,
+    NodeType, Path, PostfixPosition, TokenType, TypeExpression, UnaryOperator,
 };
 use destack_source::ByteRange;
 use smallvec::smallvec;
@@ -58,7 +58,6 @@ impl Parser {
         mut is_parenthesized: bool,
         context: ExpressionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let mut is_first_postfix = true;
         let mut has_chain = false;
         loop {
             // stop before tokens that cannot continue one value operand
@@ -121,14 +120,14 @@ impl Parser {
                     Some(self.parse_index(left, PostfixPosition::Direct, context, false)?)
                 }
                 TokenType::Dot => {
-                    Some(self.parse_dot_postfix(start, left, is_first_postfix, context, false)?)
+                    Some(self.parse_dot_postfix(start, left, context, false)?)
                 }
                 // ?. makes the access it introduces optional
                 TokenType::Maybe if self.peek_token_type_at(1) == TokenType::Dot => {
                     self.bump();
                     has_chain = true;
 
-                    Some(self.parse_dot_postfix(start, left, is_first_postfix, context, true)?)
+                    Some(self.parse_dot_postfix(start, left, context, true)?)
                 }
                 TokenType::Maybe if is_question_postfix => {
                     Some(self.parse_assertion_postfix(start, left, true, PostfixPosition::Direct))
@@ -167,7 +166,6 @@ impl Parser {
 
             // continue from the newly wrapped expression
             left = next;
-            is_first_postfix = false;
             is_parenthesized = false;
         }
 
@@ -319,14 +317,10 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         left: LocalNodeId<Expression>,
-        is_first_postfix: bool,
         context: ExpressionContext,
         is_optional: bool,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let dot_range = self.eat_token(TokenType::Dot)?.range();
-        if is_first_postfix && self.is_decimal_integer_before_dot(left, dot_range) {
-            return Err(ParserError::unexpected(dot_range));
-        }
+        self.eat_token(TokenType::Dot)?;
 
         // indirect call
         if self.peek_is(TokenType::OpenParenthesis) {
@@ -526,24 +520,5 @@ impl Parser {
         let next = self.peek_next_token();
 
         next.is(TokenType::Dot) && question.end == next.start()
-    }
-
-    /// Return whether decimal integer member access requires another dot.
-    fn is_decimal_integer_before_dot(
-        &self,
-        left: LocalNodeId<Expression>,
-        dot_range: ByteRange,
-    ) -> bool {
-        if !matches!(
-            self.tree.get(left),
-            Expression::ScalarLiteral(ScalarLiteral::Integer(_))
-        ) || self.tree.get_range(left).end != dot_range.start
-        {
-            return false;
-        }
-
-        let text = self.range_str(self.tree.get_range(left));
-        !text.ends_with('n')
-            && !matches!(text.get(..2), Some("0x" | "0X" | "0b" | "0B" | "0o" | "0O"))
     }
 }

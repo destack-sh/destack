@@ -289,12 +289,15 @@ fn test_parse_parenthesized_member_comment_attaches_to_dot_boundary() {
 }
 
 #[test]
-fn test_report_decimal_integer_member_access_without_separator() {
+fn test_parse_decimal_integer_member_access() {
     let test = TestParser::new("1.foo");
     let mut parser = test.prepare();
-    let error = parser.parse_expression(Default::default()).unwrap_err();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    assert_eq!(parser.range_str(error.range()), ".");
+    assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
+        assert_string!(parser, *name, "foo");
+        assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+    });
 }
 
 #[test]

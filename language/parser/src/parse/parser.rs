@@ -657,6 +657,7 @@ impl Parser {
         if documentation_start == group_end {
             return None;
         }
+
         // normalize one comment without an intermediate string
         if documentation_start + 1 == group_end {
             let comment = comments[documentation_start];
