@@ -389,3 +389,29 @@ const values = make();
 "#,
     );
 }
+
+#[test]
+fn test_assign_array_literal_to_iterable_interface() {
+    let session = TestSession::single(
+        r#"
+const items: Iterable<int32> = [1, 2];
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+const items: Dynamic<Iterable<int32>> = [1, 2];
+
+=== checked ===
+const items: Iterable<int32> = [1, 2];
+/// @type.symbol symbol=items source=items type=Dynamic<Iterable<int32>> reduced=Dynamic<Iterable<int32, void>>
+/// @resolution.pattern source=items kind=binding target=items
+/// @resolution.name source=Iterable target=iter.iterator.Iterable
+
+/// @generic.instance id=Iterable<int32> template=iter.iterator.Iterable arguments=(int32)
+"#,
+    );
+}

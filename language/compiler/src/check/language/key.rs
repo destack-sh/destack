@@ -309,4 +309,25 @@ impl CheckState<'_> {
 
         Ok(Some(key))
     }
+
+    /// Return the value argument yielded by one expected iterable type.
+    pub(in crate::check) fn iterable_value_argument(
+        &mut self,
+        expected: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // erased expectations carry the applied interface as their constraint
+        let constraint = match self.ty(expected)? {
+            dir::Type::Dynamic(dynamic) => dynamic.constraint,
+            _ => return Ok(None),
+        };
+        let dir::Type::Application(instance) = self.ty(constraint)? else {
+            return Ok(None);
+        };
+        if self.language_item(instance.symbol)? != Some(dir::LanguageItem::Iterable) {
+            return Ok(None);
+        }
+        let arguments = self.type_ids(constraint.module_id, instance.arguments)?;
+
+        Ok(arguments.first().copied())
+    }
 }

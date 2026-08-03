@@ -334,6 +334,10 @@ impl BodyState<'_, '_> {
             dir::Type::Array(array) => Some((array.element, None)),
             dir::Type::Slice(slice) => Some((slice.element, None)),
             dir::Type::FixedArray(array) => Some((array.element, Some(array.count))),
+            // erased iterable expectations type elements at the yielded value
+            dir::Type::Dynamic(_) => self
+                .iterable_value_argument(target_value)?
+                .map(|element| (element, None)),
             _ => None,
         };
         let Some((element, count)) = expected else {
