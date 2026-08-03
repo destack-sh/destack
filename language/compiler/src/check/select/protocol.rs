@@ -462,8 +462,12 @@ impl BodyState<'_, '_> {
             Vec<MemberCandidate>,
         ) -> CompilerResult<Answer<Option<T>>>,
     ) -> CompilerResult<Answer<Option<T>>> {
-        let extensions =
-            answer!(self.visible_implementation_extensions(origin, module, lookup_receiver,)?);
+        let extensions = answer!(self.visible_implementation_extensions(
+            origin,
+            module,
+            lookup_receiver,
+            protocol.symbol,
+        )?);
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
         let mut viable = None;
         let mut indeterminate = None;
@@ -473,13 +477,16 @@ impl BodyState<'_, '_> {
             if self.is_absent_symbol(extension_symbol) {
                 continue;
             }
-            let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)?
-            else {
-                return Err(CompilerError::Internal {
-                    message: format!(
-                        "indexed protocol implementation {extension_symbol:?} has no extension definition"
-                    ),
-                });
+            let extension = match self.definition(extension_symbol)? {
+                Some(dir::Definition::Extension(extension)) => extension,
+                Some(_) => {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "indexed extension symbol {extension_symbol:?} has no extension definition"
+                        ),
+                    });
+                }
+                None => continue,
             };
             if !extension.is_visible_from(module) {
                 continue;
@@ -489,7 +496,7 @@ impl BodyState<'_, '_> {
             let implements = extension.implements.clone();
             let definition_members = extension.members.clone();
             let members =
-                answer!(self.protocol_extension_members(&definition_members, space, key)?);
+                answer!(self.matching_extension_members(&definition_members, space, key)?);
             if members.is_empty() {
                 continue;
             }
@@ -689,28 +696,6 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(implementation.map(
             |(implementation, index)| (substitution, implementation, index),
         )))
-    }
-
-    /// Return declared extension members matching one protocol key.
-    fn protocol_extension_members(
-        &mut self,
-        members: &[dir::DefinitionMember],
-        space: dir::MemberSpace,
-        key: dir::StaticKey,
-    ) -> CompilerResult<Answer<Vec<DeclaredMember>>> {
-        let mut matched = Vec::new();
-        for member in members {
-            let member = match self.declared_member(member)? {
-                Answer::Ready(Some(member)) => member,
-                Answer::Ready(None) => continue,
-                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-            };
-            if member.matches(space, key) {
-                matched.push(member);
-            }
-        }
-
-        Ok(Answer::Ready(matched))
     }
 
     /// Retain candidates selected by one checked interface implementation.

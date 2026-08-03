@@ -78,6 +78,7 @@ impl CheckState<'_> {
             walk.queue_module_expression(*root)?;
             walk.check.induce_signature_lifetimes()?;
         }
+
         walk.commit()?;
         self.judge_written_types(module)?;
 
@@ -360,6 +361,7 @@ impl CheckState<'_> {
             walk.queue_module_expression(*root)?;
             walk.check.induce_signature_lifetimes()?;
         }
+
         walk.commit()?;
 
         Ok(())

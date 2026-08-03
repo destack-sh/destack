@@ -46,6 +46,9 @@ impl Obligation {
             Self::ImplementationCoherence(obligation) => {
                 event.text("symbol", context.symbol_label(obligation.symbol))
             }
+            Self::ExtensionCoherence(obligation) => {
+                event.text("symbol", context.symbol_label(obligation.symbol))
+            }
             Self::DeclarationHeritage(obligation) => {
                 event.text("symbol", context.symbol_label(obligation.symbol))
             }
@@ -76,6 +79,7 @@ impl Obligation {
             Self::ForInSource(_) => "for.in.source",
             Self::InterfaceConformance(_) => "interface.conformance",
             Self::ImplementationCoherence(_) => "implementation.coherence",
+            Self::ExtensionCoherence(_) => "extension.coherence",
             Self::DeclarationHeritage(_) => "declaration.heritage",
             Self::ClassInitialization(_) => "class.initialization",
             Self::WellFormedType(_) => "wellformed.type",

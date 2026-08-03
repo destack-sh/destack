@@ -2104,6 +2104,13 @@ impl CheckState<'_> {
             ObligationFailure::UnnamedExportedNonlocalExtension { source, target } => {
                 self.report_unnamed_exported_nonlocal_extension(source, target);
             }
+            ObligationFailure::DuplicateExtensionMember {
+                source,
+                member,
+                target,
+            } => {
+                self.report_duplicate_extension_member(source, &member, target);
+            }
             ObligationFailure::ConflictingImplementation {
                 source,
                 conflict,

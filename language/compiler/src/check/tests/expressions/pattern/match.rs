@@ -470,11 +470,11 @@ switch (state) {
 === checked ===
 newtype Ready = "ready";
 /// @type.symbol symbol=Ready source="newtype Ready = \"ready\"" type=Ready
-/// @definition.newtype symbol=Ready source="newtype Ready = \"ready\"" backing="ready"
+/// @definition.newtype symbol=Ready source="newtype Ready = \"ready\"" backing="ready" constructors=[("ready") => Ready]
 
 newtype Pending = "pending";
 /// @type.symbol symbol=Pending source="newtype Pending = \"pending\"" type=Pending
-/// @definition.newtype symbol=Pending source="newtype Pending = \"pending\"" backing="pending"
+/// @definition.newtype symbol=Pending source="newtype Pending = \"pending\"" backing="pending" constructors=[("pending") => Pending]
 
 declare const state: Ready | Pending;
 /// @type.symbol symbol=state source=state type=Ready | Pending

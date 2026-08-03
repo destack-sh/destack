@@ -46,19 +46,19 @@ export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
 === checked ===
 newtype Axis = intrinsic;
 /// @type.symbol symbol=Axis source="newtype Axis = intrinsic" type=Axis
-/// @definition.newtype symbol=Axis source="newtype Axis = intrinsic" backing=intrinsic
+/// @definition.newtype symbol=Axis source="newtype Axis = intrinsic" backing=intrinsic constructors=[(intrinsic) => Axis]
 
 newtype Sharding<...Axes: Axis[]> = intrinsic;
 /// @generic.template symbol=Sharding parameters=(...Axes#1: Array<Axis>)
 /// @type.symbol symbol=Sharding source="newtype Sharding<...Axes: Axis[]> = intrinsic" type=Sharding
-/// @definition.newtype symbol=Sharding source="newtype Sharding<...Axes: Axis[]> = intrinsic" template=(...Axes#1: Array<Axis>) backing=intrinsic
+/// @definition.newtype symbol=Sharding source="newtype Sharding<...Axes: Axis[]> = intrinsic" template=(...Axes#1: Array<Axis>) backing=intrinsic constructors=[<...Axes#1: Array<Axis>>(intrinsic) => Sharding<Axes#1>]
 /// @type.symbol symbol=Sharding.Axes source="...Axes: Axis[]" type=Axes#1
 /// @resolution.name source=Axis target=Axis
 
 newtype Grid<T, P> = intrinsic;
 /// @generic.template symbol=Grid parameters=(T#1, P)
 /// @type.symbol symbol=Grid source="newtype Grid<T, P> = intrinsic" type=Grid
-/// @definition.newtype symbol=Grid source="newtype Grid<T, P> = intrinsic" template=(T#1, P) backing=intrinsic
+/// @definition.newtype symbol=Grid source="newtype Grid<T, P> = intrinsic" template=(T#1, P) backing=intrinsic constructors=[<T#1, P>(intrinsic) => Grid<T#1, P>]
 /// @type.symbol symbol=Grid.T source=T type=T#1
 /// @type.symbol symbol=Grid.P source=P type=P
 

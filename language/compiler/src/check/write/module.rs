@@ -109,9 +109,40 @@ impl CheckState<'_> {
         // record derived parameter variances beside their declarations
         self.write_derived_variances(module)?;
 
+        // record derived newtype constructor rows
+        self.write_newtype_constructors(module)?;
+
         // record marker conformances, then seal every embedded type id
         self.write_auto_conformances(module)?;
         self.close_output_segments(module, failed_applications, &mut sealed)?;
+
+        Ok(())
+    }
+
+    /// Record each declared newtype's constructor rows.
+    fn write_newtype_constructors(&mut self, module: ModuleId) -> CompilerResult<()> {
+        // declarations leave derived rows to their checking pass
+        if self.is_declaration() {
+            return Ok(());
+        }
+
+        // derive rows beside each declared newtype
+        let mut newtypes = Vec::new();
+        for (symbol, definition) in self.module(module).definitions.iter_definitions() {
+            if matches!(definition, dir::Definition::Newtype(_)) {
+                newtypes.push(symbol);
+            }
+        }
+        for symbol in newtypes {
+            let derived = self
+                .body()
+                .derive_newtype_constructors(Origin::Symbol(symbol), symbol)?;
+            if let Answer::Pending(blockers) = derived {
+                return Err(CompilerError::Internal {
+                    message: format!("newtype constructors pended after solving: {blockers:?}"),
+                });
+            }
+        }
 
         Ok(())
     }

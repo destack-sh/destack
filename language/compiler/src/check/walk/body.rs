@@ -207,7 +207,8 @@ impl WalkState<'_, '_> {
             // aliases carry no bodies, nominal values check parameter use
             dir::Declaration::Type(declaration) => {
                 if declaration.is_nominal {
-                    self.queue_parameter_use_obligation(id.into_global_any(self.module), symbol)?;
+                    let source = id.into_global_any(self.module);
+                    self.queue_parameter_use_obligation(source, symbol)?;
                 }
 
                 Ok(true)
@@ -354,6 +355,7 @@ impl WalkState<'_, '_> {
         ) {
             self.queue_extension_conformance_obligation(source, symbol)?;
             self.queue_implementation_coherence_obligation(source, symbol)?;
+            self.queue_extension_coherence_obligation(source, symbol)?;
         } else {
             self.queue_parameter_use_obligation(source, symbol)?;
         }

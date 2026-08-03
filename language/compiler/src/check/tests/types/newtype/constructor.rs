@@ -22,7 +22,7 @@ const id: UserId = UserId(42);
 === checked ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
-/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64
+/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64 constructors=[(int64) => UserId]
 
 const id = UserId(42);
 /// @type.symbol symbol=id source=id type=UserId
@@ -58,7 +58,7 @@ const pair: Pair = Pair(1, "x");
 === checked ===
 newtype Pair = (int32, string);
 /// @type.symbol symbol=Pair source="newtype Pair = (int32, string)" type=Pair
-/// @definition.newtype symbol=Pair source="newtype Pair = (int32, string)" backing=(int32, string)
+/// @definition.newtype symbol=Pair source="newtype Pair = (int32, string)" backing=(int32, string) constructors=[(int32, string) => Pair]
 
 const pair = Pair(1, "x");
 /// @type.symbol symbol=pair source=pair type=Pair
@@ -95,7 +95,7 @@ const config: Config = Config({ debug: true });
 === checked ===
 newtype Config = { debug: boolean };
 /// @type.symbol symbol=Config source="newtype Config = { debug: boolean }" type=Config
-/// @definition.newtype symbol=Config source="newtype Config = { debug: boolean }" backing={ debug: boolean }
+/// @definition.newtype symbol=Config source="newtype Config = { debug: boolean }" backing={ debug: boolean } constructors=[({ debug: boolean }) => Config]
 
 const config = Config({ debug: true });
 /// @type.symbol symbol=config source=config type=Config
@@ -132,7 +132,7 @@ const annotation: Annotation = Annotation("lint", { reason: "intentional" });
 === checked ===
 newtype Annotation = () | (string, { reason?: string });
 /// @type.symbol symbol=Annotation source="newtype Annotation = () | (string, { reason?: string })" type=Annotation
-/// @definition.newtype symbol=Annotation source="newtype Annotation = () | (string, { reason?: string })" backing=() | (string, { reason?: string })
+/// @definition.newtype symbol=Annotation source="newtype Annotation = () | (string, { reason?: string })" backing=() | (string, { reason?: string }) constructors=[() => Annotation, (string, { reason?: string }) => Annotation, (() | (string, { reason?: string })) => Annotation]
 
 const annotation = Annotation("lint", { reason: "intentional" });
 /// @type.symbol symbol=annotation source=annotation type=Annotation
@@ -170,7 +170,7 @@ const id: UserId = UserId(42);
 === checked ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
-/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64
+/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64 constructors=[(int64) => UserId]
 
 const id: UserId = _(42);
 /// @type.symbol symbol=id source=id type=UserId
@@ -206,7 +206,7 @@ const point: Point = Point(1, 2);
 === checked ===
 newtype Point = (int32, int32);
 /// @type.symbol symbol=Point source="newtype Point = (int32, int32)" type=Point
-/// @definition.newtype symbol=Point source="newtype Point = (int32, int32)" backing=(int32, int32)
+/// @definition.newtype symbol=Point source="newtype Point = (int32, int32)" backing=(int32, int32) constructors=[(int32, int32) => Point]
 
 const point: Point = _(1, 2);
 /// @type.symbol symbol=point source=point type=Point
@@ -243,7 +243,7 @@ const config: Config = Config({ debug: true });
 === checked ===
 newtype Config = { debug: boolean };
 /// @type.symbol symbol=Config source="newtype Config = { debug: boolean }" type=Config
-/// @definition.newtype symbol=Config source="newtype Config = { debug: boolean }" backing={ debug: boolean }
+/// @definition.newtype symbol=Config source="newtype Config = { debug: boolean }" backing={ debug: boolean } constructors=[({ debug: boolean }) => Config]
 
 const config: Config = _({ debug: true });
 /// @type.symbol symbol=config source=config type=Config
@@ -281,7 +281,7 @@ const value: Box<int32> = Box(1);
 newtype Box<T> = T;
 /// @generic.template symbol=Box parameters=(out T)
 /// @type.symbol symbol=Box source="newtype Box<T> = T" type=Box
-/// @definition.newtype symbol=Box source="newtype Box<T> = T" template=(out T) backing=T
+/// @definition.newtype symbol=Box source="newtype Box<T> = T" template=(out T) backing=T constructors=[<T>(T) => Box<T>]
 /// @type.symbol symbol=Box.T source=T type=T
 /// @resolution.name source=T target=Box.T
 
@@ -327,7 +327,7 @@ function from<T, E>(value: E): Result<T, E> {
 newtype Result<T, E> = T | E;
 /// @generic.template symbol=Result parameters=(out T#1, out E#1)
 /// @type.symbol symbol=Result source="newtype Result<T, E> = T | E" type=Result
-/// @definition.newtype symbol=Result source="newtype Result<T, E> = T | E" template=(out T#1, out E#1) backing=T#1 | E#1
+/// @definition.newtype symbol=Result source="newtype Result<T, E> = T | E" template=(out T#1, out E#1) backing=T#1 | E#1 constructors=[<T#1, E#1>(T#1) => Result<T#1, E#1>, <T#1, E#1>(E#1) => Result<T#1, E#1>, <T#1, E#1>(T#1 | E#1) => Result<T#1, E#1>]
 /// @type.symbol symbol=Result.T source=T type=T#1
 /// @type.symbol symbol=Result.E source=E type=E#1
 /// @resolution.name source=T target=Result.T

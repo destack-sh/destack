@@ -59,7 +59,7 @@ newtype Handle = int32;
 /// @decorator.node source="@repr(\"transparent\")" owner="newtype Handle = int32" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("transparent") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"transparent\")"
 
 newtype Handle = int32;
-/// @definition.newtype symbol=Handle source="newtype Handle = int32" backing=int32 representation=transparent
+/// @definition.newtype symbol=Handle source="newtype Handle = int32" backing=int32 representation=transparent constructors=[(int32) => Handle]
 "#,
     );
 }

@@ -133,7 +133,7 @@ struct Rectangle {
 
 newtype Shape = Circle | Rectangle;
 /// @type.symbol symbol=Shape source="newtype Shape = Circle | Rectangle" type=Shape
-/// @definition.newtype symbol=Shape source="newtype Shape = Circle | Rectangle" backing=Circle | Rectangle
+/// @definition.newtype symbol=Shape source="newtype Shape = Circle | Rectangle" backing=Circle | Rectangle constructors=[(Circle) => Shape, (Rectangle) => Shape, (Circle | Rectangle) => Shape]
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Rectangle target=Rectangle
 
@@ -476,7 +476,7 @@ struct Rectangle {
 
 newtype Shape = Circle | Rectangle;
 /// @type.symbol symbol=Shape source="newtype Shape = Circle | Rectangle" type=Shape
-/// @definition.newtype symbol=Shape source="newtype Shape = Circle | Rectangle" backing=Circle | Rectangle
+/// @definition.newtype symbol=Shape source="newtype Shape = Circle | Rectangle" backing=Circle | Rectangle constructors=[(Circle) => Shape, (Rectangle) => Shape, (Circle | Rectangle) => Shape]
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Rectangle target=Rectangle
 

@@ -247,15 +247,12 @@ impl<'a> CheckState<'a> {
         if self.is_declaration() {
             self.drain_tasks()?;
         }
-        // infer bodies, settle every obligation, then derive settled rows
+        // infer bodies, settle every obligation, then report settled warnings
         else {
             self.induce_signature_lifetimes()?;
             self.check_decorators()?;
             self.settle()?;
-            self.write_newtype_constructors(self.module_id)?;
-            self.write_blanket_families(self.module_id)?;
             self.report_constant_conditions()?;
-            self.report_extension_collisions()?;
         }
 
         self.bind_underivable_exports()

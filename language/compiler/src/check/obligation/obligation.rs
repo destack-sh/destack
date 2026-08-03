@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 use crate::{CompilerError, CompilerResult};
 
@@ -64,6 +65,8 @@ pub(in crate::check) enum Obligation {
     InterfaceConformance(InterfaceConformanceObligation),
     /// An implementation must not overlap a conflicting implementation.
     ImplementationCoherence(ImplementationCoherenceObligation),
+    /// An extension must not redeclare another visible extension's property.
+    ExtensionCoherence(ExtensionCoherenceObligation),
     /// A declaration must satisfy its heritage graph rules.
     DeclarationHeritage(DeclarationHeritageObligation),
     /// A class must initialize required fields on every constructor path.
@@ -86,10 +89,33 @@ impl Obligation {
             Self::ForInSource(obligation) => obligation.source,
             Self::InterfaceConformance(obligation) => obligation.source,
             Self::ImplementationCoherence(obligation) => obligation.source,
+            Self::ExtensionCoherence(obligation) => obligation.source,
             Self::DeclarationHeritage(obligation) => obligation.source,
             Self::ClassInitialization(obligation) => obligation.source,
             Self::WellFormedType(obligation) => obligation.source,
             Self::ParameterUse(obligation) => obligation.source,
+        }
+    }
+
+    /// Return the judged operand types stored on this obligation.
+    pub(in crate::check) fn operand_types(&self) -> SmallVec<[dir::GlobalTypeId; 2]> {
+        match self {
+            Self::PatternCoverage(obligation) => match obligation.value {
+                ExpectedType::Type(ty) => SmallVec::from_slice(&[ty]),
+                ExpectedType::Node(_) => SmallVec::new(),
+            },
+            Self::WritableTarget(obligation) => SmallVec::from_slice(&[obligation.ty]),
+            Self::Representation(obligation) => SmallVec::from_slice(&[obligation.ty]),
+            Self::ForInSource(obligation) => SmallVec::from_slice(&[obligation.ty]),
+            Self::WellFormedType(obligation) => SmallVec::from_slice(&[obligation.ty]),
+            Self::ClassInitialization(obligation) => SmallVec::from_slice(&[obligation.receiver]),
+            Self::UseAfterMove(_)
+            | Self::RuntimePredicate(_)
+            | Self::InterfaceConformance(_)
+            | Self::ImplementationCoherence(_)
+            | Self::ExtensionCoherence(_)
+            | Self::DeclarationHeritage(_)
+            | Self::ParameterUse(_) => SmallVec::new(),
         }
     }
 }
@@ -307,6 +333,15 @@ pub(in crate::check) enum ObligationFailure {
         source: dir::GlobalNodeIdAny,
         /// The extension target type.
         target: dir::GlobalTypeId,
+    },
+    /// An extension redeclares a property another visible extension declares.
+    DuplicateExtensionMember {
+        /// The declaring member source node.
+        source: dir::GlobalNodeIdAny,
+        /// The duplicated member key.
+        member: dir::StaticKey,
+        /// The formatted extended target.
+        target: String,
     },
     /// An implementation overlaps another visible implementation.
     ConflictingImplementation {
@@ -617,6 +652,19 @@ pub(in crate::check) struct ImplementationCoherenceObligation {
     pub(in crate::check) symbol: dir::GlobalSymbolId,
 }
 
+/// Obliges an extension to leave other visible extensions' properties alone.
+///
+/// ```ds
+/// extension of User { greeting(this): string { "hello" } }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct ExtensionCoherenceObligation {
+    /// The extension declaration node.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The checked extension symbol.
+    pub(in crate::check) symbol: dir::GlobalSymbolId,
+}
+
 /// Obliges a declaration's generic parameters to occur in its definition.
 ///
 /// ```ds
@@ -734,6 +782,11 @@ impl CheckState<'_> {
         origin: Origin,
         obligation: &Obligation,
     ) -> CompilerResult<Answer<ObligationCheck>> {
+        // hold without checking once an operand already reported an error
+        if self.any_error_operand(&obligation.operand_types())? {
+            return Ok(Answer::Ready(ObligationCheck::holds()));
+        }
+
         match obligation {
             Obligation::PatternCoverage(obligation) => {
                 self.check_pattern_coverage(origin, obligation)
@@ -751,6 +804,9 @@ impl CheckState<'_> {
             Obligation::ForInSource(obligation) => self.check_for_in_source(origin, obligation),
             Obligation::InterfaceConformance(obligation) => {
                 self.check_interface_conformance(origin, obligation.symbol)
+            }
+            Obligation::ExtensionCoherence(obligation) => {
+                self.body().check_extension_coherence(obligation)
             }
             Obligation::ImplementationCoherence(obligation) => {
                 self.check_implementation_coherence(origin, obligation.symbol)

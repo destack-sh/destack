@@ -58,7 +58,7 @@ class Wrapper<T> {
 newtype Sealed<T> = Wrapper<T>;
 /// @generic.template symbol=Sealed parameters=(out T#2)
 /// @type.symbol symbol=Sealed source="newtype Sealed<T> = Wrapper<T>" type=Sealed
-/// @definition.newtype symbol=Sealed source="newtype Sealed<T> = Wrapper<T>" template=(out T#2) backing=Wrapper<T#2>
+/// @definition.newtype symbol=Sealed source="newtype Sealed<T> = Wrapper<T>" template=(out T#2) backing=Wrapper<T#2> constructors=[<T#2>(Wrapper<T#2>) => Sealed<T#2>]
 /// @type.symbol symbol=Sealed.T source=T type=T#2
 /// @resolution.name source=Wrapper target=Wrapper
 /// @resolution.name source=T target=Sealed.T

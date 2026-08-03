@@ -22,7 +22,7 @@ const id: UserId = 42;
 === checked ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
-/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64
+/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64 constructors=[(int64) => UserId]
 
 const id: UserId = 42;
 /// @type.symbol symbol=id source=id type=UserId
@@ -59,7 +59,7 @@ const raw: int64 = UserId(42);
 === checked ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
-/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64
+/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64 constructors=[(int64) => UserId]
 
 const raw: int64 = UserId(42);
 /// @type.symbol symbol=raw source=raw type=int64
@@ -101,7 +101,7 @@ raw satisfies int64;
 === checked ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
-/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64
+/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64 constructors=[(int64) => UserId]
 
 const id = UserId(42);
 /// @type.symbol symbol=id source=id type=UserId
@@ -150,7 +150,7 @@ target satisfies UserId;
 === checked ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
-/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64
+/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64 constructors=[(int64) => UserId]
 
 const source = UserId(42);
 /// @type.symbol symbol=source source=source type=UserId
@@ -201,11 +201,11 @@ const order: OrderId = user;
 === checked ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
-/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64
+/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64 constructors=[(int64) => UserId]
 
 newtype OrderId = int64;
 /// @type.symbol symbol=OrderId source="newtype OrderId = int64" type=OrderId
-/// @definition.newtype symbol=OrderId source="newtype OrderId = int64" backing=int64
+/// @definition.newtype symbol=OrderId source="newtype OrderId = int64" backing=int64 constructors=[(int64) => OrderId]
 
 const user = UserId(42);
 /// @type.symbol symbol=user source=user type=UserId
@@ -306,7 +306,7 @@ const config: Config = { debug: true };
 === checked ===
 newtype Config = { debug: boolean };
 /// @type.symbol symbol=Config source="newtype Config = { debug: boolean }" type=Config
-/// @definition.newtype symbol=Config source="newtype Config = { debug: boolean }" backing={ debug: boolean }
+/// @definition.newtype symbol=Config source="newtype Config = { debug: boolean }" backing={ debug: boolean } constructors=[({ debug: boolean }) => Config]
 
 const config: Config = { debug: true };
 /// @type.symbol symbol=config source=config type=Config

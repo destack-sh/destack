@@ -2,21 +2,10 @@ use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::check::{Answer, CheckState, CheckWarning};
-use crate::{CompilerError, CompilerResult};
+use crate::CompilerResult;
+use crate::check::{CheckState, CheckWarning};
 
 impl CheckState<'_> {
-    /// Reject duplicate extension members once the module settles.
-    pub(in crate::check) fn report_extension_collisions(&mut self) -> CompilerResult<()> {
-        let module = self.module_id;
-        match self.body().check_duplicate_extension_members(module)? {
-            Answer::Ready(_) => Ok(()),
-            Answer::Pending(blockers) => Err(CompilerError::Internal {
-                message: format!("extension collisions pended after solving: {blockers:?}"),
-            }),
-        }
-    }
-
     /// Report runtime conditions whose checked type is one boolean literal.
     pub(in crate::check) fn report_constant_conditions(&mut self) -> CompilerResult<()> {
         // select the module when this check infers its bodies

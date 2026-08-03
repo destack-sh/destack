@@ -26,7 +26,7 @@ declare function read(mark: int32): void;
 === checked ===
 newtype mark = (string,);
 /// @type.symbol symbol=mark source="newtype mark = (string,)" type=mark
-/// @definition.newtype symbol=mark source="newtype mark = (string,)" backing=(string,)
+/// @definition.newtype symbol=mark source="newtype mark = (string,)" backing=(string,) constructors=[(string) => mark]
 
 @mark("checked")
 /// @decorator.node source="@mark(\"checked\")" owner="declare function read(mark: int32): void" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("checked") as string) newtype=mark backing=(string,) value="mark(\"checked\")"
@@ -109,11 +109,11 @@ const value: 1 = 1;
 === checked ===
 newtype Payload = { reason: string };
 /// @type.symbol symbol=Payload source="newtype Payload = { reason: string }" type=Payload
-/// @definition.newtype symbol=Payload source="newtype Payload = { reason: string }" backing={ reason: string }
+/// @definition.newtype symbol=Payload source="newtype Payload = { reason: string }" backing={ reason: string } constructors=[({ reason: string }) => Payload]
 
 newtype mark = (Payload,);
 /// @type.symbol symbol=mark source="newtype mark = (Payload,)" type=mark
-/// @definition.newtype symbol=mark source="newtype mark = (Payload,)" backing=(Payload,)
+/// @definition.newtype symbol=mark source="newtype mark = (Payload,)" backing=(Payload,) constructors=[(Payload) => mark]
 /// @resolution.name source=Payload target=Payload
 
 @mark(Payload({ reason: "intentional" }))
@@ -159,7 +159,7 @@ const value: 1 = 1;
 === checked ===
 newtype mark = (string,) | ("value",);
 /// @type.symbol symbol=mark source="newtype mark = (string,) | (\"value\",)" type=mark
-/// @definition.newtype symbol=mark source="newtype mark = (string,) | (\"value\",)" backing=(string,) | ("value",)
+/// @definition.newtype symbol=mark source="newtype mark = (string,) | (\"value\",)" backing=(string,) | ("value",) constructors=[(string) => mark, ("value") => mark, ((string,) | ("value",)) => mark]
 
 @mark("value")
 /// @type.node source=mark type=mark
@@ -202,7 +202,7 @@ const value: 1 = 1;
 newtype mark<T> = (T,);
 /// @generic.template symbol=mark parameters=(out T)
 /// @type.symbol symbol=mark source="newtype mark<T> = (T,)" type=mark
-/// @definition.newtype symbol=mark source="newtype mark<T> = (T,)" template=(out T) backing=(T,)
+/// @definition.newtype symbol=mark source="newtype mark<T> = (T,)" template=(out T) backing=(T,) constructors=[<T>(T) => mark<T>]
 /// @type.symbol symbol=mark.T source=T type=T
 /// @resolution.name source=T target=mark.T
 
@@ -245,7 +245,7 @@ const value: 1 = 1;
 newtype mark<T> = (T,);
 /// @generic.template symbol=mark parameters=(out T)
 /// @type.symbol symbol=mark source="newtype mark<T> = (T,)" type=mark
-/// @definition.newtype symbol=mark source="newtype mark<T> = (T,)" template=(out T) backing=(T,)
+/// @definition.newtype symbol=mark source="newtype mark<T> = (T,)" template=(out T) backing=(T,) constructors=[<T>(T) => mark<T>]
 /// @type.symbol symbol=mark.T source=T type=T
 /// @resolution.name source=T target=mark.T
 

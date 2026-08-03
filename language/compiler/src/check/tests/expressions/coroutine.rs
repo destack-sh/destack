@@ -205,7 +205,6 @@ async function sum(): Promise<int32> {
 
         total += value;
         /// @resolution.pattern.assign source=total kind=place
-        /// @resolution.place source=total placement="local" lifetime="frame" access="exclusive"
         /// @resolution.assignment source=total read=binding(sum.total) write=binding(sum.total) type=int32
         /// @resolution.access source=total root=sum.total
         /// @resolution.name source=value target=sum.value

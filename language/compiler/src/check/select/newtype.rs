@@ -2,8 +2,9 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CallableArgument, CandidateOutcome, CandidateVerdict, Expectation, Origin,
-    SignatureMatch, SignatureRejection, TypeSubstitution, ValueUse, answer,
+    Answer, BodyState, CallableArgument, CandidateOutcome, CandidateVerdict, Expectation,
+    ObligationCheck, Origin, SignatureMatch, SignatureRejection, TypeSubstitution, ValueUse,
+    answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -276,6 +277,62 @@ impl BodyState<'_, '_> {
         };
 
         Ok(Answer::Ready(matched))
+    }
+
+    /// Derive and record one newtype's constructable backing alternatives.
+    pub(in crate::check) fn derive_newtype_constructors(
+        &mut self,
+        origin: Origin,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Answer<ObligationCheck>> {
+        // read the raw declared row without forcing a tagged derivation
+        let Some(dir::Definition::Newtype(definition)) = self.definition_maybe(symbol) else {
+            return Ok(Answer::Ready(ObligationCheck::holds()));
+        };
+        if !definition.constructors.is_empty() || definition.is_tagged {
+            return Ok(Answer::Ready(ObligationCheck::holds()));
+        }
+        let backing = definition.backing;
+
+        // instantiate the nominal return over its own parameters
+        let template = self.symbol_template(symbol)?;
+        let generic_parameters = match template {
+            Some(template) => self.generic_template_parameters(template)?,
+            None => SmallVec::new(),
+        };
+        let return_arguments = generic_parameters
+            .iter()
+            .copied()
+            .map(|parameter| self.intern_type(dir::Type::Parameter(parameter)))
+            .collect::<CompilerResult<Vec<_>>>()?;
+        let return_arguments = self.intern_type_ids(&return_arguments)?;
+        let return_type = self.intern_type(dir::Type::Application(dir::GenericApplication {
+            symbol,
+            arguments: return_arguments,
+        }))?;
+
+        // derive one constructor per backing alternative in selection order
+        let candidates = answer!(self.newtype_candidates(
+            origin,
+            backing,
+            return_type,
+            template,
+            NewtypeOverload::Ordered,
+        )?);
+        let constructors = candidates
+            .iter()
+            .map(|candidate| dir::NewtypeConstructor {
+                backing: candidate.backing,
+                ty: candidate.signature,
+            })
+            .collect();
+
+        // write the rows onto the checked definition
+        if let Some(dir::Definition::Newtype(definition)) = self.definition_mut(symbol) {
+            definition.constructors = constructors;
+        }
+
+        Ok(Answer::Ready(ObligationCheck::holds()))
     }
 
     /// Build argument matching candidates from one newtype backing.

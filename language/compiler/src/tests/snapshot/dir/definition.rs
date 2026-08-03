@@ -155,6 +155,17 @@ fn add_newtype_row(
         )
         .type_field("backing", builder.global_type_label(definition.backing));
     let row = add_representation_fields(row, definition.representation);
+    let row = if definition.constructors.is_empty() {
+        row
+    } else {
+        row.list_field(
+            "constructors",
+            definition
+                .constructors
+                .iter()
+                .map(|constructor| builder.global_type_label(constructor.ty)),
+        )
+    };
 
     builder.push(row);
 }

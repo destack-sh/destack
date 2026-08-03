@@ -683,7 +683,7 @@ const target: Handle<string> = source;
 newtype Handle<T> = intrinsic;
 /// @generic.template symbol=Handle parameters=(in out T)
 /// @type.symbol symbol=Handle source="newtype Handle<T> = intrinsic" type=Handle
-/// @definition.newtype symbol=Handle source="newtype Handle<T> = intrinsic" template=(in out T) backing=intrinsic
+/// @definition.newtype symbol=Handle source="newtype Handle<T> = intrinsic" template=(in out T) backing=intrinsic constructors=[<T>(intrinsic) => Handle<T>]
 /// @type.symbol symbol=Handle.T source=T type=T
 
 declare const source: Handle<int32>;
@@ -758,7 +758,7 @@ class Holder {
 newtype Handle<T> = intrinsic;
 /// @generic.template symbol=Handle parameters=(in out T#1)
 /// @type.symbol symbol=Handle source="newtype Handle<T> = intrinsic" type=Handle
-/// @definition.newtype symbol=Handle source="newtype Handle<T> = intrinsic" template=(in out T#1) backing=intrinsic
+/// @definition.newtype symbol=Handle source="newtype Handle<T> = intrinsic" template=(in out T#1) backing=intrinsic constructors=[<T#1>(intrinsic) => Handle<T#1>]
 /// @type.symbol symbol=Handle.T source=T type=T#1
 
 @intrinsic("memory.unique.empty")

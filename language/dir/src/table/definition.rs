@@ -137,15 +137,6 @@ impl<'a> DefinitionTable<'a> {
             .flat_map(|segment| segment.blanket_extensions().iter().copied())
     }
 
-    /// Return the applicable blanket extensions judged for one receiver family.
-    pub fn blanket_family(&self, family: FamilyKey) -> Option<&[GlobalSymbolId]> {
-        self.segments
-            .iter()
-            .rev()
-            .find_map(|segment| segment.blanket_families.get(&family))
-            .map(Vec::as_slice)
-    }
-
     /// Iterate extensions in phase order.
     pub fn iter_extensions(
         &self,
@@ -192,8 +183,6 @@ pub struct DefinitionSegment {
     pub(crate) extensions_by_target_symbol: IndexMap<GlobalSymbolId, Vec<GlobalSymbolId>>,
     /// Blanket extension symbols.
     pub(crate) blanket_extensions: Vec<GlobalSymbolId>,
-    /// Applicable blanket extensions keyed by judged receiver family.
-    pub(crate) blanket_families: IndexMap<FamilyKey, Vec<GlobalSymbolId>>,
 }
 
 /// One receiver family judged for blanket extension applicability.
@@ -206,11 +195,6 @@ pub enum FamilyKey {
 }
 
 impl DefinitionSegment {
-    /// Record the applicable blanket extensions for one judged family.
-    pub fn set_blanket_family(&mut self, family: FamilyKey, extensions: Vec<GlobalSymbolId>) {
-        self.blanket_families.insert(family, extensions);
-    }
-
     /// Create a new definition segment.
     pub fn new(module_id: ModuleId) -> Self {
         Self {
@@ -219,7 +203,6 @@ impl DefinitionSegment {
             definitions: IndexMap::new(),
             extensions_by_target_symbol: IndexMap::new(),
             blanket_extensions: Vec::new(),
-            blanket_families: IndexMap::default(),
         }
     }
 
@@ -475,7 +458,7 @@ impl Definition {
             }
             Self::Extension(definition) => {
                 match &mut definition.target {
-                    ExtensionTarget::Rooted { ty, .. } | ExtensionTarget::Blanket { ty } => {
+                    ExtensionTarget::Rooted { ty, .. } | ExtensionTarget::Blanket { ty, .. } => {
                         *ty = map(*ty);
                     }
                 }
@@ -860,14 +843,27 @@ pub enum ExtensionTarget {
     Blanket {
         /// The checked receiver type.
         ty: GlobalTypeId,
+        /// The receiver coverage the declared bound decides.
+        coverage: BlanketCoverage,
     },
+}
+
+/// Receiver coverage one blanket extension's declared bound decides.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum BlanketCoverage {
+    /// The blanket covers every receiver type.
+    Every,
+    /// The blanket covers the receivers conforming to one interface.
+    Interface(GlobalSymbolId),
+    /// Use sites decide the coverage.
+    Deferred,
 }
 
 impl ExtensionTarget {
     /// Return the checked receiver type.
     pub fn r#type(&self) -> GlobalTypeId {
         match self {
-            Self::Rooted { ty, .. } | Self::Blanket { ty } => *ty,
+            Self::Rooted { ty, .. } | Self::Blanket { ty, .. } => *ty,
         }
     }
 
@@ -882,6 +878,14 @@ impl ExtensionTarget {
     /// Return whether this is an open blanket target.
     pub fn is_blanket(&self) -> bool {
         matches!(self, Self::Blanket { .. })
+    }
+
+    /// Return the declared receiver coverage of this target.
+    pub fn coverage(&self) -> BlanketCoverage {
+        match self {
+            Self::Rooted { .. } => BlanketCoverage::Deferred,
+            Self::Blanket { coverage, .. } => *coverage,
+        }
     }
 }
 

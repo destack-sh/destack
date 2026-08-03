@@ -4,11 +4,11 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CauseKind, CheckError, CheckState, DeclarationHeritageObligation, FunctionHeader,
-    GenericTemplateId, ImplementationCoherenceObligation, InducedParameterOwner,
-    InterfaceConformanceObligation, Obligation, Origin, ParameterUseObligation, Receiver,
-    ReceiverBinding, Relation, RepresentationObligation, TypeSubstitution, VariableRole, WalkState,
-    Widening,
+    Answer, CauseKind, CheckError, CheckState, DeclarationHeritageObligation,
+    ExtensionCoherenceObligation, FunctionHeader, GenericTemplateId,
+    ImplementationCoherenceObligation, InducedParameterOwner, InterfaceConformanceObligation,
+    Obligation, Origin, ParameterUseObligation, Receiver, ReceiverBinding, Relation,
+    RepresentationObligation, TypeSubstitution, VariableRole, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -1146,6 +1146,21 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
+    /// Queue one extension coherence obligation.
+    pub(in crate::check) fn queue_extension_coherence_obligation(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        let scope = self.check.symbol_template(symbol)?;
+        self.check.push_obligation(
+            Obligation::ExtensionCoherence(ExtensionCoherenceObligation { source, symbol }),
+            scope,
+        );
+
+        Ok(())
+    }
+
     /// Queue one generic parameter use obligation.
     pub(in crate::check) fn queue_parameter_use_obligation(
         &mut self,
@@ -1732,8 +1747,61 @@ impl WalkState<'_, '_> {
 
             return Ok(dir::ExtensionTarget::Rooted { root, ty });
         }
+        let coverage = self.blanket_coverage(origin, ty)?;
 
-        Ok(dir::ExtensionTarget::Blanket { ty })
+        Ok(dir::ExtensionTarget::Blanket { ty, coverage })
+    }
+
+    /// Classify the receiver coverage one blanket's declared bound decides.
+    fn blanket_coverage(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::BlanketCoverage> {
+        // defer where-predicated blankets to their use sites
+        let template = self.check.origin_scope(origin)?;
+        if !self.check.template_predicates(template).is_empty() {
+            return Ok(dir::BlanketCoverage::Deferred);
+        }
+        let dir::Type::Parameter(parameter) = self.check.ty(target)? else {
+            return Ok(dir::BlanketCoverage::Deferred);
+        };
+
+        // defer blankets with constrained secondary parameters
+        let Some(template) = template else {
+            return Ok(dir::BlanketCoverage::Deferred);
+        };
+        for secondary in self.check.generic_template_parameters(template)? {
+            if secondary == parameter {
+                continue;
+            }
+            let constrained = self
+                .check
+                .generic_parameter(secondary)
+                .is_none_or(|binding| binding.constraint.is_some());
+            if constrained {
+                return Ok(dir::BlanketCoverage::Deferred);
+            }
+        }
+
+        // unbounded targets cover every receiver
+        let Some(binding) = self.check.generic_parameter(parameter) else {
+            return Ok(dir::BlanketCoverage::Deferred);
+        };
+        let Some(constraint) = binding.constraint else {
+            return Ok(dir::BlanketCoverage::Every);
+        };
+
+        // interface bounds cover their conforming receivers
+        let dir::Type::Application(instance) = self.check.ty(constraint)? else {
+            return Ok(dir::BlanketCoverage::Deferred);
+        };
+        let interface = self.check.resolve_symbol_alias(instance.symbol)?;
+        if !self.check.symbol_kind(interface)?.is_interface() {
+            return Ok(dir::BlanketCoverage::Deferred);
+        }
+
+        Ok(dir::BlanketCoverage::Interface(interface))
     }
 }
 

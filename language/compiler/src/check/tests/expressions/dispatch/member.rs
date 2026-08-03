@@ -224,14 +224,12 @@ const length = values.length;
 /// @type.node source=values type=Array<int32>
 /// @type.node source=values.length type=usize
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.length receiver=Array<int32> type=usize kind=existential targets=[collections.array.length#2(parameters=(), arguments=(), return=usize), collections.array.length#4(parameters=(), arguments=(), return=usize)]
+/// @resolution.member source=values.length receiver=Array<int32> type=usize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=usize)"
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @generic.instance source=values.length id=Array<int32>.<extension#2>.length#2
-/// @generic.instance source=values.length id=Array<int32>.<extension#4>.length#4
 
 /// @generic.instance id=Array<int32>.<extension#2>.length#2 template=collections.array.length#2 arguments=(int32)
-/// @generic.instance id=Array<int32>.<extension#4>.length#4 template=collections.array.length#4 arguments=(int32)
 "#,
     );
 }
@@ -273,14 +271,12 @@ const length = values.length;
 /// @type.node source=values type=Array<int32>
 /// @type.node source=values.length type=usize
 /// @resolution.name source=values target=values.values
-/// @resolution.member source=values.length receiver=Array<int32> type=usize kind=existential targets=[collections.array.length#2(parameters=(), arguments=(), return=usize), collections.array.length#4(parameters=(), arguments=(), return=usize)]
+/// @resolution.member source=values.length receiver=Array<int32> type=usize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=usize)"
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values.values
 /// @generic.instance source=values.length id=Array<int32>.<extension#2>.length#2
-/// @generic.instance source=values.length id=Array<int32>.<extension#4>.length#4
 
 /// @generic.instance id=Array<int32>.<extension#2>.length#2 template=collections.array.length#2 arguments=(int32)
-/// @generic.instance id=Array<int32>.<extension#4>.length#4 template=collections.array.length#4 arguments=(int32)
 "#,
     );
 }

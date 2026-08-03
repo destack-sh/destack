@@ -90,7 +90,7 @@ extension Arithmetic<T: Scalar> of T {
 
 /// @generic.instance id=checkedAdd<T#2> template=checkedAdd arguments=(T#2)
 
-/// @check.stats.solve variables=1 types=17 constraints=2 obligations=5 solutions=1 bounds=3 decisions=4
+/// @check.stats.solve variables=1 types=17 constraints=2 obligations=6 solutions=1 bounds=3 decisions=4
 "#,
         r#"
 "#,
@@ -180,7 +180,7 @@ extension Forward<T> of T {
 
 /// @generic.instance id=choose<T#2> template=choose arguments=(T#2)
 
-/// @check.stats.solve variables=1 types=11 constraints=1 obligations=3 solutions=1 bounds=2 decisions=5
+/// @check.stats.solve variables=1 types=11 constraints=1 obligations=4 solutions=1 bounds=2 decisions=5
 "#,
         r#"
 "#,

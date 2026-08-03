@@ -1423,7 +1423,7 @@ extension<T, E> of Result<T, E> {
 newtype AsyncResult<T, E> = Promise<Result<T, E>>;
 /// @generic.template symbol=AsyncResult parameters=(out T#6, out E#5)
 /// @type.symbol symbol=AsyncResult source="newtype AsyncResult<T, E> = Promise<Result<T, E>>" type=AsyncResult
-/// @definition.newtype symbol=AsyncResult source="newtype AsyncResult<T, E> = Promise<Result<T, E>>" template=(out T#6, out E#5) backing=Promise<Result<T#6, E#5>>
+/// @definition.newtype symbol=AsyncResult source="newtype AsyncResult<T, E> = Promise<Result<T, E>>" template=(out T#6, out E#5) backing=Promise<Result<T#6, E#5>> constructors=[<T#6, E#5>(Promise<Result<T#6, E#5>>) => AsyncResult<T#6, E#5>]
 /// @type.symbol symbol=AsyncResult.T source=T type=T#6
 /// @type.symbol symbol=AsyncResult.E source=E type=E#5
 /// @resolution.name source=Promise target=Promise

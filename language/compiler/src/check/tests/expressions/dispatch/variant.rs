@@ -475,7 +475,7 @@ import { Promise } from "destack:async";
 newtype Wrapper<T> = Promise<T>;
 /// @generic.template symbol=Wrapper parameters=(in out T#1)
 /// @type.symbol symbol=Wrapper source="newtype Wrapper<T> = Promise<T>" type=Wrapper
-/// @definition.newtype symbol=Wrapper source="newtype Wrapper<T> = Promise<T>" template=(in out T#1) backing=Promise<T#1>
+/// @definition.newtype symbol=Wrapper source="newtype Wrapper<T> = Promise<T>" template=(in out T#1) backing=Promise<T#1> constructors=[<T#1>(Promise<T#1>) => Wrapper<T#1>]
 /// @type.symbol symbol=Wrapper.T source=T type=T#1
 /// @resolution.name source=Promise target=async.promise.Promise
 /// @resolution.name source=T target=Wrapper.T

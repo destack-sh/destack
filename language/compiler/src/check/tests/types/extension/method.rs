@@ -395,3 +395,77 @@ extension of Buffer {
 "#,
     );
 }
+
+#[test]
+fn test_blanket_extension_method_resolves_on_primitive_receiver() {
+    let session = TestSession::single(
+        r#"
+interface Scalar {}
+
+extension Doubling<T: Scalar> of T {
+    double(this): T {
+        this
+    }
+}
+
+const value = 1.double();
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+interface Scalar {}
+
+extension Doubling<T: Scalar> of T {
+    double(this): T {
+        this
+    }
+}
+
+const value: 1 = (1).double<1>();
+
+=== checked ===
+interface Scalar {}
+/// @type.symbol symbol=Scalar source="interface Scalar {}" type=Scalar
+/// @definition.interface symbol=Scalar source="interface Scalar {}"
+
+extension Doubling<T: Scalar> of T {
+/// @generic.template symbol=Doubling parameters=(T: Scalar)
+/// @definition.extension symbol=Doubling form=local target=T
+/// @definition.method symbol=Doubling.double slot=double type=(this: this) => T
+/// @type.symbol symbol=Doubling.T source="T: Scalar" type=T
+/// @resolution.name source=Scalar target=Scalar
+/// @resolution.name source=T target=Doubling.T
+
+    double(this): T {
+    /// @type.symbol symbol=Doubling.double type=(this: this) => T
+    /// @type.symbol symbol=Doubling.double.this source=this type=this
+    /// @resolution.name source=T target=Doubling.T
+
+        this
+        /// @type.node source=this type=T
+        /// @resolution.receiver source=this kind=this declaration=Doubling type=T
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+
+    }
+}
+
+const value = 1.double();
+/// @type.symbol symbol=value source=value type=1
+/// @resolution.pattern source=value kind=binding target=value
+/// @type.node source=1 type=1
+/// @type.node source=1.double type=(this: 1) => 1
+/// @type.node source=1.double() type=1
+/// @resolution.member source=1.double receiver=1 type=(this: 1) => 1 kind=symbol target_receiver=1 target=Doubling.double
+/// @resolution.call source=1.double() parameters=() return=1 kind=symbol target=Doubling.double receiver=1 instance=Doubling<1>.double
+/// @generic.instance source=1.double() id=Doubling<1>.double
+
+/// @generic.instance id=Doubling<1>.double template=Doubling.double arguments=(1)
+"#,
+        "",
+    );
+}

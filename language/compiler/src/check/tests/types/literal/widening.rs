@@ -149,7 +149,7 @@ function widen(value: 1 | Flag): int32 | Flag {
 === checked ===
 newtype Flag = boolean;
 /// @type.symbol symbol=Flag source="newtype Flag = boolean" type=Flag
-/// @definition.newtype symbol=Flag source="newtype Flag = boolean" backing=boolean
+/// @definition.newtype symbol=Flag source="newtype Flag = boolean" backing=boolean constructors=[(boolean) => Flag]
 
 function widen(value: 1 | Flag): int32 | Flag {
 /// @type.symbol symbol=widen type=(1 | Flag) => int32 | Flag
