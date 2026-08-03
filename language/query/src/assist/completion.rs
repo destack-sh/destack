@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::complete::{CompletionBuilder, CompletionCursor, filter_completions};
 use crate::{ImportOrder, ModuleQueryContext, ProgramQueryContext, QueryPosition, QueryResult};
 
-/// Sort order for local semantic candidates.
+/// Sort order for local declaration candidates.
 pub(crate) const SORT_LOCAL_SYMBOL: u32 = 10;
 /// Sort order for builtin candidates.
 pub(crate) const SORT_BUILTIN: u32 = 20;
@@ -76,12 +76,12 @@ pub enum CompletionItemKind {
     BuiltinType,
 }
 
-/// The semantic origin bucket for one completion candidate.
+/// The origin bucket for one completion candidate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub(crate) enum CompletionOrigin {
     /// A context-shaped completion, such as an expected object-literal field.
     Contextual,
-    /// A local or in-scope semantic candidate.
+    /// A local or in-scope declaration.
     Local,
     /// A builtin or ambient candidate.
     Builtin,
@@ -195,7 +195,7 @@ pub(crate) struct CompletionCandidate {
     pub(crate) additional_edits: Vec<Patch>,
     /// Matched character positions in the label.
     pub(crate) match_positions: Vec<usize>,
-    /// The semantic origin bucket for ranking.
+    /// The origin bucket used for ranking.
     pub(crate) origin: CompletionOrigin,
     /// The structured import ordering key for ranking.
     pub(crate) import_order: Option<ImportOrder>,
@@ -260,7 +260,7 @@ impl ModuleQueryContext<'_> {
                 is_incomplete: false,
             });
         };
-        let builder = CompletionBuilder::new(self, program, file_id)?;
+        let builder = CompletionBuilder::new(self, program, file_id);
         let completions = builder.build(trigger, &context, token.as_ref(), include_auto_imports)?;
 
         let replacement_start = token.as_ref().map_or(offset, |token| token.start);

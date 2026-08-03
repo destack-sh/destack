@@ -13,11 +13,11 @@ use super::builder::CompletionBuilder;
 pub(super) struct CallSnippet {
     /// The insertion text.
     pub(super) text: String,
-    /// Whether the insertion text uses snippet syntax.
+    /// Whether the insertion text contains snippet placeholders.
     pub(super) is_snippet: bool,
 }
 
-/// The shared call shape for one expression.
+/// One call expression and its argument nodes.
 struct CallExpression<'a> {
     /// The call expression.
     id: dir::LocalNodeId<dir::Expression>,
@@ -104,7 +104,7 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<CompletionContext>> {
-        // resolve enclosing spans around the cursor boundary
+        // search the spans enclosing the cursor
         let enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
 
         // scan spans for a new expression containing the cursor
@@ -380,16 +380,27 @@ impl CompletionBuilder<'_, '_, '_> {
     ) -> QueryResult<Vec<CompletionCandidate>> {
         let mut results = Vec::new();
 
-        // read the checked selection when the call already resolved
         let node = call.into_global_any(self.module.module_id());
-        let Some(resolution) = self.module.resolutions()?.call_resolution(node) else {
-            return Ok(results);
-        };
-        let Some(selected) = resolution.iter().next() else {
-            return Ok(results);
+        // FUGU #Incomplete: DIR must retain call selections for incomplete named arguments
+        let resolution =
+            self.module
+                .resolutions()?
+                .call_resolution(node)
+                .ok_or(QueryError::missing(format!(
+                    "completion call selection: {node:?}"
+                )))?;
+
+        // FUGU #Incomplete: DIR must retain shared parameters for union calls
+        let selected = match resolution {
+            dir::OperationResolution::One(selected) => selected,
+            dir::OperationResolution::Union { .. } => {
+                return Err(QueryError::missing(format!(
+                    "completion union call target: {node:?}"
+                )));
+            }
         };
 
-        // read the selected callable's authored parameter names
+        // exclude parameters already bound by positional arguments
         let names = match selected.target.symbol() {
             Some(symbol) => self
                 .program

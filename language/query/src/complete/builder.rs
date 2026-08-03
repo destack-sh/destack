@@ -1,11 +1,8 @@
-use std::sync::Arc;
-
 use destack_dir as dir;
-use destack_source::{File, FileId};
+use destack_source::FileId;
 use rustc_hash::FxHashSet;
 
 use super::builtin::{keyword_completions, primitive_type_completions};
-use super::call::CallSnippet;
 use super::{AutoImportSearch, CompletionContext, CompletionReceiver, CursorToken};
 use crate::{
     CompletionCandidate, CompletionCandidates, CompletionItemKind, CompletionOrigin,
@@ -13,7 +10,7 @@ use crate::{
     SORT_LOCAL_SYMBOL, SymbolUse,
 };
 
-/// The repository-bound builder for completion candidates.
+/// Candidate collector for one module position.
 pub(crate) struct CompletionBuilder<'owner, 'module, 'program> {
     /// The queried module.
     pub(super) module: &'owner ModuleQueryContext<'module>,
@@ -21,8 +18,6 @@ pub(crate) struct CompletionBuilder<'owner, 'module, 'program> {
     pub(super) program: &'owner ProgramQueryContext<'program>,
     /// The source file being completed.
     pub(super) file_id: FileId,
-    /// The source file contents.
-    pub(super) file: Arc<File>,
 }
 
 impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
@@ -31,15 +26,12 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
         module: &'owner ModuleQueryContext<'module>,
         program: &'owner ProgramQueryContext<'program>,
         file_id: FileId,
-    ) -> QueryResult<Self> {
-        let file = module.read_file(file_id)?;
-
-        Ok(Self {
+    ) -> Self {
+        Self {
             module,
             program,
             file_id,
-            file,
-        })
+        }
     }
 
     /// Collect the raw completion candidates for one context.
@@ -162,7 +154,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
                 local_id: visible.symbol_id,
             };
 
-            results.push(self.attach_symbol_completion(completion, symbol_id)?);
+            results.push(self.attach_symbol_description(completion, symbol_id)?);
         }
 
         // primitive types are always available
@@ -244,21 +236,10 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
                 continue;
             }
 
-            let mut completion =
+            let completion =
                 CompletionCandidate::new(&name, kind, CompletionOrigin::Local, SORT_LOCAL_SYMBOL);
-
-            if kind == CompletionItemKind::Function
-                && let Some(parameter_names) = self.program.symbol_parameter_names(symbol_id)?
-            {
-                let snippet = CallSnippet::named(&name, &parameter_names);
-                completion = completion.with_insert_text(snippet.text);
-                if snippet.is_snippet {
-                    completion = completion.with_snippet();
-                }
-            }
-
-            completion = self.attach_symbol_completion(completion, symbol_id)?;
-            results.push(completion);
+            let completion = self.attach_call_snippet(completion, symbol_id)?;
+            results.push(self.attach_symbol_description(completion, symbol_id)?);
         }
 
         // statement contexts can opt into keyword completions as well
@@ -307,7 +288,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
                     CompletionOrigin::Local,
                     SORT_LOCAL_SYMBOL,
                 );
-                results.push(self.attach_symbol_completion(completion, symbol_id)?);
+                results.push(self.attach_symbol_description(completion, symbol_id)?);
             }
         }
 

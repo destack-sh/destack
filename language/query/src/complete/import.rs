@@ -15,7 +15,6 @@ use crate::{
 use super::CompletionContext;
 use super::builder::CompletionBuilder;
 use super::builtin::length_ordering_text;
-use super::call::CallSnippet;
 
 // auto import completion thresholds
 const AUTO_IMPORT_MIN_PREFIX: usize = 2;
@@ -234,17 +233,8 @@ impl CompletionBuilder<'_, '_, '_> {
                 CompletionCandidate::new(name, kind, CompletionOrigin::Local, SORT_LOCAL_SYMBOL);
 
             if let ExportDeclaration::Symbol { symbol, .. } = declaration {
-                completion = self.attach_symbol_completion(completion, symbol)?;
-
-                if kind == CompletionItemKind::Function
-                    && let Some(parameter_names) = self.program.symbol_parameter_names(symbol)?
-                {
-                    let snippet = CallSnippet::named(&completion.label, &parameter_names);
-                    completion = completion.with_insert_text(snippet.text);
-                    if snippet.is_snippet {
-                        completion = completion.with_snippet();
-                    }
-                }
+                completion = self.attach_call_snippet(completion, symbol)?;
+                completion = self.attach_symbol_description(completion, symbol)?;
             }
 
             results.push(completion);
@@ -385,6 +375,13 @@ impl CompletionBuilder<'_, '_, '_> {
                     .with_detail(detail)
                     .with_import_order(import_order)
                     .with_additional_edits(import_edits);
+            let completion = match declaration {
+                ExportDeclaration::Symbol { symbol, .. } => {
+                    let completion = self.attach_call_snippet(completion, symbol)?;
+                    self.attach_symbol_description(completion, symbol)?
+                }
+                ExportDeclaration::Namespace { .. } => completion,
+            };
 
             results.push(completion);
         }
@@ -424,7 +421,7 @@ impl CompletionBuilder<'_, '_, '_> {
             );
             let completion = match declaration {
                 ExportDeclaration::Symbol { symbol, .. } => {
-                    self.attach_symbol_completion(completion, symbol)?
+                    self.attach_symbol_description(completion, symbol)?
                 }
                 ExportDeclaration::Namespace { .. } => completion,
             };

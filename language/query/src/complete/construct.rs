@@ -66,7 +66,7 @@ impl CompletionBuilder<'_, '_, '_> {
             } else {
                 completion
             };
-            completions.push(self.attach_symbol_completion(completion, symbol_id)?);
+            completions.push(self.attach_symbol_description(completion, symbol_id)?);
         }
 
         Ok(completions)
@@ -145,7 +145,7 @@ impl CompletionBuilder<'_, '_, '_> {
             completion.with_snippet()
         };
 
-        self.attach_symbol_completion(completion, symbol_id)
+        self.attach_symbol_description(completion, symbol_id)
     }
 
     /// Build completion candidates for one newtype constructor family.
@@ -208,7 +208,7 @@ impl CompletionBuilder<'_, '_, '_> {
             } else {
                 completion
             };
-            completions.push(self.attach_symbol_completion(completion, symbol_id)?);
+            completions.push(self.attach_symbol_description(completion, symbol_id)?);
         }
 
         Ok(completions)
