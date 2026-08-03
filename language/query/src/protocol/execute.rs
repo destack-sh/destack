@@ -7,68 +7,14 @@ use crate::{
     ExtractVariableResponse, FindReferencesResponse, FoldingRangesResponse,
     GotoDeclarationResponse, GotoDefinitionResponse, GotoImplementationResponse,
     GotoTypeDefinitionResponse, HighlightResponse, HoverResponse, IncomingCallsResponse,
-    InlayHintsResponse, InlineResponse, LinksResponse, ModuleQueryContext, OutgoingCallsResponse,
-    OutlineResponse, ProgramQueryContext, QueryError, QueryRequest, QueryResponse, QueryResult,
-    RenameFilesResponse, RenameResponse, RenameTargetResponse, SearchSymbolsResponse,
-    SelectionRangesResponse, SemanticTokensRangeResponse, SemanticTokensResponse,
-    SignatureHelpResponse, SubtypesResponse, SupertypesResponse, TypeItemResponse, rename_files,
-    search_symbols,
+    InlayHintsResponse, InlineResponse, LinksResponse, OutgoingCallsResponse, OutlineResponse,
+    ProgramQueryContext, QueryError, QueryRequest, QueryResponse, QueryResult, RenameFilesResponse,
+    RenameResponse, RenameTargetResponse, SearchSymbolsResponse, SelectionRangesResponse,
+    SemanticTokensRangeResponse, SemanticTokensResponse, SignatureHelpResponse, SubtypesResponse,
+    SupertypesResponse, TypeItemResponse, rename_files, search_symbols,
 };
 
 impl QueryRequest {
-    /// Return artifacts scheduled before this request executes.
-    pub fn initial_artifacts(
-        &self,
-        repository: &Repository,
-        revision: Revision,
-        selected_profile_ids: &[ProfileId],
-    ) -> QueryResult<Vec<ArtifactKey>> {
-        let mut artifacts = Vec::new();
-
-        // schedule indexes for one program
-        let profile_id = self.profile_id();
-        if let Some(profile_id) = profile_id {
-            for kind in self.method().index_kinds() {
-                artifacts.push(ArtifactKey::program_index(profile_id, *kind));
-            }
-        }
-        // schedule indexes for every selected program
-        else {
-            for profile_id in selected_profile_ids {
-                for kind in self.method().index_kinds() {
-                    artifacts.push(ArtifactKey::program_index(*profile_id, *kind));
-                }
-            }
-        }
-
-        // schedule import resolution for every program read by file renames
-        if matches!(self, Self::RenameFiles(_)) {
-            let module_ids = ProgramQueryContext::authored_module_ids(repository, revision)?;
-            for profile_id in selected_profile_ids {
-                for module_id in &module_ids {
-                    artifacts.extend([
-                        ArtifactKey::dir_parsed(*module_id),
-                        ArtifactKey::dir_imported(*module_id, *profile_id),
-                        ArtifactKey::dir_expanded(*module_id, *profile_id),
-                    ]);
-                }
-            }
-        }
-
-        // schedule the anchored module context when one exists
-        if let Some(module) = self.module() {
-            artifacts.extend(ModuleQueryContext::initial_artifacts(
-                module.module_id,
-                module.profile_id,
-            ));
-        }
-
-        artifacts.sort_unstable();
-        artifacts.dedup();
-
-        Ok(artifacts)
-    }
-
     /// Return diagnostic artifacts read by this request.
     pub fn diagnostic_artifacts(&self) -> Vec<ArtifactKey> {
         if let Self::CodeActions(params) = self
@@ -89,7 +35,7 @@ impl QueryRequest {
         repository: &'a Repository,
         revision: Revision,
         selected_profile_ids: &[ProfileId],
-        require_artifacts: &'a dyn Fn(&[ArtifactKey]) -> QueryResult<()>,
+        require_artifacts: &'a (dyn Fn(&[ArtifactKey]) -> QueryResult<()> + Sync),
     ) -> QueryResult<QueryResponse> {
         // execute requests that read every selected program
         match self {
@@ -412,7 +358,7 @@ impl QueryRequest {
         repository: &'a Repository,
         revision: Revision,
         profile_ids: &[ProfileId],
-        require_artifacts: &'a dyn Fn(&[ArtifactKey]) -> QueryResult<()>,
+        require_artifacts: &'a (dyn Fn(&[ArtifactKey]) -> QueryResult<()> + Sync),
     ) -> QueryResult<Vec<ProgramQueryContext<'a>>> {
         let mut programs = Vec::with_capacity(profile_ids.len());
 

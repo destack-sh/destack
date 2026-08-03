@@ -1,5 +1,3 @@
-use destack_artifact::IndexKind;
-
 /// One public query method.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum QueryMethod {
@@ -142,41 +140,6 @@ impl QueryMethod {
             Self::ExtractVariable => "extract_variable",
             Self::Inline => "inline",
             Self::CodeActions => "code_actions",
-        }
-    }
-
-    /// Return the program index families scheduled before this query method.
-    pub fn index_kinds(self) -> &'static [IndexKind] {
-        use IndexKind::{
-            Calls, Decorators, Exports, Extensions, Heritage, Members, References, Symbols,
-        };
-
-        match self {
-            Self::Completion => &[Symbols, Exports, Members, Extensions],
-            Self::CodeLenses => &[References, Heritage],
-            Self::GotoImplementation | Self::Supertypes | Self::Subtypes => &[Heritage],
-            Self::Highlight | Self::FindReferences | Self::Rename | Self::Inline => &[References],
-            Self::IncomingCalls | Self::OutgoingCalls => &[Calls],
-            Self::Decorators => &[Decorators],
-            Self::CodeActions => &[Symbols, Exports, References],
-            Self::SearchSymbols => &[Symbols],
-            Self::Hover
-            | Self::SignatureHelp
-            | Self::InlayHints
-            | Self::FoldingRanges
-            | Self::SemanticTokens
-            | Self::SemanticTokensRange
-            | Self::Outline
-            | Self::Links
-            | Self::SelectionRanges
-            | Self::GotoDefinition
-            | Self::GotoDeclaration
-            | Self::GotoTypeDefinition
-            | Self::CallItem
-            | Self::TypeItem
-            | Self::RenameTarget
-            | Self::RenameFiles
-            | Self::ExtractVariable => &[],
         }
     }
 }
