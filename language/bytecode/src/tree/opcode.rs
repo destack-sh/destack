@@ -1902,20 +1902,26 @@ impl Opcode {
     fn tensor_layout(code: u16) -> Option<InstructionLayout> {
         let operation = code - OpcodeRange::TENSOR.start();
         let layout = match operation {
-            operation
-                if operation == TensorOperation::Element as u16
-                    || operation == TensorOperation::Compare as u16 =>
-            {
-                &[
-                    Operand::Result,
-                    Operand::TensorList,
-                    Operand::Operator,
-                    Operand::Allocation,
-                ][..]
-            }
-            operation if operation == TensorOperation::Select as u16 => {
-                &[Operand::Result, Operand::TensorList, Operand::Allocation]
-            }
+            operation if operation == TensorOperation::Element as u16 => &[
+                Operand::Result,
+                Operand::TensorList,
+                Operand::Operator,
+                Operand::Allocation,
+            ][..],
+            operation if operation == TensorOperation::Compare as u16 => &[
+                Operand::Result,
+                Operand::Tensor,
+                Operand::Tensor,
+                Operand::Operator,
+                Operand::Allocation,
+            ],
+            operation if operation == TensorOperation::Select as u16 => &[
+                Operand::Result,
+                Operand::Tensor,
+                Operand::Tensor,
+                Operand::Tensor,
+                Operand::Allocation,
+            ],
             operation
                 if operation == TensorOperation::Transpose as u16
                     || operation == TensorOperation::Broadcast as u16 =>
@@ -1986,20 +1992,24 @@ impl Opcode {
             ],
             operation if operation == TensorOperation::Contract as u16 => &[
                 Operand::Result,
-                Operand::TensorList,
+                Operand::Tensor,
+                Operand::Tensor,
                 Operand::ContractionAxes,
                 Operand::Allocation,
             ],
             operation if operation == TensorOperation::Gather as u16 => &[
                 Operand::Result,
-                Operand::TensorList,
+                Operand::Tensor,
+                Operand::Tensor,
                 Operand::GatherAxes,
                 Operand::Bits64List,
                 Operand::Allocation,
             ],
             operation if operation == TensorOperation::Scatter as u16 => &[
                 Operand::Result,
-                Operand::TensorList,
+                Operand::Tensor,
+                Operand::Tensor,
+                Operand::Tensor,
                 Operand::ScatterAxes,
                 Operand::Operator,
                 Operand::Allocation,
@@ -2016,7 +2026,9 @@ impl Opcode {
             operation if operation == TensorOperation::Fill as u16 => {
                 &[Operand::Tensor, Operand::Register]
             }
-            operation if operation == TensorOperation::Copy as u16 => &[Operand::TensorList],
+            operation if operation == TensorOperation::Copy as u16 => {
+                &[Operand::Tensor, Operand::Tensor]
+            }
             operation if operation == TensorOperation::View as u16 => &[
                 Operand::ResultRange,
                 Operand::Tensor,
@@ -2027,7 +2039,8 @@ impl Opcode {
             ],
             operation if operation == TensorOperation::Convolution as u16 => &[
                 Operand::Result,
-                Operand::TensorList,
+                Operand::Tensor,
+                Operand::Tensor,
                 Operand::ConvolutionAxes,
                 Operand::Window,
                 Operand::ConvolutionGroups,

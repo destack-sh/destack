@@ -152,7 +152,7 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_token("[")?;
         for (index, tensor) in tensors.iter().copied().enumerate() {
             if index > 0 {
-                self.write_comma()?;
+                write!(self.formatter, [token(","), space()])?;
             }
             self.write_tensor_value(tensor)?;
         }
@@ -172,7 +172,7 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_token("[")?;
         for (index, value) in values.iter().enumerate() {
             if index > 0 {
-                self.write_comma()?;
+                write!(self.formatter, [token(","), space()])?;
             }
             self.write_text(&value.to_string())?;
         }
@@ -185,7 +185,7 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_token("[")?;
         for (index, value) in values.iter().enumerate() {
             if index > 0 {
-                self.write_comma()?;
+                write!(self.formatter, [token(","), space()])?;
             }
             self.write_text(&value.to_string())?;
         }
@@ -198,7 +198,7 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_token("axes(")?;
         for index in 0..4 {
             if index > 0 {
-                self.write_comma()?;
+                write!(self.formatter, [token(","), space()])?;
             }
             let values = self.u16_list()?;
             self.write_u16_list(&values)?;
@@ -212,16 +212,16 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_token("axes(")?;
         for index in 0..3 {
             if index > 0 {
-                self.write_comma()?;
+                write!(self.formatter, [token(","), space()])?;
             }
             let feature = self.u16()?;
             let batch = self.u16()?;
             let spatial = self.u16_list()?;
             self.write_token("(")?;
             self.write_text(&feature.to_string())?;
-            self.write_comma()?;
+            write!(self.formatter, [token(","), space()])?;
             self.write_text(&batch.to_string())?;
-            self.write_comma()?;
+            write!(self.formatter, [token(","), space()])?;
             self.write_u16_list(&spatial)?;
             self.write_token(")")?;
         }
@@ -234,12 +234,12 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_token("window(")?;
         for index in 0..5 {
             if index > 0 {
-                self.write_comma()?;
+                write!(self.formatter, [token(","), space()])?;
             }
             let values = self.u64_list()?;
             self.write_u64_list(&values)?;
         }
-        self.write_comma()?;
+        write!(self.formatter, [token(","), space()])?;
         let reversals = self.u16_list()?;
         self.write_u16_list(&reversals)?;
         self.write_token(")")
@@ -251,7 +251,7 @@ impl InstructionFormatter<'_, '_, '_> {
         let batch = self.u32()?;
         self.write_token("groups(")?;
         self.write_text(&feature.to_string())?;
-        self.write_comma()?;
+        write!(self.formatter, [token(","), space()])?;
         self.write_text(&batch.to_string())?;
         self.write_token(")")
     }
@@ -261,12 +261,12 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_token("axes(")?;
         for index in 0..3 {
             if index > 0 {
-                self.write_comma()?;
+                write!(self.formatter, [token(","), space()])?;
             }
             let values = self.u16_list()?;
             self.write_u16_list(&values)?;
         }
-        self.write_comma()?;
+        write!(self.formatter, [token(","), space()])?;
         let index_vector = self.u16()?;
         self.write_text(&index_vector.to_string())?;
         self.write_token(")")
