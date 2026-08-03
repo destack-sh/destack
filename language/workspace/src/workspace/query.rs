@@ -2,18 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
-use destack_query::{
-    CallItemResponse, CodeActionKind, CodeActionsResponse, CodeLensesResponse, DecoratorScope,
-    DecoratorsResponse, ExtractVariableResponse, FindReferencesResponse, FoldingRangesResponse,
-    GotoDeclarationResponse, GotoDefinitionResponse, GotoImplementationResponse,
-    GotoTypeDefinitionResponse, HighlightResponse, HoverResponse, IncomingCallsResponse,
-    InlayHintsResponse, InlineResponse, LinksResponse, Module, ModuleQueryContext,
-    OutgoingCallsResponse, OutlineResponse, ProgramQueryContext, QueryError, QueryPosition,
-    QueryRange, QueryRequest, QueryResponse, QueryResult, QueryScope, RenameFilesResponse,
-    RenameResponse, RenameTargetResponse, SearchSymbolsResponse, SelectionRangesResponse,
-    SemanticTokensRangeResponse, SemanticTokensResponse, SignatureHelpResponse, SubtypesResponse,
-    SupertypesResponse, TypeItemResponse, rename_files, search_symbols,
-};
+use destack_query::{Module, QueryError, QueryPosition, QueryRange, QueryRequest, QueryResponse};
 use destack_repository::{RepositoryError, Revision, Trace};
 use destack_serde::Reflect;
 use destack_session::{ArtifactPriority, ArtifactRun};
@@ -144,6 +133,8 @@ pub struct QueryRun {
     session: SessionPin,
     /// Query executed after its artifacts become ready.
     request: QueryRequest,
+    /// Profiles selected for a request that reads every program.
+    selected_profile_ids: Vec<ProfileId>,
     /// Trace spanning artifact provision and query execution.
     trace: Arc<Trace>,
     /// Semantic artifacts that must provide ready payloads.
@@ -159,6 +150,7 @@ impl std::fmt::Debug for QueryRun {
             .debug_struct("QueryRun")
             .field("revision", &self.session.revision())
             .field("method", &self.request.method())
+            .field("selected_profile_ids", &self.selected_profile_ids)
             .field("required", &self.required)
             .field("diagnostics", &self.diagnostics)
             .finish()
@@ -191,6 +183,7 @@ impl QueryRun {
         let QueryRun {
             session,
             request,
+            selected_profile_ids,
             trace,
             required,
             diagnostics,
@@ -207,8 +200,14 @@ impl QueryRun {
                     .require(artifact_keys)
                     .map_err(QueryError::artifact)
             };
-            let response =
-                query_trace.span("query", || session.query(request, &require_artifacts))?;
+            let response = query_trace.span("query", || {
+                request.execute(
+                    session.repository(),
+                    revision,
+                    &selected_profile_ids,
+                    &require_artifacts,
+                )
+            })?;
 
             Ok(RunQueryResponse { revision, response })
         })();
@@ -217,14 +216,6 @@ impl QueryRun {
 
         result
     }
-}
-
-/// Initial artifact roots selected for one semantic query.
-struct QueryRoots {
-    /// Artifact roots scheduled before query execution.
-    initial: Vec<ArtifactKey>,
-    /// Diagnostic roots that may have failed terminal outcomes.
-    diagnostics: Vec<ArtifactKey>,
 }
 
 /// Revision selection policy for one query.
@@ -267,19 +258,31 @@ impl LocalWorkspace {
             }
         };
 
-        // schedule known query roots into one operation trace
-        let roots = session.query_roots(&request.request)?;
+        // select every program only when the request reads all selected programs
+        let selected_profile_ids = if request.request.profile_id().is_none() {
+            session.selected_profile_ids()?
+        } else {
+            Vec::new()
+        };
+
+        // schedule known query artifacts into one operation trace
+        let initial = request.request.initial_artifacts(
+            session.repository(),
+            session.revision(),
+            &selected_profile_ids,
+        )?;
+        let diagnostics = request.request.diagnostic_artifacts();
         let trace = session.session().start_trace();
         let required = session.session().schedule_artifacts_traced(
             session.revision(),
-            &roots.initial,
+            &initial,
             ArtifactPriority::Foreground,
             trace.clone(),
         );
-        let diagnostics = (!roots.diagnostics.is_empty()).then(|| {
+        let diagnostics = (!diagnostics.is_empty()).then(|| {
             session.session().schedule_artifacts_traced(
                 session.revision(),
-                &roots.diagnostics,
+                &diagnostics,
                 ArtifactPriority::Foreground,
                 trace.clone(),
             )
@@ -288,6 +291,7 @@ impl LocalWorkspace {
         Ok(QueryRun {
             session,
             request: request.request,
+            selected_profile_ids,
             trace,
             required,
             diagnostics,
@@ -301,454 +305,5 @@ impl LocalWorkspace {
         request: RunQueryRequest,
     ) -> Result<RunQueryResponse, Error> {
         self.start_query(root, request)?.wait()
-    }
-}
-
-impl SessionPin {
-    /// Return the artifact roots scheduled before one query.
-    fn query_roots(&self, request: &QueryRequest) -> Result<QueryRoots, Error> {
-        let mut initial = Vec::new();
-
-        // schedule known roots for the request scope
-        match request.scope() {
-            QueryScope::Module(module) => {
-                Self::push_module_roots(module, &mut initial);
-            }
-            QueryScope::Program(profile_id) => {
-                self.push_program_roots(request, profile_id, &mut initial)?;
-
-                if let Some(module) = request.module() {
-                    Self::push_module_roots(module, &mut initial);
-                }
-            }
-            QueryScope::Workspace => {
-                for profile_id in self.selected_profile_ids()? {
-                    self.push_program_roots(request, profile_id, &mut initial)?;
-                }
-            }
-        }
-
-        // schedule exact diagnostic roots for requested quick fixes
-        let mut diagnostics = if let QueryRequest::CodeActions(params) = request
-            && params.context.includes(CodeActionKind::QuickFix)
-        {
-            self.diagnostic_artifacts(&[params.range.module.module_id])?
-        } else {
-            Vec::new()
-        };
-
-        initial.sort_unstable();
-        initial.dedup();
-        diagnostics.sort_unstable();
-        diagnostics.dedup();
-
-        Ok(QueryRoots {
-            initial,
-            diagnostics,
-        })
-    }
-
-    /// Append one module context's artifact roots.
-    fn push_module_roots(module: Module, roots: &mut Vec<ArtifactKey>) {
-        roots.extend(ModuleQueryContext::initial_roots(
-            module.module_id,
-            module.profile_id,
-        ));
-    }
-
-    /// Append one program context's artifact roots.
-    fn push_program_roots(
-        &self,
-        request: &QueryRequest,
-        profile_id: ProfileId,
-        roots: &mut Vec<ArtifactKey>,
-    ) -> Result<(), Error> {
-        let initial = ProgramQueryContext::initial_roots(
-            self.repository(),
-            self.revision(),
-            profile_id,
-            request.method(),
-        )?;
-        roots.extend(initial);
-
-        Ok(())
-    }
-
-    /// Build a query response for a request payload.
-    fn query(
-        &self,
-        request: QueryRequest,
-        require_artifacts: &dyn Fn(&[ArtifactKey]) -> QueryResult<()>,
-    ) -> Result<QueryResponse, Error> {
-        // dispatch by query request variant
-        let response = match request {
-            QueryRequest::Completion(params) => {
-                let program =
-                    self.program_context(params.position.module.profile_id, require_artifacts)?;
-                let context = program.module(params.position.module.module_id)?;
-                let response = context.completion(
-                    &program,
-                    params.position.file_id,
-                    params.position.offset,
-                    params.trigger,
-                    params.include_auto_imports,
-                )?;
-
-                QueryResponse::Completion(response)
-            }
-            QueryRequest::Hover(params) => {
-                let query =
-                    self.program_context(params.position.module.profile_id, require_artifacts)?;
-                let context = query.module(params.position.module.module_id)?;
-                let hover =
-                    context.hover(&query, params.position.file_id, params.position.offset)?;
-
-                QueryResponse::Hover(HoverResponse { hover })
-            }
-            QueryRequest::SignatureHelp(params) => {
-                let query =
-                    self.program_context(params.position.module.profile_id, require_artifacts)?;
-                let context = query.module(params.position.module.module_id)?;
-                let help = context.signature_help(
-                    &query,
-                    params.position.file_id,
-                    params.position.offset,
-                )?;
-
-                QueryResponse::SignatureHelp(SignatureHelpResponse { help })
-            }
-            QueryRequest::InlayHints(params) => {
-                let query =
-                    self.program_context(params.range.module.profile_id, require_artifacts)?;
-                let context = query.module(params.range.module.module_id)?;
-                let hints = context.inlay_hints(
-                    &query,
-                    params.range.span,
-                    params.type_hints,
-                    params.parameter_hints,
-                )?;
-
-                QueryResponse::InlayHints(InlayHintsResponse { hints })
-            }
-            QueryRequest::CodeLenses(params) => {
-                let program = self.program_context(params.module.profile_id, require_artifacts)?;
-                let context = program.module(params.module.module_id)?;
-                let lenses = context.code_lenses(&program, params.file_id)?;
-
-                QueryResponse::CodeLenses(CodeLensesResponse { lenses })
-            }
-            QueryRequest::FoldingRanges(params) => {
-                let context = self.module(params.module, require_artifacts)?;
-                let ranges = context.folding_ranges(params.file_id)?;
-
-                QueryResponse::FoldingRanges(FoldingRangesResponse { ranges })
-            }
-            QueryRequest::SemanticTokens(params) => {
-                let query = self.program_context(params.module.profile_id, require_artifacts)?;
-                let context = query.module(params.module.module_id)?;
-                let tokens = context.semantic_tokens(&query, params.file_id)?;
-
-                QueryResponse::SemanticTokens(SemanticTokensResponse { tokens })
-            }
-            QueryRequest::SemanticTokensRange(params) => {
-                let query =
-                    self.program_context(params.range.module.profile_id, require_artifacts)?;
-                let context = query.module(params.range.module.module_id)?;
-                let tokens = context.semantic_tokens_range(&query, params.range.span)?;
-
-                QueryResponse::SemanticTokensRange(SemanticTokensRangeResponse { tokens })
-            }
-            QueryRequest::Outline(params) => {
-                let query = self.program_context(params.module.profile_id, require_artifacts)?;
-                let context = query.module(params.module.module_id)?;
-                let symbols = context.outline(&query, params.file_id)?;
-
-                QueryResponse::Outline(OutlineResponse { symbols })
-            }
-            QueryRequest::SearchSymbols(params) => {
-                let profile_ids = self.selected_profile_ids()?;
-                let programs = self.program_contexts(&profile_ids, require_artifacts)?;
-                let symbols =
-                    search_symbols(&programs, &params.query, params.max_results as usize)?;
-
-                QueryResponse::SearchSymbols(SearchSymbolsResponse { symbols })
-            }
-            QueryRequest::Links(params) => {
-                let context = self.module(params.module, require_artifacts)?;
-                let links = context.links(params.file_id)?;
-
-                QueryResponse::Links(LinksResponse { links })
-            }
-            QueryRequest::Highlight(params) => {
-                let program =
-                    self.program_context(params.position.module.profile_id, require_artifacts)?;
-                let context = program.module(params.position.module.module_id)?;
-                let highlights =
-                    context.highlight(&program, params.position.file_id, params.position.offset)?;
-
-                QueryResponse::Highlight(HighlightResponse { highlights })
-            }
-            QueryRequest::SelectionRanges(params) => {
-                let context = self.module(params.module, require_artifacts)?;
-                let ranges = context.selection_ranges(params.file_id, &params.offsets)?;
-
-                QueryResponse::SelectionRanges(SelectionRangesResponse { ranges })
-            }
-            QueryRequest::GotoDefinition(params) => {
-                let query =
-                    self.program_context(params.position.module.profile_id, require_artifacts)?;
-                let context = query.module(params.position.module.module_id)?;
-                let targets = context.goto_definition(
-                    &query,
-                    params.position.file_id,
-                    params.position.offset,
-                )?;
-
-                QueryResponse::GotoDefinition(GotoDefinitionResponse { targets })
-            }
-            QueryRequest::GotoDeclaration(params) => {
-                let query =
-                    self.program_context(params.position.module.profile_id, require_artifacts)?;
-                let context = query.module(params.position.module.module_id)?;
-                let targets = context.goto_declaration(
-                    &query,
-                    params.position.file_id,
-                    params.position.offset,
-                )?;
-
-                QueryResponse::GotoDeclaration(GotoDeclarationResponse { targets })
-            }
-            QueryRequest::GotoTypeDefinition(params) => {
-                let query =
-                    self.program_context(params.position.module.profile_id, require_artifacts)?;
-                let context = query.module(params.position.module.module_id)?;
-                let targets = context.goto_type_definition(
-                    &query,
-                    params.position.file_id,
-                    params.position.offset,
-                )?;
-
-                QueryResponse::GotoTypeDefinition(GotoTypeDefinitionResponse { targets })
-            }
-            QueryRequest::GotoImplementation(params) => {
-                let program =
-                    self.program_context(params.position.module.profile_id, require_artifacts)?;
-                let context = program.module(params.position.module.module_id)?;
-                let targets = context.goto_implementation(
-                    &program,
-                    params.position.file_id,
-                    params.position.offset,
-                )?;
-
-                QueryResponse::GotoImplementation(GotoImplementationResponse { targets })
-            }
-            QueryRequest::FindReferences(params) => {
-                let program =
-                    self.program_context(params.position.module.profile_id, require_artifacts)?;
-                let context = program.module(params.position.module.module_id)?;
-                let references = context.find_references(
-                    &program,
-                    params.position.file_id,
-                    params.position.offset,
-                    params.include_declaration,
-                )?;
-
-                QueryResponse::FindReferences(FindReferencesResponse { references })
-            }
-            QueryRequest::CallItem(params) => {
-                let query =
-                    self.program_context(params.position.module.profile_id, require_artifacts)?;
-                let context = query.module(params.position.module.module_id)?;
-                let item =
-                    context.call_item(&query, params.position.file_id, params.position.offset)?;
-
-                QueryResponse::CallItem(CallItemResponse { item })
-            }
-            QueryRequest::IncomingCalls(params) => {
-                let context =
-                    self.program_context(params.item.target.module.profile_id, require_artifacts)?;
-                let calls = context.incoming_calls(&params.item)?;
-                QueryResponse::IncomingCalls(IncomingCallsResponse { calls })
-            }
-            QueryRequest::OutgoingCalls(params) => {
-                let context =
-                    self.program_context(params.item.target.module.profile_id, require_artifacts)?;
-                let calls = context.outgoing_calls(&params.item)?;
-                QueryResponse::OutgoingCalls(OutgoingCallsResponse { calls })
-            }
-            QueryRequest::TypeItem(params) => {
-                let query =
-                    self.program_context(params.position.module.profile_id, require_artifacts)?;
-                let context = query.module(params.position.module.module_id)?;
-                let item =
-                    context.type_item(&query, params.position.file_id, params.position.offset)?;
-
-                QueryResponse::TypeItem(TypeItemResponse { item })
-            }
-            QueryRequest::Supertypes(params) => {
-                let context =
-                    self.program_context(params.item.target.module.profile_id, require_artifacts)?;
-                let items = context.supertypes(&params.item)?;
-                QueryResponse::Supertypes(SupertypesResponse { items })
-            }
-            QueryRequest::Subtypes(params) => {
-                let context =
-                    self.program_context(params.item.target.module.profile_id, require_artifacts)?;
-                let items = context.subtypes(&params.item)?;
-                QueryResponse::Subtypes(SubtypesResponse { items })
-            }
-            QueryRequest::RenameTarget(params) => {
-                let query =
-                    self.program_context(params.position.module.profile_id, require_artifacts)?;
-                let context = query.module(params.position.module.module_id)?;
-                let target = context.rename_target(
-                    &query,
-                    params.position.file_id,
-                    params.position.offset,
-                )?;
-
-                QueryResponse::RenameTarget(RenameTargetResponse { target })
-            }
-            QueryRequest::Rename(params) => {
-                let program =
-                    self.program_context(params.position.module.profile_id, require_artifacts)?;
-                let context = program.module(params.position.module.module_id)?;
-                let edit = context.rename(
-                    &program,
-                    params.position.file_id,
-                    params.position.offset,
-                    &params.new_name,
-                )?;
-
-                QueryResponse::Rename(RenameResponse { edit })
-            }
-            QueryRequest::RenameFiles(params) => {
-                let profile_ids = self.selected_profile_ids()?;
-                let programs = self.program_contexts(&profile_ids, require_artifacts)?;
-                let mut modules = Vec::new();
-                for program in &programs {
-                    modules.extend(program.authored_modules()?);
-                }
-
-                let edit = rename_files(
-                    self.repository(),
-                    self.revision(),
-                    &modules,
-                    &params.renames,
-                    require_artifacts,
-                )?;
-
-                QueryResponse::RenameFiles(RenameFilesResponse { edit })
-            }
-            QueryRequest::ExtractVariable(params) => {
-                let query =
-                    self.program_context(params.range.module.profile_id, require_artifacts)?;
-                let context = query.module(params.range.module.module_id)?;
-                let edit = context.extract_variable(&query, params.range.span, &params.new_name)?;
-
-                QueryResponse::ExtractVariable(ExtractVariableResponse { edit })
-            }
-            QueryRequest::Inline(params) => {
-                let program =
-                    self.program_context(params.position.module.profile_id, require_artifacts)?;
-                let context = program.module(params.position.module.module_id)?;
-                let edit =
-                    context.inline(&program, params.position.file_id, params.position.offset)?;
-
-                QueryResponse::Inline(InlineResponse { edit })
-            }
-            QueryRequest::CodeActions(params) => {
-                let program =
-                    self.program_context(params.range.module.profile_id, require_artifacts)?;
-                let context = program.module(params.range.module.module_id)?;
-                let includes_quick_fixes = params.context.includes(CodeActionKind::QuickFix);
-                let diagnostics = if includes_quick_fixes {
-                    let artifact_keys =
-                        self.diagnostic_artifacts(&[params.range.module.module_id])?;
-                    let diagnostics = self
-                        .repository()
-                        .diagnostics_for_keys(self.revision(), &artifact_keys)?;
-                    let mut diagnostics = diagnostics.group_by_file();
-                    let mut file_diagnostics = Vec::new();
-
-                    // use the diagnostics emitted for this exact source file
-                    if let Some(diagnostics) = diagnostics.remove(&params.range.span.file) {
-                        file_diagnostics = diagnostics;
-                    }
-
-                    file_diagnostics
-                }
-                // skip diagnostic collection for requests without quick fixes
-                else {
-                    Vec::new()
-                };
-                let actions = context.code_actions(
-                    &program,
-                    params.range.span,
-                    &diagnostics,
-                    &params.context,
-                )?;
-
-                QueryResponse::CodeActions(CodeActionsResponse { actions })
-            }
-            QueryRequest::Decorators(params) => {
-                let profile_id = match &params.scope {
-                    DecoratorScope::Module(module) => module.profile_id,
-                    DecoratorScope::Program(profile_id) => *profile_id,
-                };
-                let program = self.program_context(profile_id, require_artifacts)?;
-                let decorators = program.decorators(&params.scope, params.name.as_deref())?;
-
-                QueryResponse::Decorators(DecoratorsResponse { decorators })
-            }
-        };
-
-        Ok(response)
-    }
-
-    /// Return one module context at the pinned query revision.
-    fn module<'a>(
-        &'a self,
-        module: Module,
-        require_artifacts: &'a dyn Fn(&[ArtifactKey]) -> QueryResult<()>,
-    ) -> Result<ModuleQueryContext<'a>, Error> {
-        let context = ModuleQueryContext::new(
-            self.repository(),
-            self.revision(),
-            module.module_id,
-            module.profile_id,
-            require_artifacts,
-        )?;
-
-        Ok(context)
-    }
-
-    /// Return a program query context for one exact profile.
-    fn program_context<'a>(
-        &'a self,
-        profile_id: ProfileId,
-        require_artifacts: &'a dyn Fn(&[ArtifactKey]) -> QueryResult<()>,
-    ) -> Result<ProgramQueryContext<'a>, Error> {
-        let repository = self.repository();
-        let revision = self.revision();
-
-        ProgramQueryContext::new(repository, revision, profile_id, require_artifacts)
-            .map_err(Error::from)
-    }
-
-    /// Return program query contexts for exact profiles.
-    fn program_contexts<'a>(
-        &'a self,
-        profile_ids: &[ProfileId],
-        require_artifacts: &'a dyn Fn(&[ArtifactKey]) -> QueryResult<()>,
-    ) -> Result<Vec<ProgramQueryContext<'a>>, Error> {
-        let mut programs = Vec::with_capacity(profile_ids.len());
-
-        // build each exact program context
-        for profile_id in profile_ids {
-            programs.push(self.program_context(*profile_id, require_artifacts)?);
-        }
-
-        Ok(programs)
     }
 }
