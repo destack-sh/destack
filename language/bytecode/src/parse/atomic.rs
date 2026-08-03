@@ -1,7 +1,7 @@
 use crate::{
-    AtomicAccess, AtomicOperation, AtomicOrder, CompareExchangeAccess, ExecutionScope, FenceAccess,
-    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterId, RegisterSpan,
-    StorageSet, Token, TokenType,
+    Address, AtomicAccess, AtomicOperation, AtomicOrder, CompareExchangeAccess, ExecutionScope,
+    FenceAccess, InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterId,
+    RegisterSpan, StorageSet, Token, TokenType,
 };
 
 use super::function::FunctionParser;
@@ -22,13 +22,18 @@ impl Parser<'_> {
         }
 
         // parse one scalar atomic operation
-        let operation = name
+        let name = name
             .strip_prefix("atomic.")
-            .and_then(AtomicOperation::from_name)
+            .ok_or_else(|| ParseError::new("expected atomic operation", token.span))?;
+        let (name, address) = match name.strip_suffix(".pointer") {
+            Some(name) => (name, Address::Pointer),
+            None => (name, Address::Memory),
+        };
+        let operation = AtomicOperation::from_name(name)
             .ok_or_else(|| ParseError::new("expected atomic operation", token.span))?;
         let results = self.parse_results(operation.result_count(), true)?;
 
-        self.parse_atomic_access(operation, token, &results, function)
+        self.parse_atomic_access(operation, address, token, &results, function)
     }
 
     /// Parse one atomic fence.
@@ -68,6 +73,7 @@ impl Parser<'_> {
     fn parse_atomic_access(
         &mut self,
         operation: AtomicOperation,
+        address: Address,
         token: Token,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
@@ -81,7 +87,7 @@ impl Parser<'_> {
         self.eat_token(TokenType::Comma)?;
         let access = self.parse_atomic_access_bits(operation, token)?;
         let scalar = self.parse_scalar_representation()?;
-        let opcode = Opcode::atomic(operation, scalar)
+        let opcode = Opcode::atomic(operation, address, scalar)
             .ok_or_else(|| ParseError::new("invalid atomic operation", token.span))?;
 
         // encode the complete typed access

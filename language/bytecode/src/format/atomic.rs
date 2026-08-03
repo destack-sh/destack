@@ -3,8 +3,8 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::{
-    AtomicAccess, AtomicOperation, CompareExchangeAccess, ExecutionScope, FenceAccess, Scalar,
-    StorageSet,
+    Address, AtomicAccess, AtomicOperation, CompareExchangeAccess, ExecutionScope, FenceAccess,
+    Scalar, StorageSet,
 };
 
 use super::instruction::InstructionFormatter;
@@ -14,9 +14,10 @@ impl InstructionFormatter<'_, '_, '_> {
     pub(super) fn format_atomic(
         &mut self,
         operation: AtomicOperation,
+        address: Address,
         scalar: Scalar,
     ) -> FormatResult<()> {
-        let name = format!("atomic.{}", operation.name());
+        let name = format!("atomic.{}{}", operation.name(), address.suffix());
         self.write_opcode(&name)?;
         self.write_atomic_results(operation)?;
 

@@ -1,13 +1,13 @@
-use destack_fir::format::{FormatError, FormatResult};
+use destack_fir::format::FormatResult;
 
-use crate::{MemoryOperation, Opcode, RegisterSpan, Scalar};
+use crate::{Address, MemoryOperation, Prefetch, RegisterSpan, Scalar, Transfer};
 
 use super::instruction::InstructionFormatter;
 
 impl InstructionFormatter<'_, '_, '_> {
     /// Format one packed value load.
-    pub(super) fn format_load(&mut self) -> FormatResult<()> {
-        self.write_opcode("load")?;
+    pub(super) fn format_load(&mut self, address: Address) -> FormatResult<()> {
+        self.write_opcode(&format!("load{}", address.suffix()))?;
         self.result_span()?;
         let pointer = self.register_id()?;
         let byte_len = self.u32()?.to_string();
@@ -20,14 +20,14 @@ impl InstructionFormatter<'_, '_, '_> {
     }
 
     /// Format one packed value store.
-    pub(super) fn format_store(&mut self) -> FormatResult<()> {
+    pub(super) fn format_store(&mut self, address: Address) -> FormatResult<()> {
         let pointer = self.register_id()?;
         let (value, word_count) = self.register_span_id()?;
         let value = RegisterSpan::new(value, word_count);
         let byte_len = self.u32()?.to_string();
 
         // write the pointer, value, and exact copied byte length
-        self.write_opcode("store")?;
+        self.write_opcode(&format!("store{}", address.suffix()))?;
         self.write_register(pointer)?;
         self.write_comma()?;
         self.write_span(value)?;
@@ -39,9 +39,11 @@ impl InstructionFormatter<'_, '_, '_> {
     pub(super) fn format_memory(
         &mut self,
         operation: MemoryOperation,
+        address: Address,
         scalar: Scalar,
     ) -> FormatResult<()> {
-        self.write_opcode(operation.name())?;
+        let name = format!("{}{}", operation.name(), address.suffix());
+        self.write_opcode(&name)?;
 
         // load one scalar value
         if operation == MemoryOperation::Load {
@@ -62,31 +64,29 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_scalar_representation(scalar)
     }
 
-    /// Format one byte range operation.
-    pub(super) fn format_range(&mut self, opcode: Opcode) -> FormatResult<()> {
-        match opcode {
-            Opcode::MEMORY_COPY | Opcode::MEMORY_MOVE => self.format_transfer(opcode, false),
-            Opcode::MEMORY_COPY_IMMEDIATE | Opcode::MEMORY_MOVE_IMMEDIATE => {
-                self.format_transfer(opcode, true)
-            }
-            Opcode::MEMORY_FILL => self.format_fill(false),
-            Opcode::MEMORY_FILL_IMMEDIATE => self.format_fill(true),
-            Opcode::MEMORY_COMPARE => self.format_compare(false),
-            Opcode::MEMORY_COMPARE_IMMEDIATE => self.format_compare(true),
-            _ => Err(FormatError::SyntaxError {
-                message: "invalid byte range opcode",
-            }),
-        }
-    }
-
     /// Format one byte copy or move.
-    fn format_transfer(&mut self, opcode: Opcode, is_immediate: bool) -> FormatResult<()> {
+    pub(super) fn format_transfer(
+        &mut self,
+        operation: Transfer,
+        target_address: Address,
+        source_address: Address,
+        is_immediate: bool,
+    ) -> FormatResult<()> {
         let target = self.register_id()?;
         let source = self.register_id()?;
-        let name = self.opcode_name(opcode)?;
+        let name = if target_address == Address::Memory && source_address == Address::Memory {
+            format!("memory.{}", operation.name())
+        } else {
+            format!(
+                "memory.{}.{}.{}",
+                operation.name(),
+                target_address.name(),
+                source_address.name()
+            )
+        };
 
         // write target, source, and byte length
-        self.write_opcode(name)?;
+        self.write_opcode(&name)?;
         self.write_register(target)?;
         self.write_comma()?;
         self.write_register(source)?;
@@ -95,12 +95,13 @@ impl InstructionFormatter<'_, '_, '_> {
     }
 
     /// Format one byte fill.
-    fn format_fill(&mut self, is_immediate: bool) -> FormatResult<()> {
+    pub(super) fn format_fill(&mut self, address: Address, is_immediate: bool) -> FormatResult<()> {
         let target = self.register_id()?;
         let byte = self.register_id()?;
+        let name = format!("memory.fill{}", address.suffix());
 
         // write the complete fill range
-        self.write_opcode("memory.fill")?;
+        self.write_opcode(&name)?;
         self.write_register(target)?;
         self.write_comma()?;
         self.write_register(byte)?;
@@ -109,13 +110,27 @@ impl InstructionFormatter<'_, '_, '_> {
     }
 
     /// Format one byte comparison.
-    fn format_compare(&mut self, is_immediate: bool) -> FormatResult<()> {
+    pub(super) fn format_compare(
+        &mut self,
+        left_address: Address,
+        right_address: Address,
+        is_immediate: bool,
+    ) -> FormatResult<()> {
         let result = self.register_id()?;
         let left = self.register_id()?;
         let right = self.register_id()?;
+        let name = if left_address == Address::Memory && right_address == Address::Memory {
+            "memory.compare".to_string()
+        } else {
+            format!(
+                "memory.compare.{}.{}",
+                left_address.name(),
+                right_address.name()
+            )
+        };
 
         // write the comparison result and byte range
-        self.write_opcode("memory.compare")?;
+        self.write_opcode(&name)?;
         self.write_register(result)?;
         self.write_comma()?;
         self.write_register(left)?;
@@ -139,11 +154,15 @@ impl InstructionFormatter<'_, '_, '_> {
     }
 
     /// Format one prefetch hint.
-    pub(super) fn format_prefetch(&mut self, opcode: Opcode) -> FormatResult<()> {
+    pub(super) fn format_prefetch(
+        &mut self,
+        operation: Prefetch,
+        address: Address,
+    ) -> FormatResult<()> {
         let pointer = self.register_id()?;
-        let name = self.opcode_name(opcode)?;
+        let name = format!("prefetch.{}{}", operation.name(), address.suffix());
 
-        self.write_opcode(name)?;
+        self.write_opcode(&name)?;
         self.write_register(pointer)
     }
 }

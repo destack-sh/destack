@@ -3,6 +3,66 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Scalar, ValueType};
 
+/// The base used to resolve one bytecode memory operand.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum Address {
+    /// A stable offset inside the active world memory map.
+    Memory = 0,
+    /// A stable offset inside immutable Program constants.
+    Constant = 1,
+    /// A process-local native pointer.
+    Pointer = 2,
+}
+
+impl Address {
+    /// The number of reserved addressing modes.
+    pub(crate) const COUNT: u16 = 3;
+
+    /// Decode one stable addressing mode code.
+    pub const fn from_code(code: u8) -> Option<Self> {
+        match code {
+            0 => Some(Self::Memory),
+            1 => Some(Self::Constant),
+            2 => Some(Self::Pointer),
+            _ => None,
+        }
+    }
+
+    /// Return the address with one canonical text name.
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "memory" => Some(Self::Memory),
+            "constant" => Some(Self::Constant),
+            "pointer" => Some(Self::Pointer),
+            _ => None,
+        }
+    }
+
+    /// Return the canonical text name.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Memory => "memory",
+            Self::Constant => "constant",
+            Self::Pointer => "pointer",
+        }
+    }
+
+    /// Return the canonical opcode suffix.
+    pub const fn suffix(self) -> &'static str {
+        match self {
+            Self::Memory => "",
+            Self::Constant => ".constant",
+            Self::Pointer => ".pointer",
+        }
+    }
+
+    /// Return whether this address can be written.
+    pub const fn is_writable(self) -> bool {
+        !matches!(self, Self::Constant)
+    }
+}
+
 /// One memory operation.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -29,6 +89,74 @@ impl MemoryOperation {
             Self::Load => "load",
             Self::Store => "store",
         }
+    }
+
+    /// Return whether this operation accepts one addressing mode.
+    pub const fn supports(self, address: Address) -> bool {
+        !matches!((self, address), (Self::Store, Address::Constant))
+    }
+}
+
+/// One byte range transfer.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum Transfer {
+    /// Copy one non-overlapping byte range.
+    Copy = 0,
+    /// Move one potentially overlapping byte range.
+    Move = 1,
+}
+
+impl Transfer {
+    /// Decode one stable byte range transfer code.
+    pub const fn from_code(code: u8) -> Option<Self> {
+        match code {
+            0 => Some(Self::Copy),
+            1 => Some(Self::Move),
+            _ => None,
+        }
+    }
+
+    /// Return the canonical bytecode text name.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Copy => "copy",
+            Self::Move => "move",
+        }
+    }
+}
+
+/// One memory prefetch direction.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum Prefetch {
+    /// Prefetch one range for reading.
+    Read = 0,
+    /// Prefetch one range for writing.
+    Write = 1,
+}
+
+impl Prefetch {
+    /// Decode one stable prefetch code.
+    pub const fn from_code(code: u8) -> Option<Self> {
+        match code {
+            0 => Some(Self::Read),
+            1 => Some(Self::Write),
+            _ => None,
+        }
+    }
+
+    /// Return the canonical bytecode text name.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Read => "read",
+            Self::Write => "write",
+        }
+    }
+
+    /// Return whether this direction accepts one address.
+    pub const fn supports(self, address: Address) -> bool {
+        !matches!((self, address), (Self::Write, Address::Constant))
     }
 }
 

@@ -14,7 +14,6 @@ mod memory;
 mod new;
 mod object;
 mod parser;
-mod pointer;
 mod profile;
 mod reference;
 mod scalar;

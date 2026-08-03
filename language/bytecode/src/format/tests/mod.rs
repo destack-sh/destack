@@ -1,3 +1,4 @@
+mod address;
 mod aggregate;
 mod atomic;
 mod call;
@@ -9,7 +10,6 @@ mod function;
 mod instruction;
 mod memory;
 mod new;
-mod pointer;
 mod reference;
 mod scalar;
 mod slice;

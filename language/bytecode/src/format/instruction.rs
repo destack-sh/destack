@@ -3,7 +3,8 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::{
-    BytecodeFormatter, CodeOffset, Instruction, Label, Opcode, Operands, RegisterId, RegisterSpan,
+    Address, BytecodeFormatter, CodeOffset, Instruction, Label, Opcode, Operands, RegisterId,
+    RegisterSpan,
 };
 
 impl<'object> Instruction<'object> {
@@ -85,10 +86,19 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             self.format_integer128(operation, is_signed)
         } else if let Some((operation, scalar)) = opcode.float_operation() {
             self.format_scalar(operation.name(), scalar)
-        } else if let Some((operation, scalar)) = opcode.memory_operation() {
-            self.format_memory(operation, scalar)
-        } else if let Some((operation, scalar)) = opcode.atomic_operation() {
-            self.format_atomic(operation, scalar)
+        } else if let Some((operation, address, scalar)) = opcode.memory_operation() {
+            self.format_memory(operation, address, scalar)
+        } else if let Some((operation, target, source, is_immediate)) = opcode.transfer_operation()
+        {
+            self.format_transfer(operation, target, source, is_immediate)
+        } else if let Some((target, is_immediate)) = opcode.fill_operation() {
+            self.format_fill(target, is_immediate)
+        } else if let Some((left, right, is_immediate)) = opcode.compare_operation() {
+            self.format_compare(left, right, is_immediate)
+        } else if let Some((operation, address)) = opcode.prefetch_operation() {
+            self.format_prefetch(operation, address)
+        } else if let Some((operation, address, scalar)) = opcode.atomic_operation() {
+            self.format_atomic(operation, address, scalar)
         } else if let Some(operation) = opcode.new_operation() {
             self.format_new(operation)
         } else if let Some((operation, scalar)) = opcode.scalar_check() {
@@ -136,27 +146,21 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::GLOBAL_ADDRESS_CONSTANT
             | Opcode::GLOBAL_ADDRESS_LOCAL
             | Opcode::GLOBAL_ADDRESS_SHARED => self.format_address(opcode),
-            Opcode::POINTER_ADD_IMMEDIATE
+            Opcode::REFERENCE_ADD_IMMEDIATE
+            | Opcode::REFERENCE_ADD
+            | Opcode::REFERENCE_ADD_SCALED
+            | Opcode::REFERENCE_DIFF
+            | Opcode::POINTER_ADD_IMMEDIATE
             | Opcode::POINTER_ADD
             | Opcode::POINTER_ADD_SCALED
-            | Opcode::POINTER_DIFF => self.format_pointer(opcode),
-
-            // memory ranges
-            Opcode::MEMORY_COPY
-            | Opcode::MEMORY_MOVE
-            | Opcode::MEMORY_FILL
-            | Opcode::MEMORY_COMPARE
-            | Opcode::MEMORY_COPY_IMMEDIATE
-            | Opcode::MEMORY_MOVE_IMMEDIATE
-            | Opcode::MEMORY_FILL_IMMEDIATE
-            | Opcode::MEMORY_COMPARE_IMMEDIATE => self.format_range(opcode),
-
-            // prefetch
-            Opcode::PREFETCH_READ | Opcode::PREFETCH_WRITE => self.format_prefetch(opcode),
+            | Opcode::POINTER_DIFF => self.format_address_arithmetic(opcode),
 
             // memory
-            Opcode::LOAD => self.format_load(),
-            Opcode::STORE => self.format_store(),
+            Opcode::LOAD => self.format_load(Address::Memory),
+            Opcode::LOAD_CONSTANT => self.format_load(Address::Constant),
+            Opcode::LOAD_POINTER => self.format_load(Address::Pointer),
+            Opcode::STORE => self.format_store(Address::Memory),
+            Opcode::STORE_POINTER => self.format_store(Address::Pointer),
 
             // function values
             Opcode::FUNCTION_ADDRESS | Opcode::FUNCTION_BIND => self.format_function_value(opcode),

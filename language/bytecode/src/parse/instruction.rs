@@ -40,7 +40,7 @@ impl Parser<'_> {
 
             // addresses and pointers
             "frame" | "global" => self.parse_address(name, token, function),
-            "pointer" => self.parse_pointer_operation(name, token, function),
+            "reference" | "pointer" => self.parse_address_arithmetic(name, token, function),
 
             // memory ranges, prefetch, and scalar memory
             "memory" | "prefetch" | "load" | "store" => {

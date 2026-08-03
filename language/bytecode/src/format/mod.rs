@@ -13,7 +13,6 @@ mod memory;
 mod new;
 mod object;
 mod operand;
-mod pointer;
 mod profile;
 mod reference;
 mod relocation;

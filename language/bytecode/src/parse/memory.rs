@@ -1,6 +1,6 @@
 use crate::{
-    InstructionBuilder, MemoryOperation, Opcode, ParseError, ParseResult, Parser, RegisterId,
-    Token, TokenType,
+    Address, InstructionBuilder, MemoryOperation, Opcode, ParseError, ParseResult, Parser,
+    Prefetch, RegisterId, Token, TokenType, Transfer,
 };
 
 use super::function::FunctionParser;
@@ -14,34 +14,56 @@ impl Parser<'_> {
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         match name {
-            "load" => self.parse_load(token, function),
-            "store" => self.parse_store(token, function),
-            "memory.copy" => self.parse_transfer(false, token, function),
-            "memory.move" => self.parse_transfer(true, token, function),
-            "memory.fill" => self.parse_fill(token, function),
-            "memory.compare" => self.parse_compare(token, function),
-            "prefetch.read" => self.parse_prefetch(Opcode::PREFETCH_READ, token, function),
-            "prefetch.write" => self.parse_prefetch(Opcode::PREFETCH_WRITE, token, function),
+            "load" => self.parse_load(Address::Memory, token, function),
+            "load.constant" => self.parse_load(Address::Constant, token, function),
+            "load.pointer" => self.parse_load(Address::Pointer, token, function),
+            "store" => self.parse_store(Address::Memory, token, function),
+            "store.pointer" => self.parse_store(Address::Pointer, token, function),
+            _ if name.starts_with("memory.copy") => {
+                self.parse_transfer(name, Transfer::Copy, token, function)
+            }
+            _ if name.starts_with("memory.move") => {
+                self.parse_transfer(name, Transfer::Move, token, function)
+            }
+            _ if name.starts_with("memory.fill") => self.parse_fill(name, token, function),
+            _ if name.starts_with("memory.compare") => self.parse_compare(name, token, function),
+            _ if name.starts_with("prefetch.read") => {
+                self.parse_prefetch(name, Prefetch::Read, token, function)
+            }
+            _ if name.starts_with("prefetch.write") => {
+                self.parse_prefetch(name, Prefetch::Write, token, function)
+            }
             _ => Err(ParseError::new("unknown memory operation", token.span)),
         }
     }
 
     /// Parse one scalar or packed value load.
-    fn parse_load(&mut self, token: Token, function: &mut FunctionParser) -> ParseResult<()> {
+    fn parse_load(
+        &mut self,
+        address: Address,
+        token: Token,
+        function: &mut FunctionParser,
+    ) -> ParseResult<()> {
         let results = self.parse_results(1, true)?;
         let pointer = self.parse_register()?;
 
         // select a packed byte range or scalar representation
         if self.eat_token_if(TokenType::Comma) {
             let byte_len = self.parse_u32()?;
-            let mut instruction = InstructionBuilder::new(Opcode::LOAD);
+            let opcode = match address {
+                Address::Memory => Opcode::LOAD,
+                Address::Constant => Opcode::LOAD_CONSTANT,
+                Address::Pointer => Opcode::LOAD_POINTER,
+            };
+            let mut instruction = InstructionBuilder::new(opcode);
             instruction.register(pointer);
             instruction.u32(byte_len);
 
             function.emit(instruction, &results, token.span)
         } else {
             let scalar = self.parse_scalar_representation()?;
-            let opcode = Opcode::memory(MemoryOperation::Load, scalar);
+            let opcode = Opcode::memory(MemoryOperation::Load, address, scalar)
+                .ok_or_else(|| ParseError::new("invalid load address", token.span))?;
             let mut instruction = InstructionBuilder::new(opcode);
             instruction.register(pointer);
 
@@ -50,7 +72,12 @@ impl Parser<'_> {
     }
 
     /// Parse one scalar or packed value store.
-    fn parse_store(&mut self, token: Token, function: &mut FunctionParser) -> ParseResult<()> {
+    fn parse_store(
+        &mut self,
+        address: Address,
+        token: Token,
+        function: &mut FunctionParser,
+    ) -> ParseResult<()> {
         let pointer = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let value = self.parse_register_span()?;
@@ -58,7 +85,14 @@ impl Parser<'_> {
         // select a packed byte range or scalar representation
         if self.eat_token_if(TokenType::Comma) {
             let byte_len = self.parse_u32()?;
-            let mut instruction = InstructionBuilder::new(Opcode::STORE);
+            let opcode = match address {
+                Address::Memory => Opcode::STORE,
+                Address::Pointer => Opcode::STORE_POINTER,
+                Address::Constant => {
+                    return Err(ParseError::new("cannot store into constants", token.span));
+                }
+            };
+            let mut instruction = InstructionBuilder::new(opcode);
             instruction.register(pointer);
             instruction.span(value);
             instruction.u32(byte_len);
@@ -72,7 +106,8 @@ impl Parser<'_> {
                     token.span,
                 ));
             }
-            let opcode = Opcode::memory(MemoryOperation::Store, scalar);
+            let opcode = Opcode::memory(MemoryOperation::Store, address, scalar)
+                .ok_or_else(|| ParseError::new("invalid store address", token.span))?;
             let mut instruction = InstructionBuilder::new(opcode);
             instruction.register(pointer);
             instruction.register(value.start);
@@ -84,21 +119,21 @@ impl Parser<'_> {
     /// Parse one byte copy or move.
     fn parse_transfer(
         &mut self,
-        is_move: bool,
+        name: &str,
+        operation: Transfer,
         token: Token,
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
+        let prefix = format!("memory.{}", operation.name());
+        let (target_address, source_address) = self.parse_address_pair(name, &prefix, token)?;
         let target = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let source = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let length = self.parse_length()?;
-        let opcode = match (is_move, length) {
-            (false, Length::Register(_)) => Opcode::MEMORY_COPY,
-            (true, Length::Register(_)) => Opcode::MEMORY_MOVE,
-            (false, Length::Immediate(_)) => Opcode::MEMORY_COPY_IMMEDIATE,
-            (true, Length::Immediate(_)) => Opcode::MEMORY_MOVE_IMMEDIATE,
-        };
+        let is_immediate = matches!(length, Length::Immediate(_));
+        let opcode = Opcode::transfer(operation, target_address, source_address, is_immediate)
+            .ok_or_else(|| ParseError::new("invalid transfer address", token.span))?;
 
         // encode target then source for direct execution
         let mut instruction = InstructionBuilder::new(opcode);
@@ -110,17 +145,21 @@ impl Parser<'_> {
     }
 
     /// Parse one byte fill.
-    fn parse_fill(&mut self, token: Token, function: &mut FunctionParser) -> ParseResult<()> {
+    fn parse_fill(
+        &mut self,
+        name: &str,
+        token: Token,
+        function: &mut FunctionParser,
+    ) -> ParseResult<()> {
+        let address = self.parse_address_suffix(name, "memory.fill", token)?;
         let target = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let byte = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let length = self.parse_length()?;
-        let opcode = if matches!(length, Length::Immediate(_)) {
-            Opcode::MEMORY_FILL_IMMEDIATE
-        } else {
-            Opcode::MEMORY_FILL
-        };
+        let is_immediate = matches!(length, Length::Immediate(_));
+        let opcode = Opcode::fill(address, is_immediate)
+            .ok_or_else(|| ParseError::new("invalid fill address", token.span))?;
 
         // encode the complete fill range
         let mut instruction = InstructionBuilder::new(opcode);
@@ -132,18 +171,22 @@ impl Parser<'_> {
     }
 
     /// Parse one byte comparison.
-    fn parse_compare(&mut self, token: Token, function: &mut FunctionParser) -> ParseResult<()> {
+    fn parse_compare(
+        &mut self,
+        name: &str,
+        token: Token,
+        function: &mut FunctionParser,
+    ) -> ParseResult<()> {
+        let (left_address, right_address) =
+            self.parse_address_pair(name, "memory.compare", token)?;
         let results = self.parse_results(1, true)?;
         let left = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let right = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let length = self.parse_length()?;
-        let opcode = if matches!(length, Length::Immediate(_)) {
-            Opcode::MEMORY_COMPARE_IMMEDIATE
-        } else {
-            Opcode::MEMORY_COMPARE
-        };
+        let is_immediate = matches!(length, Length::Immediate(_));
+        let opcode = Opcode::compare(left_address, right_address, is_immediate);
 
         // encode the signed comparison result
         let mut instruction = InstructionBuilder::new(opcode);
@@ -166,15 +209,61 @@ impl Parser<'_> {
     /// Parse one prefetch hint.
     fn parse_prefetch(
         &mut self,
-        opcode: Opcode,
+        name: &str,
+        operation: Prefetch,
         token: Token,
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
+        let prefix = format!("prefetch.{}", operation.name());
+        let address = self.parse_address_suffix(name, &prefix, token)?;
+        let opcode = Opcode::prefetch(operation, address)
+            .ok_or_else(|| ParseError::new("invalid prefetch address", token.span))?;
         let pointer = self.parse_register()?;
         let mut instruction = InstructionBuilder::new(opcode);
         instruction.register(pointer);
 
         function.emit(instruction, &[], token.span)
+    }
+
+    /// Parse one optional memory address suffix.
+    fn parse_address_suffix(&self, name: &str, prefix: &str, token: Token) -> ParseResult<Address> {
+        if name == prefix {
+            return Ok(Address::Memory);
+        }
+
+        let name = name
+            .strip_prefix(prefix)
+            .and_then(|name| name.strip_prefix('.'))
+            .ok_or_else(|| ParseError::new("invalid memory operation", token.span))?;
+
+        Address::from_name(name)
+            .ok_or_else(|| ParseError::new("expected memory address", token.span))
+    }
+
+    /// Parse one optional pair of memory address suffixes.
+    fn parse_address_pair(
+        &self,
+        name: &str,
+        prefix: &str,
+        token: Token,
+    ) -> ParseResult<(Address, Address)> {
+        if name == prefix {
+            return Ok((Address::Memory, Address::Memory));
+        }
+
+        let name = name
+            .strip_prefix(prefix)
+            .and_then(|name| name.strip_prefix('.'))
+            .ok_or_else(|| ParseError::new("invalid memory operation", token.span))?;
+        let (first, second) = name
+            .split_once('.')
+            .ok_or_else(|| ParseError::new("expected two memory addresses", token.span))?;
+        let first = Address::from_name(first)
+            .ok_or_else(|| ParseError::new("expected memory address", token.span))?;
+        let second = Address::from_name(second)
+            .ok_or_else(|| ParseError::new("expected memory address", token.span))?;
+
+        Ok((first, second))
     }
 }
 

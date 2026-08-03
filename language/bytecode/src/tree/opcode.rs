@@ -2,9 +2,9 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AtomicOperation, BooleanOperation, CastOperation, Comparison, FloatOperation,
-    InstructionLayout, IntegerOperation, MemoryOperation, New, NewKind, Operand, Scalar,
-    ScalarCheck, TensorOperation, ValueType, VectorOperation,
+    Address, AtomicOperation, BooleanOperation, CastOperation, Comparison, FloatOperation,
+    InstructionLayout, IntegerOperation, MemoryOperation, New, NewKind, Operand, Prefetch, Scalar,
+    ScalarCheck, TensorOperation, Transfer, ValueType, VectorOperation,
 };
 
 /// One stable exact bytecode operation code.
@@ -195,23 +195,43 @@ opcodes! {
     // references and pointers
     FRAME_ADDRESS = 0x0030 {
         text: "frame.address",
-        signature: "(value: value) => pointer",
+        signature: "(value: value) => reference",
         operands: [Result, RegisterSpan],
     }
     GLOBAL_ADDRESS_CONSTANT = 0x0031 {
         text: "global.address.constant",
-        signature: "(global: GlobalId) => pointer",
+        signature: "(global: GlobalId) => reference",
         operands: [Result, Global],
     }
     GLOBAL_ADDRESS_LOCAL = 0x0032 {
         text: "global.address.local",
-        signature: "(global: GlobalId) => pointer",
+        signature: "(global: GlobalId) => reference",
         operands: [Result, Global],
     }
     GLOBAL_ADDRESS_SHARED = 0x0033 {
         text: "global.address.shared",
-        signature: "(global: GlobalId) => pointer",
+        signature: "(global: GlobalId) => reference",
         operands: [Result, Global],
+    }
+    REFERENCE_ADD_IMMEDIATE = 0x0034 {
+        text: "reference.add",
+        signature: "(base: reference, byteOffset: int32) => reference",
+        operands: [Result, Register, Signed32],
+    }
+    REFERENCE_ADD = 0x0035 {
+        text: "reference.add",
+        signature: "(base: reference, byteOffset: int64) => reference",
+        operands: [Result, Register, Register],
+    }
+    REFERENCE_ADD_SCALED = 0x0036 {
+        text: "reference.add",
+        signature: "(base: reference, offset: int64, scale: uint32) => reference",
+        operands: [Result, Register, Register, Unsigned32],
+    }
+    REFERENCE_DIFF = 0x0037 {
+        text: "reference.diff",
+        signature: "(reference: reference, origin: reference) => int64",
+        operands: [Result, Register, Register],
     }
     POINTER_ADD_IMMEDIATE = 0x0038 {
         text: "pointer.add",
@@ -234,68 +254,29 @@ opcodes! {
         operands: [Result, Register, Register],
     }
 
-    // memory ranges
-    MEMORY_COPY = 0x0040 {
-        text: "memory.copy",
-        signature: "(target: pointer, source: pointer, byteLength: uint64) => void",
-        operands: [Register, Register, Register],
-    }
-    MEMORY_MOVE = 0x0041 {
-        text: "memory.move",
-        signature: "(target: pointer, source: pointer, byteLength: uint64) => void",
-        operands: [Register, Register, Register],
-    }
-    MEMORY_FILL = 0x0042 {
-        text: "memory.fill",
-        signature: "(target: pointer, byte: uint8, byteLength: uint64) => void",
-        operands: [Register, Register, Register],
-    }
-    MEMORY_COMPARE = 0x0043 {
-        text: "memory.compare",
-        signature: "(left: pointer, right: pointer, byteLength: uint64) => int32",
-        operands: [Result, Register, Register, Register],
-    }
-    MEMORY_COPY_IMMEDIATE = 0x0044 {
-        text: "memory.copy",
-        signature: "(target: pointer, source: pointer, byteLength: uint32) => void",
-        operands: [Register, Register, Unsigned32],
-    }
-    MEMORY_MOVE_IMMEDIATE = 0x0045 {
-        text: "memory.move",
-        signature: "(target: pointer, source: pointer, byteLength: uint32) => void",
-        operands: [Register, Register, Unsigned32],
-    }
-    MEMORY_FILL_IMMEDIATE = 0x0046 {
-        text: "memory.fill",
-        signature: "(target: pointer, byte: uint8, byteLength: uint32) => void",
-        operands: [Register, Register, Unsigned32],
-    }
-    MEMORY_COMPARE_IMMEDIATE = 0x0047 {
-        text: "memory.compare",
-        signature: "(left: pointer, right: pointer, byteLength: uint32) => int32",
-        operands: [Result, Register, Register, Unsigned32],
-    }
-
-    // prefetch
-    PREFETCH_READ = 0x0048 {
-        text: "prefetch.read",
-        signature: "(pointer: pointer) => void",
-        operands: [Register],
-    }
-    PREFETCH_WRITE = 0x0049 {
-        text: "prefetch.write",
-        signature: "(pointer: pointer) => void",
-        operands: [Register],
-    }
-
     // memory
     LOAD = 0x0050 {
         text: "load",
-        signature: "(pointer: pointer, byteLength: uint32) => value",
+        signature: "(reference: reference, byteLength: uint32) => value",
         operands: [ResultRange, Register, Unsigned32],
     }
     STORE = 0x0051 {
         text: "store",
+        signature: "(reference: reference, value: value, byteLength: uint32) => void",
+        operands: [Register, RegisterSpan, Unsigned32],
+    }
+    LOAD_CONSTANT = 0x0052 {
+        text: "load.constant",
+        signature: "(reference: reference, byteLength: uint32) => value",
+        operands: [ResultRange, Register, Unsigned32],
+    }
+    LOAD_POINTER = 0x0053 {
+        text: "load.pointer",
+        signature: "(pointer: pointer, byteLength: uint32) => value",
+        operands: [ResultRange, Register, Unsigned32],
+    }
+    STORE_POINTER = 0x0054 {
+        text: "store.pointer",
         signature: "(pointer: pointer, value: value, byteLength: uint32) => void",
         operands: [Register, RegisterSpan, Unsigned32],
     }
@@ -671,25 +652,45 @@ opcodes! {
     ATOMIC in 0x0b00..0x0c00 {
         layout: atomic_layout,
     }
+    /// Scalar atomic operations through native pointers.
+    ATOMIC_POINTER in 0x0c00..0x0d00 {
+        layout: atomic_layout,
+    }
     /// Allocation operations.
-    NEW in 0x0c00..0x0c20 {
+    NEW in 0x0d00..0x0d20 {
         layout: new_layout,
     }
     /// Scalar runtime checks.
-    CHECK in 0x0c20..0x0ca0 {
+    CHECK in 0x0d20..0x0da0 {
         layout: check_layout,
     }
     /// Fused scalar branches.
-    SCALAR_BRANCH in 0x0ca0..0x0d00 {
+    SCALAR_BRANCH in 0x0da0..0x0e00 {
         layout: branch_layout,
     }
     /// Vector operations.
-    VECTOR in 0x0d00..0x0e00 {
+    VECTOR in 0x0e00..0x0f00 {
         layout: vector_layout,
     }
     /// Tensor operations.
-    TENSOR in 0x0e00..0x1000 {
+    TENSOR in 0x0f00..0x0f40 {
         layout: tensor_layout,
+    }
+    /// Byte range transfers.
+    TRANSFER in 0x0f40..0x0f68 {
+        layout: transfer_layout,
+    }
+    /// Byte range fills.
+    FILL in 0x0f68..0x0f70 {
+        layout: fill_layout,
+    }
+    /// Byte range comparisons.
+    COMPARE in 0x0f70..0x0f88 {
+        layout: compare_layout,
+    }
+    /// Memory prefetch operations.
+    PREFETCH in 0x0f88..0x0f90 {
+        layout: prefetch_layout,
     }
 }
 
@@ -843,25 +844,89 @@ impl Opcode {
     }
 
     /// Create one exact scalar memory opcode.
-    pub const fn memory(operation: MemoryOperation, scalar: Scalar) -> Self {
-        Self(
-            OpcodeRange::MEMORY.start()
-                + operation as u16 * Scalar::OPCODE_STRIDE
-                + scalar.code() as u16,
-        )
+    pub const fn memory(
+        operation: MemoryOperation,
+        address: Address,
+        scalar: Scalar,
+    ) -> Option<Self> {
+        if !operation.supports(address) {
+            return None;
+        }
+
+        let operation = operation as u16 * Address::COUNT + address as u16;
+
+        Some(Self(
+            OpcodeRange::MEMORY.start() + operation * Scalar::OPCODE_STRIDE + scalar.code() as u16,
+        ))
+    }
+
+    /// Create one exact byte range transfer opcode.
+    pub const fn transfer(
+        operation: Transfer,
+        target: Address,
+        source: Address,
+        is_immediate: bool,
+    ) -> Option<Self> {
+        if !target.is_writable() {
+            return None;
+        }
+
+        let operation = operation as u16 * Address::COUNT + target as u16;
+        let operation = operation * Address::COUNT + source as u16;
+        let operation = operation * 2 + is_immediate as u16;
+
+        Some(Self(OpcodeRange::TRANSFER.start() + operation))
+    }
+
+    /// Create one exact byte range fill opcode.
+    pub const fn fill(target: Address, is_immediate: bool) -> Option<Self> {
+        if !target.is_writable() {
+            return None;
+        }
+
+        let operation = target as u16 * 2 + is_immediate as u16;
+
+        Some(Self(OpcodeRange::FILL.start() + operation))
+    }
+
+    /// Create one exact byte range comparison opcode.
+    pub const fn compare(left: Address, right: Address, is_immediate: bool) -> Self {
+        let operation = left as u16 * Address::COUNT + right as u16;
+        let operation = operation * 2 + is_immediate as u16;
+
+        Self(OpcodeRange::COMPARE.start() + operation)
+    }
+
+    /// Create one exact prefetch opcode.
+    pub const fn prefetch(operation: Prefetch, address: Address) -> Option<Self> {
+        if !operation.supports(address) {
+            return None;
+        }
+
+        let operation = operation as u16 * Address::COUNT + address as u16;
+
+        Some(Self(OpcodeRange::PREFETCH.start() + operation))
     }
 
     /// Create one exact scalar atomic opcode.
-    pub const fn atomic(operation: AtomicOperation, scalar: Scalar) -> Option<Self> {
-        if operation.supports(scalar) {
-            Some(Self(
-                OpcodeRange::ATOMIC.start()
-                    + operation as u16 * Scalar::OPCODE_STRIDE
-                    + scalar.code() as u16,
-            ))
-        } else {
-            None
+    pub const fn atomic(
+        operation: AtomicOperation,
+        address: Address,
+        scalar: Scalar,
+    ) -> Option<Self> {
+        if !operation.supports(scalar) || !address.is_writable() {
+            return None;
         }
+
+        let range = match address {
+            Address::Memory => OpcodeRange::ATOMIC,
+            Address::Pointer => OpcodeRange::ATOMIC_POINTER,
+            Address::Constant => return None,
+        };
+
+        Some(Self(
+            range.start() + operation as u16 * Scalar::OPCODE_STRIDE + scalar.code() as u16,
+        ))
     }
 
     /// Create one exact `new` opcode.
@@ -1085,32 +1150,114 @@ impl Opcode {
     }
 
     /// Decode one scalar memory opcode.
-    pub const fn memory_operation(self) -> Option<(MemoryOperation, Scalar)> {
+    pub const fn memory_operation(self) -> Option<(MemoryOperation, Address, Scalar)> {
         if !OpcodeRange::MEMORY.contains(self.0) {
             return None;
         }
         let code = self.0 - OpcodeRange::MEMORY.start();
-        let operation = MemoryOperation::from_code((code / Scalar::OPCODE_STRIDE) as u8);
+        let operation = code / Scalar::OPCODE_STRIDE;
+        let address = Address::from_code((operation % Address::COUNT) as u8);
+        let operation = MemoryOperation::from_code((operation / Address::COUNT) as u8);
         let scalar = Scalar::from_code((code % Scalar::OPCODE_STRIDE) as u8);
 
-        match (operation, scalar) {
-            (Some(operation), Some(scalar)) => Some((operation, scalar)),
+        match (operation, address, scalar) {
+            (Some(operation), Some(address), Some(scalar)) if operation.supports(address) => {
+                Some((operation, address, scalar))
+            }
+            _ => None,
+        }
+    }
+
+    /// Decode one byte range transfer opcode.
+    pub const fn transfer_operation(self) -> Option<(Transfer, Address, Address, bool)> {
+        if !OpcodeRange::TRANSFER.contains(self.0) {
+            return None;
+        }
+
+        let code = self.0 - OpcodeRange::TRANSFER.start();
+        let is_immediate = !code.is_multiple_of(2);
+        let code = code / 2;
+        let source = Address::from_code((code % Address::COUNT) as u8);
+        let code = code / Address::COUNT;
+        let target = Address::from_code((code % Address::COUNT) as u8);
+        let operation = Transfer::from_code((code / Address::COUNT) as u8);
+
+        match (operation, target, source) {
+            (Some(operation), Some(target), Some(source)) if target.is_writable() => {
+                Some((operation, target, source, is_immediate))
+            }
+            _ => None,
+        }
+    }
+
+    /// Decode one byte range fill opcode.
+    pub const fn fill_operation(self) -> Option<(Address, bool)> {
+        if !OpcodeRange::FILL.contains(self.0) {
+            return None;
+        }
+
+        let code = self.0 - OpcodeRange::FILL.start();
+        let is_immediate = !code.is_multiple_of(2);
+        let target = Address::from_code((code / 2) as u8);
+
+        match target {
+            Some(target) if target.is_writable() => Some((target, is_immediate)),
+            _ => None,
+        }
+    }
+
+    /// Decode one byte range comparison opcode.
+    pub const fn compare_operation(self) -> Option<(Address, Address, bool)> {
+        if !OpcodeRange::COMPARE.contains(self.0) {
+            return None;
+        }
+
+        let code = self.0 - OpcodeRange::COMPARE.start();
+        let is_immediate = !code.is_multiple_of(2);
+        let code = code / 2;
+        let right = Address::from_code((code % Address::COUNT) as u8);
+        let left = Address::from_code((code / Address::COUNT) as u8);
+
+        match (left, right) {
+            (Some(left), Some(right)) => Some((left, right, is_immediate)),
+            _ => None,
+        }
+    }
+
+    /// Decode one prefetch opcode.
+    pub const fn prefetch_operation(self) -> Option<(Prefetch, Address)> {
+        if !OpcodeRange::PREFETCH.contains(self.0) {
+            return None;
+        }
+
+        let code = self.0 - OpcodeRange::PREFETCH.start();
+        let address = Address::from_code((code % Address::COUNT) as u8);
+        let operation = Prefetch::from_code((code / Address::COUNT) as u8);
+
+        match (operation, address) {
+            (Some(operation), Some(address)) if operation.supports(address) => {
+                Some((operation, address))
+            }
             _ => None,
         }
     }
 
     /// Decode one scalar atomic opcode.
-    pub const fn atomic_operation(self) -> Option<(AtomicOperation, Scalar)> {
-        if !OpcodeRange::ATOMIC.contains(self.0) {
+    pub const fn atomic_operation(self) -> Option<(AtomicOperation, Address, Scalar)> {
+        let (range, address) = if OpcodeRange::ATOMIC.contains(self.0) {
+            (OpcodeRange::ATOMIC, Address::Memory)
+        } else if OpcodeRange::ATOMIC_POINTER.contains(self.0) {
+            (OpcodeRange::ATOMIC_POINTER, Address::Pointer)
+        } else {
             return None;
-        }
-        let code = self.0 - OpcodeRange::ATOMIC.start();
+        };
+        let code = self.0 - range.start();
         let operation = AtomicOperation::from_code((code / Scalar::OPCODE_STRIDE) as u8);
         let scalar = Scalar::from_code((code % Scalar::OPCODE_STRIDE) as u8);
 
         match (operation, scalar) {
             (Some(operation), Some(scalar)) if operation.supports(scalar) => {
-                Some((operation, scalar))
+                Some((operation, address, scalar))
             }
             _ => None,
         }
@@ -1423,8 +1570,7 @@ impl Opcode {
 
     /// Return the operand layout for one scalar memory opcode.
     fn memory_layout(code: u16) -> Option<InstructionLayout> {
-        let operation = (code - OpcodeRange::MEMORY.start()) / Scalar::OPCODE_STRIDE;
-        let operation = MemoryOperation::from_code(operation as u8)?;
+        let operation = Self(code).memory_operation()?.0;
         if operation == MemoryOperation::Load {
             Some(InstructionLayout::new(&[
                 Operand::Result,
@@ -1438,10 +1584,72 @@ impl Opcode {
         }
     }
 
+    /// Return the operand layout for one byte range transfer opcode.
+    fn transfer_layout(code: u16) -> Option<InstructionLayout> {
+        let is_immediate = Self(code).transfer_operation()?.3;
+        if is_immediate {
+            Some(InstructionLayout::new(&[
+                Operand::Register,
+                Operand::Register,
+                Operand::Unsigned32,
+            ]))
+        } else {
+            Some(InstructionLayout::new(&[
+                Operand::Register,
+                Operand::Register,
+                Operand::Register,
+            ]))
+        }
+    }
+
+    /// Return the operand layout for one byte range fill opcode.
+    fn fill_layout(code: u16) -> Option<InstructionLayout> {
+        let is_immediate = Self(code).fill_operation()?.1;
+        if is_immediate {
+            Some(InstructionLayout::new(&[
+                Operand::Register,
+                Operand::Register,
+                Operand::Unsigned32,
+            ]))
+        } else {
+            Some(InstructionLayout::new(&[
+                Operand::Register,
+                Operand::Register,
+                Operand::Register,
+            ]))
+        }
+    }
+
+    /// Return the operand layout for one byte range comparison opcode.
+    fn compare_layout(code: u16) -> Option<InstructionLayout> {
+        let is_immediate = Self(code).compare_operation()?.2;
+        if is_immediate {
+            Some(InstructionLayout::new(&[
+                Operand::Result,
+                Operand::Register,
+                Operand::Register,
+                Operand::Unsigned32,
+            ]))
+        } else {
+            Some(InstructionLayout::new(&[
+                Operand::Result,
+                Operand::Register,
+                Operand::Register,
+                Operand::Register,
+            ]))
+        }
+    }
+
+    /// Return the operand layout for one prefetch opcode.
+    fn prefetch_layout(code: u16) -> Option<InstructionLayout> {
+        Self(code).prefetch_operation()?;
+
+        Some(InstructionLayout::new(&[Operand::Register]))
+    }
+
     /// Return the operand layout for one atomic opcode.
     fn atomic_layout(code: u16) -> Option<InstructionLayout> {
-        let operation = (code - OpcodeRange::ATOMIC.start()) / Scalar::OPCODE_STRIDE;
-        let operation = AtomicOperation::from_code(operation as u8)?;
+        let operation = Self(code).atomic_operation()?.0;
         if operation == AtomicOperation::Load {
             Some(InstructionLayout::new(&[
                 Operand::Result,
