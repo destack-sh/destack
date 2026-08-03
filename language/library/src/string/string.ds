@@ -3,7 +3,7 @@ import { As, Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Iterator } from "destack:iter";
 import { Default, Unique } from "destack:memory";
-import { Equal, Hash, Hasher } from "destack:ops";
+import { Add, Equal, Hash, Hasher } from "destack:ops";
 import { RegExp, RegExpMatch } from "destack:regexp";
 
 import { StringBuilder } from "./builder.ds";
@@ -67,7 +67,10 @@ export extension of String implements Default {
     }
 }
 
-export extension of string implements Equal<string>, Hash {
+export extension of string implements Add<string>, Equal<string>, Hash {
+    /// The concatenated string type.
+    type Output = ^string;
+
     /// The length in UTF-16 code units.
     get length(): usize {
         todo("String.length")
