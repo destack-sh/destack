@@ -163,6 +163,17 @@ impl InstructionBuilder {
         self.branches.push((byte_offset, label));
     }
 
+    /// Append one counted integer switch table.
+    pub fn switch(&mut self, cases: &[(u64, Label)]) -> Result<()> {
+        self.encode_count(cases.len())?;
+        for (value, label) in cases {
+            self.u64(*value);
+            self.branch(*label);
+        }
+
+        Ok(())
+    }
+
     /// Append one scalar representation operand.
     pub fn scalar(&mut self, scalar: Scalar) {
         self.u16(scalar.code() as u16);

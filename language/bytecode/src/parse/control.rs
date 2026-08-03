@@ -113,14 +113,10 @@ impl Parser<'_> {
 
         // encode cases in source order
         let mut instruction = InstructionBuilder::new(Opcode::SWITCH);
-        let case_count = u16::try_from(cases.len())
-            .map_err(|_| ParseError::new("too many switch cases", token.span))?;
         instruction.register(value);
-        instruction.u16(case_count);
-        for (case, label) in cases {
-            instruction.u64(case);
-            instruction.branch(label);
-        }
+        instruction
+            .switch(&cases)
+            .map_err(|error| ParseError::new(error.to_string(), token.span))?;
         instruction.branch(fallback);
 
         function.emit(instruction, results, self.empty_span())
