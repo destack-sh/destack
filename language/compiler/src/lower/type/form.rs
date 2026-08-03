@@ -125,11 +125,16 @@ impl TypeLowerer<'_, '_> {
         // fuse callable environment references into the closure descriptor
         if let dir::Type::Function(function) = self.lowerer.ty(payload)? {
             let signature = self.lower_callable_signature(function.signature)?;
+            let multiplicity = match function.multiplicity {
+                dir::Multiplicity::Repeatable => mir::Multiplicity::Repeatable,
+                dir::Multiplicity::Once => mir::Multiplicity::Once,
+            };
 
             return Ok(self.tree.intern_type(mir::Type::Function {
+                signature,
+                multiplicity,
                 kind,
                 lifetime,
-                signature,
                 storage: mir::Storage::Heap(mir::Space::Local),
                 access,
                 nullability: mir::Nullability::None,
