@@ -15,7 +15,7 @@ impl Formatter<'_, '_, '_> {
             let formatter = Formatter::new(owner, self.query);
             match type_value {
                 dir::Type::FunctionSignature(function) => {
-                    formatter.function_type(owner.types().signature(*function), parameter_names)
+                    formatter.function_type(owner.types()?.signature(*function), parameter_names)
                 }
                 dir::Type::Function(function) => {
                     formatter.callable_type(function.signature, parameter_names)
@@ -37,7 +37,7 @@ impl Formatter<'_, '_, '_> {
         self.query.read_type(type_id, |type_value, owner| {
             let formatter = Formatter::new(owner, self.query);
             let function = match type_value {
-                dir::Type::FunctionSignature(function) => owner.types().signature(*function),
+                dir::Type::FunctionSignature(function) => owner.types()?.signature(*function),
                 dir::Type::Function(function) => {
                     return formatter.callable_signature(name, function.signature);
                 }
@@ -50,7 +50,7 @@ impl Formatter<'_, '_, '_> {
                     )));
                 }
             };
-            let parameters = owner.types().parameters(function.parameters);
+            let parameters = owner.types()?.parameters(function.parameters);
             let mut formatted_parameters = Vec::with_capacity(parameters.len());
 
             // format positional constructor parameters in declaration order
@@ -77,7 +77,7 @@ impl Formatter<'_, '_, '_> {
         function: &dir::FunctionSignatureType,
         parameter_names: Option<&[String]>,
     ) -> QueryResult<String> {
-        let parameters = self.module.types().parameters(function.parameters);
+        let parameters = self.module.types()?.parameters(function.parameters);
         if let Some(parameter_names) = parameter_names
             && parameters.len() != parameter_names.len()
         {

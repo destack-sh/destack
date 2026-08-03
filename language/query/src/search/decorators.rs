@@ -77,15 +77,15 @@ impl ProgramQueryContext<'_> {
             }
 
             let source_module = self.module(entry.decorator.module_id)?;
-            let view = source_module.view();
+            let view = source_module.view()?;
             let decorator_span = source_module
-                .node_selection_span(view, entry.decorator.local_id.into_any())
+                .node_selection_span(view, entry.decorator.local_id.into_any())?
                 .ok_or(QueryError::missing(format!(
                     "decorator span: {:?}",
                     entry.decorator.into_any()
                 )))?;
             let target_span = source_module
-                .node_selection_span(view, entry.owner.local_id)
+                .node_selection_span(view, entry.owner.local_id)?
                 .ok_or(QueryError::missing(format!(
                     "decorator span: {:?}",
                     entry.owner

@@ -52,7 +52,7 @@ impl ModuleQueryContext<'_> {
         program: &ProgramQueryContext<'_>,
         file_id: FileId,
     ) -> QueryResult<Vec<CodeLens>> {
-        let view = self.view();
+        let view = self.view()?;
         let mut lenses = Vec::new();
 
         // collect relevant authored declarations
@@ -70,7 +70,7 @@ impl ModuleQueryContext<'_> {
             };
             let declaration = declaration_id.into_global_any(self.module_id());
             let span = self
-                .node_selection_span(view, declaration_id.into())
+                .node_selection_span(view, declaration_id.into())?
                 .ok_or(QueryError::missing(format!(
                     "code lens span: {declaration:?}"
                 )))?;
@@ -78,7 +78,7 @@ impl ModuleQueryContext<'_> {
                 continue;
             }
             let local_symbol_id =
-                self.node_symbol(declaration_id.into())
+                self.node_symbol(declaration_id.into())?
                     .ok_or(QueryError::missing(format!(
                         "code lens symbol: {declaration:?}"
                     )))?;

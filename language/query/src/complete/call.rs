@@ -105,7 +105,7 @@ impl ModuleQueryContext<'_> {
         offset: u32,
     ) -> QueryResult<Option<CompletionContext>> {
         // resolve enclosing spans around the cursor boundary
-        let enclosing = self.enclosing_spans_at_cursor(file_id, offset);
+        let enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
 
         // scan spans for a new expression containing the cursor
         for enclosing_span in &enclosing {
@@ -126,14 +126,14 @@ impl ModuleQueryContext<'_> {
         offset: u32,
     ) -> QueryResult<Option<CompletionContext>> {
         // resolve enclosing spans at the cursor
-        let enclosing = self.sorted_enclosing_spans(file_id, offset, offset);
+        let enclosing = self.sorted_enclosing_spans(file_id, offset, offset)?;
 
         // bail out when there are no spans
         if enclosing.is_empty() {
             return Ok(None);
         }
 
-        let view = self.view();
+        let view = self.view()?;
 
         // scan spans for a call or new expression argument list
         for enclosing_span in &enclosing {
@@ -167,7 +167,7 @@ impl ModuleQueryContext<'_> {
         offset: u32,
     ) -> QueryResult<Option<CompletionContext>> {
         // only expression spans can own one `new` constructor region
-        let view = self.view();
+        let view = self.view()?;
         let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
             return Ok(None);
         };
@@ -216,14 +216,14 @@ impl ModuleQueryContext<'_> {
             return Ok(None);
         };
         let left_span = self.left_expression_span(view, call.left)?;
-        let call_span = self.source_index().get(enclosing_span.source_id);
+        let call_span = self.source_index()?.get(enclosing_span.source_id);
 
         // only the argument list belongs to this path
         if !self.cursor_in_argument_list(view, call.arguments, left_span, call_span, offset)? {
             return Ok(None);
         }
 
-        let Some(scope) = self.expression_scope_at_offset(call.id) else {
+        let Some(scope) = self.expression_scope_at_offset(call.id)? else {
             return Ok(None);
         };
         let expected_type = self.call_argument_type(view, call.id, call.arguments, offset)?;
@@ -245,7 +245,7 @@ impl ModuleQueryContext<'_> {
         let Some(lookup_position) = separator_position.checked_sub(1) else {
             return Ok(None);
         };
-        let enclosing = self.sorted_enclosing_spans(file_id, lookup_position, lookup_position);
+        let enclosing = self.sorted_enclosing_spans(file_id, lookup_position, lookup_position)?;
 
         // read the exact authored call and its bound lexical scope
         for enclosing_span in &enclosing {
@@ -256,7 +256,7 @@ impl ModuleQueryContext<'_> {
             if separator_position <= left_span.end {
                 continue;
             }
-            let Some(scope) = self.expression_scope_at_offset(call.id) else {
+            let Some(scope) = self.expression_scope_at_offset(call.id)? else {
                 continue;
             };
 
@@ -290,8 +290,8 @@ impl ModuleQueryContext<'_> {
             return Ok(None);
         };
         let call_id = expression_id.into_global_any(self.module_id());
-        let call = self.resolutions().call_resolution(call_id);
-        let construct = self.resolutions().construct_resolution(call_id);
+        let call = self.resolutions()?.call_resolution(call_id);
+        let construct = self.resolutions()?.construct_resolution(call_id);
         if call.is_some() && construct.is_some() {
             return Err(QueryError::conflict(format!(
                 "completion resolution columns: {call_id:?}"
@@ -382,7 +382,7 @@ impl CompletionBuilder<'_, '_, '_> {
 
         // read the checked selection when the call already resolved
         let node = call.into_global_any(self.module.module_id());
-        let Some(resolution) = self.module.resolutions().call_resolution(node) else {
+        let Some(resolution) = self.module.resolutions()?.call_resolution(node) else {
             return Ok(results);
         };
         let Some(selected) = resolution.iter().next() else {

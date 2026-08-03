@@ -27,7 +27,7 @@ impl ExportDeclaration {
         let kind = match self {
             Self::Symbol { symbol, .. } => {
                 let module = program.module(symbol.module_id)?;
-                let symbols = module.symbols();
+                let symbols = module.bindings()?;
                 let symbol = symbols.get_symbol(symbol.local_id);
 
                 symbol.into()
@@ -48,8 +48,8 @@ impl ModuleQueryContext<'_> {
         offset: u32,
     ) -> QueryResult<Option<CompletionContext>> {
         // resolve enclosing spans from innermost to outermost
-        let enclosing = self.enclosing_spans_at_cursor(file_id, offset);
-        let view = self.view();
+        let enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
+        let view = self.view()?;
 
         // scan enclosing expressions for import nodes under the cursor
         for enclosing_span in &enclosing {
@@ -67,8 +67,8 @@ impl ModuleQueryContext<'_> {
             }
 
             // detect path completions inside the import string
-            let import_span = self.source_index().get(enclosing_span.source_id);
-            let main_span = self.source_index().get_main(enclosing_span.source_id);
+            let import_span = self.source_index()?.get(enclosing_span.source_id);
+            let main_span = self.source_index()?.get_main(enclosing_span.source_id);
             if let Some(span) = main_span
                 && span.contains(offset)
             {
@@ -89,7 +89,7 @@ impl ModuleQueryContext<'_> {
                     continue;
                 };
 
-                let target_module = self.resolved_import_target_module(expression_id);
+                let target_module = self.resolved_import_target_module(expression_id)?;
 
                 return Ok(Some(CompletionContext::ImportClause {
                     target_module,
@@ -138,11 +138,12 @@ impl ModuleQueryContext<'_> {
     fn resolved_import_target_module(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<ModuleId> {
+    ) -> QueryResult<Option<ModuleId>> {
         let source = expression_id.into_global_any(self.module_id());
 
-        self.modules()
-            .target_for_source(source, dir::ModuleRelation::Import)
+        Ok(self
+            .modules()?
+            .target_for_source(source, dir::ModuleRelation::Import))
     }
 }
 
@@ -176,14 +177,14 @@ impl ModuleQueryContext<'_> {
         // collect existing names and detect an item under the cursor
         let mut existing_names = Vec::new();
         let mut cursor_in_item = false;
-        let view = self.view();
+        let view = self.view()?;
 
         for item_id in items {
             let item = view.get(*item_id);
             let source_id = view.get_source(*item_id);
             let node = item_id.into_global_any(self.module_id());
             let span = self
-                .source_index()
+                .source_index()?
                 .try_get(source_id)
                 .ok_or(QueryError::missing(format!("import item span: {node:?}")))?;
 
@@ -262,7 +263,7 @@ impl CompletionBuilder<'_, '_, '_> {
     ) -> QueryResult<CompletionCandidates> {
         let mut completions = self.complete_auto_imports(prefix, use_filter, allow_short_prefix)?;
 
-        let visible_names = self.collect_visible_names(scope, use_filter);
+        let visible_names = self.collect_visible_names(scope, use_filter)?;
         completions.retain(|item| !visible_names.contains(item.label.as_str()));
 
         let is_incomplete =
@@ -326,8 +327,8 @@ impl CompletionBuilder<'_, '_, '_> {
         &self,
         scope: dir::LocalScope,
         use_filter: Option<SymbolUse>,
-    ) -> FxHashSet<String> {
-        let symbols = self.module.symbols();
+    ) -> QueryResult<FxHashSet<String>> {
+        let symbols = self.module.bindings()?;
 
         let mut names = FxHashSet::default();
         for visible in symbols.visible_bindings(scope).filter(|binding| {
@@ -340,7 +341,7 @@ impl CompletionBuilder<'_, '_, '_> {
             names.insert(self.module.strings().get(name_id).to_string());
         }
 
-        names
+        Ok(names)
     }
 
     /// Push every valid auto import completion into the results list.

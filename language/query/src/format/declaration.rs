@@ -14,10 +14,10 @@ impl Formatter<'_, '_, '_> {
         let Some(value_id) = declarator.value else {
             return self.global_type(type_id);
         };
-        let dir::Expression::Declaration(declaration_id) = self.module.view().get(value_id) else {
+        let dir::Expression::Declaration(declaration_id) = self.module.view()?.get(value_id) else {
             return self.global_type(type_id);
         };
-        let dir::Declaration::Function(function) = self.module.view().get(*declaration_id) else {
+        let dir::Declaration::Function(function) = self.module.view()?.get(*declaration_id) else {
             return self.global_type(type_id);
         };
         if function.signature.form != dir::FunctionForm::Lambda {
@@ -31,7 +31,7 @@ impl Formatter<'_, '_, '_> {
             .iter()
             .map(|parameter_id| {
                 self.module
-                    .parameter_name(self.module.view().get(*parameter_id))
+                    .parameter_name(self.module.view()?.get(*parameter_id))
             })
             .collect::<QueryResult<Vec<_>>>()?;
 

@@ -19,9 +19,12 @@ impl ModuleQueryContext<'_> {
     pub(crate) fn global_node_symbol(
         &self,
         node_id: dir::LocalNodeIdAny,
-    ) -> Option<dir::GlobalSymbolId> {
-        self.node_symbol(node_id)
-            .map(|symbol_id| symbol_id.into_global(self.module_id()))
+    ) -> QueryResult<Option<dir::GlobalSymbolId>> {
+        let symbol = self
+            .node_symbol(node_id)?
+            .map(|symbol_id| symbol_id.into_global(self.module_id()));
+
+        Ok(symbol)
     }
 }
 
@@ -86,7 +89,7 @@ impl ProgramQueryContext<'_> {
 
         // retain declarations that are not import bindings
         let module = self.module(symbol_id.module_id)?;
-        let binding = module.symbols().get_symbol(symbol_id.local_id);
+        let binding = module.bindings()?.get_symbol(symbol_id.local_id);
         let Some(declaration) = binding.declaration else {
             symbols.push(symbol_id);
 
@@ -101,7 +104,7 @@ impl ProgramQueryContext<'_> {
         // follow every exact overload target
         let reference =
             module
-                .resolved()
+                .resolved()?
                 .references
                 .get(declaration)
                 .ok_or(QueryError::missing(format!(
@@ -148,7 +151,7 @@ impl ProgramQueryContext<'_> {
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<String>> {
         let module = self.module(symbol_id.module_id)?;
-        let symbols = module.symbols();
+        let symbols = module.bindings()?;
         let symbol = symbols.get_symbol(symbol_id.local_id);
 
         Ok(symbol
@@ -185,14 +188,14 @@ impl ModuleQueryContext<'_> {
         }
 
         let declaration = {
-            let symbols = self.symbols();
+            let symbols = self.bindings()?;
             let symbol = symbols.get_symbol(symbol_id.local_id);
             symbol.declaration
         };
 
         if let Some(declaration) = declaration {
             let span = self
-                .node_selection_span(self.view(), declaration.local_id)
+                .node_selection_span(self.view()?, declaration.local_id)?
                 .ok_or(QueryError::missing(format!(
                     "symbol definition: {symbol_id:?}"
                 )))?;
@@ -216,13 +219,13 @@ impl ModuleQueryContext<'_> {
             )));
         }
 
-        let symbols = self.symbols();
+        let symbols = self.bindings()?;
         let symbol = symbols.get_symbol(symbol_id.local_id);
         let Some(declaration) = symbol.declaration else {
             return Ok(None);
         };
 
-        let span = self.node_span(self.view(), declaration.local_id)?;
+        let span = self.node_span(self.view()?, declaration.local_id)?;
 
         Ok(Some(span))
     }

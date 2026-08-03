@@ -91,10 +91,10 @@ impl ModuleQueryContext<'_> {
         &self,
         view: dir::View<'_>,
         node_id: dir::LocalNodeIdAny,
-    ) -> Option<Span> {
+    ) -> QueryResult<Option<Span>> {
         let source_id = view.get_source_any(node_id);
 
-        self.source_index().get_main(source_id)
+        Ok(self.source_index()?.get_main(source_id))
     }
 
     /// Collect enclosing spans and sort from innermost to outermost.
@@ -103,12 +103,14 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         start: u32,
         end: u32,
-    ) -> Vec<EnclosingSpan> {
-        let mut enclosing = self.source_index().get_enclosing_spans(file_id, start, end);
+    ) -> QueryResult<Vec<EnclosingSpan>> {
+        let mut enclosing = self
+            .source_index()?
+            .get_enclosing_spans(file_id, start, end);
 
         enclosing.sort_by_key(|span| span.length);
 
-        enclosing
+        Ok(enclosing)
     }
 }
 

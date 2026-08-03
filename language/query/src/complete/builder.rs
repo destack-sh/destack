@@ -135,7 +135,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
 
     /// Complete types in type position.
     fn complete_types(&self, scope: dir::LocalScope) -> QueryResult<Vec<CompletionCandidate>> {
-        let symbols = self.module.symbols();
+        let symbols = self.module.bindings()?;
 
         let mut results = Vec::new();
         let mut seen_names = FxHashSet::default();
@@ -186,7 +186,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
             )));
         };
         let canonical_module = self.program.module(canonical_id.module_id)?;
-        let symbols = canonical_module.symbols();
+        let symbols = canonical_module.bindings()?;
         let symbol = symbols.get_symbol(canonical_id.local_id);
 
         Ok(symbol.into())
@@ -204,7 +204,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
 
         // collect visible value symbols before building completions
         let candidates: Vec<(dir::LocalSymbolId, String, CompletionItemKind)> = {
-            let symbols = self.module.symbols();
+            let symbols = self.module.bindings()?;
             let mut candidates = Vec::new();
             let mut seen_names = FxHashSet::default();
 
@@ -274,7 +274,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
         &self,
         scope: dir::LocalScope,
     ) -> QueryResult<Vec<CompletionCandidate>> {
-        let symbols = self.module.symbols();
+        let symbols = self.module.bindings()?;
 
         let mut results = Vec::new();
         let mut seen = FxHashSet::default();

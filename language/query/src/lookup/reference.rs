@@ -7,10 +7,13 @@ impl ModuleQueryContext<'_> {
     /// Iterate writable place targets selected during checking.
     pub(crate) fn writable_places(
         &self,
-    ) -> impl Iterator<Item = (dir::GlobalNodeIdAny, &dir::WriteResolution)> {
-        self.resolutions()
+    ) -> QueryResult<impl Iterator<Item = (dir::GlobalNodeIdAny, &dir::WriteResolution)>> {
+        let places = self
+            .resolutions()?
             .assignment_entries()
-            .map(|(_, resolution)| (resolution.target, &resolution.write))
+            .map(|(_, resolution)| (resolution.target, &resolution.write));
+
+        Ok(places)
     }
 }
 

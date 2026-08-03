@@ -153,7 +153,7 @@ impl CallItem {
             return Ok(None);
         };
         let canonical_module = query.module(canonical_id.module_id)?;
-        let symbols = canonical_module.symbols();
+        let symbols = canonical_module.bindings()?;
         let symbol = symbols.get_symbol(canonical_id.local_id);
 
         // build only declaration-backed callable kinds
@@ -183,7 +183,7 @@ impl CallItem {
         // require the construction selected for this exact indexed edge
         let source = entry.source.into_any();
         let resolution = source_module
-            .resolutions()
+            .resolutions()?
             .construct_resolution(source)
             .ok_or(QueryError::missing(format!(
                 "call hierarchy construction: {source:?}"
@@ -283,12 +283,12 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<CallableSelection<'_>>> {
-        let enclosing = self.enclosing_spans_at_cursor(file_id, offset);
-        let view = self.view();
+        let enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
+        let view = self.view()?;
 
         // inspect authored owners from the narrowest span outward
         for enclosing_span in enclosing {
-            let Some(main) = self.source_index().get_main(enclosing_span.source_id) else {
+            let Some(main) = self.source_index()?.get_main(enclosing_span.source_id) else {
                 continue;
             };
             if !main.owns_cursor(offset) {
@@ -352,8 +352,8 @@ impl CallableSelection<'_> {
         module: &'a ModuleQueryContext<'_>,
     ) -> QueryResult<CallableSelection<'a>> {
         let node_id = expression_id.into_global_any(module.module_id());
-        let call = module.resolutions().call_resolution(node_id);
-        let construct = module.resolutions().construct_resolution(node_id);
+        let call = module.resolutions()?.call_resolution(node_id);
+        let construct = module.resolutions()?.construct_resolution(node_id);
         if call.is_some() && construct.is_some() {
             return Err(QueryError::conflict(format!(
                 "call item resolution columns: {node_id:?}"
@@ -384,7 +384,7 @@ impl CallableSelection<'_> {
         let node_id = expression_id.into_global_any(module.module_id());
         let resolution =
             module
-                .resolutions()
+                .resolutions()?
                 .construct_resolution(node_id)
                 .ok_or(QueryError::missing(format!(
                     "call item construction: {node_id:?}"
@@ -445,7 +445,7 @@ impl ModuleQueryContext<'_> {
         let declaration_id = source
             .try_into_typed::<dir::Declaration>()
             .map_err(|_| QueryError::invalid(format!("call item symbol: {symbol_id:?}")))?;
-        let dir::Declaration::Function(function) = self.view().get(declaration_id) else {
+        let dir::Declaration::Function(function) = self.view()?.get(declaration_id) else {
             return Err(QueryError::invalid(format!(
                 "call item symbol: {symbol_id:?}"
             )));
@@ -475,7 +475,7 @@ impl ModuleQueryContext<'_> {
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<CallItem>> {
         let (declaring, definition, member) =
-            self.definitions()
+            self.definitions()?
                 .member(symbol_id)
                 .ok_or(QueryError::missing(format!(
                     "call item member: {symbol_id:?}"
@@ -500,7 +500,7 @@ impl ModuleQueryContext<'_> {
             .try_into_typed::<dir::Member>()
             .map_err(|_| QueryError::invalid(format!("call item symbol: {symbol_id:?}")))?;
         let signature = self
-            .view()
+            .view()?
             .get(member_id)
             .signature()
             .ok_or(QueryError::invalid(format!(
@@ -527,7 +527,7 @@ impl ModuleQueryContext<'_> {
         query: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<CallItem>> {
-        let Some(definition) = self.definitions().definition(symbol_id) else {
+        let Some(definition) = self.definitions()?.definition(symbol_id) else {
             return Err(QueryError::invalid(format!(
                 "call item symbol: {symbol_id:?}"
             )));
@@ -556,7 +556,7 @@ impl ModuleQueryContext<'_> {
             .ok_or(QueryError::missing(format!(
                 "call item name: {symbol_id:?}"
             )))?;
-        let Some(source) = self.definitions().definition_source(symbol_id) else {
+        let Some(source) = self.definitions()?.definition_source(symbol_id) else {
             return Err(QueryError::invalid(format!(
                 "call item symbol: {symbol_id:?}"
             )));
@@ -586,7 +586,7 @@ impl ModuleQueryContext<'_> {
                 "call item name: {symbol_id:?}"
             )))?;
         let definition = self
-            .definitions()
+            .definitions()?
             .definition(symbol_id)
             .ok_or(QueryError::missing(format!(
                 "newtype definition: {symbol_id:?}"
@@ -606,7 +606,7 @@ impl ModuleQueryContext<'_> {
                 _ => None,
             },
         };
-        let Some(source) = self.definitions().definition_source(symbol_id) else {
+        let Some(source) = self.definitions()?.definition_source(symbol_id) else {
             return Err(QueryError::invalid(format!(
                 "call item symbol: {symbol_id:?}"
             )));
@@ -629,7 +629,7 @@ impl ModuleQueryContext<'_> {
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<CallItem>> {
         let (_, _, member) = self
-            .definitions()
+            .definitions()?
             .member(symbol_id)
             .ok_or(QueryError::invalid(format!(
                 "call item symbol: {symbol_id:?}"
@@ -649,7 +649,7 @@ impl ModuleQueryContext<'_> {
                 "tagged variant key: {symbol_id:?}"
             )));
         };
-        let detail = match self.types().get_symbol_type_id(variant.symbol) {
+        let detail = match self.types()?.get_symbol_type_id(variant.symbol) {
             Some(type_id) => Some(Formatter::new(self, query).callable_signature(&name, type_id)?),
             None => None,
         };
@@ -708,10 +708,10 @@ impl ModuleQueryContext<'_> {
 
     /// Build one source target from an authoritative definition source.
     fn call_item_target(&self, source: dir::LocalNodeIdAny) -> QueryResult<Target> {
-        let view = self.view();
+        let view = self.view()?;
         let range = self.node_span(view, source)?;
         let selection = self
-            .node_selection_span(view, source)
+            .node_selection_span(view, source)?
             .ok_or(QueryError::missing(format!(
                 "call item span: {:?}",
                 source.into_global(self.module_id())

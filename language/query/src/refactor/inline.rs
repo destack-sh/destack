@@ -80,7 +80,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // require one unexported authored declaration in this file
-        let symbols = self.symbols();
+        let symbols = self.bindings()?;
         let symbol_record = symbols.get_symbol(symbol.local_id);
         let Some(declaration) = symbol_record.declaration else {
             return Ok(None);
@@ -99,7 +99,7 @@ impl ModuleQueryContext<'_> {
         let Some(target) = InlineTarget::resolve(declaration, self)? else {
             return Ok(None);
         };
-        if self.symbol_is_assigned(symbol) {
+        if self.symbol_is_assigned(symbol)? {
             return Ok(None);
         }
 
@@ -139,7 +139,7 @@ impl ModuleQueryContext<'_> {
         // emit every replacement and remove the selected binding
         let mut file_edit = FilePatch::new(file_id);
         for reference in references {
-            let replacement = reference.replacement(&value, self);
+            let replacement = reference.replacement(&value, self)?;
             file_edit.push(Patch::replace(reference.span, replacement));
         }
         let removal = target.removal_span(source, self)?;
@@ -153,13 +153,15 @@ impl ModuleQueryContext<'_> {
     }
 
     /// Return whether assignment targets write one symbol.
-    fn symbol_is_assigned(&self, symbol: dir::GlobalSymbolId) -> bool {
-        self.writable_places().any(|(_, write)| {
+    fn symbol_is_assigned(&self, symbol: dir::GlobalSymbolId) -> QueryResult<bool> {
+        let is_assigned = self.writable_places()?.any(|(_, write)| {
             matches!(
                 write,
                 dir::WriteResolution::Binding { symbol: written, .. } if *written == symbol
             )
-        })
+        });
+
+        Ok(is_assigned)
     }
 
     /// Resolve exact indexed references to their authored expression nodes.
@@ -229,7 +231,7 @@ impl ModuleQueryContext<'_> {
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> QueryResult<Option<String>> {
-        let view = self.view();
+        let view = self.view()?;
         let Some(parent) = view.get_parent_for(expression) else {
             return Ok(None);
         };
@@ -269,7 +271,7 @@ impl ModuleQueryContext<'_> {
         value: dir::LocalNodeId<dir::Expression>,
         references: &[InlineReference],
     ) -> QueryResult<bool> {
-        let view = self.view();
+        let view = self.view()?;
         let mut captures = Vec::new();
 
         // collect exact name resolutions inside the initializer
@@ -294,7 +296,7 @@ impl ModuleQueryContext<'_> {
         // compare lexical selection at every replacement position
         for reference in references {
             for (name, expected) in &captures {
-                let lookup = self.symbols().lookup_symbol_at(
+                let lookup = self.bindings()?.lookup_symbol_at(
                     &view,
                     reference.expression.into(),
                     dir::StaticKey::Name(*name),
@@ -320,7 +322,7 @@ impl InlineTarget {
         if declaration.module_id != module.module_id() {
             return Ok(None);
         }
-        let view = module.view();
+        let view = module.view()?;
 
         // distinguish direct and object-pattern bindings
         let (field, object, declarator_node) =
@@ -419,7 +421,7 @@ impl InlineTarget {
         program: &ProgramQueryContext<'_>,
         module: &ModuleQueryContext<'_>,
     ) -> QueryResult<Option<InlineValue>> {
-        let view = module.view();
+        let view = module.view()?;
         let span = module.node_span(view, self.value.into())?;
         let text = source
             .get_span_str(span)
@@ -430,7 +432,7 @@ impl InlineTarget {
         }
 
         // retain the authored initializer shape
-        let mut value = InlineValue::new(text.to_string(), self.value, module);
+        let mut value = InlineValue::new(text.to_string(), self.value, module)?;
 
         // append the exact destructuring projection
         if let (Some(field), Some(object)) = (self.field, self.object) {
@@ -459,7 +461,7 @@ impl InlineTarget {
     ) -> QueryResult<Option<String>> {
         let source = object.into_global_any(module.module_id());
         let Some(dir::PatternResolution::Destructure(resolution)) =
-            module.resolutions().pattern_resolution(source)
+            module.resolutions()?.pattern_resolution(source)
         else {
             return Err(QueryError::missing(format!("inline pattern: {source:?}")));
         };
@@ -526,7 +528,7 @@ impl InlineTarget {
         source: &str,
         module: &ModuleQueryContext<'_>,
     ) -> QueryResult<bool> {
-        let view = module.view();
+        let view = module.view()?;
         let Some(reference_statement) = initial_value_statement(reference, view) else {
             return Ok(false);
         };
@@ -555,7 +557,7 @@ impl InlineTarget {
 
     /// Resolve the exact declaration or pattern-field removal span.
     fn removal_span(&self, source: &str, module: &ModuleQueryContext<'_>) -> QueryResult<Span> {
-        let view = module.view();
+        let view = module.view()?;
 
         // remove only one field from a shared object pattern
         if let (Some(field), Some(object)) = (self.field, self.object) {
@@ -617,25 +619,29 @@ impl InlineValue {
         text: String,
         expression: dir::LocalNodeId<dir::Expression>,
         module: &ModuleQueryContext<'_>,
-    ) -> Self {
-        let node = module.view().get(expression);
+    ) -> QueryResult<Self> {
+        let node = module.view()?.get(expression);
 
-        Self {
+        Ok(Self {
             text,
             precedence: node.precedence(),
             needs_postfix_group: matches!(node, dir::Expression::ObjectExpression { .. }),
-        }
+        })
     }
 }
 
 impl InlineReference {
     /// Emit this replacement with the grouping required by its exact parent.
-    fn replacement(&self, value: &InlineValue, module: &ModuleQueryContext<'_>) -> String {
+    fn replacement(
+        &self,
+        value: &InlineValue,
+        module: &ModuleQueryContext<'_>,
+    ) -> QueryResult<String> {
         let needs_parentheses = expression_needs_parentheses(
             value.precedence,
             value.needs_postfix_group,
             self.expression,
-            module.view(),
+            module.view()?,
         );
         let text = if needs_parentheses {
             format!("({})", value.text)
@@ -643,10 +649,12 @@ impl InlineReference {
             value.text.clone()
         };
 
-        match &self.shorthand {
+        let replacement = match &self.shorthand {
             Some(name) => format!("{name}: {text}"),
             None => text,
-        }
+        };
+
+        Ok(replacement)
     }
 }
 

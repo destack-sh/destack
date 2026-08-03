@@ -48,7 +48,7 @@ impl ModuleQueryContext<'_> {
         for symbol in symbols {
             for canonical in query.canonical_symbols(symbol)? {
                 let module = query.module(canonical.module_id)?;
-                let declaration = module.symbols().get_symbol(canonical.local_id);
+                let declaration = module.bindings()?.get_symbol(canonical.local_id);
                 if declaration.kind.is_type_definition() {
                     definitions.push(canonical);
 
@@ -57,7 +57,7 @@ impl ModuleQueryContext<'_> {
 
                 let type_id =
                     module
-                        .types()
+                        .types()?
                         .get_symbol_type_id(canonical)
                         .ok_or(QueryError::missing(format!(
                             "type definition type: {canonical:?}"
@@ -81,7 +81,7 @@ impl ModuleQueryContext<'_> {
         for definition in definitions {
             for definition in query.canonical_symbols(definition)? {
                 let module = query.module(definition.module_id)?;
-                let symbol = module.symbols().get_symbol(definition.local_id);
+                let symbol = module.bindings()?.get_symbol(definition.local_id);
                 if !symbol.kind.is_type_definition() {
                     return Err(QueryError::invalid(format!(
                         "type definition symbol: {definition:?}"
@@ -118,12 +118,13 @@ impl ModuleQueryContext<'_> {
                     (vec![symbol], Vec::new())
                 }
                 dir::Type::Form(form) => (Vec::new(), vec![form.value]),
-                dir::Type::Union(union) => {
-                    (Vec::new(), module.types().type_ids(union.elements).to_vec())
-                }
+                dir::Type::Union(union) => (
+                    Vec::new(),
+                    module.types()?.type_ids(union.elements).to_vec(),
+                ),
                 dir::Type::Intersection(intersection) => (
                     Vec::new(),
-                    module.types().type_ids(intersection.elements).to_vec(),
+                    module.types()?.type_ids(intersection.elements).to_vec(),
                 ),
                 _ => (Vec::new(), Vec::new()),
             };

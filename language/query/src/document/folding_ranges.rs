@@ -176,7 +176,7 @@ impl ModuleQueryContext<'_> {
         ranges: &mut Vec<FoldingRange>,
     ) -> QueryResult<()> {
         let file = self.read_file(file_id)?;
-        let view = self.view();
+        let view = self.view()?;
         let mut import_lines = None;
 
         // group consecutive authored imports
@@ -232,7 +232,7 @@ impl ModuleQueryContext<'_> {
         ranges: &mut Vec<FoldingRange>,
     ) -> QueryResult<()> {
         let file = self.read_file(file_id)?;
-        let view = self.view();
+        let view = self.view()?;
 
         // collect declaration extents
         for (declaration_id, declaration) in view.iter_nodes_of_type::<dir::Declaration>() {
@@ -317,7 +317,7 @@ impl ModuleQueryContext<'_> {
             let source_id = view.get_source_any(node_id);
             for region in regions {
                 let span_type = NodeSpanType::Region(region);
-                let Some(span) = self.source_index().get_side(source_id, span_type) else {
+                let Some(span) = self.source_index()?.get_side(source_id, span_type) else {
                     continue;
                 };
                 if span.file == file_id {

@@ -137,8 +137,8 @@ impl Formatter<'_, '_, '_> {
 
     /// Format one template literal type.
     fn template_literal(&self, template: dir::TemplateLiteralType) -> QueryResult<String> {
-        let strings = self.module.types().type_ids(template.strings);
-        let spans = self.module.types().type_ids(template.spans);
+        let strings = self.module.types()?.type_ids(template.strings);
+        let spans = self.module.types()?.type_ids(template.spans);
         if strings.len() != spans.len() + 1 {
             return Err(QueryError::invalid("template literal"));
         }
@@ -187,7 +187,7 @@ impl Formatter<'_, '_, '_> {
         let expression = value.into_typed::<dir::Expression>().local_id;
         let path = self
             .module
-            .view()
+            .view()?
             .reference_path(expression)
             .ok_or(QueryError::invalid(format!("type query: {value:?}")))?;
         let text = path

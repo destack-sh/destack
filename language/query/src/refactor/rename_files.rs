@@ -41,7 +41,7 @@ pub fn rename_files(
     revision: Revision,
     modules: &[Module],
     renames: &[FileRename],
-    require_artifacts: &dyn Fn(&[ArtifactKey]) -> QueryResult<()>,
+    require_artifacts: &(dyn Fn(&[ArtifactKey]) -> QueryResult<()> + Sync),
 ) -> QueryResult<Option<PatchSet>> {
     let workspace_root = repository.path().to_path_buf().normalize();
 

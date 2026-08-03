@@ -90,7 +90,7 @@ impl Formatter<'_, '_, '_> {
         &self,
         parameter_id: dir::LocalNodeId<dir::GenericParameter>,
     ) -> QueryResult<String> {
-        let parameter = self.module.view().get(parameter_id);
+        let parameter = self.module.view()?.get(parameter_id);
         let strings = self.module.strings();
 
         let text = match parameter {
@@ -179,7 +179,7 @@ impl Formatter<'_, '_, '_> {
         &self,
         parameter_id: dir::LocalNodeId<dir::Parameter>,
     ) -> QueryResult<String> {
-        let parameter = self.module.view().get(parameter_id);
+        let parameter = self.module.view()?.get(parameter_id);
         let name = self.module.parameter_name(parameter)?;
         let optional = if parameter.is_optional() || parameter.default_value().is_some() {
             "?"
@@ -247,7 +247,7 @@ impl Formatter<'_, '_, '_> {
         };
         let span = self
             .module
-            .node_span(self.module.view(), expression.into())?;
+            .node_span(self.module.view()?, expression.into())?;
         let expression = self.module.source_text(span)?;
 
         Ok(format!(" = {expression}"))

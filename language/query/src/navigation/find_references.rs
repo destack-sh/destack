@@ -47,9 +47,10 @@ impl ModuleQueryContext<'_> {
         let Some(occurrence) = self.reference_at_offset(file_id, offset)? else {
             return Ok(Vec::new());
         };
-        let is_local_alias = occurrence
-            .symbol()
-            .is_some_and(|symbol| self.is_local_import_alias(symbol));
+        let is_local_alias = match occurrence.symbol() {
+            Some(symbol) => self.is_local_import_alias(symbol)?,
+            None => false,
+        };
         let symbols = if is_local_alias {
             occurrence.symbols
         } else {

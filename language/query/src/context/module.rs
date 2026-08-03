@@ -1,5 +1,6 @@
+use std::fmt::{self, Debug, Formatter};
 use std::slice;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use destack_artifact::{
     ArtifactKey, DirBound, DirChecked, DirDeclared, DirExpanded, DirImported, DirParsed,
@@ -7,166 +8,180 @@ use destack_artifact::{
 };
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_repository::{ArtifactReader, ProviderResult, Repository, Revision};
+use destack_repository::{ArtifactReader, ProviderError, Repository, Revision};
 use destack_source::{File, FileId, ModuleId, ProfileId, SourceIndex, Span};
 
 use crate::{Module, QueryError, QueryResult};
 
 /// Query context anchored to one module profile.
-#[derive(Debug)]
 pub struct ModuleQueryContext<'a> {
     /// The repository used for this query.
     repository: &'a Repository,
-    /// The parsed module DIR.
-    parsed: Arc<DirParsed>,
-    /// The expanded module DIR.
-    expanded: Arc<DirExpanded>,
-    /// The resolved import and source-reference DIR.
-    resolved: Arc<DirResolved>,
-    /// The checked binding table.
-    bindings: dir::BindingTable<'static>,
-    /// The visible module table.
-    modules: dir::ModuleTable<'static>,
-    /// The checked type table.
-    types: dir::TypeTable<'static>,
-    /// The checked decorator table.
-    decorators: dir::DecoratorTable<'static>,
-    /// The checked generic table.
-    generics: dir::GenericTable<'static>,
-    /// The checked definition table.
-    definitions: dir::DefinitionTable<'static>,
-    /// The checked resolution table.
-    resolutions: dir::ResolutionTable<'static>,
-    /// The module namespace scope.
-    namespace_scope: dir::LocalScopeId,
-    /// Shared repository strings.
-    strings: &'a StringPool,
     /// The revision used for this context.
     revision: Revision,
     /// The profile used for this context.
     profile_id: ProfileId,
     /// The module id.
     module_id: ModuleId,
-}
-
-/// Artifact payloads required to build one module query context.
-struct ModuleArtifacts {
+    /// The function that provides artifacts read by this query.
+    require_artifacts: &'a (dyn Fn(&[ArtifactKey]) -> QueryResult<()> + Sync),
+    /// Shared repository strings.
+    strings: &'a StringPool,
     /// The parsed module artifact.
-    parsed: Arc<DirParsed>,
+    parsed: OnceLock<Result<Arc<DirParsed>, ProviderError>>,
     /// The bound module artifact.
-    bound: Arc<DirBound>,
+    bound: OnceLock<Result<Arc<DirBound>, ProviderError>>,
     /// The imported module artifact.
-    imported: Arc<DirImported>,
+    imported: OnceLock<Result<Arc<DirImported>, ProviderError>>,
     /// The expanded module artifact.
-    expanded: Arc<DirExpanded>,
+    expanded: OnceLock<Result<Arc<DirExpanded>, ProviderError>>,
     /// The resolved import and source-reference artifact.
-    resolved: Arc<DirResolved>,
+    resolved: OnceLock<Result<Arc<DirResolved>, ProviderError>>,
     /// The declared module artifact.
-    declared: Arc<DirDeclared>,
+    declared: OnceLock<Result<Arc<DirDeclared>, ProviderError>>,
     /// The checked module artifact.
-    checked: Arc<DirChecked>,
+    checked: OnceLock<Result<Arc<DirChecked>, ProviderError>>,
+    /// The cumulative binding table.
+    bindings: OnceLock<dir::BindingTable<'static>>,
+    /// The cumulative module table.
+    modules: OnceLock<dir::ModuleTable<'static>>,
+    /// The cumulative type table.
+    types: OnceLock<dir::TypeTable<'static>>,
+    /// The cumulative decorator table.
+    decorators: OnceLock<dir::DecoratorTable<'static>>,
+    /// The cumulative generic table.
+    generics: OnceLock<dir::GenericTable<'static>>,
+    /// The cumulative definition table.
+    definitions: OnceLock<dir::DefinitionTable<'static>>,
+    /// The cumulative resolution table.
+    resolutions: OnceLock<dir::ResolutionTable<'static>>,
 }
 
-impl ModuleArtifacts {
-    /// Read one module's exact DIR artifacts.
-    fn read(
-        reader: &ArtifactReader<'_>,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> ProviderResult<Self> {
-        Ok(Self {
-            parsed: reader.dir_parsed(module_id)?,
-            bound: reader.dir_bound(module_id, profile_id)?,
-            imported: reader.dir_imported(module_id, profile_id)?,
-            expanded: reader.dir_expanded(module_id, profile_id)?,
-            resolved: reader.dir_resolved(module_id, profile_id)?,
-            declared: reader.dir_declared(module_id, profile_id)?,
-            checked: reader.dir_checked(module_id, profile_id)?,
-        })
+impl Debug for ModuleQueryContext<'_> {
+    /// Format the visible module query state.
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ModuleQueryContext")
+            .field("revision", &self.revision)
+            .field("profile_id", &self.profile_id)
+            .field("module_id", &self.module_id)
+            .finish_non_exhaustive()
     }
 }
 
 impl<'a> ModuleQueryContext<'a> {
-    /// Build one module context from loaded artifacts.
-    fn from_artifacts(
-        repository: &'a Repository,
-        revision: Revision,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-        artifacts: ModuleArtifacts,
-    ) -> Self {
-        // compose imported and checked table views
-        let bindings = artifacts.checked.binding_table(
-            &artifacts.bound,
-            &artifacts.expanded,
-            &artifacts.declared,
-        );
-        let modules = artifacts.expanded.module_table(&artifacts.imported);
-        let namespace_scope = artifacts.bound.namespace_scope;
-
-        // compose remaining checked table views
-        let types = artifacts.checked.type_table(
-            &artifacts.bound,
-            &artifacts.expanded,
-            &artifacts.declared,
-        );
-        let decorators = artifacts.checked.decorator_table(&artifacts.declared);
-        let generics = artifacts.checked.generic_table(&artifacts.declared);
-        let definitions = artifacts.checked.definition_table(&artifacts.declared);
-        let resolutions = artifacts.checked.resolution_table(&artifacts.declared);
-
-        Self {
-            repository,
-            parsed: artifacts.parsed,
-            expanded: artifacts.expanded,
-            resolved: artifacts.resolved,
-            bindings,
-            modules,
-            types,
-            decorators,
-            generics,
-            definitions,
-            resolutions,
-            namespace_scope,
-            strings: repository.string_pool().as_ref(),
-            revision,
-            profile_id,
-            module_id,
-        }
-    }
-
-    /// Return the artifact roots for one module query context.
-    pub fn initial_artifacts(module_id: ModuleId, profile_id: ProfileId) -> [ArtifactKey; 7] {
-        [
-            ArtifactKey::dir_parsed(module_id),
-            ArtifactKey::dir_bound(module_id, profile_id),
-            ArtifactKey::dir_imported(module_id, profile_id),
-            ArtifactKey::dir_expanded(module_id, profile_id),
-            ArtifactKey::dir_resolved(module_id, profile_id),
-            ArtifactKey::dir_declared(module_id, profile_id),
-            ArtifactKey::dir_checked(module_id, profile_id),
-        ]
-    }
-
-    /// Read one module query context from its required artifact set.
+    /// Create one module query context.
     pub fn new(
         repository: &'a Repository,
         revision: Revision,
         module_id: ModuleId,
         profile_id: ProfileId,
-        require_artifacts: &dyn Fn(&[ArtifactKey]) -> QueryResult<()>,
-    ) -> QueryResult<Self> {
-        // require the module stages up to its checked tables
-        let roots = Self::initial_artifacts(module_id, profile_id);
-        require_artifacts(&roots)?;
-        let reader = ArtifactReader::new(repository, revision);
+        require_artifacts: &'a (dyn Fn(&[ArtifactKey]) -> QueryResult<()> + Sync),
+    ) -> Self {
+        Self {
+            repository,
+            revision,
+            profile_id,
+            module_id,
+            require_artifacts,
+            strings: repository.string_pool().as_ref(),
+            parsed: OnceLock::new(),
+            bound: OnceLock::new(),
+            imported: OnceLock::new(),
+            expanded: OnceLock::new(),
+            resolved: OnceLock::new(),
+            declared: OnceLock::new(),
+            checked: OnceLock::new(),
+            bindings: OnceLock::new(),
+            modules: OnceLock::new(),
+            types: OnceLock::new(),
+            decorators: OnceLock::new(),
+            generics: OnceLock::new(),
+            definitions: OnceLock::new(),
+            resolutions: OnceLock::new(),
+        }
+    }
 
-        // read exact dependency-backed artifact payloads
-        let artifacts = ModuleArtifacts::read(&reader, module_id, profile_id)?;
+    /// Read one artifact payload.
+    fn read_artifact<'b, T>(
+        &self,
+        key: ArtifactKey,
+        artifact: &'b OnceLock<Result<Arc<T>, ProviderError>>,
+        read: impl FnOnce(&ArtifactReader<'_>) -> Result<Arc<T>, ProviderError>,
+    ) -> QueryResult<&'b T> {
+        if let Some(artifact) = artifact.get() {
+            return match artifact {
+                Ok(artifact) => Ok(artifact.as_ref()),
+                Err(error) => Err(QueryError::from(error.clone())),
+            };
+        }
 
-        Ok(Self::from_artifacts(
-            repository, revision, module_id, profile_id, artifacts,
-        ))
+        // require and read the exact artifact once
+        (self.require_artifacts)(&[key])?;
+        let artifact = artifact.get_or_init(|| {
+            let reader = ArtifactReader::new(self.repository, self.revision);
+
+            read(&reader)
+        });
+
+        match artifact {
+            Ok(artifact) => Ok(artifact.as_ref()),
+            Err(error) => Err(QueryError::from(error.clone())),
+        }
+    }
+
+    /// Return the parsed module artifact.
+    fn parsed(&self) -> QueryResult<&DirParsed> {
+        self.read_artifact(
+            ArtifactKey::dir_parsed(self.module_id),
+            &self.parsed,
+            |reader| reader.dir_parsed(self.module_id),
+        )
+    }
+
+    /// Return the bound module artifact.
+    fn bound(&self) -> QueryResult<&DirBound> {
+        self.read_artifact(
+            ArtifactKey::dir_bound(self.module_id, self.profile_id),
+            &self.bound,
+            |reader| reader.dir_bound(self.module_id, self.profile_id),
+        )
+    }
+
+    /// Return the imported module artifact.
+    fn imported(&self) -> QueryResult<&DirImported> {
+        self.read_artifact(
+            ArtifactKey::dir_imported(self.module_id, self.profile_id),
+            &self.imported,
+            |reader| reader.dir_imported(self.module_id, self.profile_id),
+        )
+    }
+
+    /// Return the expanded module artifact.
+    fn expanded(&self) -> QueryResult<&DirExpanded> {
+        self.read_artifact(
+            ArtifactKey::dir_expanded(self.module_id, self.profile_id),
+            &self.expanded,
+            |reader| reader.dir_expanded(self.module_id, self.profile_id),
+        )
+    }
+
+    /// Return the declared module artifact.
+    fn declared(&self) -> QueryResult<&DirDeclared> {
+        self.read_artifact(
+            ArtifactKey::dir_declared(self.module_id, self.profile_id),
+            &self.declared,
+            |reader| reader.dir_declared(self.module_id, self.profile_id),
+        )
+    }
+
+    /// Return the checked module artifact.
+    fn checked(&self) -> QueryResult<&DirChecked> {
+        self.read_artifact(
+            ArtifactKey::dir_checked(self.module_id, self.profile_id),
+            &self.checked,
+            |reader| reader.dir_checked(self.module_id, self.profile_id),
+        )
     }
 
     /// Return the repository for this module context.
@@ -216,8 +231,8 @@ impl<'a> ModuleQueryContext<'a> {
     }
 
     /// Return the parsed DIR source index.
-    pub(crate) fn source_index(&self) -> &SourceIndex {
-        &self.parsed.tree.source_index
+    pub(crate) fn source_index(&self) -> QueryResult<&SourceIndex> {
+        Ok(&self.parsed()?.tree.source_index)
     }
 
     /// Iterate semantic tokens for one source file.
@@ -240,7 +255,7 @@ impl<'a> ModuleQueryContext<'a> {
     /// Return parser output for one source file in this module.
     fn parsed_file(&self, file_id: FileId) -> QueryResult<&DirParsedFile> {
         let file = self
-            .parsed
+            .parsed()?
             .file(file_id)
             .ok_or(QueryError::missing(format!("parsed file: {file_id:?}")))?;
 
@@ -258,55 +273,133 @@ impl<'a> ModuleQueryContext<'a> {
     }
 
     /// Return the visible DIR tree view.
-    pub(crate) fn view(&self) -> dir::View<'_> {
-        dir::View::with_patches(&self.parsed.tree, slice::from_ref(&self.expanded.patch))
+    pub(crate) fn view(&self) -> QueryResult<dir::View<'_>> {
+        let expanded = self.expanded()?;
+        let parsed = self.parsed()?;
+
+        Ok(dir::View::with_patches(
+            &parsed.tree,
+            slice::from_ref(&expanded.patch),
+        ))
     }
 
     /// Return the resolved import and source-reference DIR.
-    pub(crate) fn resolved(&self) -> &DirResolved {
-        self.resolved.as_ref()
+    pub(crate) fn resolved(&self) -> QueryResult<&DirResolved> {
+        self.read_artifact(
+            ArtifactKey::dir_resolved(self.module_id, self.profile_id),
+            &self.resolved,
+            |reader| reader.dir_resolved(self.module_id, self.profile_id),
+        )
     }
 
-    /// Return the DIR symbol table.
-    pub(crate) fn symbols(&self) -> &dir::BindingTable<'static> {
-        &self.bindings
+    /// Return the cumulative DIR binding table.
+    pub(crate) fn bindings(&self) -> QueryResult<&dir::BindingTable<'static>> {
+        if let Some(bindings) = self.bindings.get() {
+            return Ok(bindings);
+        }
+
+        let checked = self.checked()?;
+        let bound = self.bound()?;
+        let expanded = self.expanded()?;
+        let declared = self.declared()?;
+
+        Ok(self
+            .bindings
+            .get_or_init(|| checked.binding_table(bound, expanded, declared)))
     }
 
     /// Return the symbol declared by one local node when bound.
-    pub(crate) fn node_symbol(&self, node_id: dir::LocalNodeIdAny) -> Option<dir::LocalSymbolId> {
+    pub(crate) fn node_symbol(
+        &self,
+        node_id: dir::LocalNodeIdAny,
+    ) -> QueryResult<Option<dir::LocalSymbolId>> {
         let declaration = node_id.into_global(self.module_id);
 
-        self.symbols().declaration_symbol(declaration)
+        Ok(self.bindings()?.declaration_symbol(declaration))
     }
 
-    /// Return the DIR type table.
-    pub(crate) fn types(&self) -> &dir::TypeTable<'static> {
-        &self.types
+    /// Return the cumulative DIR type table.
+    pub(crate) fn types(&self) -> QueryResult<&dir::TypeTable<'static>> {
+        if let Some(types) = self.types.get() {
+            return Ok(types);
+        }
+
+        let checked = self.checked()?;
+        let bound = self.bound()?;
+        let expanded = self.expanded()?;
+        let declared = self.declared()?;
+
+        Ok(self
+            .types
+            .get_or_init(|| checked.type_table(bound, expanded, declared)))
     }
 
-    /// Return the DIR decorator table.
-    pub(crate) fn decorators(&self) -> &dir::DecoratorTable<'static> {
-        &self.decorators
+    /// Return the cumulative DIR decorator table.
+    pub(crate) fn decorators(&self) -> QueryResult<&dir::DecoratorTable<'static>> {
+        if let Some(decorators) = self.decorators.get() {
+            return Ok(decorators);
+        }
+
+        let checked = self.checked()?;
+        let declared = self.declared()?;
+
+        Ok(self
+            .decorators
+            .get_or_init(|| checked.decorator_table(declared)))
     }
 
-    /// Return the DIR generic table.
-    pub(crate) fn generics(&self) -> &dir::GenericTable<'static> {
-        &self.generics
+    /// Return the cumulative DIR generic table.
+    pub(crate) fn generics(&self) -> QueryResult<&dir::GenericTable<'static>> {
+        if let Some(generics) = self.generics.get() {
+            return Ok(generics);
+        }
+
+        let checked = self.checked()?;
+        let declared = self.declared()?;
+
+        Ok(self
+            .generics
+            .get_or_init(|| checked.generic_table(declared)))
     }
 
-    /// Return the DIR definition table.
-    pub(crate) fn definitions(&self) -> &dir::DefinitionTable<'static> {
-        &self.definitions
+    /// Return the cumulative DIR definition table.
+    pub(crate) fn definitions(&self) -> QueryResult<&dir::DefinitionTable<'static>> {
+        if let Some(definitions) = self.definitions.get() {
+            return Ok(definitions);
+        }
+
+        let checked = self.checked()?;
+        let declared = self.declared()?;
+
+        Ok(self
+            .definitions
+            .get_or_init(|| checked.definition_table(declared)))
     }
 
-    /// Return the DIR resolution table.
-    pub(crate) fn resolutions(&self) -> &dir::ResolutionTable<'static> {
-        &self.resolutions
+    /// Return the cumulative DIR resolution table.
+    pub(crate) fn resolutions(&self) -> QueryResult<&dir::ResolutionTable<'static>> {
+        if let Some(resolutions) = self.resolutions.get() {
+            return Ok(resolutions);
+        }
+
+        let checked = self.checked()?;
+        let declared = self.declared()?;
+
+        Ok(self
+            .resolutions
+            .get_or_init(|| checked.resolution_table(declared)))
     }
 
-    /// Return the DIR module table.
-    pub(crate) fn modules(&self) -> &dir::ModuleTable<'static> {
-        &self.modules
+    /// Return the cumulative DIR module table.
+    pub(crate) fn modules(&self) -> QueryResult<&dir::ModuleTable<'static>> {
+        if let Some(modules) = self.modules.get() {
+            return Ok(modules);
+        }
+
+        let imported = self.imported()?;
+        let expanded = self.expanded()?;
+
+        Ok(self.modules.get_or_init(|| expanded.module_table(imported)))
     }
 
     /// Return the DIR string pool.
@@ -315,14 +408,17 @@ impl<'a> ModuleQueryContext<'a> {
     }
 
     /// Return the namespace scope for this module.
-    pub(crate) fn namespace_scope(&self) -> dir::LocalScopeId {
-        self.namespace_scope
+    pub(crate) fn namespace_scope(&self) -> QueryResult<dir::LocalScopeId> {
+        Ok(self.bound()?.namespace_scope)
     }
 
     /// Return the declared or inferred type id for a node.
-    pub(crate) fn node_type_id(&self, node_id: dir::LocalNodeIdAny) -> Option<dir::GlobalTypeId> {
+    pub(crate) fn node_type_id(
+        &self,
+        node_id: dir::LocalNodeIdAny,
+    ) -> QueryResult<Option<dir::GlobalTypeId>> {
         let global_node_id = node_id.into_global(self.module_id);
 
-        self.types().get_node_type_id(global_node_id)
+        Ok(self.types()?.get_node_type_id(global_node_id))
     }
 }

@@ -34,14 +34,14 @@ impl ModuleQueryContext<'_> {
     /// Build one source target from a generated symbol's defining member.
     fn generated_symbol_target(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<Target> {
         let (_, _, member) = self
-            .definitions()
+            .definitions()?
             .member(symbol_id)
             .ok_or(QueryError::missing(format!(
                 "generated symbol member: {symbol_id:?}"
             )))?;
         let source = member.source();
         let span = self
-            .view()
+            .view()?
             .get_span_by_id(source.local_id.id)
             .ok_or(QueryError::missing(format!(
                 "generated member span: {source:?}"

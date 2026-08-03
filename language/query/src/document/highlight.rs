@@ -68,9 +68,10 @@ impl ModuleQueryContext<'_> {
         };
 
         // preserve one explicit local import alias
-        let is_local_declaration = occurrence
-            .symbol()
-            .is_some_and(|symbol| self.local_import_alias_name(symbol).is_some());
+        let is_local_declaration = match occurrence.symbol() {
+            Some(symbol) => self.local_import_alias_name(symbol)?.is_some(),
+            None => false,
+        };
         let symbols = if is_local_declaration {
             occurrence.symbols
         } else {
@@ -140,7 +141,7 @@ impl ModuleQueryContext<'_> {
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<HighlightKind> {
         let module = program.module(symbol_id.module_id)?;
-        let symbol = module.symbols().get_symbol(symbol_id.local_id);
+        let symbol = module.bindings()?.get_symbol(symbol_id.local_id);
         let Some(declaration) = symbol.declaration else {
             return Ok(HighlightKind::Text);
         };
@@ -167,7 +168,7 @@ impl ModuleQueryContext<'_> {
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<HighlightKind> {
         let module = program.module(symbol_id.module_id)?;
-        let symbol = module.symbols().get_symbol(symbol_id.local_id);
+        let symbol = module.bindings()?.get_symbol(symbol_id.local_id);
 
         let kind = match symbol.kind {
             dir::SymbolKind::Variable
@@ -185,12 +186,12 @@ impl ModuleQueryContext<'_> {
         let mut spans = FxHashSet::default();
 
         // project every checked write through the authored view
-        for (target, _write) in self.writable_places() {
+        for (target, _write) in self.writable_places()? {
             if target.module_id != self.module_id() {
                 return Err(QueryError::invalid(format!("highlight write: {target:?}")));
             }
             let span = self
-                .node_selection_span(self.view(), target.local_id)
+                .node_selection_span(self.view()?, target.local_id)?
                 .ok_or(QueryError::missing(format!("highlight span: {target:?}")))?;
             if span.file == file_id {
                 spans.insert(span);

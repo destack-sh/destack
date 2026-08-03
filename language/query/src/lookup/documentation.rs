@@ -21,8 +21,8 @@ impl ModuleQueryContext<'_> {
         offset: u32,
     ) -> QueryResult<Option<DocumentationOccurrence>> {
         // select the innermost source owner with documentation
-        let view = self.view();
-        for enclosing in self.enclosing_spans_at_cursor(file_id, offset) {
+        let view = self.view()?;
+        for enclosing in self.enclosing_spans_at_cursor(file_id, offset)? {
             let Some(node_id) = view.get_node_id_by_source_id(enclosing.source_id) else {
                 continue;
             };
@@ -49,12 +49,12 @@ impl ProgramQueryContext<'_> {
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<String>> {
         let module = self.module(symbol_id.module_id)?;
-        let symbols = module.symbols();
+        let symbols = module.bindings()?;
         let symbol = symbols.get_symbol(symbol_id.local_id);
         let Some(declaration) = symbol.declaration else {
             return Ok(None);
         };
-        let Some(documentation) = module.view().get_documentation_any(declaration.local_id) else {
+        let Some(documentation) = module.view()?.get_documentation_any(declaration.local_id) else {
             return Ok(None);
         };
 

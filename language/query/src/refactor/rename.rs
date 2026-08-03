@@ -94,7 +94,7 @@ impl RenameSelection {
             }
             expanded.push(symbol_id);
             let module = program.module(symbol_id.module_id)?;
-            let symbol = module.symbols().get_symbol(symbol_id.local_id);
+            let symbol = module.bindings()?.get_symbol(symbol_id.local_id);
             let Some(declaration) = symbol.declaration else {
                 continue;
             };
@@ -219,7 +219,7 @@ impl RenameRole {
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Self> {
         let module = program.module(symbol_id.module_id)?;
-        let symbol = module.symbols().get_symbol(symbol_id.local_id);
+        let symbol = module.bindings()?.get_symbol(symbol_id.local_id);
         let declaration = symbol.declaration.ok_or(QueryError::missing(format!(
             "rename declaration: {symbol_id:?}"
         )))?;
@@ -252,7 +252,7 @@ struct RenameShorthands {
 impl RenameShorthands {
     /// Index authored shorthand names in one module.
     fn build(module: &ModuleQueryContext<'_>) -> QueryResult<Self> {
-        let view = module.view();
+        let view = module.view()?;
         let mut shorthand_names = FxHashMap::default();
 
         // index object literal shorthand names
@@ -267,7 +267,7 @@ impl RenameShorthands {
             };
             let node = property_id.into_global_any(module.module_id());
             let span = module
-                .node_selection_span(view, property_id.into())
+                .node_selection_span(view, property_id.into())?
                 .ok_or(QueryError::missing(format!("rename shorthand: {node:?}")))?;
             let name = module.strings().get(name.string()).to_string();
             shorthand_names.insert(span, name);
@@ -285,7 +285,7 @@ impl RenameShorthands {
             };
             let node = field_id.into_global_any(module.module_id());
             let span = module
-                .node_selection_span(view, field_id.into())
+                .node_selection_span(view, field_id.into())?
                 .ok_or(QueryError::missing(format!("rename shorthand: {node:?}")))?;
             let name = module.strings().get(name.string()).to_string();
             shorthand_names.insert(span, name);
@@ -331,15 +331,16 @@ impl ModuleQueryContext<'_> {
         };
 
         // keep explicit local import aliases as local rename targets
-        if let Some(symbol) = occurrence.symbol()
-            && let Some(placeholder) = self.local_import_alias_name(symbol)
-        {
-            return Ok(Some(RenameSelection {
-                occurrence,
-                symbols: vec![symbol],
-                placeholder,
-                is_local_declaration: true,
-            }));
+        if let Some(symbol) = occurrence.symbol() {
+            let placeholder = self.local_import_alias_name(symbol)?;
+            if let Some(placeholder) = placeholder {
+                return Ok(Some(RenameSelection {
+                    occurrence,
+                    symbols: vec![symbol],
+                    placeholder,
+                    is_local_declaration: true,
+                }));
+            }
         }
 
         // resolve every canonical declaration in the selected overload set

@@ -300,10 +300,10 @@ impl ModuleQueryContext<'_> {
         diagnostic: &Diagnostic,
     ) -> QueryResult<(Span, String, SymbolUse)> {
         // match the diagnostic span against the retained unresolved paths
-        let view = self.view();
-        for (node, path) in self.resolutions().unresolved_entries() {
+        let view = self.view()?;
+        for (node, path) in self.resolutions()?.unresolved_entries() {
             let source_node_id = view.get_source_any(node.local_id);
-            let Some(span) = self.source_index().get_main(source_node_id) else {
+            let Some(span) = self.source_index()?.get_main(source_node_id) else {
                 continue;
             };
             if !diagnostic.primary.target.matches_range(span) {

@@ -86,7 +86,7 @@ impl ProgramQueryContext<'_> {
 
             // structural receivers list their shape properties
             dir::Type::Shape(shape) => {
-                for property in module.types().properties(shape.properties) {
+                for property in module.types()?.properties(shape.properties) {
                     let dir::StaticKey::Name(name) = property.key else {
                         continue;
                     };
@@ -114,7 +114,7 @@ impl ProgramQueryContext<'_> {
 
             // unions offer the members common to every runtime arm
             dir::Type::Union(union) => {
-                let elements = module.types().type_ids(union.elements).to_vec();
+                let elements = module.types()?.type_ids(union.elements).to_vec();
                 let mut common: Option<Vec<ApparentMember>> = None;
                 for element in elements {
                     // optional chains complete past the nullish arms
@@ -144,7 +144,7 @@ impl ProgramQueryContext<'_> {
 
             // intersections offer the members of every part
             dir::Type::Intersection(intersection) => {
-                let elements = module.types().type_ids(intersection.elements).to_vec();
+                let elements = module.types()?.type_ids(intersection.elements).to_vec();
                 for element in elements {
                     self.collect_apparent_members(origin, element, ownership, false, members)?;
                 }
@@ -164,7 +164,7 @@ impl ProgramQueryContext<'_> {
         members: &mut Vec<ApparentMember>,
     ) -> QueryResult<()> {
         let module = self.module(symbol.module_id)?;
-        let Some(definition) = module.definitions().definition(symbol) else {
+        let Some(definition) = module.definitions()?.definition(symbol) else {
             return Ok(());
         };
 
@@ -225,7 +225,7 @@ impl ProgramQueryContext<'_> {
         family: dir::FamilyKey,
     ) -> QueryResult<bool> {
         let module = self.module(extension.module_id)?;
-        let Some(declaration) = module.definitions().extension_definition(extension) else {
+        let Some(declaration) = module.definitions()?.extension_definition(extension) else {
             return Ok(false);
         };
 
@@ -260,7 +260,7 @@ impl ProgramQueryContext<'_> {
             return Ok(false);
         }
         let home = self.module(symbol.module_id)?;
-        let Some(definition) = home.definitions().definition(symbol) else {
+        let Some(definition) = home.definitions()?.definition(symbol) else {
             return Ok(false);
         };
 
@@ -273,7 +273,7 @@ impl ProgramQueryContext<'_> {
         for extension in self.visible_extensions(symbol.module_id, symbol)? {
             let extension_module = self.module(extension.module_id)?;
             let Some(dir::Definition::Extension(declaration)) =
-                extension_module.definitions().definition(extension)
+                extension_module.definitions()?.definition(extension)
             else {
                 continue;
             };
@@ -319,7 +319,7 @@ impl ProgramQueryContext<'_> {
     ) -> QueryResult<()> {
         let extension_module = self.module(extension.module_id)?;
         let Some(dir::Definition::Extension(definition)) =
-            extension_module.definitions().definition(extension)
+            extension_module.definitions()?.definition(extension)
         else {
             return Ok(());
         };
@@ -345,7 +345,7 @@ impl ProgramQueryContext<'_> {
 
         // collect extensions declared beside the looking module
         let origin_module = self.module(origin)?;
-        symbols.extend(origin_module.definitions().target_extensions(target));
+        symbols.extend(origin_module.definitions()?.target_extensions(target));
 
         // collect the implicit environment's extensions over the root
         let environment = self.environment_declared()?;
@@ -360,16 +360,16 @@ impl ProgramQueryContext<'_> {
         // collect inherent extensions beside the target declaration
         if target.module_id != origin {
             let target_module = self.module(target.module_id)?;
-            symbols.extend(target_module.definitions().target_extensions(target));
+            symbols.extend(target_module.definitions()?.target_extensions(target));
         }
 
         // collect explicitly imported extension symbols targeting the nominal
-        for (_, imported) in origin_module.resolved().imports.symbol_targets() {
+        for (_, imported) in origin_module.resolved()?.imports.symbol_targets() {
             let Ok(imported_module) = self.module(imported.module_id) else {
                 continue;
             };
             let Some(dir::Definition::Extension(extension)) =
-                imported_module.definitions().definition(imported)
+                imported_module.definitions()?.definition(imported)
             else {
                 continue;
             };
@@ -441,7 +441,7 @@ impl ModuleQueryContext<'_> {
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Vec<dir::GlobalSymbolId>> {
         let mut siblings = Vec::new();
-        let Some((owner, definition, member)) = self.definitions().member(symbol_id) else {
+        let Some((owner, definition, member)) = self.definitions()?.member(symbol_id) else {
             return Ok(siblings);
         };
         let Some(key) = member.key() else {
@@ -478,7 +478,7 @@ impl ModuleQueryContext<'_> {
                 continue;
             }
             let derived_module = program.module(entry.declaration.module_id)?;
-            let Some(definition) = derived_module.definitions().definition(entry.declaration)
+            let Some(definition) = derived_module.definitions()?.definition(entry.declaration)
             else {
                 continue;
             };
@@ -494,7 +494,7 @@ impl ModuleQueryContext<'_> {
                 for declaration in &implemented.declarations {
                     let declaration_module = program.module(declaration.module_id)?;
                     if let Some(symbol) = declaration_module
-                        .symbols()
+                        .bindings()?
                         .declaration_symbol(*declaration)
                     {
                         symbols.push(symbol.into_global(declaration.module_id));

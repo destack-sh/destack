@@ -21,13 +21,12 @@ impl CompletionBuilder<'_, '_, '_> {
                     "completion declaration: {symbol_id:?}"
                 )))?;
         let declaration = self.program.module(declaration_id.module_id)?;
-        let definition =
-            declaration
-                .definitions()
-                .definition(declaration_id)
-                .ok_or(QueryError::missing(format!(
-                    "completion definition: {declaration_id:?}"
-                )))?;
+        let definition = declaration
+            .definitions()?
+            .definition(declaration_id)
+            .ok_or(QueryError::missing(format!(
+                "completion definition: {declaration_id:?}"
+            )))?;
         let dir::Definition::Class(definition) = definition else {
             return Err(QueryError::invalid(format!(
                 "completion definition: {declaration_id:?}"
@@ -86,13 +85,12 @@ impl CompletionBuilder<'_, '_, '_> {
                     "completion declaration: {symbol_id:?}"
                 )))?;
         let declaration = self.program.module(declaration_id.module_id)?;
-        let definition =
-            declaration
-                .definitions()
-                .definition(declaration_id)
-                .ok_or(QueryError::missing(format!(
-                    "completion definition: {declaration_id:?}"
-                )))?;
+        let definition = declaration
+            .definitions()?
+            .definition(declaration_id)
+            .ok_or(QueryError::missing(format!(
+                "completion definition: {declaration_id:?}"
+            )))?;
         let dir::Definition::Struct(definition) = definition else {
             return Err(QueryError::invalid(format!(
                 "completion definition: {declaration_id:?}"
@@ -163,13 +161,12 @@ impl CompletionBuilder<'_, '_, '_> {
                     "completion declaration: {symbol_id:?}"
                 )))?;
         let declaration = self.program.module(declaration_id.module_id)?;
-        let definition =
-            declaration
-                .definitions()
-                .definition(declaration_id)
-                .ok_or(QueryError::missing(format!(
-                    "completion definition: {declaration_id:?}"
-                )))?;
+        let definition = declaration
+            .definitions()?
+            .definition(declaration_id)
+            .ok_or(QueryError::missing(format!(
+                "completion definition: {declaration_id:?}"
+            )))?;
         let dir::Definition::Newtype(definition) = definition else {
             return Err(QueryError::invalid(format!(
                 "completion definition: {declaration_id:?}"
@@ -189,8 +186,8 @@ impl CompletionBuilder<'_, '_, '_> {
                 .program
                 .read_type(constructor.ty, |ty, owner| match ty {
                     dir::Type::FunctionSignature(signature) => Ok(owner
-                        .types()
-                        .parameters(owner.types().signature(*signature).parameters)
+                        .types()?
+                        .parameters(owner.types()?.signature(*signature).parameters)
                         .len()),
                     _ => Err(QueryError::invalid(format!(
                         "completion constructor type: {:?}",

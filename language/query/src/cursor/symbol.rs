@@ -54,7 +54,7 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<Option<TypeOccurrence>> {
         self.occurrence_at_offset(file_id, offset, |_view, node_id, span, _offset| {
             let node_id = node_id.into_global(self.module_id());
-            let Some(type_id) = self.types().get_node_type_id(node_id) else {
+            let Some(type_id) = self.types()?.get_node_type_id(node_id) else {
                 return Ok(None);
             };
 
@@ -82,11 +82,11 @@ impl ModuleQueryContext<'_> {
         self.occurrence_at_offset(file_id, offset, |view, node_id, span, offset| {
             // explicit import aliases retain their local declaration identity
             let declaration = self.declaration_occurrence(view, node_id, span, offset)?;
-            if declaration.as_ref().is_some_and(|occurrence| {
-                occurrence
-                    .symbol()
-                    .is_some_and(|symbol| self.is_local_import_alias(symbol))
-            }) {
+            let is_local_alias = match declaration.as_ref().and_then(SymbolOccurrence::symbol) {
+                Some(symbol) => self.is_local_import_alias(symbol)?,
+                None => false,
+            };
+            if is_local_alias {
                 return Ok(declaration);
             }
 
@@ -117,14 +117,14 @@ impl ModuleQueryContext<'_> {
         }
 
         // visit authored source owners from smallest to largest
-        let enclosing = self.enclosing_spans_at_cursor(file_id, offset);
-        let view = self.view();
+        let enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
+        let view = self.view()?;
         for enclosing_span in enclosing {
             let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
                 continue;
             };
             let main_span = self
-                .source_index()
+                .source_index()?
                 .get_main_or_enclosing(enclosing_span.source_id);
 
             // select the authored name inside nodes that own several names
@@ -173,7 +173,7 @@ impl ModuleQueryContext<'_> {
                 .map_err(|_| QueryError::invalid(format!("type reference path: {node:?}")))?;
             let span_type = NodeSpanType::ListItem(NodeSpanList::Segment, index);
             let span =
-                self.source_index()
+                self.source_index()?
                     .get_side(source_id, span_type)
                     .ok_or(QueryError::missing(format!(
                         "type reference span: {node:?}, {index:?}"
@@ -191,16 +191,20 @@ impl ModuleQueryContext<'_> {
         &self,
         node_id: dir::LocalNodeIdAny,
         span: Span,
-    ) -> Option<SymbolOccurrence> {
-        let symbol_id = self.node_symbol(node_id)?;
-        self.symbols().get_symbol(symbol_id).name()?;
+    ) -> QueryResult<Option<SymbolOccurrence>> {
+        let Some(symbol_id) = self.node_symbol(node_id)? else {
+            return Ok(None);
+        };
+        if self.bindings()?.get_symbol(symbol_id).name().is_none() {
+            return Ok(None);
+        }
         let source = node_id.into_global(self.module_id());
 
-        Some(SymbolOccurrence {
+        Ok(Some(SymbolOccurrence {
             symbols: vec![symbol_id.into_global(self.module_id())],
-            type_id: self.types().get_node_type_id(source),
+            type_id: self.types()?.get_node_type_id(source),
             span,
-        })
+        }))
     }
 
     /// Return declaration symbols for one DIR node at its authored span.
@@ -228,18 +232,18 @@ impl ModuleQueryContext<'_> {
 
             return Ok(Some(SymbolOccurrence {
                 symbols,
-                type_id: self.types().get_node_type_id(source),
+                type_id: self.types()?.get_node_type_id(source),
                 span,
             }));
         }
 
         // imported path roots retain their local declaration identities
-        if let Some(symbols) = self.resolved().references.declarations(source) {
+        if let Some(symbols) = self.resolved()?.references.declarations(source) {
             let root_span = self.reference_root_span(view, node_id, span)?;
             if root_span.owns_cursor(offset) {
                 return Ok(Some(SymbolOccurrence {
                     symbols: symbols.to_vec(),
-                    type_id: self.types().get_node_type_id(source),
+                    type_id: self.types()?.get_node_type_id(source),
                     span: root_span,
                 }));
             }
@@ -249,22 +253,22 @@ impl ModuleQueryContext<'_> {
         if let Some(symbols) = self.recorded_symbol_targets(source)? {
             return Ok(Some(SymbolOccurrence {
                 symbols,
-                type_id: self.types().get_node_type_id(source),
+                type_id: self.types()?.get_node_type_id(source),
                 span,
             }));
         }
 
         // resolved bindings cover references that need no checked selection
-        if let Some(dir::Reference::Bound(symbols)) = self.resolved().references.get(source) {
+        if let Some(dir::Reference::Bound(symbols)) = self.resolved()?.references.get(source) {
             return Ok(Some(SymbolOccurrence {
                 symbols: symbols.to_vec(),
-                type_id: self.types().get_node_type_id(source),
+                type_id: self.types()?.get_node_type_id(source),
                 span,
             }));
         }
 
         // declaration nodes read their recorded binding
-        Ok(self.binding_occurrence(node_id, span))
+        self.binding_occurrence(node_id, span)
     }
 
     /// Return the first authored name span for one reference node.
@@ -291,7 +295,7 @@ impl ModuleQueryContext<'_> {
 
         let node = node_id.into_global(self.module_id());
         let span = self
-            .source_index()
+            .source_index()?
             .get_side(source_id, root)
             .ok_or(QueryError::missing(format!(
                 "type reference span: {:?}, {:?}",
@@ -328,7 +332,7 @@ impl ModuleQueryContext<'_> {
 
             return Ok(Some(SymbolOccurrence {
                 symbols,
-                type_id: self.types().get_node_type_id(global_node_id),
+                type_id: self.types()?.get_node_type_id(global_node_id),
                 span,
             }));
         }
@@ -336,7 +340,8 @@ impl ModuleQueryContext<'_> {
         // use the checked decorator selection for decorator targets
         if node_id.ty == dir::NodeType::Expression {
             let expression_id = dir::LocalNodeId::<dir::Expression>::new(node_id.id);
-            if let Some(application) = self.decorators().application_for_expression(expression_id) {
+            if let Some(application) = self.decorators()?.application_for_expression(expression_id)
+            {
                 let symbol = match application.resolution.target {
                     dir::DecoratorTarget::LanguageItem { symbol, .. }
                     | dir::DecoratorTarget::Symbol { symbol } => symbol,
@@ -367,13 +372,13 @@ impl ModuleQueryContext<'_> {
 
             return Ok(Some(SymbolOccurrence {
                 symbols,
-                type_id: self.types().get_node_type_id(global_node_id),
+                type_id: self.types()?.get_node_type_id(global_node_id),
                 span,
             }));
         }
 
         // declarations read only their recorded binding
-        Ok(self.binding_occurrence(node_id, span))
+        self.binding_occurrence(node_id, span)
     }
 
     /// Return the selected segment in one qualified type reference.
@@ -403,7 +408,7 @@ impl ModuleQueryContext<'_> {
                 .map_err(|_| QueryError::invalid(format!("type reference path: {node:?}")))?;
             let span_type = NodeSpanType::ListItem(NodeSpanList::Segment, index_id);
             let span =
-                self.source_index()
+                self.source_index()?
                     .get_side(source_id, span_type)
                     .ok_or(QueryError::missing(format!(
                         "type reference span: {node:?}, {index_id:?}"
@@ -429,7 +434,7 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<Option<Vec<dir::GlobalSymbolId>>> {
         // the root retains its lexical declaration identities
         if segment == 0
-            && let Some(declarations) = self.resolved().references.declarations(source)
+            && let Some(declarations) = self.resolved()?.references.declarations(source)
         {
             return Ok(Some(declarations.to_vec()));
         }
@@ -442,7 +447,7 @@ impl ModuleQueryContext<'_> {
         }
 
         let reference = self
-            .resolved()
+            .resolved()?
             .references
             .get(source)
             .ok_or(QueryError::missing(format!(
@@ -487,7 +492,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // select only type paths owned by nominal patterns
-        let view = self.view();
+        let view = self.view()?;
         let Some(parent) = view.get_parent_any(source.local_id) else {
             return Ok(None);
         };
@@ -507,7 +512,7 @@ impl ModuleQueryContext<'_> {
         // read the exact variant selected for the pattern
         let pattern = pattern_id.into_global_any(self.module_id());
         let resolution =
-            self.resolutions()
+            self.resolutions()?
                 .pattern_resolution(pattern)
                 .ok_or(QueryError::missing(format!(
                     "qualified pattern: {pattern:?}"
@@ -555,8 +560,8 @@ impl ModuleQueryContext<'_> {
         call_id: dir::GlobalNodeIdAny,
         span: Span,
     ) -> QueryResult<Option<SymbolOccurrence>> {
-        let construct = self.resolutions().construct_resolution(call_id);
-        let call = self.resolutions().call_resolution(call_id);
+        let construct = self.resolutions()?.construct_resolution(call_id);
+        let call = self.resolutions()?.call_resolution(call_id);
 
         // require one authoritative call selection
         if construct.is_some() && call.is_some() {
@@ -602,7 +607,7 @@ impl ModuleQueryContext<'_> {
         let imported_name = NodeSpanType::Region(NodeSpanRegion::Type);
 
         // imported names use the resolved dependency target
-        if let Some(span) = self.source_index().get_side(source_id, imported_name)
+        if let Some(span) = self.source_index()?.get_side(source_id, imported_name)
             && span.owns_cursor(offset)
         {
             let symbols = self.dependency_symbol_targets(item_id)?;
@@ -612,26 +617,26 @@ impl ModuleQueryContext<'_> {
 
             return Ok(Some(SymbolOccurrence {
                 symbols,
-                type_id: self.types().get_node_type_id(node_id),
+                type_id: self.types()?.get_node_type_id(node_id),
                 span,
             }));
         }
 
         // local names use the recorded dependency binding
-        let Some(span) = self.source_index().get_main(source_id) else {
+        let Some(span) = self.source_index()?.get_main(source_id) else {
             return Ok(None);
         };
         if !span.owns_cursor(offset) {
             return Ok(None);
         }
 
-        let Some(symbol_id) = self.dependency_local_symbol(item_id) else {
+        let Some(symbol_id) = self.dependency_local_symbol(item_id)? else {
             return Ok(None);
         };
 
         Ok(Some(SymbolOccurrence {
             symbols: vec![symbol_id],
-            type_id: self.types().get_node_type_id(node_id),
+            type_id: self.types()?.get_node_type_id(node_id),
             span,
         }))
     }

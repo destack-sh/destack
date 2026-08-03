@@ -85,7 +85,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // collect exact authored ranges containing the cursor
-        let mut spans = self.source_index().spans_at(file_id, offset);
+        let mut spans = self.source_index()?.spans_at(file_id, offset);
         if spans.is_empty() {
             let range = Span::new(file_id, offset, offset).into();
 

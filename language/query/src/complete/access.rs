@@ -49,14 +49,14 @@ impl ModuleQueryContext<'_> {
             return Ok(None);
         }
 
-        let view = self.view();
+        let view = self.view()?;
 
         // resolve enclosing spans from innermost to outermost
-        let enclosing = self.sorted_enclosing_spans(file_id, cursor_position, cursor_position);
+        let enclosing = self.sorted_enclosing_spans(file_id, cursor_position, cursor_position)?;
 
         // scan enclosing spans for one member expression at the cursor
         for enclosing_span in &enclosing {
-            let main_span = self.source_index().get_main(enclosing_span.source_id);
+            let main_span = self.source_index()?.get_main(enclosing_span.source_id);
             let Some(main_span) = main_span else {
                 continue;
             };
@@ -98,8 +98,9 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         receiver_position: u32,
     ) -> QueryResult<Option<CompletionContext>> {
-        let enclosing = self.sorted_enclosing_spans(file_id, receiver_position, receiver_position);
-        let view = self.view();
+        let enclosing =
+            self.sorted_enclosing_spans(file_id, receiver_position, receiver_position)?;
+        let view = self.view()?;
 
         // scan for the nearest enclosing expression
         for enclosing_span in &enclosing {
@@ -186,7 +187,7 @@ impl CompletionReceiver {
         let global_id = node_id.into_global(module.module_id());
         let receiver = if let Some(module_id) = Self::namespace(global_id, module)? {
             Self::Namespace { module_id }
-        } else if let Some(type_id) = module.types().get_node_type_id(global_id) {
+        } else if let Some(type_id) = module.types()?.get_node_type_id(global_id) {
             Self::Type {
                 type_id,
                 is_optional,
@@ -206,7 +207,7 @@ impl CompletionReceiver {
         module: &ModuleQueryContext<'_>,
     ) -> QueryResult<Option<ModuleId>> {
         if let Some(dir::Reference::Namespace(module_id)) =
-            module.resolved().references.get(receiver)
+            module.resolved()?.references.get(receiver)
         {
             return Ok(Some(*module_id));
         }
@@ -222,7 +223,7 @@ impl CompletionReceiver {
                 continue;
             }
 
-            let symbol = module.symbols().get_symbol(symbol_id.local_id);
+            let symbol = module.bindings()?.get_symbol(symbol_id.local_id);
             let Some(declaration) = symbol.declaration else {
                 continue;
             };
@@ -232,7 +233,7 @@ impl CompletionReceiver {
 
             let reference =
                 module
-                    .resolved()
+                    .resolved()?
                     .references
                     .get(declaration)
                     .ok_or(QueryError::missing(format!(

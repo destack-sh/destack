@@ -15,7 +15,7 @@ impl CompletionBuilder<'_, '_, '_> {
             let module = self.program.module(symbol_id.module_id)?;
             let type_id =
                 module
-                    .types()
+                    .types()?
                     .get_symbol_type_id(symbol_id)
                     .ok_or(QueryError::missing(format!(
                         "completion symbol type: {symbol_id:?}"

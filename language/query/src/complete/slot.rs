@@ -174,7 +174,7 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<bool> {
-        let view = self.view();
+        let view = self.view()?;
         let Some(declarator_id) = self.current_initializer_declarator(file_id, offset)? else {
             return Ok(false);
         };
@@ -197,7 +197,7 @@ impl ModuleQueryContext<'_> {
             return Ok(None);
         };
 
-        Ok(expression_hole_owner(self.view(), expression))
+        Ok(expression_hole_owner(self.view()?, expression))
     }
 }
 

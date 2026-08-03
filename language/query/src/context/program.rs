@@ -25,7 +25,7 @@ pub struct ProgramQueryContext<'a> {
     /// Module contexts read by this query.
     modules: Mutex<FxHashMap<ModuleId, Arc<ModuleQueryContext<'a>>>>,
     /// Exact artifact requirements for actual query reads.
-    require_artifacts: &'a dyn Fn(&[ArtifactKey]) -> QueryResult<()>,
+    require_artifacts: &'a (dyn Fn(&[ArtifactKey]) -> QueryResult<()> + Sync),
     /// Lazily built package import-resolution nodes.
     package_nodes: Mutex<FxHashMap<PackageId, Arc<PackageNode>>>,
     /// Lazily read compiler language and global bindings.
@@ -95,7 +95,7 @@ impl<'a> ProgramQueryContext<'a> {
             module_id,
             self.profile_id,
             self.require_artifacts,
-        )?;
+        );
         let context = Arc::new(context);
         let mut modules = self.modules.lock();
         let context = modules.entry(module_id).or_insert(context);
@@ -110,7 +110,7 @@ impl<'a> ProgramQueryContext<'a> {
         read: impl FnOnce(&dir::Type, &ModuleQueryContext<'_>) -> QueryResult<R>,
     ) -> QueryResult<R> {
         let module = self.module(type_id.module_id)?;
-        let type_value = module.types().get_type(type_id.local_id);
+        let type_value = module.types()?.get_type(type_id.local_id);
 
         read(&type_value, &module)
     }
@@ -126,7 +126,7 @@ impl<'a> ProgramQueryContext<'a> {
                 // list declared field members for nominal expectations
                 dir::Type::Application(instance) => {
                     let declaring = self.module(instance.symbol.module_id)?;
-                    let Some(definition) = declaring.definitions().definition(instance.symbol)
+                    let Some(definition) = declaring.definitions()?.definition(instance.symbol)
                     else {
                         return Ok(fields);
                     };
@@ -143,7 +143,7 @@ impl<'a> ProgramQueryContext<'a> {
                 }
                 // list shape properties for structural expectations
                 dir::Type::Shape(shape) => {
-                    for property in module.types().properties(shape.properties) {
+                    for property in module.types()?.properties(shape.properties) {
                         let dir::StaticKey::Name(name) = property.key else {
                             continue;
                         };
@@ -421,7 +421,7 @@ impl<'a> ProgramQueryContext<'a> {
         repository: &'a Repository,
         revision: Revision,
         profile_id: ProfileId,
-        require_artifacts: &'a dyn Fn(&[ArtifactKey]) -> QueryResult<()>,
+        require_artifacts: &'a (dyn Fn(&[ArtifactKey]) -> QueryResult<()> + Sync),
     ) -> QueryResult<Self> {
         let mut module_ids = repository.module_ids(revision)?;
         module_ids.sort_unstable();

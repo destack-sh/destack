@@ -44,7 +44,7 @@ impl ModuleQueryContext<'_> {
         for symbol_id in symbol.symbols {
             for canonical_id in program.canonical_symbols(symbol_id)? {
                 let target_module = program.module(canonical_id.module_id)?;
-                let symbols = target_module.symbols();
+                let symbols = target_module.bindings()?;
                 let symbol = symbols.get_symbol(canonical_id.local_id);
 
                 // navigate interface members to their implementing declarations

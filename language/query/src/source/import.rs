@@ -103,37 +103,50 @@ pub(crate) struct ImportClauseBounds {
 
 impl ModuleQueryContext<'_> {
     /// Return whether one symbol is an explicit local import alias.
-    pub(crate) fn is_local_import_alias(&self, symbol_id: dir::GlobalSymbolId) -> bool {
-        self.local_import_alias_name_id(symbol_id).is_some()
+    pub(crate) fn is_local_import_alias(
+        &self,
+        symbol_id: dir::GlobalSymbolId,
+    ) -> QueryResult<bool> {
+        Ok(self.local_import_alias_name_id(symbol_id)?.is_some())
     }
 
     /// Resolve the local alias text for one explicit import alias symbol.
-    pub(crate) fn local_import_alias_name(&self, symbol_id: dir::GlobalSymbolId) -> Option<String> {
+    pub(crate) fn local_import_alias_name(
+        &self,
+        symbol_id: dir::GlobalSymbolId,
+    ) -> QueryResult<Option<String>> {
         let local_name_id = self.local_import_alias_name_id(symbol_id)?;
 
-        Some(self.strings().get(local_name_id).to_string())
+        Ok(local_name_id.map(|name| self.strings().get(name).to_string()))
     }
 
     /// Resolve the local name id for one explicit import alias symbol.
-    fn local_import_alias_name_id(&self, symbol_id: dir::GlobalSymbolId) -> Option<StringId> {
+    fn local_import_alias_name_id(
+        &self,
+        symbol_id: dir::GlobalSymbolId,
+    ) -> QueryResult<Option<StringId>> {
         if symbol_id.module_id != self.module_id() {
-            return None;
+            return Ok(None);
         }
 
         let declaration = {
-            let symbols = self.symbols();
+            let symbols = self.bindings()?;
             let symbol = symbols.get_symbol(symbol_id.local_id);
-            symbol.declaration?
+            let Some(declaration) = symbol.declaration else {
+                return Ok(None);
+            };
+
+            declaration
         };
 
         if declaration.local_id.ty != dir::NodeType::DependencyItem {
-            return None;
+            return Ok(None);
         }
 
         let item_id = dir::LocalNodeId::<dir::DependencyItem>::new(declaration.local_id.id);
-        let item = self.view().get::<dir::DependencyItem>(item_id);
+        let item = self.view()?.get::<dir::DependencyItem>(item_id);
 
-        item.local_import_alias_name()
+        Ok(item.local_import_alias_name())
     }
 
     /// Build edits that add an import for one symbol.
@@ -256,7 +269,7 @@ impl ModuleQueryContext<'_> {
     /// Collect existing imports from one source file.
     fn collect_existing_imports(&self, file_id: FileId) -> QueryResult<Vec<ExistingImport>> {
         let mut imports = Vec::new();
-        let view = self.view();
+        let view = self.view()?;
 
         for node_id in view.iter_nodes::<dir::Expression>() {
             let expression = view.get(node_id);
@@ -266,7 +279,7 @@ impl ModuleQueryContext<'_> {
 
             // ignore generated imports because they have no editable authored source
             let source_id = view.get_source(node_id);
-            let Some(span) = self.source_index().try_get(source_id) else {
+            let Some(span) = self.source_index()?.try_get(source_id) else {
                 continue;
             };
             let path = self.strings().get(*target).to_string();
@@ -304,14 +317,14 @@ impl ModuleQueryContext<'_> {
                     None => {}
                 }
             }
-            let target_span = self.source_index().get_main(source_id);
+            let target_span = self.source_index()?.get_main(source_id);
             let bounds = self.import_clause_bounds(span, target_span)?;
             let closing_brace_offset = bounds.map(|bounds| bounds.close_brace.start);
             let binding_offset = if let Some(item_id) = namespace_item {
                 let source_id = view.get_source(item_id);
                 let node = item_id.into_global_any(self.module_id());
                 let span = self
-                    .source_index()
+                    .source_index()?
                     .try_get(source_id)
                     .ok_or(QueryError::missing(format!("import item span: {node:?}")))?;
 

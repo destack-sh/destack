@@ -66,7 +66,7 @@ impl TypeItem {
             return Ok(None);
         };
         let module = query.module(canonical_id.module_id)?;
-        let symbol = module.symbols().get_symbol(canonical_id.local_id);
+        let symbol = module.bindings()?.get_symbol(canonical_id.local_id);
         let kind = match symbol.kind {
             dir::SymbolKind::Class
             | dir::SymbolKind::Struct

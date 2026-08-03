@@ -84,7 +84,7 @@ impl ModuleQueryContext<'_> {
 
             // avoid repeating documentation on its declaration occurrence
             if let Some(documentation) = &documentation {
-                let declaration = module.symbols().get_symbol(symbol.local_id).declaration;
+                let declaration = module.bindings()?.get_symbol(symbol.local_id).declaration;
                 is_documentation_in_items |= declaration == Some(documentation.node_id);
             }
 

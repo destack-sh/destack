@@ -13,7 +13,7 @@ impl Formatter<'_, '_, '_> {
     pub(crate) fn symbol_type(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<String> {
         let module = self.query.module(symbol_id.module_id)?;
         let type_id = module
-            .types()
+            .types()?
             .get_symbol_type_id(symbol_id)
             .ok_or(QueryError::missing(format!("symbol type: {symbol_id:?}")))?;
         let formatter = Formatter::new(&module, self.query);
@@ -35,11 +35,11 @@ impl Formatter<'_, '_, '_> {
         parameter: dir::GlobalGenericParameterId,
     ) -> QueryResult<String> {
         let module = self.query.module(parameter.module_id)?;
-        let parameter = module.generics().get_parameter(parameter.local_id);
+        let parameter = module.generics()?.get_parameter(parameter.local_id);
 
         let name = match parameter.key {
             dir::GenericParameterKey::Symbol(symbol) => {
-                let symbol = module.symbols().get_symbol(symbol.local_id);
+                let symbol = module.bindings()?.get_symbol(symbol.local_id);
 
                 static_key_segment(symbol.key, module.strings())
             }
@@ -58,7 +58,7 @@ impl Formatter<'_, '_, '_> {
     /// Format one symbol path.
     pub(super) fn symbol(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<String> {
         let module = self.query.module(symbol_id.module_id)?;
-        let symbols = module.symbols();
+        let symbols = module.bindings()?;
         let symbol = symbols.get_symbol(symbol_id.into_local());
         let Some(symbol_name) = static_key_segment(symbol.key, module.strings()) else {
             return Err(QueryError::missing(format!(
@@ -150,7 +150,7 @@ impl Formatter<'_, '_, '_> {
     pub(crate) fn symbol_signature(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<String> {
         let module = self.query.module(symbol_id.module_id)?;
         let formatter = Formatter::new(&module, self.query);
-        let symbols = module.symbols();
+        let symbols = module.bindings()?;
         let symbol = symbols.get_symbol(symbol_id.into_local());
         let declaration = symbol.declaration.ok_or(QueryError::missing(format!(
             "signature declaration: {symbol_id:?}"
@@ -166,7 +166,7 @@ impl Formatter<'_, '_, '_> {
                     .local_id
                     .try_into_typed::<dir::Declaration>()
                     .map_err(|_| QueryError::invalid(format!("signature symbol: {symbol_id:?}")))?;
-                let declaration = module.view().get::<dir::Declaration>(declaration_id);
+                let declaration = module.view()?.get::<dir::Declaration>(declaration_id);
 
                 formatter.declaration_signature(declaration)?
             }
@@ -199,7 +199,7 @@ impl Formatter<'_, '_, '_> {
     fn member_symbol_signature(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<String> {
         let (declaring, definition, member) =
             self.module
-                .definitions()
+                .definitions()?
                 .member(symbol_id)
                 .ok_or(QueryError::missing(format!(
                     "signature member: {symbol_id:?}"
@@ -278,7 +278,7 @@ impl Formatter<'_, '_, '_> {
             }
             // format keys left behind by rejected variant derivations
             dir::DefinitionMember::TaggedKey(key) => {
-                match self.module.types().get_symbol_type_id(key.symbol) {
+                match self.module.types()?.get_symbol_type_id(key.symbol) {
                     Some(type_id) => {
                         let signature = self.callable_signature(&name, type_id)?;
 
@@ -290,7 +290,7 @@ impl Formatter<'_, '_, '_> {
             dir::DefinitionMember::TaggedVariant(variant) => {
                 let type_id = self
                     .module
-                    .types()
+                    .types()?
                     .get_symbol_type_id(variant.symbol)
                     .ok_or(QueryError::missing(format!(
                         "tagged variant type: {:?}",
@@ -322,7 +322,7 @@ impl Formatter<'_, '_, '_> {
         &self,
         parameter_id: dir::LocalNodeId<dir::Parameter>,
     ) -> QueryResult<String> {
-        let parameter = self.module.view().get::<dir::Parameter>(parameter_id);
+        let parameter = self.module.view()?.get::<dir::Parameter>(parameter_id);
         let name = self.module.parameter_name(parameter)?;
         let node_id = parameter_id.into_global(self.module.module_id()).into_any();
         let type_text = self.node_type(node_id)?;
@@ -336,8 +336,8 @@ impl Formatter<'_, '_, '_> {
         name: &str,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<String> {
-        let symbol = self.module.symbols().get_symbol(symbol_id.local_id);
-        let Some(type_id) = self.module.types().get_symbol_type_id(symbol_id) else {
+        let symbol = self.module.bindings()?.get_symbol(symbol_id.local_id);
+        let Some(type_id) = self.module.types()?.get_symbol_type_id(symbol_id) else {
             return Err(QueryError::missing(format!(
                 "binding symbol type: {symbol_id:?}"
             )));
@@ -357,7 +357,7 @@ impl Formatter<'_, '_, '_> {
         &self,
         source: dir::GlobalNodeIdAny,
     ) -> QueryResult<&dir::FunctionSignature> {
-        let view = self.module.view();
+        let view = self.module.view()?;
 
         let signature = match source.local_id.ty {
             dir::NodeType::Member => {
@@ -384,7 +384,7 @@ impl Formatter<'_, '_, '_> {
     fn member_type(&self, member: &dir::DefinitionMember) -> QueryResult<String> {
         let type_id = if let Some(symbol) = member.type_symbol() {
             self.module
-                .types()
+                .types()?
                 .get_symbol_type_id(symbol)
                 .ok_or(QueryError::missing(format!("member type: {symbol:?}")))?
         } else {
@@ -403,7 +403,7 @@ impl Formatter<'_, '_, '_> {
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<String>> {
         let module = self.query.module(symbol_id.module_id)?;
-        let symbols = module.symbols();
+        let symbols = module.bindings()?;
         let symbol = symbols.get_symbol(symbol_id.local_id);
         let source = symbol.declaration.ok_or(QueryError::invalid(format!(
             "type item symbol: {symbol_id:?}"
@@ -419,7 +419,7 @@ impl Formatter<'_, '_, '_> {
             .local_id
             .try_into_typed::<dir::Declaration>()
             .map_err(|_| QueryError::invalid(format!("type item symbol: {symbol_id:?}")))?;
-        let declaration = module.view().get::<dir::Declaration>(declaration_id);
+        let declaration = module.view()?.get::<dir::Declaration>(declaration_id);
         let parameters = declaration
             .generic_parameters()
             .ok_or(QueryError::invalid(format!(

@@ -61,8 +61,8 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<SignatureHelp>> {
-        let view = self.view();
-        let enclosing = self.enclosing_spans_at_cursor(file_id, offset);
+        let view = self.view()?;
+        let enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
 
         // select the innermost call with one recorded resolution
         for enclosing in enclosing {
@@ -79,8 +79,8 @@ impl ModuleQueryContext<'_> {
                 dir::Expression::Call {
                     left, arguments, ..
                 } => {
-                    let call = self.resolutions().call_resolution(global_id);
-                    let construct = self.resolutions().construct_resolution(global_id);
+                    let call = self.resolutions()?.call_resolution(global_id);
+                    let construct = self.resolutions()?.construct_resolution(global_id);
                     if call.is_some() && construct.is_some() {
                         return Err(QueryError::conflict(format!(
                             "signature resolution columns: {global_id:?}"
@@ -110,7 +110,7 @@ impl ModuleQueryContext<'_> {
                 }
                 dir::Expression::New { arguments, .. }
                 | dir::Expression::NewMaybe { arguments, .. } => {
-                    let Some(resolution) = self.resolutions().construct_resolution(global_id)
+                    let Some(resolution) = self.resolutions()?.construct_resolution(global_id)
                     else {
                         return Ok(None);
                     };
@@ -216,7 +216,7 @@ impl ModuleQueryContext<'_> {
             )));
         };
         let module = query.module(symbol_id.module_id)?;
-        let symbols = module.symbols();
+        let symbols = module.bindings()?;
         let symbol = symbols.get_symbol(symbol_id.local_id);
         let Some(name) = symbol.name() else {
             return Err(QueryError::missing(format!(
@@ -224,7 +224,7 @@ impl ModuleQueryContext<'_> {
             )));
         };
         let name = module.strings().get(name).to_string();
-        let Some(parameters) = module.callable_parameters(symbol_id.local_id) else {
+        let Some(parameters) = module.callable_parameters(symbol_id.local_id)? else {
             return Err(QueryError::missing(format!(
                 "call signature parameters: {symbol_id:?}"
             )));
@@ -288,7 +288,7 @@ impl ModuleQueryContext<'_> {
             }
         };
         let module = query.module(node.module_id)?;
-        let Some(parameters) = module.node_callable_parameters(node.local_id) else {
+        let Some(parameters) = module.node_callable_parameters(node.local_id)? else {
             return Err(QueryError::missing(format!(
                 "dynamic signature parameters: {node:?}"
             )));
@@ -324,7 +324,7 @@ impl ModuleQueryContext<'_> {
 
         // retain authored parameter names and documentation
         for parameter_id in declared_parameters {
-            let parameter = declaration_module.view().get(*parameter_id);
+            let parameter = declaration_module.view()?.get(*parameter_id);
             let mut name = declaration_module.parameter_name(parameter)?;
             if parameter.is_optional() {
                 name.push('?');
@@ -332,7 +332,7 @@ impl ModuleQueryContext<'_> {
             names.push(Some(name));
 
             let parameter_documentation = declaration_module
-                .view()
+                .view()?
                 .get_documentation(*parameter_id)
                 .map(|documentation| {
                     declaration_module
@@ -397,7 +397,7 @@ impl ModuleQueryContext<'_> {
                 let symbol_id = candidate.case.variant;
                 let module = query.module(symbol_id.module_id)?;
                 let (declaring, definition, member) = module
-                    .definitions()
+                    .definitions()?
                     .member(symbol_id)
                     .ok_or(QueryError::missing(format!(
                         "signature member: {symbol_id:?}"
@@ -470,7 +470,7 @@ impl ModuleQueryContext<'_> {
             )));
         };
         let module = query.module(constructor_symbol.module_id)?;
-        let Some(parameters) = module.callable_parameters(constructor_symbol.local_id) else {
+        let Some(parameters) = module.callable_parameters(constructor_symbol.local_id)? else {
             return Err(QueryError::missing(format!(
                 "class constructor parameters: {constructor_symbol:?}"
             )));
@@ -543,7 +543,7 @@ impl ModuleQueryContext<'_> {
         bindings: &[dir::ArgumentBinding],
         offset: u32,
     ) -> QueryResult<Option<usize>> {
-        let view = self.view();
+        let view = self.view()?;
 
         // use the checker binding for an existing source argument
         for argument_id in arguments.iter().copied() {

@@ -10,7 +10,7 @@ impl ModuleQueryContext<'_> {
         enclosing: &EnclosingSpan,
         offset: u32,
     ) -> QueryResult<bool> {
-        let view = self.view();
+        let view = self.view()?;
 
         // only block spans can expose statement positions
         let Some(node_id) = view.get_node_id_by_source_id(enclosing.source_id) else {
@@ -42,7 +42,7 @@ impl ModuleQueryContext<'_> {
                 }
 
                 return Ok(self
-                    .node_selection_span(view, expression_id.into())
+                    .node_selection_span(view, expression_id.into())?
                     .is_some_and(|main_span| main_span.owns_cursor(offset)));
             }
 
@@ -54,7 +54,7 @@ impl ModuleQueryContext<'_> {
 
         // trailing missing slots still belong to the current statement
         if let Some(expression_id) = last_expression_before_cursor
-            && self.has_trailing_expression_hole(expression_id)
+            && self.has_trailing_expression_hole(expression_id)?
         {
             return Ok(false);
         }
@@ -66,19 +66,19 @@ impl ModuleQueryContext<'_> {
     fn has_trailing_expression_hole(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> bool {
-        let view = self.view();
+    ) -> QueryResult<bool> {
+        let view = self.view()?;
         let expression = view.get(expression_id);
 
-        match expression {
+        let has_hole = match expression {
             dir::Expression::Let { declarators, .. }
             | dir::Expression::Using { declarators, .. } => {
                 let Some(last_declarator) = declarators.last() else {
-                    return false;
+                    return Ok(false);
                 };
                 let declarator = view.get(*last_declarator);
                 let Some(value) = declarator.value else {
-                    return false;
+                    return Ok(false);
                 };
 
                 matches!(view.get(value), dir::Expression::Missing)
@@ -93,6 +93,8 @@ impl ModuleQueryContext<'_> {
                 matches!(view.get(*value), dir::Expression::Missing)
             }
             _ => false,
-        }
+        };
+
+        Ok(has_hole)
     }
 }

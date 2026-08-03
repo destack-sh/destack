@@ -112,8 +112,8 @@ impl ModuleQueryContext<'_> {
         range: Span,
         hints: &mut Vec<InlayHint>,
     ) -> QueryResult<()> {
-        let view = self.view();
-        let types = self.types();
+        let view = self.view()?;
+        let types = self.types()?;
 
         // inspect inferred binding declarators
         for (_declarator_id, declarator) in view.iter_nodes_of_type::<dir::Declarator>() {
@@ -129,7 +129,7 @@ impl ModuleQueryContext<'_> {
             let source_node_id = view.get_source(declarator.pattern);
             let binding = declarator.pattern.into_global_any(self.module_id());
             let name_span = self
-                .source_index()
+                .source_index()?
                 .get_main(source_node_id)
                 .ok_or(QueryError::missing(format!("inlay hint span: {binding:?}")))?;
             if !Self::span_overlaps_range(name_span, range) {
@@ -137,7 +137,7 @@ impl ModuleQueryContext<'_> {
             }
 
             let local_symbol =
-                self.node_symbol(declarator.pattern.into())
+                self.node_symbol(declarator.pattern.into())?
                     .ok_or(QueryError::missing(format!(
                         "inlay hint symbol: {binding:?}"
                     )))?;
@@ -163,14 +163,14 @@ impl ModuleQueryContext<'_> {
         hints: &mut Vec<InlayHint>,
     ) -> QueryResult<()> {
         // collect selected calls
-        for (call, resolution) in self.resolutions().call_entries() {
-            if self.resolutions().construct_resolution(call).is_some() {
+        for (call, resolution) in self.resolutions()?.call_entries() {
+            if self.resolutions()?.construct_resolution(call).is_some() {
                 return Err(QueryError::conflict(format!(
                     "inlay hint resolution columns: {call:?}"
                 )));
             }
 
-            let call_span = self.node_span(self.view(), call.local_id)?;
+            let call_span = self.node_span(self.view()?, call.local_id)?;
             if !Self::span_overlaps_range(call_span, range) {
                 continue;
             }
@@ -185,8 +185,8 @@ impl ModuleQueryContext<'_> {
         }
 
         // collect selected constructions
-        for (call, resolution) in self.resolutions().construct_entries() {
-            let call_span = self.node_span(self.view(), call.local_id)?;
+        for (call, resolution) in self.resolutions()?.construct_entries() {
+            let call_span = self.node_span(self.view()?, call.local_id)?;
             if !Self::span_overlaps_range(call_span, range) {
                 continue;
             }
@@ -308,13 +308,13 @@ impl ModuleQueryContext<'_> {
 
         // select the authored callee expression
         let call_id = dir::LocalNodeId::<dir::Expression>::new(call.local_id.id);
-        let dir::Expression::Call { left, .. } = self.view().get(call_id) else {
+        let dir::Expression::Call { left, .. } = self.view()?.get(call_id) else {
             return Err(QueryError::missing(format!(
                 "inlay hint parameters: {call:?}"
             )));
         };
-        if let dir::Expression::Declaration(declaration_id) = self.view().get(*left)
-            && let dir::Declaration::Function(function) = self.view().get(*declaration_id)
+        if let dir::Expression::Declaration(declaration_id) = self.view()?.get(*left)
+            && let dir::Declaration::Function(function) = self.view()?.get(*declaration_id)
         {
             return self.parameter_names(&function.signature.parameters);
         }
@@ -342,7 +342,7 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<Vec<Option<String>>> {
         let names = parameters
             .iter()
-            .map(|parameter_id| self.parameter_name(self.view().get(*parameter_id)))
+            .map(|parameter_id| self.parameter_name(self.view()?.get(*parameter_id)))
             .collect::<QueryResult<Vec<_>>>()?;
 
         Ok(names.into_iter().map(Some).collect())
@@ -415,7 +415,7 @@ impl ModuleQueryContext<'_> {
                 };
                 let name = name.trim_start_matches("...");
                 if !Self::span_overlaps_range(span, range)
-                    || self.argument_repeats_parameter(value_id, name)
+                    || self.argument_repeats_parameter(value_id, name)?
                 {
                     continue;
                 }
@@ -440,7 +440,7 @@ impl ModuleQueryContext<'_> {
         }
 
         let argument_id = dir::LocalNodeId::<dir::Argument>::new(argument.local_id.id);
-        let value = match self.view().get(argument_id) {
+        let value = match self.view()?.get(argument_id) {
             dir::Argument::Positional { value } => *value,
             dir::Argument::Named { .. }
             | dir::Argument::Labeled { .. }
@@ -451,7 +451,7 @@ impl ModuleQueryContext<'_> {
                 )));
             }
         };
-        let span = self.node_span(self.view(), value.into())?;
+        let span = self.node_span(self.view()?, value.into())?;
 
         Ok(Some((value, span)))
     }
@@ -461,16 +461,16 @@ impl ModuleQueryContext<'_> {
         &self,
         value_id: dir::LocalNodeId<dir::Expression>,
         parameter_name: &str,
-    ) -> bool {
-        let name = match self.view().get(value_id) {
+    ) -> QueryResult<bool> {
+        let name = match self.view()?.get(value_id) {
             dir::Expression::Identifier { name }
             | dir::Expression::Member {
                 name: Some(name), ..
             } => self.strings().get(*name),
-            _ => return false,
+            _ => return Ok(false),
         };
 
-        name == parameter_name
+        Ok(name == parameter_name)
     }
 
     /// Return whether a span overlaps the requested range.

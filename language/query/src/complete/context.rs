@@ -162,7 +162,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // check for type position via source spans
-        if self.is_type_position(file_id, offset) {
+        if self.is_type_position(file_id, offset)? {
             let Some(scope) = self.scope_at_offset(file_id, offset)? else {
                 return Ok(None);
             };
@@ -303,7 +303,7 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<Option<CompletionContext>> {
         // treat the start of the file as a statement position
         if offset == 0 {
-            let scope = self.module_start_scope();
+            let scope = self.module_start_scope()?;
 
             return Ok(Some(CompletionContext::StatementPosition { scope }));
         }
@@ -337,13 +337,13 @@ impl ModuleQueryContext<'_> {
     }
 
     /// Return whether the cursor is in a type position.
-    pub(crate) fn is_type_position(&self, file_id: FileId, offset: u32) -> bool {
-        let enclosing = self.enclosing_spans_at_cursor(file_id, offset);
-        let view = self.view();
+    pub(crate) fn is_type_position(&self, file_id: FileId, offset: u32) -> QueryResult<bool> {
+        let enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
+        let view = self.view()?;
 
         // check for type side spans that contain the cursor
-        if self.region_owns_cursor(file_id, offset, NodeSpanRegion::Type) {
-            return true;
+        if self.region_owns_cursor(file_id, offset, NodeSpanRegion::Type)? {
+            return Ok(true);
         }
 
         // check enclosing expressions that are known type expressions
@@ -358,16 +358,16 @@ impl ModuleQueryContext<'_> {
             let expression = view.get(expression_id);
 
             if matches!(expression, dir::Expression::Type { .. }) {
-                return true;
+                return Ok(true);
             }
         }
 
         // check type declarations for their value expression spans
-        if self.is_type_declaration_value_position(&enclosing, offset) {
-            return true;
+        if self.is_type_declaration_value_position(&enclosing, offset)? {
+            return Ok(true);
         }
 
-        false
+        Ok(false)
     }
 
     /// Resolve a statement position inside a block expression.
@@ -376,7 +376,7 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<dir::LocalScope>> {
-        let mut enclosing = self.enclosing_spans_at_cursor(file_id, offset);
+        let mut enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
         enclosing.sort_by_key(|enclosing_span| enclosing_span.length);
 
         // bail out when there are no spans
@@ -395,9 +395,13 @@ impl ModuleQueryContext<'_> {
     }
 
     /// Check whether the cursor is inside a type declaration value expression.
-    fn is_type_declaration_value_position(&self, enclosing: &[EnclosingSpan], offset: u32) -> bool {
+    fn is_type_declaration_value_position(
+        &self,
+        enclosing: &[EnclosingSpan],
+        offset: u32,
+    ) -> QueryResult<bool> {
         let previous_offset = offset.checked_sub(1);
-        let view = self.view();
+        let view = self.view()?;
 
         // scan enclosing declarations for type and value declarations
         for enclosing_span in enclosing {
@@ -418,10 +422,10 @@ impl ModuleQueryContext<'_> {
             if span.contains(offset)
                 || previous_offset.is_some_and(|previous_offset| span.contains(previous_offset))
             {
-                return true;
+                return Ok(true);
             }
         }
 
-        false
+        Ok(false)
     }
 }

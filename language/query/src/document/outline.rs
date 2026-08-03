@@ -119,7 +119,7 @@ impl ModuleQueryContext<'_> {
         query: &ProgramQueryContext<'_>,
         file_id: FileId,
     ) -> QueryResult<Vec<OutlineSymbol>> {
-        let view = self.view();
+        let view = self.view()?;
         let roots = self.file_roots(file_id)?;
 
         self.outline_expressions(view, roots, query)
@@ -259,7 +259,7 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<OutlineSymbol> {
         let node = declaration_id.into_global_any(self.module_id());
         let selection_range = self
-            .node_selection_span(view, declaration_id.into())
+            .node_selection_span(view, declaration_id.into())?
             .ok_or(QueryError::missing(format!("outline span: {node:?}")))?;
         let range = self.node_span(view, declaration_id.into())?;
         let children = self.outline_expressions(view, expressions, query)?;
@@ -285,7 +285,7 @@ impl ModuleQueryContext<'_> {
             let name = self.strings().get(name.string()).to_string();
             let node = declaration_id.into_global_any(self.module_id());
             let selection = self
-                .node_selection_span(view, declaration_id.into())
+                .node_selection_span(view, declaration_id.into())?
                 .ok_or(QueryError::missing(format!("outline span: {node:?}")))?;
 
             return Ok(Some((name, selection)));
@@ -301,7 +301,7 @@ impl ModuleQueryContext<'_> {
         let selection_type = NodeSpanType::Region(NodeSpanRegion::Type);
         let node = extension.target_type.into_global_any(self.module_id());
         let selection = self
-            .source_index()
+            .source_index()?
             .get_side(target_source_id, selection_type)
             .ok_or(QueryError::missing(format!("outline span: {node:?}")))?;
         let target = self.source_text(target_span)?;
@@ -358,21 +358,21 @@ impl ModuleQueryContext<'_> {
             for binding_id in bindings {
                 let binding = binding_id.into_global(self.module_id());
                 let symbol_id = self
-                    .global_node_symbol(binding_id)
+                    .global_node_symbol(binding_id)?
                     .ok_or(QueryError::missing(format!("outline symbol: {binding:?}")))?;
                 if !seen.insert(symbol_id) {
                     continue;
                 }
 
-                let symbol = self.symbols().get_symbol(symbol_id.local_id);
+                let symbol = self.bindings()?.get_symbol(symbol_id.local_id);
                 let name_id = symbol
                     .name()
                     .ok_or(QueryError::missing(format!("outline name: {symbol_id:?}")))?;
                 let selection_range = self
-                    .node_selection_span(view, binding_id)
+                    .node_selection_span(view, binding_id)?
                     .ok_or(QueryError::missing(format!("outline span: {binding:?}")))?;
                 let type_id =
-                    self.types()
+                    self.types()?
                         .get_symbol_type_id(symbol_id)
                         .ok_or(QueryError::missing(format!(
                             "outline symbol type: {symbol_id:?}"
@@ -412,7 +412,7 @@ impl ModuleQueryContext<'_> {
         let range = self.node_span(view, member_id.into())?;
         let node = member_id.into_global_any(self.module_id());
         let selection_range = self
-            .node_selection_span(view, member_id.into())
+            .node_selection_span(view, member_id.into())?
             .ok_or(QueryError::missing(format!("outline span: {node:?}")))?;
         let (name, kind, detail) = match member {
             dir::Member::AssociatedType { name, value, .. } => {
@@ -504,7 +504,7 @@ impl ModuleQueryContext<'_> {
         let range = self.node_span(view, member_id.into())?;
         let node = member_id.into_global_any(self.module_id());
         let selection_range = self
-            .node_selection_span(view, member_id.into())
+            .node_selection_span(view, member_id.into())?
             .ok_or(QueryError::missing(format!("outline span: {node:?}")))?;
         let (name, kind, detail) = match member {
             dir::TypeMember::Field {
@@ -584,7 +584,7 @@ impl ModuleQueryContext<'_> {
         let range = self.node_span(view, field_id.into())?;
         let node = field_id.into_global_any(self.module_id());
         let selection_range = self
-            .node_selection_span(view, field_id.into())
+            .node_selection_span(view, field_id.into())?
             .ok_or(QueryError::missing(format!("outline span: {node:?}")))?;
 
         Ok(OutlineSymbol {
@@ -618,7 +618,7 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<String> {
         let node_id = node_id.into_global(self.module_id());
         let type_id = self
-            .types()
+            .types()?
             .get_node_type_id(node_id)
             .ok_or(QueryError::missing(format!("outline type: {node_id:?}")))?;
 

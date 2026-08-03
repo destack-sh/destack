@@ -28,7 +28,7 @@ impl ModuleQueryContext<'_> {
         offset: u32,
     ) -> QueryResult<Option<CompletionContext>> {
         // resolve enclosing spans from innermost to outermost
-        let enclosing = self.sorted_enclosing_spans(file_id, offset, offset);
+        let enclosing = self.sorted_enclosing_spans(file_id, offset, offset)?;
 
         // bail out early when there are no enclosing spans
         if enclosing.is_empty() {
@@ -36,7 +36,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // resolve visible DIR for object literal context
-        let view = self.view();
+        let view = self.view()?;
 
         // look for an object expression under the cursor
         for enclosing_span in &enclosing {
@@ -51,7 +51,7 @@ impl ModuleQueryContext<'_> {
             else {
                 continue;
             };
-            let Some(scope) = self.expression_scope_at_offset(expression_id) else {
+            let Some(scope) = self.expression_scope_at_offset(expression_id)? else {
                 return Ok(None);
             };
             let object_spans = ObjectLiteralSpans {
@@ -65,7 +65,7 @@ impl ModuleQueryContext<'_> {
                 return Ok(Some(CompletionContext::ObjectLiteralValue { scope }));
             }
 
-            let existing_fields = self.object_property_names(properties);
+            let existing_fields = self.object_property_names(properties)?;
 
             return Ok(Some(CompletionContext::ObjectLiteralKey {
                 literal: expression_id,
@@ -78,8 +78,11 @@ impl ModuleQueryContext<'_> {
     }
 
     /// Return object literal property names.
-    fn object_property_names(&self, properties: &[dir::LocalNodeId<dir::Property>]) -> Vec<String> {
-        let view = self.view();
+    fn object_property_names(
+        &self,
+        properties: &[dir::LocalNodeId<dir::Property>],
+    ) -> QueryResult<Vec<String>> {
+        let view = self.view()?;
         let mut names = Vec::new();
 
         // collect static property names from declared fields and methods
@@ -101,7 +104,7 @@ impl ModuleQueryContext<'_> {
             }
         }
 
-        names
+        Ok(names)
     }
 }
 
@@ -111,7 +114,7 @@ impl ObjectLiteralSpans<'_> {
         for property_id in self.properties {
             if let Some(span) = self
                 .module
-                .node_selection_span(self.view, (*property_id).into())
+                .node_selection_span(self.view, (*property_id).into())?
                 && span.owns_cursor(offset)
             {
                 return Ok(true);
@@ -177,7 +180,7 @@ impl ObjectLiteralSpans<'_> {
             let node = property_id.into_global_any(self.module.module_id());
             let key_span = self
                 .module
-                .node_selection_span(self.view, (*property_id).into())
+                .node_selection_span(self.view, (*property_id).into())?
                 .ok_or(QueryError::missing(format!(
                     "object property span: {node:?}"
                 )))?;
@@ -201,7 +204,7 @@ impl CompletionBuilder<'_, '_, '_> {
 
         // read the contextual expectation retained by check
         let node = literal.into_global_any(self.module.module_id());
-        let types = self.module.types();
+        let types = self.module.types()?;
         let Some(expected) = types
             .get_expected_type_id(node)
             .or_else(|| types.get_node_type_id(node))
@@ -240,7 +243,7 @@ impl CompletionBuilder<'_, '_, '_> {
         let mut seen_names = FxHashSet::default();
 
         // collect visible values that can form shorthand fields
-        let symbols = self.module.symbols();
+        let symbols = self.module.bindings()?;
         for visible in symbols
             .visible_bindings(scope)
             .filter(|binding| SymbolUse::Value.accepts_symbol_kind(binding.symbol.kind))

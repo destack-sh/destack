@@ -275,7 +275,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
     /// Collect declaration tokens.
     fn collect_declarations(&mut self) -> QueryResult<()> {
-        let view = self.module.view();
+        let view = self.module.view()?;
 
         // collect definition-site declaration names
         for (declaration_id, declaration) in view.iter_nodes_of_type::<dir::Declaration>() {
@@ -310,7 +310,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
     /// Collect parameter tokens.
     fn collect_parameters(&mut self) -> QueryResult<()> {
-        let view = self.module.view();
+        let view = self.module.view()?;
 
         // collect parameter declarations
         for (parameter_id, _) in view.iter_nodes_of_type::<dir::Parameter>() {
@@ -332,7 +332,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
     /// Collect local variable binding tokens.
     fn collect_pattern_bindings(&mut self) -> QueryResult<()> {
-        let view = self.module.view();
+        let view = self.module.view()?;
 
         // collect binding patterns
         for (pattern_id, pattern) in view.iter_nodes_of_type::<dir::Pattern>() {
@@ -357,7 +357,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
     /// Collect destructuring pattern field tokens.
     fn collect_pattern_fields(&mut self) -> QueryResult<()> {
-        let view = self.module.view();
+        let view = self.module.view()?;
 
         // collect destructuring names from their exact roles
         for (field_id, field) in view.iter_nodes_of_type::<dir::PatternField>() {
@@ -416,7 +416,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
         let pattern = pattern.into_global(self.module.module_id());
         let resolution = self
             .module
-            .resolutions()
+            .resolutions()?
             .pattern_resolution(pattern)
             .ok_or(QueryError::missing(format!(
                 "semantic token pattern: {pattern:?}"
@@ -514,11 +514,11 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
     /// Collect expression tokens.
     fn collect_expressions(&mut self) -> QueryResult<()> {
-        let view = self.module.view();
+        let view = self.module.view()?;
 
         // collect labels and visible reference segments
         for (expression_id, expression) in view.iter_nodes_of_type::<dir::Expression>() {
-            if self.is_decorator_name(expression_id) {
+            if self.is_decorator_name(expression_id)? {
                 continue;
             }
 
@@ -567,7 +567,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
     /// Collect writable place tokens selected during checking.
     fn collect_modifications(&mut self) -> QueryResult<()> {
         // collect each checked writable place
-        for (target, write) in self.module.writable_places() {
+        for (target, write) in self.module.writable_places()? {
             self.push_modification(target, write)?;
         }
 
@@ -592,10 +592,10 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
         }
 
         // map the checked node through the visible tree to its authored span
-        let source_id = self.module.view().get_source_any(source.local_id);
+        let source_id = self.module.view()?.get_source_any(source.local_id);
         let span = self
             .module
-            .source_index()
+            .source_index()?
             .get_main(source_id)
             .ok_or(QueryError::missing(format!(
                 "semantic token span: {source:?}"
@@ -653,7 +653,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
     ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
         // explicit label transfers carry local symbol identity directly
         if matches!(
-            self.module.resolutions().label_resolution(node_id),
+            self.module.resolutions()?.label_resolution(node_id),
             Some(dir::LabelResolution::Symbol(_))
         ) {
             return Ok(Some((
@@ -664,7 +664,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
         // namespace values have module rather than symbol identity
         if matches!(
-            self.module.resolved().references.get(node_id),
+            self.module.resolved()?.references.get(node_id),
             Some(dir::Reference::Namespace(_))
         ) {
             return Ok(Some((
@@ -674,7 +674,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
         }
 
         // use the complete checked member selection when present
-        if let Some(resolution) = self.module.resolutions().member_resolution(node_id) {
+        if let Some(resolution) = self.module.resolutions()?.member_resolution(node_id) {
             return self.member_resolution_token(resolution);
         }
 
@@ -727,7 +727,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
         let symbol_module = self.query.module(symbol_id.module_id)?;
-        let symbols = symbol_module.symbols();
+        let symbols = symbol_module.bindings()?;
         let symbol = symbols.get_symbol(symbol_id.local_id);
         let symbol_modifiers = self.symbol_modifiers(symbol_id)?;
 
@@ -736,7 +736,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
             match declaration.local_id.ty {
                 dir::NodeType::Member => {
                     let member_id = dir::LocalNodeId::<dir::Member>::new(declaration.local_id.id);
-                    let member = symbol_module.view().get(member_id);
+                    let member = symbol_module.view()?.get(member_id);
                     let token_type = match symbol.kind {
                         dir::SymbolKind::Function => SemanticTokenType::Method,
                         dir::SymbolKind::AssociatedType => SemanticTokenType::Type,
@@ -767,7 +767,9 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
         let token_type = SemanticTokenType::symbol_kind(symbol.kind);
         let source_modifiers = match symbol.declaration {
-            Some(declaration) => Self::declaration_reference_modifiers(&symbol_module, declaration),
+            Some(declaration) => {
+                Self::declaration_reference_modifiers(&symbol_module, declaration)?
+            }
             None => SemanticTokenModifiers::NONE,
         };
         let modifiers = match symbol.kind {
@@ -790,13 +792,13 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
     fn declaration_reference_modifiers(
         module: &ModuleQueryContext<'_>,
         declaration: dir::GlobalNodeIdAny,
-    ) -> SemanticTokenModifiers {
+    ) -> QueryResult<SemanticTokenModifiers> {
         if declaration.local_id.ty != dir::NodeType::Declaration {
-            return SemanticTokenModifiers::NONE;
+            return Ok(SemanticTokenModifiers::NONE);
         }
 
         let declaration_id = dir::LocalNodeId::<dir::Declaration>::new(declaration.local_id.id);
-        match module.view().get(declaration_id) {
+        let modifiers = match module.view()?.get(declaration_id) {
             dir::Declaration::Function(function)
                 if function.signature.asynchrony == dir::Asynchrony::Async =>
             {
@@ -804,7 +806,9 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
             }
             dir::Declaration::Class(class) if class.is_abstract => SemanticTokenModifiers::ABSTRACT,
             _ => SemanticTokenModifiers::NONE,
-        }
+        };
+
+        Ok(modifiers)
     }
 
     /// Return modifiers recorded on one exact symbol.
@@ -834,7 +838,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
     ) -> QueryResult<SemanticTokenModifiers> {
         let symbol_id = self
             .module
-            .global_node_symbol(node_id)
+            .global_node_symbol(node_id)?
             .ok_or(QueryError::missing(format!(
                 "semantic token declaration symbol: {:?}",
                 node_id.into_global(self.module.module_id())
@@ -889,12 +893,12 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
     ) -> QueryResult<SemanticTokenModifiers> {
         let symbol_id = self
             .module
-            .global_node_symbol(declaration)
+            .global_node_symbol(declaration)?
             .ok_or(QueryError::missing(format!(
                 "semantic token symbol: {:?}",
                 declaration.into_global(self.module.module_id())
             )))?;
-        let symbol = self.module.symbols().get_symbol(symbol_id.local_id);
+        let symbol = self.module.bindings()?.get_symbol(symbol_id.local_id);
 
         let modifiers = if symbol.binding_mutability == Some(dir::Mutability::Immutable) {
             SemanticTokenModifiers::READONLY
@@ -907,7 +911,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
     /// Collect member tokens.
     fn collect_members(&mut self) -> QueryResult<()> {
-        let view = self.module.view();
+        let view = self.module.view()?;
 
         // collect fields, methods, and associated items
         for (member_id, member) in view.iter_nodes_of_type::<dir::Member>() {
@@ -971,7 +975,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
     /// Collect type member tokens.
     fn collect_type_members(&mut self) -> QueryResult<()> {
-        let view = self.module.view();
+        let view = self.module.view()?;
 
         // collect interface and shape member declarations
         for (member_id, member) in view.iter_nodes_of_type::<dir::TypeMember>() {
@@ -1018,15 +1022,16 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
                 is_static,
                 ..
             } => {
-                let symbol_id = self.module.global_node_symbol(member_id.into_any()).ok_or(
-                    QueryError::missing(format!(
+                let symbol_id = self
+                    .module
+                    .global_node_symbol(member_id.into_any())?
+                    .ok_or(QueryError::missing(format!(
                         "semantic token member symbol: {:?}",
                         member_id.into_global_any(self.module.module_id())
-                    )),
-                )?;
+                    )))?;
                 let (_, _, definition) =
                     self.module
-                        .definitions()
+                        .definitions()?
                         .member(symbol_id)
                         .ok_or(QueryError::missing(format!(
                             "semantic token member definition: {symbol_id:?}"
@@ -1078,7 +1083,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
     /// Collect enum field tokens.
     fn collect_enum_fields(&mut self) -> QueryResult<()> {
-        let view = self.module.view();
+        let view = self.module.view()?;
 
         // collect enum member declarations
         for (field_id, _) in view.iter_nodes_of_type::<dir::EnumField>() {
@@ -1101,7 +1106,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
     /// Collect generic type parameter tokens.
     fn collect_type_parameters(&mut self) -> QueryResult<()> {
-        let view = self.module.view();
+        let view = self.module.view()?;
 
         // collect declaration generic parameter names
         for (_declaration_id, declaration) in view.iter_nodes_of_type::<dir::Declaration>() {
@@ -1141,12 +1146,12 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
     /// Collect type reference tokens with exact recorded identities.
     fn collect_type_references(&mut self) -> QueryResult<()> {
-        let view = self.module.view();
+        let view = self.module.view()?;
 
         // visit authored names owned by type reference nodes
         for (type_id, type_expression) in view.iter_nodes_of_type::<dir::TypeExpression>() {
             let source_id = view.get_source(type_id);
-            if self.module.source_index().try_get(source_id).is_none() {
+            if self.module.source_index()?.try_get(source_id).is_none() {
                 continue;
             }
 
@@ -1162,7 +1167,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
                         let span_type = NodeSpanType::ListItem(NodeSpanList::Segment, index);
                         let span = self
                             .module
-                            .source_index()
+                            .source_index()?
                             .get_side(source_id, span_type)
                             .ok_or(QueryError::missing(format!(
                                 "semantic token span: {node:?}"
@@ -1205,7 +1210,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
     /// Collect decorator tokens.
     fn collect_decorators(&mut self) -> QueryResult<()> {
-        let view = self.module.view();
+        let view = self.module.view()?;
 
         // collect decorator names
         for (decorator_id, decorator) in view.iter_nodes_of_type::<dir::Decorator>() {
@@ -1218,7 +1223,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
                 )))?;
             let application = self
                 .module
-                .decorators()
+                .decorators()?
                 .application_for_decorator(decorator_id)
                 .ok_or(QueryError::missing(format!(
                     "semantic token decorator: {decorator_node:?}"
@@ -1255,8 +1260,11 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
     }
 
     /// Return whether one expression is the exact name of an attached decorator.
-    fn is_decorator_name(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        let view = self.module.view();
+    fn is_decorator_name(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> QueryResult<bool> {
+        let view = self.module.view()?;
         let mut current_id = expression_id;
 
         // ascend through decorator call callee slots
@@ -1265,24 +1273,26 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
                 let decorator_id = dir::LocalNodeId::<dir::Decorator>::new(parent_id.id);
                 let decorator = view.get(decorator_id);
 
-                return Self::decorator_name_expression(view, decorator) == expression_id;
+                let is_name = Self::decorator_name_expression(view, decorator) == expression_id;
+
+                return Ok(is_name);
             }
             if parent_id.ty != dir::NodeType::Expression {
-                return false;
+                return Ok(false);
             }
 
             let parent_id = dir::LocalNodeId::<dir::Expression>::new(parent_id.id);
             let dir::Expression::Call { left, .. } = view.get(parent_id) else {
-                return false;
+                return Ok(false);
             };
             if *left != current_id {
-                return false;
+                return Ok(false);
             }
 
             current_id = parent_id;
         }
 
-        false
+        Ok(false)
     }
 
     /// Collect documentation comments.
@@ -1314,7 +1324,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
     /// Collect dependency item tokens.
     fn collect_dependency_items(&mut self) -> QueryResult<()> {
-        let view = self.module.view();
+        let view = self.module.view()?;
 
         // collect imported and exported binding names
         for (item_id, item) in view.iter_nodes_of_type::<dir::DependencyItem>() {
@@ -1367,7 +1377,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
             let imported_name = NodeSpanType::Region(NodeSpanRegion::Type);
             if let Some(imported_span) = self
                 .module
-                .source_index()
+                .source_index()?
                 .get_side(source_node_id, imported_name)
                 && imported_span != main_span
             {
@@ -1390,15 +1400,20 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
     /// Return the authored main span for one DIR node.
     fn main_span(&self, node_id: dir::LocalNodeIdAny) -> QueryResult<Option<Span>> {
-        let source_node_id = self.module.view().get_source_any(node_id);
-        if self.module.source_index().try_get(source_node_id).is_none() {
+        let source_node_id = self.module.view()?.get_source_any(node_id);
+        if self
+            .module
+            .source_index()?
+            .try_get(source_node_id)
+            .is_none()
+        {
             return Ok(None);
         }
 
         let node_id = node_id.into_global(self.module.module_id());
         let span =
             self.module
-                .source_index()
+                .source_index()?
                 .get_main(source_node_id)
                 .ok_or(QueryError::missing(format!(
                     "semantic token main span: {node_id:?}, source={source_node_id}"

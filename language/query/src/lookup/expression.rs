@@ -1,5 +1,4 @@
 use destack_dir as dir;
-use destack_repository::{ProviderError, ProviderResult};
 
 use crate::{ModuleQueryContext, QueryError, QueryResult};
 
@@ -12,19 +11,19 @@ impl ModuleQueryContext<'_> {
         let mut selections = Vec::new();
 
         // collect every exact symbol selection recorded for this node
-        if let Some(resolution) = self.resolutions().member_resolution(node_id) {
+        if let Some(resolution) = self.resolutions()?.member_resolution(node_id) {
             selections.push(resolution.target_symbols());
         }
-        if let Some(resolution) = self.resolutions().instantiation_resolution(node_id) {
+        if let Some(resolution) = self.resolutions()?.instantiation_resolution(node_id) {
             selections.push(vec![resolution.symbol]);
         }
-        if let Some(resolution) = self.resolutions().name_resolution(node_id) {
+        if let Some(resolution) = self.resolutions()?.name_resolution(node_id) {
             selections.push(resolution.symbols().to_vec());
         }
-        if let Some(resolution) = self.resolutions().receiver_resolution(node_id) {
+        if let Some(resolution) = self.resolutions()?.receiver_resolution(node_id) {
             selections.push(vec![resolution.declaration]);
         }
-        if let Some(resolution) = self.resolutions().label_resolution(node_id) {
+        if let Some(resolution) = self.resolutions()?.label_resolution(node_id) {
             let symbols = match resolution {
                 dir::LabelResolution::Symbol(symbol) => vec![symbol],
                 dir::LabelResolution::Loop | dir::LabelResolution::Function => Vec::new(),
@@ -47,7 +46,7 @@ impl ModuleQueryContext<'_> {
     pub(crate) fn dependency_symbol_targets(
         &self,
         item_id: dir::LocalNodeId<dir::DependencyItem>,
-    ) -> ProviderResult<Vec<dir::GlobalSymbolId>> {
+    ) -> QueryResult<Vec<dir::GlobalSymbolId>> {
         let targets = self.dependency_targets(item_id)?;
         let symbols = targets
             .into_iter()
@@ -64,10 +63,10 @@ impl ModuleQueryContext<'_> {
     pub(crate) fn dependency_targets(
         &self,
         item_id: dir::LocalNodeId<dir::DependencyItem>,
-    ) -> ProviderResult<Vec<dir::ImportTarget>> {
+    ) -> QueryResult<Vec<dir::ImportTarget>> {
         let source = item_id.into_global_any(self.module_id());
-        let reference = self.resolved().references.get(source).ok_or_else(|| {
-            ProviderError::internal(format!(
+        let reference = self.resolved()?.references.get(source).ok_or_else(|| {
+            QueryError::missing(format!(
                 "dependency item has no resolved reference: {source:?}"
             ))
         })?;
@@ -80,10 +79,9 @@ impl ModuleQueryContext<'_> {
                 .collect(),
             dir::Reference::Namespace(module) => vec![dir::ImportTarget::Namespace(*module)],
             dir::Reference::Projected { .. } => {
-                return Err(ProviderError::internal(format!(
+                return Err(QueryError::invalid(format!(
                     "dependency item has a projected reference: {source:?}"
-                ))
-                .into());
+                )));
             }
             dir::Reference::Ambiguous(targets) => targets.to_vec(),
             dir::Reference::Missing => Vec::new(),
@@ -96,7 +94,7 @@ impl ModuleQueryContext<'_> {
     pub(crate) fn dependency_local_symbol(
         &self,
         item_id: dir::LocalNodeId<dir::DependencyItem>,
-    ) -> Option<dir::GlobalSymbolId> {
+    ) -> QueryResult<Option<dir::GlobalSymbolId>> {
         self.global_node_symbol(item_id.into())
     }
 }

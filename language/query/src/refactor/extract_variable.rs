@@ -51,7 +51,7 @@ impl ModuleQueryContext<'_> {
         };
         let expression = target.expression.into_global_any(self.module_id());
         let type_id = self
-            .node_type_id(target.expression.into())
+            .node_type_id(target.expression.into())?
             .ok_or(QueryError::missing(format!(
                 "extraction type: {expression:?}"
             )))?;
@@ -155,11 +155,11 @@ impl ExtractionTarget {
         let end = selection.end - 1;
         let mut enclosing =
             module
-                .source_index()
+                .source_index()?
                 .get_enclosing_spans(selection.file, selection.start, end);
         enclosing.sort_by_key(|span| (span.length, span.distance, span.source_id));
 
-        let view = module.view();
+        let view = module.view()?;
         for enclosing in enclosing {
             let Some(node_id) = view.get_node_id_by_source_id(enclosing.source_id) else {
                 continue;
@@ -243,7 +243,7 @@ fn extraction_name_is_available(
         .ok_or(QueryError::missing(format!(
             "extraction scope: {statement:?}"
         )))?;
-    let symbols = module.symbols();
+    let symbols = module.bindings()?;
     let strings = module.strings();
 
     // reject every binding in the local scope, including later declarations

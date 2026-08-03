@@ -8,7 +8,7 @@ impl ModuleQueryContext<'_> {
         match parameter {
             dir::Parameter::Named { name, .. } => Ok(self.strings().get(*name).to_string()),
             dir::Parameter::Pattern { pattern, .. } => {
-                let span = self.node_span(self.view(), (*pattern).into())?;
+                let span = self.node_span(self.view()?, (*pattern).into())?;
                 let pattern = self.source_text(span)?;
 
                 Ok(pattern)
@@ -19,7 +19,7 @@ impl ModuleQueryContext<'_> {
                 Ok(format!("...{name}"))
             }
             dir::Parameter::VariadicPattern { pattern, .. } => {
-                let span = self.node_span(self.view(), (*pattern).into())?;
+                let span = self.node_span(self.view()?, (*pattern).into())?;
                 let pattern = self.source_text(span)?;
 
                 Ok(format!("...{pattern}"))
@@ -32,12 +32,16 @@ impl ModuleQueryContext<'_> {
     pub(crate) fn callable_parameters(
         &self,
         symbol_id: dir::LocalSymbolId,
-    ) -> Option<&[dir::LocalNodeId<dir::Parameter>]> {
+    ) -> QueryResult<Option<&[dir::LocalNodeId<dir::Parameter>]>> {
         // read the symbol declaration
         let global_node_id = {
-            let symbols = self.symbols();
+            let symbols = self.bindings()?;
             let symbol = symbols.get_symbol(symbol_id);
-            symbol.declaration?
+            let Some(declaration) = symbol.declaration else {
+                return Ok(None);
+            };
+
+            declaration
         };
 
         self.node_callable_parameters(global_node_id.local_id)
@@ -47,15 +51,15 @@ impl ModuleQueryContext<'_> {
     pub(crate) fn node_callable_parameters(
         &self,
         node_id: dir::LocalNodeIdAny,
-    ) -> Option<&[dir::LocalNodeId<dir::Parameter>]> {
+    ) -> QueryResult<Option<&[dir::LocalNodeId<dir::Parameter>]>> {
         // read parameters from the exact authored declaration
-        let view = self.view();
-        match node_id.ty {
+        let view = self.view()?;
+        let parameters: Option<&[dir::LocalNodeId<dir::Parameter>]> = match node_id.ty {
             dir::NodeType::Declaration => {
                 let declaration_id = dir::LocalNodeId::<dir::Declaration>::new(node_id.id);
                 let declaration = view.get::<dir::Declaration>(declaration_id);
                 let dir::Declaration::Function(declaration) = declaration else {
-                    return None;
+                    return Ok(None);
                 };
 
                 Some(&declaration.signature.parameters)
@@ -68,7 +72,7 @@ impl ModuleQueryContext<'_> {
                     dir::Member::Method { signature, .. } => Some(&signature.parameters),
                     dir::Member::Field { declared_type, .. }
                     | dir::Member::AssociatedConst { declared_type, .. } => {
-                        self.callable_type_parameters(*declared_type)
+                        self.callable_type_parameters(*declared_type)?
                     }
                     dir::Member::AssociatedType { .. }
                     | dir::Member::StaticBlock { .. }
@@ -84,7 +88,7 @@ impl ModuleQueryContext<'_> {
                     dir::TypeMember::Method { signature, .. } => Some(&signature.parameters),
                     dir::TypeMember::Field { declared_type, .. }
                     | dir::TypeMember::AssociatedConst { declared_type, .. } => {
-                        self.callable_type_parameters(*declared_type)
+                        self.callable_type_parameters(*declared_type)?
                     }
                     dir::TypeMember::CallSignature { signature } => Some(&signature.parameters),
                     dir::TypeMember::ConstructSignature { signature } => {
@@ -99,38 +103,45 @@ impl ModuleQueryContext<'_> {
                 let parameter_id = dir::LocalNodeId::<dir::Parameter>::new(node_id.id);
                 let parameter = view.get::<dir::Parameter>(parameter_id);
 
-                self.callable_type_parameters(parameter.declared_type())
+                self.callable_type_parameters(parameter.declared_type())?
             }
             dir::NodeType::Pattern => {
                 let pattern_id = dir::LocalNodeId::<dir::Pattern>::new(node_id.id);
 
-                self.binding_callable_parameters(pattern_id)
+                self.binding_callable_parameters(pattern_id)?
             }
             _ => None,
-        }
+        };
+
+        Ok(parameters)
     }
 
     /// Return parameters declared by one callable type expression.
     fn callable_type_parameters(
         &self,
         type_id: Option<dir::LocalNodeId<dir::TypeExpression>>,
-    ) -> Option<&[dir::LocalNodeId<dir::Parameter>]> {
-        let dir::TypeExpression::Function(function) = self.view().get(type_id?) else {
-            return None;
+    ) -> QueryResult<Option<&[dir::LocalNodeId<dir::Parameter>]>> {
+        let Some(type_id) = type_id else {
+            return Ok(None);
+        };
+        let dir::TypeExpression::Function(function) = self.view()?.get(type_id) else {
+            return Ok(None);
         };
 
-        Some(&function.parameters)
+        Ok(Some(&function.parameters))
     }
 
     /// Return parameters declared by one callable binding.
     fn binding_callable_parameters(
         &self,
         pattern_id: dir::LocalNodeId<dir::Pattern>,
-    ) -> Option<&[dir::LocalNodeId<dir::Parameter>]> {
-        let view = self.view();
-        let parent = view.get_parent_any(pattern_id.into_any())?;
+    ) -> QueryResult<Option<&[dir::LocalNodeId<dir::Parameter>]>> {
+        let view = self.view()?;
+        let Some(parent) = view.get_parent_any(pattern_id.into_any()) else {
+            return Ok(None);
+        };
         if parent.ty != dir::NodeType::Declarator {
-            return None;
+            return Ok(None);
         }
         let declarator_id = dir::LocalNodeId::<dir::Declarator>::new(parent.id);
         let declarator = view.get(declarator_id);
@@ -141,15 +152,17 @@ impl ModuleQueryContext<'_> {
         }
 
         // otherwise use the authored lambda initializer
-        let value_id = declarator.value?;
+        let Some(value_id) = declarator.value else {
+            return Ok(None);
+        };
         let dir::Expression::Declaration(declaration_id) = view.get(value_id) else {
-            return None;
+            return Ok(None);
         };
         let dir::Declaration::Function(function) = view.get(*declaration_id) else {
-            return None;
+            return Ok(None);
         };
 
-        Some(&function.signature.parameters)
+        Ok(Some(&function.signature.parameters))
     }
 }
 
@@ -160,10 +173,10 @@ impl ProgramQueryContext<'_> {
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<Vec<String>>> {
         let module = self.module(symbol_id.module_id)?;
-        let Some(parameters) = module.callable_parameters(symbol_id.local_id) else {
+        let Some(parameters) = module.callable_parameters(symbol_id.local_id)? else {
             return Ok(None);
         };
-        let view = module.view();
+        let view = module.view()?;
         let names = parameters
             .iter()
             .map(|parameter_id| module.parameter_name(view.get(*parameter_id)))
@@ -182,7 +195,7 @@ impl ProgramQueryContext<'_> {
         // read the single inline key parameter of index signatures
         if node_id.local_id.ty == dir::NodeType::TypeMember {
             let member_id = dir::LocalNodeId::<dir::TypeMember>::new(node_id.local_id.id);
-            if let dir::TypeMember::IndexSignature { name, .. } = module.view().get(member_id) {
+            if let dir::TypeMember::IndexSignature { name, .. } = module.view()?.get(member_id) {
                 let name = module.strings().get(*name).to_string();
 
                 return Ok(Some(vec![Some(name)]));
@@ -190,10 +203,10 @@ impl ProgramQueryContext<'_> {
         }
 
         // read the authored parameter list of other signatures
-        let Some(parameters) = module.node_callable_parameters(node_id.local_id) else {
+        let Some(parameters) = module.node_callable_parameters(node_id.local_id)? else {
             return Ok(None);
         };
-        let view = module.view();
+        let view = module.view()?;
         let names = parameters
             .iter()
             .map(|parameter_id| module.parameter_name(view.get(*parameter_id)))
