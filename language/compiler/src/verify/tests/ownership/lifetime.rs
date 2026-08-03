@@ -11,7 +11,7 @@ type Box {
 function test(): ref<int32, borrowed, mutable> {
     local l0: Box
 entry:
-    v0: ref<Box, raw, mutable, frame> = local.address l0
+    v0: ref<Box, borrowed, mutable, frame> = local.address l0
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     return v1
 }
@@ -326,7 +326,7 @@ readonly global value: int32 = 1
 
 function test(): ref<int32, borrowed, 'static, mutable> {
 entry:
-    v0: ref<int32, raw, readonly> = global.address value
+    v0: ref<int32, borrowed, readonly> = global.address value
     v1: ref<int32, borrowed, 'static, readonly> = cast.bit v0 -> ref<int32, borrowed, 'static, readonly>
     return v1
 }
@@ -499,7 +499,7 @@ function caller<'L>(v0: ref<int32, borrowed, 'L, mutable>): void {
     local l0: Box
 
 entry(v0: ref<int32, borrowed, 'L, mutable>):
-    v1: ref<Box, raw, mutable, frame> = local.address l0
+    v1: ref<Box, borrowed, mutable, frame> = local.address l0
     v2: ref<int32, borrowed, mutable> = field.address v1, 0
     call callee(v2, v0): <'a, 'c>(ref<int32, borrowed, 'a, mutable>, ref<int32, borrowed, 'c, mutable>) => void where 'a: 'c
     return

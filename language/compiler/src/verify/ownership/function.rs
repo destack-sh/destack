@@ -1456,8 +1456,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 .unwrap_or_else(|| self.reference_source_for_type(ty)),
             // keep owned storage alive through the unique handle
             Some(mir::ReferenceKind::Unique) => BorrowSources::one(BorrowSource::Owned),
-            Some(mir::ReferenceKind::Raw) => BorrowSources::none(),
-            _ => BorrowSources::none(),
+            None => BorrowSources::none(),
         }
     }
 
@@ -1471,9 +1470,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         let ty = self.tree.get(ty);
         match ty.reference_kind() {
             Some(mir::ReferenceKind::Managed) => self.managed_source_for_type(ty),
-            Some(mir::ReferenceKind::Unique | mir::ReferenceKind::Raw) => {
-                BorrowSources::one(BorrowSource::Owned)
-            }
+            Some(mir::ReferenceKind::Unique) => BorrowSources::one(BorrowSource::Owned),
             Some(mir::ReferenceKind::Borrowed) | None => BorrowSources::none(),
         }
     }
@@ -1507,7 +1504,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 self.sources_from_lifetime(lifetime)
             }
             Some(mir::ReferenceKind::Unique) => BorrowSources::one(BorrowSource::Owned),
-            Some(mir::ReferenceKind::Raw) | None => BorrowSources::none(),
+            None => BorrowSources::none(),
         }
     }
 

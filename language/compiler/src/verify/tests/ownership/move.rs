@@ -415,8 +415,8 @@ entry:
 fn test_ignore_raw_free_for_moves() {
     let mut program = TestProgram::mir(
         r#"
-function test(v0: ref<int32, raw, mutable>): void {
-entry(v0: ref<int32, raw, mutable>):
+function test(v0: ref<int32, borrowed, mutable>): void {
+entry(v0: ref<int32, borrowed, mutable>):
     return
 }
 "#,
