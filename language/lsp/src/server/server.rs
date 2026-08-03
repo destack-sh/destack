@@ -95,9 +95,7 @@ impl DestackLanguageServer {
         let workspace = self.workspace(path)?;
         let root = workspace.root(path).map_err(workspace_error)?;
         let request = RunQueryRequest { revision, request };
-        let run = workspace
-            .start_query(&root, request)
-            .map_err(workspace_error)?;
+        let run = self.start_query(workspace.as_ref(), &root, request)?;
 
         self.wait_query(workspace, root, method, run).await
     }
@@ -145,11 +143,25 @@ impl DestackLanguageServer {
             revision: RevisionPolicy::Current(file.revision),
             request,
         };
-        let run = workspace
-            .start_query(&root, request)
-            .map_err(workspace_error)?;
+        let run = self.start_query(workspace.as_ref(), &root, request)?;
 
         self.wait_query(workspace, root, method, run).await
+    }
+
+    /// Schedule one query with the current LSP trace level.
+    fn start_query(
+        &self,
+        workspace: &LocalWorkspace,
+        root: &Path,
+        request: RunQueryRequest,
+    ) -> jsonrpc::Result<QueryRun> {
+        let is_tracing = self.client.trace_level() == lsp::TraceValue::Verbose;
+        let session = workspace.session(root).map_err(workspace_error)?;
+        session.set_tracing(is_tracing);
+
+        workspace
+            .start_query(root, request)
+            .map_err(workspace_error)
     }
 
     /// Wait for one scheduled query without blocking the async server.
