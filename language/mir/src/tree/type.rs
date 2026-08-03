@@ -237,6 +237,34 @@ impl ReferenceKind {
     }
 }
 
+/// Permitted invocation count for a callable value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum Multiplicity {
+    /// The callable may be invoked any number of times.
+    Repeatable,
+    /// The callable may be invoked at most once.
+    Once,
+}
+
+impl Multiplicity {
+    /// Parse a canonical MIR name.
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "repeatable" => Some(Self::Repeatable),
+            "once" => Some(Self::Once),
+            _ => None,
+        }
+    }
+
+    /// Return the canonical MIR name.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Repeatable => "repeatable",
+            Self::Once => "once",
+        }
+    }
+}
+
 /// Nullish values admitted by reference-like types.
 #[repr(u8)]
 #[derive(
@@ -645,12 +673,14 @@ pub enum Type {
     },
     /// Function value type.
     Function {
+        /// The bare function signature.
+        signature: TypeId,
+        /// The permitted number of invocations.
+        multiplicity: Multiplicity,
         /// The reference kind of the captured environment.
         kind: ReferenceKind,
         /// Lifetime roots for a borrowed captured environment.
         lifetime: Lifetime,
-        /// The bare function signature.
-        signature: TypeId,
         /// The backing storage of the captured environment.
         storage: Storage,
         /// The access exposed through the captured environment.
@@ -1047,6 +1077,12 @@ impl Type {
 
             // initialization tokens are linear capabilities
             Type::Uninit { .. } | Type::ManuallyDrop { .. } => Copy::No,
+
+            // once functions are consumed by invocation
+            Type::Function {
+                multiplicity: Multiplicity::Once,
+                ..
+            } => Copy::No,
 
             // unique reference-like values carry ownership of their backing storage
             Type::Dynamic { kind, .. }

@@ -391,6 +391,7 @@ impl Tree {
                 result: self.intern_representation(result),
             },
             Type::Function {
+                multiplicity,
                 kind,
                 lifetime: _,
                 signature,
@@ -398,6 +399,7 @@ impl Tree {
                 access,
                 nullability,
             } => Type::Function {
+                multiplicity,
                 kind,
                 lifetime: Lifetime::empty(),
                 signature: self.intern_representation(signature),
@@ -631,6 +633,7 @@ impl Tree {
                 result: self.instantiate_type_lifetimes(result, arguments),
             },
             Type::Function {
+                multiplicity,
                 kind,
                 lifetime,
                 signature,
@@ -638,6 +641,7 @@ impl Tree {
                 access,
                 nullability,
             } => Type::Function {
+                multiplicity,
                 kind,
                 lifetime: self.substitute_lifetime(&lifetime, arguments),
                 signature: self.instantiate_type_lifetimes(signature, arguments),

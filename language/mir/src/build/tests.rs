@@ -3,8 +3,8 @@ use destack_core::StringPool;
 use crate::build::ModuleBuilder;
 use crate::{
     Access, Callee, Copy, ExecutionScope, FenceAccess, FloatType, FormatOptions, Formatter,
-    Lifetime, LifetimeParameter, MemoryOrdering, Mutability, Nullability, ReferenceKind, Space,
-    Storage, StorageSet, Symbol, TargetLayout, Tree, Type, TypeId,
+    Lifetime, LifetimeParameter, MemoryOrdering, Multiplicity, Mutability, Nullability,
+    ReferenceKind, Space, Storage, StorageSet, Symbol, TargetLayout, Tree, Type, TypeId,
 };
 
 /// Format one test MIR tree.
@@ -760,11 +760,12 @@ fn test_type_construction() {
     let signature = module.type_function_signature(vec![i32_type], i32_type);
     let function_pointer_type = module.type_function_pointer(signature);
     let callable_type = module.type_function(
+        signature,
+        Multiplicity::Repeatable,
         ReferenceKind::Managed,
         Lifetime::empty(),
-        signature,
-        Access::Mutable,
         Storage::Heap(Space::Local),
+        Access::Mutable,
         Nullability::None,
     );
 

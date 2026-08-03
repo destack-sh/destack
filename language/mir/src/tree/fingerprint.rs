@@ -4,10 +4,11 @@ use destack_core::{StableHasher, StringId};
 
 use crate::{
     Access, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Constant, Copy, Field,
-    FloatType, GlobalStorage, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Nullability,
-    ReferenceKind, SignatureParameter, Space, Static, StaticField, StaticId, StaticKey, Storage,
-    Symbol, TensorDimension, TensorDimensionOrder, TensorFormat, TensorReduction, TensorSharding,
-    TensorShardingAxis, TensorViewFormat, Tree, Type, TypeFingerprint, TypeId,
+    FloatType, GlobalStorage, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Multiplicity,
+    Nullability, ReferenceKind, SignatureParameter, Space, Static, StaticField, StaticId,
+    StaticKey, Storage, Symbol, TensorDimension, TensorDimensionOrder, TensorFormat,
+    TensorReduction, TensorSharding, TensorShardingAxis, TensorViewFormat, Tree, Type,
+    TypeFingerprint, TypeId,
 };
 
 impl Tree {
@@ -369,17 +370,22 @@ impl TypeHasher {
                 self.hash_type(*result, tree);
             }
             Type::Function {
+                signature,
+                multiplicity,
                 kind,
                 lifetime,
-                signature,
                 storage,
                 access,
                 nullability,
             } => {
                 self.hasher.write_u8(26);
+                self.hash_type(*signature, tree);
+                self.hasher.write_u8(match multiplicity {
+                    Multiplicity::Repeatable => 0,
+                    Multiplicity::Once => 1,
+                });
                 self.hash_reference_kind(*kind);
                 self.hash_lifetime(lifetime);
-                self.hash_type(*signature, tree);
                 self.hash_storage(*storage);
                 self.hash_access(*access);
                 self.hash_nullability(*nullability);

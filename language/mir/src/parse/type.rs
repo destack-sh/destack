@@ -3,8 +3,8 @@ use destack_source::Span;
 
 use crate::{
     Access, Copy, Field, FieldSpan, GlobalStorage, Lifetime, LifetimeParameter, LifetimeTerm,
-    LocalNodeId, Nullability, ReferenceKind, SignatureParameter, Space, StaticId, Storage,
-    TensorDimension, TensorDimensionOrder, TensorFormat, TensorReduction, TensorSharding,
+    LocalNodeId, Multiplicity, Nullability, ReferenceKind, SignatureParameter, Space, StaticId,
+    Storage, TensorDimension, TensorDimensionOrder, TensorFormat, TensorReduction, TensorSharding,
     TensorShardingAxis, TensorViewFormat, Type, TypeDeclarationSpans, TypeId, VariantCase,
 };
 
@@ -522,9 +522,16 @@ impl Parser {
         self.eat_token(TokenType::LessThan)?;
         let signature = self.parse_signature(Vec::new())?;
         self.eat_token(TokenType::Comma)?;
+        let multiplicity_token = self.eat_token(TokenType::Identifier)?;
+        let multiplicity_start = multiplicity_token.start();
+        let multiplicity_name = self.tree.source_text(multiplicity_token.span);
+        let multiplicity = Multiplicity::from_name(multiplicity_name)
+            .ok_or_else(|| ParseError::invalid("function multiplicity", multiplicity_start))?;
+        self.eat_token(TokenType::Comma)?;
         let qualifiers = self.parse_reference_qualifiers(Nullability::None)?;
         self.eat_token(TokenType::GreaterThan)?;
         Ok(Type::Function {
+            multiplicity,
             kind: qualifiers.kind,
             lifetime: qualifiers.lifetime,
             signature,

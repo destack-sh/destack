@@ -2,9 +2,9 @@ use destack_core::StringId;
 
 use crate::build::ModuleBuilder;
 use crate::{
-    Access, Constant, Copy, Field, FloatType, Lifetime, LocalNodeId, Nullability, ReferenceKind,
-    Storage, TensorDimension, TensorFormat, TensorSharding, TensorViewFormat, Type, TypeId,
-    VariantCase,
+    Access, Constant, Copy, Field, FloatType, Lifetime, LocalNodeId, Multiplicity, Nullability,
+    ReferenceKind, Storage, TensorDimension, TensorFormat, TensorSharding, TensorViewFormat, Type,
+    TypeId, VariantCase,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -269,17 +269,19 @@ impl ModuleBuilder {
     /// Create a function value type.
     pub fn type_function(
         &mut self,
+        signature: LocalNodeId<Type>,
+        multiplicity: Multiplicity,
         kind: ReferenceKind,
         lifetime: Lifetime,
-        signature: LocalNodeId<Type>,
-        access: Access,
         storage: Storage,
+        access: Access,
         nullability: Nullability,
     ) -> LocalNodeId<Type> {
         self.tree.intern_type(Type::Function {
+            signature,
+            multiplicity,
             kind,
             lifetime,
-            signature,
             storage,
             access,
             nullability,

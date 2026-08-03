@@ -207,8 +207,8 @@ entry(v0: (int32, float64, boolean), v1: [int32; 10]):
 fn test_format_callable_types() {
     assert_format(
         r#"
-function callbacks(v0: fn(int32, int32) => int64, v1: function<(int32) => int32, managed, mutable, nullish>): function<(int32) => int32, managed, mutable, nullish> {
-entry(v0: fn(int32, int32) => int64, v1: function<(int32) => int32, managed, mutable, nullish>):
+function callbacks(v0: fn(int32, int32) => int64, v1: function<(int32) => int32, once, managed, mutable, nullish>): function<(int32) => int32, once, managed, mutable, nullish> {
+entry(v0: fn(int32, int32) => int64, v1: function<(int32) => int32, once, managed, mutable, nullish>):
     return v1
 }
 "#,

@@ -524,6 +524,7 @@ fn format_type_inner<'a>(
             format_function_signature(lifetimes, parameters, *result, f)
         }
         Type::Function {
+            multiplicity,
             kind,
             lifetime,
             signature,
@@ -533,6 +534,7 @@ fn format_type_inner<'a>(
         } => {
             write!(f, [token("function"), token("<")])?;
             format_type_id(*signature, f)?;
+            write!(f, [token(","), space(), token(multiplicity.name())])?;
             format_reference_qualifiers(*kind, lifetime, *storage, *access, *nullability, f)?;
             write!(f, [token(">")])
         }
