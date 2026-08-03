@@ -445,22 +445,22 @@ impl ArtifactTable {
         }
     }
 
-    artifact_getter!(global_environment, GlobalEnvironment, GlobalEnvironment);
-    artifact_getter!(module_graph, ModuleGraph, ModuleGraph);
-    artifact_getter!(
-        global_environment_digest,
-        GlobalEnvironmentDigest,
-        GlobalEnvironmentDigest
-    );
-    artifact_getter!(program_analysis, ProgramAnalysis, ProgramAnalysis);
+    artifact_getter!(build, Build, Build);
     artifact_getter!(dir_parsed, DirParsed, DirParsed);
     artifact_getter!(data, Data, Data);
     artifact_getter!(dir_bound, DirBound, DirBound);
+    artifact_getter!(global_environment, GlobalEnvironment, GlobalEnvironment);
+    artifact_getter!(module_graph, ModuleGraph, ModuleGraph);
     artifact_getter!(dir_imported, DirImported, DirImported);
     artifact_getter!(dir_expanded, DirExpanded, DirExpanded);
     artifact_getter!(dir_exported, DirExported, DirExported);
     artifact_getter!(dir_resolved, DirResolved, DirResolved);
     artifact_getter!(dir_declared, DirDeclared, DirDeclared);
+    artifact_getter!(
+        global_environment_digest,
+        GlobalEnvironmentDigest,
+        GlobalEnvironmentDigest
+    );
     artifact_getter!(dir_checked, DirChecked, DirChecked);
     artifact_getter!(dir_materialized, DirMaterialized, DirMaterialized);
     artifact_getter!(mir_lowered, MirLowered, MirLowered);
@@ -468,17 +468,17 @@ impl ArtifactTable {
     artifact_getter!(mir_elaborated, MirElaborated, MirElaborated);
     artifact_getter!(mir_analyzed, MirAnalyzed, MirAnalyzed);
     artifact_getter!(mir_optimized, MirOptimized, MirOptimized);
+    artifact_getter!(program_analysis, ProgramAnalysis, ProgramAnalysis);
     artifact_getter!(module_index, ModuleIndex, ModuleIndex);
     artifact_getter!(program_index, ProgramIndex, ProgramIndex);
+    artifact_getter!(module_linted, ModuleLinted, ModuleLinted);
+    artifact_getter!(program_linted, ProgramLinted, ProgramLinted);
     artifact_getter!(script, Script, Script);
     artifact_getter!(object, Object, Object);
     artifact_getter!(asset, Asset, Asset);
-    artifact_getter!(build, Build, Build);
     artifact_getter!(bundle, Bundle, Bundle);
     artifact_getter!(program, Program, Program);
     artifact_getter!(product, Product, Product);
-    artifact_getter!(module_linted, ModuleLinted, ModuleLinted);
-    artifact_getter!(program_linted, ProgramLinted, ProgramLinted);
 
     /// Return content ids referenced by one exact artifact payload.
     pub fn content_ids(&self, version: &ArtifactVersion) -> Option<Vec<ContentId>> {

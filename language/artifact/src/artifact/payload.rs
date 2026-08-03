@@ -16,20 +16,18 @@ use serde::{Deserialize, Serialize};
 /// One typed artifact payload.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub enum ArtifactPayload {
+    /// Target-built toolchain payload.
+    Build(Arc<Build>),
     /// Parsed module DIR.
     DirParsed(Arc<DirParsed>),
     /// Parsed non-code module data.
     Data(Arc<Data>),
+    /// Bound DIR.
+    DirBound(Arc<DirBound>),
     /// Explicit global environment for one profile.
     GlobalEnvironment(Arc<GlobalEnvironment>),
     /// Component partition for one profile.
     ModuleGraph(Arc<ModuleGraph>),
-    /// Content digest of the implicit global modules.
-    GlobalEnvironmentDigest(Arc<GlobalEnvironmentDigest>),
-    /// Whole-program analysis for one profile and target.
-    ProgramAnalysis(Arc<ProgramAnalysis>),
-    /// Bound DIR.
-    DirBound(Arc<DirBound>),
     /// Imported DIR.
     DirImported(Arc<DirImported>),
     /// Expanded DIR.
@@ -40,6 +38,8 @@ pub enum ArtifactPayload {
     DirResolved(Arc<DirResolved>),
     /// Declared DIR module.
     DirDeclared(Arc<DirDeclared>),
+    /// Content digest of the implicit global modules.
+    GlobalEnvironmentDigest(Arc<GlobalEnvironmentDigest>),
     /// Checked DIR module.
     DirChecked(Arc<DirChecked>),
     /// Materialized DIR.
@@ -54,47 +54,45 @@ pub enum ArtifactPayload {
     MirAnalyzed(Arc<MirAnalyzed>),
     /// Optimized MIR.
     MirOptimized(Arc<MirOptimized>),
+    /// Whole-program analysis for one profile and target.
+    ProgramAnalysis(Arc<ProgramAnalysis>),
     /// One query index for a module profile.
     ModuleIndex(Arc<ModuleIndex>),
     /// One query index for a program profile.
     ProgramIndex(Arc<ProgramIndex>),
+    /// Completed lint analysis for one module in one target.
+    ModuleLinted(Arc<ModuleLinted>),
+    /// Completed lint analysis for one target program.
+    ProgramLinted(Arc<ProgramLinted>),
     /// One structured linker input for one target.
     Script(Arc<Script>),
     /// One compiled-code linker input for one target.
     Object(Arc<Object>),
     /// One opaque linker input for one target.
     Asset(Arc<Asset>),
-    /// Target-built toolchain payload.
-    Build(Arc<Build>),
     /// Linked file graph for one package target.
     Bundle(Arc<Bundle>),
     /// Program for one package target.
     Program(Arc<Program>),
     /// Linked product assembled from configured target artifacts.
     Product(Arc<Product>),
-    /// Completed lint analysis for one module in one target.
-    ModuleLinted(Arc<ModuleLinted>),
-    /// Completed lint analysis for one target program.
-    ProgramLinted(Arc<ProgramLinted>),
 }
 
 /// Borrowed artifact payload used for transport serialization.
 #[derive(Debug, Clone, Copy, Serialize)]
 pub enum ArtifactPayloadRef<'a> {
+    /// Target-built toolchain payload.
+    Build(&'a Build),
     /// Parsed module DIR.
     DirParsed(&'a DirParsed),
     /// Parsed non-code module data.
     Data(&'a Data),
+    /// Bound DIR.
+    DirBound(&'a DirBound),
     /// Explicit global environment for one profile.
     GlobalEnvironment(&'a GlobalEnvironment),
     /// Component partition for one profile.
     ModuleGraph(&'a ModuleGraph),
-    /// Content digest of the implicit global modules.
-    GlobalEnvironmentDigest(&'a GlobalEnvironmentDigest),
-    /// Whole-program analysis for one profile and target.
-    ProgramAnalysis(&'a ProgramAnalysis),
-    /// Bound DIR.
-    DirBound(&'a DirBound),
     /// Imported DIR.
     DirImported(&'a DirImported),
     /// Expanded DIR.
@@ -105,6 +103,8 @@ pub enum ArtifactPayloadRef<'a> {
     DirResolved(&'a DirResolved),
     /// Declared DIR module.
     DirDeclared(&'a DirDeclared),
+    /// Content digest of the implicit global modules.
+    GlobalEnvironmentDigest(&'a GlobalEnvironmentDigest),
     /// Checked DIR module.
     DirChecked(&'a DirChecked),
     /// Materialized DIR.
@@ -119,28 +119,28 @@ pub enum ArtifactPayloadRef<'a> {
     MirAnalyzed(&'a MirAnalyzed),
     /// Optimized MIR.
     MirOptimized(&'a MirOptimized),
+    /// Whole-program analysis for one profile and target.
+    ProgramAnalysis(&'a ProgramAnalysis),
     /// One query index for a module profile.
     ModuleIndex(&'a ModuleIndex),
     /// One query index for a program profile.
     ProgramIndex(&'a ProgramIndex),
+    /// Completed lint analysis for one module in one target.
+    ModuleLinted(&'a ModuleLinted),
+    /// Completed lint analysis for one target program.
+    ProgramLinted(&'a ProgramLinted),
     /// One structured linker input for one target.
     Script(&'a Script),
     /// One compiled-code linker input for one target.
     Object(&'a Object),
     /// One opaque linker input for one target.
     Asset(&'a Asset),
-    /// Target-built toolchain payload.
-    Build(&'a Build),
     /// Linked file graph for one package target.
     Bundle(&'a Bundle),
     /// Program for one package target.
     Program(&'a Program),
     /// Linked product assembled from configured target artifacts.
     Product(&'a Product),
-    /// Completed lint analysis for one module in one target.
-    ModuleLinted(&'a ModuleLinted),
-    /// Completed lint analysis for one target program.
-    ProgramLinted(&'a ProgramLinted),
 }
 
 impl ArtifactPayload {
@@ -159,11 +159,11 @@ impl ArtifactPayload {
                     ArtifactKey::GlobalEnvironment { .. },
                     ArtifactPayload::GlobalEnvironment(_)
                 ) | (
-                    ArtifactKey::ModuleGraph { .. },
-                    ArtifactPayload::ModuleGraph(_)
-                ) | (
                     ArtifactKey::GlobalEnvironmentDigest { .. },
                     ArtifactPayload::GlobalEnvironmentDigest(_)
+                ) | (
+                    ArtifactKey::ModuleGraph { .. },
+                    ArtifactPayload::ModuleGraph(_)
                 ) | (
                     ArtifactKey::ProgramAnalysis { .. },
                     ArtifactPayload::ProgramAnalysis(_)
@@ -245,10 +245,10 @@ impl ArtifactPayload {
             Self::GlobalEnvironment(payload) => {
                 ArtifactPayloadRef::GlobalEnvironment(payload.as_ref())
             }
-            Self::ModuleGraph(payload) => ArtifactPayloadRef::ModuleGraph(payload.as_ref()),
             Self::GlobalEnvironmentDigest(payload) => {
                 ArtifactPayloadRef::GlobalEnvironmentDigest(payload.as_ref())
             }
+            Self::ModuleGraph(payload) => ArtifactPayloadRef::ModuleGraph(payload.as_ref()),
             Self::ProgramAnalysis(payload) => ArtifactPayloadRef::ProgramAnalysis(payload.as_ref()),
             Self::DirBound(payload) => ArtifactPayloadRef::DirBound(payload.as_ref()),
             Self::DirImported(payload) => ArtifactPayloadRef::DirImported(payload.as_ref()),
@@ -281,8 +281,8 @@ impl ArtifactPayload {
     pub fn name(&self) -> &'static str {
         match self {
             Self::GlobalEnvironment(_) => "global_environment",
-            Self::ModuleGraph(_) => "component_graph",
             Self::GlobalEnvironmentDigest(_) => "global_environment_digest",
+            Self::ModuleGraph(_) => "component_graph",
             Self::ProgramAnalysis(_) => "program_analysis",
             Self::DirParsed(_) => "dir_parsed",
             Self::Data(_) => "data",
@@ -335,9 +335,6 @@ impl ArtifactPayloadRef<'_> {
     ) -> Option<ArtifactProjectionFingerprint> {
         match (self, projection) {
             (Self::ModuleGraph(payload), projection) => payload.fingerprint_projection(projection),
-            (Self::GlobalEnvironmentDigest(payload), projection) => {
-                payload.fingerprint_projection(projection)
-            }
             (Self::DirResolved(payload), ArtifactProjectionKey::ImportEdges) => {
                 Some(payload.component_edges_fingerprint())
             }
@@ -359,6 +356,9 @@ impl ArtifactPayloadRef<'_> {
             }
             (Self::GlobalEnvironment(payload), ArtifactProjectionKey::Content) => {
                 ArtifactProjectionFingerprint::from_serialized_payload(payload).ok()
+            }
+            (Self::GlobalEnvironmentDigest(payload), projection) => {
+                payload.fingerprint_projection(projection)
             }
             (Self::DirExported(payload), ArtifactProjectionKey::Content) => {
                 ArtifactProjectionFingerprint::from_serialized_payload(payload).ok()

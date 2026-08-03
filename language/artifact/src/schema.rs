@@ -28,37 +28,40 @@ pub fn schema(registry: &mut SchemaRegistry) {
     registry.register::<Runtime>();
     registry.register::<Host>();
     registry.register::<Platform>();
-
-    registry.register::<Data>();
-    registry.register::<ModuleEdges>();
-    registry.register::<ModuleGraph>();
-    registry.register::<GlobalEnvironmentDigest>();
-    registry.register::<LanguageEnvironment>();
-    registry.register::<GlobalEnvironment>();
-    registry.register::<LanguageIntrinsics>();
-    registry.register::<ArtifactEventLog>();
-    registry.register::<ModuleLinted>();
-    registry.register::<ProgramLinted>();
-    registry.register::<BuildManifest>();
-    registry.register::<ModuleIndex>();
-    registry.register::<ProgramIndex>();
+    registry.register::<Build>();
 
     registry.register::<DirParsed>();
+    registry.register::<Data>();
     registry.register::<DirBound>();
+
+    registry.register::<LanguageEnvironment>();
+    registry.register::<LanguageIntrinsics>();
+    registry.register::<GlobalEnvironment>();
+    registry.register::<ModuleEdges>();
+    registry.register::<ModuleGraph>();
+
     registry.register::<DirImported>();
     registry.register::<DirExpanded>();
     registry.register::<DirExported>();
     registry.register::<DirResolved>();
     registry.register::<DirDeclared>();
+    registry.register::<GlobalEnvironmentDigest>();
     registry.register::<DirChecked>();
     registry.register::<DirMaterialized>();
 
     registry.register::<MirLowered>();
     registry.register::<MirVerified>();
     registry.register::<MirElaborated>();
-    registry.register::<MirOptimized>();
     registry.register::<MirAnalyzed>();
+    registry.register::<MirOptimized>();
     registry.register::<ProgramAnalysis>();
+
+    registry.register::<ModuleIndex>();
+    registry.register::<ProgramIndex>();
+    registry.register::<ModuleLinted>();
+    registry.register::<ProgramLinted>();
+    registry.register::<ArtifactEventLog>();
+    registry.register::<BuildManifest>();
 
     registry.register::<SourceMap>();
     registry.register::<ObjectFormat>();
@@ -67,7 +70,6 @@ pub fn schema(registry: &mut SchemaRegistry) {
     registry.register::<ScriptBody>();
     registry.register::<Script>();
     registry.register::<Asset>();
-    registry.register::<Build>();
     registry.register::<BundleSection>();
     registry.register::<BundleMode>();
     registry.register::<BundleFile>();

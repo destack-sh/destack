@@ -32,24 +32,17 @@ pub enum ArtifactKey {
     DirParsed { module: ModuleId },
     /// Parsed non-code module data.
     Data { module: ModuleId },
-
-    /// Explicit global environment for one profile.
-    GlobalEnvironment { profile: ProfileId },
-    /// Import graph over the modules of one profile.
-    ModuleGraph { profile: ProfileId },
-    /// Content digest of the implicit global modules for one profile.
-    GlobalEnvironmentDigest { profile: ProfileId },
-    /// Whole-program analysis for one profile and target.
-    ProgramAnalysis {
-        profile: ProfileId,
-        target: TargetId,
-    },
-
     /// Bound DIR.
     DirBound {
         module: ModuleId,
         profile: ProfileId,
     },
+
+    /// Explicit global environment for one profile.
+    GlobalEnvironment { profile: ProfileId },
+    /// Import graph over the modules of one profile.
+    ModuleGraph { profile: ProfileId },
+
     /// Imported DIR.
     DirImported {
         module: ModuleId,
@@ -75,6 +68,10 @@ pub enum ArtifactKey {
         module: ModuleId,
         profile: ProfileId,
     },
+
+    /// Content digest of the implicit global modules for one profile.
+    GlobalEnvironmentDigest { profile: ProfileId },
+
     /// Checked DIR module.
     DirChecked {
         module: ModuleId,
@@ -117,6 +114,12 @@ pub enum ArtifactKey {
         target: TargetId,
     },
 
+    /// Whole-program analysis for one profile and target.
+    ProgramAnalysis {
+        profile: ProfileId,
+        target: TargetId,
+    },
+
     /// One query index for a module profile.
     ModuleIndex {
         module: ModuleId,
@@ -125,6 +128,18 @@ pub enum ArtifactKey {
     },
     /// One query index for a program profile.
     ProgramIndex { profile: ProfileId, kind: IndexKind },
+
+    /// Completed lint analysis for one module in one target.
+    ModuleLinted {
+        module: ModuleId,
+        profile: ProfileId,
+        target: TargetId,
+    },
+    /// Completed lint analysis for one target program.
+    ProgramLinted {
+        profile: ProfileId,
+        target: TargetId,
+    },
 
     /// One structured linker input for one target.
     Script { module: ModuleId, target: TargetId },
@@ -146,18 +161,6 @@ pub enum ArtifactKey {
     Product {
         package: PackageId,
         product: ProductId,
-    },
-
-    /// Completed lint analysis for one module in one target.
-    ModuleLinted {
-        module: ModuleId,
-        profile: ProfileId,
-        target: TargetId,
-    },
-    /// Completed lint analysis for one target program.
-    ProgramLinted {
-        profile: ProfileId,
-        target: TargetId,
     },
 }
 
@@ -233,8 +236,8 @@ impl ArtifactKey {
         match self {
             Self::DirParsed { .. } | Self::Data { .. } => ArtifactProvider::Loader,
             Self::GlobalEnvironment { .. }
-            | Self::ModuleGraph { .. }
             | Self::GlobalEnvironmentDigest { .. }
+            | Self::ModuleGraph { .. }
             | Self::ProgramAnalysis { .. }
             | Self::DirBound { .. }
             | Self::DirImported { .. }
@@ -279,14 +282,14 @@ impl ArtifactKey {
         Self::GlobalEnvironment { profile }
     }
 
-    /// Build one component graph artifact key.
-    pub fn module_graph(profile: ProfileId) -> Self {
-        Self::ModuleGraph { profile }
-    }
-
     /// Build one environment digest artifact key.
     pub fn global_environment_digest(profile: ProfileId) -> Self {
         Self::GlobalEnvironmentDigest { profile }
+    }
+
+    /// Build one component graph artifact key.
+    pub fn module_graph(profile: ProfileId) -> Self {
+        Self::ModuleGraph { profile }
     }
 
     /// Build one whole-program analysis artifact key.
@@ -461,7 +464,6 @@ impl ArtifactKey {
                 ArtifactStage::Resolve
             }
             Self::ModuleGraph { .. } => ArtifactStage::Graph,
-            Self::GlobalEnvironmentDigest { .. } => ArtifactStage::Graph,
             Self::DirExpanded { .. } | Self::DirMaterialized { .. } => ArtifactStage::Macro,
             Self::DirDeclared { .. } | Self::DirChecked { .. } => ArtifactStage::Check,
             Self::MirLowered { .. }
@@ -478,6 +480,7 @@ impl ArtifactKey {
             Self::ModuleLinted { .. } | Self::ProgramLinted { .. } => ArtifactStage::Lint,
             Self::ModuleIndex { .. } | Self::ProgramIndex { .. } => ArtifactStage::Index,
             Self::GlobalEnvironment { .. } => ArtifactStage::Init,
+            Self::GlobalEnvironmentDigest { .. } => ArtifactStage::Graph,
         }
     }
 
@@ -485,6 +488,7 @@ impl ArtifactKey {
     pub fn display_name(&self) -> &'static str {
         match self {
             Self::GlobalEnvironment { .. } => "environment",
+            Self::GlobalEnvironmentDigest { .. } => "environment.digest",
             Self::DirParsed { .. } => "dir.parse",
             Self::Data { .. } => "data",
             Self::DirBound { .. } => "dir.bind",
@@ -493,7 +497,6 @@ impl ArtifactKey {
             Self::DirExported { .. } => "dir.export",
             Self::DirResolved { .. } => "dir.resolve",
             Self::ModuleGraph { .. } => "module.graph",
-            Self::GlobalEnvironmentDigest { .. } => "environment.digest",
             Self::ProgramAnalysis { .. } => "program.analyze",
             Self::DirDeclared { .. } => "dir.declare",
             Self::DirChecked { .. } => "dir.check",
@@ -521,6 +524,7 @@ impl ArtifactKey {
     pub fn name(&self) -> &'static str {
         match self {
             Self::GlobalEnvironment { .. } => "global_environment",
+            Self::GlobalEnvironmentDigest { .. } => "global_environment_digest",
             Self::DirParsed { .. } => "dir_parsed",
             Self::Data { .. } => "data",
             Self::DirBound { .. } => "dir_bound",
@@ -529,7 +533,6 @@ impl ArtifactKey {
             Self::DirExported { .. } => "dir_exported",
             Self::DirResolved { .. } => "dir_resolved",
             Self::ModuleGraph { .. } => "module_graph",
-            Self::GlobalEnvironmentDigest { .. } => "global_environment_digest",
             Self::ProgramAnalysis { .. } => "program_analysis",
             Self::DirDeclared { .. } => "dir_declared",
             Self::DirChecked { .. } => "dir_checked",
@@ -577,8 +580,8 @@ impl ArtifactKey {
             | Self::Asset { module, .. }
             | Self::ModuleLinted { module, .. } => Some(*module),
             Self::GlobalEnvironment { .. }
-            | Self::ModuleGraph { .. }
             | Self::GlobalEnvironmentDigest { .. }
+            | Self::ModuleGraph { .. }
             | Self::ProgramAnalysis { .. }
             | Self::ProgramIndex { .. }
             | Self::Build { .. }
@@ -623,8 +626,8 @@ impl ArtifactKey {
     pub fn profile_id(&self) -> Option<ProfileId> {
         match self {
             Self::GlobalEnvironment { profile }
-            | Self::ModuleGraph { profile }
             | Self::GlobalEnvironmentDigest { profile }
+            | Self::ModuleGraph { profile }
             | Self::ProgramAnalysis { profile, .. }
             | Self::DirBound { profile, .. }
             | Self::DirImported { profile, .. }
