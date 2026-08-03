@@ -133,6 +133,13 @@ impl ModuleQueryContext<'_> {
 
         // import strings have their own completion language
         if let Some(context) = self.classify_import(file_id, source, offset)? {
+            let token = match &context {
+                CompletionContext::ImportPath { partial_path } => {
+                    Some(CursorToken::from_import_path(partial_path, offset)?)
+                }
+                _ => token,
+            };
+
             return Ok(Some(CompletionCursor { context, token }));
         }
 
@@ -204,6 +211,25 @@ impl ModuleQueryContext<'_> {
             context: CompletionContext::ValuePosition { scope },
             token,
         }))
+    }
+}
+
+impl CursorToken {
+    /// Build the editable final segment of one partial import path.
+    fn from_import_path(partial_path: &str, offset: u32) -> QueryResult<Self> {
+        let text = partial_path
+            .rsplit_once('/')
+            .map_or(partial_path, |(_, text)| text)
+            .to_string();
+        let start = offset
+            .checked_sub(text.len() as u32)
+            .ok_or(QueryError::invalid("import path completion range"))?;
+
+        Ok(Self {
+            text,
+            start,
+            end: offset,
+        })
     }
 }
 

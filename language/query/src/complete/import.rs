@@ -1,10 +1,10 @@
 use destack_artifact::PackageDependency;
 use destack_dir as dir;
 use destack_repository::RepositoryError;
-use destack_source::{FileId, FileType, Loader, ModuleId, Span};
+use destack_source::{FileId, ModuleId, Span};
 use rustc_hash::FxHashSet;
 
-use crate::source::{ImportBinding, extract_string_literal_prefix, strip_module_extension};
+use crate::source::{ImportBinding, extract_string_literal_prefix};
 use crate::{
     CompletionCandidate, CompletionCandidates, CompletionItemKind, CompletionOrigin,
     ExportDeclaration, ImportCandidate, ImportOrder, MatchOrder, MatchQuality, ModuleQueryContext,
@@ -440,12 +440,7 @@ impl CompletionBuilder<'_, '_, '_> {
         let mut results = Vec::new();
 
         if partial.starts_with("./") || partial.starts_with("../") {
-            let path = self.file.path.as_deref();
-            if let Some(path) = path
-                && let Some(base_dir) = path.parent()
-            {
-                results.extend(self.module.complete_relative_path(base_dir, partial)?);
-            }
+            results.extend(self.complete_relative_path(partial)?);
         } else if partial.is_empty() {
             results.push(
                 CompletionCandidate::new(
@@ -465,16 +460,16 @@ impl CompletionBuilder<'_, '_, '_> {
                 )
                 .with_detail("parent"),
             );
-            results.extend(self.complete_package_names("")?);
+            results.extend(self.complete_package_names()?);
         } else {
-            results.extend(self.complete_package_names(partial)?);
+            results.extend(self.complete_package_names()?);
         }
 
         Ok(results)
     }
 
     /// Complete package names from the active package graph.
-    fn complete_package_names(&self, prefix: &str) -> QueryResult<Vec<CompletionCandidate>> {
+    fn complete_package_names(&self) -> QueryResult<Vec<CompletionCandidate>> {
         let mut results = Vec::new();
 
         let repository = self.module.repository();
@@ -490,10 +485,6 @@ impl CompletionBuilder<'_, '_, '_> {
             if !matches!(dependency, PackageDependency::Resolved(_)) {
                 continue;
             }
-            if !prefix.is_empty() && !name.to_lowercase().starts_with(&prefix.to_lowercase()) {
-                continue;
-            }
-
             let completion = CompletionCandidate::new(
                 name.clone(),
                 CompletionItemKind::Module,
@@ -554,75 +545,44 @@ impl ShortPrefixImportOrder {
     }
 }
 
-impl ModuleQueryContext<'_> {
-    /// Complete relative import paths by listing directory contents.
-    fn complete_relative_path(
-        &self,
-        base_dir: &std::path::Path,
-        partial: &str,
-    ) -> QueryResult<Vec<CompletionCandidate>> {
-        let (directory, prefix) = if let Some(slash) = partial.rfind('/') {
-            (base_dir.join(&partial[..=slash]), &partial[slash + 1..])
-        } else {
-            (base_dir.to_path_buf(), partial)
-        };
-
-        // a partial path may name a directory that does not exist yet
-        let entries = match self.repository().file_system().read_dir(&directory) {
-            Ok(entries) => entries,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                return Ok(Vec::new());
-            }
-            Err(error) => return Err(error.into()),
-        };
+impl CompletionBuilder<'_, '_, '_> {
+    /// Complete relative import paths from modules in the queried revision.
+    fn complete_relative_path(&self, partial: &str) -> QueryResult<Vec<CompletionCandidate>> {
+        let split = partial.rfind('/').map_or(0, |index| index + 1);
+        let directory = &partial[..split];
+        let current_module = self.module.module_id();
         let mut completions = Vec::new();
+        let mut seen = FxHashSet::default();
 
-        // collect matching directories and source modules
-        for entry in &entries {
-            let file_name = entry.file_name().ok_or_else(|| {
-                QueryError::missing(format!("path file name: {:?}", entry.to_path_buf()))
-            })?;
-            let name = file_name
-                .to_str()
-                .ok_or_else(|| QueryError::invalid(format!("non-Unicode path: {file_name:?}")))?
-                .to_string();
-            if name.starts_with('.') {
+        // project every same-package module specifier to its next path segment
+        for target_module in self.program.module_ids() {
+            if target_module.package_id != current_module.package_id
+                || *target_module == current_module
+            {
                 continue;
             }
-            if !prefix.is_empty() && !name.to_lowercase().starts_with(&prefix.to_lowercase()) {
-                continue;
-            }
+            for specifier in self
+                .program
+                .import_specifiers(current_module, *target_module)?
+            {
+                let Some(remainder) = specifier.strip_prefix(directory) else {
+                    continue;
+                };
+                let (name, kind) = match remainder.split_once('/') {
+                    Some((segment, _)) => (format!("{segment}/"), CompletionItemKind::Folder),
+                    None => (remainder.to_string(), CompletionItemKind::Module),
+                };
+                if !seen.insert((name.clone(), kind)) {
+                    continue;
+                }
 
-            let metadata = self.repository().file_system().metadata(entry)?;
-            if metadata.is_directory {
-                let completion = CompletionCandidate::new(
-                    format!("{name}/"),
-                    CompletionItemKind::Folder,
+                completions.push(CompletionCandidate::new(
+                    name,
+                    kind,
                     CompletionOrigin::Contextual,
                     SORT_LOCAL_SYMBOL,
-                );
-                completions.push(completion);
-                continue;
+                ));
             }
-
-            let Some(file_type) = FileType::from_path(entry) else {
-                continue;
-            };
-            let Ok(loader) = Loader::try_from(file_type) else {
-                continue;
-            };
-            if !loader.is_code() {
-                continue;
-            }
-
-            let module_name = strip_module_extension(&name);
-            let completion = CompletionCandidate::new(
-                module_name,
-                CompletionItemKind::Module,
-                CompletionOrigin::Contextual,
-                SORT_LOCAL_SYMBOL,
-            );
-            completions.push(completion);
         }
 
         Ok(completions)

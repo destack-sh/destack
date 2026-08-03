@@ -62,12 +62,14 @@ struct ExistingImport {
     start: u32,
     /// End byte offset of the import statement.
     end: u32,
-    /// Position of the closing brace.
-    closing_brace_offset: Option<u32>,
-    /// Position before the first namespace or named binding.
-    binding_offset: Option<u32>,
-    /// Position of the `from` keyword.
-    from_offset: Option<u32>,
+    /// Position for the first named binding.
+    named_offset: Option<u32>,
+    /// Position for an added default binding.
+    default_offset: Option<u32>,
+    /// Position after the default binding.
+    default_end: Option<u32>,
+    /// Position after the final named binding.
+    named_end: Option<u32>,
     /// Whether this is a namespace import.
     is_namespace: bool,
     /// Existing default binding name.
@@ -80,15 +82,6 @@ impl ExistingImport {
     /// Return whether this import already contains one named binding.
     fn contains_named(&self, symbol_name: &str) -> bool {
         self.named.iter().any(|specifier| specifier == symbol_name)
-    }
-
-    /// Return insertion text for one added named binding.
-    fn named_insert_text(&self, symbol_name: &str) -> String {
-        if self.named.is_empty() {
-            format!(" {symbol_name} ")
-        } else {
-            format!(", {symbol_name}")
-        }
     }
 }
 
@@ -171,7 +164,7 @@ impl ModuleQueryContext<'_> {
                     if existing.default_name.is_some() {
                         return Ok(Vec::new());
                     }
-                    if let Some(position) = existing.binding_offset {
+                    if let Some(position) = existing.default_offset {
                         let text = format!("{name}, ");
 
                         return Ok(vec![Patch::insert(file_id, position, text)]);
@@ -184,17 +177,24 @@ impl ModuleQueryContext<'_> {
                         return Ok(Vec::new());
                     }
                     if !existing.is_namespace
-                        && let Some(offset) = existing.closing_brace_offset
+                        && let Some(offset) = existing.named_end
                     {
-                        let text = existing.named_insert_text(name);
+                        let text = format!(", {name}");
 
                         return Ok(vec![Patch::insert(file_id, offset, text)]);
                     }
                     if !existing.is_namespace
                         && existing.default_name.is_some()
-                        && let Some(position) = existing.from_offset
+                        && let Some(position) = existing.default_end
                     {
-                        let text = format!(", {{ {name} }} ");
+                        let text = format!(", {{ {name} }}");
+
+                        return Ok(vec![Patch::insert(file_id, position, text)]);
+                    }
+                    if !existing.is_namespace
+                        && let Some(position) = existing.named_offset
+                    {
+                        let text = format!(" {name} ");
 
                         return Ok(vec![Patch::insert(file_id, position, text)]);
                     }
@@ -202,16 +202,30 @@ impl ModuleQueryContext<'_> {
             }
         }
 
-        // insert one plain import because imports preserve the declaration's symbol space
+        // preserve the declaration's symbol space
         let group = ImportGroup::from_path(import_path);
-        let position = import_insert_position(import_path, group, &existing_imports);
-        let text = match binding {
+        let declaration = match binding {
             ImportBinding::Default { name } => {
-                format!("import {name} from \"{import_path}\";\n")
+                format!("import {name} from \"{import_path}\";")
             }
             ImportBinding::Named { name } => {
-                format!("import {{ {name} }} from \"{import_path}\";\n")
+                format!("import {{ {name} }} from \"{import_path}\";")
             }
+        };
+
+        // place the declaration before its successor or after the final import
+        let next = existing_imports.iter().find(|existing| {
+            let existing_group = ImportGroup::from_path(&existing.path);
+
+            group < existing_group
+                || (group == existing_group && import_path < existing.path.as_str())
+        });
+        let (position, text) = if let Some(next) = next {
+            (next.start, format!("{declaration}\n"))
+        } else if let Some(previous) = existing_imports.last() {
+            (previous.end, format!("\n{declaration}"))
+        } else {
+            (0, format!("{declaration}\n"))
         };
 
         Ok(vec![Patch::insert(file_id, position, text)])
@@ -286,6 +300,13 @@ impl ModuleQueryContext<'_> {
             if span.file != file_id {
                 continue;
             }
+
+            // include the authored terminator in insertion ordering
+            let statement_end = self
+                .tokens(span.file)?
+                .find(|token| token.span.start >= span.end)
+                .filter(|token| token.token.ty() == dir::TokenType::Semicolon)
+                .map_or(span.end, |token| token.span.end);
             let items = match items {
                 Some(items) => items.as_slice(),
                 None => &[],
@@ -295,23 +316,32 @@ impl ModuleQueryContext<'_> {
                 item.binding() == Some(dir::DependencyBinding::Namespace)
             });
             let mut default_name = None;
+            let mut default_end = None;
             let mut named = Vec::new();
+            let mut named_end = None;
             let mut namespace_item = None;
             for item_id in items {
                 let item = view.get(*item_id);
                 let node = item_id.into_global_any(self.module_id());
+                let source_id = view.get_source(*item_id);
+                let span = self
+                    .source_index()?
+                    .try_get(source_id)
+                    .ok_or(QueryError::missing(format!("import item span: {node:?}")))?;
                 match item.binding() {
                     Some(dir::DependencyBinding::Default) => {
                         let name = item
                             .local_string_key()
                             .ok_or(QueryError::missing(format!("import item name: {node:?}")))?;
                         default_name = Some(self.strings().get(name).to_string());
+                        default_end = Some(span.end);
                     }
                     Some(dir::DependencyBinding::Named) => {
                         let name = item
                             .local_string_key()
                             .ok_or(QueryError::missing(format!("import item name: {node:?}")))?;
                         named.push(self.strings().get(name).to_string());
+                        named_end = Some(span.end);
                     }
                     Some(dir::DependencyBinding::Namespace) => namespace_item = Some(*item_id),
                     None => {}
@@ -319,8 +349,8 @@ impl ModuleQueryContext<'_> {
             }
             let target_span = self.source_index()?.get_main(source_id);
             let bounds = self.import_clause_bounds(span, target_span)?;
-            let closing_brace_offset = bounds.map(|bounds| bounds.close_brace.start);
-            let binding_offset = if let Some(item_id) = namespace_item {
+            let named_offset = bounds.map(|bounds| bounds.open_brace.end);
+            let default_offset = if let Some(item_id) = namespace_item {
                 let source_id = view.get_source(item_id);
                 let node = item_id.into_global_any(self.module_id());
                 let span = self
@@ -332,21 +362,14 @@ impl ModuleQueryContext<'_> {
             } else {
                 bounds.map(|bounds| bounds.open_brace.start)
             };
-            let from_offset = self.tokens(span.file)?.find_map(|token| {
-                if token.span.start < span.start || token.span.end > span.end {
-                    return None;
-                }
-
-                (token.token.keyword() == Some(dir::Keyword::From)).then_some(token.span.start)
-            });
-
             imports.push(ExistingImport {
                 path,
                 start: span.start,
-                end: span.end,
-                closing_brace_offset,
-                binding_offset,
-                from_offset,
+                end: statement_end,
+                named_offset,
+                default_offset,
+                default_end,
+                named_end,
                 is_namespace,
                 default_name,
                 named,
@@ -435,23 +458,4 @@ impl ProgramQueryContext<'_> {
 
         Ok(vec![specifier])
     }
-}
-
-/// Return the insertion position for one new import.
-fn import_insert_position(
-    import_path: &str,
-    group: ImportGroup,
-    existing_imports: &[ExistingImport],
-) -> u32 {
-    for existing in existing_imports {
-        let existing_group = ImportGroup::from_path(&existing.path);
-        if group < existing_group {
-            return existing.start;
-        }
-        if group == existing_group && import_path < existing.path.as_str() {
-            return existing.start;
-        }
-    }
-
-    existing_imports.last().map_or(0, |existing| existing.end)
 }
