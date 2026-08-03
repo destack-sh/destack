@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use destack_serde::Reflect;
 use parking_lot::Mutex;
-use serde::ser::{SerializeSeq, SerializeStruct};
+use serde::ser::{SerializeSeq, SerializeTuple};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::table::{PageState, PageTable};
@@ -65,40 +65,18 @@ struct RangeAllocator {
     free_ranges: BTreeMap<usize, usize>,
 }
 
-/// Deserialized target-specific state for one memory map.
-#[derive(Debug, Deserialize)]
-struct MemorySnapshot {
-    /// The reserved virtual byte length.
-    byte_len: usize,
-    /// The fixed mapping frame width.
-    frame_size_bytes: usize,
-    /// The next never allocated byte offset.
-    frontier: usize,
-    /// Released byte ranges keyed by offset.
-    free_ranges: BTreeMap<usize, usize>,
-    /// The materialized virtual mappings.
-    mappings: Box<[MappingSnapshot]>,
-}
-
-/// One deserialized contiguous mapping.
-#[derive(Debug, Deserialize)]
-struct MappingSnapshot {
-    /// The first byte offset inside the memory map.
-    offset: usize,
-    /// The mapped bytes.
-    bytes: Box<[u8]>,
-}
-
 /// Materialized mappings serialized directly from one memory map.
 struct Mappings<'a>(&'a MemoryMap);
 
-/// One borrowed contiguous mapping.
-#[derive(Serialize)]
-struct Mapping<'a> {
+/// One contiguous mapped byte range.
+#[derive(Debug, Serialize, Deserialize)]
+struct Mapping<T> {
     /// The first byte offset inside the memory map.
     offset: usize,
+    /// Whether the mapped pages are immutable until released.
+    is_immutable: bool,
     /// The mapped bytes.
-    bytes: &'a [u8],
+    bytes: T,
 }
 
 /// One contiguous virtual page and backing frame run.
@@ -141,18 +119,18 @@ impl MemoryMap {
     ///
     /// No native writes may race with remapping.
     pub fn fork_lazy(&self) -> MemoryResult<Self> {
-        // reserve the child range before changing parent mappings
+        // retain one coherent logical and physical parent state throughout the fork
+        let range_allocator = self.range_allocator.lock();
         let space = platform::reserve_virtual_space(self.byte_len)?;
-        let range_allocator = self.range_allocator.lock().clone();
         let fork = Self::new(
             space,
             self.byte_len,
             self.frame_size_bytes,
             self.frames.clone(),
-            range_allocator,
+            range_allocator.clone(),
         )?;
 
-        // native targets use read only cow mappings for shared pages
+        // native targets share read only page frames until either map writes
         if platform::SUPPORTS_SHARED_PAGE_FRAMES {
             self.fork_shared_frames(&fork)?;
         }
@@ -222,6 +200,30 @@ impl MemoryMap {
         Ok(range)
     }
 
+    /// Make one complete mapping-frame range immutable until released.
+    pub fn freeze(&self, range: MemoryRange) -> MemoryResult<()> {
+        // require page ownership because protection applies to complete mapping frames
+        if !range.offset.is_multiple_of(self.frame_size_bytes)
+            || !range.byte_len.is_multiple_of(self.frame_size_bytes)
+        {
+            return Err(MemoryError::UnalignedRange {
+                offset: range.offset,
+                byte_len: range.byte_len,
+                alignment: self.frame_size_bytes,
+            });
+        }
+
+        let (first_frame, end_frame) = self.frame_range(range.offset, range.byte_len)?;
+        let range_allocator = self.range_allocator.lock();
+        range_allocator.require_live(range)?;
+        let _lock = self.lock.lock();
+
+        // materialize reserved pages before changing their protection
+        self.materialize_frame_range(first_frame, end_frame)?;
+
+        self.freeze_frame_range(first_frame, end_frame)
+    }
+
     /// Claim one exact logical byte range while restoring memory state.
     pub fn claim(&self, range: MemoryRange) -> MemoryResult<()> {
         let mut range_allocator = self.range_allocator.lock();
@@ -231,9 +233,23 @@ impl MemoryMap {
 
     /// Release one allocated logical byte range.
     pub fn release(&self, range: MemoryRange) -> MemoryResult<()> {
+        let (first_frame, end_frame) = self.frame_range(range.offset, range.byte_len)?;
         let mut range_allocator = self.range_allocator.lock();
+        let has_immutable_page =
+            (first_frame..end_frame).any(|page_index| self.pages.state(page_index).is_immutable());
 
-        range_allocator.release(range)
+        // mutable ranges only touch logical allocation state
+        if !has_immutable_page {
+            return range_allocator.release(range);
+        }
+
+        // released immutable pages must become private before their range is reusable
+        range_allocator.require_live(range)?;
+        let _lock = self.lock.lock();
+        self.thaw_frame_range(first_frame, end_frame)?;
+        range_allocator.release_valid(range);
+
+        Ok(())
     }
 
     /// Zero one byte range inside this memory map.
@@ -310,6 +326,12 @@ impl MemoryMap {
     pub fn materialize(&self, offset: usize, byte_len: usize) -> MemoryResult<()> {
         let (first_frame, end_frame) = self.frame_range(offset, byte_len)?;
         let _lock = self.lock.lock();
+
+        self.materialize_frame_range(first_frame, end_frame)
+    }
+
+    /// Materialize one page-frame range while holding the page table lock.
+    fn materialize_frame_range(&self, first_frame: usize, end_frame: usize) -> MemoryResult<()> {
         let mut page_index = first_frame;
 
         // allocate contiguous frame ranges for reserved page runs
@@ -379,7 +401,7 @@ impl MemoryMap {
     ///
     /// # Safety
     ///
-    /// The byte range must be live and fully materialized in this memory map.
+    /// The byte range must be live, writable, and fully materialized in this memory map.
     #[inline(always)]
     pub unsafe fn write_mapped_bytes(&self, offset: usize, bytes: &[u8]) {
         self.copy_bytes_to_mapped(offset, bytes);
@@ -389,7 +411,7 @@ impl MemoryMap {
     ///
     /// # Safety
     ///
-    /// The byte range must be live and fully materialized in this memory map.
+    /// The byte range must be live, writable, and fully materialized in this memory map.
     #[inline(always)]
     pub unsafe fn zero_mapped_bytes(&self, offset: usize, byte_len: usize) {
         let target = self.mapped_address(offset);
@@ -404,7 +426,7 @@ impl MemoryMap {
     ///
     /// # Safety
     ///
-    /// Both byte ranges must be live, fully materialized, and disjoint.
+    /// The ranges must be live, fully materialized, disjoint, and the target writable.
     #[inline(always)]
     pub unsafe fn copy_mapped_bytes(
         &self,
@@ -425,13 +447,148 @@ impl MemoryMap {
     ///
     /// # Safety
     ///
-    /// The byte range must be live, fully materialized, and not aliased while borrowed.
+    /// The range must be live, writable, fully materialized, and exclusively borrowed.
     #[inline(always)]
     pub unsafe fn mapped_bytes_mut(&self, offset: usize, byte_len: usize) -> &mut [u8] {
         let address = self.mapped_address(offset);
 
         // SAFETY: caller owns the mapped range and exclusivity invariants
         unsafe { std::slice::from_raw_parts_mut(address, byte_len) }
+    }
+
+    /// Freeze one fully materialized mapping-frame range.
+    fn freeze_frame_range(&self, first_frame: usize, end_frame: usize) -> MemoryResult<()> {
+        let mut page_index = first_frame;
+
+        // preserve existing immutable and fork-shared mappings without remapping
+        while page_index < end_frame {
+            match self.pages.state(page_index) {
+                PageState::Reserved => {
+                    return Err(MemoryError::internal("reserved page after materialization"));
+                }
+                PageState::Immutable(_) => {
+                    page_index += 1;
+                }
+                PageState::Shared(frame) => {
+                    self.pages
+                        .set_state(page_index, PageState::Immutable(frame));
+                    page_index += 1;
+                }
+                PageState::Owned(frame) => {
+                    let mut run = FrameRun::new(page_index, frame);
+                    page_index += 1;
+
+                    while page_index < end_frame {
+                        let PageState::Owned(frame) = self.pages.state(page_index) else {
+                            break;
+                        };
+                        if !run.extend(page_index, frame, self.frame_size_bytes) {
+                            break;
+                        }
+
+                        page_index += 1;
+                    }
+
+                    self.remap_readonly_frame_run(run)?;
+                    self.set_immutable_frame_run(run);
+                }
+                PageState::Modified(_) => {
+                    page_index = self.freeze_modified_frame_run(page_index, end_frame)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Freeze one contiguous run whose visible bytes differ from its backing frames.
+    fn freeze_modified_frame_run(
+        &self,
+        first_page: usize,
+        end_frame: usize,
+    ) -> MemoryResult<usize> {
+        let mut end_page = first_page;
+        let mut previous_frames = Vec::new();
+
+        // collect the current private run and its superseded backing frames
+        while end_page < end_frame {
+            let PageState::Modified(frame) = self.pages.state(end_page) else {
+                break;
+            };
+
+            previous_frames.push(frame);
+            end_page += 1;
+        }
+
+        // copy current private bytes into one immutable backing-frame run
+        let page_count = end_page - first_page;
+        let byte_len = page_count * self.frame_size_bytes;
+        let source = self.mapped_address(first_page * self.frame_size_bytes);
+        let frame =
+            platform::copy_frame_range(&self.frames, source, byte_len, self.frame_size_bytes)?;
+        let run = FrameRun {
+            first_page,
+            first_frame: frame,
+            page_count,
+        };
+
+        // release the fresh frames if their read only mapping cannot be installed
+        if let Err(error) = self.remap_readonly_frame_run(run) {
+            platform::release_frames(
+                &self.frames,
+                run.frames(self.frame_size_bytes),
+                self.frame_size_bytes,
+            );
+
+            return Err(error);
+        }
+
+        // publish the immutable frames before releasing replaced backing storage
+        self.set_immutable_frame_run(run);
+        platform::release_frames(&self.frames, previous_frames, self.frame_size_bytes);
+
+        Ok(end_page)
+    }
+
+    /// Make immutable mappings private before their logical range is reused.
+    fn thaw_frame_range(&self, first_frame: usize, end_frame: usize) -> MemoryResult<()> {
+        let mut page_index = first_frame;
+
+        // convert immutable runs into private writable mappings
+        while page_index < end_frame {
+            let PageState::Immutable(_) = self.pages.state(page_index) else {
+                page_index += 1;
+                continue;
+            };
+            let run_start = page_index;
+            page_index += 1;
+
+            while page_index < end_frame
+                && matches!(self.pages.state(page_index), PageState::Immutable(_))
+            {
+                page_index += 1;
+            }
+
+            let run_len = page_index - run_start;
+            let byte_len = run_len * self.frame_size_bytes;
+            platform::make_shared_pages_writable(
+                self.space.base(),
+                run_start,
+                self.frame_size_bytes,
+                byte_len,
+            )?;
+
+            // private mappings may now diverge from their retained backing frames
+            for page_index in run_start..page_index {
+                let PageState::Immutable(frame) = self.pages.state(page_index) else {
+                    unreachable!("immutable run changed while thawing");
+                };
+
+                self.pages.set_state(page_index, PageState::Modified(frame));
+            }
+        }
+
+        Ok(())
     }
 
     /// Make already mapped shared pages in one page frame range writable.
@@ -442,6 +599,29 @@ impl MemoryMap {
     ) -> MemoryResult<()> {
         let _lock = self.lock.lock();
         let mut page_index = first_frame;
+        let mut has_shared_page = false;
+
+        // reject immutable writes before changing protection and detect shared pages
+        for page_index in first_frame..end_frame {
+            match self.pages.state(page_index) {
+                // immutable pages reject the complete write before any transition
+                PageState::Immutable(_) => {
+                    return Err(MemoryError::ImmutableRange {
+                        offset: page_index * self.frame_size_bytes,
+                        byte_len: self.frame_size_bytes,
+                    });
+                }
+                // shared pages require a second pass to coalesce protection changes
+                PageState::Shared(_) => {
+                    has_shared_page = true;
+                }
+                // owned and modified pages are writable, while reserved pages remain untouched
+                PageState::Reserved | PageState::Owned(_) | PageState::Modified(_) => {}
+            }
+        }
+        if !has_shared_page {
+            return Ok(());
+        }
 
         // make shared page runs writable in one platform call
         while page_index < end_frame {
@@ -537,19 +717,20 @@ impl MemoryMap {
 
         let mut parent_runs = Vec::new();
         let mut child_runs = Vec::new();
+        let mut immutable_runs = Vec::new();
 
         // copy modified runs and queue shareable frames for remapping
-        self.collect_shared_fork_runs(fork, &mut parent_runs, &mut child_runs)?;
+        self.collect_fork_runs(fork, &mut parent_runs, &mut child_runs, &mut immutable_runs)?;
 
         // parent owned runs become shared mappings
         for run in &parent_runs {
-            self.remap_cow_frame_run(*run)?;
+            self.remap_readonly_frame_run(*run)?;
             self.set_shared_frame_run(*run);
         }
 
         // child runs retain and map the same backing frames
         for run in &child_runs {
-            self.map_cow_frame_run(fork, *run)?;
+            self.map_readonly_frame_run(fork, *run)?;
             platform::retain_frames(
                 &self.frames,
                 run.frames(self.frame_size_bytes),
@@ -558,15 +739,27 @@ impl MemoryMap {
             fork.set_shared_frame_run(*run);
         }
 
+        // immutable runs remain read only and bypass copy on write tracking
+        for run in &immutable_runs {
+            self.map_readonly_frame_run(fork, *run)?;
+            platform::retain_frames(
+                &self.frames,
+                run.frames(self.frame_size_bytes),
+                self.frame_size_bytes,
+            );
+            fork.set_immutable_frame_run(*run);
+        }
+
         Ok(())
     }
 
-    /// Collect shared fork runs and copy modified runs.
-    fn collect_shared_fork_runs(
+    /// Collect shareable frame runs and copy modified runs.
+    fn collect_fork_runs(
         &self,
         fork: &Self,
         parent_runs: &mut Vec<FrameRun>,
         child_runs: &mut Vec<FrameRun>,
+        immutable_runs: &mut Vec<FrameRun>,
     ) -> MemoryResult<()> {
         let mut modified_run = None;
 
@@ -585,7 +778,7 @@ impl MemoryMap {
                         "reserved page in mapped page iteration",
                     ));
                 }
-                // owned pages become read only cow frames in both maps
+                // owned pages become shared read only frames in both maps
                 PageState::Owned(frame) => {
                     FrameRun::record(parent_runs, page_index, frame, self.frame_size_bytes);
                     FrameRun::record(child_runs, page_index, frame, self.frame_size_bytes);
@@ -606,6 +799,10 @@ impl MemoryMap {
                     {
                         self.fork_modified_frame_run(fork, run)?;
                     }
+                }
+                // immutable pages retain their backing frames
+                PageState::Immutable(frame) => {
+                    FrameRun::record(immutable_runs, page_index, frame, self.frame_size_bytes);
                 }
             }
         }
@@ -655,6 +852,14 @@ impl MemoryMap {
         }
     }
 
+    /// Mark one mapped frame run immutable until released.
+    fn set_immutable_frame_run(&self, run: FrameRun) {
+        for (page_index, frame) in run.pages(self.frame_size_bytes) {
+            self.pages
+                .set_state(page_index, PageState::Immutable(frame));
+        }
+    }
+
     /// Return one mapped address without validating the range.
     #[inline(always)]
     fn mapped_address(&self, offset: usize) -> *mut u8 {
@@ -690,7 +895,7 @@ impl MemoryMap {
         let _fork_lock = fork.lock.lock();
 
         // wasm has no native mappings, so materialized pages are copied
-        for page_index in self.pages.mapped_pages() {
+        for (page_index, state) in self.pages.mapped_states() {
             let source = self.mapped_address(page_index * self.frame_size_bytes);
             let frame = platform::copy_page(&self.frames, source, self.frame_size_bytes)?;
 
@@ -703,15 +908,20 @@ impl MemoryMap {
                 frame,
             )?;
 
-            fork.pages.set_state(page_index, PageState::Owned(frame));
+            let state = if state.is_immutable() {
+                PageState::Immutable(frame)
+            } else {
+                PageState::Owned(frame)
+            };
+            fork.pages.set_state(page_index, state);
         }
 
         Ok(())
     }
 
-    /// Map one contiguous frame run as copy on write storage.
-    fn map_cow_frame_run(&self, target: &Self, run: FrameRun) -> MemoryResult<()> {
-        platform::map_frame_range_cow(
+    /// Map one contiguous frame run as read only storage.
+    fn map_readonly_frame_run(&self, target: &Self, run: FrameRun) -> MemoryResult<()> {
+        platform::map_frame_range_readonly(
             target.space.base(),
             run.first_page,
             self.frame_size_bytes,
@@ -721,9 +931,9 @@ impl MemoryMap {
         )
     }
 
-    /// Remap one owned frame run as copy on write storage.
-    fn remap_cow_frame_run(&self, run: FrameRun) -> MemoryResult<()> {
-        platform::remap_frame_range_cow(
+    /// Remap one writable frame run as read only storage.
+    fn remap_readonly_frame_run(&self, run: FrameRun) -> MemoryResult<()> {
+        platform::remap_frame_range_readonly(
             self.space.base(),
             run.first_page,
             self.frame_size_bytes,
@@ -788,18 +998,18 @@ impl Serialize for MemoryImage {
         S: Serializer,
     {
         let memory = self.memory.as_ref();
-        let _lock = memory.lock.lock();
         let ranges = memory.range_allocator.lock();
+        let _lock = memory.lock.lock();
         let mappings = Mappings(memory);
-        let mut state = serializer.serialize_struct("MemoryImage", 5)?;
+        let mut image = serializer.serialize_tuple(5)?;
 
-        state.serialize_field("byte_len", &memory.byte_len)?;
-        state.serialize_field("frame_size_bytes", &memory.frame_size_bytes)?;
-        state.serialize_field("frontier", &ranges.frontier)?;
-        state.serialize_field("free_ranges", &ranges.free_ranges)?;
-        state.serialize_field("mappings", &mappings)?;
+        image.serialize_element(&memory.byte_len)?;
+        image.serialize_element(&memory.frame_size_bytes)?;
+        image.serialize_element(&ranges.frontier)?;
+        image.serialize_element(&ranges.free_ranges)?;
+        image.serialize_element(&mappings)?;
 
-        state.end()
+        image.end()
     }
 }
 
@@ -809,16 +1019,78 @@ impl<'de> Deserialize<'de> for MemoryImage {
     where
         D: Deserializer<'de>,
     {
-        let snapshot = MemorySnapshot::deserialize(deserializer)?;
-        let memory = snapshot.restore().map_err(serde::de::Error::custom)?;
+        let (byte_len, frame_size_bytes, frontier, free_ranges, mappings) =
+            <(
+                usize,
+                usize,
+                usize,
+                BTreeMap<usize, usize>,
+                Box<[Mapping<Box<[u8]>>]>,
+            )>::deserialize(deserializer)?;
+
+        Self::decode(byte_len, frame_size_bytes, frontier, free_ranges, mappings)
+            .map_err(serde::de::Error::custom)
+    }
+}
+
+impl MemoryImage {
+    /// Decode one serialized memory image.
+    fn decode(
+        byte_len: usize,
+        frame_size_bytes: usize,
+        frontier: usize,
+        free_ranges: BTreeMap<usize, usize>,
+        mappings: Box<[Mapping<Box<[u8]>>]>,
+    ) -> MemoryResult<Self> {
+        let memory = MemoryMap::reserve(byte_len, frame_size_bytes)?;
+
+        // require the exact target geometry encoded by the image
+        if memory.byte_len != byte_len || memory.frame_size_bytes != frame_size_bytes {
+            return Err(MemoryError::invalid_image(
+                "memory geometry does not match this target",
+            ));
+        }
+
+        // reconstruct logical allocation state from target geometry
+        let ranges = RangeAllocator::restore(
+            frontier,
+            free_ranges,
+            memory.frame_size_bytes,
+            memory.byte_len,
+        )?;
+        *memory.range_allocator.lock() = ranges;
+
+        // restore ordered mappings and their protection
+        let mut previous_end = 0;
+        for mapping in mappings {
+            let range = MemoryRange {
+                offset: mapping.offset,
+                byte_len: mapping.bytes.len(),
+            };
+            if range.is_empty()
+                || !range.offset.is_multiple_of(memory.frame_size_bytes)
+                || !range.byte_len.is_multiple_of(memory.frame_size_bytes)
+                || range.offset > memory.byte_len
+                || range.byte_len > memory.byte_len - range.offset
+                || range.offset < previous_end
+            {
+                return Err(MemoryError::invalid_image(
+                    "mapped memory ranges are malformed",
+                ));
+            }
+
+            memory.write_bytes(range.offset, &mapping.bytes)?;
+            if mapping.is_immutable {
+                memory.freeze(range)?;
+            }
+            previous_end = range.end();
+        }
 
         Ok(Self {
             memory: Arc::new(memory),
         })
     }
-}
 
-impl MemoryImage {
     /// Restore this image into one independently writable memory map.
     pub fn restore(&self) -> MemoryResult<MemoryMap> {
         self.memory.fork_lazy()
@@ -848,12 +1120,15 @@ impl Serialize for Mappings<'_> {
     {
         let memory = self.0;
         let mut sequence = serializer.serialize_seq(Some(self.len()))?;
-        let mut mapped = memory.pages.mapped_pages().peekable();
+        let mut mapped = memory.pages.mapped_states().peekable();
 
-        // serialize each contiguous mapping directly from virtual memory
-        while let Some(first_page) = mapped.next() {
+        // serialize each contiguous mapping with one protection state
+        while let Some((first_page, state)) = mapped.next() {
+            let is_immutable = state.is_immutable();
             let mut end_page = first_page + 1;
-            while mapped.peek().is_some_and(|page| *page == end_page) {
+            while mapped.peek().is_some_and(|(page, state)| {
+                *page == end_page && state.is_immutable() == is_immutable
+            }) {
                 mapped.next();
                 end_page += 1;
             }
@@ -863,7 +1138,11 @@ impl Serialize for Mappings<'_> {
 
             // SAFETY: mapped page iteration proves the complete virtual range is readable
             let bytes = unsafe { slice::from_raw_parts(memory.mapped_address(offset), byte_len) };
-            sequence.serialize_element(&Mapping { offset, bytes })?;
+            sequence.serialize_element(&Mapping {
+                offset,
+                is_immutable,
+                bytes,
+            })?;
         }
 
         sequence.end()
@@ -874,76 +1153,21 @@ impl Mappings<'_> {
     /// Return the number of contiguous mapped page runs.
     fn len(&self) -> usize {
         let mut run_count = 0;
-        let mut previous_page = None;
+        let mut previous = None;
 
-        // count each transition into one mapped page run
-        for page in self.0.pages.mapped_pages() {
-            if previous_page.is_none_or(|previous| page != previous + 1) {
+        // count each address or protection transition into one mapped page run
+        for (page, state) in self.0.pages.mapped_states() {
+            let is_immutable = state.is_immutable();
+            if previous.is_none_or(|(previous_page, previous_immutable)| {
+                page != previous_page + 1 || is_immutable != previous_immutable
+            }) {
                 run_count += 1;
             }
 
-            previous_page = Some(page);
+            previous = Some((page, is_immutable));
         }
 
         run_count
-    }
-}
-
-impl MemorySnapshot {
-    /// Restore this snapshot into one live memory map.
-    fn restore(self) -> MemoryResult<MemoryMap> {
-        let memory = MemoryMap::reserve(self.byte_len, self.frame_size_bytes)?;
-
-        // require the exact target geometry captured by this snapshot
-        if memory.byte_len != self.byte_len || memory.frame_size_bytes != self.frame_size_bytes {
-            return Err(MemoryError::invalid_image(
-                "memory geometry does not match this target",
-            ));
-        }
-
-        // validate mapped bytes before consuming allocator fields
-        self.validate_mappings()?;
-
-        // reconstruct logical allocation state from target geometry
-        let ranges = RangeAllocator::restore(
-            self.frontier,
-            self.free_ranges,
-            memory.frame_size_bytes,
-            memory.byte_len,
-        )?;
-
-        // restore logical allocation state before materialized bytes
-        *memory.range_allocator.lock() = ranges;
-        for mapping in self.mappings {
-            memory.write_bytes(mapping.offset, &mapping.bytes)?;
-        }
-
-        Ok(memory)
-    }
-
-    /// Validate mapped runs against this snapshot's exact geometry.
-    fn validate_mappings(&self) -> MemoryResult<()> {
-        let mut previous_end = 0;
-
-        // require aligned, ordered, disjoint mappings inside the reservation
-        for mapping in &self.mappings {
-            let byte_len = mapping.bytes.len();
-            if byte_len == 0
-                || mapping.offset % self.frame_size_bytes != 0
-                || byte_len % self.frame_size_bytes != 0
-                || mapping.offset > self.byte_len
-                || byte_len > self.byte_len - mapping.offset
-                || mapping.offset < previous_end
-            {
-                return Err(MemoryError::invalid_image(
-                    "mapped memory ranges are malformed",
-                ));
-            }
-
-            previous_end = mapping.offset + byte_len;
-        }
-
-        Ok(())
     }
 }
 
@@ -1196,6 +1420,14 @@ impl RangeAllocator {
 
     /// Release one live range and merge adjacent free storage.
     fn release(&mut self, range: MemoryRange) -> MemoryResult<()> {
+        self.require_live(range)?;
+        self.release_valid(range);
+
+        Ok(())
+    }
+
+    /// Require one range to be live.
+    fn require_live(&self, range: MemoryRange) -> MemoryResult<()> {
         if range.is_empty() {
             return Ok(());
         }
@@ -1226,6 +1458,15 @@ impl RangeAllocator {
             });
         }
 
+        Ok(())
+    }
+
+    /// Release one range already proven live.
+    fn release_valid(&mut self, range: MemoryRange) {
+        if range.is_empty() {
+            return;
+        }
+
         // merge the immediately preceding free range
         let mut offset = range.offset;
         let mut byte_len = range.byte_len;
@@ -1245,8 +1486,6 @@ impl RangeAllocator {
         }
 
         self.free_ranges.insert(offset, byte_len);
-
-        Ok(())
     }
 }
 
@@ -1721,14 +1960,27 @@ mod tests {
             .write_bytes(last.offset, &[5, 6, 7, 8])
             .expect("last mapping should write");
         memory
+            .freeze(last)
+            .expect("last mapping should become immutable");
+        memory
             .release(reusable)
             .expect("middle range should release");
 
-        // capture immutable bytes before mutating the live memory
+        // capture mutable and immutable mappings before changing live memory
         let image = memory.capture().expect("memory image should capture");
         memory
             .write_bytes(first.offset, &[9, 9, 9, 9])
             .expect("live mapping should diverge");
+        let error = memory
+            .write_bytes(last.offset, &[9, 9, 9, 9])
+            .expect_err("immutable mapping should reject writes");
+        assert_eq!(
+            error,
+            MemoryError::ImmutableRange {
+                offset: last.offset,
+                byte_len: frame_size_bytes,
+            }
+        );
 
         // restore through the exact public serialization boundary
         let bytes = destack_serde::to_vec(&image).expect("memory image should serialize");
@@ -1761,6 +2013,9 @@ mod tests {
         let fork = restored.fork_lazy().expect("restored map should fork");
         fork.write_bytes(first.offset, &[9, 8, 7, 6])
             .expect("fork mapping should write");
+        let error = fork
+            .write_bytes(last.offset, &[9, 8, 7, 6])
+            .expect_err("forked immutable mapping should reject writes");
         assert_eq!(
             restored
                 .read_bytes(first.offset, 4)
@@ -1771,6 +2026,30 @@ mod tests {
             fork.read_bytes(first.offset, 4)
                 .expect("fork mapping should read"),
             [9, 8, 7, 6]
+        );
+        assert_eq!(
+            error,
+            MemoryError::ImmutableRange {
+                offset: last.offset,
+                byte_len: frame_size_bytes,
+            }
+        );
+
+        // released immutable storage becomes private and reusable in one map only
+        restored
+            .release(last)
+            .expect("immutable range should release");
+        let recycled = restored
+            .allocate(frame_size_bytes, frame_size_bytes)
+            .expect("released immutable range should allocate");
+        assert_eq!(recycled, last);
+        restored
+            .write_bytes(recycled.offset, &[4, 3, 2, 1])
+            .expect("recycled mapping should become writable");
+        assert_eq!(
+            fork.read_bytes(last.offset, 4)
+                .expect("fork immutable mapping should read"),
+            [5, 6, 7, 8]
         );
     }
 }

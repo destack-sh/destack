@@ -236,7 +236,7 @@ pub(crate) fn map_page_writable(
 }
 
 /// Copy one page frame range into linear memory.
-pub(crate) fn map_frame_range_cow(
+pub(crate) fn map_frame_range_readonly(
     base: *mut u8,
     first_page: usize,
     page_size_bytes: usize,
@@ -255,7 +255,7 @@ pub(crate) fn map_frame_range_cow(
 }
 
 /// Copy one writable page frame range into linear memory.
-pub(crate) fn remap_frame_range_cow(
+pub(crate) fn remap_frame_range_readonly(
     base: *mut u8,
     first_page: usize,
     page_size_bytes: usize,
@@ -263,7 +263,7 @@ pub(crate) fn remap_frame_range_cow(
     allocator: &PageFrameAllocator,
     frame: PageFrame,
 ) -> MemoryResult<()> {
-    map_frame_range_cow(
+    map_frame_range_readonly(
         base,
         first_page,
         page_size_bytes,

@@ -244,7 +244,7 @@ where
         }
 
         state.free_ranges.push(PageFrameRange {
-            frame,
+            first_frame: frame,
             byte_len: page_size_bytes as u64,
         });
     }
@@ -336,8 +336,8 @@ pub(crate) fn map_page_writable(
     )
 }
 
-/// Map one page frame range as copy on write memory.
-pub(crate) fn map_frame_range_cow(
+/// Map one page frame range as read only memory.
+pub(crate) fn map_frame_range_readonly(
     base: *mut u8,
     first_page: usize,
     page_size_bytes: usize,
@@ -357,8 +357,8 @@ pub(crate) fn map_frame_range_cow(
     )
 }
 
-/// Remap one writable page frame range as copy on write memory.
-pub(crate) fn remap_frame_range_cow(
+/// Remap one writable page frame range as read only memory.
+pub(crate) fn remap_frame_range_readonly(
     base: *mut u8,
     first_page: usize,
     page_size_bytes: usize,
@@ -875,10 +875,10 @@ fn allocate_free_frame_range(
         .iter()
         .position(|range| range.byte_len >= byte_len)?;
     let range = &mut state.free_ranges[range_index];
-    let frame = range.frame;
+    let frame = range.first_frame;
 
     // consume the front of the free range
-    range.frame.offset += byte_len;
+    range.first_frame.offset += byte_len;
     range.byte_len -= byte_len;
 
     if range.byte_len == 0 {
@@ -917,17 +917,17 @@ fn frame_index(frame: PageFrame, page_size_bytes: usize) -> usize {
 
 /// Merge adjacent free page frame ranges.
 fn merge_free_frame_ranges(ranges: &mut Vec<PageFrameRange>) {
-    ranges.sort_by_key(|range| (range.frame.section_index, range.frame.offset));
+    ranges.sort_by_key(|range| (range.first_frame.section_index, range.first_frame.offset));
 
     let mut range_index = 0;
     while range_index + 1 < ranges.len() {
         let current = ranges[range_index];
         let next = ranges[range_index + 1];
-        let current_end = current.frame.offset + current.byte_len;
+        let current_end = current.first_frame.offset + current.byte_len;
 
         // adjacent ranges inside the same section become one reusable range
-        if current.frame.section_index == next.frame.section_index
-            && current_end == next.frame.offset
+        if current.first_frame.section_index == next.first_frame.section_index
+            && current_end == next.first_frame.offset
         {
             ranges[range_index].byte_len += next.byte_len;
             ranges.remove(range_index + 1);

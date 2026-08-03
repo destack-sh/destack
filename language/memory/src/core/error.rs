@@ -32,6 +32,15 @@ pub enum MemoryError {
         /// The reserved capacity in bytes.
         capacity: usize,
     },
+    /// One byte range did not satisfy its required alignment.
+    UnalignedRange {
+        /// The requested byte offset.
+        offset: usize,
+        /// The requested byte length.
+        byte_len: usize,
+        /// The required byte alignment.
+        alignment: usize,
+    },
     /// One logical memory range could not fit in the reserved map.
     RangeExhausted {
         /// The requested byte length.
@@ -53,6 +62,13 @@ pub enum MemoryError {
         /// The released byte offset.
         offset: usize,
         /// The released byte length.
+        byte_len: usize,
+    },
+    /// One write targeted immutable memory.
+    ImmutableRange {
+        /// The immutable byte offset.
+        offset: usize,
+        /// The immutable byte length.
         byte_len: usize,
     },
     /// One serialized memory image is malformed or incompatible.
@@ -168,6 +184,16 @@ impl Display for MemoryError {
                     "invalid memory byte range: start {start}, length {len}, capacity {capacity}"
                 )
             }
+            Self::UnalignedRange {
+                offset,
+                byte_len,
+                alignment,
+            } => {
+                write!(
+                    formatter,
+                    "unaligned memory range: offset {offset}, length {byte_len}, alignment {alignment}"
+                )
+            }
             Self::RangeExhausted {
                 byte_len,
                 alignment,
@@ -188,6 +214,12 @@ impl Display for MemoryError {
                 write!(
                     formatter,
                     "invalid memory range release: offset {offset}, length {byte_len}"
+                )
+            }
+            Self::ImmutableRange { offset, byte_len } => {
+                write!(
+                    formatter,
+                    "immutable memory range: offset {offset}, length {byte_len}"
                 )
             }
             Self::InvalidImage { context } => {

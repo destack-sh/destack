@@ -267,6 +267,8 @@ pub(super) enum PageState {
     Shared(PageFrame),
     /// The page is writable by this map and may differ from the backing frame.
     Modified(PageFrame),
+    /// The page is read only until released and shares its backing frame across forks.
+    Immutable(PageFrame),
 }
 
 impl PageState {
@@ -274,8 +276,16 @@ impl PageState {
     pub(super) fn frame(self) -> Option<PageFrame> {
         match self {
             Self::Reserved => None,
-            Self::Owned(frame) | Self::Shared(frame) | Self::Modified(frame) => Some(frame),
+            Self::Owned(frame)
+            | Self::Shared(frame)
+            | Self::Modified(frame)
+            | Self::Immutable(frame) => Some(frame),
         }
+    }
+
+    /// Return whether this page is immutable until released.
+    pub(super) const fn is_immutable(self) -> bool {
+        matches!(self, Self::Immutable(_))
     }
 }
 
@@ -331,6 +341,7 @@ impl PageEntry {
             PageTag::Owned => PageState::Owned(self.frame()),
             PageTag::Shared => PageState::Shared(self.frame()),
             PageTag::Modified => PageState::Modified(self.frame()),
+            PageTag::Immutable => PageState::Immutable(self.frame()),
         }
     }
 
@@ -348,6 +359,9 @@ impl PageEntry {
             }
             PageState::Modified(frame) => {
                 self.set_frame(frame, PageTag::Modified);
+            }
+            PageState::Immutable(frame) => {
+                self.set_frame(frame, PageTag::Immutable);
             }
         }
     }
@@ -408,6 +422,8 @@ enum PageTag {
     Shared = 2,
     /// One fork shared page may have private bytes outside the backing frame.
     Modified = 3,
+    /// One page is read only until released and shares its backing frame across forks.
+    Immutable = 4,
 }
 
 impl PageTag {
@@ -423,6 +439,7 @@ impl PageTag {
             1 => Self::Owned,
             2 => Self::Shared,
             3 => Self::Modified,
+            4 => Self::Immutable,
             _ => unreachable!("invalid page tag"),
         }
     }

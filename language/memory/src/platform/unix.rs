@@ -268,8 +268,8 @@ pub(crate) fn map_page_writable(
     )
 }
 
-/// Map one page frame range as copy on write memory.
-pub(crate) fn map_frame_range_cow(
+/// Map one page frame range as read only memory.
+pub(crate) fn map_frame_range_readonly(
     base: *mut u8,
     first_page: usize,
     page_size_bytes: usize,
@@ -289,8 +289,8 @@ pub(crate) fn map_frame_range_cow(
     )
 }
 
-/// Remap one writable page frame range as copy on write memory.
-pub(crate) fn remap_frame_range_cow(
+/// Remap one writable page frame range as read only memory.
+pub(crate) fn remap_frame_range_readonly(
     base: *mut u8,
     first_page: usize,
     page_size_bytes: usize,
@@ -298,7 +298,7 @@ pub(crate) fn remap_frame_range_cow(
     allocator: &PageFrameAllocator,
     frame: PageFrame,
 ) -> MemoryResult<()> {
-    map_frame_range_cow(
+    map_frame_range_readonly(
         base,
         first_page,
         page_size_bytes,
