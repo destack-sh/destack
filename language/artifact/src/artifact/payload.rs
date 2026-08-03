@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_core::SectionStorage;
-use destack_program::Program;
+use destack_program::{Object, Program};
 use destack_serde::Reflect;
 use destack_source::ContentId;
 
@@ -10,7 +10,7 @@ use crate::{
     Bundle, Data, DirBound, DirChecked, DirDeclared, DirExpanded, DirExported, DirImported,
     DirMaterialized, DirParsed, DirResolved, EnvironmentBound, EnvironmentDeclared, MirAnalyzed,
     MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleGraph, ModuleIndex, ModuleLinted,
-    Object, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
+    Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 use serde::{Deserialize, Serialize};
 

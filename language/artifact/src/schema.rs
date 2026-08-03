@@ -1,3 +1,4 @@
+use destack_program::Object;
 use destack_serde::SchemaRegistry;
 
 use crate::{
@@ -7,7 +8,7 @@ use crate::{
     DirDeclared, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
     EnvironmentBound, EnvironmentDeclared, Host, LanguageEnvironment, LanguageIntrinsics,
     MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleEdges, ModuleGraph,
-    ModuleIndex, ModuleLinted, Object, Output, Platform, Product, ProductTarget, ProgramAnalysis,
+    ModuleIndex, ModuleLinted, Output, Platform, Product, ProductTarget, ProgramAnalysis,
     ProgramIndex, ProgramLinted, Runtime, Script, SourceMap,
 };
 

@@ -8,9 +8,9 @@ use destack_artifact::{
     DirChecked, DirDeclared, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed,
     DirResolved, EnvironmentBound, EnvironmentDeclared, IndexKind, InherentExtension, MirAnalyzed,
     MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleGraph, ModuleIndex, ModuleLinted,
-    Object, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
+    Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
-use destack_program::Program;
+use destack_program::{Object, Program};
 use destack_source::{ModuleId, PackageId, ProductId, ProfileId, TargetId};
 
 use crate::provider::{ProviderContext, ProviderError};

@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use dashmap::DashMap;
 use dashmap::mapref::entry::Entry;
 use destack_core::StringPool;
-use destack_program::Program;
+use destack_program::{Object, Program};
 use destack_source::ContentId;
 
 use crate::DiagnosticRecord;
@@ -24,8 +24,8 @@ use crate::{
     ArtifactVersion, Asset, Build, Bundle, Data, DirBound, DirChecked, DirDeclared, DirExpanded,
     DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, EnvironmentBound,
     EnvironmentDeclared, MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified,
-    ModuleGraph, ModuleIndex, ModuleLinted, Object, Product, ProgramAnalysis, ProgramIndex,
-    ProgramLinted, Script,
+    ModuleGraph, ModuleIndex, ModuleLinted, Product, ProgramAnalysis, ProgramIndex, ProgramLinted,
+    Script,
 };
 
 macro_rules! artifact_getter {

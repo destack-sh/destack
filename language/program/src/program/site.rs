@@ -476,8 +476,8 @@ pub struct MemorySite {
     pub point: ProgramPoint,
     /// The memory operation performed at the site.
     pub access: MemoryAccess,
-    /// The storage addressed by the operation.
-    pub storage: Storage,
+    /// The addressed relative storage, or none for an absolute pointer.
+    pub storage: Optional<Storage>,
     /// The loaded or stored value type.
     pub value_type: TypeId,
 }
