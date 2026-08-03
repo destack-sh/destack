@@ -16,10 +16,11 @@ impl Formatter<'_, '_, '_> {
             }
             dir::TypeOperation::Conditional(conditional) => self.conditional(*conditional),
             dir::TypeOperation::Narrow(narrow) => {
-                // FUGU #Incomplete: finish narrow operations before checked DIR formatting
-                Err(QueryError::invalid(format!(
-                    "narrow operation formatting: {narrow:?}"
-                )))
+                let source = self.global_type(narrow.source)?;
+                let target = self.global_type(narrow.target)?;
+                let operator = if narrow.is_positive { "is" } else { "is not" };
+
+                Ok(format!("{source} {operator} {target}"))
             }
             dir::TypeOperation::Mapped(mapped) => self.mapped(*mapped),
             dir::TypeOperation::Index(index) => {
@@ -50,16 +51,14 @@ impl Formatter<'_, '_, '_> {
                 Ok(format!("Awaited<{target}>"))
             }
             dir::TypeOperation::TryOutput { value } => {
-                // FUGU #Incomplete: finish try outputs before checked DIR formatting
-                Err(QueryError::invalid(format!(
-                    "try output formatting: {value:?}"
-                )))
+                let value = self.global_type(*value)?;
+
+                Ok(format!("TryOutput<{value}>"))
             }
             dir::TypeOperation::TryResidual { value } => {
-                // FUGU #Incomplete: finish try residuals before checked DIR formatting
-                Err(QueryError::invalid(format!(
-                    "try residual formatting: {value:?}"
-                )))
+                let value = self.global_type(*value)?;
+
+                Ok(format!("TryResidual<{value}>"))
             }
             dir::TypeOperation::StaticBinary(binary) => self.static_binary(*binary),
             dir::TypeOperation::StaticUnary(unary) => self.static_unary(*unary),

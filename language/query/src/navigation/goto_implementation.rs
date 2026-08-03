@@ -5,8 +5,8 @@ use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ModuleQueryContext, NavigationTarget, ProgramQueryContext, QueryError, QueryPosition,
-    QueryRange, QueryResult, sort_and_dedup_navigation_targets,
+    ModuleQueryContext, NavigationTarget, ProgramQueryContext, QueryPosition, QueryRange,
+    QueryResult, sort_and_dedup_navigation_targets,
 };
 
 /// Request goto implementation at a cursor position.
@@ -25,9 +25,6 @@ pub struct GotoImplementationResponse {
 
 impl ModuleQueryContext<'_> {
     /// Find implementations of the symbol at the given position.
-    ///
-    /// Interfaces return implementing classes.
-    /// Classes return subclasses.
     pub fn goto_implementation(
         &self,
         program: &ProgramQueryContext<'_>,
@@ -50,16 +47,26 @@ impl ModuleQueryContext<'_> {
                 let symbols = target_module.symbols();
                 let symbol = symbols.get_symbol(canonical_id.local_id);
 
-                // FUGU #Incomplete: retain member implementation relations in DIR
-                if symbol.declaration.is_some_and(|declaration| {
+                // navigate interface members to their implementing declarations
+                if let Some(declaration) = symbol.declaration.filter(|declaration| {
                     matches!(
                         declaration.local_id.ty,
                         dir::NodeType::Member | dir::NodeType::TypeMember
                     )
                 }) {
-                    return Err(QueryError::missing(format!(
-                        "member implementation relations: {canonical_id:?}"
-                    )));
+                    let Some(owner) = symbols.symbol_owner(canonical_id.local_id) else {
+                        continue;
+                    };
+                    let owner = owner.into_global(canonical_id.module_id);
+                    self.collect_member_implementations(
+                        program,
+                        origin,
+                        owner,
+                        declaration,
+                        &mut targets,
+                    )?;
+
+                    continue;
                 }
 
                 let heritage_kind = match symbol.kind {
@@ -85,5 +92,26 @@ impl ModuleQueryContext<'_> {
         sort_and_dedup_navigation_targets(&mut targets);
 
         Ok(targets)
+    }
+
+    /// Collect declarations implementing one interface member requirement.
+    fn collect_member_implementations(
+        &self,
+        program: &ProgramQueryContext<'_>,
+        origin: QueryRange,
+        owner: dir::GlobalSymbolId,
+        requirement: dir::GlobalNodeIdAny,
+        targets: &mut Vec<NavigationTarget>,
+    ) -> QueryResult<()> {
+        // build a navigation target for each implementing declaration
+        let mut symbols = Vec::new();
+        self.member_implementation_symbols(program, owner, requirement, &mut symbols)?;
+        for symbol in symbols {
+            let declaration_module = program.module(symbol.module_id)?;
+            let target = declaration_module.navigation_target(symbol, origin)?;
+            targets.push(target);
+        }
+
+        Ok(())
     }
 }

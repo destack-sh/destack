@@ -1,9 +1,13 @@
 use destack_dir as dir;
 use destack_source::{EnclosingSpan, FileId, Span};
 
-use crate::{ModuleQueryContext, QueryError, QueryResult};
+use crate::{
+    CompletionCandidate, CompletionItemKind, CompletionOrigin, ModuleQueryContext, QueryError,
+    QueryResult, SORT_BUILTIN,
+};
 
 use super::CompletionContext;
+use super::builder::CompletionBuilder;
 
 /// One generated call completion insertion.
 pub(super) struct CallSnippet {
@@ -225,6 +229,7 @@ impl ModuleQueryContext<'_> {
         let expected_type = self.call_argument_type(view, call.id, call.arguments, offset)?;
 
         Ok(Some(CompletionContext::CallArgument {
+            call: call.id,
             scope,
             expected_type,
         }))
@@ -256,6 +261,7 @@ impl ModuleQueryContext<'_> {
             };
 
             return Ok(Some(CompletionContext::CallArgument {
+                call: call.id,
                 scope,
                 expected_type: None,
             }));
@@ -363,5 +369,60 @@ impl ModuleQueryContext<'_> {
         }
 
         Ok(offset > left_span.end && offset <= call_span.end)
+    }
+}
+
+impl CompletionBuilder<'_, '_, '_> {
+    /// Complete the callee's parameter names not yet bound at one call.
+    pub(super) fn complete_unbound_parameters(
+        &self,
+        call: dir::LocalNodeId<dir::Expression>,
+    ) -> QueryResult<Vec<CompletionCandidate>> {
+        let mut results = Vec::new();
+
+        // read the checked selection when the call already resolved
+        let node = call.into_global_any(self.module.module_id());
+        let Some(resolution) = self.module.resolutions().call_resolution(node) else {
+            return Ok(results);
+        };
+        let Some(selected) = resolution.iter().next() else {
+            return Ok(results);
+        };
+
+        // read the selected callable's authored parameter names
+        let names = match selected.target.symbol() {
+            Some(symbol) => self
+                .program
+                .symbol_parameter_names(symbol)?
+                .map(|names| names.into_iter().map(Some).collect::<Vec<_>>()),
+            None => match &selected.target {
+                dir::CallTarget::Dynamic {
+                    function:
+                        dir::DynamicFunction::CallSignature(source)
+                        | dir::DynamicFunction::IndexRead(source)
+                        | dir::DynamicFunction::IndexWrite(source)
+                        | dir::DynamicFunction::ConstructSignature(source),
+                    ..
+                } => self.program.node_parameter_names(*source)?,
+                _ => None,
+            },
+        };
+        let Some(names) = names else {
+            return Ok(results);
+        };
+
+        // offer each parameter past the bound argument prefix
+        let bound = selected.arguments.len();
+        for name in names.into_iter().skip(bound).flatten() {
+            let completion = CompletionCandidate::new(
+                name,
+                CompletionItemKind::ValueParameter,
+                CompletionOrigin::Local,
+                SORT_BUILTIN,
+            );
+            results.push(completion);
+        }
+
+        Ok(results)
     }
 }

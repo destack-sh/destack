@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, btree_map};
 use destack_dir as dir;
 use destack_serde::Reflect;
 use destack_source::{FileId, FilePatch, Patch, PatchSet, Span};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
 use crate::source::is_simple_identifier;
@@ -45,7 +45,7 @@ impl ModuleQueryContext<'_> {
         let Some(selection) = self.resolve_rename_target(program, file_id, offset)? else {
             return Ok(None);
         };
-        selection.require_rename_group(program)?;
+        let symbols = selection.expand_rename_symbols(program)?;
 
         // reject no-op names
         if selection.placeholder == new_name {
@@ -55,10 +55,10 @@ impl ModuleQueryContext<'_> {
         // collect the complete indexed occurrence set
         let occurrences = self.collect_symbol_rename_occurrences(
             program,
-            &selection.symbols,
+            &symbols,
             selection.is_local_declaration,
         )?;
-        let role = RenameRole::resolve(program, &selection.symbols)?;
+        let role = RenameRole::resolve(program, &symbols)?;
 
         let edits = selection.edits(program, &occurrences, new_name, role)?;
 
@@ -79,44 +79,37 @@ pub(crate) struct RenameSelection {
 }
 
 impl RenameSelection {
-    /// Require every declaration that must participate in this rename.
-    fn require_rename_group(&self, program: &ProgramQueryContext<'_>) -> QueryResult<()> {
-        // FUGU #Incomplete: retain declaration and member rename groups in DIR
-        if self.symbols.len() > 1 {
-            return Err(QueryError::missing(format!(
-                "rename declaration group: {:?}",
-                self.symbols
-            )));
-        }
+    /// Expand the selection to every declaration renamed together with it.
+    fn expand_rename_symbols(
+        &self,
+        program: &ProgramQueryContext<'_>,
+    ) -> QueryResult<Vec<dir::GlobalSymbolId>> {
+        let mut worklist = self.symbols.clone();
+        let mut expanded = Vec::new();
+        let mut seen = FxHashSet::default();
 
-        // reject declarations whose related declarations are not retained
-        for symbol_id in &self.symbols {
+        while let Some(symbol_id) = worklist.pop() {
+            if !seen.insert(symbol_id) {
+                continue;
+            }
+            expanded.push(symbol_id);
             let module = program.module(symbol_id.module_id)?;
             let symbol = module.symbols().get_symbol(symbol_id.local_id);
-            if symbol.kind == dir::SymbolKind::Function {
-                return Err(QueryError::missing(format!(
-                    "function rename group: {symbol_id:?}"
-                )));
-            }
-
             let Some(declaration) = symbol.declaration else {
-                return Err(QueryError::missing(format!(
-                    "rename declaration: {:?}",
-                    *symbol_id
-                )));
+                continue;
             };
 
+            // rename members with their same-key siblings and implementations
             if matches!(
                 declaration.local_id.ty,
                 dir::NodeType::Member | dir::NodeType::TypeMember
             ) {
-                return Err(QueryError::missing(format!(
-                    "member rename group: {symbol_id:?}"
-                )));
+                worklist.extend(module.member_rename_siblings(program, symbol_id)?);
             }
         }
+        expanded.sort();
 
-        Ok(())
+        Ok(expanded)
     }
 
     /// Build exact file edits from indexed occurrences.
@@ -424,13 +417,6 @@ impl ModuleQueryContext<'_> {
                 for reference in program.symbol_program_references(*symbol)? {
                     let entry = reference.entry;
 
-                    // FUGU #Incomplete: retain dependency selector chains in DIR
-                    if entry.source.local_id.ty == dir::NodeType::DependencyItem {
-                        return Err(QueryError::missing(format!(
-                            "rename dependency selector chain: {:?}",
-                            entry.source
-                        )));
-                    }
                     if entry.is_import_alias {
                         continue;
                     }

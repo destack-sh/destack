@@ -75,18 +75,26 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
                 self.complete_values(*scope, matches!(trigger, CompletionTrigger::Invoked))?
             }
             CompletionContext::ObjectLiteralKey {
+                literal,
                 existing_fields,
                 scope,
             } => {
-                // FUGU #Incomplete: complete missing fields from the checked expected type
-                self.complete_object_literal_shorthands(existing_fields, *scope)?
+                // offer the expected type's missing fields before shorthands
+                let mut candidates = self.complete_expected_fields(*literal, existing_fields)?;
+                candidates
+                    .extend(self.complete_object_literal_shorthands(existing_fields, *scope)?);
+
+                candidates
             }
             CompletionContext::ObjectLiteralValue { scope } => {
                 self.complete_values(*scope, false)?
             }
-            CompletionContext::CallArgument { scope, .. } => {
-                // FUGU #Incomplete: complete unused named parameters from checked bindings
-                self.complete_values(*scope, false)?
+            CompletionContext::CallArgument { call, scope, .. } => {
+                // offer the callee's unbound parameter names before values
+                let mut candidates = self.complete_unbound_parameters(*call)?;
+                candidates.extend(self.complete_values(*scope, false)?);
+
+                candidates
             }
             CompletionContext::NewExpression { scope } => self.complete_new_expression(*scope)?,
             CompletionContext::ImportPath { partial_path } => {

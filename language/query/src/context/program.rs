@@ -1,7 +1,8 @@
 use std::sync::{Arc, OnceLock};
 
 use destack_artifact::{
-    ArtifactKey, GlobalEnvironment, IndexKind, ModuleIndex, PackageNode, ProgramIndex,
+    ArtifactKey, EnvironmentBound, EnvironmentDeclared, IndexKind, ModuleIndex, PackageNode,
+    ProgramIndex,
 };
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProviderError, Repository, RepositoryError, Revision};
@@ -28,7 +29,9 @@ pub struct ProgramQueryContext<'a> {
     /// Lazily built package import-resolution nodes.
     package_nodes: Mutex<FxHashMap<PackageId, Arc<PackageNode>>>,
     /// Lazily read compiler language and global bindings.
-    global_environment: OnceLock<Result<Arc<GlobalEnvironment>, ProviderError>>,
+    environment_bound: OnceLock<Result<Arc<EnvironmentBound>, ProviderError>>,
+    /// Lazily read declared implicit environment indexes.
+    environment_declared: OnceLock<Result<Arc<EnvironmentDeclared>, ProviderError>>,
     /// Lazily read program indexes by family.
     program_indexes: [OnceLock<Result<Arc<ProgramIndex>, ProviderError>>; IndexKind::ALL.len()],
     /// Lazily read module indexes by module and family.
@@ -138,6 +141,49 @@ impl<'a> ProgramQueryContext<'a> {
         read(&type_value, &module)
     }
 
+    /// Return the named fields declared by one expected type.
+    pub(crate) fn type_field_names(
+        &self,
+        type_id: dir::GlobalTypeId,
+    ) -> QueryResult<Vec<(String, Option<dir::GlobalSymbolId>)>> {
+        self.read_type(type_id, |ty, module| {
+            let mut fields = Vec::new();
+            match ty {
+                // list declared field members for nominal expectations
+                dir::Type::Application(instance) => {
+                    let declaring = self.module(instance.symbol.module_id)?;
+                    let Some(definition) = declaring.definitions().definition(instance.symbol)
+                    else {
+                        return Ok(fields);
+                    };
+
+                    for member in definition.members() {
+                        let dir::DefinitionMember::Field(field) = member else {
+                            continue;
+                        };
+                        let Some(name) = member.name(declaring.strings()) else {
+                            continue;
+                        };
+                        fields.push((name, Some(field.symbol)));
+                    }
+                }
+                // list shape properties for structural expectations
+                dir::Type::Shape(shape) => {
+                    for property in module.types().properties(shape.properties) {
+                        let dir::StaticKey::Name(name) = property.key else {
+                            continue;
+                        };
+                        let name = module.strings().get(name).to_string();
+                        fields.push((name, None));
+                    }
+                }
+                _ => {}
+            }
+
+            Ok(fields)
+        })
+    }
+
     /// Return whether one module belongs to authored workspace source.
     pub(crate) fn is_authored_module(&self, module_id: ModuleId) -> QueryResult<bool> {
         let package_id = module_id.package_id;
@@ -208,13 +254,29 @@ impl<'a> ProgramQueryContext<'a> {
     }
 
     /// Return the compiler language and global bindings for this program.
-    pub(crate) fn global_environment(&self) -> QueryResult<&GlobalEnvironment> {
-        let artifact = ArtifactKey::global_environment(self.profile_id());
+    pub(crate) fn environment_bound(&self) -> QueryResult<&EnvironmentBound> {
+        let artifact = ArtifactKey::environment_bound(self.profile_id());
         (self.require_artifacts)(&[artifact])?;
-        let environment = self.global_environment.get_or_init(|| {
+        let environment = self.environment_bound.get_or_init(|| {
             let artifacts = ArtifactReader::new(self.repository(), self.revision());
 
-            artifacts.global_environment(self.profile_id())
+            artifacts.environment_bound(self.profile_id())
+        });
+
+        match environment {
+            Ok(environment) => Ok(environment.as_ref()),
+            Err(error) => Err(QueryError::from(error.clone())),
+        }
+    }
+
+    /// Return the declared implicit environment indexes for this program.
+    pub(crate) fn environment_declared(&self) -> QueryResult<&EnvironmentDeclared> {
+        let artifact = ArtifactKey::environment_declared(self.profile_id());
+        (self.require_artifacts)(&[artifact])?;
+        let environment = self.environment_declared.get_or_init(|| {
+            let artifacts = ArtifactReader::new(self.repository(), self.revision());
+
+            artifacts.environment_declared(self.profile_id())
         });
 
         match environment {
@@ -398,7 +460,8 @@ impl<'a> ProgramQueryContext<'a> {
             modules: Mutex::new(FxHashMap::default()),
             require_artifacts,
             package_nodes: Mutex::new(FxHashMap::default()),
-            global_environment: OnceLock::new(),
+            environment_bound: OnceLock::new(),
+            environment_declared: OnceLock::new(),
             program_indexes: std::array::from_fn(|_| OnceLock::new()),
             module_indexes: OnceLock::new(),
         })

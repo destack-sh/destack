@@ -13,6 +13,18 @@ use tower::{Service, ServiceExt};
 
 use crate::DestackLanguageServer;
 
+/// The single-target workspace manifest test fixtures share.
+pub(super) const MANIFEST: &str = r#"{
+  "name": "lsp-fixture",
+  "targets": {
+    "default": {
+      "include": ["src/**/*.ds"]
+    }
+  },
+  "defaultTarget": "default"
+}
+"#;
+
 /// Maximum time to wait for one server initiated message.
 const CLIENT_MESSAGE_TIMEOUT: Duration = Duration::from_secs(15);
 
@@ -102,6 +114,48 @@ impl TestServer {
     pub(super) async fn initialized(&mut self) {
         self.notify::<lsp::notification::Initialized>(lsp::InitializedParams {})
             .await;
+    }
+
+    /// Open one single-target workspace and its entry document.
+    ///
+    /// Writes the default manifest and every source file, initializes the
+    /// server, opens the entry, and asserts it publishes no diagnostics.
+    pub(super) async fn open_workspace(
+        name: &str,
+        files: &[(&str, &str)],
+        entry: &str,
+    ) -> (Self, TestDocument) {
+        let mut server = Self::new(name);
+        server.write("destack.json", MANIFEST);
+
+        // write every source and remember the entry document
+        let mut opened = None;
+        for (path, source) in files {
+            let document = server.write(path, source);
+            if path == &entry {
+                opened = Some((document, *source));
+            }
+        }
+        let (document, source) = opened.expect("workspace entry should be written");
+
+        // initialize and open the entry without diagnostics
+        server
+            .initialize(lsp::ClientCapabilities::default(), None)
+            .await
+            .unwrap();
+        server.initialized().await;
+        server.open(&document, 1, source).await;
+        server
+            .assert_notification::<lsp::notification::PublishDiagnostics>(
+                lsp::PublishDiagnosticsParams {
+                    uri: document.uri().clone(),
+                    diagnostics: Vec::new(),
+                    version: Some(1),
+                },
+            )
+            .await;
+
+        (server, document)
     }
 
     /// Open one editor document.
@@ -363,21 +417,43 @@ impl TestDocument {
         }
     }
 
+    /// Build goto implementation parameters for this document.
+    pub(super) fn implementations(
+        &self,
+        position: lsp::Position,
+    ) -> lsp::request::GotoImplementationParams {
+        lsp::request::GotoImplementationParams {
+            text_document_position_params: self.position(position),
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+            partial_result_params: lsp::PartialResultParams::default(),
+        }
+    }
+
+    /// Build completion parameters for this document.
+    pub(super) fn completion(&self, position: lsp::Position) -> lsp::CompletionParams {
+        lsp::CompletionParams {
+            text_document_position: self.position(position),
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+            partial_result_params: lsp::PartialResultParams::default(),
+            context: None,
+        }
+    }
+
+    /// Build rename parameters for this document.
+    pub(super) fn rename(&self, position: lsp::Position, new_name: &str) -> lsp::RenameParams {
+        lsp::RenameParams {
+            text_document_position: self.position(position),
+            new_name: new_name.to_string(),
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+        }
+    }
+
     /// Build semantic token parameters for this document.
     pub(super) fn semantic_tokens(&self) -> lsp::SemanticTokensParams {
         lsp::SemanticTokensParams {
             text_document: self.identifier(),
             work_done_progress_params: lsp::WorkDoneProgressParams::default(),
             partial_result_params: lsp::PartialResultParams::default(),
-        }
-    }
-
-    /// Build inlay hint parameters for one line range of this document.
-    pub(super) fn inlay_hints(&self, end_line: u32) -> lsp::InlayHintParams {
-        lsp::InlayHintParams {
-            text_document: self.identifier(),
-            range: lsp::Range::new(lsp::Position::new(0, 0), lsp::Position::new(end_line, 0)),
-            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
         }
     }
 

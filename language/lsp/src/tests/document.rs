@@ -1,6 +1,6 @@
 use destack_lsp_types as lsp;
 
-use super::tests::{TestServer, markdown, position, range};
+use super::tests::{MANIFEST, TestServer, markdown, position, range};
 
 /// Function index in the advertised semantic token legend.
 const FUNCTION_TOKEN: u32 = 11;
@@ -14,16 +14,6 @@ const DEPRECATED_MODIFIER: u32 = 1 << 3;
 /// Return semantic tokens that follow an imported declaration.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_return_imported_semantic_tokens() {
-    let manifest = r#"{
-  "name": "lsp-fixture",
-  "targets": {
-    "default": {
-      "include": ["src/**/*.ds"]
-    }
-  },
-  "defaultTarget": "default"
-}
-"#;
     let dependency = r#"@deprecated
 export function oldFunction(): void {}
 "#;
@@ -32,27 +22,12 @@ export function useOld(): void {
     oldFunction();
 }
 "#;
-    let mut server = TestServer::new("imported-semantic-tokens");
-    server.write("destack.json", manifest);
-    server.write("src/library.ds", dependency);
-    let document = server.write("src/main.ds", source);
-    server
-        .initialize(lsp::ClientCapabilities::default(), None)
-        .await
-        .unwrap();
-    server.initialized().await;
-
-    // classify the import and call from their exported declaration
-    server.open(&document, 1, source).await;
-    server
-        .assert_notification::<lsp::notification::PublishDiagnostics>(
-            lsp::PublishDiagnosticsParams {
-                uri: document.uri().clone(),
-                diagnostics: Vec::new(),
-                version: Some(1),
-            },
-        )
-        .await;
+    let (mut server, document) = TestServer::open_workspace(
+        "imported-semantic-tokens",
+        &[("src/library.ds", dependency), ("src/main.ds", source)],
+        "src/main.ds",
+    )
+    .await;
     let params = document.semantic_tokens();
     let expected = Some(lsp::SemanticTokensResult::Tokens(lsp::SemanticTokens {
         result_id: None,
@@ -88,40 +63,16 @@ export function useOld(): void {
 /// Classify parameter uses from their parameter symbol kind.
 #[tokio::test]
 async fn test_classify_parameter_uses_as_parameter_tokens() {
-    let manifest = r#"{
-  "name": "lsp-fixture",
-  "targets": {
-    "default": {
-      "include": ["src/**/*.ds"]
-    }
-  },
-  "defaultTarget": "default"
-}
-"#;
     let source = r#"export function double(value: int32): int32 {
     return value + value;
 }
 "#;
-    let mut server = TestServer::new("parameter-semantic-tokens");
-    server.write("destack.json", manifest);
-    let document = server.write("src/main.ds", source);
-    server
-        .initialize(lsp::ClientCapabilities::default(), None)
-        .await
-        .unwrap();
-    server.initialized().await;
-
-    // classify the declaration and both body uses as parameter tokens
-    server.open(&document, 1, source).await;
-    server
-        .assert_notification::<lsp::notification::PublishDiagnostics>(
-            lsp::PublishDiagnosticsParams {
-                uri: document.uri().clone(),
-                diagnostics: Vec::new(),
-                version: Some(1),
-            },
-        )
-        .await;
+    let (mut server, document) = TestServer::open_workspace(
+        "parameter-semantic-tokens",
+        &[("src/main.ds", source)],
+        "src/main.ds",
+    )
+    .await;
     let params = document.semantic_tokens();
     let expected = Some(lsp::SemanticTokensResult::Tokens(lsp::SemanticTokens {
         result_id: None,
@@ -161,23 +112,340 @@ async fn test_classify_parameter_uses_as_parameter_tokens() {
         .await;
 }
 
+/// Navigate an interface method to its implementing declarations.
+#[tokio::test]
+async fn test_navigate_an_interface_method_to_its_implementations() {
+    let source = r#"interface Greeter {
+    greet(): string;
+}
+
+class Robot {
+    greet(): string {
+        return "beep";
+    }
+}
+
+extension of Robot implements Greeter {}
+"#;
+    let (mut server, document) = TestServer::open_workspace(
+        "member-implementations",
+        &[("src/main.ds", source)],
+        "src/main.ds",
+    )
+    .await;
+    let params = document.implementations(position(1, 4));
+    let expected = Some(lsp::request::GotoImplementationResponse::Link(vec![
+        lsp::LocationLink {
+            origin_selection_range: Some(lsp::Range::new(
+                lsp::Position::new(1, 4),
+                lsp::Position::new(1, 9),
+            )),
+            target_uri: document.uri().clone(),
+            target_range: lsp::Range::new(lsp::Position::new(5, 4), lsp::Position::new(7, 5)),
+            target_selection_range: lsp::Range::new(
+                lsp::Position::new(5, 4),
+                lsp::Position::new(5, 9),
+            ),
+        },
+    ]));
+    server
+        .assert_request::<lsp::request::GotoImplementation>(params, Ok(expected))
+        .await;
+}
+
+/// Complete the expected type's missing fields inside an object literal.
+#[tokio::test]
+async fn test_complete_expected_fields_in_an_object_literal() {
+    let source = r#"struct Point {
+    x: int32;
+    y: int32;
+}
+
+const origin: Point = { x: 0,  };
+"#;
+    let mut server = TestServer::new("expected-field-completion");
+    server.write("destack.json", MANIFEST);
+    let document = server.write("src/main.ds", source);
+    server
+        .initialize(lsp::ClientCapabilities::default(), None)
+        .await
+        .unwrap();
+    server.initialized().await;
+    server.open(&document, 1, source).await;
+
+    // accept the missing-property diagnostic of the incomplete literal
+    let diagnostics = server
+        .receive_notification::<lsp::notification::PublishDiagnostics>()
+        .await;
+    let codes: Vec<String> = diagnostics
+        .diagnostics
+        .iter()
+        .filter_map(|diagnostic| match &diagnostic.code {
+            Some(lsp::NumberOrString::String(code)) => Some(code.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(codes, ["missing-required-property"]);
+
+    // offer the missing y field at the free key position
+    let params = document.completion(position(5, 29));
+    let response = server
+        .request::<lsp::request::Completion>(params)
+        .await
+        .unwrap();
+    let labels: Vec<String> = match response {
+        Some(lsp::CompletionResponse::Array(items)) => {
+            items.into_iter().map(|item| item.label).collect()
+        }
+        Some(lsp::CompletionResponse::List(list)) => {
+            list.items.into_iter().map(|item| item.label).collect()
+        }
+        None => Vec::new(),
+    };
+    assert_eq!(labels, ["y", "origin", "Point"]);
+}
+
+/// Rename an interface method together with its implementing declaration.
+#[tokio::test]
+async fn test_rename_an_interface_method_with_its_implementation() {
+    let source = r#"interface Greeter {
+    greet(): string;
+}
+
+class Robot {
+    greet(): string {
+        return "beep";
+    }
+}
+
+extension of Robot implements Greeter {}
+
+declare const robot: Robot;
+const sound = robot.greet();
+"#;
+    let (mut server, document) = TestServer::open_workspace(
+        "member-union-rename",
+        &[("src/main.ds", source)],
+        "src/main.ds",
+    )
+    .await;
+
+    // rename the interface requirement and collect every edited span
+    let params = document.rename(position(1, 4), "announce");
+    let response = server
+        .request::<lsp::request::Rename>(params)
+        .await
+        .unwrap();
+    let Some(edit) = response else {
+        panic!("rename produced no edit");
+    };
+    let mut starts: Vec<(u32, u32)> = edit
+        .changes
+        .into_iter()
+        .flat_map(|changes| changes.into_values().flatten())
+        .map(|edit| (edit.range.start.line, edit.range.start.character))
+        .collect();
+    starts.sort_unstable();
+
+    // expect the requirement, the implementing method, and the call to rename
+    assert_eq!(starts, [(1, 4), (5, 4), (13, 20)]);
+}
+
+/// Rename an export through its import selector chain.
+#[tokio::test]
+async fn test_rename_an_export_through_its_import_selector() {
+    let library = r#"export const answer: int32 = 42;
+"#;
+    let source = r#"import { answer } from "./library.ds";
+
+const doubled = answer + answer;
+"#;
+    let mut server = TestServer::new("selector-chain-rename");
+    server.write("destack.json", MANIFEST);
+    server.write("src/library.ds", library);
+    let document = server.write("src/main.ds", source);
+    server
+        .initialize(lsp::ClientCapabilities::default(), None)
+        .await
+        .unwrap();
+    server.initialized().await;
+    server.open(&document, 1, source).await;
+    server
+        .assert_notification::<lsp::notification::PublishDiagnostics>(
+            lsp::PublishDiagnosticsParams {
+                uri: document.uri().clone(),
+                diagnostics: Vec::new(),
+                version: Some(1),
+            },
+        )
+        .await;
+
+    // rename the declaration from a use site across the selector chain
+    let params = document.rename(position(2, 16), "result");
+    let response = server
+        .request::<lsp::request::Rename>(params)
+        .await
+        .unwrap();
+    let Some(edit) = response else {
+        panic!("rename produced no edit");
+    };
+    let mut edits: Vec<(String, u32, u32)> = edit
+        .changes
+        .into_iter()
+        .flat_map(|changes| changes.into_iter())
+        .flat_map(|(uri, edits)| {
+            let path = uri.path().as_str().to_string();
+            edits.into_iter().map(move |edit| {
+                (
+                    path.clone(),
+                    edit.range.start.line,
+                    edit.range.start.character,
+                )
+            })
+        })
+        .collect();
+    edits.sort();
+
+    // expect the declaration, the import selector, and both uses to rename
+    let files: Vec<&str> = edits
+        .iter()
+        .map(|(path, _, _)| path.rsplit('/').next().unwrap())
+        .collect();
+    assert_eq!(files, ["library.ds", "main.ds", "main.ds", "main.ds"]);
+}
+
+/// Complete a receiver's own, extension, and inherited members after a dot.
+#[tokio::test]
+async fn test_complete_apparent_members_after_a_dot() {
+    let source = r#"class Animal {
+    name: string = "";
+}
+
+class Dog extends Animal {
+    tricks: int32 = 0;
+}
+
+extension of Dog {
+    bark(): string {
+        return "woof";
+    }
+}
+
+declare const dog: Dog;
+const sound = dog.name;
+"#;
+    let (mut server, document) = TestServer::open_workspace(
+        "apparent-member-completion",
+        &[("src/main.ds", source)],
+        "src/main.ds",
+    )
+    .await;
+
+    // offer own members before extension members before inherited members
+    let params = document.completion(position(15, 18));
+    let response = server
+        .request::<lsp::request::Completion>(params)
+        .await
+        .unwrap();
+    let labels: Vec<String> = match response {
+        Some(lsp::CompletionResponse::Array(items)) => {
+            items.into_iter().map(|item| item.label).collect()
+        }
+        Some(lsp::CompletionResponse::List(list)) => {
+            list.items.into_iter().map(|item| item.label).collect()
+        }
+        None => Vec::new(),
+    };
+    assert_eq!(labels, ["tricks", "name", "bark", "borrow"]);
+}
+
+/// Withhold consuming extension members from borrowed receivers.
+#[tokio::test]
+async fn test_withhold_owned_extension_members_from_borrowed_receivers() {
+    let source = r#"class Crate {
+    label: string = "";
+}
+
+extension of ^Crate {
+    consume(): string {
+        return "gone";
+    }
+}
+
+extension of &readonly Crate {
+    peek(): string {
+        return "seen";
+    }
+}
+
+function inspect(crate: &readonly Crate): string {
+    return crate.peek();
+}
+"#;
+    let (mut server, document) = TestServer::open_workspace(
+        "ownership-member-completion",
+        &[("src/main.ds", source)],
+        "src/main.ds",
+    )
+    .await;
+
+    // expect the borrow extension but not the owned one on a borrowed receiver
+    let params = document.completion(position(17, 17));
+    let response = server
+        .request::<lsp::request::Completion>(params)
+        .await
+        .unwrap();
+    let labels: Vec<String> = match response {
+        Some(lsp::CompletionResponse::Array(items)) => {
+            items.into_iter().map(|item| item.label).collect()
+        }
+        Some(lsp::CompletionResponse::List(list)) => {
+            list.items.into_iter().map(|item| item.label).collect()
+        }
+        None => Vec::new(),
+    };
+    assert_eq!(labels, ["label", "peek", "borrow"]);
+}
+
+/// Complete blanket extension members on primitive receivers.
+#[tokio::test]
+async fn test_complete_blanket_extension_members_on_floats() {
+    let source = r#"declare const value: float64;
+const scaled: float64 = value.sqrt();
+"#;
+    let (mut server, document) = TestServer::open_workspace(
+        "blanket-member-completion",
+        &[("src/main.ds", source)],
+        "src/main.ds",
+    )
+    .await;
+
+    // expect the Float blanket members on a float literal
+    let params = document.completion(position(1, 30));
+    let response = server
+        .request::<lsp::request::Completion>(params)
+        .await
+        .unwrap();
+    let labels: Vec<String> = match response {
+        Some(lsp::CompletionResponse::Array(items)) => {
+            items.into_iter().map(|item| item.label).collect()
+        }
+        Some(lsp::CompletionResponse::List(list)) => {
+            list.items.into_iter().map(|item| item.label).collect()
+        }
+        None => Vec::new(),
+    };
+    assert!(labels.contains(&"sqrt".to_string()), "labels: {labels:?}");
+    assert!(labels.contains(&"isNaN".to_string()), "labels: {labels:?}");
+}
+
 /// Return exact target URIs for resolved module links.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_return_resolved_document_links() {
-    let manifest = r#"{
-  "name": "lsp-fixture",
-  "targets": {
-    "default": {
-      "include": ["src/**/*.ds"]
-    }
-  },
-  "defaultTarget": "default"
-}
-"#;
     let source = r#"import { value } from "./library.ds";
 "#;
     let mut server = TestServer::new("resolved-document-links");
-    server.write("destack.json", manifest);
+    server.write("destack.json", MANIFEST);
     let library = server.write("src/library.ds", "export const value = 1;\n");
     let document = server.write("src/main.ds", source);
     server

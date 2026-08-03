@@ -44,10 +44,12 @@ impl<'context, 'index> MemberIndexer<'context, 'index> {
     ) -> ProviderResult<()> {
         // resolve owner metadata shared by each member row
         let owner_symbol = definition.member_owner(declaring_symbol);
-        let origin = if matches!(definition, dir::Definition::Extension(_)) {
-            dir::MemberOrigin::Extension
-        } else {
-            dir::MemberOrigin::Definition
+        let origin = match definition {
+            dir::Definition::Extension(extension) if extension.target.is_blanket() => {
+                dir::MemberOrigin::BlanketExtension
+            }
+            dir::Definition::Extension(_) => dir::MemberOrigin::RootedExtension,
+            _ => dir::MemberOrigin::Declaration,
         };
         let owner_name = self.local_symbol_name(declaring_symbol);
 
@@ -108,10 +110,13 @@ impl<'context, 'index> MemberIndexer<'context, 'index> {
         let selection = self
             .module
             .node_selection_span(self.module.view(), source.local_id);
-        // FUGU #Incomplete: retain static symbol member keys in MemberIndex
-        let name = member.name(self.module.strings()).ok_or_else(|| {
-            ProviderError::internal(format!("definition member has no indexed key: {source:?}"))
-        })?;
+        // index symbol-keyed members under their authored key expression
+        let name = member
+            .name(self.module.strings())
+            .or_else(|| self.member_key_label(source.local_id))
+            .ok_or_else(|| {
+                ProviderError::internal(format!("definition member has no indexed key: {source:?}"))
+            })?;
         let kind = Self::member_kind(member);
         let symbol = member.symbol();
         let type_id = self.member_type(member)?;
@@ -155,6 +160,54 @@ impl<'context, 'index> MemberIndexer<'context, 'index> {
         }
 
         Ok(member.value_type())
+    }
+
+    /// Render one member's computed key expression as its indexed name.
+    fn member_key_label(&self, source: dir::LocalNodeIdAny) -> Option<String> {
+        let view = self.module.view();
+
+        // read the authored key expression from the member node
+        let key = match source.ty {
+            dir::NodeType::Member => {
+                let member_id = dir::LocalNodeId::<dir::Member>::new(source.id);
+
+                *view.get(member_id).key()?
+            }
+            dir::NodeType::TypeMember => {
+                let member_id = dir::LocalNodeId::<dir::TypeMember>::new(source.id);
+
+                *view.get(member_id).key()?
+            }
+            _ => return None,
+        };
+        let dir::Key::Expression(expression) = key else {
+            return None;
+        };
+
+        // join the referenced path into a bracketed label
+        let mut segments = Vec::new();
+        let mut current = expression;
+        loop {
+            match view.get(current) {
+                dir::Expression::Identifier { name } => {
+                    segments.push(self.module.strings().get(*name).to_string());
+
+                    break;
+                }
+                dir::Expression::Member {
+                    left,
+                    name: Some(name),
+                    ..
+                } => {
+                    segments.push(self.module.strings().get(*name).to_string());
+                    current = *left;
+                }
+                _ => return None,
+            }
+        }
+        segments.reverse();
+
+        Some(format!("[{}]", segments.join(".")))
     }
 
     /// Return the index kind for one checked definition member.

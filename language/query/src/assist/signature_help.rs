@@ -168,13 +168,17 @@ impl ModuleQueryContext<'_> {
                     &call.arguments,
                     call.return_type,
                 )?,
-                dir::CallTarget::Dynamic { .. } => {
-                    // FUGU #Incomplete: format exact declaration free call selections
-                    return Err(QueryError::missing(format!(
-                        "dynamic call signature: {:?}",
-                        call.callable_type
-                    )));
-                }
+                dir::CallTarget::Dynamic {
+                    function,
+                    generic_arguments,
+                    ..
+                } => self.signature_node_item(
+                    query,
+                    function,
+                    generic_arguments,
+                    &call.arguments,
+                    call.return_type,
+                )?,
                 dir::CallTarget::Expression { generic_arguments } => self
                     .expression_signature_item(
                         query,
@@ -229,7 +233,7 @@ impl ModuleQueryContext<'_> {
         self.selected_signature_item(
             query,
             &module,
-            symbol_id,
+            Some(symbol_id),
             &name,
             parameters,
             generic_arguments,
@@ -262,12 +266,53 @@ impl ModuleQueryContext<'_> {
         self.call_signature_item(query, *symbol_id, generic_arguments, bindings, return_type)
     }
 
+    /// Format one signature-backed dynamic selection from its declaring node.
+    fn signature_node_item(
+        &self,
+        query: &ProgramQueryContext<'_>,
+        function: &dir::DynamicFunction,
+        generic_arguments: &[dir::GenericArgumentBinding],
+        bindings: &[dir::ArgumentBinding],
+        return_type: dir::GlobalTypeId,
+    ) -> QueryResult<SignatureItem> {
+        // name the slot after its declaring signature family
+        let (node, name) = match function {
+            dir::DynamicFunction::CallSignature(node) => (*node, "call"),
+            dir::DynamicFunction::ConstructSignature(node) => (*node, "new"),
+            dir::DynamicFunction::IndexRead(node) => (*node, "[]"),
+            dir::DynamicFunction::IndexWrite(node) => (*node, "[]="),
+            dir::DynamicFunction::Symbol(symbol) => {
+                return Err(QueryError::invalid(format!(
+                    "declaration-backed dynamic signature: {symbol:?}"
+                )));
+            }
+        };
+        let module = query.module(node.module_id)?;
+        let Some(parameters) = module.node_callable_parameters(node.local_id) else {
+            return Err(QueryError::missing(format!(
+                "dynamic signature parameters: {node:?}"
+            )));
+        };
+        let parameters = parameters.to_vec();
+
+        self.selected_signature_item(
+            query,
+            &module,
+            None,
+            name,
+            &parameters,
+            generic_arguments,
+            bindings,
+            return_type,
+        )
+    }
+
     /// Format one selected declaration signature with applied call types.
     fn selected_signature_item(
         &self,
         query: &ProgramQueryContext<'_>,
         declaration_module: &ModuleQueryContext<'_>,
-        symbol_id: dir::GlobalSymbolId,
+        symbol_id: Option<dir::GlobalSymbolId>,
         name: &str,
         declared_parameters: &[dir::LocalNodeId<dir::Parameter>],
         generic_arguments: &[dir::GenericArgumentBinding],
@@ -320,12 +365,13 @@ impl ModuleQueryContext<'_> {
             dir::ConstructTarget::Class(candidate) => {
                 self.class_signature_item(query, candidate, resolution)?
             }
-            // FUGU #Incomplete: format exact dynamic construct signatures
-            dir::ConstructTarget::Dynamic { .. } => {
-                return Err(QueryError::missing(format!(
-                    "construct signature help: {resolution:?}"
-                )));
-            }
+            dir::ConstructTarget::Dynamic { function, .. } => self.signature_node_item(
+                query,
+                function,
+                &[],
+                &resolution.arguments,
+                resolution.return_type,
+            )?,
             dir::ConstructTarget::Newtype(candidate) => {
                 let Some(name) = query.symbol_name(candidate.symbol)? else {
                     return Err(QueryError::missing(format!(
@@ -338,7 +384,7 @@ impl ModuleQueryContext<'_> {
 
                 self.signature_item(
                     query,
-                    candidate.symbol,
+                    Some(candidate.symbol),
                     &name,
                     &candidate.generic_arguments,
                     &parameter_names,
@@ -378,7 +424,7 @@ impl ModuleQueryContext<'_> {
 
                 self.signature_item(
                     query,
-                    symbol_id,
+                    Some(symbol_id),
                     &name,
                     &candidate.generic_arguments,
                     &parameter_names,
@@ -408,7 +454,7 @@ impl ModuleQueryContext<'_> {
         let Some(constructor_symbol) = candidate.constructor.call_symbol() else {
             return self.signature_item(
                 query,
-                candidate.symbol,
+                Some(candidate.symbol),
                 &name,
                 &candidate.generic_arguments,
                 &[],
@@ -433,7 +479,7 @@ impl ModuleQueryContext<'_> {
         self.selected_signature_item(
             query,
             &module,
-            constructor_symbol,
+            Some(constructor_symbol),
             &name,
             parameters,
             &candidate.generic_arguments,
@@ -446,7 +492,7 @@ impl ModuleQueryContext<'_> {
     fn signature_item(
         &self,
         query: &ProgramQueryContext<'_>,
-        symbol_id: dir::GlobalSymbolId,
+        symbol_id: Option<dir::GlobalSymbolId>,
         name: &str,
         generic_arguments: &[dir::GenericArgumentBinding],
         parameter_names: &[Option<String>],
@@ -478,9 +524,14 @@ impl ModuleQueryContext<'_> {
             })
             .collect();
 
+        let documentation = match symbol_id {
+            Some(symbol_id) => query.symbol_documentation(symbol_id)?,
+            None => None,
+        };
+
         Ok(SignatureItem {
             label,
-            documentation: query.symbol_documentation(symbol_id)?,
+            documentation,
             parameters,
         })
     }

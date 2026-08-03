@@ -165,7 +165,7 @@ impl CallItem {
             dir::SymbolKind::Newtype => {
                 canonical_module.newtype_call_item(query, canonical_id, None)
             }
-            dir::SymbolKind::Variant => canonical_module.variant_call_item(canonical_id),
+            dir::SymbolKind::Variant => canonical_module.variant_call_item(query, canonical_id),
             _ => Ok(None),
         }
     }
@@ -222,7 +222,7 @@ impl CallItem {
 
                 module.newtype_call_item(query, entry.callee, Some(call))
             }
-            dir::ConstructTarget::Variant(_) => module.variant_call_item(entry.callee),
+            dir::ConstructTarget::Variant(_) => module.variant_call_item(query, entry.callee),
             dir::ConstructTarget::Class(_) | dir::ConstructTarget::Dynamic { .. } => {
                 Err(QueryError::invalid("construct call item"))
             }
@@ -257,7 +257,7 @@ impl CallItem {
                         )))?;
                 let module = query.module(canonical_id.module_id)?;
 
-                module.variant_call_item(canonical_id)
+                module.variant_call_item(query, canonical_id)
             }
         }
     }
@@ -599,21 +599,12 @@ impl ModuleQueryContext<'_> {
         // format a selected construction or the one declared constructor
         let detail = match call {
             Some(call) => Some(self.construct_call_signature(query, &name, call)?),
-            None => {
-                if definition.constructors.is_empty() {
-                    // FUGU #Incomplete: populate checked newtype constructor candidates
-                    return Err(QueryError::missing(format!(
-                        "newtype constructor candidates: {symbol_id:?}"
-                    )));
+            None => match definition.constructors.as_slice() {
+                [constructor] => {
+                    Some(Formatter::new(self, query).callable_signature(&name, constructor.ty)?)
                 }
-
-                match definition.constructors.as_slice() {
-                    [constructor] => Some(
-                        Formatter::new(self, query).callable_signature(&name, constructor.ty)?,
-                    ),
-                    _ => None,
-                }
-            }
+                _ => None,
+            },
         };
         let Some(source) = self.definitions().definition_source(symbol_id) else {
             return Err(QueryError::invalid(format!(
@@ -632,7 +623,11 @@ impl ModuleQueryContext<'_> {
     }
 
     /// Build one generated tagged variant constructor item.
-    fn variant_call_item(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<Option<CallItem>> {
+    fn variant_call_item(
+        &self,
+        query: &ProgramQueryContext<'_>,
+        symbol_id: dir::GlobalSymbolId,
+    ) -> QueryResult<Option<CallItem>> {
         let (_, _, member) = self
             .definitions()
             .member(symbol_id)
@@ -642,16 +637,31 @@ impl ModuleQueryContext<'_> {
         if matches!(member, dir::DefinitionMember::EnumVariant(_)) {
             return Ok(None);
         }
-        if !matches!(member, dir::DefinitionMember::TaggedVariant(_)) {
+        let dir::DefinitionMember::TaggedVariant(variant) = member else {
             return Err(QueryError::invalid(format!(
                 "call item symbol: {symbol_id:?}"
             )));
-        }
+        };
 
-        // FUGU #Incomplete: retain tagged variant constructor identity in checked DIR
-        Err(QueryError::missing(format!(
-            "tagged variant constructor: {symbol_id:?}"
-        )))
+        // format the derived constructor from its retained variant row
+        let Some(name) = member.name(self.strings()) else {
+            return Err(QueryError::missing(format!(
+                "tagged variant key: {symbol_id:?}"
+            )));
+        };
+        let detail = match self.types().get_symbol_type_id(variant.symbol) {
+            Some(type_id) => Some(Formatter::new(self, query).callable_signature(&name, type_id)?),
+            None => None,
+        };
+        let target = self.symbol_target(symbol_id)?;
+
+        Ok(Some(CallItem {
+            name,
+            kind: CallItemKind::Constructor,
+            detail,
+            target,
+            symbol_id,
+        }))
     }
 
     /// Format one exact generated constructor call.
@@ -684,7 +694,7 @@ impl ModuleQueryContext<'_> {
         let name = match definition {
             dir::Definition::Extension(extension) => match extension.target {
                 dir::ExtensionTarget::Rooted { root, .. } => query.symbol_name(root),
-                dir::ExtensionTarget::Blanket { ty: type_id } => {
+                dir::ExtensionTarget::Blanket { ty: type_id, .. } => {
                     Ok(Some(Formatter::new(self, query).global_type(type_id)?))
                 }
             },

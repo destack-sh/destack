@@ -181,6 +181,7 @@ impl CompletionScorer<'_> {
     fn origin_order(&self, completion: &CompletionCandidate) -> u8 {
         match completion.origin {
             CompletionOrigin::Contextual => 0,
+            CompletionOrigin::Member => 1,
             CompletionOrigin::Local => 1,
             CompletionOrigin::Builtin => 2,
             CompletionOrigin::AutoImport => 3,

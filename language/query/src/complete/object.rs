@@ -1,8 +1,14 @@
 use destack_dir as dir;
 use destack_source::FileId;
 
+use rustc_hash::FxHashSet;
+
 use super::CompletionContext;
-use crate::{ModuleQueryContext, QueryError, QueryResult};
+use super::builder::CompletionBuilder;
+use crate::{
+    CompletionCandidate, CompletionItemKind, CompletionOrigin, ModuleQueryContext, QueryError,
+    QueryResult, SORT_BUILTIN, SymbolUse,
+};
 
 /// Source spans owned by one object literal.
 struct ObjectLiteralSpans<'a> {
@@ -62,6 +68,7 @@ impl ModuleQueryContext<'_> {
             let existing_fields = self.object_property_names(properties);
 
             return Ok(Some(CompletionContext::ObjectLiteralKey {
+                literal: expression_id,
                 existing_fields,
                 scope,
             }));
@@ -180,5 +187,90 @@ impl ObjectLiteralSpans<'_> {
         }
 
         Ok(false)
+    }
+}
+
+impl CompletionBuilder<'_, '_, '_> {
+    /// Complete the expected object type's missing fields at one literal.
+    pub(super) fn complete_expected_fields(
+        &self,
+        literal: dir::LocalNodeId<dir::Expression>,
+        existing_fields: &[String],
+    ) -> QueryResult<Vec<CompletionCandidate>> {
+        let mut results = Vec::new();
+
+        // read the contextual expectation retained by check
+        let node = literal.into_global_any(self.module.module_id());
+        let types = self.module.types();
+        let Some(expected) = types
+            .get_expected_type_id(node)
+            .or_else(|| types.get_node_type_id(node))
+        else {
+            return Ok(results);
+        };
+
+        // offer each missing field declared by the expected type
+        for (name, symbol) in self.program.type_field_names(expected)? {
+            if existing_fields.contains(&name) {
+                continue;
+            }
+            let completion = CompletionCandidate::new(
+                name,
+                CompletionItemKind::Field,
+                CompletionOrigin::Local,
+                SORT_BUILTIN,
+            );
+            let completion = match symbol {
+                Some(symbol) => self.attach_symbol_completion(completion, symbol)?,
+                None => completion,
+            };
+            results.push(completion);
+        }
+
+        Ok(results)
+    }
+
+    /// Complete visible shorthand values inside an object literal.
+    pub(super) fn complete_object_literal_shorthands(
+        &self,
+        existing_fields: &[String],
+        scope: dir::LocalScope,
+    ) -> QueryResult<Vec<CompletionCandidate>> {
+        let mut results = Vec::new();
+        let mut seen_names = FxHashSet::default();
+
+        // collect visible values that can form shorthand fields
+        let symbols = self.module.symbols();
+        for visible in symbols
+            .visible_bindings(scope)
+            .filter(|binding| SymbolUse::Value.accepts_symbol_kind(binding.symbol.kind))
+        {
+            let dir::StaticKey::Name(name_id) = visible.key else {
+                continue;
+            };
+
+            let name = self.module.strings().get(name_id).to_string();
+            if !seen_names.insert(name.clone()) {
+                continue;
+            }
+
+            if existing_fields.contains(&name) {
+                continue;
+            }
+
+            let symbol_id = dir::GlobalSymbolId {
+                module_id: self.module.module_id(),
+                local_id: visible.symbol_id,
+            };
+            let completion = CompletionCandidate::new(
+                name,
+                CompletionItemKind::Field,
+                CompletionOrigin::Local,
+                SORT_BUILTIN,
+            );
+            results.push(self.attach_symbol_completion(completion, symbol_id)?);
+        }
+
+        Ok(results)
     }
 }

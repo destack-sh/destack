@@ -96,6 +96,16 @@ pub struct Patch {
 }
 
 impl Patch {
+    /// Return the stable order key for this patch.
+    pub fn order_key(&self) -> (u64, u32, u32, &str) {
+        (
+            self.span.file.0,
+            self.span.start,
+            self.span.end,
+            &self.new_text,
+        )
+    }
+
     /// Create a replacement patch.
     pub fn replace(span: Span, new_text: impl Into<String>) -> Self {
         Self {
@@ -214,6 +224,16 @@ pub struct PatchSet {
 }
 
 impl PatchSet {
+    /// Sort patches into stable order and drop empty file entries.
+    pub fn sort(&mut self) {
+        self.files.retain(|file| !file.patches.is_empty());
+        for file in &mut self.files {
+            file.patches
+                .sort_by(|left, right| left.order_key().cmp(&right.order_key()));
+        }
+        self.files.sort_by_key(|file| file.file);
+    }
+
     /// Create an empty PatchSet.
     pub fn new() -> Self {
         Self { files: Vec::new() }

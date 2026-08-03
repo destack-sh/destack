@@ -29,6 +29,8 @@ pub(crate) enum CompletionContext {
     },
     /// Object literal key position.
     ObjectLiteralKey {
+        /// The object literal expression node.
+        literal: dir::LocalNodeId<dir::Expression>,
         /// Field names already present in the literal.
         existing_fields: Vec<String>,
         /// The scope used for visible symbols.
@@ -41,6 +43,8 @@ pub(crate) enum CompletionContext {
     },
     /// Call argument context inside `call(...)`.
     CallArgument {
+        /// The call expression node.
+        call: dir::LocalNodeId<dir::Expression>,
         /// The scope used for visible symbols.
         scope: dir::LocalScope,
         /// The selected parameter type.

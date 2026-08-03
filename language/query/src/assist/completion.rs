@@ -89,6 +89,8 @@ pub(crate) enum CompletionOrigin {
     AutoImport,
     /// A language keyword candidate.
     Keyword,
+    /// A member of the completed receiver.
+    Member,
 }
 
 impl From<dir::SymbolKind> for CompletionItemKind {

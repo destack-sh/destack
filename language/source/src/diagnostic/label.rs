@@ -13,6 +13,15 @@ pub enum DiagnosticTarget {
 }
 
 impl DiagnosticTarget {
+    /// Return whether this target is selected by one requested range.
+    pub fn matches_range(self, range: Span) -> bool {
+        match self {
+            Self::Span(span) if range.is_empty() => span.owns_cursor(range.start),
+            Self::Span(span) => span.intersects(range),
+            Self::File(file) => file == range.file,
+        }
+    }
+
     /// Return the targeted file.
     pub fn file(&self) -> FileId {
         match self {

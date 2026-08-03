@@ -111,7 +111,7 @@ impl ModuleQueryContext<'_> {
                     let Some(item) = primitive.representation_item() else {
                         return Ok((Vec::new(), Vec::new()));
                     };
-                    let symbol = query.global_environment()?.language.symbol(item).ok_or(
+                    let symbol = query.environment_bound()?.language.symbol(item).ok_or(
                         QueryError::missing(format!("primitive language item: {item:?}")),
                     )?;
 

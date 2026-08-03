@@ -127,7 +127,7 @@ impl ModuleQueryContext<'_> {
 
         // preserve evaluation count and order
         if references.len() > 1 {
-            // FUGU #Incomplete: retain expression duplication effects in checked DIR
+            // TODO #Incomplete: inline multi-use bindings once effect summaries prove purity
             return Err(QueryError::missing(format!(
                 "inline expression duplication: {:?}",
                 target.value.into_global_any(self.module_id())

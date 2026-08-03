@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 
+use destack_dir as dir;
 use destack_serde::Reflect;
 use destack_source::{
     Applicability, Diagnostic, DiagnosticReference, DiagnosticTarget, FilePatch, Patch, PatchSet,
@@ -51,7 +52,7 @@ impl CodeAction {
         mut patches: PatchSet,
         applicability: Applicability,
     ) -> Self {
-        sort_action_patches(&mut patches);
+        patches.sort();
 
         Self {
             title: title.into(),
@@ -65,7 +66,7 @@ impl CodeAction {
 
     /// Create a refactoring.
     fn refactor(title: impl Into<String>, kind: CodeActionKind, mut patches: PatchSet) -> Self {
-        sort_action_patches(&mut patches);
+        patches.sort();
 
         Self {
             title: title.into(),
@@ -167,10 +168,10 @@ impl ModuleQueryContext<'_> {
         self.collect_refactor_actions(program, range, context, &mut actions)?;
 
         // sort deterministically by kind, preference, title, and edit shape
-        actions.sort_by(compare_code_actions);
+        actions.sort_by(CodeAction::protocol_order);
 
         // deduplicate identical actions after sorting
-        actions.dedup_by(|left, right| compare_code_actions(left, right).is_eq());
+        actions.dedup_by(|left, right| left.protocol_order(right).is_eq());
 
         Ok(actions)
     }
@@ -225,7 +226,7 @@ impl ModuleQueryContext<'_> {
             }
 
             // retain only diagnostics selected by the request
-            if !diagnostic_target_matches_range(diagnostic.primary.target, range) {
+            if !diagnostic.primary.target.matches_range(range) {
                 continue;
             }
 
@@ -267,7 +268,7 @@ impl ModuleQueryContext<'_> {
         for diagnostic in diagnostics {
             if diagnostic.id != "unresolved-reference"
                 || !context.includes_diagnostic(diagnostic)
-                || !diagnostic_target_matches_range(diagnostic.primary.target, range)
+                || !diagnostic.primary.target.matches_range(range)
             {
                 continue;
             }
@@ -298,7 +299,30 @@ impl ModuleQueryContext<'_> {
         &self,
         diagnostic: &Diagnostic,
     ) -> QueryResult<(Span, String, SymbolUse)> {
-        // FUGU #Incomplete: retain unresolved name uses in DIR
+        // match the diagnostic span against the retained unresolved paths
+        let view = self.view();
+        for (node, path) in self.resolutions().unresolved_entries() {
+            let source_node_id = view.get_source_any(node.local_id);
+            let Some(span) = self.source_index().get_main(source_node_id) else {
+                continue;
+            };
+            if !diagnostic.primary.target.matches_range(span) {
+                continue;
+            }
+
+            // import the path root in the space the node reads from
+            let Some(root) = path.segments.first() else {
+                continue;
+            };
+            let name = self.strings().get(*root).to_string();
+            let symbol_use = match node.local_id.ty {
+                dir::NodeType::TypeExpression => SymbolUse::Type,
+                _ => SymbolUse::Value,
+            };
+
+            return Ok((span, name, symbol_use));
+        }
+
         Err(QueryError::missing(format!(
             "unresolved reference: {:?}",
             diagnostic.primary.target
@@ -361,42 +385,33 @@ impl ModuleQueryContext<'_> {
     }
 }
 
-/// Return whether one diagnostic target is selected by a request.
-fn diagnostic_target_matches_range(diagnostic: DiagnosticTarget, range: Span) -> bool {
-    match diagnostic {
-        DiagnosticTarget::Span(diagnostic) if range.is_empty() => {
-            diagnostic.owns_cursor(range.start)
-        }
-        DiagnosticTarget::Span(diagnostic) => diagnostic.intersects(range),
-        DiagnosticTarget::File(file) => file == range.file,
-    }
-}
+impl CodeAction {
+    /// Compare code actions in stable protocol order.
+    fn protocol_order(&self, other: &Self) -> Ordering {
+        self.kind
+            .cmp(&other.kind)
+            .then_with(|| other.is_preferred.cmp(&self.is_preferred))
+            .then_with(|| self.title.cmp(&other.title))
+            .then_with(|| {
+                applicability_key(self.applicability).cmp(&applicability_key(other.applicability))
+            })
+            .then_with(|| {
+                let left = self.diagnostics.iter().map(diagnostic_key);
+                let right = other.diagnostics.iter().map(diagnostic_key);
 
-/// Sort and remove empty file patches once before returning an action.
-fn sort_action_patches(patches: &mut PatchSet) {
-    patches.files.retain(|file| !file.patches.is_empty());
-    for file in &mut patches.files {
-        file.patches
-            .sort_by(|left, right| patch_order(left).cmp(&patch_order(right)));
-    }
-    patches.files.sort_by_key(|file| file.file);
-}
+                left.cmp(right)
+            })
+            .then_with(|| {
+                let left = self.patches.iter().map(Patch::order_key);
+                let right = other.patches.iter().map(Patch::order_key);
 
-/// Compare code actions in stable protocol order.
-fn compare_code_actions(left: &CodeAction, right: &CodeAction) -> Ordering {
-    left.kind
-        .cmp(&right.kind)
-        .then_with(|| right.is_preferred.cmp(&left.is_preferred))
-        .then_with(|| left.title.cmp(&right.title))
-        .then_with(|| {
-            applicability_order(left.applicability).cmp(&applicability_order(right.applicability))
-        })
-        .then_with(|| compare_diagnostics(&left.diagnostics, &right.diagnostics))
-        .then_with(|| compare_patches(&left.patches, &right.patches))
+                left.cmp(right)
+            })
+    }
 }
 
 /// Return the stable order for optional suggestion applicability.
-fn applicability_order(applicability: Option<Applicability>) -> u8 {
+fn applicability_key(applicability: Option<Applicability>) -> u8 {
     match applicability {
         None => 0,
         Some(Applicability::Automatic) => 1,
@@ -405,15 +420,8 @@ fn applicability_order(applicability: Option<Applicability>) -> u8 {
     }
 }
 
-/// Compare exact diagnostic occurrences without allocating order keys.
-fn compare_diagnostics(left: &[DiagnosticReference], right: &[DiagnosticReference]) -> Ordering {
-    left.iter()
-        .map(diagnostic_order)
-        .cmp(right.iter().map(diagnostic_order))
-}
-
 /// Return the stable order key for one diagnostic occurrence.
-fn diagnostic_order(
+fn diagnostic_key(
     diagnostic: &DiagnosticReference,
 ) -> (&str, u128, bool, u64, u32, u32, Option<&str>) {
     let (is_file, file, start, end) = match diagnostic.primary.target {
@@ -429,22 +437,5 @@ fn diagnostic_order(
         start,
         end,
         diagnostic.primary.message.as_deref(),
-    )
-}
-
-/// Compare canonical patch sets without allocating order keys.
-fn compare_patches(left: &PatchSet, right: &PatchSet) -> Ordering {
-    left.iter()
-        .map(patch_order)
-        .cmp(right.iter().map(patch_order))
-}
-
-/// Return the stable order key for one source patch.
-fn patch_order(patch: &Patch) -> (u64, u32, u32, &str) {
-    (
-        patch.span.file.0,
-        patch.span.start,
-        patch.span.end,
-        &patch.new_text,
     )
 }
