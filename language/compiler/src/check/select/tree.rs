@@ -67,7 +67,7 @@ impl BodyState<'_, '_> {
             Some(expectation) => answer!(self.reduce_type_head(origin, expectation.target)?),
             // literals without context read the profile's default builder
             None => {
-                let Some(symbol) = self.check.global.tree else {
+                let Some(symbol) = self.check.environment_bound.tree else {
                     return Ok(Answer::Ready(None));
                 };
                 if !self.check.is_own_module(symbol.module_id) {

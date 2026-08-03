@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::GlobalEnvironment;
+use destack_artifact::EnvironmentBound;
 use destack_core::FxIndexMap;
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProfileId, ProviderError, Repository, Revision};
@@ -14,7 +14,7 @@ pub struct Dir {
     /// The active profile.
     pub profile: ProfileId,
     /// The global language environment.
-    pub environment: Arc<GlobalEnvironment>,
+    pub environment: Arc<EnvironmentBound>,
     /// The repository string pool.
     pub strings: Arc<dir::StringPool>,
     /// The loaded checked modules.
@@ -76,7 +76,7 @@ impl Dir {
         revision: Revision,
         artifacts: &ArtifactReader<'_>,
         profile: ProfileId,
-        environment: Arc<GlobalEnvironment>,
+        environment: Arc<EnvironmentBound>,
         modules: &[ModuleId],
     ) -> Result<Self, ProviderError> {
         let mut loaded = FxIndexMap::default();

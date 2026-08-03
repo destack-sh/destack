@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::GlobalEnvironment;
+use destack_artifact::EnvironmentBound;
 use destack_repository::{ArtifactReader, ProviderError, Repository, Revision};
 use destack_source::ModuleId;
 
@@ -23,7 +23,7 @@ impl DirProgram {
         revision: Revision,
         artifacts: &ArtifactReader<'_>,
         program: Arc<LintProgram>,
-        environment: Arc<GlobalEnvironment>,
+        environment: Arc<EnvironmentBound>,
         modules: &[ModuleId],
     ) -> Result<Self, ProviderError> {
         let dir = Dir::load(

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, GlobalEnvironment};
+use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, EnvironmentBound};
 use destack_repository::{ProfileId, ProviderContext, ProviderError, ProviderResult, Revision};
 use destack_source::{ModuleId, TargetId};
 
@@ -47,16 +47,16 @@ impl Linter {
         artifact.map_err(Box::new)
     }
 
-    /// Collect the global environment required by DIR lints.
-    pub(super) fn collect_global_environment(
+    /// Collect the bound environment required by DIR lints.
+    pub(super) fn collect_environment_bound(
         &self,
         context: &dyn ProviderContext,
         profile: ProfileId,
         dependencies: &mut ArtifactDependencySet,
-    ) -> Result<Option<Arc<GlobalEnvironment>>, ProviderError> {
-        dependencies.require(ArtifactKey::global_environment(profile));
+    ) -> Result<Option<Arc<EnvironmentBound>>, ProviderError> {
+        dependencies.require(ArtifactKey::environment_bound(profile));
         let artifacts = self.artifact_reader(context);
-        let environment = match artifacts.global_environment(profile) {
+        let environment = match artifacts.environment_bound(profile) {
             Ok(environment) => environment,
             Err(ProviderError::Blocked { .. }) => {
                 dependencies.mark_partial();

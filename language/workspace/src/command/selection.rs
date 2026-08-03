@@ -164,7 +164,7 @@ impl CommandContext<'_> {
             .module_graph_reader(profile)
             .map_err(|error| error.to_string())?;
         let global = artifacts
-            .global_environment(profile)
+            .environment_bound(profile)
             .map_err(|error| error.to_string())?;
         let mut walk_roots = roots.to_vec();
         walk_roots.extend(global.implicit_modules());

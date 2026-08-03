@@ -24,7 +24,7 @@ impl Compiler {
         dependencies.require(ArtifactKey::dir_bound(module, profile));
         dependencies.require(ArtifactKey::dir_imported(module, profile));
         dependencies.require(ArtifactKey::dir_expanded(module, profile));
-        dependencies.require(ArtifactKey::global_environment(profile));
+        dependencies.require(ArtifactKey::environment_bound(profile));
 
         Ok(dependencies)
     }
@@ -49,7 +49,7 @@ impl Compiler {
             .dir_expanded(module, profile)
             .map_err(CompilerError::from)?;
         let environment = artifacts
-            .global_environment(profile)
+            .environment_bound(profile)
             .map_err(CompilerError::from)?;
 
         // build expanded resolve inputs

@@ -167,7 +167,7 @@ impl Linter {
         // require checked DIR for DIR program lints
         if lints.has_dir_programs() {
             let Some(environment) =
-                self.collect_global_environment(context, profile, &mut dependencies)?
+                self.collect_environment_bound(context, profile, &mut dependencies)?
             else {
                 return Ok(dependencies);
             };
@@ -266,7 +266,7 @@ impl Linter {
         let revision = context.revision();
         let artifacts = self.artifact_reader(context);
         let profile = program.profile.id();
-        let environment = artifacts.global_environment(profile)?;
+        let environment = artifacts.environment_bound(profile)?;
         let graph = artifacts.module_graph_reader(profile)?;
         let mut roots = program.roots.to_vec();
         roots.extend(environment.globals.iter().copied());

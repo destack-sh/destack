@@ -41,7 +41,7 @@ impl Compiler {
     }
 
     /// Flatten every global module's surface into resolved targets.
-    pub(in crate::import) fn build_global_targets(
+    pub(in crate::bind) fn build_global_targets(
         &self,
         profile: ProfileId,
         artifacts: &ArtifactReader<'_>,
@@ -109,7 +109,7 @@ impl Compiler {
     }
 
     /// Resolve the default tree builder export to its declared symbol.
-    pub(in crate::import) fn resolve_tree_builder(
+    pub(in crate::bind) fn resolve_tree_builder(
         &self,
         profile: ProfileId,
         context: &dyn ProviderContext,

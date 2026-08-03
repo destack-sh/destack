@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{DirResolved, GlobalEnvironment};
+use destack_artifact::{DirResolved, EnvironmentBound, EnvironmentDeclared};
 use destack_core::{FxIndexMap, FxIndexSet, StringPool};
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, Environment, ProviderContext};
@@ -25,8 +25,10 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) artifacts: &'a ArtifactReader<'a>,
     /// The active profile.
     pub(in crate::check) profile: ProfileId,
-    /// The active global language and module environment.
-    pub(in crate::check) global: Arc<GlobalEnvironment>,
+    /// The bound implicit environment: names, globals, and language items.
+    pub(in crate::check) environment_bound: Arc<EnvironmentBound>,
+    /// The declared implicit environment, present while checking.
+    pub(in crate::check) environment_declared: Option<Arc<EnvironmentDeclared>>,
     /// The ambient environment captured by the current revision.
     pub(in crate::check) environment: Arc<Environment>,
 
@@ -114,7 +116,8 @@ impl<'a> CheckState<'a> {
         context: &'a dyn ProviderContext,
         artifacts: &'a ArtifactReader<'a>,
         profile: ProfileId,
-        global: Arc<GlobalEnvironment>,
+        environment_bound: Arc<EnvironmentBound>,
+        environment_declared: Option<Arc<EnvironmentDeclared>>,
         environment: Arc<Environment>,
         module_id: ModuleId,
         is_checking: bool,
@@ -158,7 +161,8 @@ impl<'a> CheckState<'a> {
             context,
             artifacts,
             profile,
-            global,
+            environment_bound,
+            environment_declared,
             environment,
             module_id,
             module,
@@ -243,11 +247,15 @@ impl<'a> CheckState<'a> {
         if self.is_declaration() {
             self.drain_tasks()?;
         }
-        // infer bodies and settle every obligation when checking
+        // infer bodies, settle every obligation, then derive settled rows
         else {
             self.induce_signature_lifetimes()?;
             self.check_decorators()?;
             self.settle()?;
+            self.write_newtype_constructors(self.module_id)?;
+            self.write_blanket_families(self.module_id)?;
+            self.report_constant_conditions()?;
+            self.report_extension_collisions()?;
         }
 
         self.bind_underivable_exports()
@@ -366,11 +374,11 @@ impl<'a> CheckState<'a> {
         &self,
         item: dir::LanguageItem,
     ) -> CompilerResult<dir::GlobalSymbolId> {
-        self.global
+        self.environment_bound
             .language
             .symbol(item)
             .ok_or_else(|| CompilerError::Internal {
-                message: format!("global environment is missing language item {item}"),
+                message: format!("bound environment is missing language item {item}"),
             })
     }
 
@@ -381,7 +389,7 @@ impl<'a> CheckState<'a> {
     ) -> CompilerResult<Option<dir::LanguageItem>> {
         let symbol = self.resolve_symbol_alias(symbol)?;
 
-        Ok(self.global.language.item(symbol))
+        Ok(self.environment_bound.language.item(symbol))
     }
 
     /// Return the nominal symbol named by one type head.
@@ -420,6 +428,20 @@ impl CheckState<'_> {
                 message: format!("check type {id:?} belongs to an unloaded module"),
             })
         }
+    }
+
+    /// Return whether any operand already reported an error.
+    pub(in crate::check) fn any_error_operand(
+        &self,
+        operands: &[dir::GlobalTypeId],
+    ) -> CompilerResult<bool> {
+        for operand in operands {
+            if self.type_flags(*operand)?.has_error() {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 
     /// Return one type's structural flags.

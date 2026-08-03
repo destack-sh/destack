@@ -1,5 +1,5 @@
 use destack_core::StringId;
-use destack_dir::{GlobalSymbolId, ImportTarget, LanguageItem, StaticKey};
+use destack_dir::{GlobalSymbolId, ImportTarget, LanguageItem, PrimitiveType, StaticKey};
 use destack_serde::Reflect;
 use destack_source::ModuleId;
 use indexmap::IndexMap;
@@ -33,9 +33,9 @@ impl LanguageEnvironment {
     }
 }
 
-/// Explicit global environment selected for one profile.
+/// Bound-stage aggregate over the implicit modules.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
-pub struct GlobalEnvironment {
+pub struct EnvironmentBound {
     /// Compiler-known language environment.
     pub language: LanguageEnvironment,
     /// Explicit global modules in load order.
@@ -46,7 +46,20 @@ pub struct GlobalEnvironment {
     pub tree: Option<GlobalSymbolId>,
 }
 
-impl GlobalEnvironment {
+/// Declared-stage aggregate over the implicit modules.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
+pub struct EnvironmentDeclared {
+    /// Extension declarations keyed by their resolved target root.
+    pub extensions_by_root: IndexMap<GlobalSymbolId, Vec<GlobalSymbolId>>,
+    /// Ground extension declarations keyed by their primitive target.
+    pub extensions_by_primitive: IndexMap<PrimitiveType, Vec<GlobalSymbolId>>,
+    /// Blanket extension declarations over open parameter targets.
+    pub blanket_extensions: Vec<GlobalSymbolId>,
+    /// Implementing declarations keyed by their implemented interface.
+    pub implementations_by_interface: IndexMap<GlobalSymbolId, Vec<GlobalSymbolId>>,
+}
+
+impl EnvironmentBound {
     /// Return the modules whose exports load without imports, in stable order.
     pub fn implicit_modules(&self) -> Vec<ModuleId> {
         let language = self

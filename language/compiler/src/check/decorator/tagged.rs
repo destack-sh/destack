@@ -67,7 +67,9 @@ impl CheckState<'_> {
         // select every walked derive application
         let mut applications = Vec::new();
         for application in &self.decorators {
-            if self.global.language.item(application.symbol) == Some(dir::LanguageItem::Derive) {
+            if self.environment_bound.language.item(application.symbol)
+                == Some(dir::LanguageItem::Derive)
+            {
                 applications.push(application.clone());
             }
         }
@@ -106,7 +108,7 @@ impl CheckState<'_> {
                 continue;
             };
             let symbol = self.resolve_symbol_alias(symbol)?;
-            if self.global.language.item(symbol) != Some(dir::LanguageItem::Tagged) {
+            if self.environment_bound.language.item(symbol) != Some(dir::LanguageItem::Tagged) {
                 continue;
             }
 

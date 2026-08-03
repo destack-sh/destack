@@ -43,7 +43,9 @@ impl BodyState<'_, '_> {
         self.commit_node_type(target, reference)?;
 
         // dispatch compiler-owned derive to its intrinsic backing
-        if self.global.language.item(application.symbol) == Some(dir::LanguageItem::Derive) {
+        if self.environment_bound.language.item(application.symbol)
+            == Some(dir::LanguageItem::Derive)
+        {
             return self.select_derive_decorator(site, application);
         }
 
@@ -81,7 +83,7 @@ impl BodyState<'_, '_> {
         };
 
         // commit the decorator-specific resolution
-        let target = match self.global.language.item(application.symbol) {
+        let target = match self.environment_bound.language.item(application.symbol) {
             Some(item) => dir::DecoratorTarget::LanguageItem {
                 symbol: application.symbol,
                 item,
@@ -347,7 +349,8 @@ impl BodyState<'_, '_> {
         };
 
         // require the compiler-owned Tagged provider
-        if self.global.language.item(selection.symbol) != Some(dir::LanguageItem::Tagged) {
+        if self.environment_bound.language.item(selection.symbol) != Some(dir::LanguageItem::Tagged)
+        {
             self.report_invalid_derive_provider(origin)?;
 
             return Ok(Answer::Ready(None));

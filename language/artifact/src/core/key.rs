@@ -38,8 +38,8 @@ pub enum ArtifactKey {
         profile: ProfileId,
     },
 
-    /// Explicit global environment for one profile.
-    GlobalEnvironment { profile: ProfileId },
+    /// Bound implicit environment for one profile.
+    EnvironmentBound { profile: ProfileId },
     /// Import graph over the modules of one profile.
     ModuleGraph { profile: ProfileId },
 
@@ -69,8 +69,8 @@ pub enum ArtifactKey {
         profile: ProfileId,
     },
 
-    /// Content digest of the implicit global modules for one profile.
-    GlobalEnvironmentDigest { profile: ProfileId },
+    /// Declared implicit environment for one profile.
+    EnvironmentDeclared { profile: ProfileId },
 
     /// Checked DIR module.
     DirChecked {
@@ -235,8 +235,8 @@ impl ArtifactKey {
     pub fn provider(self) -> ArtifactProvider {
         match self {
             Self::DirParsed { .. } | Self::Data { .. } => ArtifactProvider::Loader,
-            Self::GlobalEnvironment { .. }
-            | Self::GlobalEnvironmentDigest { .. }
+            Self::EnvironmentBound { .. }
+            | Self::EnvironmentDeclared { .. }
             | Self::ModuleGraph { .. }
             | Self::ProgramAnalysis { .. }
             | Self::DirBound { .. }
@@ -277,14 +277,14 @@ impl ArtifactKey {
         }
     }
 
-    /// Build one global environment artifact key.
-    pub fn global_environment(profile: ProfileId) -> Self {
-        Self::GlobalEnvironment { profile }
+    /// Create a bound environment key.
+    pub fn environment_bound(profile: ProfileId) -> Self {
+        Self::EnvironmentBound { profile }
     }
 
-    /// Build one environment digest artifact key.
-    pub fn global_environment_digest(profile: ProfileId) -> Self {
-        Self::GlobalEnvironmentDigest { profile }
+    /// Create a declared environment key.
+    pub fn environment_declared(profile: ProfileId) -> Self {
+        Self::EnvironmentDeclared { profile }
     }
 
     /// Build one component graph artifact key.
@@ -479,16 +479,16 @@ impl ArtifactKey {
             }
             Self::ModuleLinted { .. } | Self::ProgramLinted { .. } => ArtifactStage::Lint,
             Self::ModuleIndex { .. } | Self::ProgramIndex { .. } => ArtifactStage::Index,
-            Self::GlobalEnvironment { .. } => ArtifactStage::Init,
-            Self::GlobalEnvironmentDigest { .. } => ArtifactStage::Graph,
+            Self::EnvironmentBound { .. } => ArtifactStage::Init,
+            Self::EnvironmentDeclared { .. } => ArtifactStage::Init,
         }
     }
 
     /// Return the human-facing display name for this key's kind.
     pub fn display_name(&self) -> &'static str {
         match self {
-            Self::GlobalEnvironment { .. } => "environment",
-            Self::GlobalEnvironmentDigest { .. } => "environment.digest",
+            Self::EnvironmentBound { .. } => "environment",
+            Self::EnvironmentDeclared { .. } => "environment",
             Self::DirParsed { .. } => "dir.parse",
             Self::Data { .. } => "data",
             Self::DirBound { .. } => "dir.bind",
@@ -523,8 +523,8 @@ impl ArtifactKey {
     /// Return the stable short name for this key.
     pub fn name(&self) -> &'static str {
         match self {
-            Self::GlobalEnvironment { .. } => "global_environment",
-            Self::GlobalEnvironmentDigest { .. } => "global_environment_digest",
+            Self::EnvironmentBound { .. } => "environment_bound",
+            Self::EnvironmentDeclared { .. } => "environment_declared",
             Self::DirParsed { .. } => "dir_parsed",
             Self::Data { .. } => "data",
             Self::DirBound { .. } => "dir_bound",
@@ -579,8 +579,8 @@ impl ArtifactKey {
             | Self::Object { module, .. }
             | Self::Asset { module, .. }
             | Self::ModuleLinted { module, .. } => Some(*module),
-            Self::GlobalEnvironment { .. }
-            | Self::GlobalEnvironmentDigest { .. }
+            Self::EnvironmentBound { .. }
+            | Self::EnvironmentDeclared { .. }
             | Self::ModuleGraph { .. }
             | Self::ProgramAnalysis { .. }
             | Self::ProgramIndex { .. }
@@ -625,8 +625,8 @@ impl ArtifactKey {
     /// Return the profile id encoded in this key when one exists.
     pub fn profile_id(&self) -> Option<ProfileId> {
         match self {
-            Self::GlobalEnvironment { profile }
-            | Self::GlobalEnvironmentDigest { profile }
+            Self::EnvironmentBound { profile }
+            | Self::EnvironmentDeclared { profile }
             | Self::ModuleGraph { profile }
             | Self::ProgramAnalysis { profile, .. }
             | Self::DirBound { profile, .. }

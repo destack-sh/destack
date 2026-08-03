@@ -7,7 +7,7 @@ use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
     /// Build language item bindings from builtin modules.
-    pub(in crate::import) fn build_language_environment(
+    pub(in crate::bind) fn build_language_environment(
         &self,
         profile: ProfileId,
         artifacts: &ArtifactReader<'_>,

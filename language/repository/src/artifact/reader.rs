@@ -6,9 +6,9 @@ use destack_artifact::{
     ArtifactProjectionDependency, ArtifactProjectionFingerprint, ArtifactProjectionKey,
     ArtifactRequirement, ArtifactTable, ArtifactVersion, Asset, Build, Bundle, Data, DirBound,
     DirChecked, DirDeclared, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed,
-    DirResolved, GlobalEnvironment, GlobalEnvironmentDigest, IndexKind, InherentExtension,
-    MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleGraph, ModuleIndex,
-    ModuleLinted, Object, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
+    DirResolved, EnvironmentBound, EnvironmentDeclared, IndexKind, InherentExtension, MirAnalyzed,
+    MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleGraph, ModuleIndex, ModuleLinted,
+    Object, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 use destack_program::Program;
 use destack_source::{ModuleId, PackageId, ProductId, ProfileId, TargetId};
@@ -400,36 +400,36 @@ impl<'a> ArtifactReader<'a> {
         self.read(ArtifactKey::data(module), ArtifactTable::data)
     }
 
-    /// Read one global environment artifact.
-    pub fn global_environment(
+    /// Read one bound environment artifact.
+    pub fn environment_bound(
         &self,
         profile: ProfileId,
-    ) -> Result<Arc<GlobalEnvironment>, ProviderError> {
+    ) -> Result<Arc<EnvironmentBound>, ProviderError> {
         self.read(
-            ArtifactKey::global_environment(profile),
-            ArtifactTable::global_environment,
+            ArtifactKey::environment_bound(profile),
+            ArtifactTable::environment_bound,
         )
     }
 
-    /// Read one global environment artifact through its content projection.
-    pub fn global_environment_content(
+    /// Read one bound environment artifact through its content projection.
+    pub fn environment_bound_content(
         &self,
         profile: ProfileId,
-    ) -> Result<Arc<GlobalEnvironment>, ProviderError> {
+    ) -> Result<Arc<EnvironmentBound>, ProviderError> {
         self.read_content(
-            ArtifactKey::global_environment(profile),
-            ArtifactTable::global_environment,
+            ArtifactKey::environment_bound(profile),
+            ArtifactTable::environment_bound,
         )
     }
 
-    /// Read one environment digest artifact.
-    pub fn global_environment_digest(
+    /// Read one declared environment artifact.
+    pub fn environment_declared(
         &self,
         profile: ProfileId,
-    ) -> Result<Arc<GlobalEnvironmentDigest>, ProviderError> {
+    ) -> Result<Arc<EnvironmentDeclared>, ProviderError> {
         self.read(
-            ArtifactKey::global_environment_digest(profile),
-            ArtifactTable::global_environment_digest,
+            ArtifactKey::environment_declared(profile),
+            ArtifactTable::environment_declared,
         )
     }
 

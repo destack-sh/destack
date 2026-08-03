@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactSidecar, DirParsed,
+    EnvironmentBound,
 };
 use destack_dir as dir;
 use destack_repository::{ConditionSet, Module, ProviderContext};
@@ -94,5 +95,56 @@ impl Compiler {
         }
 
         Ok(())
+    }
+
+    /// Collect inputs for the bound environment of one profile.
+    pub(crate) fn collect_environment_bound(
+        &self,
+        profile: ProfileId,
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<ArtifactDependencySet> {
+        let mut dependencies = ArtifactDependencySet::default();
+
+        // language item modules back the language environment
+        for module in self.repository.builtin_module_ids(context.revision())? {
+            dependencies.require(ArtifactKey::dir_parsed(module));
+            dependencies.require(ArtifactKey::dir_bound(module, profile));
+        }
+
+        // global module export surfaces back the global targets
+        let mut globals = self.load_global_module_ids(profile, context)?;
+        if let Some((module, _)) = self.tree_builder_reference(profile, context)? {
+            globals.push(module);
+        }
+        let artifacts = self.artifact_reader(context);
+        self.collect_exported_modules(globals, profile, &artifacts, &mut dependencies)?;
+
+        Ok(dependencies)
+    }
+
+    /// Build the bound environment for one profile.
+    pub(crate) fn provide_environment_bound(
+        &self,
+        profile: ProfileId,
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<ArtifactPayload> {
+        // discover environment inputs
+        let globals = self.load_global_module_ids(profile, context)?;
+        let language_modules = self.repository.builtin_module_ids(context.revision())?;
+
+        // build language environment for profile
+        let artifacts = self.artifact_reader(context);
+        let language = self.build_language_environment(profile, &artifacts, &language_modules)?;
+        let global_targets = self.build_global_targets(profile, &artifacts, &globals)?;
+        let tree = self.resolve_tree_builder(profile, context, &artifacts)?;
+
+        let environment = EnvironmentBound {
+            language,
+            globals,
+            global_targets_by_key: global_targets,
+            tree,
+        };
+
+        Ok(ArtifactPayload::EnvironmentBound(Arc::new(environment)))
     }
 }

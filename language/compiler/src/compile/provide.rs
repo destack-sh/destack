@@ -26,11 +26,11 @@ impl Compiler {
                     ),
                 })
             }
-            ArtifactKey::GlobalEnvironment { profile } => {
-                self.collect_global_environment(profile, context)
+            ArtifactKey::EnvironmentBound { profile } => {
+                self.collect_environment_bound(profile, context)
             }
-            ArtifactKey::GlobalEnvironmentDigest { profile } => {
-                self.collect_global_environment_digest(profile, context)
+            ArtifactKey::EnvironmentDeclared { profile } => {
+                self.collect_environment_declared(profile, context)
             }
             ArtifactKey::ModuleGraph { profile } => self.collect_module_graph(profile, context),
             ArtifactKey::ProgramAnalysis { profile, target } => {
@@ -139,11 +139,11 @@ impl Compiler {
                     ),
                 })
             }
-            ArtifactKey::GlobalEnvironment { profile } => {
-                self.provide_global_environment(profile, context)
+            ArtifactKey::EnvironmentBound { profile } => {
+                self.provide_environment_bound(profile, context)
             }
-            ArtifactKey::GlobalEnvironmentDigest { profile } => {
-                self.provide_global_environment_digest(profile, context)
+            ArtifactKey::EnvironmentDeclared { profile } => {
+                self.provide_environment_declared(profile, context)
             }
             ArtifactKey::ModuleGraph { profile } => self.provide_module_graph(profile, context),
             ArtifactKey::ProgramAnalysis { profile, target } => {

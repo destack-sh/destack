@@ -1,6 +1,4 @@
 mod error;
-mod global;
-mod language;
 mod module;
 mod package;
 mod provide;

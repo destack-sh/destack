@@ -784,7 +784,7 @@ impl CheckState<'_> {
 
     /// Return the compact language item name for one symbol.
     fn language_item_symbol_name(&self, symbol: dir::GlobalSymbolId) -> Option<String> {
-        let item = self.global.language.item(symbol)?;
+        let item = self.environment_bound.language.item(symbol)?;
         let key = item.key();
 
         if let Some((_, name)) = key.rsplit_once('.') {
@@ -947,29 +947,7 @@ fn trim_module_uri(uri: &str) -> String {
 
 /// Format one primitive type.
 fn format_primitive(primitive: &dir::PrimitiveType) -> String {
-    match primitive {
-        dir::PrimitiveType::Boolean => "boolean".to_string(),
-        dir::PrimitiveType::String => "string".to_string(),
-        dir::PrimitiveType::Character => "char".to_string(),
-        dir::PrimitiveType::Bigint => "bigint".to_string(),
-        dir::PrimitiveType::Symbol => "symbol".to_string(),
-        dir::PrimitiveType::UniqueSymbol => "unique symbol".to_string(),
-        dir::PrimitiveType::Integer(integer) => match integer {
-            dir::IntegerType::Pointer { is_signed: true } => "isize".to_string(),
-            dir::IntegerType::Pointer { is_signed: false } => "usize".to_string(),
-            dir::IntegerType::Fixed { width, is_signed } => {
-                let sign = if *is_signed { "int" } else { "uint" };
-
-                format!("{sign}{width}")
-            }
-        },
-        dir::PrimitiveType::Float(float) => match float {
-            dir::FloatType::Float16 => "float16".to_string(),
-            dir::FloatType::Bfloat16 => "bfloat16".to_string(),
-            dir::FloatType::Float32 => "float32".to_string(),
-            dir::FloatType::Float64 => "float64".to_string(),
-        },
-    }
+    primitive.as_str()
 }
 
 /// Format one static binary operator.

@@ -7,7 +7,7 @@ use destack_source::ContentId;
 use crate::{
     ArtifactKey, ArtifactProjectionFingerprint, ArtifactProjectionKey, Asset, Build, Bundle, Data,
     DirBound, DirChecked, DirDeclared, DirExpanded, DirExported, DirImported, DirMaterialized,
-    DirParsed, DirResolved, GlobalEnvironment, GlobalEnvironmentDigest, MirAnalyzed, MirElaborated,
+    DirParsed, DirResolved, EnvironmentBound, EnvironmentDeclared, MirAnalyzed, MirElaborated,
     MirLowered, MirOptimized, MirVerified, ModuleGraph, ModuleIndex, ModuleLinted, Object, Product,
     ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
@@ -24,8 +24,8 @@ pub enum ArtifactPayload {
     Data(Arc<Data>),
     /// Bound DIR.
     DirBound(Arc<DirBound>),
-    /// Explicit global environment for one profile.
-    GlobalEnvironment(Arc<GlobalEnvironment>),
+    /// One bound environment payload.
+    EnvironmentBound(Arc<EnvironmentBound>),
     /// Component partition for one profile.
     ModuleGraph(Arc<ModuleGraph>),
     /// Imported DIR.
@@ -38,8 +38,8 @@ pub enum ArtifactPayload {
     DirResolved(Arc<DirResolved>),
     /// Declared DIR module.
     DirDeclared(Arc<DirDeclared>),
-    /// Content digest of the implicit global modules.
-    GlobalEnvironmentDigest(Arc<GlobalEnvironmentDigest>),
+    /// One declared environment payload.
+    EnvironmentDeclared(Arc<EnvironmentDeclared>),
     /// Checked DIR module.
     DirChecked(Arc<DirChecked>),
     /// Materialized DIR.
@@ -89,8 +89,8 @@ pub enum ArtifactPayloadRef<'a> {
     Data(&'a Data),
     /// Bound DIR.
     DirBound(&'a DirBound),
-    /// Explicit global environment for one profile.
-    GlobalEnvironment(&'a GlobalEnvironment),
+    /// One bound environment payload.
+    EnvironmentBound(&'a EnvironmentBound),
     /// Component partition for one profile.
     ModuleGraph(&'a ModuleGraph),
     /// Imported DIR.
@@ -103,8 +103,8 @@ pub enum ArtifactPayloadRef<'a> {
     DirResolved(&'a DirResolved),
     /// Declared DIR module.
     DirDeclared(&'a DirDeclared),
-    /// Content digest of the implicit global modules.
-    GlobalEnvironmentDigest(&'a GlobalEnvironmentDigest),
+    /// One declared environment payload.
+    EnvironmentDeclared(&'a EnvironmentDeclared),
     /// Checked DIR module.
     DirChecked(&'a DirChecked),
     /// Materialized DIR.
@@ -156,11 +156,11 @@ impl ArtifactPayload {
             (key, payload) => matches!(
                 (key, payload),
                 (
-                    ArtifactKey::GlobalEnvironment { .. },
-                    ArtifactPayload::GlobalEnvironment(_)
+                    ArtifactKey::EnvironmentBound { .. },
+                    ArtifactPayload::EnvironmentBound(_)
                 ) | (
-                    ArtifactKey::GlobalEnvironmentDigest { .. },
-                    ArtifactPayload::GlobalEnvironmentDigest(_)
+                    ArtifactKey::EnvironmentDeclared { .. },
+                    ArtifactPayload::EnvironmentDeclared(_)
                 ) | (
                     ArtifactKey::ModuleGraph { .. },
                     ArtifactPayload::ModuleGraph(_)
@@ -242,11 +242,11 @@ impl ArtifactPayload {
         match self {
             Self::DirParsed(payload) => ArtifactPayloadRef::DirParsed(payload.as_ref()),
             Self::Data(payload) => ArtifactPayloadRef::Data(payload.as_ref()),
-            Self::GlobalEnvironment(payload) => {
-                ArtifactPayloadRef::GlobalEnvironment(payload.as_ref())
+            Self::EnvironmentBound(payload) => {
+                ArtifactPayloadRef::EnvironmentBound(payload.as_ref())
             }
-            Self::GlobalEnvironmentDigest(payload) => {
-                ArtifactPayloadRef::GlobalEnvironmentDigest(payload.as_ref())
+            Self::EnvironmentDeclared(payload) => {
+                ArtifactPayloadRef::EnvironmentDeclared(payload.as_ref())
             }
             Self::ModuleGraph(payload) => ArtifactPayloadRef::ModuleGraph(payload.as_ref()),
             Self::ProgramAnalysis(payload) => ArtifactPayloadRef::ProgramAnalysis(payload.as_ref()),
@@ -280,8 +280,8 @@ impl ArtifactPayload {
     /// Return the stable short name for this payload kind.
     pub fn name(&self) -> &'static str {
         match self {
-            Self::GlobalEnvironment(_) => "global_environment",
-            Self::GlobalEnvironmentDigest(_) => "global_environment_digest",
+            Self::EnvironmentBound(_) => "environment_bound",
+            Self::EnvironmentDeclared(_) => "environment_declared",
             Self::ModuleGraph(_) => "component_graph",
             Self::ProgramAnalysis(_) => "program_analysis",
             Self::DirParsed(_) => "dir_parsed",
@@ -354,11 +354,11 @@ impl ArtifactPayloadRef<'_> {
             (Self::DirResolved(payload), ArtifactProjectionKey::Content) => {
                 ArtifactProjectionFingerprint::from_serialized_payload(payload).ok()
             }
-            (Self::GlobalEnvironment(payload), ArtifactProjectionKey::Content) => {
+            (Self::EnvironmentBound(payload), ArtifactProjectionKey::Content) => {
                 ArtifactProjectionFingerprint::from_serialized_payload(payload).ok()
             }
-            (Self::GlobalEnvironmentDigest(payload), projection) => {
-                payload.fingerprint_projection(projection)
+            (Self::EnvironmentDeclared(payload), ArtifactProjectionKey::Content) => {
+                ArtifactProjectionFingerprint::from_serialized_payload(payload).ok()
             }
             (Self::DirExported(payload), ArtifactProjectionKey::Content) => {
                 ArtifactProjectionFingerprint::from_serialized_payload(payload).ok()
@@ -454,10 +454,10 @@ impl From<Data> for ArtifactPayload {
     }
 }
 
-impl From<GlobalEnvironment> for ArtifactPayload {
+impl From<EnvironmentBound> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
-    fn from(payload: GlobalEnvironment) -> Self {
-        Self::GlobalEnvironment(Arc::new(payload))
+    fn from(payload: EnvironmentBound) -> Self {
+        Self::EnvironmentBound(Arc::new(payload))
     }
 }
 

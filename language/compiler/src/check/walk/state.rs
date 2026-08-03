@@ -292,7 +292,12 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         kind: dir::MemoryParameter,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let Some(symbol) = self.check.global.language.symbol(kind.language_item()) else {
+        let Some(symbol) = self
+            .check
+            .environment_bound
+            .language
+            .symbol(kind.language_item())
+        else {
             return Ok(None);
         };
         let arguments = self.intern_type_ids(&[])?;

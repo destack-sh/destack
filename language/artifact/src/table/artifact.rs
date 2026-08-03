@@ -22,8 +22,8 @@ use crate::{
     ArtifactDependency, ArtifactError, ArtifactFailure, ArtifactKey, ArtifactPayload,
     ArtifactProjection, ArtifactProjectionFingerprint, ArtifactProjectionKey, ArtifactRecord,
     ArtifactVersion, Asset, Build, Bundle, Data, DirBound, DirChecked, DirDeclared, DirExpanded,
-    DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment,
-    GlobalEnvironmentDigest, MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified,
+    DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, EnvironmentBound,
+    EnvironmentDeclared, MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified,
     ModuleGraph, ModuleIndex, ModuleLinted, Object, Product, ProgramAnalysis, ProgramIndex,
     ProgramLinted, Script,
 };
@@ -449,7 +449,7 @@ impl ArtifactTable {
     artifact_getter!(dir_parsed, DirParsed, DirParsed);
     artifact_getter!(data, Data, Data);
     artifact_getter!(dir_bound, DirBound, DirBound);
-    artifact_getter!(global_environment, GlobalEnvironment, GlobalEnvironment);
+    artifact_getter!(environment_bound, EnvironmentBound, EnvironmentBound);
     artifact_getter!(module_graph, ModuleGraph, ModuleGraph);
     artifact_getter!(dir_imported, DirImported, DirImported);
     artifact_getter!(dir_expanded, DirExpanded, DirExpanded);
@@ -457,9 +457,9 @@ impl ArtifactTable {
     artifact_getter!(dir_resolved, DirResolved, DirResolved);
     artifact_getter!(dir_declared, DirDeclared, DirDeclared);
     artifact_getter!(
-        global_environment_digest,
-        GlobalEnvironmentDigest,
-        GlobalEnvironmentDigest
+        environment_declared,
+        EnvironmentDeclared,
+        EnvironmentDeclared
     );
     artifact_getter!(dir_checked, DirChecked, DirChecked);
     artifact_getter!(dir_materialized, DirMaterialized, DirMaterialized);

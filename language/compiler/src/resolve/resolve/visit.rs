@@ -1,4 +1,4 @@
-use destack_artifact::GlobalEnvironment;
+use destack_artifact::EnvironmentBound;
 use destack_dir as dir;
 use dir::NodeVisitor as _;
 
@@ -10,7 +10,7 @@ impl ResolveState<'_> {
     /// Resolve every collected reference against required inputs.
     pub(in crate::resolve) fn resolve(
         &mut self,
-        environment: &GlobalEnvironment,
+        environment: &EnvironmentBound,
     ) -> CompilerResult<()> {
         // explicit module clauses resolve through exports
         self.resolve_module_clauses()?;

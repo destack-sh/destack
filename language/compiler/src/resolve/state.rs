@@ -1,4 +1,4 @@
-use destack_artifact::{DiagnosticAnchor, DiagnosticBuilder, DirResolved, GlobalEnvironment};
+use destack_artifact::{DiagnosticAnchor, DiagnosticBuilder, DirResolved, EnvironmentBound};
 use destack_core::{NameMatch, StringPool, find_best_match};
 use destack_dir as dir;
 use destack_repository::ArtifactReader;
@@ -220,7 +220,7 @@ impl<'a> ResolveState<'a> {
     }
 
     /// Finish resolved DIR.
-    pub(in crate::resolve) fn finish(self, environment: &GlobalEnvironment) -> DirResolved {
+    pub(in crate::resolve) fn finish(self, environment: &EnvironmentBound) -> DirResolved {
         let extensions = self.resolved_extensions(environment);
 
         DirResolved {
@@ -231,7 +231,7 @@ impl<'a> ResolveState<'a> {
     }
 
     /// Resolve every exported extension to its target root declaration.
-    fn resolved_extensions(&self, environment: &GlobalEnvironment) -> dir::ExtensionTable {
+    fn resolved_extensions(&self, environment: &EnvironmentBound) -> dir::ExtensionTable {
         let mut extensions = dir::ExtensionTable::new(self.module);
 
         for symbol in self.bindings.symbol_ids() {
@@ -264,7 +264,7 @@ impl<'a> ResolveState<'a> {
     /// Return the target root declaration of one extension target head.
     fn extension_target(
         &self,
-        environment: &GlobalEnvironment,
+        environment: &EnvironmentBound,
         node: dir::LocalNodeId<dir::TypeExpression>,
     ) -> Option<dir::GlobalSymbolId> {
         let mut node = node;

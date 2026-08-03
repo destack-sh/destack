@@ -253,7 +253,7 @@ mod tests {
     use destack_artifact::{
         ArtifactDependency, ArtifactKey, ArtifactPayload, ArtifactProjection,
         ArtifactProjectionKey, ArtifactVersion, BuildId, Bundle, BundleFile, BundleMode,
-        BundleSection, DirExported, DiskBlobStore, EmitFormat, GlobalEnvironment,
+        BundleSection, DirExported, DiskBlobStore, EmitFormat, EnvironmentBound,
         LanguageEnvironment, SourceDependency,
     };
     use destack_dir::{GlobalSymbolId, LocalSymbolId};
@@ -451,7 +451,7 @@ mod tests {
         let mut symbols = IndexMap::new();
         symbols.insert(string, symbol);
 
-        let output = GlobalEnvironment {
+        let output = EnvironmentBound {
             language: LanguageEnvironment {
                 symbol_by_item: IndexMap::new(),
                 items_by_symbol: IndexMap::new(),
@@ -461,7 +461,7 @@ mod tests {
             global_targets_by_key: IndexMap::new(),
             tree: None,
         };
-        let key = ArtifactKey::global_environment(profile);
+        let key = ArtifactKey::environment_bound(profile);
 
         repository
             .complete_artifact(
@@ -489,7 +489,7 @@ mod tests {
             repository.string_pool().get_maybe(string),
             Some("CachedSymbol")
         );
-        let ArtifactPayload::GlobalEnvironment(loaded) = loaded else {
+        let ArtifactPayload::EnvironmentBound(loaded) = loaded else {
             panic!("stored environment should decode as an environment");
         };
         assert_eq!(loaded.language.symbol_by_name("CachedSymbol"), Some(symbol));
@@ -826,7 +826,7 @@ mod tests {
             .expect("component projection should exist");
         let first_dependency =
             ArtifactDependency::projection(first_owner, projection.key, fingerprint);
-        let dependent_key = ArtifactKey::global_environment(profile);
+        let dependent_key = ArtifactKey::environment_bound(profile);
         let dependent = ArtifactVersion::new(
             dependent_key,
             repository.host().build_id(),
@@ -836,7 +836,7 @@ mod tests {
             .complete_artifact(
                 first_revision,
                 dependent_key,
-                GlobalEnvironment::default().into(),
+                EnvironmentBound::default().into(),
                 vec![first_dependency],
                 Vec::new(),
                 Vec::new(),

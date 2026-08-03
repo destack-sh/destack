@@ -12,8 +12,8 @@ use destack_artifact::{
 use destack_dir as dir;
 use destack_mir::{MirFormatContext, MirFormatOptions, format_mir};
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Ref, Repository,
-    Revision, Settings, TraceReport, TraceSnapshot, TraceView,
+    ArtifactReader, DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Ref,
+    Repository, Revision, Settings, TraceReport, TraceSnapshot, TraceView,
 };
 use destack_session::{Session, SessionError};
 use destack_source::{Content, MemoryFileSystem, ModuleId, ProfileId, TargetId};
@@ -1395,6 +1395,16 @@ impl TestSession {
         // include the ambient extension layer the checked output references
         for extension in graph.cross_module_extensions() {
             roots.push(extension.symbol.module_id);
+        }
+
+        // include the implicit modules whose extensions render in snapshots
+        let reader = ArtifactReader::new(self.repository.as_ref(), self.revision);
+        if let Ok(environment) = reader.environment_declared(entry.profile) {
+            let rooted = environment.extensions_by_root.values().flatten();
+            let ground = environment.extensions_by_primitive.values().flatten();
+            for extension in rooted.chain(ground).chain(&environment.blanket_extensions) {
+                roots.push(extension.module_id);
+            }
         }
 
         graph

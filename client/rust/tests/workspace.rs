@@ -5,9 +5,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use parking_lot::Mutex;
 
-use destack_workspace::{
-    CheckInput, Client, ClientOptions, Transport, TransportError,
-};
+use destack_workspace::{CheckInput, Client, ClientOptions, Transport, TransportError};
 
 static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
 

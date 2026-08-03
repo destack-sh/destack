@@ -5,7 +5,7 @@ use crate::{
     ArtifactReference, ArtifactSidecar, ArtifactVersion, Asset, Build, BuildLinkage, BuildManifest,
     BuildProfile, Bundle, BundleFile, BundleMode, BundleSection, Data, DirBound, DirChecked,
     DirDeclared, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
-    EmitFormat, GlobalEnvironment, GlobalEnvironmentDigest, Host, LanguageEnvironment,
+    EmitFormat, EnvironmentBound, EnvironmentDeclared, Host, LanguageEnvironment,
     LanguageIntrinsics, MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified,
     ModuleEdges, ModuleGraph, ModuleIndex, ModuleLinted, Object, ObjectFormat, Platform, Product,
     ProductTarget, ProgramAnalysis, ProgramIndex, ProgramLinted, Runtime, Script, ScriptBody,
@@ -36,7 +36,7 @@ pub fn schema(registry: &mut SchemaRegistry) {
 
     registry.register::<LanguageEnvironment>();
     registry.register::<LanguageIntrinsics>();
-    registry.register::<GlobalEnvironment>();
+    registry.register::<EnvironmentBound>();
     registry.register::<ModuleEdges>();
     registry.register::<ModuleGraph>();
 
@@ -45,7 +45,7 @@ pub fn schema(registry: &mut SchemaRegistry) {
     registry.register::<DirExported>();
     registry.register::<DirResolved>();
     registry.register::<DirDeclared>();
-    registry.register::<GlobalEnvironmentDigest>();
+    registry.register::<EnvironmentDeclared>();
     registry.register::<DirChecked>();
     registry.register::<DirMaterialized>();
 

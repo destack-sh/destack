@@ -1,4 +1,4 @@
-use destack_artifact::{GlobalEnvironment, LanguageEnvironment};
+use destack_artifact::{EnvironmentBound, LanguageEnvironment};
 use destack_dir as dir;
 
 use crate::resolve::state::ResolveState;
@@ -99,7 +99,7 @@ impl ResolveState<'_> {
     /// ```
     pub(in crate::resolve) fn resolve_profile_globals(
         &mut self,
-        environment: &GlobalEnvironment,
+        environment: &EnvironmentBound,
     ) -> CompilerResult<()> {
         let keys = self.global_keys.iter().copied().collect::<Vec<_>>();
 
