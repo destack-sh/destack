@@ -13,8 +13,6 @@ use super::{
     ObjectUnwind, ObjectUnwindBuilder, Relocation, Resume, Symbol,
 };
 
-const OBJECT_VERSION: u16 = 2;
-
 /// Relocatable native machine code for one module.
 #[derive(Clone, Debug, Reflect)]
 pub struct Object {
@@ -126,12 +124,14 @@ impl From<SectionImageError> for ObjectLoadError {
 impl ObjectHeader {
     /// Stable native object marker.
     const MAGIC: u32 = u32::from_le_bytes(*b"DSNO");
+    /// Stable native object format version.
+    const VERSION: u16 = 3;
 
     /// Create one empty native object header.
     fn new(target_layout: TargetLayout) -> Self {
         Self {
             magic: Self::MAGIC,
-            version: OBJECT_VERSION,
+            version: Self::VERSION,
             reserved: 0,
             byte_len: 0,
             target_layout,
@@ -156,7 +156,7 @@ impl ObjectHeader {
         if header.magic != Self::MAGIC {
             return Err(ObjectLoadError::InvalidMagic);
         }
-        if header.version != OBJECT_VERSION {
+        if header.version != Self::VERSION {
             return Err(ObjectLoadError::UnsupportedVersion(header.version));
         }
         if usize::try_from(header.byte_len).ok() != Some(loader.bytes().len()) {

@@ -4,9 +4,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::abi;
 
-use super::{Alignment, CodeMap, CodeMapBuilder, Entry, Function, Unwind, UnwindBuilder};
+use super::{
+    Alignment, CodeMap, CodeMapBuilder, Entry, Function, PersonalityRelocation, Unwind,
+    UnwindBuilder,
+};
 
-/// Immutable position-independent native code linked into one Program.
+/// Immutable native code linked into one Program.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct Code {
@@ -24,13 +27,15 @@ pub struct Code {
     functions: SectionSlice<Optional<Function>>,
     /// Native resume entries keyed by Program frame state id.
     resumes: SectionSlice<Optional<Entry>>,
+    /// Platform personality pointers patched when the executable image is loaded.
+    personalities: SectionSlice<PersonalityRelocation>,
     /// Fully linked target-native unwind tables.
     unwind: Optional<Unwind>,
     /// Native frame maps for collection, inspection, and deoptimization.
     map: CodeMap,
 }
 
-/// Immutable position-independent native code under construction.
+/// Native code under construction.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CodeBuilder {
     /// Exact target triple.
@@ -45,6 +50,8 @@ pub struct CodeBuilder {
     functions: Vec<Option<Function>>,
     /// Native resume entries keyed by Program frame state id.
     resumes: Vec<Option<Entry>>,
+    /// Platform personality pointers patched when the executable image is loaded.
+    personalities: Vec<PersonalityRelocation>,
     /// Fully linked target-native unwind tables.
     unwind: Option<UnwindBuilder>,
     /// Native code map.
@@ -57,6 +64,7 @@ impl Code {
         let bytes = self.bytes(sections);
         let functions = self.functions(sections);
         let resumes = self.resumes(sections);
+        let personalities = self.personalities(sections);
         let alignment = self.alignment.bytes() as usize;
 
         // require the linked image to satisfy its executable base alignment
@@ -77,7 +85,10 @@ impl Code {
             .unwind
             .get()
             .is_none_or(|unwind| unwind.ranges_fit(sections, bytes.len()));
-        if !functions_fit || !resumes_fit || !unwind_fits {
+        let personalities_fit = personalities
+            .iter()
+            .all(|personality| personality.is_within(bytes.len()));
+        if !functions_fit || !resumes_fit || !personalities_fit || !unwind_fits {
             return false;
         }
 
@@ -134,6 +145,11 @@ impl Code {
         sections.entries(self.resumes)
     }
 
+    /// Return platform personality pointer relocations.
+    pub fn personalities<'a>(&self, sections: SectionImage<'a>) -> &'a [PersonalityRelocation] {
+        sections.entries(self.personalities)
+    }
+
     /// Return fully linked target-native unwind tables when present.
     pub fn unwind(&self) -> Option<Unwind> {
         self.unwind.get()
@@ -155,6 +171,7 @@ impl CodeBuilder {
             bytes: Vec::new(),
             functions: Vec::new(),
             resumes: Vec::new(),
+            personalities: Vec::new(),
             unwind: None,
             map: CodeMapBuilder::new(),
         }
@@ -187,6 +204,16 @@ impl CodeBuilder {
     /// Set native resume entries in dense Program frame state order.
     pub fn resumes(mut self, resumes: impl IntoIterator<Item = Option<Entry>>) -> Self {
         self.resumes = resumes.into_iter().collect();
+
+        self
+    }
+
+    /// Set platform personality pointer relocations.
+    pub fn personalities(
+        mut self,
+        personalities: impl IntoIterator<Item = PersonalityRelocation>,
+    ) -> Self {
+        self.personalities = personalities.into_iter().collect();
 
         self
     }
@@ -235,6 +262,7 @@ impl CodeBuilder {
             bytes: sections.insert_bytes(bytes, alignment.bytes() as usize),
             functions: sections.insert(functions),
             resumes: sections.insert(resumes),
+            personalities: sections.insert(self.personalities),
             unwind: Optional::from(unwind),
             map: self.map.build(sections),
         }

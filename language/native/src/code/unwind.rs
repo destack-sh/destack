@@ -28,6 +28,14 @@ pub struct Unwind {
     sections: SectionSlice<UnwindSection>,
 }
 
+/// One platform personality pointer inside linked native code.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct PersonalityRelocation {
+    /// Byte offset of the target pointer inside the linked image.
+    pub offset: u32,
+}
+
 /// One target unwind section.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
@@ -62,13 +70,15 @@ pub struct UnwindRelocation {
 pub enum UnwindTarget {
     /// Object-local native symbol.
     Symbol(SymbolId),
-    /// Byte offset inside another unwind section.
+    /// Byte offset inside one object-local unwind section.
     Section {
-        /// Target unwind section index.
+        /// Object-local section index.
         section: u32,
-        /// Target section byte offset.
+        /// Byte offset inside the section.
         offset: u32,
     },
+    /// Platform unwind personality function.
+    Personality,
 }
 
 /// Platform unwind encoding.
@@ -173,7 +183,26 @@ impl Unwind {
     }
 }
 
+impl PersonalityRelocation {
+    /// Create one platform personality relocation.
+    pub const fn new(offset: u32) -> Self {
+        Self { offset }
+    }
+
+    /// Return whether the target pointer lies inside its native image.
+    pub fn is_within(self, byte_len: usize) -> bool {
+        self.offset
+            .checked_add(size_of::<usize>() as u32)
+            .is_some_and(|end| end as usize <= byte_len)
+    }
+}
+
 impl UnwindSection {
+    /// Return this section's byte offset inside its native image.
+    pub const fn byte_offset(self) -> u32 {
+        self.bytes.start
+    }
+
     /// Return this section's target bytes.
     pub fn bytes(self, bytes: &[u8]) -> &[u8] {
         self.bytes.slice(bytes)
@@ -214,6 +243,7 @@ impl UnwindRelocation {
             UnwindTarget::Section { section, offset } => sections
                 .get(section as usize)
                 .is_some_and(|section| offset <= section.byte_len()),
+            UnwindTarget::Personality => true,
         }
     }
 }

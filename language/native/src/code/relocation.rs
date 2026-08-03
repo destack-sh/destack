@@ -45,13 +45,8 @@ impl RelocationKind {
     /// Return the number of patched bytes.
     pub const fn byte_len(self) -> u32 {
         match self {
-            Self::Relative32
-            | Self::X86PcRelative32
-            | Self::X86CallRelative32
-            | Self::Aarch64Call26
-            | Self::Aarch64Page21
-            | Self::Aarch64Low12 => 4,
-            Self::RiscvCall => 8,
+            Self::Absolute64 | Self::RiscvCall => 8,
+            Self::Relative32 | Self::Aarch64Call26 | Self::Aarch64Page21 | Self::Aarch64Low12 => 4,
         }
     }
 }
@@ -60,13 +55,10 @@ impl RelocationKind {
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum RelocationKind {
+    /// Write one 64-bit absolute address.
+    Absolute64 = 0x00,
     /// Write one 32-bit PC-relative address.
-    Relative32 = 0x00,
-
-    /// Write one x86-64 32-bit PC-relative address.
-    X86PcRelative32 = 0x10,
-    /// Write one x86-64 32-bit PC-relative call target.
-    X86CallRelative32 = 0x11,
+    Relative32 = 0x01,
 
     /// Write one AArch64 26-bit branch target.
     Aarch64Call26 = 0x20,
