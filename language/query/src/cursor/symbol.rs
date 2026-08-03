@@ -35,7 +35,7 @@ impl SymbolOccurrence {
 }
 
 impl ModuleQueryContext<'_> {
-    /// Return the recorded semantic symbol occurrence at an authored span.
+    /// Return the recorded symbol occurrence at an authored span.
     pub(crate) fn symbol_at_offset(
         &self,
         file_id: FileId,
@@ -186,7 +186,7 @@ impl ModuleQueryContext<'_> {
         Ok(None)
     }
 
-    /// Return the occurrence introduced by one named binding.
+    /// Return the occurrence introduced by one authored binding.
     fn binding_occurrence(
         &self,
         node_id: dir::LocalNodeIdAny,
@@ -195,13 +195,19 @@ impl ModuleQueryContext<'_> {
         let Some(symbol_id) = self.node_symbol(node_id)? else {
             return Ok(None);
         };
-        if self.bindings()?.get_symbol(symbol_id).name().is_none() {
+        let symbol_id = symbol_id.into_global(self.module_id());
+        let symbol = self.bindings()?.get_symbol(symbol_id.local_id);
+        let member_name = self
+            .definitions()?
+            .member(symbol_id)
+            .and_then(|(_, _, member)| member.name(self.strings()));
+        if symbol.name().is_none() && member_name.is_none() {
             return Ok(None);
         }
         let source = node_id.into_global(self.module_id());
 
         Ok(Some(SymbolOccurrence {
-            symbols: vec![symbol_id.into_global(self.module_id())],
+            symbols: vec![symbol_id],
             type_id: self.types()?.get_node_type_id(source),
             span,
         }))
@@ -250,7 +256,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // prefer the final checked use-site selection
-        if let Some(symbols) = self.recorded_symbol_targets(source)? {
+        if let Some(symbols) = self.symbol_targets(source)? {
             return Ok(Some(SymbolOccurrence {
                 symbols,
                 type_id: self.types()?.get_node_type_id(source),
@@ -363,7 +369,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // use sites return only the identities recorded by checking
-        if let Some(mut symbols) = self.recorded_symbol_targets(global_node_id)? {
+        if let Some(mut symbols) = self.symbol_targets(global_node_id)? {
             if symbols.is_empty() {
                 return Ok(None);
             }
@@ -456,7 +462,7 @@ impl ModuleQueryContext<'_> {
         let targets = match reference {
             // the final bound segment receives the checker's selected declaration
             dir::Reference::Bound(_) if segment + 1 == segment_count => {
-                self.recorded_symbol_targets(source)?
+                self.symbol_targets(source)?
             }
 
             // the bound prefix receives its exact projected base declaration

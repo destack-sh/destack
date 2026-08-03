@@ -283,7 +283,7 @@ impl ModuleQueryContext<'_> {
                 continue;
             }
             let source = expression.into_global_any(self.module_id());
-            let Some(targets) = self.recorded_symbol_targets(source)? else {
+            let Some(targets) = self.symbol_targets(source)? else {
                 return Err(QueryError::missing(format!("inline capture: {source:?}")));
             };
             let targets = canonical_symbols(program, targets)?;

@@ -679,7 +679,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
         }
 
         // classify remaining references from their recorded symbol identities
-        let Some(symbols) = self.module.recorded_symbol_targets(node_id)? else {
+        let Some(symbols) = self.module.symbol_targets(node_id)? else {
             return Ok(None);
         };
 

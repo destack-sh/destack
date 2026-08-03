@@ -4,7 +4,7 @@ use crate::{ModuleQueryContext, QueryError, QueryResult};
 
 impl ModuleQueryContext<'_> {
     /// Return every symbol target from one recorded use-site resolution.
-    pub(crate) fn recorded_symbol_targets(
+    pub(crate) fn symbol_targets(
         &self,
         node_id: dir::GlobalNodeIdAny,
     ) -> QueryResult<Option<Vec<dir::GlobalSymbolId>>> {

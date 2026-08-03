@@ -321,7 +321,7 @@ impl ModuleQueryContext<'_> {
 
         // follow the exact symbol occurrence into its variable declaration
         let source = left.into_global_any(self.module_id());
-        let Some(symbols) = self.recorded_symbol_targets(source)? else {
+        let Some(symbols) = self.symbol_targets(source)? else {
             return Err(QueryError::missing(format!(
                 "inlay hint callable: {source:?}"
             )));

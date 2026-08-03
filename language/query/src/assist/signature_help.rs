@@ -252,7 +252,7 @@ impl ModuleQueryContext<'_> {
         return_type: dir::GlobalTypeId,
     ) -> QueryResult<SignatureItem> {
         let source = callee_id.into_global_any(self.module_id());
-        let Some(symbols) = self.recorded_symbol_targets(source)? else {
+        let Some(symbols) = self.symbol_targets(source)? else {
             return Err(QueryError::missing(format!(
                 "expression call declaration: {source:?}"
             )));

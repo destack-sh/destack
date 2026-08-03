@@ -54,9 +54,9 @@ pub struct HighlightResponse {
 }
 
 impl ModuleQueryContext<'_> {
-    /// Highlight all occurrences of the symbol at the given position in the module.
+    /// Highlight every occurrence of the symbol at one module position.
     ///
-    /// Only highlights within the same file (for cross file, use find_references).
+    /// Use references to find occurrences in other files.
     pub fn highlight(
         &self,
         program: &ProgramQueryContext<'_>,
@@ -174,6 +174,7 @@ impl ModuleQueryContext<'_> {
             dir::SymbolKind::Variable
             | dir::SymbolKind::AssociatedConst
             | dir::SymbolKind::GenericValueParameter
+            | dir::SymbolKind::Parameter
             | dir::SymbolKind::Import => HighlightKind::Read,
             _ => HighlightKind::Text,
         };
