@@ -478,7 +478,7 @@ entry:
 function test(v0: boolean): int32 {
 entry(v0: boolean):
     v1: int32 = 42
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     return v1
@@ -512,7 +512,7 @@ entry(v0: boolean):
 b1(v2: int32):
     v3: int32 = 2
     v4: int32 = int.add v2, v3
-    branch v0, b1(v4), b2
+    branch v0 => b1(v4) | b2
 
 b2:
     return v4

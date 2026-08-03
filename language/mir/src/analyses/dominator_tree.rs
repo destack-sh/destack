@@ -468,7 +468,7 @@ b2:
             r#"
 function diamond(v0: boolean): void {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     jump b3
@@ -506,7 +506,7 @@ b3:
             r#"
 function unreachableBlock(v0: boolean): void {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     return

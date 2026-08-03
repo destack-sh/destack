@@ -55,7 +55,7 @@ fn test_format_branch() {
         r#"
 function choose(v0: boolean, v1: int32, v2: int32): int32 {
 entry(v0: boolean, v1: int32, v2: int32):
-    branch v0, b1(v1), b2(v2)
+    branch v0 => b1(v1) | b2(v2)
 
 b1(v3: int32):
     return v3

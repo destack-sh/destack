@@ -26,10 +26,10 @@ fn test_format_fallible_allocation_family() {
         r#"
 function allocTry(v0: int64): int32 {
 entry(v0: int64):
-    new.zeroed.try int32 => b1, b2
+    new.zeroed.try int32 => b1 | b2
 
 b1(v1: ref<int32, managed, mutable>):
-    new.slice.uninit.try int32, v0 => b3, b2
+    new.slice.uninit.try int32, v0 => b3 | b2
 
 b2:
     v2: int32 = 0

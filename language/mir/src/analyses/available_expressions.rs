@@ -244,7 +244,7 @@ b1:
             r#"
 function test(v0: boolean, v1: int32, v2: int32): int32 {
 entry(v0: boolean, v1: int32, v2: int32):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v3: int32 = int.add v1, v2
@@ -282,7 +282,7 @@ b3:
             r#"
 function test(v0: boolean, v1: int32, v2: int32): int32 {
 entry(v0: boolean, v1: int32, v2: int32):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v3: int32 = int.add v1, v2
@@ -348,7 +348,7 @@ entry(v0: int32):
             r#"
 function test(v0: boolean, v1: int32, v2: int32): int32 {
 entry(v0: boolean, v1: int32, v2: int32):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v3: int32 = int.add v1, v2

@@ -118,7 +118,7 @@ b2:
             r#"
 function testBranch(v0: boolean): void {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     return
@@ -145,7 +145,7 @@ b2:
             r#"
 function diamond(v0: boolean): void {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     jump b3
@@ -176,7 +176,7 @@ entry(v0: boolean):
     jump b1(v0)
 
 b1(v1: boolean):
-    branch v1, b1(v1), b2
+    branch v1 => b1(v1) | b2
 
 b2:
     return
@@ -198,7 +198,7 @@ b2:
             r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: int32 = 1

@@ -652,7 +652,7 @@ mod tests {
             r#"
 function diamond(v0: boolean): void {
 b0(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 b1:
     jump b3
 b2:
@@ -671,7 +671,7 @@ b3:
             r#"
 function diamond(v0: boolean): void {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     jump b3
@@ -703,7 +703,7 @@ b3:
             r#"
 function diamond(v0: boolean): void {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     jump b3
@@ -754,7 +754,7 @@ entry:
     jump b1
 
 b1(v1: boolean):
-    branch v1, b2, b3
+    branch v1 => b2 | b3
 
 b2:
     jump b1(v1)

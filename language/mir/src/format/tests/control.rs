@@ -277,10 +277,10 @@ fn test_format_check_type_guards() {
         r#"
 function guard(v0: ref<void, managed, mutable>): int32 {
 entry(v0: ref<void, managed, mutable>):
-    check is.type v0, int32 => b1, b3
+    check is.type v0, int32 => b1 | b3
 
 b1:
-    check is.subtype v0, int32 => b2, b3
+    check is.subtype v0, int32 => b2 | b3
 
 b2:
     v1: int32 = 0

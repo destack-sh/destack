@@ -623,7 +623,7 @@ entry:
 function test(v0: boolean): boolean {
 entry(v0: boolean):
     v1: boolean = true
-    branch v0, b1(v1), b2(v1)
+    branch v0 => b1(v1) | b2(v1)
 
 b1(v2: boolean):
     jump b3(v2)
@@ -657,7 +657,7 @@ b3(v4: boolean):
 function test(v0: int64): boolean {
 entry(v0: int64):
     v1: boolean = true
-    new.slice.uninit.try int32, v0 => b1(v1), b2
+    new.slice.uninit.try int32, v0 => b1(v1) | b2
 
 b1(v2: uninit<slice<int32, managed, mutable>>, v3: boolean):
     return v3
@@ -691,7 +691,7 @@ function test(v0: boolean): boolean {
 entry(v0: boolean):
     v1: boolean = true
     v2: boolean = false
-    branch v0, b1(v1), b2(v2)
+    branch v0 => b1(v1) | b2(v2)
 
 b1(v3: boolean):
     jump b3(v3)
@@ -726,7 +726,7 @@ function test(v0: boolean): boolean {
 entry(v0: boolean):
     v1: boolean = true
     v2: boolean = false
-    branch v0, b1(v1), b1(v2)
+    branch v0 => b1(v1) | b1(v2)
 
 b1(v3: boolean):
     return v3

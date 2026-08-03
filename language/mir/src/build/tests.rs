@@ -170,7 +170,7 @@ fn test_build_function_with_branch() {
     let expected = "\
 function select(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: int32 = 1
@@ -491,7 +491,7 @@ fn test_ssa_branch_with_phi() {
     let expected = "\
 function phiTest(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: int32 = 1
@@ -563,7 +563,7 @@ fn test_ssa_trivial_phi_removal() {
 function trivialPhi(v0: boolean): int32 {
 entry(v0: boolean):
     v1: int32 = 42
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     jump b3
@@ -632,7 +632,7 @@ fn test_ssa_trivial_phi_unsealed() {
 function trivialPhiUnsealed(v0: boolean): int32 {
 entry(v0: boolean):
     v1: int32 = 42
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     jump b3
@@ -1587,7 +1587,7 @@ entry(v0: boolean):
     jump b1(v1)
 
 b1(v2: int32):
-    branch v0, b2, b4
+    branch v0 => b2 | b4
 
 b2:
     v4: int32 = 10
@@ -1670,7 +1670,7 @@ fn test_ssa_multiple_phis_at_merge() {
     let expected = "\
 function multiPhi(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: int32 = 1

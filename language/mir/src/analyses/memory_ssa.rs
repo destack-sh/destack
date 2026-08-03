@@ -2139,7 +2139,7 @@ entry(v0: ref<int32, raw, mutable>):
             r#"
 function test(v0: ref<int32, raw, mutable>, v1: boolean): int32 {
 entry(v0: ref<int32, raw, mutable>, v1: boolean):
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b1:
     v2: int32 = 1
@@ -2852,7 +2852,7 @@ entry(v0: ref<int32, raw, mutable>, v1: int32):
 
 b1(v3: int32):
     v4: boolean = int.lt.s v3, v1
-    branch v4, b2, b3
+    branch v4 => b2 | b3
 
 b2:
     v5: int32 = 1

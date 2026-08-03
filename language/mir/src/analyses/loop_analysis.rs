@@ -433,7 +433,7 @@ mod tests {
             r#"
 function selfLoop(v0: boolean): void {
 entry(v0: boolean):
-    branch v0, entry(v0), b1
+    branch v0 => entry(v0) | b1
 
 b1:
     return
@@ -466,7 +466,7 @@ entry(v0: boolean):
     jump b1
 
 b1:
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b2:
     return
@@ -499,7 +499,7 @@ entry(v0: boolean):
     jump b1(v0)
 
 b1(v1: boolean):
-    branch v1, b2, b3
+    branch v1 => b2 | b3
 
 b2:
     jump b1(v1)
@@ -544,10 +544,10 @@ entry(v0: boolean, v1: boolean):
     jump b1(v0, v1)
 
 b1(v2: boolean, v3: boolean):
-    branch v2, b2(v3), b4
+    branch v2 => b2(v3) | b4
 
 b2(v4: boolean):
-    branch v4, b3, b1(v2, v4)
+    branch v4 => b3 | b1(v2, v4)
 
 b3:
     jump b2(v4)
@@ -597,10 +597,10 @@ entry(v0: boolean):
     jump b1(v0)
 
 b1(v1: boolean):
-    branch v1, b2(v1), b3
+    branch v1 => b2(v1) | b3
 
 b2(v2: boolean):
-    branch v2, b2(v2), b1(v2)
+    branch v2 => b2(v2) | b1(v2)
 
 b3:
     return
@@ -640,7 +640,7 @@ b3:
             r#"
 function noLoops(v0: boolean): void {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     jump b3
@@ -678,7 +678,7 @@ entry(v0: boolean):
     jump b1(v0)
 
 b1(v1: boolean):
-    branch v1, b2, b3
+    branch v1 => b2 | b3
 
 b2:
     jump b1(v1)
@@ -712,10 +712,10 @@ entry(v0: boolean, v1: boolean):
     jump b1(v0, v1)
 
 b1(v2: boolean, v3: boolean):
-    branch v2, b2(v3), b4
+    branch v2 => b2(v3) | b4
 
 b2(v4: boolean):
-    branch v4, b1(v2, v4), b3
+    branch v4 => b1(v2, v4) | b3
 
 b3:
     return
@@ -762,10 +762,10 @@ entry(v0: boolean):
     jump b1(v0)
 
 b1(v1: boolean):
-    branch v1, b2(v1), b3
+    branch v1 => b2(v1) | b3
 
 b2(v2: boolean):
-    branch v2, b2(v2), b1(v2)
+    branch v2 => b2(v2) | b1(v2)
 
 b3:
     return
@@ -800,10 +800,10 @@ entry(v0: boolean, v1: boolean):
     jump b1(v0)
 
 b1(v2: boolean):
-    branch v2, b1(v2), b2(v1)
+    branch v2 => b1(v2) | b2(v1)
 
 b2(v3: boolean):
-    branch v3, b2(v3), b3
+    branch v3 => b2(v3) | b3
 
 b3:
     return
@@ -832,10 +832,10 @@ entry(v0: boolean, v1: boolean):
     jump b1(v0, v1)
 
 b1(v2: boolean, v3: boolean):
-    branch v2, b2(v3), b3
+    branch v2 => b2(v3) | b3
 
 b2(v4: boolean):
-    branch v4, b2(v4), b1(v2, v4)
+    branch v4 => b2(v4) | b1(v2, v4)
 
 b3:
     return

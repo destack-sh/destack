@@ -485,7 +485,7 @@ entry:
 function test(v0: boolean): ref<int32, unique, mutable> {
 entry(v0: boolean):
     v1: ref<int32, unique, mutable> = new.zeroed int32
-    branch v0, b1(v1), b2(v1)
+    branch v0 => b1(v1) | b2(v1)
 
 b1(v2: ref<int32, unique, mutable>):
     return v2

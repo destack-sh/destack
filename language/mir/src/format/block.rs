@@ -112,12 +112,10 @@ fn format_terminator<'a>(term: &Terminator, f: &mut Writer<'a, '_>) -> FormatRes
             then_target,
             else_target,
         } => {
-            write!(
-                f,
-                [token("branch"), space(), condition, token(","), space()]
-            )?;
+            write!(f, [token("branch"), space(), condition])?;
+            write!(f, [space(), token("=>"), space()])?;
             format_block_target(then_target, f)?;
-            write!(f, [token(","), space()])?;
+            write!(f, [space(), token("|"), space()])?;
             format_block_target(else_target, f)?;
             Ok(())
         }
@@ -131,7 +129,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut Writer<'a, '_>) -> FormatRes
             format_check_constraint(constraint, f)?;
             write!(f, [space(), token("=>"), space()])?;
             format_block_target(success, f)?;
-            write!(f, [token(","), space()])?;
+            write!(f, [space(), token("|"), space()])?;
             format_block_target(failure, f)?;
             Ok(())
         }
@@ -450,7 +448,7 @@ fn format_allocation_continuation<'a>(
 ) -> FormatResult<()> {
     write!(f, [space(), token("=>"), space()])?;
     format_block_target(success, f)?;
-    write!(f, [token(","), space()])?;
+    write!(f, [space(), token("|"), space()])?;
     format_block_target(failure, f)?;
 
     Ok(())

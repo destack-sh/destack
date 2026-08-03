@@ -1323,7 +1323,7 @@ b1(v3: int32):
     v4: int32 = 1
     v5: int32 = int.add v3, v4
     v6: boolean = int.lt.s v5, v1
-    branch v6, b1(v5), b2(v5)
+    branch v6 => b1(v5) | b2(v5)
 
 b2(v7: int32):
     return v7
@@ -1377,7 +1377,7 @@ entry(v0: int32, v1: int32):
 b1(v3: int32):
     v4: int32 = int.mul v3, v1
     v5: boolean = int.lt.s v4, v1
-    branch v5, b1(v4), b2(v4)
+    branch v5 => b1(v4) | b2(v4)
 
 b2(v6: int32):
     return v6
@@ -1418,7 +1418,7 @@ b1(v2: int32):
     v3: int32 = 1
     v4: int32 = int.sub v2, v3
     v5: boolean = int.gt.s v4, v0
-    branch v5, b1(v4), b2(v4)
+    branch v5 => b1(v4) | b2(v4)
 
 b2(v6: int32):
     return v6
@@ -1471,7 +1471,7 @@ entry(v0: int32):
 
 b1(v2: int32):
     v3: boolean = int.lt.s v2, v0
-    branch v3, b2(v2), b3(v2)
+    branch v3 => b2(v2) | b3(v2)
 
 b2(v4: int32):
     jump b1(v4)
@@ -1531,7 +1531,7 @@ b1(v3: int32):
     v6: int32 = 1
     v7: int32 = int.add v3, v6
     v8: boolean = int.lt.s v7, v1
-    branch v8, b1(v7), b2(v5)
+    branch v8 => b1(v7) | b2(v5)
 
 b2(v9: int32):
     return v9
@@ -1591,7 +1591,7 @@ b1(v2: int32):
     v4: int32 = 1
     v5: int32 = int.add v2, v4
     v6: boolean = int.lt.s v5, v0
-    branch v6, b1(v5), b2(v3)
+    branch v6 => b1(v5) | b2(v3)
 
 b2(v7: int32):
     return v7
@@ -1651,7 +1651,7 @@ b1(v2: int32):
     v5: int32 = 1
     v6: int32 = int.add v2, v5
     v7: boolean = int.lt.s v6, v0
-    branch v7, b1(v6), b2(v4)
+    branch v7 => b1(v6) | b2(v4)
 
 b2(v8: int32):
     return v8
@@ -1710,7 +1710,7 @@ b1(v3: int32):
     v5: int32 = 1
     v6: int32 = int.add v3, v5
     v7: boolean = int.lt.s v6, v0
-    branch v7, b1(v6), b2(v4)
+    branch v7 => b1(v6) | b2(v4)
 
 b2(v8: int32):
     return v8
@@ -1767,7 +1767,7 @@ b1(v2: int32):
     v5: int32 = 2
     v6: int32 = int.add v4, v5
     v7: boolean = int.lt.s v6, v0
-    branch v7, b1(v6), b2(v6)
+    branch v7 => b1(v6) | b2(v6)
 
 b2(v8: int32):
     return v8
@@ -1824,7 +1824,7 @@ b1(v2: int32):
     v5: int32 = 2
     v6: int32 = int.sub v4, v5
     v7: boolean = int.gt.s v6, v0
-    branch v7, b1(v6), b2(v6)
+    branch v7 => b1(v6) | b2(v6)
 
 b2(v8: int32):
     return v8
@@ -1881,7 +1881,7 @@ b1(v2: int32):
     v5: int32 = 1
     v6: int32 = int.add v2, v5
     v7: boolean = int.lt.s v6, v0
-    branch v7, b1(v6), b2(v4)
+    branch v7 => b1(v6) | b2(v4)
 
 b2(v8: int32):
     return v8
@@ -1941,7 +1941,7 @@ b1(v2: int32):
     v5: int32 = int.shr.u v2, v3
     v6: int32 = int.add v2, v3
     v7: boolean = int.lt.s v6, v0
-    branch v7, b1(v6), b2(v4)
+    branch v7 => b1(v6) | b2(v4)
 
 b2(v8: int32):
     return v8
@@ -2021,7 +2021,7 @@ b1(v3: int32):
     v10: int64 = cast.extend.s v3 -> int64
     v11: uint64 = cast.extend.u v3 -> uint64
     v12: boolean = int.lt.s v3, v1
-    branch v12, b1(v3), b2(v10)
+    branch v12 => b1(v3) | b2(v10)
 
 b2(v13: int64):
     return v13

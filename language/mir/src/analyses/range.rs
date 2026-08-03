@@ -2520,7 +2520,7 @@ entry(v0: int32):
             r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: int32 = 1
@@ -2567,7 +2567,7 @@ b3(v3: int32):
 function test(v0: int64): int32 {
 entry(v0: int64):
     v1: int32 = 7
-    new.slice.uninit.try int32, v0 => b1(v1), b2
+    new.slice.uninit.try int32, v0 => b1(v1) | b2
 
 b1(v2: uninit<slice<int32, managed, mutable>>, v3: int32):
     return v3
@@ -2607,7 +2607,7 @@ b2:
             r#"
 function test(v0: boolean, v1: int32): int32 {
 entry(v0: boolean, v1: int32):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v2: int32 = 1
@@ -2642,7 +2642,7 @@ b3(v3: int32):
             r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: int32 = 2
@@ -2692,7 +2692,7 @@ b3(v3: int32):
             r#"
 function test(v0: boolean): boolean {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: int32 = 1
@@ -2778,7 +2778,7 @@ entry:
             r#"
 function test(v0: boolean): float32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: float32 = 1
@@ -2829,7 +2829,7 @@ b3(v3: float32):
             r#"
 function test(v0: boolean): float32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: float32 = inf
@@ -2922,7 +2922,7 @@ entry:
             r#"
 function test(v0: boolean): float32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: float32 = inf
@@ -3015,7 +3015,7 @@ entry:
             r#"
 function test(v0: boolean): boolean {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: float32 = 1
@@ -3095,7 +3095,7 @@ entry:
             r#"
 function test(v0: boolean, v1: boolean): float32 {
 entry(v0: boolean, v1: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v2: float32 = 0
@@ -3106,7 +3106,7 @@ b2:
     jump b3(v3, v1)
 
 b3(v4: float32, v5: boolean):
-    branch v5, b4, b5
+    branch v5 => b4 | b5
 
 b4:
     v6: float32 = 0
@@ -3159,7 +3159,7 @@ b6(v8: float32, v9: float32):
             r#"
 function test(v0: boolean): float32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: float32 = 0
@@ -3213,7 +3213,7 @@ b3(v3: float32):
             r#"
 function test(v0: boolean): float32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: float32 = 0
@@ -3264,7 +3264,7 @@ b3(v3: float32):
             r#"
 function test(v0: boolean): float32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: float32 = 0
@@ -3315,7 +3315,7 @@ b3(v3: float32):
             r#"
 function test(v0: boolean): float32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: float32 = 0
@@ -3367,7 +3367,7 @@ b3(v5: float32, v6: float32):
             r#"
 function test(v0: boolean): float32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: float32 = 0
@@ -3418,7 +3418,7 @@ b3(v3: float32):
             r#"
 function test(v0: boolean): float32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: float32 = inf
@@ -3675,7 +3675,7 @@ entry:
             r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: float32 = 1
@@ -3724,7 +3724,7 @@ b3(v3: float32):
             r#"
 function test(v0: boolean): int8 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: int32 = -300
@@ -3893,7 +3893,7 @@ entry:
             r#"
 function test(v0: boolean): float32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: float32 = 0
@@ -4087,7 +4087,7 @@ entry:
             r#"
 function test(v0: boolean): boolean {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: float32 = 0
@@ -4128,7 +4128,7 @@ b3(v4: float32):
             r#"
 function test(v0: boolean): float32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: float32 = inf
@@ -4175,7 +4175,7 @@ b3(v3: float32):
             r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: float32 = 1
@@ -4243,7 +4243,7 @@ entry:
             r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0 => b1 | b2
 
 b1:
     v1: float32 = -1

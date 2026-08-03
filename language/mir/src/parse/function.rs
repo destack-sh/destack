@@ -956,9 +956,9 @@ impl Parser {
             TokenType::Branch => {
                 self.bump();
                 let condition = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
+                self.eat_token(TokenType::FatArrow)?;
                 let then_target = self.parse_block_target()?;
-                self.eat_token(TokenType::Comma)?;
+                self.eat_token(TokenType::Pipe)?;
                 let else_target = self.parse_block_target()?;
 
                 Ok(Terminator::Branch {
@@ -976,7 +976,7 @@ impl Parser {
                 let constraint = self.parse_check_kind()?;
                 self.eat_token(TokenType::FatArrow)?;
                 let success = self.parse_block_target()?;
-                self.eat_token(TokenType::Comma)?;
+                self.eat_token(TokenType::Pipe)?;
                 let failure = self.parse_block_target()?;
                 Ok(Terminator::Check {
                     constraint,
@@ -1284,7 +1284,7 @@ impl Parser {
         self.eat_token(TokenType::FatArrow)?;
 
         let success = self.parse_block_target()?;
-        self.eat_token(TokenType::Comma)?;
+        self.eat_token(TokenType::Pipe)?;
         let failure = self.parse_block_target()?;
 
         Ok((success, failure))

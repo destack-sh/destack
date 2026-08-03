@@ -1381,7 +1381,7 @@ mod tests {
             r#"
 function test(v0: int64, v9: int32): int32 {
 entry(v0: int64, v9: int32):
-    new.slice.uninit.try int32, v0 => b1(v9), b2(v9)
+    new.slice.uninit.try int32, v0 => b1(v9) | b2(v9)
 
 b1(v1: uninit<slice<int32, managed, mutable>>, v2: int32):
     return v2
