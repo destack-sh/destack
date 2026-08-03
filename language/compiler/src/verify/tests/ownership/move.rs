@@ -196,7 +196,7 @@ function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, 
 entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: boolean):
     v3: Pair = aggregate (v0, v1)
     v4: ref<int32, unique, mutable> = field.get v3, 0
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     return
@@ -333,7 +333,7 @@ entry(v0: ref<Box, unique, mutable>):
 function test(v0: ref<Box, unique, mutable>, v1: boolean): void {
 entry(v0: ref<Box, unique, mutable>, v1: boolean):
     v2: ref<int32, borrowed, mutable> = field.address v0, 0
-    branch v1, b1(v2), b2
+    branch v1 => b1(v2) | b2
 
 b1(v3: ref<int32, borrowed, mutable>):
     call consume(v0): (ref<Box, unique, mutable>) => void
@@ -436,7 +436,7 @@ entry(v0: ref<int32, unique, mutable>):
 
 function test(v0: ref<int32, unique, mutable>, v1: boolean): void {
 entry(v0: ref<int32, unique, mutable>, v1: boolean):
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b1:
     call consume(v0): (ref<int32, unique, mutable>) => void

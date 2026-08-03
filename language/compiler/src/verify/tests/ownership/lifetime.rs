@@ -95,7 +95,7 @@ type User {
 function test<'L0>(v0: ref<User, managed, 'L0, mutable>, v1: boolean): ref<int32, borrowed, 'L0, readonly> {
 entry(v0: ref<User, managed, 'L0, mutable>, v1: boolean):
     v2: ref<int32, borrowed, readonly> = field.address v0, 0
-    branch v1, b1(v2), b2(v2)
+    branch v1 => b1(v2) | b2(v2)
 
 b1(v3: ref<int32, borrowed, 'L0, readonly>):
     return v3
@@ -117,7 +117,7 @@ function test<'L0>(v0: slice<int32, managed, 'L0, mutable>, v1: boolean): ref<in
 entry(v0: slice<int32, managed, 'L0, mutable>, v1: boolean):
     v2: int64 = 0
     v3: ref<int32, borrowed, readonly> = element.address v0, v2
-    branch v1, b1(v3), b2(v3)
+    branch v1 => b1(v3) | b2(v3)
 
 b1(v4: ref<int32, borrowed, 'L0, readonly>):
     return v4
@@ -356,7 +356,7 @@ fn test_carry_lifetime_through_block_parameter() {
         r#"
 function test<'L0>(v0: ref<int32, borrowed, 'L0, mutable>, v1: boolean): ref<int32, borrowed, 'L0, mutable> {
 entry(v0: ref<int32, borrowed, 'L0, mutable>, v1: boolean):
-    branch v1, b1(v0), b2(v0)
+    branch v1 => b1(v0) | b2(v0)
 
 b1(v2: ref<int32, borrowed, 'L0, mutable>):
     return v2
@@ -381,7 +381,7 @@ type Pair<'A, 'B> {
 
 function test<'L0, 'L1>(v0: Pair<'L0, 'L1>, v1: boolean): ref<int32, borrowed, 'L1, readonly> {
 entry(v0: Pair<'L0, 'L1>, v1: boolean):
-    branch v1, b1(v0), b2(v0)
+    branch v1 => b1(v0) | b2(v0)
 
 b1(v2: Pair<'L0, 'L1>):
     jump b3(v2)
@@ -405,7 +405,7 @@ fn test_merge_lifetimes_at_join() {
         r#"
 function test<'L0, 'L1>(v0: ref<int32, borrowed, 'L0, mutable>, v1: ref<int32, borrowed, 'L1, mutable>, v2: boolean): ref<int32, borrowed, 'L0, mutable> {
 entry(v0: ref<int32, borrowed, 'L0, mutable>, v1: ref<int32, borrowed, 'L1, mutable>, v2: boolean):
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     jump b3(v0)
