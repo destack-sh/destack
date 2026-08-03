@@ -89,9 +89,9 @@ impl Parser<'_> {
         let condition = self.parse_register()?;
 
         // parse both destinations
-        self.eat_token(TokenType::Comma)?;
+        self.eat_token(TokenType::FatArrow)?;
         let then_label = self.parse_label()?;
-        self.eat_token(TokenType::Comma)?;
+        self.eat_token(TokenType::Pipe)?;
         let else_label = self.parse_label()?;
 
         // encode condition and destinations
@@ -288,7 +288,7 @@ impl Parser<'_> {
         };
 
         // parse the failure destination shared by every check
-        self.eat_name("else")?;
+        self.eat_token(TokenType::Pipe)?;
         instruction.branch(self.parse_label()?);
 
         let results = self.parse_definitions(instruction.opcode)?;
@@ -415,7 +415,7 @@ impl Parser<'_> {
         // parse both branch destinations
         self.eat_token(TokenType::FatArrow)?;
         let success = self.parse_label()?;
-        self.eat_token(TokenType::Comma)?;
+        self.eat_token(TokenType::Pipe)?;
         let failure = self.parse_label()?;
 
         // encode the fused comparison and branch

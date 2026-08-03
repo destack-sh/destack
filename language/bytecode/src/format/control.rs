@@ -150,7 +150,7 @@ impl InstructionFormatter<'_, '_, '_> {
 
         // write the common failure destination
         let failure = self.branch()?;
-        write!(self.formatter, [space(), token("else"), space()])?;
+        write!(self.formatter, [space(), token("|"), space()])?;
         self.write_label(failure)
     }
 
@@ -176,7 +176,7 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_scalar_representation(scalar)?;
         write!(self.formatter, [space(), token("=>"), space()])?;
         self.write_label(success)?;
-        write!(self.formatter, [token(","), space()])?;
+        write!(self.formatter, [space(), token("|"), space()])?;
         self.write_label(failure)
     }
 
@@ -269,9 +269,9 @@ impl InstructionFormatter<'_, '_, '_> {
         // write the condition and both destinations
         write!(self.formatter, [token("branch"), space()])?;
         self.write_register(condition)?;
-        write!(self.formatter, [token(","), space()])?;
+        write!(self.formatter, [space(), token("=>"), space()])?;
         self.write_label(success)?;
-        write!(self.formatter, [token(","), space()])?;
+        write!(self.formatter, [space(), token("|"), space()])?;
         self.write_label(failure)
     }
 
@@ -401,7 +401,7 @@ impl InstructionFormatter<'_, '_, '_> {
 
         // write the common failure destination
         let failure = self.branch()?;
-        write!(self.formatter, [space(), token("else"), space()])?;
+        write!(self.formatter, [space(), token("|"), space()])?;
         self.write_label(failure)
     }
 }

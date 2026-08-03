@@ -8,7 +8,7 @@ fn test_parse_branch_targets() {
     let object = TestParser::new(
         r#"
 function f0 {
-    branch r0, b0, b1
+    branch r0 => b0 | b1
 
 b0:
     constant r1, true: boolean
@@ -48,17 +48,17 @@ fn test_parse_checked_control_flow() {
     let (_, opcodes) = TestParser::new(
         r#"
 function f0 {
-    check.nonzero r0: int32 else b3
-    check.shift r0, 32: int32 else b3
-    check.narrow r0: int64 -> int32 else b3
-    check.add.overflow r0, r1: int32 else b3
-    check.sub.overflow r0, r1: int32 else b3
-    check.mul.overflow r0, r1: int32 else b3
-    check.bounds r0, r1: uint64 else b3
-    check.range r0, r1, r2: uint64 else b3
+    check.nonzero r0: int32 | b3
+    check.shift r0, 32: int32 | b3
+    check.narrow r0: int64 -> int32 | b3
+    check.add.overflow r0, r1: int32 | b3
+    check.sub.overflow r0, r1: int32 | b3
+    check.mul.overflow r0, r1: int32 | b3
+    check.bounds r0, r1: uint64 | b3
+    check.range r0, r1, r2: uint64 | b3
     poll
-    check.type r2, t0 else b3
-    branch.lt r0, r1: int32 => b0, b2
+    check.type r2, t0 | b3
+    branch.lt r0, r1: int32 => b0 | b2
 
 b0:
     switch r0 { 0 => b1, default => b2 }
