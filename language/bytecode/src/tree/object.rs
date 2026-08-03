@@ -25,6 +25,8 @@ pub enum ObjectLoadError {
     Image(SectionImageError),
     /// The byte region does not contain Destack bytecode.
     InvalidMagic,
+    /// The bytecode object version is not supported.
+    UnsupportedVersion(u16),
     /// The header length does not match the byte region.
     InvalidLength,
     /// One function or frame range is outside its containing section.
@@ -37,6 +39,9 @@ impl fmt::Display for ObjectLoadError {
         match self {
             Self::Image(error) => write!(formatter, "invalid bytecode object image: {error}"),
             Self::InvalidMagic => formatter.write_str("invalid bytecode object magic"),
+            Self::UnsupportedVersion(version) => {
+                write!(formatter, "unsupported bytecode object version {version}")
+            }
             Self::InvalidLength => formatter.write_str("invalid bytecode object length"),
             Self::InvalidRange => formatter.write_str("invalid bytecode object range"),
         }
@@ -58,8 +63,10 @@ impl From<SectionImageError> for ObjectLoadError {
 pub(super) struct Header {
     /// Stable object format marker.
     pub(super) magic: u32,
-    /// Reserved header bytes.
-    pub(super) reserved: u32,
+    /// Stable object format version.
+    pub(super) version: u16,
+    /// Reserved header word.
+    pub(super) reserved: u16,
     /// Complete object image byte length.
     pub(super) byte_len: u64,
     /// Physical functions in object-local function order.
@@ -79,11 +86,14 @@ pub(super) struct Header {
 impl Header {
     /// The stable bytecode object marker.
     const MAGIC: u32 = u32::from_le_bytes(*b"DSBC");
+    /// The stable bytecode object format version.
+    const VERSION: u16 = 1;
 
     /// Create one empty bytecode object header.
     pub(super) fn new() -> Self {
         Self {
             magic: Self::MAGIC,
+            version: Self::VERSION,
             reserved: 0,
             byte_len: 0,
             functions: SectionSlice::empty(),
@@ -101,6 +111,9 @@ impl Header {
         let header = loader.header::<Self>()?;
         if header.magic != Self::MAGIC {
             return Err(ObjectLoadError::InvalidMagic);
+        }
+        if header.version != Self::VERSION {
+            return Err(ObjectLoadError::UnsupportedVersion(header.version));
         }
         if usize::try_from(header.byte_len).ok() != Some(loader.bytes().len()) {
             return Err(ObjectLoadError::InvalidLength);
