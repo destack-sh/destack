@@ -21,6 +21,8 @@ pub enum ObjectLoadError {
     Image(SectionImageError),
     /// The byte region does not contain a Destack WebAssembly object.
     InvalidMagic,
+    /// The WebAssembly object version is not supported.
+    UnsupportedVersion(u16),
     /// The header length does not match the byte region.
     InvalidLength,
 }
@@ -31,6 +33,12 @@ impl fmt::Display for ObjectLoadError {
         match self {
             Self::Image(error) => write!(formatter, "invalid WebAssembly object image: {error}"),
             Self::InvalidMagic => formatter.write_str("invalid WebAssembly object magic"),
+            Self::UnsupportedVersion(version) => {
+                write!(
+                    formatter,
+                    "unsupported WebAssembly object version {version}"
+                )
+            }
             Self::InvalidLength => formatter.write_str("invalid WebAssembly object length"),
         }
     }
@@ -51,8 +59,10 @@ impl From<SectionImageError> for ObjectLoadError {
 struct ObjectHeader {
     /// Stable object format marker.
     magic: u32,
-    /// Reserved header bytes.
-    reserved: u32,
+    /// Stable object format version.
+    version: u16,
+    /// Reserved header word.
+    reserved: u16,
     /// Complete object image byte length.
     byte_len: u64,
     /// Encoded relocatable WebAssembly module.
@@ -62,11 +72,14 @@ struct ObjectHeader {
 impl ObjectHeader {
     /// The stable WebAssembly object marker.
     const MAGIC: u32 = u32::from_le_bytes(*b"DSWO");
+    /// The stable WebAssembly object format version.
+    const VERSION: u16 = 1;
 
     /// Create one empty WebAssembly object header.
     const fn new() -> Self {
         Self {
             magic: Self::MAGIC,
+            version: Self::VERSION,
             reserved: 0,
             byte_len: 0,
             module: SectionSlice::empty(),
@@ -79,6 +92,9 @@ impl ObjectHeader {
         let header = loader.header::<Self>()?;
         if header.magic != Self::MAGIC {
             return Err(ObjectLoadError::InvalidMagic);
+        }
+        if header.version != Self::VERSION {
+            return Err(ObjectLoadError::UnsupportedVersion(header.version));
         }
         if usize::try_from(header.byte_len).ok() != Some(loader.bytes().len()) {
             return Err(ObjectLoadError::InvalidLength);
