@@ -1,4 +1,5 @@
 use std::fmt;
+use std::mem::align_of;
 
 use destack_bytecode::{Code, CodeBuilder};
 use destack_core::{
@@ -19,9 +20,6 @@ use crate::{
     SiteTableBuilder, StaticBytes, StaticImage, StringEntry, StringTable, TypeTable,
     TypeTableBuilder,
 };
-
-const PROGRAM_MAGIC: u32 = u32::from_le_bytes(*b"DSPG");
-const PROGRAM_VERSION: u16 = 10;
 
 /// Program image load failure.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -133,6 +131,8 @@ struct ProgramHeader {
     reserved: u16,
     /// Complete Program image byte length.
     byte_len: u64,
+    /// Required Program image base alignment.
+    alignment: u64,
 
     /// Target ABI layout.
     target_layout: TargetLayout,
@@ -178,13 +178,19 @@ struct ProgramHeader {
 }
 
 impl ProgramHeader {
+    /// Stable Program image marker.
+    const MAGIC: u32 = u32::from_le_bytes(*b"DSPG");
+    /// Stable Program image format version.
+    const VERSION: u16 = 11;
+
     /// Create one empty Program header for a target layout.
     fn new(target_layout: TargetLayout) -> Self {
         Self {
-            magic: PROGRAM_MAGIC,
-            version: PROGRAM_VERSION,
+            magic: Self::MAGIC,
+            version: Self::VERSION,
             reserved: 0,
             byte_len: 0,
+            alignment: align_of::<Self>() as u64,
             target_layout,
             strings: StringTable::default(),
             types: TypeTable::default(),
@@ -239,14 +245,14 @@ impl ProgramHeader {
 
     /// Return the maximum alignment required by this Program image.
     fn alignment(&self) -> Result<usize, ProgramLoadError> {
-        let constants = self.constants.alignment();
-        let shared = self.shared_statics.alignment();
-        let local = self.local_statics.alignment();
-        if !constants.is_power_of_two() || !shared.is_power_of_two() || !local.is_power_of_two() {
+        let Ok(alignment) = usize::try_from(self.alignment) else {
+            return Err(ProgramLoadError::InvalidAlignment);
+        };
+        if !alignment.is_power_of_two() || alignment < align_of::<Self>() {
             return Err(ProgramLoadError::InvalidAlignment);
         }
 
-        Ok(constants.max(shared).max(local))
+        Ok(alignment)
     }
 
     /// Return whether every compact table range fits its sibling column.
@@ -512,6 +518,7 @@ impl ProgramBuilder {
 
         // finalize the fixed header after all section offsets are known
         header.byte_len = sections.view().byte_len() as u64;
+        header.alignment = sections.alignment() as u64;
         sections.replace(header_section, [header]);
         let storage = sections.build();
 
@@ -524,10 +531,10 @@ impl Program {
     pub fn load(mut storage: SectionStorage) -> Result<Self, ProgramLoadError> {
         let loader = SectionLoader::new(&storage)?;
         let header = *loader.header::<ProgramHeader>()?;
-        if header.magic != PROGRAM_MAGIC {
+        if header.magic != ProgramHeader::MAGIC {
             return Err(ProgramLoadError::InvalidMagic);
         }
-        if header.version != PROGRAM_VERSION {
+        if header.version != ProgramHeader::VERSION {
             return Err(ProgramLoadError::UnsupportedVersion(header.version));
         }
         if usize::try_from(header.byte_len).ok() != Some(loader.bytes().len()) {
