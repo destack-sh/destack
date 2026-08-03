@@ -90,6 +90,117 @@ pub struct ArtifactAttempt {
     pub dependencies: Option<Box<[ArtifactKey]>>,
 }
 
+/// Cross-run aggregate of artifact attempts by kind.
+#[derive(Debug, Default)]
+pub struct TraceAggregate {
+    /// Aggregated attempt rows keyed by artifact kind name.
+    attempts: BTreeMap<&'static str, TraceAggregateAttempts>,
+    /// Aggregated interior span totals keyed by span name.
+    spans: BTreeMap<&'static str, TraceAggregateSpan>,
+    /// The number of merged traces.
+    runs: u64,
+    /// The summed duration of merged traces.
+    duration: Duration,
+}
+
+/// Aggregated attempt outcomes and work time for one artifact kind.
+#[derive(Debug, Default)]
+struct TraceAggregateAttempts {
+    /// Attempts that executed a provider.
+    built: u64,
+    /// Attempts served from memory or the artifact store.
+    cached: u64,
+    /// Attempts that parked or failed.
+    stalled: u64,
+    /// Summed executed attempt time.
+    time: Duration,
+}
+
+/// Aggregated count and time for one interior span name.
+#[derive(Debug, Default)]
+struct TraceAggregateSpan {
+    /// The number of recorded spans.
+    count: u64,
+    /// The summed span time.
+    time: Duration,
+}
+
+impl TraceAggregate {
+    /// Merge one finished trace into this aggregate.
+    pub fn merge(&mut self, trace: &Trace) {
+        self.runs += 1;
+        let attempts = trace.attempts();
+        self.duration += trace.duration(&trace.spans(), &attempts);
+        for attempt in attempts {
+            let row = self.attempts.entry(attempt.key.name()).or_default();
+            match attempt.outcome {
+                ArtifactAttemptOutcome::Built => {
+                    row.built += 1;
+                    row.time += attempt.span.duration;
+                }
+                ArtifactAttemptOutcome::MemoryCached | ArtifactAttemptOutcome::StoreCached => {
+                    row.cached += 1;
+                    row.time += attempt.span.duration;
+                }
+                ArtifactAttemptOutcome::Parked | ArtifactAttemptOutcome::Failed => {
+                    row.stalled += 1;
+                }
+            }
+            for span in &attempt.spans {
+                let totals = self.spans.entry(span.name).or_default();
+                totals.count += 1;
+                totals.time += span.duration;
+            }
+        }
+    }
+
+    /// Return the number of merged traces.
+    pub fn runs(&self) -> u64 {
+        self.runs
+    }
+
+    /// Render the aggregate as one aligned table, slowest kinds first.
+    pub fn render(&self) -> String {
+        let mut output = format!(
+            "runs={} traced={:.3}s\n\n{:<24} {:>8} {:>9} {:>9} {:>10}\n",
+            self.runs,
+            self.duration.as_secs_f64(),
+            "kind",
+            "built",
+            "cached",
+            "stalled",
+            "seconds",
+        );
+        let mut rows = self.attempts.iter().collect::<Vec<_>>();
+        rows.sort_by_key(|(_, row)| std::cmp::Reverse(row.time));
+        for (name, row) in rows {
+            output.push_str(&format!(
+                "{name:<24} {:>8} {:>9} {:>9} {:>10.3}\n",
+                row.built,
+                row.cached,
+                row.stalled,
+                row.time.as_secs_f64(),
+            ));
+        }
+
+        let mut spans = self.spans.iter().collect::<Vec<_>>();
+        spans.sort_by_key(|(_, totals)| std::cmp::Reverse(totals.time));
+        output.push_str(&format!(
+            "\n{:<24} {:>9} {:>10}\n",
+            "span", "count", "seconds"
+        ));
+        for (name, totals) in spans {
+            output.push_str(&format!(
+                "{name:<24} {:>9} {:>10.3}\n",
+                totals.count,
+                totals.time.as_secs_f64(),
+            ));
+        }
+
+        output
+    }
+}
+
 /// Trace of one public toolchain operation.
 #[derive(Debug)]
 pub struct Trace {
