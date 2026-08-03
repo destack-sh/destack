@@ -327,11 +327,11 @@ type Writer {
 }
 
 type Entry {
-    writer: dynamic<Writer>;
+    writer: dynamic<Writer, managed, mutable>;
 }
 
-function test(v0: dynamic<Writer>): void {
-entry(v0: dynamic<Writer>):
+function test(v0: dynamic<Writer, managed, mutable>): void {
+entry(v0: dynamic<Writer, managed, mutable>):
     v1: Entry = aggregate (v0)
     return
 }
@@ -346,11 +346,11 @@ type Writer {
 }
 
 type Entry {
-    writer: dynamic<Writer>;
+    writer: dynamic<Writer, managed, mutable>;
 }
 
-function test(v0: dynamic<Writer>): void {
-entry(v0: dynamic<Writer>):
+function test(v0: dynamic<Writer, managed, mutable>): void {
+entry(v0: dynamic<Writer, managed, mutable>):
     v1: Entry = aggregate (v0)
     return
 }
@@ -474,7 +474,7 @@ entry(v0: ref<Value, borrowed, exclusive, frame>):
     v3: ref<ValueStorage, borrowed, exclusive, frame> = field.address v0, 1
     v4: uint8 = 0
     v5: boolean = int.eq v2, v4
-    branch v5, b1, b2
+    branch v5 => b1 | b2
 
 b1:
     v6: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = cast.bit v3 -> ref<ref<int32, unique, mutable>, borrowed, exclusive, frame>
@@ -525,7 +525,7 @@ entry(v0: ref<slice<Box, unique, mutable>, borrowed, exclusive, frame>):
 
 b1(v4: usize):
     v5: boolean = int.ne v4, v3
-    branch v5, b2, b3
+    branch v5 => b2 | b3
 
 b2:
     v6: usize = 1
@@ -589,7 +589,7 @@ entry(v0: ref<slice<slice<Box, unique, mutable>, unique, mutable>, borrowed, exc
 
 b1(v4: usize):
     v5: boolean = int.ne v4, v3
-    branch v5, b2, b3
+    branch v5 => b2 | b3
 
 b2:
     v6: usize = 1
@@ -607,7 +607,7 @@ b3:
 
 b4(v12: usize):
     v13: boolean = int.ne v12, v11
-    branch v13, b5, b6
+    branch v13 => b5 | b6
 
 b5:
     v14: usize = 1
@@ -633,7 +633,7 @@ entry(v0: ref<slice<Box, unique, mutable>, borrowed, exclusive>):
 
 b1(v4: usize):
     v5: boolean = int.ne v4, v3
-    branch v5, b2, b3
+    branch v5 => b2 | b3
 
 b2:
     v6: usize = 1
@@ -670,8 +670,8 @@ type Writer {
     write: fn() => uint32;
 }
 
-function test(v0: slice<dynamic<Writer>, unique, mutable>): void {
-entry(v0: slice<dynamic<Writer>, unique, mutable>):
+function test(v0: slice<dynamic<Writer, managed, mutable>, unique, mutable>): void {
+entry(v0: slice<dynamic<Writer, managed, mutable>, unique, mutable>):
     return
 }
 "#,
@@ -684,8 +684,8 @@ type Writer {
     write: fn() => uint32;
 }
 
-function test(v0: slice<dynamic<Writer>, unique, mutable>): void {
-entry(v0: slice<dynamic<Writer>, unique, mutable>):
+function test(v0: slice<dynamic<Writer, managed, mutable>, unique, mutable>): void {
+entry(v0: slice<dynamic<Writer, managed, mutable>, unique, mutable>):
     free v0
     return
 }

@@ -155,7 +155,7 @@ entry(v0: ref<int32, unique, mutable>):
 
 function test(v0: ref<int32, unique, mutable>, v1: boolean): void {
 entry(v0: ref<int32, unique, mutable>, v1: boolean):
-    branch v1, b1(v0), b2(v0)
+    branch v1 => b1(v0) | b2(v0)
 
 b1(v2: ref<int32, unique, mutable>):
     call consume(v2): (ref<int32, unique, mutable>) => void
@@ -177,7 +177,7 @@ entry(v0: ref<int32, unique, mutable>):
 
 function test(v0: ref<int32, unique, mutable>, v1: boolean): void {
 entry(v0: ref<int32, unique, mutable>, v1: boolean):
-    branch v1, b1(v0), b2(v0)
+    branch v1 => b1(v0) | b2(v0)
 
 b1(v2: ref<int32, unique, mutable>):
     call consume(v2): (ref<int32, unique, mutable>) => void
@@ -202,7 +202,7 @@ entry(v0: ref<int32, unique, mutable>):
 
 function test(v0: ref<int32, unique, mutable>, v1: boolean): void {
 entry(v0: ref<int32, unique, mutable>, v1: boolean):
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b1:
     call consume(v0): (ref<int32, unique, mutable>) => void
@@ -224,7 +224,7 @@ entry(v0: ref<int32, unique, mutable>):
 
 function test(v0: ref<int32, unique, mutable>, v1: boolean): void {
 entry(v0: ref<int32, unique, mutable>, v1: boolean):
-    branch v1, b1, b2
+    branch v1 => b1 | b2
 
 b1:
     call consume(v0): (ref<int32, unique, mutable>) => void
@@ -540,7 +540,7 @@ entry(v0: ref<Value, borrowed, exclusive, frame>):
     v3: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = field.address v0, 1
     v4: uint8 = 0
     v5: boolean = int.eq v2, v4
-    branch v5, b1, b2
+    branch v5 => b1 | b2
 
 b1:
     v6: ref<int32, unique, mutable> = load v3
