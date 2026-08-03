@@ -947,6 +947,23 @@ impl Form {
         matches!(self, Self::Borrowed(_) | Self::Raw | Self::Readonly)
     }
 
+    /// Return whether one receiver form adjusts to a declared target form.
+    pub fn adjusts_to(self, target: Form) -> bool {
+        match (self, target) {
+            // family-default targets accept every receiver
+            (_, Form::Managed) => true,
+            // owned targets consume, only owned receivers reach them
+            (Form::Owned, Form::Owned) => true,
+            (_, Form::Owned) => false,
+            // borrow targets accept reborrowable receivers
+            (Form::Owned | Form::Managed, Form::Borrowed(_)) => true,
+            (Form::Borrowed(_), Form::Borrowed(_)) => true,
+            // raw pointers only reach raw targets
+            (Form::Raw, Form::Raw) => true,
+            _ => false,
+        }
+    }
+
     /// Return this form's ownership constructor, when it carries one.
     pub fn ownership(self) -> Option<Ownership> {
         match self {
