@@ -1767,7 +1767,7 @@ impl WalkState<'_, '_> {
             return Ok(dir::BlanketCoverage::Deferred);
         };
 
-        // defer blankets with constrained secondary parameters
+        // defer blankets with constrained undefaulted secondary parameters
         let Some(template) = template else {
             return Ok(dir::BlanketCoverage::Deferred);
         };
@@ -1778,7 +1778,7 @@ impl WalkState<'_, '_> {
             let constrained = self
                 .check
                 .generic_parameter(secondary)
-                .is_none_or(|binding| binding.constraint.is_some());
+                .is_none_or(|binding| binding.constraint.is_some() && binding.default.is_none());
             if constrained {
                 return Ok(dir::BlanketCoverage::Deferred);
             }
