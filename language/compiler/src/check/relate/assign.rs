@@ -176,6 +176,15 @@ impl CheckState<'_> {
             }
             (dir::Type::Range(_), _) if widens => Answer::Ready(false),
 
+            // relate literal and interval sources to interface targets
+            (dir::Type::Literal(_) | dir::Type::Range(_), dir::Type::Application(instance))
+                if self
+                    .symbol_kind_maybe(instance.symbol)?
+                    .is_some_and(|kind| kind.is_interface()) =>
+            {
+                self.decide_interface_relation(origin, Relation::Assignable, source, target)?
+            }
+
             // literals and intervals widen by value
             (dir::Type::Literal(literal), target) => Answer::Ready(literal.widens_to(&target)),
             (dir::Type::Range(range), target) => Answer::Ready(range.widens_to(&target)),
@@ -223,13 +232,17 @@ impl CheckState<'_> {
             (dir::Type::Reference(_), dir::Type::Shape(_)) => {
                 self.decide_reference_shape_assignable(origin, source, target)?
             }
-            // relate structural and callable values to interface targets
+            // relate structural, callable, and scalar values to interface targets
             (
                 dir::Type::Shape(_)
                 | dir::Type::Object(_)
                 | dir::Type::FunctionSignature(_)
                 | dir::Type::Function(_)
-                | dir::Type::FunctionPointer(_),
+                | dir::Type::FunctionPointer(_)
+                | dir::Type::Primitive(_)
+                | dir::Type::Array(_)
+                | dir::Type::Slice(_)
+                | dir::Type::FixedArray(_),
                 dir::Type::Application(instance),
             ) if self
                 .symbol_kind_maybe(instance.symbol)?

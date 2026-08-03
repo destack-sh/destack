@@ -257,6 +257,12 @@ impl CheckState<'_> {
             {
                 Answer::Ready(true)
             }
+            // scalar sources judge interface targets before literal widening
+            (dir::Type::Literal(_) | dir::Type::Range(_), dir::Type::Application(instance))
+                if self.symbol_kind(instance.symbol)?.is_interface() =>
+            {
+                self.decide_interface_relation(origin, Relation::Subtype, source, target)?
+            }
             (dir::Type::Literal(literal), target) => Answer::Ready(literal.widens_to(&target)),
             (dir::Type::Range(range), target) => Answer::Ready(range.widens_to(&target)),
 
@@ -304,9 +310,15 @@ impl CheckState<'_> {
             (dir::Type::Shape(_) | dir::Type::Object(_), dir::Type::Shape(_)) => {
                 self.decide_shape_relation(origin, Relation::Subtype, source, target)?
             }
-            (dir::Type::Shape(_) | dir::Type::Object(_), dir::Type::Application(instance))
-                if self.symbol_kind(instance.symbol)?.is_interface() =>
-            {
+            (
+                dir::Type::Shape(_)
+                | dir::Type::Object(_)
+                | dir::Type::Primitive(_)
+                | dir::Type::Array(_)
+                | dir::Type::Slice(_)
+                | dir::Type::FixedArray(_),
+                dir::Type::Application(instance),
+            ) if self.symbol_kind(instance.symbol)?.is_interface() => {
                 self.decide_interface_relation(origin, Relation::Subtype, source, target)?
             }
             (dir::Type::Application(instance), dir::Type::Shape(_) | dir::Type::Object(_)) => self

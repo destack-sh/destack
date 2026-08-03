@@ -172,7 +172,7 @@ const port: Port = Port(443);
 === checked ===
 newtype Port = 1..=65535;
 /// @type.symbol symbol=Port source="newtype Port = 1..=65535" type=Port
-/// @definition.newtype symbol=Port source="newtype Port = 1..=65535" backing=1..=65535
+/// @definition.newtype symbol=Port source="newtype Port = 1..=65535" backing=1..=65535 constructors=[(1..=65535) => Port]
 
 const raw: Port = 443;
 /// @type.symbol symbol=raw source=raw type=Port

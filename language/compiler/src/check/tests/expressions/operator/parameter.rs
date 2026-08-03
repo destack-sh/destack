@@ -364,8 +364,9 @@ function offset<T: int8 | float64>(value: T): T where T: uint8 {
 }
 "#,
         r#"
-/// @diagnostic.error id=no-matching-operator message="operator '+' is not defined for 'T' and '200'"
+/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
 /// @diagnostic.label line=3 column=18 span="+" line_source="return value + 200;"
+/// @diagnostic.help message="annotate the type explicitly"
 "#,
     );
 }
@@ -695,4 +696,35 @@ function square<T: Multiply<T>>(value: T): T.Output {
 
 /// @generic.instance id=Multiply<T>.multiply template=ops.multiply.Multiply.multiply arguments=(T)
 "#);
+}
+
+#[test]
+fn test_warn_constant_shift_amount_past_width() {
+    let session = TestSession::single(
+        r#"
+declare const bits: int32;
+const spilled = bits << 32;
+const kept = bits << 3;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::none(),
+        r#"
+=== annotated ===
+declare const bits: int32;
+const spilled: int32 = bits << 32;
+const kept: int32 = bits << 3;
+
+=== checked ===
+declare const bits: int32;
+const spilled = bits << 32;
+const kept = bits << 3;
+"#,
+        r#"
+/// @diagnostic.warning id=shift-out-of-range message="shift amount 32 is out of range for 'int32'"
+/// @diagnostic.label line=3 column=22 span="<<" line_source="const spilled = bits << 32;"
+"#,
+    );
 }
