@@ -75,12 +75,16 @@ impl QueryWorkspace {
             None,
         )
         .map_err(|error| format!("failed to open query workspace: {error}"))?;
+        let has_timings =
+            env::var_os(TIMINGS_ENV).is_some_and(|value| !value.is_empty() && value != "0");
+        let session = local_workspace
+            .session(&root)
+            .map_err(|error| format!("failed to read query session: {error}"))?;
+        session.set_tracing(has_timings);
         let reference = Ref::for_root(&root);
         let base_revision = repository
             .current(&reference)
             .map_err(|error| format!("failed to read query base revision: {error}"))?;
-        let has_timings =
-            env::var_os(TIMINGS_ENV).is_some_and(|value| !value.is_empty() && value != "0");
 
         Ok(Self {
             root,
