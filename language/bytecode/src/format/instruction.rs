@@ -3,8 +3,7 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::{
-    Address, BytecodeFormatter, CodeOffset, Instruction, Label, Opcode, Operands, RegisterId,
-    RegisterSpan,
+    BytecodeFormatter, CodeOffset, Instruction, Label, Opcode, Operands, RegisterId, RegisterSpan,
 };
 
 impl<'object> Instruction<'object> {
@@ -70,6 +69,11 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             return self.format_cast(operation, source, target);
         }
 
+        // format named packed memory operations through their shared family
+        if let Some((operation, address, is_volatile)) = opcode.memory_range_operation() {
+            return self.format_memory_range(operation, address, is_volatile);
+        }
+
         // format directly named opcodes
         if opcode.name().is_some() {
             return self.format_named_opcode(opcode);
@@ -86,8 +90,8 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             self.format_integer128(operation, is_signed)
         } else if let Some((operation, scalar)) = opcode.float_operation() {
             self.format_scalar(operation.name(), scalar)
-        } else if let Some((operation, address, scalar)) = opcode.memory_operation() {
-            self.format_memory(operation, address, scalar)
+        } else if let Some((operation, address, scalar, is_volatile)) = opcode.memory_operation() {
+            self.format_memory(operation, address, scalar, is_volatile)
         } else if let Some((operation, target, source, is_immediate)) = opcode.transfer_operation()
         {
             self.format_transfer(operation, target, source, is_immediate)
@@ -124,7 +128,8 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::MOVE_RANGE
             | Opcode::SELECT
             | Opcode::SELECT_RANGE
-            | Opcode::EQUAL => self.format_value(opcode),
+            | Opcode::EQUAL
+            | Opcode::EQUAL_BYTES => self.format_value(opcode),
 
             // aggregates
             Opcode::AGGREGATE
@@ -154,13 +159,6 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::POINTER_ADD
             | Opcode::POINTER_ADD_SCALED
             | Opcode::POINTER_DIFF => self.format_address_arithmetic(opcode),
-
-            // memory
-            Opcode::LOAD => self.format_load(Address::Memory),
-            Opcode::LOAD_CONSTANT => self.format_load(Address::Constant),
-            Opcode::LOAD_POINTER => self.format_load(Address::Pointer),
-            Opcode::STORE => self.format_store(Address::Memory),
-            Opcode::STORE_POINTER => self.format_store(Address::Pointer),
 
             // function values
             Opcode::FUNCTION_ADDRESS | Opcode::FUNCTION_BIND => self.format_function_value(opcode),

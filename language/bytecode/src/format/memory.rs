@@ -5,34 +5,38 @@ use crate::{Address, MemoryOperation, Prefetch, RegisterSpan, Scalar, Transfer};
 use super::instruction::InstructionFormatter;
 
 impl InstructionFormatter<'_, '_, '_> {
-    /// Format one packed value load.
-    pub(super) fn format_load(&mut self, address: Address) -> FormatResult<()> {
-        self.write_opcode(&format!("load{}", address.suffix()))?;
-        self.result_span()?;
-        let pointer = self.register_id()?;
-        let byte_len = self.u32()?.to_string();
+    /// Format one packed memory operation.
+    pub(super) fn format_memory_range(
+        &mut self,
+        operation: MemoryOperation,
+        address: Address,
+        is_volatile: bool,
+    ) -> FormatResult<()> {
+        let volatility = if is_volatile { ".volatile" } else { "" };
+        let name = format!("{}{volatility}{}", operation.name(), address.suffix());
+        self.write_opcode(&name)?;
 
-        // write the pointer and exact copied byte length
-        self.write_comma()?;
-        self.write_register(pointer)?;
-        self.write_comma()?;
-        self.write_text(&byte_len)
-    }
-
-    /// Format one packed value store.
-    pub(super) fn format_store(&mut self, address: Address) -> FormatResult<()> {
-        let pointer = self.register_id()?;
-        let (value, word_count) = self.register_span_id()?;
-        let value = RegisterSpan::new(value, word_count);
-        let byte_len = self.u32()?.to_string();
-
-        // write the pointer, value, and exact copied byte length
-        self.write_opcode(&format!("store{}", address.suffix()))?;
-        self.write_register(pointer)?;
-        self.write_comma()?;
-        self.write_span(value)?;
-        self.write_comma()?;
-        self.write_text(&byte_len)
+        // load one packed value
+        if operation == MemoryOperation::Load {
+            self.result_span()?;
+            let pointer = self.register_id()?;
+            let byte_len = self.u32()?.to_string();
+            self.write_comma()?;
+            self.write_register(pointer)?;
+            self.write_comma()?;
+            self.write_text(&byte_len)
+        }
+        // store one packed value
+        else {
+            let pointer = self.register_id()?;
+            let (value, word_count) = self.register_span_id()?;
+            let byte_len = self.u32()?.to_string();
+            self.write_register(pointer)?;
+            self.write_comma()?;
+            self.write_span(RegisterSpan::new(value, word_count))?;
+            self.write_comma()?;
+            self.write_text(&byte_len)
+        }
     }
 
     /// Format one scalar load or store.
@@ -41,8 +45,10 @@ impl InstructionFormatter<'_, '_, '_> {
         operation: MemoryOperation,
         address: Address,
         scalar: Scalar,
+        is_volatile: bool,
     ) -> FormatResult<()> {
-        let name = format!("{}{}", operation.name(), address.suffix());
+        let volatility = if is_volatile { ".volatile" } else { "" };
+        let name = format!("{}{volatility}{}", operation.name(), address.suffix());
         self.write_opcode(&name)?;
 
         // load one scalar value

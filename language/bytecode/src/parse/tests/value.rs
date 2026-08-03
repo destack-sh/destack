@@ -16,7 +16,8 @@ function f0 {
     select r8:r9, r1, r2:r3, r2:r3
     constant r10:r11, null
     constant r12:r13, undefined
-    return r5:r13
+    equal.bytes r14, r8:r9, r12:r13, 16
+    return r5:r14
 }
 "#,
     )
@@ -33,6 +34,7 @@ function f0 {
             Opcode::SELECT_RANGE,
             Opcode::CONSTANT_NULL,
             Opcode::CONSTANT_UNDEFINED,
+            Opcode::EQUAL_BYTES,
             Opcode::RETURN,
         ]
     );

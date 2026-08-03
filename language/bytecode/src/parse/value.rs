@@ -16,6 +16,7 @@ impl Parser<'_> {
             "move" => self.parse_move(function),
             "select" => self.parse_select(function),
             "equal" => self.parse_equal(function),
+            "equal.bytes" => self.parse_equal_bytes(function),
             _ => Err(ParseError::new("unknown value operation", token.span)),
         }
     }
@@ -83,6 +84,26 @@ impl Parser<'_> {
         instruction.register(left);
         instruction.register(right);
 
+        let result = RegisterSpan::new(result, 1);
+
+        function.emit(instruction, &[result], self.empty_span())
+    }
+
+    /// Parse raw byte equality between matching values.
+    fn parse_equal_bytes(&mut self, function: &mut FunctionParser) -> ParseResult<()> {
+        let result = self.parse_register()?;
+        self.eat_token(TokenType::Comma)?;
+        let left = self.parse_register_span()?;
+        self.eat_token(TokenType::Comma)?;
+        let right = self.parse_register_span()?;
+        self.eat_token(TokenType::Comma)?;
+        let byte_len = self.parse_u32()?;
+
+        // encode both values and their exact represented byte length
+        let mut instruction = InstructionBuilder::new(Opcode::EQUAL_BYTES);
+        instruction.span(left);
+        instruction.span(right);
+        instruction.u32(byte_len);
         let result = RegisterSpan::new(result, 1);
 
         function.emit(instruction, &[result], self.empty_span())

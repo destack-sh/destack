@@ -13,6 +13,7 @@ impl InstructionFormatter<'_, '_, '_> {
             Opcode::MOVE | Opcode::MOVE_RANGE => self.format_move(opcode),
             Opcode::SELECT | Opcode::SELECT_RANGE => self.format_select(opcode),
             Opcode::EQUAL => self.format_equal(),
+            Opcode::EQUAL_BYTES => self.format_equal_bytes(),
             _ => Err(FormatError::SyntaxError {
                 message: "invalid value opcode",
             }),
@@ -96,5 +97,22 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_register(left)?;
         write!(self.formatter, [token(","), space()])?;
         self.write_register(right)
+    }
+
+    /// Format raw byte equality between matching values.
+    fn format_equal_bytes(&mut self) -> FormatResult<()> {
+        self.write_opcode("equal.bytes")?;
+        self.result()?;
+        let (left, left_count) = self.register_span_id()?;
+        let (right, right_count) = self.register_span_id()?;
+        let byte_len = self.u32()?.to_string();
+
+        // write both values and their exact represented byte length
+        self.write_comma()?;
+        self.write_span(RegisterSpan::new(left, left_count))?;
+        self.write_comma()?;
+        self.write_span(RegisterSpan::new(right, right_count))?;
+        self.write_comma()?;
+        self.write_text(&byte_len)
     }
 }

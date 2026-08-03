@@ -154,6 +154,11 @@ opcodes! {
         signature: "(aggregate: value, byteOffset: uint32, byteLength: uint32, value: value) => value",
         operands: [ResultRange, RegisterSpan, Unsigned32, Unsigned32, RegisterSpan],
     }
+    EQUAL_BYTES = 0x0019 {
+        text: "equal.bytes",
+        signature: "(left: value, right: value, byteLength: uint32) => boolean",
+        operands: [Result, RegisterSpan, RegisterSpan, Unsigned32],
+    }
     VARIANT_NEW = 0x001b {
         text: "variant.new",
         signature: "(layout: LayoutId, case: uint32, payload?: value) => value",
@@ -280,6 +285,27 @@ opcodes! {
         signature: "(pointer: pointer, value: value, byteLength: uint32) => void",
         operands: [Register, RegisterSpan, Unsigned32],
     }
+    LOAD_VOLATILE = 0x0055 {
+        text: "load.volatile",
+        signature: "(reference: reference, byteLength: uint32) => value",
+        operands: [ResultRange, Register, Unsigned32],
+    }
+    STORE_VOLATILE = 0x0056 {
+        text: "store.volatile",
+        signature: "(reference: reference, value: value, byteLength: uint32) => void",
+        operands: [Register, RegisterSpan, Unsigned32],
+    }
+    LOAD_VOLATILE_POINTER = 0x0057 {
+        text: "load.volatile.pointer",
+        signature: "(pointer: pointer, byteLength: uint32) => value",
+        operands: [ResultRange, Register, Unsigned32],
+    }
+    STORE_VOLATILE_POINTER = 0x0058 {
+        text: "store.volatile.pointer",
+        signature: "(pointer: pointer, value: value, byteLength: uint32) => void",
+        operands: [Register, RegisterSpan, Unsigned32],
+    }
+
     // function values
     FUNCTION_ADDRESS = 0x0060 {
         text: "function.address",
@@ -848,16 +874,38 @@ impl Opcode {
         operation: MemoryOperation,
         address: Address,
         scalar: Scalar,
+        is_volatile: bool,
     ) -> Option<Self> {
-        if !operation.supports(address) {
+        if !operation.supports(address, is_volatile) {
             return None;
         }
 
-        let operation = operation as u16 * Address::COUNT + address as u16;
+        let operation = operation as u16 * 2 + is_volatile as u16;
+        let operation = operation * Address::COUNT + address as u16;
 
         Some(Self(
             OpcodeRange::MEMORY.start() + operation * Scalar::OPCODE_STRIDE + scalar.code() as u16,
         ))
+    }
+
+    /// Create one exact packed memory opcode.
+    pub const fn memory_range(
+        operation: MemoryOperation,
+        address: Address,
+        is_volatile: bool,
+    ) -> Option<Self> {
+        match (operation, address, is_volatile) {
+            (MemoryOperation::Load, Address::Memory, false) => Some(Self::LOAD),
+            (MemoryOperation::Load, Address::Constant, false) => Some(Self::LOAD_CONSTANT),
+            (MemoryOperation::Load, Address::Pointer, false) => Some(Self::LOAD_POINTER),
+            (MemoryOperation::Store, Address::Memory, false) => Some(Self::STORE),
+            (MemoryOperation::Store, Address::Pointer, false) => Some(Self::STORE_POINTER),
+            (MemoryOperation::Load, Address::Memory, true) => Some(Self::LOAD_VOLATILE),
+            (MemoryOperation::Load, Address::Pointer, true) => Some(Self::LOAD_VOLATILE_POINTER),
+            (MemoryOperation::Store, Address::Memory, true) => Some(Self::STORE_VOLATILE),
+            (MemoryOperation::Store, Address::Pointer, true) => Some(Self::STORE_VOLATILE_POINTER),
+            _ => None,
+        }
     }
 
     /// Create one exact byte range transfer opcode.
@@ -1150,20 +1198,40 @@ impl Opcode {
     }
 
     /// Decode one scalar memory opcode.
-    pub const fn memory_operation(self) -> Option<(MemoryOperation, Address, Scalar)> {
+    pub const fn memory_operation(self) -> Option<(MemoryOperation, Address, Scalar, bool)> {
         if !OpcodeRange::MEMORY.contains(self.0) {
             return None;
         }
         let code = self.0 - OpcodeRange::MEMORY.start();
         let operation = code / Scalar::OPCODE_STRIDE;
         let address = Address::from_code((operation % Address::COUNT) as u8);
-        let operation = MemoryOperation::from_code((operation / Address::COUNT) as u8);
+        let operation = operation / Address::COUNT;
+        let is_volatile = !operation.is_multiple_of(2);
+        let operation = MemoryOperation::from_code((operation / 2) as u8);
         let scalar = Scalar::from_code((code % Scalar::OPCODE_STRIDE) as u8);
 
         match (operation, address, scalar) {
-            (Some(operation), Some(address), Some(scalar)) if operation.supports(address) => {
-                Some((operation, address, scalar))
+            (Some(operation), Some(address), Some(scalar))
+                if operation.supports(address, is_volatile) =>
+            {
+                Some((operation, address, scalar, is_volatile))
             }
+            _ => None,
+        }
+    }
+
+    /// Decode one packed memory opcode.
+    pub const fn memory_range_operation(self) -> Option<(MemoryOperation, Address, bool)> {
+        match self {
+            Self::LOAD => Some((MemoryOperation::Load, Address::Memory, false)),
+            Self::LOAD_CONSTANT => Some((MemoryOperation::Load, Address::Constant, false)),
+            Self::LOAD_POINTER => Some((MemoryOperation::Load, Address::Pointer, false)),
+            Self::STORE => Some((MemoryOperation::Store, Address::Memory, false)),
+            Self::STORE_POINTER => Some((MemoryOperation::Store, Address::Pointer, false)),
+            Self::LOAD_VOLATILE => Some((MemoryOperation::Load, Address::Memory, true)),
+            Self::LOAD_VOLATILE_POINTER => Some((MemoryOperation::Load, Address::Pointer, true)),
+            Self::STORE_VOLATILE => Some((MemoryOperation::Store, Address::Memory, true)),
+            Self::STORE_VOLATILE_POINTER => Some((MemoryOperation::Store, Address::Pointer, true)),
             _ => None,
         }
     }

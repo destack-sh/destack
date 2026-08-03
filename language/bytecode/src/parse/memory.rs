@@ -14,11 +14,15 @@ impl Parser<'_> {
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         match name {
-            "load" => self.parse_load(Address::Memory, token, function),
-            "load.constant" => self.parse_load(Address::Constant, token, function),
-            "load.pointer" => self.parse_load(Address::Pointer, token, function),
-            "store" => self.parse_store(Address::Memory, token, function),
-            "store.pointer" => self.parse_store(Address::Pointer, token, function),
+            "load" => self.parse_load(Address::Memory, false, token, function),
+            "load.constant" => self.parse_load(Address::Constant, false, token, function),
+            "load.pointer" => self.parse_load(Address::Pointer, false, token, function),
+            "store" => self.parse_store(Address::Memory, false, token, function),
+            "store.pointer" => self.parse_store(Address::Pointer, false, token, function),
+            "load.volatile" => self.parse_load(Address::Memory, true, token, function),
+            "load.volatile.pointer" => self.parse_load(Address::Pointer, true, token, function),
+            "store.volatile" => self.parse_store(Address::Memory, true, token, function),
+            "store.volatile.pointer" => self.parse_store(Address::Pointer, true, token, function),
             _ if name.starts_with("memory.copy") => {
                 self.parse_transfer(name, Transfer::Copy, token, function)
             }
@@ -41,6 +45,7 @@ impl Parser<'_> {
     fn parse_load(
         &mut self,
         address: Address,
+        is_volatile: bool,
         token: Token,
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
@@ -50,11 +55,8 @@ impl Parser<'_> {
         // select a packed byte range or scalar representation
         if self.eat_token_if(TokenType::Comma) {
             let byte_len = self.parse_u32()?;
-            let opcode = match address {
-                Address::Memory => Opcode::LOAD,
-                Address::Constant => Opcode::LOAD_CONSTANT,
-                Address::Pointer => Opcode::LOAD_POINTER,
-            };
+            let opcode = Opcode::memory_range(MemoryOperation::Load, address, is_volatile)
+                .ok_or_else(|| ParseError::new("invalid load address", token.span))?;
             let mut instruction = InstructionBuilder::new(opcode);
             instruction.register(pointer);
             instruction.u32(byte_len);
@@ -62,7 +64,7 @@ impl Parser<'_> {
             function.emit(instruction, &results, token.span)
         } else {
             let scalar = self.parse_scalar_representation()?;
-            let opcode = Opcode::memory(MemoryOperation::Load, address, scalar)
+            let opcode = Opcode::memory(MemoryOperation::Load, address, scalar, is_volatile)
                 .ok_or_else(|| ParseError::new("invalid load address", token.span))?;
             let mut instruction = InstructionBuilder::new(opcode);
             instruction.register(pointer);
@@ -75,6 +77,7 @@ impl Parser<'_> {
     fn parse_store(
         &mut self,
         address: Address,
+        is_volatile: bool,
         token: Token,
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
@@ -85,13 +88,8 @@ impl Parser<'_> {
         // select a packed byte range or scalar representation
         if self.eat_token_if(TokenType::Comma) {
             let byte_len = self.parse_u32()?;
-            let opcode = match address {
-                Address::Memory => Opcode::STORE,
-                Address::Pointer => Opcode::STORE_POINTER,
-                Address::Constant => {
-                    return Err(ParseError::new("cannot store into constants", token.span));
-                }
-            };
+            let opcode = Opcode::memory_range(MemoryOperation::Store, address, is_volatile)
+                .ok_or_else(|| ParseError::new("invalid store address", token.span))?;
             let mut instruction = InstructionBuilder::new(opcode);
             instruction.register(pointer);
             instruction.span(value);
@@ -106,7 +104,7 @@ impl Parser<'_> {
                     token.span,
                 ));
             }
-            let opcode = Opcode::memory(MemoryOperation::Store, address, scalar)
+            let opcode = Opcode::memory(MemoryOperation::Store, address, scalar, is_volatile)
                 .ok_or_else(|| ParseError::new("invalid store address", token.span))?;
             let mut instruction = InstructionBuilder::new(opcode);
             instruction.register(pointer);

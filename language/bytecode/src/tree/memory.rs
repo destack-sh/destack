@@ -67,9 +67,9 @@ impl Address {
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum MemoryOperation {
-    /// Load one scalar word.
+    /// Load one value.
     Load = 0,
-    /// Store one scalar word.
+    /// Store one value.
     Store = 1,
 }
 
@@ -92,8 +92,13 @@ impl MemoryOperation {
     }
 
     /// Return whether this operation accepts one addressing mode.
-    pub const fn supports(self, address: Address) -> bool {
-        !matches!((self, address), (Self::Store, Address::Constant))
+    pub const fn supports(self, address: Address, is_volatile: bool) -> bool {
+        match (self, address, is_volatile) {
+            (Self::Load, _, false) => true,
+            (Self::Load | Self::Store, Address::Memory | Address::Pointer, _) => true,
+            (Self::Load | Self::Store, Address::Constant, true) => false,
+            (Self::Store, Address::Constant, false) => false,
+        }
     }
 }
 
