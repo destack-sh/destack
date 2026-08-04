@@ -1,8 +1,9 @@
-use destack_artifact::{
-    AllocationSite, CallMode, CallSite, ContinuationSite, CounterSite, EdgeSite, MemorySite,
-    MirOptimized, Point, SampleSite, Suspension, SuspensionSite,
-};
+use destack_artifact::MirOptimized;
 use destack_mir as mir;
+use destack_program::object::{
+    AllocationSite, CallMode, CallSite, ContinuationSite, CounterSite, EdgeSite, MemorySite, Point,
+    SampleSite, Suspension, SuspensionSite,
+};
 use destack_source::ModuleId;
 
 use crate::EmitError;
@@ -423,15 +424,13 @@ impl SiteEmitter {
         access: &mir::MemoryAccess,
     ) -> Result<MemorySite, EmitError> {
         let (storage, value_type) = match access.target {
-            mir::MemoryTarget::Reference(value) => {
+            mir::MemoryTarget::Address(value) => {
                 let ty = function.value_type(value).ok_or_else(|| {
-                    ObjectEmitter::internal(module, "missing memory reference type")
+                    ObjectEmitter::internal(module, "missing memory address type")
                 })?;
-                let storage = Self::reference_storage(optimized, ty).ok_or_else(|| {
-                    ObjectEmitter::internal(module, "missing memory reference storage")
-                })?;
-                let value_type = Self::reference_value_type(optimized, ty).ok_or_else(|| {
-                    ObjectEmitter::internal(module, "missing memory reference value type")
+                let storage = Self::reference_storage(optimized, ty);
+                let value_type = Self::pointee_type(optimized, ty).ok_or_else(|| {
+                    ObjectEmitter::internal(module, "missing addressed value type")
                 })?;
 
                 (storage, value_type)
@@ -439,13 +438,16 @@ impl SiteEmitter {
             mir::MemoryTarget::Local(local) => {
                 let local = optimized.tree.get(local);
 
-                (mir::Storage::Frame, Self::storage_type(optimized, local.ty))
+                (
+                    Some(mir::Storage::Frame),
+                    Self::storage_type(optimized, local.ty),
+                )
             }
             mir::MemoryTarget::Global(global) => {
                 let global = optimized.tree.get(global);
 
                 (
-                    mir::Storage::Global(global.storage),
+                    Some(mir::Storage::Global(global.storage)),
                     Self::storage_type(optimized, global.ty),
                 )
             }
@@ -559,10 +561,12 @@ impl SiteEmitter {
         }
     }
 
-    /// Return the stored value type addressed by one reference-like MIR type.
-    fn reference_value_type(optimized: &MirOptimized, ty: mir::TypeId) -> Option<mir::TypeId> {
+    /// Return the stored value type addressed by one pointer or reference-like MIR type.
+    fn pointee_type(optimized: &MirOptimized, ty: mir::TypeId) -> Option<mir::TypeId> {
         match optimized.tree.get(Self::storage_type(optimized, ty)) {
-            mir::Type::Reference { pointee, .. } => Some(Self::storage_type(optimized, *pointee)),
+            mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
+                Some(Self::storage_type(optimized, *pointee))
+            }
             mir::Type::Slice { element, .. }
             | mir::Type::Tensor { element, .. }
             | mir::Type::TensorView { element, .. } => {

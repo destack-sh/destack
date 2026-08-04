@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::iter;
 
-use destack_artifact::{MirOptimized, Point};
+use destack_artifact::MirOptimized;
 use destack_mir as mir;
+use destack_program::object::Point;
 
 /// Object points keyed by MIR operation identity.
 #[derive(Debug)]

@@ -1,9 +1,9 @@
-use destack_artifact::{
-    FramePoint, FrameState, Function, Global, MirOptimized, Object, ObjectBuilder, Point, Type,
-};
+use destack_artifact::MirOptimized;
 use destack_bytecode as bytecode;
 use destack_mir as mir;
 use destack_native as native;
+use destack_program::object::{FramePoint, FrameState, Function, Global, Point, Type};
+use destack_program::{Object, ObjectBuilder};
 use destack_source::ModuleId;
 use destack_webassembly as wasm;
 
@@ -111,8 +111,8 @@ impl ObjectEmitter {
 
         // collect execution metadata under object-local identities
         let points = PointMap::build(optimized);
-        let frames = FrameEmitter::new(module, optimized, &points).emit()?;
         let sites = SiteEmitter::emit(module, optimized, &points)?;
+        let frames = FrameEmitter::new(module, optimized, &points, &sites).emit()?;
         let allocation_points = sites.allocations.iter().map(|site| site.point).collect();
 
         // build code-independent object state
@@ -148,6 +148,11 @@ impl ObjectEmitter {
     /// Return the object index assigned to one MIR type.
     pub(crate) fn type_index(&self, ty: mir::TypeId) -> Option<usize> {
         self.types.binary_search(&ty).ok()
+    }
+
+    /// Return the MIR type assigned to one object-local index.
+    pub(crate) fn type_id(&self, index: u32) -> Option<mir::TypeId> {
+        self.types.get(index as usize).copied()
     }
 
     /// Return the object index assigned to one MIR function.
@@ -254,7 +259,7 @@ impl ObjectEmitter {
     }
 
     /// Build one internal object emission diagnostic.
-    pub(super) fn internal(module: ModuleId, message: &str) -> EmitError {
+    pub(in crate::emit) fn internal(module: ModuleId, message: &str) -> EmitError {
         EmitError::Internal {
             anchor: module.into(),
             module,

@@ -1,10 +1,12 @@
-use destack_artifact::{FramePlace, FramePoint, FrameSlot, FrameState, MirOptimized};
+use destack_artifact::MirOptimized;
 use destack_mir as mir;
+use destack_program::object::{FramePlace, FramePoint, FrameSlot, FrameState, Point};
 use destack_source::ModuleId;
 
 use crate::EmitError;
 
 use super::point::PointMap;
+use super::site::SiteEmitter;
 
 /// Logical frame-state emitter for optimized MIR.
 pub(super) struct FrameEmitter<'a> {
@@ -12,6 +14,8 @@ pub(super) struct FrameEmitter<'a> {
     optimized: &'a MirOptimized,
     /// Object-local operation identities.
     points: &'a PointMap,
+    /// Engine-neutral runtime sites.
+    sites: &'a SiteEmitter,
     /// Module receiving frame diagnostics.
     module: ModuleId,
 }
@@ -22,10 +26,12 @@ impl<'a> FrameEmitter<'a> {
         module: ModuleId,
         optimized: &'a MirOptimized,
         points: &'a PointMap,
+        sites: &'a SiteEmitter,
     ) -> Self {
         Self {
             optimized,
             points,
+            sites,
             module,
         }
     }
@@ -33,6 +39,7 @@ impl<'a> FrameEmitter<'a> {
     /// Emit every runtime-visible frame state in logical coordinate order.
     pub(super) fn emit(&self) -> Result<Vec<FrameState>, EmitError> {
         let mut states = Vec::new();
+        let points = self.frame_points();
 
         // emit functions in stable MIR identity order
         for (function_id, function) in self.optimized.tree.iter_nodes::<mir::Function>() {
@@ -42,18 +49,23 @@ impl<'a> FrameEmitter<'a> {
             let liveness = mir::FunctionLiveness::build(function, &self.optimized.tree);
 
             // retain the complete callable input before a coroutine starts
-            if function.coroutine.is_some() {
+            let entry = FramePoint::entry(function_id);
+            if points.binary_search(&entry).is_ok() {
                 let slots = self.entry_slots(function);
-                states.push(FrameState::new(FramePoint::entry(function_id), slots));
+                states.push(FrameState::new(entry, slots));
             }
 
-            // retain every logical operation that execution can resume at
+            // materialize exact liveness only at selected frame coordinates
             let mut blocks = body.blocks().to_vec();
             self.points.order_blocks(&mut blocks);
             for block_id in blocks {
                 let block = self.optimized.tree.get(block_id);
 
                 for (index, instruction_id) in block.instructions.iter().enumerate() {
+                    let point = FramePoint::operation(self.points.instruction(*instruction_id));
+                    if points.binary_search(&point).is_err() {
+                        continue;
+                    }
                     let values = liveness
                         .value_live_before_instruction(&self.optimized.tree, block_id, index)
                         .into_iter();
@@ -61,17 +73,19 @@ impl<'a> FrameEmitter<'a> {
                         .local_live_before_instruction(&self.optimized.tree, block_id, index)
                         .into_iter();
                     let slots = self.slots(function, values, locals)?;
-                    let point = self.points.instruction(*instruction_id);
-                    states.push(FrameState::new(FramePoint::operation(point), slots));
+                    states.push(FrameState::new(point, slots));
                 }
 
+                let point = FramePoint::operation(self.points.terminator(block_id));
+                if points.binary_search(&point).is_err() {
+                    continue;
+                }
                 let values = liveness
                     .value_live_before_terminator(&self.optimized.tree, block_id)
                     .into_iter();
                 let locals = liveness.local_live_before_terminator(block_id).into_iter();
                 let slots = self.slots(function, values, locals)?;
-                let point = self.points.terminator(block_id);
-                states.push(FrameState::new(FramePoint::operation(point), slots));
+                states.push(FrameState::new(point, slots));
             }
         }
 
@@ -79,6 +93,86 @@ impl<'a> FrameEmitter<'a> {
         states.sort_unstable_by_key(|state| state.point);
 
         Ok(states)
+    }
+
+    /// Collect canonical frame coordinates in logical order.
+    fn frame_points(&self) -> Vec<FramePoint> {
+        let mut points = Vec::new();
+
+        // retain runtime sites that may inspect or move the active frame
+        points.extend(
+            self.sites
+                .allocations
+                .iter()
+                .map(|site| FramePoint::operation(site.point)),
+        );
+        points.extend(
+            self.sites
+                .calls
+                .iter()
+                .map(|site| FramePoint::operation(site.point)),
+        );
+        points.extend(
+            self.sites
+                .continuations
+                .iter()
+                .map(|site| FramePoint::operation(site.point)),
+        );
+        points.extend(
+            self.sites
+                .suspensions
+                .iter()
+                .map(|site| FramePoint::operation(site.point)),
+        );
+
+        // retain coroutine entries and explicit engine transitions
+        for (function_id, function) in self.optimized.tree.iter_nodes::<mir::Function>() {
+            let Some(body) = &function.body else {
+                continue;
+            };
+            if function.coroutine.is_some() {
+                points.push(FramePoint::entry(function_id));
+            }
+
+            let mut blocks = body.blocks().to_vec();
+            self.points.order_blocks(&mut blocks);
+            for block_id in blocks {
+                let block = self.optimized.tree.get(block_id);
+
+                for &instruction_id in &block.instructions {
+                    let instruction = self.optimized.tree.get(instruction_id);
+                    let point = self.points.instruction(instruction_id);
+                    if let Some(point) = Self::instruction_point(instruction, point) {
+                        points.push(point);
+                    }
+                }
+            }
+        }
+
+        // collapse operations selected by more than one runtime concern
+        points.sort_unstable();
+        points.dedup();
+
+        points
+    }
+
+    /// Return the frame coordinate required by one MIR instruction.
+    fn instruction_point(instruction: &mir::Instruction, point: Point) -> Option<FramePoint> {
+        let point = match instruction {
+            // retain callers before explicit engine transitions or destruction
+            mir::Instruction::ContinuationNew { .. }
+            | mir::Instruction::ContinuationDestroy { .. }
+            | mir::Instruction::TaskStart { .. }
+            | mir::Instruction::Drop { .. } => point,
+
+            // runtime entry after the operation
+            mir::Instruction::Poll | mir::Instruction::Breakpoint => point.next(),
+
+            // remaining runtime sites were selected from SiteEmitter
+            _ => return None,
+        };
+
+        Some(FramePoint::operation(point))
     }
 
     /// Build one coroutine's initial logical slots.
