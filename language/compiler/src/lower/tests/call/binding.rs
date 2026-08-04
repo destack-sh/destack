@@ -103,19 +103,19 @@ function run(): void {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function test.main.greet(v0: variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; }): void {
-entry(v0: variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; }):
+function test.main.greet(v0: variant<uint8> { 0uint8 = boolean; 1uint8 = void; }): void {
+entry(v0: variant<uint8> { 0uint8 = boolean; 1uint8 = void; }):
     return
 }
 
 function test.main.run(): void {
 entry:
-    v0: variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; } = variant.new 1
-    call test.main.greet(v0): (variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; }) => void
+    v0: variant<uint8> { 0uint8 = boolean; 1uint8 = void; } = variant.new 1
+    call test.main.greet(v0): (variant<uint8> { 0uint8 = boolean; 1uint8 = void; }) => void
     return
 }
 /// @layout.variant name=type@3 size=1 align=1
-/// @layout.discriminant owner=type@3 kind=niche offset=0 byte_len=1 bit_offset=0 bit_len=8 untagged=0 niche_cases=1..1 niche_start=2
+/// @layout.discriminant owner=type@3 kind=niche offset=0 byte_len=1 bit_offset=0 bit_len=8 untagged=0 niche_start=2
 /// @layout.case owner=type@3 index=0 discriminant=0 payload_offset=0
 /// @layout.case owner=type@3 index=1 discriminant=1 payload_offset=0
 "#,

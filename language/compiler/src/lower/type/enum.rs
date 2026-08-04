@@ -66,7 +66,6 @@ impl TypeLowerer<'_, '_> {
             ty,
             mir::Type::Variant {
                 discriminant,
-                storage,
                 cases: variants,
                 copy,
             },

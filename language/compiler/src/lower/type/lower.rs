@@ -459,15 +459,8 @@ impl TypeLowerer<'_, '_> {
             })
             .collect();
 
-        // take the first case as the logical storage carrier
-        let storage = payloads
-            .first()
-            .copied()
-            .unwrap_or_else(|| self.tree.intern_type(mir::Type::Void));
-
         mir::Type::Variant {
             discriminant,
-            storage,
             cases,
             copy,
         }

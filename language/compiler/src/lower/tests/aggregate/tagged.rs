@@ -16,17 +16,17 @@ function pick(flag: boolean, count: int32): int32 | boolean {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function test.main.pick(v0: boolean, v1: int32): variant<uint8, int32> { 0uint8 = int32; 1uint8 = boolean; } {
+function test.main.pick(v0: boolean, v1: int32): variant<uint8> { 0uint8 = int32; 1uint8 = boolean; } {
 entry(v0: boolean, v1: int32):
     branch v0 => b1 | b2
 
 b1:
-    v2: variant<uint8, int32> { 0uint8 = int32; 1uint8 = boolean; } = variant.new 0, v1
+    v2: variant<uint8> { 0uint8 = int32; 1uint8 = boolean; } = variant.new 0, v1
     return v2
 
 b2:
     v3: int32 = 5
-    v4: variant<uint8, int32> { 0uint8 = int32; 1uint8 = boolean; } = variant.new 0, v3
+    v4: variant<uint8> { 0uint8 = int32; 1uint8 = boolean; } = variant.new 0, v3
     return v4
 }
 /// @layout.variant name=type@3 size=8 align=4
@@ -76,7 +76,7 @@ type Square {
 }
 
 @copy
-type Shape = variant<uint8, Circle> { 0uint8 = Circle; 1uint8 = Square; };
+type Shape = variant<uint8> { 0uint8 = Circle; 1uint8 = Square; };
 
 function test.main.keep(v0: Shape): Shape {
 entry(v0: Shape):
@@ -113,18 +113,18 @@ function forget(): boolean | undefined {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function test.main.keep(v0: variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; }): variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; } {
-entry(v0: variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; }):
+function test.main.keep(v0: variant<uint8> { 0uint8 = boolean; 1uint8 = void; }): variant<uint8> { 0uint8 = boolean; 1uint8 = void; } {
+entry(v0: variant<uint8> { 0uint8 = boolean; 1uint8 = void; }):
     return v0
 }
 
-function test.main.forget(): variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; } {
+function test.main.forget(): variant<uint8> { 0uint8 = boolean; 1uint8 = void; } {
 entry:
-    v0: variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; } = variant.new 1
+    v0: variant<uint8> { 0uint8 = boolean; 1uint8 = void; } = variant.new 1
     return v0
 }
 /// @layout.variant name=type@3 size=1 align=1
-/// @layout.discriminant owner=type@3 kind=niche offset=0 byte_len=1 bit_offset=0 bit_len=8 untagged=0 niche_cases=1..1 niche_start=2
+/// @layout.discriminant owner=type@3 kind=niche offset=0 byte_len=1 bit_offset=0 bit_len=8 untagged=0 niche_start=2
 /// @layout.case owner=type@3 index=0 discriminant=0 payload_offset=0
 /// @layout.case owner=type@3 index=1 discriminant=1 payload_offset=0
 "#,
@@ -170,7 +170,7 @@ type Square {
 }
 
 @copy
-type Shape = variant<uint8, Circle> { 0uint8 = Circle; 1uint8 = Square; };
+type Shape = variant<uint8> { 0uint8 = Circle; 1uint8 = Square; };
 
 function test.main.make(v0: float64): Shape {
 entry(v0: float64):
@@ -227,7 +227,7 @@ type Pending {
 }
 
 @copy
-type Status = variant<uint8, Ready> { 0uint8 = Ready; 1uint8 = Pending; };
+type Status = variant<uint8> { 0uint8 = Ready; 1uint8 = Pending; };
 
 function test.main.pending(): Status {
 entry:

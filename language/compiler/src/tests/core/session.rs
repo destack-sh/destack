@@ -608,19 +608,15 @@ impl TestSession {
                         destack_mir::VariantEncoding::Niche {
                             field,
                             untagged_case,
-                            niche_case_start,
-                            niche_case_end,
                             niche_start,
                         } => {
                             rows.push_str(&format!(
-                                "/// @layout.discriminant owner={name} kind=niche offset={} byte_len={} bit_offset={} bit_len={} untagged={} niche_cases={}..{} niche_start={}\n",
+                                "/// @layout.discriminant owner={name} kind=niche offset={} byte_len={} bit_offset={} bit_len={} untagged={} niche_start={}\n",
                                 field.offset,
                                 field.byte_len,
                                 field.bit_offset,
                                 field.bit_len,
                                 untagged_case,
-                                niche_case_start,
-                                niche_case_end,
                                 niche_start.bits()
                             ));
                         }

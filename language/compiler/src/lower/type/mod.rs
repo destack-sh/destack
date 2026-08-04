@@ -1,3 +1,4 @@
+mod aggregate;
 mod alias;
 mod class;
 mod dispatch;
@@ -16,6 +17,7 @@ mod scalar;
 mod signature;
 mod r#struct;
 mod substitution;
+mod variant;
 
 pub(in crate::lower) use alias::AliasForm;
 pub(in crate::lower) use dispatch::DynamicSource;

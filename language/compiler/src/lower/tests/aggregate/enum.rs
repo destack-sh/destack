@@ -22,7 +22,7 @@ function pick(flag: boolean): Mode {
         "main.ds",
         r#"
 @copy
-type Mode = variant<int64, void> { 1int64 = void; 2int64 = void; };
+type Mode = variant<int64> { 1int64 = void; 2int64 = void; };
 
 function test.main.pick(v0: boolean): Mode {
 entry(v0: boolean):
@@ -73,7 +73,7 @@ function fallback(mode: Mode): int32 {
         "main.ds",
         r#"
 @copy
-type Mode = variant<int64, void> { 1int64 = void; 2int64 = void; };
+type Mode = variant<int64> { 1int64 = void; 2int64 = void; };
 
 function test.main.describe(v0: Mode): int32 {
     local l0: int32

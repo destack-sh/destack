@@ -180,7 +180,7 @@ function probe(status: Status): boolean {
         "main.ds",
         r#"
 @copy
-type Status = variant<int64, void> { 1int64 = void; 2int64 = void; };
+type Status = variant<int64> { 1int64 = void; 2int64 = void; };
 
 function test.main.Status.isActive<'a>(v0: ref<Status, borrowed, 'a, exclusive>): boolean {
 entry(v0: ref<Status, borrowed, 'a, exclusive>):

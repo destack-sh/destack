@@ -186,9 +186,9 @@ function isTwo(value: 1 | 2): boolean {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function test.main.isTwo(v0: variant<uint8, void> { 0uint8 = void; 1uint8 = void; }): boolean {
-entry(v0: variant<uint8, void> { 0uint8 = void; 1uint8 = void; }):
-    v1: variant<uint8, void> { 0uint8 = void; 1uint8 = void; } = variant.new 1
+function test.main.isTwo(v0: variant<uint8> { 0uint8 = void; 1uint8 = void; }): boolean {
+entry(v0: variant<uint8> { 0uint8 = void; 1uint8 = void; }):
+    v1: variant<uint8> { 0uint8 = void; 1uint8 = void; } = variant.new 1
     v2: uint8 = variant.tag v0
     v3: uint8 = variant.tag v1
     v4: boolean = int.eq v2, v3
@@ -243,11 +243,11 @@ type Ready = newtype<void>;
 @copy
 type Pending = newtype<void>;
 
-function test.main.isReady(v0: variant<uint8, Ready> { 0uint8 = Ready; 1uint8 = Pending; }): boolean {
-entry(v0: variant<uint8, Ready> { 0uint8 = Ready; 1uint8 = Pending; }):
+function test.main.isReady(v0: variant<uint8> { 0uint8 = Ready; 1uint8 = Pending; }): boolean {
+entry(v0: variant<uint8> { 0uint8 = Ready; 1uint8 = Pending; }):
     v1: boolean = true
     v2: Ready = aggregate ()
-    v3: variant<uint8, Ready> { 0uint8 = Ready; 1uint8 = Pending; } = variant.new 0, v2
+    v3: variant<uint8> { 0uint8 = Ready; 1uint8 = Pending; } = variant.new 0, v2
     v4: uint8 = variant.tag v0
     v5: uint8 = variant.tag v3
     v6: boolean = int.eq v4, v5

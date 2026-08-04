@@ -160,16 +160,16 @@ function publish(): void {
         "main.ds",
         r#"
 @copy
-type MemoryOrdering = variant<int64, void> { 0int64 = void; 1int64 = void; 2int64 = void; 3int64 = void; 4int64 = void; };
+type MemoryOrdering = variant<int64> { 0int64 = void; 1int64 = void; 2int64 = void; 3int64 = void; 4int64 = void; };
 
 @copy
-type AtomicScope = variant<int64, void> { 0int64 = void; 1int64 = void; 2int64 = void; 3int64 = void; 4int64 = void; 5int64 = void; 6int64 = void; 7int64 = void; };
+type AtomicScope = variant<int64> { 0int64 = void; 1int64 = void; 2int64 = void; 3int64 = void; 4int64 = void; 5int64 = void; 6int64 = void; 7int64 = void; };
 
 @copy
-type MemoryScope = variant<int64, void> { 0int64 = void; };
+type MemoryScope = variant<int64> { 0int64 = void; };
 
 @copy
-type MemoryRegionSet = variant<int64, void> { 0int64 = void; };
+type MemoryRegionSet = variant<int64> { 0int64 = void; };
 
 function test.main.publish(): void {
 entry:
@@ -288,16 +288,16 @@ function acquireAll(): void {
         "main.ds",
         r#"
 @copy
-type MemoryOrdering = variant<int64, void> { 0int64 = void; 1int64 = void; 2int64 = void; 3int64 = void; 4int64 = void; };
+type MemoryOrdering = variant<int64> { 0int64 = void; 1int64 = void; 2int64 = void; 3int64 = void; 4int64 = void; };
 
 @copy
-type AtomicScope = variant<int64, void> { 0int64 = void; 1int64 = void; 2int64 = void; 3int64 = void; 4int64 = void; 5int64 = void; 6int64 = void; 7int64 = void; };
+type AtomicScope = variant<int64> { 0int64 = void; 1int64 = void; 2int64 = void; 3int64 = void; 4int64 = void; 5int64 = void; 6int64 = void; 7int64 = void; };
 
 @copy
-type MemoryScope = variant<int64, void> { 0int64 = void; };
+type MemoryScope = variant<int64> { 0int64 = void; };
 
 @copy
-type MemoryRegionSet = variant<int64, void> { 0int64 = void; };
+type MemoryRegionSet = variant<int64> { 0int64 = void; };
 
 function test.main.acquireAll(): void {
 entry:
