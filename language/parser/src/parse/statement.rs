@@ -245,32 +245,6 @@ impl Parser {
         ))
     }
 
-    /// Parse a throw expression.
-    ///
-    /// Examples:
-    /// ```ds
-    /// throw error
-    /// ```
-    pub(crate) fn parse_throw(
-        &mut self,
-        function: FunctionContext,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        let start = self.mark_parse_start();
-        self.bump();
-
-        // throw value
-        let value = if self.peek_statement_operand_absent() {
-            self.recover_missing_expression_here(NodeType::Expression)
-        } else {
-            self.parse_expression(ExpressionContext {
-                function,
-                ..ExpressionContext::default()
-            })?
-        };
-
-        Ok(self.insert_node(Expression::Throw { value }, self.range_since(&start)))
-    }
-
     /// Parse a return expression.
     ///
     /// Examples:

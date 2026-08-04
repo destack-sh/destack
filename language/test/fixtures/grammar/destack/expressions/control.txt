@@ -19,7 +19,7 @@ switch (kind) {
 match (result) {
 // <- keyword.control.conditional.ds
     Ok(value) if (value > 0) => value
-    Err(error) => throw error
+    Err(error) => panic("unhandled error")
 }
 
 // expressions / control / loops breaks and continues
@@ -43,7 +43,7 @@ while (ready()) {
     break;
 }
 
-// expressions / control / try catch and throw
+// expressions / control / try catch
 try {
 // <- keyword.control.exception.ds
     read()?
@@ -52,6 +52,3 @@ try {
 } finally {
     cleanup();
 }
-
-throw error;
-// <- keyword.control.exception.ds

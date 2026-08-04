@@ -572,7 +572,7 @@ fn test_parse_struct_with_private_member_function() {
         r###"
 struct Foo {
     private enqueue<M extends F<"mutation">>() {
-        throw new Error("Not implemented");
+        unreachable();
     }
 }
 "###,

@@ -455,6 +455,10 @@ module.exports = function defineGrammar(dialect) {
           return choice(previous);
         }
 
+        const statements = previous.members.filter((statement) =>
+          statement.name !== 'throw_statement',
+        );
+
         return choice(
           $.destack_decorated_statement,
           $.destack_static_if_statement,
@@ -463,7 +467,7 @@ module.exports = function defineGrammar(dialect) {
           $.let_else_statement,
           $.using_assignment_statement,
           $.match_statement,
-          previous,
+          ...statements,
         );
       },
 
@@ -620,7 +624,6 @@ module.exports = function defineGrammar(dialect) {
         $.break_statement,
         $.continue_statement,
         $.return_statement,
-        $.throw_statement,
         $.empty_statement,
       ),
 
@@ -889,7 +892,6 @@ module.exports = function defineGrammar(dialect) {
         $.break_statement,
         $.continue_statement,
         $.return_statement,
-        $.throw_statement,
         $.empty_statement,
         $.labeled_statement,
         $.destack_for_in_statement,

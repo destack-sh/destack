@@ -514,7 +514,6 @@ module.exports = grammar(JavaScript, {
       $.break_statement,
       $.continue_statement,
       $.return_statement,
-      $.throw_statement,
       $.empty_statement,
       $.labeled_statement,
     ),
@@ -693,7 +692,6 @@ module.exports = grammar(JavaScript, {
       $.break_statement,
       $.continue_statement,
       $.return_statement,
-      $.throw_statement,
       $.empty_statement,
     ),
 
@@ -992,7 +990,6 @@ module.exports = grammar(JavaScript, {
       $.break_statement,
       $.continue_statement,
       $.return_statement,
-      $.throw_statement,
       $.labeled_statement,
       $.for_in_binding_statement,
       $.comptime_block_statement,
