@@ -223,7 +223,10 @@ impl DirResolved {
                 dir::Reference::Bound(references) => {
                     symbols.extend(references.iter().copied());
                 }
-                dir::Reference::Projected { base, .. } => symbols.push(*base),
+                dir::Reference::Projected { base, .. } => match base {
+                    dir::ImportTarget::Symbol(symbol) => symbols.push(*symbol),
+                    dir::ImportTarget::Namespace(module) => namespaces.push(*module),
+                },
                 dir::Reference::Namespace(module) => namespaces.push(*module),
                 dir::Reference::Ambiguous(_) | dir::Reference::Missing => {}
             }
@@ -261,6 +264,8 @@ pub struct DirDeclared {
     pub definitions: Arc<dir::DefinitionSegment>,
     /// Declared node resolutions.
     pub resolutions: Arc<dir::ResolutionSegment>,
+    /// Authored member lookup subjects.
+    pub members: Arc<dir::MemberSegment>,
 }
 
 impl DirDeclared {
