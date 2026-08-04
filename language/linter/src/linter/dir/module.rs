@@ -148,6 +148,17 @@ impl<'a> DirModule<'a> {
         })
     }
 
+    /// Return one checked node's type after its selected adjustments.
+    pub fn adjusted_type(&self, node: dir::LocalNodeIdAny) -> Result<dir::Type, ProviderError> {
+        let global = node.into_global(self.id);
+        let type_id = match self.coercions.coercion(global) {
+            Some(coercion) => coercion.target(),
+            None => self.node_type_id(node)?,
+        };
+
+        self.dir.get_type(type_id)
+    }
+
     /// Return the required source span for one DIR node.
     pub fn span(&self, node: dir::LocalNodeIdAny) -> Result<Span, ProviderError> {
         self.view()

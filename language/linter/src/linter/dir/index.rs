@@ -53,6 +53,41 @@ impl Dir {
             })
     }
 
+    /// Return the borrow form carried by one checked type.
+    pub fn get_borrow(&self, type_id: dir::GlobalTypeId) -> Result<dir::BorrowForm, ProviderError> {
+        let module = self.module_storage(type_id.module_id)?;
+        let ty = self.get_type(type_id)?;
+        let dir::Type::Form(form) = ty else {
+            return Err(ProviderError::internal(format!(
+                "borrow target {type_id:?} is not a form type"
+            )));
+        };
+        let dir::Form::Borrowed(borrow_id) = form.form else {
+            return Err(ProviderError::internal(format!(
+                "borrow target {type_id:?} is not borrowed"
+            )));
+        };
+        let borrow = module.types.borrow_form_maybe(borrow_id).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "borrow target {type_id:?} has no borrow form {borrow_id:?}"
+            ))
+        })?;
+
+        Ok(*borrow)
+    }
+
+    /// Return the access carried by one checked memory singleton.
+    pub fn get_access(&self, type_id: dir::GlobalTypeId) -> Result<dir::Access, ProviderError> {
+        let ty = self.get_type(type_id)?;
+        let dir::Type::Memory(dir::MemoryLiteral::Access(access)) = ty else {
+            return Err(ProviderError::internal(format!(
+                "DIR type {type_id:?} is not an access singleton"
+            )));
+        };
+
+        Ok(access)
+    }
+
     /// Return one checked static value by global id.
     pub fn get_static(
         &self,

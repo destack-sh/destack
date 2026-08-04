@@ -13,10 +13,12 @@ declare_lint! {
         explanation: "The `debugger` statement interrupts execution only when an attached debugger honors it and otherwise has no useful runtime effect. It is normally an accidental development artifact and should not remain in checked source.",
         example: {
             reported: r#"
-if (true) debugger;
+declare const active: boolean;
+if (active) debugger;
 "#,
             accepted: r#"
-if (true) {}
+declare const active: boolean;
+if (active) {}
 "#,
         },
         category: Suspicious,
@@ -167,14 +169,16 @@ const after = 2;
     fn test_removes_debugger_from_block() {
         let session = TestSession::new(
             &NO_DEBUGGER,
-            r#"if (true) {
+            r#"declare const active: boolean;
+if (active) {
     debugger;
 }
 "#,
         );
 
         session.assert_fixes(
-            r#"if (true) {
+            r#"declare const active: boolean;
+if (active) {
 }
 "#,
         );
@@ -189,6 +193,23 @@ const after = 2;
 "#,
         );
 
+        session.assert_diagnostics(
+            r#"
+warning[no-debugger]: `debugger` statement is not allowed
+ ──▶ main.ds:1:22
+  │
+1 │ try {} catch (error) debugger;
+  │                      ^^^^^^^^
+  │
+
+ = fix: remove the debugger statement
+--- a/main.ds
++++ b/main.ds
+
+-   1│ try {} catch (error) debugger;
++   1│ try {} catch (error) {}
+"#,
+        );
         session.assert_fixes(
             r#"try {} catch (error) {}
 "#,

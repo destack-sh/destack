@@ -23,9 +23,14 @@ impl Dir {
         };
 
         // select the declaration that owns the member symbol
-        let Some(owner) = module.bindings.symbol_owner(symbol.local_id) else {
-            return Ok(None);
-        };
+        let owner = module
+            .bindings
+            .symbol_owner(symbol.local_id)
+            .ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "selected member symbol {symbol:?} has no owning declaration"
+                ))
+            })?;
         let owner = owner.into_global(symbol.module_id);
 
         // resolve inherent extension members to their receiver declaration
@@ -70,7 +75,9 @@ impl DirModule<'_> {
         match view.get(expression) {
             // calls retain one selected callable for every runtime arm
             dir::Expression::Call { .. } => {
-                let resolution = self.call_resolution(expression)?;
+                let Some(resolution) = self.call_resolution(expression)? else {
+                    return Ok(None);
+                };
                 let symbols = resolution.iter().map(|call| call.target.symbol());
 
                 self.selected_language_member(symbols)
@@ -78,13 +85,30 @@ impl DirModule<'_> {
 
             // property reads retain one selected member for every runtime arm
             dir::Expression::Member { .. } => {
-                let resolution = self.member_resolution(expression)?;
+                let Some(resolution) = self.member_resolution(expression)? else {
+                    return Ok(None);
+                };
                 let symbols = resolution.iter().map(|access| access.target.symbol());
 
                 self.selected_language_member(symbols)
             }
             _ => Ok(None),
         }
+    }
+
+    /// Return the canonical language member selected by one operator expression.
+    pub fn operator_language_member(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<dir::LanguageMember>, ProviderError> {
+        let Some(resolution) = self.operator_resolution(expression.into_any())? else {
+            return Ok(None);
+        };
+        let symbols = resolution
+            .iter()
+            .map(|application| application.call().and_then(|call| call.target.symbol()));
+
+        self.selected_language_member(symbols)
     }
 
     /// Return the language member shared by every selected declaration.

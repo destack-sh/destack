@@ -143,10 +143,10 @@ impl<'a> CounterUpdate<'a> {
         };
 
         // require builtin update behavior over one stable place
-        if !module
-            .operator_resolution(increment.into_any())?
-            .is_builtin()
-        {
+        let Some(resolution) = module.operator_resolution(increment.into_any())? else {
+            return Ok(None);
+        };
+        if !resolution.is_builtin() {
             return Ok(None);
         }
         let Some(access) = module.access_resolution(target) else {
@@ -177,10 +177,10 @@ impl<'a> CounterUpdate<'a> {
         else {
             return Ok(None);
         };
-        if !module
-            .operator_resolution(condition.into_any())?
-            .is_builtin()
-        {
+        let Some(resolution) = module.operator_resolution(condition.into_any())? else {
+            return Ok(None);
+        };
+        if !resolution.is_builtin() {
             return Ok(None);
         }
 
@@ -258,6 +258,23 @@ for (let index: int32 = 0; 10 > index; index--) {}
 "#,
         );
 
+        session.assert_diagnostics(
+            r#"
+warning[for-direction]: loop counter moves away from its stop condition
+ ──▶ main.ds:1:45
+  │
+1 │ for (let index: int32 = 0; 10 > index; index--) {}
+  │                                             ^^
+  │
+
+ = suggestion: reverse the counter update (requires review)
+--- a/main.ds
++++ b/main.ds
+
+-   1│ for (let index: int32 = 0; 10 > index; index--) {}
++   1│ for (let index: int32 = 0; 10 > index; index++) {}
+"#,
+        );
         session.assert_suggestions(
             r#"
 for (let index: int32 = 0; 10 > index; index++) {}
