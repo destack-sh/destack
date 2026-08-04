@@ -787,9 +787,19 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        // canonicalize foreign written types on every read
+        // canonicalize foreign written types once per component
         if !self.is_own_module(symbol.module_id) {
-            return self.canonical_foreign_type(symbol, ty).map(Some);
+            // read written types uncanonicalized in declare mode
+            if self.is_declaration() {
+                return Ok(Some(ty));
+            }
+            if let Some(canonical) = self.external_symbol_types.get(&symbol) {
+                return Ok(Some(*canonical));
+            }
+            let canonical = self.canonical_foreign_type(symbol, ty)?;
+            self.external_symbol_types.insert(symbol, canonical);
+
+            return Ok(Some(canonical));
         }
 
         // canonicalize own declared-stage values once, types stay written

@@ -9,8 +9,8 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Cause, CauseId, CheckExternalModuleState, CheckModuleState, CheckTrace, DecisionTable,
-    DecoratorApplication, FunctionBody, GenericIndex, Origin, OriginId, Relation, Solver,
-    TryPropagationTarget, should_stream_check_events,
+    DecoratorApplication, FunctionBody, GenericIndex, GenericTemplateId, Origin, OriginId,
+    Relation, Solver, TryPropagationTarget, TypeSubstitution, should_stream_check_events,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -84,6 +84,19 @@ pub(in crate::check) struct CheckState<'a> {
     /// Memoized closed reduced type graphs keyed by source type.
     pub(in crate::check) reduced_graphs:
         FxIndexMap<(dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>), dir::GlobalTypeId>,
+    /// Memoized canonical forms of foreign written symbol types.
+    pub(in crate::check) external_symbol_types: FxIndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
+    /// Memoized closed extension target matches keyed by assuming scope.
+    pub(in crate::check) extension_matches: FxIndexMap<
+        (
+            Option<dir::GlobalGenericTemplateId>,
+            dir::GlobalTypeId,
+            dir::GlobalTypeId,
+            Option<GenericTemplateId>,
+            dir::GlobalTypeId,
+        ),
+        Option<TypeSubstitution>,
+    >,
 
     // solver state
     /// Active component solver state.
@@ -184,6 +197,8 @@ impl<'a> CheckState<'a> {
             deciding_extensions: FxIndexSet::default(),
             reduced_heads: FxIndexMap::default(),
             reduced_graphs: FxIndexMap::default(),
+            external_symbol_types: FxIndexMap::default(),
+            extension_matches: FxIndexMap::default(),
             solver: Solver::new(),
 
             functions: FxIndexMap::default(),

@@ -212,12 +212,14 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<SmallVec<[DeclaredMember; 2]>>> {
         let mut matched = SmallVec::new();
         for member in members {
+            // match the declared key before resolving the member type
+            if member.space() != space || member.key() != Some(key) {
+                continue;
+            }
             let Some(member) = answer!(self.declared_member(member)?) else {
                 continue;
             };
-            if member.matches(space, key) {
-                matched.push(member);
-            }
+            matched.push(member);
         }
 
         Ok(Answer::Ready(matched))
@@ -933,6 +935,45 @@ impl BodyState<'_, '_> {
 
     /// Match one lookup subject against an extension target and its constraints.
     pub(in crate::check) fn match_extension_subject(
+        &mut self,
+        origin: Origin,
+        receiver: dir::GlobalTypeId,
+        subject: dir::GlobalTypeId,
+        template: Option<GenericTemplateId>,
+        target_type: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<TypeSubstitution>>> {
+        // memoize matches over closed operands, keyed by the assuming scope
+        let closed =
+            !self.type_flags(receiver)?.has_variable() && !self.type_flags(subject)?.has_variable();
+        let memo = match closed {
+            true => {
+                let scope = self.origin_scope(origin)?;
+
+                Some((scope, receiver, subject, template, target_type))
+            }
+            false => None,
+        };
+        if let Some(memo) = &memo
+            && let Some(matched) = self.check.extension_matches.get(memo)
+        {
+            return Ok(Answer::Ready(matched.clone()));
+        }
+        let matched = answer!(self.match_extension_subject_uncached(
+            origin,
+            receiver,
+            subject,
+            template,
+            target_type
+        )?);
+        if let Some(memo) = memo {
+            self.check.extension_matches.insert(memo, matched.clone());
+        }
+
+        Ok(Answer::Ready(matched))
+    }
+
+    /// Match one lookup subject against an extension target without the memo.
+    fn match_extension_subject_uncached(
         &mut self,
         origin: Origin,
         receiver: dir::GlobalTypeId,
