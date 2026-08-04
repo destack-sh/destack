@@ -119,6 +119,7 @@ impl CheckState<'_> {
         self.write_auto_conformances(module)?;
 
         // record checked member bindings for every authored lookup subject
+        self.write_member_bindings(module)?;
 
         // seal every embedded type id
         self.close_output_segments(module, failed_applications, &mut sealed)?;
@@ -373,6 +374,132 @@ impl CheckState<'_> {
         }
 
         Ok(resolved)
+    }
+
+    /// Record the checked member bindings behind every authored lookup subject.
+    fn write_member_bindings(&mut self, module: ModuleId) -> CompilerResult<()> {
+        // walk each recorded subject once
+        let subjects = self
+            .module(module)
+            .members
+            .iter_subjects()
+            .collect::<Vec<_>>();
+        let mut done = FxIndexSet::default();
+
+        for (source, subject) in subjects {
+            // subjects recorded at many sites bind once
+            if !done.insert(subject) {
+                continue;
+            }
+
+            let bindings = self.subject_bindings(module, source, subject)?;
+            self.module_mut(module)
+                .members
+                .replace_bindings(subject, bindings);
+        }
+
+        Ok(())
+    }
+
+    /// Resolve one subject's member bindings over the solved keyed lookups.
+    fn subject_bindings(
+        &mut self,
+        module: ModuleId,
+        source: dir::GlobalNodeIdAny,
+        subject: dir::MemberSubject,
+    ) -> CompilerResult<Vec<dir::MemberBinding>> {
+        // resolve each declared key through the solved lookup
+        let origin = Origin::Node(source, subject.scope);
+        let lookup_subject = self.declared_member_subject(subject)?;
+        let keys = self
+            .body()
+            .subject_member_keys(origin, module, &lookup_subject)?;
+        let captured = self
+            .module(module)
+            .members
+            .members(subject)
+            .map(<[dir::MemberBinding]>::to_vec)
+            .unwrap_or_default();
+        let mut bindings = Vec::with_capacity(keys.len());
+        for key in keys {
+            // keep the bindings the solve already captured in domain order
+            if let Some(binding) = captured.iter().find(|binding| binding.key == key) {
+                bindings.push(binding.clone());
+
+                continue;
+            }
+
+            let lookup = match self
+                .body()
+                .lookup_member(origin, module, lookup_subject, key)?
+            {
+                Answer::Ready(lookup) => lookup,
+                Answer::Pending(blockers) => {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "member binding lookup suspended after solving: {blockers:?}"
+                        ),
+                    });
+                }
+            };
+            if let Some(binding) = self.body().member_binding(origin, key, &lookup)? {
+                bindings.push(binding);
+            }
+        }
+
+        // retain captured bindings outside the declared key domain
+        for binding in captured {
+            if !bindings.iter().any(|kept| kept.key == binding.key) {
+                bindings.push(binding);
+            }
+        }
+
+        // order bindings by selection precedence within the domain order
+        bindings.sort_by_key(|binding| {
+            // bindings without declarations sort last
+            binding
+                .declarations
+                .first()
+                .map_or(3u8, |declaration| match declaration.origin {
+                    dir::MemberOrigin::Declaration => 0,
+                    dir::MemberOrigin::RootedExtension => 1,
+                    dir::MemberOrigin::BlanketExtension => 2,
+                })
+        });
+
+        Ok(bindings)
+    }
+
+    /// Bind bare generic subject references through their declared applications.
+    fn declared_member_subject(
+        &mut self,
+        subject: dir::MemberSubject,
+    ) -> CompilerResult<dir::MemberSubject> {
+        let receiver = self.declared_subject_type(subject.receiver)?;
+        let target = self.declared_subject_type(subject.target)?;
+
+        Ok(dir::MemberSubject {
+            receiver,
+            target,
+            ..subject
+        })
+    }
+
+    /// Return one bare generic reference as its own declared application.
+    fn declared_subject_type(
+        &mut self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let dir::Type::Reference(reference) = self.ty(ty)? else {
+            return Ok(ty);
+        };
+        let symbol = self.resolve_symbol_alias(reference.symbol)?;
+        if self.symbol_template(symbol)?.is_none() {
+            return Ok(ty);
+        }
+        let instance = self.declaration_instance(symbol)?;
+
+        self.intern_type(dir::Type::Application(instance))
     }
 
     /// Resolve one module's recorded contextual expectations.

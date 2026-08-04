@@ -131,23 +131,18 @@ impl MemberSegment {
     /// Record the checked member binding resolved for one subject key.
     pub fn record_binding(&mut self, subject: MemberSubject, binding: MemberBinding) {
         let bindings = self.bindings.entry(subject).or_default();
-        match bindings.iter_mut().find(|recorded| recorded.key == binding.key) {
+        match bindings
+            .iter_mut()
+            .find(|recorded| recorded.key == binding.key)
+        {
             Some(recorded) => *recorded = binding,
             None => bindings.push(binding),
         }
     }
 
-    /// Record the checked member bindings for one lookup subject.
-    pub fn record_bindings(&mut self, subject: MemberSubject, bindings: Vec<MemberBinding>) {
-        // require one stable binding list per subject
-        if let Some(recorded) = self.bindings.get(&subject) {
-            assert_eq!(
-                recorded, &bindings,
-                "member subject was recorded with different bindings"
-            );
-        } else {
-            self.bindings.insert(subject, bindings);
-        }
+    /// Replace the checked member bindings stored for one lookup subject.
+    pub fn replace_bindings(&mut self, subject: MemberSubject, bindings: Vec<MemberBinding>) {
+        self.bindings.insert(subject, bindings);
     }
 
     /// Iterate the member lookup subjects retained at source sites.
