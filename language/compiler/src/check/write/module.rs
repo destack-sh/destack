@@ -527,6 +527,9 @@ impl CheckState<'_> {
                     dir::Definition::TypeAlias(definition) => {
                         Some((Origin::Symbol(symbol), definition.value))
                     }
+                    dir::Definition::Newtype(definition) => {
+                        Some((Origin::Symbol(symbol), definition.backing))
+                    }
                     _ => None,
                 }),
         );

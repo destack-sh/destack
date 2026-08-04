@@ -1,4 +1,5 @@
 mod class;
+mod computed;
 mod construct;
 mod r#enum;
 mod field;
