@@ -1,9 +1,9 @@
 use crate::build::{BuildError, BuildResult, FunctionBuilder};
 use crate::{
-    BinaryOperator, Instruction, LocalNodeId, TensorConvertMode, TensorConvolutionDimensionNumbers,
+    BinaryOperator, ConvertMode, Instruction, LocalNodeId, TensorConvolutionDimensionNumbers,
     TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
     TensorIndexReduceOperator, TensorIndexTieBreak, TensorReduceOperator,
-    TensorScatterDimensionNumbers, TensorScatterMode, Tree, Type, TypeId, Value, VectorConvertMode,
+    TensorScatterDimensionNumbers, TensorScatterMode, Tree, Type, TypeId, Value,
     VectorReduceOperator,
 };
 
@@ -399,7 +399,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn vector_convert(
         &mut self,
         result_type: LocalNodeId<Type>,
-        mode: VectorConvertMode,
+        mode: ConvertMode,
         vector: Value,
     ) -> Value {
         let destination = self.allocate_value();
@@ -833,7 +833,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn tensor_convert(
         &mut self,
         result_type: LocalNodeId<Type>,
-        mode: TensorConvertMode,
+        mode: ConvertMode,
         tensor: Value,
     ) -> Value {
         let destination = self.allocate_value();

@@ -7,10 +7,10 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CallDispatch, CompareExchangeAccess,
-    Constant, CounterId, FenceAccess, FunctionId, GlobalId, IndexSlice, Intrinsic, LocalId, Node,
-    NodeType, SamplerId, TensorConvertMode, TensorImmediateId, TensorIndexReduceOperator,
+    Constant, ConvertMode, CounterId, FenceAccess, FunctionId, GlobalId, IndexSlice, Intrinsic,
+    LocalId, Node, NodeType, SamplerId, TensorImmediateId, TensorIndexReduceOperator,
     TensorIndexTieBreak, TensorReduceOperator, TensorScatterMode, Tree, TypeId, UnaryOperator,
-    Value, ValueSlice, VectorConvertMode, VectorReduceOperator,
+    Value, ValueSlice, VectorReduceOperator,
 };
 
 /// One MIR instruction.
@@ -525,7 +525,7 @@ pub enum Instruction {
         /// The SSA value to define with the converted vector.
         destination: Value,
         /// The conversion mode to apply.
-        mode: VectorConvertMode,
+        mode: ConvertMode,
         /// The vector value to convert.
         vector: Value,
     },
@@ -774,7 +774,7 @@ pub enum Instruction {
         /// The SSA value to define with the converted tensor.
         destination: Value,
         /// The conversion mode to apply.
-        mode: TensorConvertMode,
+        mode: ConvertMode,
         /// The tensor value to convert.
         tensor: Value,
     },

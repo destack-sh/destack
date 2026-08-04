@@ -201,61 +201,6 @@ impl std::str::FromStr for TensorScatterMode {
     }
 }
 
-/// Conversion modes for tensor element conversions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum TensorConvertMode {
-    /// Require exact conversion with no rounding or saturation.
-    Exact,
-    /// Round to the nearest even representable value.
-    RoundTiesEven,
-    /// Round toward zero.
-    RoundTowardZero,
-    /// Round toward negative infinity.
-    RoundFloor,
-    /// Round toward positive infinity.
-    RoundCeil,
-    /// Clamp values that overflow the destination range.
-    Saturate,
-}
-
-impl TensorConvertMode {
-    /// Return the opcode name for this conversion mode.
-    pub fn to_str(self) -> &'static str {
-        match self {
-            TensorConvertMode::Exact => "exact",
-            TensorConvertMode::RoundTiesEven => "roundTiesEven",
-            TensorConvertMode::RoundTowardZero => "roundTowardZero",
-            TensorConvertMode::RoundFloor => "roundFloor",
-            TensorConvertMode::RoundCeil => "roundCeil",
-            TensorConvertMode::Saturate => "saturate",
-        }
-    }
-
-    /// Parse a conversion mode from an opcode name.
-    pub fn parse(text: &str) -> Option<Self> {
-        <Self as std::str::FromStr>::from_str(text).ok()
-    }
-}
-
-impl std::str::FromStr for TensorConvertMode {
-    type Err = ();
-
-    /// Parse a conversion mode from an opcode name.
-    fn from_str(text: &str) -> Result<Self, Self::Err> {
-        let value = match text {
-            "exact" => TensorConvertMode::Exact,
-            "roundTiesEven" => TensorConvertMode::RoundTiesEven,
-            "roundTowardZero" => TensorConvertMode::RoundTowardZero,
-            "roundFloor" => TensorConvertMode::RoundFloor,
-            "roundCeil" => TensorConvertMode::RoundCeil,
-            "saturate" => TensorConvertMode::Saturate,
-            _ => return Err(()),
-        };
-
-        Ok(value)
-    }
-}
-
 /// Dimension numbers for tensor dot operations.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct TensorDotDimensionNumbers {

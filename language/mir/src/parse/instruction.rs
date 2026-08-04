@@ -5,12 +5,12 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, Callee, CastOperator,
-    CompareExchangeAccess, CounterId, DispatchSlot, ExecutionScope, FenceAccess, FunctionId,
-    Instruction, LocalNodeId, MemoryOrdering, SamplerId, StorageSet, TensorConvertMode,
+    CompareExchangeAccess, ConvertMode, CounterId, DispatchSlot, ExecutionScope, FenceAccess,
+    FunctionId, Instruction, LocalNodeId, MemoryOrdering, SamplerId, StorageSet,
     TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
     TensorGatherDimensionNumbers, TensorIndexReduceOperator, TensorIndexTieBreak,
     TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, TypeId, UnaryOperator,
-    Value, ValueSlice, VectorConvertMode, VectorReduceOperator,
+    Value, ValueSlice, VectorReduceOperator,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -819,7 +819,7 @@ impl Parser {
                         }
                     }
                     "vector.convert" => {
-                        let mode = self.parse_vector_convert_mode()?;
+                        let mode = self.parse_convert_mode("vector convert mode")?;
                         self.eat_token(TokenType::Comma)?;
                         let vector = self.parse_value()?;
                         Instruction::VectorConvert {
@@ -1152,7 +1152,7 @@ impl Parser {
                         }
                     }
                     "tensor.convert" => {
-                        let mode = self.parse_tensor_convert_mode()?;
+                        let mode = self.parse_convert_mode("tensor convert mode")?;
                         self.eat_token(TokenType::Comma)?;
                         let tensor = self.parse_value()?;
                         Instruction::TensorConvert {
@@ -1534,21 +1534,13 @@ impl Parser {
         Ok(operator)
     }
 
-    /// Parse a vector conversion mode.
-    fn parse_vector_convert_mode(&mut self) -> ParseResult<VectorConvertMode> {
+    /// Parse one numeric conversion policy.
+    fn parse_convert_mode(&mut self, expected: &'static str) -> ParseResult<ConvertMode> {
         // parse the mode token
         let token = self.eat_token(TokenType::Identifier)?;
-        let mode = VectorConvertMode::parse(self.tree.source_text(token.span))
-            .ok_or_else(|| ParseError::invalid("vector convert mode", token.start()))?;
-        Ok(mode)
-    }
+        let mode = ConvertMode::parse(self.tree.source_text(token.span))
+            .ok_or_else(|| ParseError::invalid(expected, token.start()))?;
 
-    /// Parse a tensor conversion mode.
-    fn parse_tensor_convert_mode(&mut self) -> ParseResult<TensorConvertMode> {
-        // parse the mode token
-        let token = self.eat_token(TokenType::Identifier)?;
-        let mode = TensorConvertMode::parse(self.tree.source_text(token.span))
-            .ok_or_else(|| ParseError::invalid("tensor convert mode", token.start()))?;
         Ok(mode)
     }
 
