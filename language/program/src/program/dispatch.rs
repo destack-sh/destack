@@ -86,6 +86,11 @@ pub struct DispatchTable {
 }
 
 impl DispatchTable {
+    /// Return all virtual tables in dense id order.
+    pub fn virtual_tables<'a>(&self, sections: SectionImage<'a>) -> &'a [VirtualTable] {
+        sections.entries(self.virtual_tables)
+    }
+
     /// Return the virtual table for one table id.
     pub fn virtual_table<'a>(
         &self,
@@ -95,6 +100,20 @@ impl DispatchTable {
         sections.entries(self.virtual_tables).get(id.index())
     }
 
+    /// Return the virtual methods for one virtual table.
+    pub fn virtual_methods<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        table: &VirtualTable,
+    ) -> &'a [FunctionId] {
+        table.methods.slice(sections.entries(self.virtual_methods))
+    }
+
+    /// Return all dynamic tables in dense id order.
+    pub fn dynamic_tables<'a>(&self, sections: SectionImage<'a>) -> &'a [DynamicTable] {
+        sections.entries(self.dynamic_tables)
+    }
+
     /// Return the dynamic table for one table id.
     pub fn dynamic_table<'a>(
         &self,
@@ -102,6 +121,20 @@ impl DispatchTable {
         id: DynamicTableId,
     ) -> Option<&'a DynamicTable> {
         sections.entries(self.dynamic_tables).get(id.index())
+    }
+
+    /// Return the dynamic entries for one dynamic table.
+    pub fn dynamic_entries<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        table: &DynamicTable,
+    ) -> &'a [DynamicEntry] {
+        table.entries.slice(sections.entries(self.dynamic_entries))
+    }
+
+    /// Return all dynamic table shapes in constraint order.
+    pub fn dynamic_shapes<'a>(&self, sections: SectionImage<'a>) -> &'a [DynamicShape] {
+        sections.entries(self.dynamic_shapes)
     }
 
     /// Return the dynamic table shape for one constraint type.
@@ -114,24 +147,6 @@ impl DispatchTable {
             .entries(self.dynamic_shapes)
             .iter()
             .find(|shape| shape.constraint == constraint)
-    }
-
-    /// Return the virtual methods for one virtual table.
-    pub fn virtual_methods<'a>(
-        &self,
-        sections: SectionImage<'a>,
-        table: &VirtualTable,
-    ) -> &'a [FunctionId] {
-        table.methods.slice(sections.entries(self.virtual_methods))
-    }
-
-    /// Return the dynamic entries for one dynamic table.
-    pub fn dynamic_entries<'a>(
-        &self,
-        sections: SectionImage<'a>,
-        table: &DynamicTable,
-    ) -> &'a [DynamicEntry] {
-        table.entries.slice(sections.entries(self.dynamic_entries))
     }
 
     /// Return the dynamic slots for one dynamic shape.
@@ -166,6 +181,7 @@ impl DispatchTable {
         virtual_tables && dynamic_tables && dynamic_shapes
     }
 }
+
 
 /// Virtual dispatch table for one concrete type.
 #[repr(C)]

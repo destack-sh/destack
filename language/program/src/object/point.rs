@@ -23,6 +23,11 @@ impl Point {
             operation,
         }
     }
+
+    /// Return the following operation in the same function.
+    pub const fn next(self) -> Self {
+        Self::new(self.function, self.operation + 1)
+    }
 }
 
 /// One logical frame coordinate in an emitted object.

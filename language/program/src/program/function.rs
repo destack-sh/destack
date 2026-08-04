@@ -30,7 +30,7 @@ pub struct FunctionId(pub u32);
 
 impl FunctionId {
     /// The callable word bias after null and undefined.
-    const WORD_BIAS: u64 = 2;
+    pub const WORD_BIAS: u64 = 2;
 
     /// Return this id as a dense table index.
     pub const fn index(self) -> usize {
@@ -70,7 +70,7 @@ impl From<FunctionId> for u32 {
 }
 
 impl From<FunctionId> for Word {
-    /// Encode one function pointer word.
+    /// Encode one callable identity word.
     fn from(function: FunctionId) -> Self {
         function.word()
     }
