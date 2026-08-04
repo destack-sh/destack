@@ -6,7 +6,7 @@ use smallvec::SmallVec;
 use crate::check::{
     Answer, BodyState, CandidateOutcome, Cause, CauseKind, DeclaredMember, Dependency,
     GenericParameterId, GenericTemplateId, LookupReceiver, MemberCandidate, MemberLookup, Origin,
-    ReceiverSteps, Relation, TypeArgumentInference, TypeSubstitution, answer,
+    ReceiverSteps, Relation, TypeSubstitution, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -304,15 +304,15 @@ impl BodyState<'_, '_> {
                 continue;
             }
 
-            // match the extension header and rows in one candidate probe
+            // match the target and implemented interfaces in one candidate probe
             let target_type = extension.target.r#type();
             let template = self.symbol_template(extension_symbol)?;
             let matched = self.confirm_candidate(|state| {
-                let matched = state.match_extension_applicability(
+                let matched = state.match_extension_implementation(
                     origin,
                     relation,
-                    module,
                     interface_module,
+                    receiver,
                     receiver,
                     interface,
                     template,
@@ -320,8 +320,8 @@ impl BodyState<'_, '_> {
                     &implements,
                 )?;
                 Ok(match matched {
-                    Answer::Ready(true) => Answer::Ready(CandidateOutcome::Accepted(())),
-                    Answer::Ready(false) => Answer::Ready(CandidateOutcome::Rejected(())),
+                    Answer::Ready(Some(_)) => Answer::Ready(CandidateOutcome::Accepted(())),
+                    Answer::Ready(None) => Answer::Ready(CandidateOutcome::Rejected(())),
                     Answer::Pending(pending) => Answer::Pending(pending),
                 })
             })?;
@@ -335,57 +335,62 @@ impl BodyState<'_, '_> {
         Ok(Answer::ready_unless_blocked(false, blockers))
     }
 
-    /// Match one extension's target and implements rows against a goal.
-    fn match_extension_applicability(
+    /// Match one extension target and implemented interface.
+    pub(in crate::check) fn match_extension_implementation(
         &mut self,
         origin: Origin,
         relation: Relation,
-        _module: ModuleId,
         interface_module: ModuleId,
         receiver: dir::GlobalTypeId,
+        lookup_receiver: dir::GlobalTypeId,
         interface: &dir::GenericApplication,
         template: Option<GenericTemplateId>,
         target_type: dir::GlobalTypeId,
-        implements: &[dir::InterfaceImplementation],
-    ) -> CompilerResult<Answer<bool>> {
-        // matching binds the extension parameters through the target header
+        implements: &[dir::NominalHeritage],
+    ) -> CompilerResult<Answer<Option<(TypeSubstitution, dir::GlobalTypeId)>>> {
+        // bind extension parameters through its declared target
         let parameters = match template {
             Some(template) => self.generic_template_parameters(template)?,
             None => SmallVec::new(),
         };
         let mut substitution = TypeSubstitution::default().with_receiver(receiver);
-        if !answer!(self.bind_extension_target(
+        let matched = answer!(self.bind_extension_target(
             origin,
             &parameters,
             &mut substitution,
             target_type,
-            receiver,
-        )?) {
-            return Ok(Answer::Ready(false));
+            lookup_receiver,
+        )?);
+        if !matched {
+            return Ok(Answer::Ready(None));
         }
 
-        // require the receiver to satisfy the bound target
+        // require the lookup receiver to satisfy the applied target
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-        let module = self.module_id;
         let target = self.substitute_type(target_type, &substitution)?;
-        if !answer!(self.constrain_type(origin, cause, Relation::Assignable, receiver, target)?) {
-            return Ok(Answer::Ready(false));
+        if !answer!(self.constrain_type(
+            origin,
+            cause,
+            Relation::Assignable,
+            lookup_receiver,
+            target,
+        )?) {
+            return Ok(Answer::Ready(None));
         }
 
-        // one declared row must implement the requested interface
+        // match one declared interface with the requested interface
         let implementation = answer!(self.match_implemented_interface(
             origin,
             relation,
-            module,
             interface_module,
             &parameters,
             &mut substitution,
             implements,
             interface,
         )?);
-        if implementation.is_none() {
-            return Ok(Answer::Ready(false));
-        }
+        let Some(implementation) = implementation else {
+            return Ok(Answer::Ready(None));
+        };
 
         // register the declared bounds and predicates with the candidate
         if let Some(template) = template {
@@ -396,7 +401,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        Ok(Answer::Ready(true))
+        Ok(Answer::Ready(Some((substitution, implementation))))
     }
 
     /// Bind extension parameters by matching the target against the receiver.
@@ -423,11 +428,11 @@ impl BodyState<'_, '_> {
 
         // nominal receivers bind through their substituted heritage
         let receiver_value = answer!(self.strip_form(origin, receiver)?);
-        let Some((receiver_module, instance)) = self.nominal_application_maybe(receiver_value)?
-        else {
+        let is_nominal = self.nominal_application_maybe(receiver_value)?.is_some();
+        if !is_nominal {
             return Ok(Answer::Ready(false));
-        };
-        let closure = answer!(self.heritage_closure(origin, receiver_module, &instance)?);
+        }
+        let closure = answer!(self.heritage_closure(origin, receiver_value)?);
         for ancestor in &closure.applications {
             let mut scratch = substitution.clone();
             if answer!(self.extend_generic_substitution(
@@ -443,57 +448,6 @@ impl BodyState<'_, '_> {
         }
 
         Ok(Answer::Ready(false))
-    }
-
-    /// Instantiate one extension target and register its declared constraints.
-    pub(in crate::check) fn instantiate_extension(
-        &mut self,
-        origin: Origin,
-        receiver: dir::GlobalTypeId,
-        template: Option<GenericTemplateId>,
-        target_type: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<TypeSubstitution>>> {
-        // open every extension parameter before collecting applicability constraints
-        let substitution = match template {
-            Some(template) => {
-                let parameters = self.generic_template_parameters(template)?;
-                let Some(substitution) = answer!(self.instantiate_parameters(
-                    origin,
-                    &parameters,
-                    &[],
-                    TypeSubstitution::default().with_receiver(receiver),
-                    TypeArgumentInference::Exact,
-                )?) else {
-                    return Ok(Answer::Ready(None));
-                };
-
-                substitution
-            }
-            None => TypeSubstitution::default().with_receiver(receiver),
-        };
-        // constrain the receiver against the applied extension target
-        let target_type = self.substitute_type(target_type, &substitution)?;
-        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-        if !answer!(self.constrain_type(
-            origin,
-            cause,
-            Relation::Assignable,
-            receiver,
-            target_type,
-        )?) {
-            return Ok(Answer::Ready(None));
-        }
-
-        // register parameter bounds and where predicates with the candidate
-        if let Some(template) = template {
-            let constraints =
-                self.substitute_application_constraints(origin, template, &substitution)?;
-            for constraint in constraints {
-                self.check.push_constraint(constraint);
-            }
-        }
-
-        Ok(Answer::Ready(Some(substitution)))
     }
 
     /// Collect visible extensions that may implement an interface for one receiver.

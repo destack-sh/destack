@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, OperationReduction, Origin, answer};
+use crate::check::{Answer, CheckState, OperationReduction, Origin, TryProjection, answer};
 
 impl CheckState<'_> {
     /// Return one type operation's reduced value type.
@@ -65,10 +65,10 @@ impl CheckState<'_> {
 
             // try projections split nullish values from carriers
             dir::TypeOperation::TryOutput { value } => {
-                self.reduce_try_projection(origin, *value, false)
+                self.reduce_try_projection(origin, *value, TryProjection::Output)
             }
             dir::TypeOperation::TryResidual { value } => {
-                self.reduce_try_projection(origin, *value, true)
+                self.reduce_try_projection(origin, *value, TryProjection::Residual)
             }
 
             // static operations evaluate over literal operands

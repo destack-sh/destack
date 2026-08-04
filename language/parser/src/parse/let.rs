@@ -7,7 +7,7 @@ use destack_dir::{
     Asynchrony, BlockContext, Declarator, Expression, Keyword, LetKind, LocalNodeId, Mutability,
     NodeType, OperatorPrecedence, Pattern, TokenType,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 use super::DeclarationHeader;
 
@@ -68,8 +68,10 @@ impl Parser {
         header: DeclarationHeader,
         function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
+        let keyword_range = self.peek_token_span().span.range();
         let head = self.parse_let_head()?;
-        self.parse_let_declarators(start, header, head.kind, head.mutability, function)
+
+        self.parse_let_declarators(start, header, head, keyword_range, function)
     }
 
     /// Parse a using binding (incl. `using` keyword and optional `await`).
@@ -182,8 +184,8 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         header: DeclarationHeader,
-        kind: LetKind,
-        mutability: Mutability,
+        head: LetHead,
+        keyword_range: ByteRange,
         function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let first_declarator = self.parse_declarator(function, DeclaratorValue::Optional)?;
@@ -221,13 +223,14 @@ impl Parser {
 
             let let_else_id = self.insert_node(
                 Expression::LetElse {
-                    kind,
-                    mutability,
+                    kind: head.kind,
+                    mutability: head.mutability,
                     declarator: first_declarator,
                     else_branch,
                 },
                 self.range_since(start),
             );
+            self.tree.set_main_range(let_else_id, keyword_range);
             self.tree.set_side_range(
                 let_else_id,
                 NodeSpanType::Region(NodeSpanRegion::Else),
@@ -256,15 +259,16 @@ impl Parser {
 
         let let_id = self.insert_node(
             Expression::Let {
-                kind,
+                kind: head.kind,
                 export: header.export,
                 is_ambient: header.is_ambient,
                 place: header.place,
-                mutability,
+                mutability: head.mutability,
                 declarators,
             },
             self.range_since(start),
         );
+        self.tree.set_main_range(let_id, keyword_range);
 
         Ok(let_id)
     }

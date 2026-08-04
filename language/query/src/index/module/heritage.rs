@@ -98,14 +98,14 @@ impl<'context, 'index> HeritageIndexer<'context, 'index> {
         &mut self,
         derived_symbol: dir::GlobalSymbolId,
         declaration_symbol: dir::GlobalSymbolId,
-        implementations: &[dir::InterfaceImplementation],
+        implementations: &[dir::NominalHeritage],
     ) -> ProviderResult<()> {
         // emit each implemented interface edge
         for implementation in implementations {
             self.push_heritage(
                 derived_symbol,
                 declaration_symbol,
-                &implementation.interface,
+                implementation,
                 dir::HeritageKind::Implements,
             )?;
         }

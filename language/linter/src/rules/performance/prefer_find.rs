@@ -111,7 +111,7 @@ fn suggest_find(
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let expression = module.source_extent(expression.into_any())?;
     let filter = module.source_extent(filter.into_any())?;
-    if expression.file != filter.file || filter.end > expression.end {
+    if !expression.contains_span(filter) {
         return Err(ProviderError::internal(
             "filtered first-element extent does not contain its filter call",
         ));

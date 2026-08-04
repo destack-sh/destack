@@ -547,7 +547,7 @@ impl BodyState<'_, '_> {
         extends: &dir::NominalHeritage,
         active: &mut SmallVec<[dir::GlobalSymbolId; 4]>,
     ) -> CompilerResult<Answer<Vec<dir::ClassConstructorDefinition>>> {
-        let (extends_module, instance) = self.require_nominal_application(extends.ty)?;
+        let (extends_module, instance) = self.nominal_application(extends.ty)?;
         if active.contains(&instance.symbol) {
             return Ok(Answer::Ready(Vec::new()));
         }
@@ -1050,7 +1050,7 @@ impl BodyState<'_, '_> {
         if matches!(self.ty(super_ty)?, dir::Type::Error) {
             return Ok(Answer::Ready(self.poison_call(node, None)?));
         }
-        let (base_module, instance) = self.require_nominal_application(super_ty)?;
+        let (base_module, instance) = self.nominal_application(super_ty)?;
         let Some(dir::Definition::Class(base)) = self.definition(instance.symbol)? else {
             return Err(CompilerError::Internal {
                 message: format!("super target {:?} has no class definition", instance.symbol),

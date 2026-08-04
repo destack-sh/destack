@@ -71,6 +71,8 @@ match extracted {
 }
 ```
 
+- "Unstructured" branches that are not clearly general preconditions are generally suspicious. Much like factoring the general model work, the ideal placement of branches is rarely a random cascade of if-jumps at the top of a block, but instead a more structured and coherently grouped if-else / match like situation.
+
 ### Factoring
 
 - The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible _that the target machine understands well_, using the fewest possible resources (bytes, instructions, cycles, whatever) on the expected hardware and under expected usage scenarios.
@@ -240,6 +242,7 @@ else {
 - Even better, where possible, we should assert the entire expected output (snapshot style) rather than just "contains" or "doesn't contain".
 - For the avoidance of doubt, tests asserting stuff like `x.contains('part of foo')` instead of the full expected string and anything like this are not good.
 - For any non-trivial assertions you should comment the logic block like we do with any other logic block, though you don't need to comment _every_ logic block as with regular/main logic.
+- If the tests are slow - and by that we mean slower than a few ms, tens of ms tops - we should investigate why and figure out what the fundamental model issues are.
 
 ### Formatting
 

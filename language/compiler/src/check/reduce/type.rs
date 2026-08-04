@@ -472,11 +472,13 @@ impl CheckState<'_> {
             // member projections resolve through their owners
             dir::Type::Member(member) => {
                 let member = self.type_member(id.module_id, member)?;
-                // members live beneath memory forms, so owners shed them
-                let owner = blocked!(id, self.strip_form(origin, member.owner)?);
+
+                // close the owner and keep its memory form
+                let owner = blocked!(id, self.reduce_type_head(origin, member.owner)?);
+                let peeled = blocked!(id, self.strip_form(origin, owner)?);
 
                 // error owners poison their projections
-                if matches!(self.ty(owner)?, dir::Type::Error) {
+                if matches!(self.ty(peeled)?, dir::Type::Error) {
                     let error = self.intern_type(dir::Type::Error)?;
 
                     return Ok(HeadReduction::Closed(error));
@@ -488,9 +490,14 @@ impl CheckState<'_> {
                     qualifier = blocked!(
                         id,
                         self.body()
-                            .projection_qualifier(origin, owner, member.key,)?
+                            .projection_qualifier(origin, peeled, member.key)?
                     );
                 }
+
+                // shed owner forms for unqualified member lookup
+                let owner = if qualifier.is_none() { peeled } else { owner };
+
+                // rebuild the projection when its owner or qualifier moved
                 if owner != member.owner || qualifier != member.qualifier {
                     let arguments = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(
                         self.type_ids(id.module_id, member.arguments)?,

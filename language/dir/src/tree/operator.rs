@@ -415,6 +415,20 @@ impl BinaryOperator {
             )
     }
 
+    /// Return the operator that preserves this comparison after swapping its operands.
+    pub fn swapped(self) -> Option<Self> {
+        let operator = match self {
+            Self::Equal | Self::NotEqual | Self::EqualStrict | Self::NotEqualStrict => self,
+            Self::LessThan => Self::GreaterThan,
+            Self::LessThanOrEqual => Self::GreaterThanOrEqual,
+            Self::GreaterThan => Self::LessThan,
+            Self::GreaterThanOrEqual => Self::LessThanOrEqual,
+            _ => return None,
+        };
+
+        Some(operator)
+    }
+
     /// Return whether this operator tests overloadable value equality.
     #[inline]
     pub fn is_value_equality(self) -> bool {
@@ -604,26 +618,26 @@ pub enum AssignOperator {
 }
 
 impl AssignOperator {
-    /// Return the binary operator used by this compound assignment operator.
+    /// Return the source text for this assignment operator.
     #[inline]
-    pub fn binary_operator(self) -> Option<BinaryOperator> {
+    pub fn text(self) -> &'static str {
         match self {
-            AssignOperator::AddAssign => Some(BinaryOperator::Add),
-            AssignOperator::SubtractAssign => Some(BinaryOperator::Subtract),
-            AssignOperator::MultiplyAssign => Some(BinaryOperator::Multiply),
-            AssignOperator::DivideAssign => Some(BinaryOperator::Divide),
-            AssignOperator::RemainderAssign => Some(BinaryOperator::Remainder),
-            AssignOperator::ExponentAssign => Some(BinaryOperator::Exponent),
-            AssignOperator::ShiftLeftAssign => Some(BinaryOperator::ShiftLeft),
-            AssignOperator::ShiftRightAssign => Some(BinaryOperator::ShiftRight),
-            AssignOperator::UnsignedShiftRightAssign => Some(BinaryOperator::UnsignedShiftRight),
-            AssignOperator::ElementwiseAndAssign => Some(BinaryOperator::ElementwiseAnd),
-            AssignOperator::ElementwiseXorAssign => Some(BinaryOperator::ElementwiseXor),
-            AssignOperator::ElementwiseOrAssign => Some(BinaryOperator::ElementwiseOr),
-            AssignOperator::Assign
-            | AssignOperator::AndAssign
-            | AssignOperator::OrAssign
-            | AssignOperator::CoalesceAssign => None,
+            AssignOperator::Assign => "=",
+            AssignOperator::MultiplyAssign => "*=",
+            AssignOperator::ExponentAssign => "**=",
+            AssignOperator::DivideAssign => "/=",
+            AssignOperator::RemainderAssign => "%=",
+            AssignOperator::AddAssign => "+=",
+            AssignOperator::SubtractAssign => "-=",
+            AssignOperator::ShiftLeftAssign => "<<=",
+            AssignOperator::ShiftRightAssign => ">>=",
+            AssignOperator::UnsignedShiftRightAssign => ">>>=",
+            AssignOperator::ElementwiseAndAssign => "&=",
+            AssignOperator::ElementwiseXorAssign => "^=",
+            AssignOperator::ElementwiseOrAssign => "|=",
+            AssignOperator::AndAssign => "&&=",
+            AssignOperator::OrAssign => "||=",
+            AssignOperator::CoalesceAssign => "??=",
         }
     }
 
@@ -665,6 +679,66 @@ impl AssignOperator {
             TokenType::CoalesceAssign => Some(AssignOperator::CoalesceAssign),
 
             _ => None,
+        }
+    }
+}
+
+impl TryFrom<BinaryOperator> for AssignOperator {
+    type Error = ();
+
+    /// Convert a binary operator to its compound assignment operator.
+    fn try_from(operator: BinaryOperator) -> Result<Self, Self::Error> {
+        match operator {
+            BinaryOperator::Exponent => Ok(AssignOperator::ExponentAssign),
+            BinaryOperator::Multiply => Ok(AssignOperator::MultiplyAssign),
+            BinaryOperator::Divide => Ok(AssignOperator::DivideAssign),
+            BinaryOperator::Remainder => Ok(AssignOperator::RemainderAssign),
+            BinaryOperator::Add => Ok(AssignOperator::AddAssign),
+            BinaryOperator::Subtract => Ok(AssignOperator::SubtractAssign),
+            BinaryOperator::ShiftLeft => Ok(AssignOperator::ShiftLeftAssign),
+            BinaryOperator::ShiftRight => Ok(AssignOperator::ShiftRightAssign),
+            BinaryOperator::UnsignedShiftRight => Ok(AssignOperator::UnsignedShiftRightAssign),
+            BinaryOperator::ElementwiseAnd => Ok(AssignOperator::ElementwiseAndAssign),
+            BinaryOperator::ElementwiseXor => Ok(AssignOperator::ElementwiseXorAssign),
+            BinaryOperator::ElementwiseOr => Ok(AssignOperator::ElementwiseOrAssign),
+            BinaryOperator::Equal
+            | BinaryOperator::NotEqual
+            | BinaryOperator::EqualStrict
+            | BinaryOperator::NotEqualStrict
+            | BinaryOperator::LessThan
+            | BinaryOperator::LessThanOrEqual
+            | BinaryOperator::GreaterThan
+            | BinaryOperator::GreaterThanOrEqual
+            | BinaryOperator::And
+            | BinaryOperator::Or
+            | BinaryOperator::Coalesce
+            | BinaryOperator::In => Err(()),
+        }
+    }
+}
+
+impl TryFrom<AssignOperator> for BinaryOperator {
+    type Error = ();
+
+    /// Convert a compound assignment operator to its binary operator.
+    fn try_from(operator: AssignOperator) -> Result<Self, Self::Error> {
+        match operator {
+            AssignOperator::AddAssign => Ok(BinaryOperator::Add),
+            AssignOperator::SubtractAssign => Ok(BinaryOperator::Subtract),
+            AssignOperator::MultiplyAssign => Ok(BinaryOperator::Multiply),
+            AssignOperator::DivideAssign => Ok(BinaryOperator::Divide),
+            AssignOperator::RemainderAssign => Ok(BinaryOperator::Remainder),
+            AssignOperator::ExponentAssign => Ok(BinaryOperator::Exponent),
+            AssignOperator::ShiftLeftAssign => Ok(BinaryOperator::ShiftLeft),
+            AssignOperator::ShiftRightAssign => Ok(BinaryOperator::ShiftRight),
+            AssignOperator::UnsignedShiftRightAssign => Ok(BinaryOperator::UnsignedShiftRight),
+            AssignOperator::ElementwiseAndAssign => Ok(BinaryOperator::ElementwiseAnd),
+            AssignOperator::ElementwiseXorAssign => Ok(BinaryOperator::ElementwiseXor),
+            AssignOperator::ElementwiseOrAssign => Ok(BinaryOperator::ElementwiseOr),
+            AssignOperator::Assign
+            | AssignOperator::AndAssign
+            | AssignOperator::OrAssign
+            | AssignOperator::CoalesceAssign => Err(()),
         }
     }
 }

@@ -4,6 +4,48 @@ use destack_repository::ProviderError;
 use super::DirModule;
 
 impl DirModule<'_> {
+    /// Return authored expression text grouped for use as a postfix operand.
+    pub fn postfix_source(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<String, ProviderError> {
+        let span = self.source_extent(expression.into_any())?;
+        let source = self.source(span)?;
+        let is_parenthesized = self.source_parentheses(expression.into_any()).is_some();
+
+        // retain existing grouping or add the grouping required by postfix precedence
+        let source = if is_parenthesized
+            || self.view().get(expression).precedence() >= dir::OperatorPrecedence::Postfix
+        {
+            source.to_string()
+        } else {
+            format!("({source})")
+        };
+
+        Ok(source)
+    }
+
+    /// Return authored expression text with one precedence-safe negation.
+    pub fn negated_source(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<String, ProviderError> {
+        let span = self.source_extent(expression.into_any())?;
+        let source = self.source(span)?;
+        let is_parenthesized = self.source_parentheses(expression.into_any()).is_some();
+
+        // retain existing grouping or add the grouping required by prefix precedence
+        let source = if is_parenthesized
+            || self.view().get(expression).precedence() >= dir::OperatorPrecedence::Prefix
+        {
+            format!("!{source}")
+        } else {
+            format!("!({source})")
+        };
+
+        Ok(source)
+    }
+
     /// Return the unique symbol selected directly by one checked expression.
     pub fn symbol(
         &self,
@@ -26,7 +68,9 @@ impl DirModule<'_> {
                 *symbol
             }
             dir::Expression::Member { .. } => {
-                let resolution = self.member_resolution(node)?;
+                let Some(resolution) = self.member_resolution(node)? else {
+                    return Ok(None);
+                };
                 let dir::OperationResolution::One(access) = resolution else {
                     return Ok(None);
                 };
@@ -73,12 +117,17 @@ impl DirModule<'_> {
         }
 
         let view = self.view();
-        let is_same = match (view.get(left), view.get(right)) {
-            // scalar constants
-            (dir::Expression::ScalarLiteral(left), dir::Expression::ScalarLiteral(right)) => {
-                left == right
-            }
+        let left_expression = view.get(left);
+        let right_expression = view.get(right);
 
+        // compare every scalar expression through its canonical DIR value
+        if let (Some(left), Some(right)) =
+            (left_expression.as_scalar(), right_expression.as_scalar())
+        {
+            return Ok(left == right);
+        }
+
+        let is_same = match (left_expression, right_expression) {
             // repeatable compiler-defined unary operations
             (
                 dir::Expression::Unary {
@@ -102,6 +151,11 @@ impl DirModule<'_> {
             {
                 let left_resolution = self.operator_resolution(left.into_any())?;
                 let right_resolution = self.operator_resolution(right.into_any())?;
+                let (Some(left_resolution), Some(right_resolution)) =
+                    (left_resolution, right_resolution)
+                else {
+                    return Ok(false);
+                };
                 let (Some([left_operand]), Some([right_operand])) = (
                     left_resolution.builtin_operands(),
                     right_resolution.builtin_operands(),
@@ -127,6 +181,11 @@ impl DirModule<'_> {
             ) if left_operator == right_operator => {
                 let left_resolution = self.operator_resolution(left.into_any())?;
                 let right_resolution = self.operator_resolution(right.into_any())?;
+                let (Some(left_resolution), Some(right_resolution)) =
+                    (left_resolution, right_resolution)
+                else {
+                    return Ok(false);
+                };
                 let (Some([left_first, left_second]), Some([right_first, right_second])) = (
                     left_resolution.builtin_operands(),
                     right_resolution.builtin_operands(),
@@ -201,71 +260,98 @@ impl DirModule<'_> {
         self.is_repeated_expression(left, right)
     }
 
-    /// Return one checked node's required operator resolution.
+    /// Return the operator resolution selected for one checked node.
     pub fn operator_resolution(
         &self,
         node: dir::LocalNodeIdAny,
-    ) -> Result<&dir::OperatorResolution, ProviderError> {
+    ) -> Result<Option<&dir::OperatorResolution>, ProviderError> {
         let global = node.into_global(self.id);
-        let resolution = self
-            .resolutions
-            .operator_resolution(global)
-            .ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "checked operator node {} in module {:?} has no operator resolution",
-                    node.id, self.id
-                ))
-            })?;
+        let Some(resolution) = self.resolutions.operator_resolution(global) else {
+            if self.node_type(node)?.is_error() {
+                return Ok(None);
+            }
 
-        Ok(resolution)
+            return Err(ProviderError::internal(format!(
+                "checked operator node {} in module {:?} has no operator resolution",
+                node.id, self.id
+            )));
+        };
+
+        Ok(Some(resolution))
     }
 
-    /// Return one checked call's required resolution.
+    /// Return the call resolution selected for one checked expression.
     pub fn call_resolution(
         &self,
         node: dir::LocalNodeId<dir::Expression>,
-    ) -> Result<&dir::CallResolution, ProviderError> {
+    ) -> Result<Option<&dir::CallResolution>, ProviderError> {
         let global = node.into_global_any(self.id);
-        let resolution = self.resolutions.call_resolution(global).ok_or_else(|| {
-            ProviderError::internal(format!(
+        let Some(resolution) = self.resolutions.call_resolution(global) else {
+            if self.node_type(node.into_any())?.is_error() {
+                return Ok(None);
+            }
+
+            return Err(ProviderError::internal(format!(
                 "checked call expression {} in module {:?} has no call resolution",
                 node.id, self.id
-            ))
-        })?;
+            )));
+        };
 
-        Ok(resolution)
+        Ok(Some(resolution))
     }
 
-    /// Return one required operand from a checked builtin operator application.
+    /// Return one operand selected for a checked builtin operator application.
     pub fn builtin_operand(
         &self,
         application: dir::LocalNodeIdAny,
         source: dir::LocalNodeId<dir::Expression>,
-    ) -> Result<&dir::BuiltinOperand, ProviderError> {
+    ) -> Result<Option<&dir::BuiltinOperand>, ProviderError> {
         let source = source.into_global_any(self.id);
-        self.operator_resolution(application)?
-            .builtin_operand(source)
+        let Some(operands) = self.builtin_operands(application)? else {
+            return Ok(None);
+        };
+        let operand = operands
+            .iter()
+            .find(|operand| operand.source == source)
             .ok_or_else(|| {
                 ProviderError::internal(format!(
                     "checked builtin operator node {} in module {:?} has no operand {source:?}",
                     application.id, self.id
                 ))
-            })
+            })?;
+
+        Ok(Some(operand))
     }
 
-    /// Return one checked expression's required member resolution.
+    /// Return the operands selected for one checked builtin operator application.
+    pub fn builtin_operands(
+        &self,
+        application: dir::LocalNodeIdAny,
+    ) -> Result<Option<&[dir::BuiltinOperand]>, ProviderError> {
+        let operands = self
+            .operator_resolution(application)?
+            .and_then(dir::OperatorResolution::builtin_operands);
+
+        Ok(operands)
+    }
+
+    /// Return the member resolution selected for one checked expression.
     pub fn member_resolution(
         &self,
         node: dir::LocalNodeId<dir::Expression>,
-    ) -> Result<&dir::MemberResolution, ProviderError> {
+    ) -> Result<Option<&dir::MemberResolution>, ProviderError> {
         let global = node.into_global_any(self.id);
-        let resolution = self.resolutions.member_resolution(global).ok_or_else(|| {
-            ProviderError::internal(format!(
+        let Some(resolution) = self.resolutions.member_resolution(global) else {
+            if self.node_type(node.into_any())?.is_error() {
+                return Ok(None);
+            }
+
+            return Err(ProviderError::internal(format!(
                 "checked member expression {} in module {:?} has no member resolution",
                 node.id, self.id
-            ))
-        })?;
+            )));
+        };
 
-        Ok(resolution)
+        Ok(Some(resolution))
     }
 }

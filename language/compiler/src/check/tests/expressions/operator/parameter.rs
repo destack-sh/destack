@@ -364,9 +364,8 @@ function offset<T: int8 | float64>(value: T): T where T: uint8 {
 }
 "#,
         r#"
-/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
+/// @diagnostic.error id=no-matching-operator message="operator '+' is not defined for 'T' and '200'"
 /// @diagnostic.label line=3 column=18 span="+" line_source="return value + 200;"
-/// @diagnostic.help message="annotate the type explicitly"
 "#,
     );
 }

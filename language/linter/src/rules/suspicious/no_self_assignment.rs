@@ -1,13 +1,29 @@
-use destack_repository::ProviderError;
+use destack_dir as dir;
 
-use crate::rules::declare_lint_stub;
-use crate::{DirModule, Lint, LintResult};
+use crate::rules::declare_lint;
+use crate::{DirModule, Lint, LintOutput, LintResult};
 
-declare_lint_stub! {
-    /// Disallow assigning a place to itself.
+declare_lint! {
+    /// Disallow assigning a stable place to itself.
     pub NO_SELF_ASSIGNMENT {
         id: "no-self-assignment",
-        summary: "Disallow assigning a place to itself",
+        summary: "Disallow assigning a stable place to itself",
+        explanation: "Assigning a stable storage place to itself has no effect and usually remains after an incomplete edit. Remove the assignment or replace either side with the intended place.",
+        example: {
+            reported: r#"
+function retain(value: int32): int32 {
+    let result = value;
+    result = result;
+    return result;
+}
+"#,
+            accepted: r#"
+function retain(value: int32): int32 {
+    const result = value;
+    return result;
+}
+"#,
+        },
         category: Suspicious,
         level: Warning,
         fixable: None,
@@ -15,10 +31,109 @@ declare_lint_stub! {
     }
 }
 
-/// Check no-self-assignment.
-fn check(_module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} is not implemented",
-        lint.id
-    )))
+/// Report direct assignments that read and write one stable place.
+fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    let view = module.view();
+    let mut output = LintOutput::default();
+
+    // inspect plain assignments to direct places
+    for expression in view.iter_nodes::<dir::Expression>() {
+        let dir::Expression::Assign {
+            left,
+            operator: dir::AssignOperator::Assign,
+            right,
+        } = view.get(expression)
+        else {
+            continue;
+        };
+        let dir::AssignPattern::Place { expression: left } = view.get(*left) else {
+            continue;
+        };
+
+        // require the compiler to select one identical stable storage path
+        let Some(left) = module.access_resolution(*left) else {
+            continue;
+        };
+        let Some(right) = module.access_resolution(*right) else {
+            continue;
+        };
+        if left != right {
+            continue;
+        }
+
+        let span = module.span(expression.into_any())?;
+        output.report(lint.diagnostic("assignment writes a value back to the same place", span));
+    }
+
+    Ok(output)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::TestSession;
+
+    /// Report a stored field self-assignment.
+    #[test]
+    fn test_reports_field_self_assignment() {
+        let session = TestSession::new(
+            &NO_SELF_ASSIGNMENT,
+            r#"
+struct Point {
+    x: int32;
+}
+function retain(point: Point): void {
+    point.x = point.x;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-self-assignment]: assignment writes a value back to the same place
+ ──▶ main.ds:5:5
+  │
+3 │ }
+4 │ function retain(point: Point): void {
+5 │     point.x = point.x;
+  │     ^^^^^^^^^^^^^^^^^
+6 │ }
+  │
+"#,
+        );
+    }
+
+    /// Accept assignment from a distinct binding.
+    #[test]
+    fn test_accepts_distinct_binding_assignment() {
+        let session = TestSession::new(
+            &NO_SELF_ASSIGNMENT,
+            r#"
+function replace(current: int32, next: int32): int32 {
+    let result = current;
+    result = next;
+    return result;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept compound assignment because it computes a new value.
+    #[test]
+    fn test_accepts_compound_self_assignment() {
+        let session = TestSession::new(
+            &NO_SELF_ASSIGNMENT,
+            r#"
+function double(value: int32): int32 {
+    let result = value;
+    result += result;
+    return result;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
 }

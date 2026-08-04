@@ -58,7 +58,6 @@ extension of Panel implements Maker {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=Maker target=Maker
 /// @definition.method symbol=make slot=make static=true type=<T#2>(T#2) => Panel
-/// @definition.implementation symbol=<module>#2 requirement=Maker.make target=make
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=Maker target=Maker
 
@@ -138,7 +137,6 @@ extension of Panel implements Tagger {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=Tagger target=Tagger
 /// @definition.method symbol=tag slot=tag static=true type=<comptime Name#2: string>(Name#2) => Panel
-/// @definition.implementation symbol=<module>#2 requirement=Tagger.tag target=tag
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=Tagger target=Tagger
 
@@ -228,11 +226,9 @@ class Panel {}
 
 extension of Panel implements Rowed {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=Rowed target="Rowed<type Rows = { header: string }>"
+/// @definition.implements symbol=<module>#2 source=Rowed target=Rowed
 /// @definition.associated.type symbol=Rows source="type Rows = { header: string }" key=Rows value={ header: string }
 /// @definition.method symbol=row slot=row static=true type=<comptime Key#2: keyof this.Rows>(Key#2) => Panel
-/// @definition.implementation symbol=<module>#2 requirement=Rowed.Rows target=Rows
-/// @definition.implementation symbol=<module>#2 requirement=Rowed.row target=row
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=Rowed target=Rowed
 
@@ -327,11 +323,9 @@ class Panel {}
 
 extension of Panel implements Rowed {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=Rowed target="Rowed<type Rows = { header: string }>"
+/// @definition.implements symbol=<module>#2 source=Rowed target=Rowed
 /// @definition.associated.type symbol=Rows source="type Rows = { header: string }" key=Rows value={ header: string }
 /// @definition.method symbol=row slot=row static=true type=<comptime Key#2: keyof this.Rows>(Key#2, this.Rows[Key#2]) => Panel
-/// @definition.implementation symbol=<module>#2 requirement=Rowed.Rows target=Rows
-/// @definition.implementation symbol=<module>#2 requirement=Rowed.row target=row
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=Rowed target=Rowed
 
@@ -416,7 +410,6 @@ extension of Panel implements Grouper {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=Grouper target=Grouper
 /// @definition.method symbol=group slot=group static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
-/// @definition.implementation symbol=<module>#2 requirement=Grouper.group target=group
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=Grouper target=Grouper
 
@@ -514,13 +507,10 @@ class Panel {
 
 extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=TreeBuilder target="tree.builder.TreeBuilder<type Tags = { div: { class?: string }; span: {} }>"
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.Tags target=Tags
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.element target=element
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.fragment target=fragment
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
 
@@ -666,13 +656,10 @@ class Panel {
 
 extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=TreeBuilder target="tree.builder.TreeBuilder<type Tags = { div: { class?: string }; span: {} }>"
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.Tags target=Tags
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.element target=element
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.fragment target=fragment
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
 

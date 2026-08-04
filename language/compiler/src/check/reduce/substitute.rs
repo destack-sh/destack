@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::CheckState;
+use crate::check::{Answer, CheckState, Origin};
 use crate::{CompilerError, CompilerResult};
 
 /// One generic type substitution.
@@ -106,10 +106,8 @@ impl TypeSubstitution {
 enum SubstitutionRule<'a> {
     /// Replace generic parameter and receiver references by binding.
     Substitute {
-        /// The applied generic arguments in declaration order.
-        bindings: &'a [dir::GenericArgumentBinding],
-        /// The qualified receiver replacing `this` references.
-        receiver: Option<dir::GlobalTypeId>,
+        /// The generic arguments and qualified receiver.
+        substitution: &'a TypeSubstitution,
     },
     /// Replace one type id wherever it occurs.
     Replace {
@@ -131,7 +129,8 @@ impl SubstitutionRule<'_> {
     /// Return the substituted argument for one parameter.
     fn substituted(&self, parameter: dir::GlobalGenericParameterId) -> Option<dir::GlobalTypeId> {
         match self {
-            Self::Substitute { bindings, .. } => bindings
+            Self::Substitute { substitution } => substitution
+                .bindings
                 .iter()
                 .find(|binding| binding.parameter == parameter)
                 .map(|binding| binding.argument),
@@ -142,7 +141,7 @@ impl SubstitutionRule<'_> {
     /// Return the receiver replacing `this` references.
     fn receiver(&self) -> Option<dir::GlobalTypeId> {
         match self {
-            Self::Substitute { receiver, .. } => *receiver,
+            Self::Substitute { substitution } => substitution.receiver,
             Self::Replace { .. } | Self::SubstituteInfer { .. } | Self::EraseNoInfer => None,
         }
     }
@@ -188,11 +187,37 @@ impl CheckState<'_> {
         self.substitute_graph(
             self.module_id,
             id,
-            SubstitutionRule::Substitute {
-                bindings: &substitution.bindings,
-                receiver: substitution.receiver,
-            },
+            SubstitutionRule::Substitute { substitution },
         )
+    }
+
+    /// Instantiate one interface type under a selected implementation.
+    pub(in crate::check) fn instantiate_interface_type(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalTypeId,
+        implementation: dir::GlobalTypeId,
+        receiver: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        // derive the complete positional and receiver substitution
+        let (base, _) = self.refinement_bindings(implementation)?;
+        let dir::Type::Application(application) = self.ty(base)? else {
+            return Err(CompilerError::Internal {
+                message: format!("interface implementation {implementation:?} has no application"),
+            });
+        };
+        let module = base.module_id;
+        let substitution = self.qualified_instance_substitution(module, &application, receiver)?;
+
+        // replace the implemented application by its refined implementation
+        let id = self.substitute_type(id, &substitution)?;
+        let id = if implementation == base {
+            id
+        } else {
+            self.replace_type(self.module_id, id, base, implementation)?
+        };
+
+        self.reduce_type(origin, id)
     }
 
     /// Remove inference barriers after candidate inference has closed.
@@ -304,9 +329,9 @@ impl CheckState<'_> {
             },
             (_, SubstitutionRule::EraseNoInfer) if self.no_infer_target(id)?.is_some() => true,
             _ => {
+                let mut hit = false;
                 let mut children = SmallVec::<[dir::GlobalTypeId; 8]>::new();
                 self.for_each_type_child(id.module_id, &ty, |child| children.push(child))?;
-                let mut hit = false;
                 for child in children {
                     hit |= self.mark_substitutions(child, rule, marks)?;
                 }
@@ -420,7 +445,7 @@ impl CheckState<'_> {
             };
         }
 
-        // read payloads from their owner, intern the rebuilt type in this component
+        // read type records from their owner and intern the result in the target module
         let ty = self.ty(id)?;
         let substituted =
             self.substitute_children(id.module_id, target, ty, rule, marks, substituting)?;

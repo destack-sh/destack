@@ -510,12 +510,7 @@ impl BodyState<'_, '_> {
         if self.symbol_kind_maybe(instance.symbol)? != Some(dir::SymbolKind::Interface) {
             return Ok(Answer::Ready(None));
         }
-        let requirements = answer!(self.interface_requirements(
-            origin,
-            constraint.module_id,
-            &instance,
-            constraint
-        )?);
+        let requirements = answer!(self.interface_requirements(origin, constraint, constraint)?);
 
         // prefer index signatures declared by the selected interface
         for signature in requirements.index_signatures {

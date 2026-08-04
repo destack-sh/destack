@@ -204,6 +204,20 @@ impl<'a> View<'a> {
         self.visible_node(parent).map(|(_, parent)| parent)
     }
 
+    /// Return the nearest visible ancestor of one node type.
+    pub fn ancestor<T: Node>(&self, node: LocalNodeIdAny) -> Option<LocalNodeId<T>> {
+        let mut parent = self.get_parent_any(node);
+        while let Some(current) = parent {
+            if let Ok(current) = current.try_into_typed() {
+                return Some(current);
+            }
+
+            parent = self.get_parent_any(current);
+        }
+
+        None
+    }
+
     /// Get the visible parent id for one local node id.
     pub fn get_parent_id(&self, node_id: u32) -> Option<u32> {
         let node_id = self.node_id_any(node_id);

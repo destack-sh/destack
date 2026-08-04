@@ -86,7 +86,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let (_, target_instance) = self.require_nominal_application(target)?;
+        let (_, target_instance) = self.nominal_application(target)?;
         let is_nominal = match self.definition(target_instance.symbol)? {
             Some(dir::Definition::Interface(interface)) => interface.is_nominal,
             _ => {
@@ -131,15 +131,11 @@ impl CheckState<'_> {
             if source_instance.symbol == target_instance.symbol {
                 Some((source.module_id, source_instance))
             } else {
-                let inherited = answer!(self.heritage_instance(
-                    origin,
-                    source.module_id,
-                    &source_instance,
-                    target_instance.symbol,
-                )?);
+                let inherited =
+                    answer!(self.heritage_instance(origin, source, target_instance.symbol)?);
 
                 match inherited {
-                    Some(inherited) => Some(self.require_nominal_application(inherited)?),
+                    Some(inherited) => Some(self.nominal_application(inherited)?),
                     None => None,
                 }
             }
@@ -173,7 +169,7 @@ impl CheckState<'_> {
                     cause,
                     target_instance.symbol,
                     form,
-                    Relation::Assignable,
+                    relation.interior(),
                     &source_arguments,
                     &target_arguments,
                 )?
@@ -194,11 +190,7 @@ impl CheckState<'_> {
         let module = origin.module();
         let implemented = self.body().decide_extension_implementation(
             origin,
-            if relation == Relation::Subtype {
-                Relation::Subtype
-            } else {
-                Relation::Assignable
-            },
+            relation,
             module,
             target.module_id,
             source,
@@ -239,13 +231,12 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         relation: Relation,
-        _module: ModuleId,
         interface_module: ModuleId,
         parameters: &[GenericParameterId],
         substitution: &mut TypeSubstitution,
-        implementations: &[dir::InterfaceImplementation],
+        implementations: &[dir::NominalHeritage],
         interface: &dir::GenericApplication,
-    ) -> CompilerResult<Answer<Option<(dir::GlobalTypeId, usize)>>> {
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         // compare each declared implemented interface
         let interface_arguments = self
             .type_ids(interface_module, interface.arguments)?
@@ -255,51 +246,47 @@ impl CheckState<'_> {
             symbol: interface.symbol,
             arguments,
         }))?;
-        for (index, implementation) in implementations.iter().enumerate() {
-            let heritage = &implementation.interface;
+        for heritage in implementations {
+            // fill elided arguments before matching
+            let declared = self.settled_root(heritage.ty)?;
+            let declared = match self.ty(declared)? {
+                dir::Type::Application(instance) => {
+                    match self.fill_elided_application(declared.module_id, &instance)? {
+                        Some(filled) => filled,
+                        None => declared,
+                    }
+                }
+                _ => declared,
+            };
 
-            // matching binds open parameters; the relation judges below
+            // bind open parameters here, relate them below
             let mut scratch = substitution.clone();
-            let matched = self.substitute_type(heritage.ty, &scratch)?;
-            let _ = self.extend_generic_substitution(
+            let matched = self.substitute_type(declared, &scratch)?;
+            if !answer!(self.extend_generic_substitution(
                 origin,
                 parameters,
                 &mut scratch,
                 &[(matched, interface_type)],
-            )?;
-            let implemented = self.substitute_type(heritage.ty, &scratch)?;
-
-            // written rows complete their elided arguments, and filled
-            //  defaults substitute through the implementation context
+            )?) {
+                continue;
+            }
+            let implemented = self.substitute_type(declared, &scratch)?;
             let implemented = self.settled_root(implemented)?;
-            let implemented = match self.ty(implemented)? {
-                dir::Type::Application(instance) => {
-                    match self.fill_elided_application(implemented.module_id, &instance)? {
-                        Some(filled) => self.substitute_type(filled, &scratch)?,
-                        None => implemented,
-                    }
-                }
-                _ => implemented,
-            };
 
-            // walk to the row instance naming the requested interface
+            // select the implemented application naming the requested interface
             let (implemented_module, implemented_instance) =
-                self.require_nominal_application(implemented)?;
-            let (instance, matched) = if implemented_instance.symbol == interface.symbol {
+                self.nominal_application(implemented)?;
+            let implemented_symbol = self.resolve_symbol_alias(implemented_instance.symbol)?;
+            let interface_symbol = self.resolve_symbol_alias(interface.symbol)?;
+            let (instance, matched) = if implemented_symbol == interface_symbol {
                 (
                     Some((implemented_module, implemented_instance)),
                     implemented,
                 )
-            } else if let Some(inherited) = answer!(self.heritage_instance(
-                origin,
-                implemented_module,
-                &implemented_instance,
-                interface.symbol,
-            )?) {
-                (
-                    Some(self.require_nominal_application(inherited)?),
-                    inherited,
-                )
+            } else if let Some(inherited) =
+                answer!(self.heritage_instance(origin, implemented, interface_symbol)?)
+            {
+                (Some(self.nominal_application(inherited)?), inherited)
             } else {
                 (None, implemented)
             };
@@ -316,7 +303,7 @@ impl CheckState<'_> {
                         cause,
                         interface.symbol,
                         form,
-                        relation,
+                        relation.interior(),
                         &arguments,
                         &interface_arguments,
                     )?
@@ -328,7 +315,7 @@ impl CheckState<'_> {
                 Answer::Ready(true) => {
                     *substitution = scratch;
 
-                    return Ok(Answer::Ready(Some((matched, index))));
+                    return Ok(Answer::Ready(Some(matched)));
                 }
                 Answer::Ready(false) => {}
                 Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
@@ -337,6 +324,7 @@ impl CheckState<'_> {
 
         Ok(Answer::Ready(None))
     }
+
     /// Decide whether one source satisfies one interface's declared members.
     pub(in crate::check) fn decide_interface_requirements(
         &mut self,
@@ -345,13 +333,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let (target_module, target_instance) = self.require_nominal_application(target)?;
-        let requirements = answer!(self.interface_requirements(
-            origin,
-            target_module,
-            &target_instance,
-            source
-        )?);
+        let requirements = answer!(self.interface_requirements(origin, target, source)?);
         let module = origin.module();
 
         // require each member from the source
@@ -493,24 +475,12 @@ impl CheckState<'_> {
     pub(in crate::check) fn interface_requirements(
         &mut self,
         origin: Origin,
-        instance_module: ModuleId,
-        instance: &dir::GenericApplication,
+        interface: dir::GlobalTypeId,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<InterfaceRequirements>> {
-        // qualify so this inside applied arguments resolves to the receiver
-        let substitution =
-            self.qualified_instance_substitution(instance_module, instance, receiver)?;
-
-        self.interface_requirements_with_substitution(origin, instance.symbol, &substitution)
-    }
-
-    /// Return requirements imposed by one interface under an existing substitution.
-    pub(in crate::check) fn interface_requirements_with_substitution(
-        &mut self,
-        origin: Origin,
-        symbol: dir::GlobalSymbolId,
-        substitution: &TypeSubstitution,
-    ) -> CompilerResult<Answer<InterfaceRequirements>> {
+        // read the named interface definition
+        let (_, instance) = self.nominal_application(interface)?;
+        let symbol = instance.symbol;
         let Some(dir::Definition::Interface(definition)) = self.definition(symbol)? else {
             return Ok(Answer::Ready(InterfaceRequirements {
                 members: SmallVec::new(),
@@ -520,6 +490,8 @@ impl CheckState<'_> {
                 construct_signatures: SmallVec::new(),
             }));
         };
+
+        // collect the interface's declared members and heritage
         let inherited = definition.extends.clone();
         let definition_members = definition.members.clone();
         let mut members = SmallVec::new();
@@ -528,14 +500,30 @@ impl CheckState<'_> {
         let mut construct_signatures = SmallVec::new();
 
         // collect only the named interface's own members
-        answer!(self.collect_interface_members(origin, symbol, substitution, &mut members)?);
+        answer!(self.collect_interface_members(
+            origin,
+            symbol,
+            interface,
+            receiver,
+            &mut members,
+        )?);
         for member in &definition_members {
             // apply the substitution to each index signature domain
             if let dir::DefinitionMember::IndexSignature(signature) = member {
                 index_signatures.push(InterfaceIndexSignature {
                     source: signature.source,
-                    key_type: self.substitute_type(signature.key_type, substitution)?,
-                    value_type: self.substitute_type(signature.value_type, substitution)?,
+                    key_type: answer!(self.instantiate_interface_type(
+                        origin,
+                        signature.key_type,
+                        interface,
+                        receiver,
+                    )?),
+                    value_type: answer!(self.instantiate_interface_type(
+                        origin,
+                        signature.value_type,
+                        interface,
+                        receiver,
+                    )?),
                     is_readonly: signature.is_readonly,
                 });
             }
@@ -543,18 +531,29 @@ impl CheckState<'_> {
             else if let dir::DefinitionMember::CallSignature(signature) = member {
                 call_signatures.push(InterfaceSignature {
                     source: signature.source,
-                    ty: self.substitute_type(signature.ty, substitution)?,
+                    ty: answer!(self.instantiate_interface_type(
+                        origin,
+                        signature.ty,
+                        interface,
+                        receiver,
+                    )?),
                 });
             }
             // apply the substitution to each construct signature
             else if let dir::DefinitionMember::ConstructSignature(signature) = member {
                 construct_signatures.push(InterfaceSignature {
                     source: signature.source,
-                    ty: self.substitute_type(signature.ty, substitution)?,
+                    ty: answer!(self.instantiate_interface_type(
+                        origin,
+                        signature.ty,
+                        interface,
+                        receiver,
+                    )?),
                 });
             }
         }
-        let inherited = self.apply_interface_heritage(origin, substitution, inherited)?;
+        let inherited =
+            answer!(self.apply_interface_heritage(origin, interface, receiver, inherited)?);
 
         Ok(Answer::Ready(InterfaceRequirements {
             members,
@@ -573,11 +572,10 @@ impl CheckState<'_> {
         family: SignatureFamily,
     ) -> CompilerResult<Answer<SmallVec<[InterfaceSignature; 2]>>> {
         let constraint = answer!(self.reduce_type_head(origin, constraint)?);
-        let Some((module, instance)) = self.nominal_application_maybe(constraint)? else {
+        if self.nominal_application_maybe(constraint)?.is_none() {
             return Ok(Answer::Ready(SmallVec::new()));
-        };
-        let requirements =
-            answer!(self.interface_requirements(origin, module, &instance, constraint)?);
+        }
+        let requirements = answer!(self.interface_requirements(origin, constraint, constraint)?);
         let mut signatures = match family {
             SignatureFamily::Call => requirements.call_signatures.clone(),
             SignatureFamily::Construct => requirements.construct_signatures.clone(),
@@ -608,9 +606,10 @@ impl CheckState<'_> {
     /// Collect direct members required by one applied interface.
     fn collect_interface_members(
         &mut self,
-        _origin: Origin,
+        origin: Origin,
         symbol: dir::GlobalSymbolId,
-        substitution: &TypeSubstitution,
+        interface: dir::GlobalTypeId,
+        receiver: dir::GlobalTypeId,
         required: &mut SmallVec<[InterfaceMember; 8]>,
     ) -> CompilerResult<Answer<()>> {
         let Some(dir::Definition::Interface(definition)) = self.definition(symbol)? else {
@@ -637,9 +636,12 @@ impl CheckState<'_> {
                     member.is_default(),
                 ),
             };
-            let ty = declared
-                .map(|ty| self.substitute_type(ty, substitution))
-                .transpose()?;
+            let ty = match declared {
+                Some(ty) => Some(answer!(
+                    self.instantiate_interface_type(origin, ty, interface, receiver)?
+                )),
+                None => None,
+            };
             let (is_optional, is_readonly) = match &member {
                 dir::DefinitionMember::Field(field) => (field.is_optional, field.is_readonly),
                 _ => (false, false),
@@ -663,10 +665,10 @@ impl CheckState<'_> {
     pub(in crate::check) fn interface_instance_fields(
         &mut self,
         origin: Origin,
-        instance_module: ModuleId,
-        instance: &dir::GenericApplication,
+        interface: dir::GlobalTypeId,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<Vec<dir::TypeProperty>>>> {
+        let (_, instance) = self.nominal_application(interface)?;
         if !matches!(
             self.symbol_kind(instance.symbol)?,
             dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface
@@ -674,18 +676,11 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(None));
         }
 
-        let requirements =
-            answer!(self.interface_requirements(origin, instance_module, instance, receiver)?);
+        // collect inherited interface fields first
+        let requirements = answer!(self.interface_requirements(origin, interface, receiver)?);
         let mut fields = Vec::new();
         for inherited in requirements.inherited {
-            let (inherited_module, inherited_instance) =
-                self.require_nominal_application(inherited.ty)?;
-            let nested = answer!(self.interface_instance_fields(
-                origin,
-                inherited_module,
-                &inherited_instance,
-                receiver,
-            )?);
+            let nested = answer!(self.interface_instance_fields(origin, inherited.ty, receiver)?);
             fields.extend(nested.unwrap_or_default());
         }
         for member in requirements.members {
@@ -713,18 +708,24 @@ impl CheckState<'_> {
         Ok(Answer::Ready(Some(fields)))
     }
 
-    /// Apply interface and receiver substitutions to direct heritage clauses.
+    /// Instantiate direct heritage clauses under one interface implementation.
     fn apply_interface_heritage(
         &mut self,
-        _origin: Origin,
-        substitution: &TypeSubstitution,
+        origin: Origin,
+        interface: dir::GlobalTypeId,
+        receiver: dir::GlobalTypeId,
         heritages: Vec<dir::NominalHeritage>,
-    ) -> CompilerResult<SmallVec<[HeritageApplication; 8]>> {
+    ) -> CompilerResult<Answer<SmallVec<[HeritageApplication; 8]>>> {
         let mut applied = SmallVec::new();
 
-        // substitute direct inherited interface applications
+        // instantiate each direct inherited interface application
         for heritage in heritages {
-            let ty = self.substitute_type(heritage.ty, substitution)?;
+            let ty = answer!(self.instantiate_interface_type(
+                origin,
+                heritage.ty,
+                interface,
+                receiver,
+            )?);
 
             applied.push(HeritageApplication {
                 source: heritage.source,
@@ -732,7 +733,7 @@ impl CheckState<'_> {
             });
         }
 
-        Ok(applied)
+        Ok(Answer::Ready(applied))
     }
 
     /// Return one applied interface's members selected by space and key.
@@ -744,10 +745,8 @@ impl CheckState<'_> {
         space: dir::MemberSpace,
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<SmallVec<[InterfaceMember; 2]>>> {
-        let (interface_module, instance) = self.require_nominal_application(interface)?;
-        let requirements =
-            answer!(self.interface_requirements(origin, interface_module, &instance, receiver)?);
-
+        // select the interface's own members by space and key
+        let requirements = answer!(self.interface_requirements(origin, interface, receiver)?);
         let mut members = SmallVec::new();
         for member in requirements.members {
             if member.space == space && member.key == key {

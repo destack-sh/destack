@@ -43,11 +43,13 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         else {
             continue;
         };
-        if !operator.is_comparison()
-            || !module
-                .operator_resolution(expression_id.into_any())?
-                .is_builtin()
-        {
+        if !operator.is_comparison() {
+            continue;
+        }
+        let Some(resolution) = module.operator_resolution(expression_id.into_any())? else {
+            continue;
+        };
+        if !resolution.is_builtin() {
             continue;
         }
 

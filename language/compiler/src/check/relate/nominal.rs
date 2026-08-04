@@ -49,7 +49,7 @@ impl HeritageClosure {
         state: &CheckState<'_>,
     ) -> CompilerResult<Option<&'a HeritageApplication>> {
         for application in &self.applications {
-            let (_, instance) = state.require_nominal_application(application.ty)?;
+            let (_, instance) = state.nominal_application(application.ty)?;
             if instance.symbol == symbol {
                 return Ok(Some(application));
             }
@@ -247,15 +247,11 @@ impl CheckState<'_> {
         let application = if source_instance.symbol == target_instance.symbol {
             Some((source.module_id, *source_instance))
         } else {
-            let heritage = answer!(self.heritage_instance(
-                origin,
-                source.module_id,
-                source_instance,
-                target_instance.symbol,
-            )?);
+            let heritage =
+                answer!(self.heritage_instance(origin, source, target_instance.symbol)?);
 
             match heritage {
-                Some(heritage) => Some(self.require_nominal_application(heritage)?),
+                Some(heritage) => Some(self.nominal_application(heritage)?),
                 None => None,
             }
         };
@@ -549,7 +545,7 @@ impl CheckState<'_> {
                 }
             }
             for heritage in bases {
-                let (_, base) = self.require_nominal_application(heritage)?;
+                let (_, base) = self.nominal_application(heritage)?;
                 pending.push(base.symbol);
             }
         }
@@ -588,7 +584,7 @@ impl CheckState<'_> {
                 }
             }
             for heritage in bases {
-                let (_, base) = self.require_nominal_application(heritage)?;
+                let (_, base) = self.nominal_application(heritage)?;
                 pending.push(base.symbol);
             }
         }
@@ -657,9 +653,9 @@ impl CheckState<'_> {
     pub(in crate::check) fn heritage_closure(
         &mut self,
         origin: Origin,
-        instance_module: ModuleId,
-        instance: &dir::GenericApplication,
+        ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<HeritageClosure>> {
+        let (instance_module, instance) = self.nominal_application(ty)?;
         let mut closure = HeritageClosure::default();
         let mut active = SmallVec::<[dir::GlobalSymbolId; 8]>::new();
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
@@ -674,8 +670,9 @@ impl CheckState<'_> {
         active.push(instance.symbol);
         self.collect_heritage(
             origin,
+            ty,
             instance_module,
-            instance,
+            &instance,
             None,
             independent,
             &mut active,
@@ -690,6 +687,7 @@ impl CheckState<'_> {
     fn collect_heritage(
         &mut self,
         origin: Origin,
+        receiver: dir::GlobalTypeId,
         instance_module: ModuleId,
         instance: &dir::GenericApplication,
         branch_source: Option<dir::GlobalNodeIdAny>,
@@ -711,12 +709,13 @@ impl CheckState<'_> {
             .iter()
             .map(|heritage| (*heritage).clone())
             .collect::<SmallVec<[_; 2]>>();
-        let substitution = self.instance_substitution(instance_module, instance)?;
+        let substitution =
+            self.qualified_instance_substitution(instance_module, instance, receiver)?;
 
         // walk direct heritage edges with applied arguments
         for heritage in heritages {
             let ty = self.substitute_type(heritage.ty, &substitution)?;
-            let (application_module, instance) = self.require_nominal_application(ty)?;
+            let (application_module, instance) = self.nominal_application(ty)?;
             let application = HeritageApplication {
                 source: branch_source.unwrap_or(heritage.source),
                 ty,
@@ -736,8 +735,7 @@ impl CheckState<'_> {
                 if independent {
                     continue;
                 }
-                let (previous_module, previous_instance) =
-                    self.require_nominal_application(previous.ty)?;
+                let (previous_module, previous_instance) = self.nominal_application(previous.ty)?;
                 match self.constrain_instance_arguments(
                     origin,
                     previous_module,
@@ -760,6 +758,7 @@ impl CheckState<'_> {
             active.push(instance.symbol);
             self.collect_heritage(
                 origin,
+                application.ty,
                 application_module,
                 &instance,
                 Some(application.source),
@@ -778,11 +777,10 @@ impl CheckState<'_> {
     pub(in crate::check) fn heritage_instance(
         &mut self,
         origin: Origin,
-        instance_module: ModuleId,
-        instance: &dir::GenericApplication,
+        ty: dir::GlobalTypeId,
         target: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let closure = answer!(self.heritage_closure(origin, instance_module, instance)?);
+        let closure = answer!(self.heritage_closure(origin, ty)?);
         if let Some(application) = closure.application(target, self)? {
             return Ok(Answer::Ready(Some(application.ty)));
         }

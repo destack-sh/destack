@@ -1454,8 +1454,8 @@ impl CheckState<'_> {
         self.intern_type_ids(&ids)
     }
 
-    /// Return the nominal application required beneath refinements and memory forms.
-    pub(in crate::check) fn require_nominal_application(
+    /// Return the nominal application beneath refinements.
+    pub(in crate::check) fn nominal_application(
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<(ModuleId, dir::GenericApplication)> {
@@ -1481,7 +1481,7 @@ impl CheckState<'_> {
         Ok(self.type_ids(module, instance.arguments)?.to_vec())
     }
 
-    /// Return the nominal application beneath refinements and memory forms.
+    /// Return the nominal application beneath refinements, if present.
     pub(in crate::check) fn nominal_application_maybe(
         &self,
         mut id: dir::GlobalTypeId,
@@ -1490,9 +1490,6 @@ impl CheckState<'_> {
             match self.ty(id)? {
                 dir::Type::Refined(refined) => {
                     id = self.type_refined(id.module_id, refined)?.base;
-                }
-                dir::Type::Form(form) => {
-                    id = form.value;
                 }
                 dir::Type::Application(application) => {
                     return Ok(Some((id.module_id, application)));

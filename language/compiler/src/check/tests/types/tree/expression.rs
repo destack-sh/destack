@@ -93,13 +93,10 @@ class Panel {
 
 extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=TreeBuilder target="tree.builder.TreeBuilder<type Tags = { div: { class?: string }; img: { src: string }; span: {} }>"
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.Tags target=Tags
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.element target=element
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.fragment target=fragment
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
 
@@ -268,13 +265,10 @@ class Panel {
 
 extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=TreeBuilder target="tree.builder.TreeBuilder<type Tags = { div: { class?: string }; img: { src: string }; span: {} }>"
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.Tags target=Tags
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.element target=element
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.fragment target=fragment
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
 
@@ -669,13 +663,10 @@ class Panel {
 
 extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=TreeBuilder target="tree.builder.TreeBuilder<type Tags = { div: { class?: string }; img: { src: string }; span: {} }>"
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.Tags target=Tags
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.element target=element
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.fragment target=fragment
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
 
@@ -851,13 +842,10 @@ class Panel {
 
 extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=TreeBuilder target="tree.builder.TreeBuilder<type Tags = { div: { class?: string }; img: { src: string }; span: {} }>"
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.Tags target=Tags
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.element target=element
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.fragment target=fragment
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
 
@@ -1085,13 +1073,10 @@ class Panel {
 
 extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=TreeBuilder target="tree.builder.TreeBuilder<type Tags = { div: { class?: string }; img: { src: string }; span: {} }>"
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.Tags target=Tags
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.element target=element
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.fragment target=fragment
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
 
@@ -1334,13 +1319,10 @@ class Panel {
 
 extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=TreeBuilder target="tree.builder.TreeBuilder<type Tags = { div: { class?: string }; img: { src: string }; span: {} }>"
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.Tags target=Tags
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.element target=element
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.fragment target=fragment
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
 
@@ -1546,13 +1528,10 @@ class Panel {
 
 extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=TreeBuilder target="tree.builder.TreeBuilder<type Tags = { div: { class?: string }; img: { src: string }; span: {} }>"
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.Tags target=Tags
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.element target=element
-/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.fragment target=fragment
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
 

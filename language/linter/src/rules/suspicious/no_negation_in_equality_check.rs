@@ -44,11 +44,13 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         else {
             continue;
         };
-        if !operator.is_equality()
-            || !module
-                .operator_resolution(expression_id.into_any())?
-                .is_builtin()
-        {
+        if !operator.is_equality() {
+            continue;
+        }
+        let Some(resolution) = module.operator_resolution(expression_id.into_any())? else {
+            continue;
+        };
+        if !resolution.is_builtin() {
             continue;
         }
         let dir::Expression::Unary {
@@ -64,8 +66,12 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let mut diagnostic = lint.diagnostic("left equality operand is negated", negation_span);
 
         // suggest regrouping only when it preserves boolean equality
-        let value_operand = module.builtin_operand(left.into_any(), *value)?;
-        let right_operand = module.builtin_operand(expression_id.into_any(), *right)?;
+        let Some(value_operand) = module.builtin_operand(left.into_any(), *value)? else {
+            continue;
+        };
+        let Some(right_operand) = module.builtin_operand(expression_id.into_any(), *right)? else {
+            continue;
+        };
         let can_regroup = value_operand
             .scalar_families
             .as_ref()
@@ -107,6 +113,26 @@ function differs(left: boolean, right: boolean): boolean {
 "#,
         );
 
+        session.assert_diagnostics(
+            r#"
+warning[no-negation-in-equality-check]: left equality operand is negated
+ ──▶ main.ds:2:12
+  │
+1 │ function differs(left: boolean, right: boolean): boolean {
+2 │     return !/* left */ left === /* right */ right;
+  │            ^
+3 │ }
+  │
+
+ = suggestion: negate the complete equality check (requires review)
+--- a/main.ds
++++ b/main.ds
+
+    1│ function differs(left: boolean, right: boolean): boolean {
+-   2│     return !/* left */ left === /* right */ right;
++   2│     return !(/* left */ left === /* right */ right);
+"#,
+        );
         session.assert_suggestions(
             r#"
 function differs(left: boolean, right: boolean): boolean {
@@ -146,31 +172,6 @@ function same(left: boolean, right: boolean): boolean {
 function same(left: boolean, right: boolean): boolean {
     return left === !right;
 }
-"#,
-        );
-
-        session.assert_no_diagnostics();
-    }
-
-    /// Accept a negated left operand passed to user-defined equality.
-    #[test]
-    fn test_accepts_overloaded_equality() {
-        let session = TestSession::new(
-            &NO_NEGATION_IN_EQUALITY_CHECK,
-            r#"
-import { PartialEqual } from "destack:ops";
-
-struct Marker {}
-
-extension of boolean implements PartialEqual<Marker> {
-    equal(other: Marker): boolean {
-        return this;
-    }
-}
-
-declare const value: string;
-declare const marker: Marker;
-const same = !value == marker;
 "#,
         );
 

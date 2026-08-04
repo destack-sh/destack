@@ -445,7 +445,6 @@ extension of Badge implements PartialEqual<Badge> {
 /// @definition.extension symbol=<module>#2 form=local target=Badge
 /// @definition.implements symbol=<module>#2 source=PartialEqual<Badge> target=PartialEqual<Badge>
 /// @definition.method symbol=equal slot=equal type=<equal.'a>(this: &equal.'a exclusive this, Badge) => boolean
-/// @definition.implementation symbol=<module>#2 requirement=ops.equality.PartialEqual.equal target=equal
 /// @resolution.name source=Badge target=Badge
 /// @resolution.name source=PartialEqual target=ops.equality.PartialEqual
 /// @resolution.name source=Badge target=Badge
@@ -556,7 +555,6 @@ extension of Measure implements PartialEqual<float64> {
 /// @definition.extension symbol=<module>#2 form=local target=Measure
 /// @definition.implements symbol=<module>#2 source=PartialEqual<float64> target=PartialEqual<float64>
 /// @definition.method symbol=equal slot=equal type=<equal.'a>(this: &equal.'a exclusive this, float64) => boolean
-/// @definition.implementation symbol=<module>#2 requirement=ops.equality.PartialEqual.equal target=equal
 /// @resolution.name source=Measure target=Measure
 /// @resolution.name source=PartialEqual target=ops.equality.PartialEqual
 

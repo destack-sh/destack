@@ -370,11 +370,9 @@ extension<K: Hash, V> of Table<K, V> implements Keyed<K> where K: Equal<K> {
 /// @generic.template symbol=<module>#2 parameters=(K#2: ops.hash.Hash, V#2)
 /// @definition.extension symbol=<module>#2 form=local target=Table<K#2, V#2>
 /// @definition.where symbol=<module>#2 source="K: Equal<K>" relation=satisfies left=K#2 right=ops.equality.Equal<K#2>
-/// @definition.implements symbol=<module>#2 source=Keyed<K> target="Keyed<K#2><type Output = V#2 | undefined>"
+/// @definition.implements symbol=<module>#2 source=Keyed<K> target=Keyed<K#2>
 /// @definition.associated.type symbol=Output source="type Output = V | undefined" key=Output value="V#2 | undefined"
 /// @definition.method symbol=index slot=index type=<index.'a>(this: &index.'a exclusive this, K#2) => V#2 | undefined
-/// @definition.implementation symbol=<module>#2 requirement=Keyed.Output target=Output
-/// @definition.implementation symbol=<module>#2 requirement=Keyed.index target=index
 /// @type.symbol symbol=K source="K: Hash" type=K#2
 /// @resolution.name source=Hash target=ops.hash.Hash
 /// @type.symbol symbol=V source=V type=V#2

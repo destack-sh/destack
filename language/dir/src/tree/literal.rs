@@ -61,6 +61,14 @@ impl ScalarLiteral {
         }
     }
 
+    /// Return this literal's integral value.
+    pub fn as_integral(&self) -> Option<i64> {
+        match self {
+            Self::Integer(value) | Self::Bigint(value) => Some(*value),
+            _ => None,
+        }
+    }
+
     /// Return whether this literal is negative floating-point zero.
     pub fn is_negative_zero(&self) -> bool {
         matches!(self, Self::Float(value) if value.to_bits() == (-0.0_f64).to_bits())

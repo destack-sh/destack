@@ -655,7 +655,7 @@ impl CheckState<'_> {
                     .map(|heritage| heritage.ty)
                     .collect::<SmallVec<[_; 2]>>();
                 for heritage in bases {
-                    let (_, base) = self.require_nominal_application(heritage)?;
+                    let (_, base) = self.nominal_application(heritage)?;
                     pending.push(base.symbol);
                 }
             }
@@ -826,13 +826,8 @@ impl CheckState<'_> {
                         self.shape_properties(target.module_id, shape.properties)?
                             .to_vec(),
                     ),
-                    dir::Type::Application(instance) => {
-                        answer!(self.interface_instance_fields(
-                            origin,
-                            target.module_id,
-                            &instance,
-                            target
-                        )?)
+                    dir::Type::Application(_) => {
+                        answer!(self.interface_instance_fields(origin, target, target)?)
                     }
                     _ => None,
                 }

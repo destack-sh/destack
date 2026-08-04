@@ -252,7 +252,7 @@ impl BodyState<'_, '_> {
         // substitute the exact backing with the selected generic arguments
         let substitution = TypeSubstitution {
             bindings: signature.generic_arguments.iter().copied().collect(),
-            receiver: None,
+            receiver: None
         };
         let backing = self.substitute_type(candidate.backing, &substitution)?;
         let selection = dir::NewtypeSelection {

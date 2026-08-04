@@ -579,19 +579,6 @@ impl<'a> DirSnapshotBuilder<'a> {
         self.binding_names().symbol_path(symbol_id.local_id)
     }
 
-    /// Render the declaration symbol owned by one node.
-    pub(crate) fn node_symbol_label(&self, node: dir::GlobalNodeIdAny) -> Option<String> {
-        let bindings = if node.module_id == self.tree.module_id {
-            self.binding_table()
-        } else {
-            self.foreign_bindings.get(&node.module_id)?
-        };
-        let symbol = bindings.declaration_symbol(node)?;
-        let symbol = symbol.into_global(node.module_id);
-
-        Some(self.symbol_path_label(symbol))
-    }
-
     /// Return whether one local symbol has no source name.
     pub(crate) fn is_anonymous_symbol(&self, symbol_id: dir::GlobalSymbolId) -> bool {
         if symbol_id.module_id == self.tree.module_id {
