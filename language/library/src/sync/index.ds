@@ -28,6 +28,7 @@ export {
 } from "./atomic.ds";
 export * from "./barrier.ds";
 export * from "./condvar.ds";
+export * from "./hint.ds";
 export * from "./mutex.ds";
 export * from "./once.ds";
 export * from "./reader.ds";
