@@ -1,7 +1,7 @@
 use destack_repository::ProviderError;
 
 use crate::rules::declare_lint_stub;
-use crate::{Lint, LintResult, MirModule};
+use crate::{DirModule, Lint, LintResult};
 
 declare_lint_stub! {
     /// Disallow float loop counters accumulated by repeated addition.
@@ -11,12 +11,12 @@ declare_lint_stub! {
         category: Correctness,
         level: Warning,
         fixable: None,
-        check: MirModule(check),
+        check: DirModule(check),
     }
 }
 
 /// Check no-float-loop-counter.
-fn check(_module: &MirModule<'_>, lint: &Lint) -> LintResult {
+fn check(_module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Err(ProviderError::internal(format!(
         "lint {} is not implemented",
         lint.id
