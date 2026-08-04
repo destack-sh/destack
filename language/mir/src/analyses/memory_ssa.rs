@@ -1819,7 +1819,9 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Intrinsic::Round => SmallVec::new(),
 
             // compiler hints
-            mir::Intrinsic::Expect | mir::Intrinsic::BlackBox => SmallVec::new(),
+            mir::Intrinsic::SpinLoop | mir::Intrinsic::Expect | mir::Intrinsic::BlackBox => {
+                SmallVec::new()
+            }
         }
     }
 

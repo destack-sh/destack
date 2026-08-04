@@ -186,6 +186,9 @@ pub enum Intrinsic {
     Round,
 
     // compiler hints
+    /// Hint that execution is inside a busy-wait loop.
+    /// `() => ()`
+    SpinLoop,
     /// Hint that condition is expected to be the given value.
     /// `(bool, bool) => bool`
     Expect,
@@ -267,6 +270,7 @@ impl Intrinsic {
             Intrinsic::Round => "math.float.round",
 
             // compiler hints
+            Intrinsic::SpinLoop => "sync.spinLoop",
             Intrinsic::Expect => "expect",
             Intrinsic::BlackBox => "error.debug.blackBox",
         }
@@ -426,6 +430,7 @@ impl FromStr for Intrinsic {
             "math.float.ceil" => Ok(Intrinsic::Ceil),
             "math.float.trunc" => Ok(Intrinsic::Trunc),
             "math.float.round" => Ok(Intrinsic::Round),
+            "sync.spinLoop" => Ok(Intrinsic::SpinLoop),
             "expect" => Ok(Intrinsic::Expect),
             "error.debug.blackBox" => Ok(Intrinsic::BlackBox),
             _ => Err(()),
@@ -436,6 +441,9 @@ impl FromStr for Intrinsic {
 /// Describes the type signature pattern of an intrinsic.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum IntrinsicSignature {
+    /// Nullary operation with no result.
+    Nullary,
+
     /// Unary operation: (T) => T
     /// Examples: sqrt, abs, sin, cos, floor, ceil, leadingZeroCount, trailingZeroCount, populationCount
     Unary,
@@ -562,6 +570,7 @@ impl Intrinsic {
             Intrinsic::VolatileStore => IntrinsicSignature::VolatileStore,
 
             // compiler hints
+            Intrinsic::SpinLoop => IntrinsicSignature::Nullary,
             Intrinsic::Expect => IntrinsicSignature::BranchHint { args: 2 },
             Intrinsic::BlackBox => IntrinsicSignature::Passthrough,
         }
@@ -580,6 +589,7 @@ impl Intrinsic {
     /// Get the expected number of value arguments for this intrinsic.
     pub fn expected_arg_count(self) -> u8 {
         match self.signature() {
+            IntrinsicSignature::Nullary => 0,
             IntrinsicSignature::Unary => 1,
             IntrinsicSignature::Binary => 2,
             IntrinsicSignature::Ternary => 3,
@@ -600,6 +610,7 @@ impl Intrinsic {
     /// Whether this intrinsic produces a result value.
     pub fn has_result(self) -> bool {
         match self.signature() {
+            IntrinsicSignature::Nullary => false,
             IntrinsicSignature::Unary => true,
             IntrinsicSignature::Binary => true,
             IntrinsicSignature::Ternary => true,
