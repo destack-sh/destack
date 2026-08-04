@@ -101,6 +101,31 @@ entry(v0: int32):
 }
 
 #[test]
+fn test_lower_spin_loop_intrinsic_without_a_result() {
+    let session = TestSession::single(
+        r#"
+@intrinsic("sync.spinLoop")
+declare function spinLoop(): void;
+
+function wait(): void {
+    spinLoop();
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+function test.main.wait(): void {
+entry:
+    intrinsic.sync.spinLoop()
+    return
+}
+"#,
+    );
+}
+
+#[test]
 fn test_lower_atomic_fence_with_comptime_ordering() {
     let session = TestSession::single(
         r#"
@@ -382,7 +407,7 @@ function mirror(pointer: *int32): void {
 function test.main.mirror(v0: ptr<int32, mutable>): void {
 entry(v0: ptr<int32, mutable>):
     v1: int32 = intrinsic.memory.ptr.readVolatile(v0)
-    v2: void = intrinsic.memory.ptr.writeVolatile(v0, v1)
+    intrinsic.memory.ptr.writeVolatile(v0, v1)
     return
 }
 "#,

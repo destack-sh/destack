@@ -80,8 +80,15 @@ impl FunctionLowerer<'_, '_, '_> {
         operation: mir::Intrinsic,
         resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
-        let result = self.lower_type(resolution.return_type)?;
         let values = self.lower_provided_arguments(resolution)?;
+
+        if !operation.has_result() {
+            self.builder.intrinsic_void(operation, values);
+
+            return Ok(None);
+        }
+
+        let result = self.lower_type(resolution.return_type)?;
 
         Ok(Some(self.builder.intrinsic(operation, result, values)))
     }
