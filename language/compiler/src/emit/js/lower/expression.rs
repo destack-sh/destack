@@ -1175,13 +1175,6 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(statement, self.module.id, expression_id)
                     .into_any()
             }
-            dir::Expression::Throw { value } => {
-                let value = self.lower_expression_as::<js::Expression>(*value)?;
-                let statement = js::Statement::Throw { value };
-                self.tree
-                    .insert_from_source(statement, self.module.id, expression_id)
-                    .into_any()
-            }
             dir::Expression::Await { expression } => {
                 let value = self.lower_expression_as::<js::Expression>(*expression)?;
                 let expression = js::Expression::Await { value };

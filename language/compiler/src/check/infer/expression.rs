@@ -317,7 +317,6 @@ impl BodyState<'_, '_> {
             | dir::Expression::While { .. }
             | dir::Expression::Loop { .. }
             | dir::Expression::For { .. }
-            | dir::Expression::Throw { .. }
             | dir::Expression::Break { .. }
             | dir::Expression::Continue { .. }) => self.infer_statement(site, &expression),
             expression => self.reject_expression_without_inference_owner(node, expression),

@@ -6,7 +6,7 @@ fn test_newtype_member_access_dereferences_to_the_backing() {
         r#"
 class Wrapper<T> {
     open(): T {
-        throw "unreachable";
+        return unreachable();
     }
 }
 
@@ -27,7 +27,7 @@ extension<T> of Sealed<T> {
 === annotated ===
 class Wrapper<out T> {
     open(): T {
-        throw "unreachable";
+        return unreachable();
     }
 }
 
@@ -51,7 +51,10 @@ class Wrapper<T> {
     /// @type.symbol symbol=Wrapper.open type=(this: this) => T#1
     /// @resolution.name source=T target=Wrapper.T
 
-        throw "unreachable";
+        return unreachable();
+        /// @resolution.name source=unreachable target=error.panic.unreachable
+        /// @resolution.call source=unreachable() parameters=() return=never kind=symbol target=error.panic.unreachable
+
     }
 }
 
@@ -99,14 +102,14 @@ fn test_imported_newtype_member_access_projects_generic_backing() {
             r#"
 export class Wrapper<T> {
     open(): T {
-        throw "unreachable";
+        return unreachable();
     }
 }
 
 export newtype Sealed<T> = Wrapper<T>;
 
 export function value(): Sealed<int32> {
-    throw "unreachable";
+    return unreachable();
 }
 "#,
         )

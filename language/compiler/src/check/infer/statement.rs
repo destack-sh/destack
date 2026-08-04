@@ -211,15 +211,6 @@ impl BodyState<'_, '_> {
 
                 Ok(Answer::Ready(()))
             }
-            // throw value
-            dir::Expression::Throw { value } => {
-                let value_site = self.check.node_site(value.into_global_any(module))?;
-                answer!(self.attempt_node(value_site, PlaceUse::Read, None)?);
-                let never = self.check.intern_type(dir::Type::Never)?;
-                self.check.commit_node_type(node, never)?;
-
-                Ok(Answer::Ready(()))
-            }
             // break value / continue
             dir::Expression::Break { value, .. } => {
                 if let Some(value) = value {

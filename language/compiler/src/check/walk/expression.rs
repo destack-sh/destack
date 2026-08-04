@@ -232,10 +232,6 @@ impl WalkState<'_, '_> {
                         .report_await_outside_async_context(self.module, id.into_any());
                 }
             }
-            // throw value
-            dir::Expression::Throw { value } => {
-                self.walk_expression(*value, self.tree.get(*value))?;
-            }
             // return value
             dir::Expression::Return { value } => {
                 if self.flow().current_function().is_none() {
