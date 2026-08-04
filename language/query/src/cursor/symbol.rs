@@ -197,11 +197,11 @@ impl ModuleQueryContext<'_> {
         };
         let symbol_id = symbol_id.into_global(self.module_id());
         let symbol = self.bindings()?.get_symbol(symbol_id.local_id);
-        let member_name = self
+        let is_named_member = self
             .definitions()?
             .member(symbol_id)
-            .and_then(|(_, _, member)| member.name(self.strings()));
-        if symbol.name().is_none() && member_name.is_none() {
+            .is_some_and(|(_, _, member)| member.is_named());
+        if symbol.name().is_none() && !is_named_member {
             return Ok(None);
         }
         let source = node_id.into_global(self.module_id());
@@ -466,11 +466,13 @@ impl ModuleQueryContext<'_> {
             }
 
             // the bound prefix receives its exact projected base declaration
-            dir::Reference::Projected { base, from }
-                if segment + 1
-                    == usize::try_from(*from).map_err(|_| {
-                        QueryError::invalid(format!("projected segment: {source:?}"))
-                    })? =>
+            dir::Reference::Projected {
+                base: dir::ImportTarget::Symbol(base),
+                from,
+            } if segment + 1
+                == usize::try_from(*from).map_err(|_| {
+                    QueryError::invalid(format!("projected segment: {source:?}"))
+                })? =>
             {
                 Some(vec![*base])
             }

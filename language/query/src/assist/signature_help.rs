@@ -412,12 +412,7 @@ impl ModuleQueryContext<'_> {
                     .ok_or(QueryError::missing(format!(
                         "signature member owner name: {owner:?}"
                     )))?;
-                let member_name =
-                    member
-                        .name(module.strings())
-                        .ok_or(QueryError::missing(format!(
-                            "signature member name: {symbol_id:?}"
-                        )))?;
+                let member_name = Formatter::new(&module, query).member_name(member)?;
                 let name = format!("{container}.{member_name}");
                 let parameter_names = vec![None; resolution.arguments.len()];
                 let parameter_documentation = vec![None; resolution.arguments.len()];

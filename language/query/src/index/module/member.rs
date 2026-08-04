@@ -3,7 +3,7 @@ use destack_repository::{ProviderError, ProviderResult};
 
 use super::context::ModuleIndexContext;
 
-/// Builder for one member index from checked DIR.
+/// Builder for one member index from DIR.
 pub(in crate::index) struct MemberIndexer<'context, 'index> {
     /// The indexed module context.
     module: &'context ModuleIndexContext<'index>,
@@ -21,13 +21,13 @@ impl<'context, 'index> MemberIndexer<'context, 'index> {
             entries: Vec::new(),
         };
 
-        // collect checked definition members
+        // collect definition members
         indexer.collect_members()?;
 
         Ok(dir::MemberIndex::new(indexer.entries))
     }
 
-    /// Collect checked member index entries.
+    /// Collect member index entries.
     fn collect_members(&mut self) -> ProviderResult<()> {
         for (declaring_symbol, definition) in self.module.definitions().iter_definitions() {
             self.collect_definition(declaring_symbol, definition)?;
@@ -53,7 +53,7 @@ impl<'context, 'index> MemberIndexer<'context, 'index> {
         };
         let owner_name = self.local_symbol_name(declaring_symbol);
 
-        // collect each checked definition member
+        // collect each definition member
         for member in definition.members() {
             let Some(entry) = self.member_entry(
                 owner_symbol,
@@ -84,7 +84,7 @@ impl<'context, 'index> MemberIndexer<'context, 'index> {
         Some(self.module.strings().get(name).to_string())
     }
 
-    /// Build one member entry from a checked definition member.
+    /// Build one member entry from a definition member.
     fn member_entry(
         &self,
         owner_symbol: Option<dir::GlobalSymbolId>,
@@ -110,20 +110,13 @@ impl<'context, 'index> MemberIndexer<'context, 'index> {
         let selection = self
             .module
             .node_selection_span(self.module.view(), source.local_id);
-        // index symbol-keyed members under their authored key expression
-        let name = member
-            .name(self.module.strings())
-            .or_else(|| self.member_key_label(source.local_id))
-            .ok_or_else(|| {
-                ProviderError::internal(format!("definition member has no indexed key: {source:?}"))
-            })?;
-        let kind = Self::member_kind(member);
+        let kind = member.kind();
         let symbol = member.symbol();
         let type_id = self.member_type(member)?;
 
         // emit member declaration row
         Ok(Some(dir::MemberEntry {
-            name,
+            key: member.key(),
             kind,
             owner: owner_symbol,
             declaring: declaring_symbol,
@@ -139,12 +132,12 @@ impl<'context, 'index> MemberIndexer<'context, 'index> {
         }))
     }
 
-    /// Return the checked type attached to one definition member.
+    /// Return the type attached to one definition member.
     fn member_type(
         &self,
         member: &dir::DefinitionMember,
     ) -> ProviderResult<Option<dir::GlobalTypeId>> {
-        // require the checked type carried by symbol backed members
+        // require member types carried by symbols
         if let Some(symbol) = member.type_symbol() {
             let type_id = self
                 .module
@@ -160,84 +153,5 @@ impl<'context, 'index> MemberIndexer<'context, 'index> {
         }
 
         Ok(member.value_type())
-    }
-
-    /// Render one member's computed key expression as its indexed name.
-    fn member_key_label(&self, source: dir::LocalNodeIdAny) -> Option<String> {
-        let view = self.module.view();
-
-        // read the authored key expression from the member node
-        let key = match source.ty {
-            dir::NodeType::Member => {
-                let member_id = dir::LocalNodeId::<dir::Member>::new(source.id);
-
-                *view.get(member_id).key()?
-            }
-            dir::NodeType::TypeMember => {
-                let member_id = dir::LocalNodeId::<dir::TypeMember>::new(source.id);
-
-                *view.get(member_id).key()?
-            }
-            _ => return None,
-        };
-        let dir::Key::Expression(expression) = key else {
-            return None;
-        };
-
-        // join the referenced path into a bracketed label
-        let mut segments = Vec::new();
-        let mut current = expression;
-        loop {
-            match view.get(current) {
-                dir::Expression::Identifier { name } => {
-                    segments.push(self.module.strings().get(*name).to_string());
-
-                    break;
-                }
-                dir::Expression::Member {
-                    left,
-                    name: Some(name),
-                    ..
-                } => {
-                    segments.push(self.module.strings().get(*name).to_string());
-                    current = *left;
-                }
-                _ => return None,
-            }
-        }
-        segments.reverse();
-
-        Some(format!("[{}]", segments.join(".")))
-    }
-
-    /// Return the index kind for one checked definition member.
-    fn member_kind(member: &dir::DefinitionMember) -> dir::MemberKind {
-        match member {
-            dir::DefinitionMember::Field(_) => dir::MemberKind::Field,
-            dir::DefinitionMember::Method(method) => {
-                if matches!(
-                    method.role,
-                    Some(dir::FunctionRole::Getter | dir::FunctionRole::Setter)
-                ) {
-                    dir::MemberKind::Property
-                } else {
-                    match method.slot {
-                        dir::MemberSlot::Constructor | dir::MemberSlot::New => {
-                            dir::MemberKind::Constructor
-                        }
-                        dir::MemberSlot::Call => dir::MemberKind::CallSignature,
-                        dir::MemberSlot::Key(_) => dir::MemberKind::Method,
-                    }
-                }
-            }
-            dir::DefinitionMember::AssociatedType(_) => dir::MemberKind::AssociatedType,
-            dir::DefinitionMember::AssociatedConst(_) => dir::MemberKind::AssociatedConst,
-            dir::DefinitionMember::EnumVariant(_)
-            | dir::DefinitionMember::TaggedKey(_)
-            | dir::DefinitionMember::TaggedVariant(_) => dir::MemberKind::Variant,
-            dir::DefinitionMember::CallSignature(_) => dir::MemberKind::CallSignature,
-            dir::DefinitionMember::ConstructSignature(_) => dir::MemberKind::ConstructSignature,
-            dir::DefinitionMember::IndexSignature(_) => dir::MemberKind::IndexSignature,
-        }
     }
 }

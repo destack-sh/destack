@@ -52,12 +52,8 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
         // dispatch the primary context-specific candidate builder
         let mut items = match context {
             CompletionContext::MemberAccess {
-                receiver:
-                    CompletionReceiver::Type {
-                        type_id,
-                        is_optional,
-                    },
-            } => self.complete_members(*type_id, *is_optional)?,
+                receiver: CompletionReceiver::Access { source },
+            } => self.complete_members(*source)?,
             CompletionContext::MemberAccess {
                 receiver: CompletionReceiver::Namespace { module_id },
             } => self.complete_namespace_members(*module_id)?,
@@ -66,17 +62,8 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
             CompletionContext::StatementPosition { scope } => {
                 self.complete_values(*scope, matches!(trigger, CompletionTrigger::Invoked))?
             }
-            CompletionContext::ObjectLiteralKey {
-                literal,
-                existing_fields,
-                scope,
-            } => {
-                // offer the expected type's missing fields before shorthands
-                let mut candidates = self.complete_expected_fields(*literal, existing_fields)?;
-                candidates
-                    .extend(self.complete_object_literal_shorthands(existing_fields, *scope)?);
-
-                candidates
+            CompletionContext::ObjectLiteralKey { literal, scope } => {
+                self.complete_expected_fields(*literal, *scope)?
             }
             CompletionContext::ObjectLiteralValue { scope } => {
                 self.complete_values(*scope, false)?
@@ -154,7 +141,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
                 local_id: visible.symbol_id,
             };
 
-            results.push(self.attach_symbol_description(completion, symbol_id)?);
+            results.push(self.resolve_symbol(completion, symbol_id)?);
         }
 
         // primitive types are always available
@@ -238,8 +225,12 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
 
             let completion =
                 CompletionCandidate::new(&name, kind, CompletionOrigin::Local, SORT_LOCAL_SYMBOL);
-            let completion = self.attach_call_snippet(completion, symbol_id)?;
-            results.push(self.attach_symbol_description(completion, symbol_id)?);
+            let completion = if kind.is_callable() {
+                completion.with_call()
+            } else {
+                completion
+            };
+            results.push(self.resolve_symbol(completion, symbol_id)?);
         }
 
         // statement contexts can opt into keyword completions as well
@@ -288,7 +279,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
                     CompletionOrigin::Local,
                     SORT_LOCAL_SYMBOL,
                 );
-                results.push(self.attach_symbol_description(completion, symbol_id)?);
+                results.push(self.resolve_symbol(completion, symbol_id)?);
             }
         }
 

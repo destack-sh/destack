@@ -31,8 +31,6 @@ pub(crate) enum CompletionContext {
     ObjectLiteralKey {
         /// The object literal expression node.
         literal: dir::LocalNodeId<dir::Expression>,
-        /// Field names already present in the literal.
-        existing_fields: Vec<String>,
         /// The scope used for visible symbols.
         scope: dir::LocalScope,
     },
@@ -74,12 +72,10 @@ pub(crate) enum CompletionContext {
 /// The receiver for one member completion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CompletionReceiver {
-    /// A typed value or type receiver.
-    Type {
-        /// The receiver type.
-        type_id: dir::GlobalTypeId,
-        /// Whether the access uses optional chaining.
-        is_optional: bool,
+    /// A source member access.
+    Access {
+        /// The member expression source.
+        source: dir::GlobalNodeIdAny,
     },
     /// An imported module namespace receiver.
     Namespace {

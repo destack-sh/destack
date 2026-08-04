@@ -233,8 +233,10 @@ impl CompletionBuilder<'_, '_, '_> {
                 CompletionCandidate::new(name, kind, CompletionOrigin::Local, SORT_LOCAL_SYMBOL);
 
             if let ExportDeclaration::Symbol { symbol, .. } = declaration {
-                completion = self.attach_call_snippet(completion, symbol)?;
-                completion = self.attach_symbol_description(completion, symbol)?;
+                if kind.is_callable() {
+                    completion = completion.with_call();
+                }
+                completion = self.resolve_symbol(completion, symbol)?;
             }
 
             results.push(completion);
@@ -377,8 +379,12 @@ impl CompletionBuilder<'_, '_, '_> {
                     .with_additional_edits(import_edits);
             let completion = match declaration {
                 ExportDeclaration::Symbol { symbol, .. } => {
-                    let completion = self.attach_call_snippet(completion, symbol)?;
-                    self.attach_symbol_description(completion, symbol)?
+                    let completion = if kind.is_callable() {
+                        completion.with_call()
+                    } else {
+                        completion
+                    };
+                    self.resolve_symbol(completion, symbol)?
                 }
                 ExportDeclaration::Namespace { .. } => completion,
             };
@@ -421,7 +427,7 @@ impl CompletionBuilder<'_, '_, '_> {
             );
             let completion = match declaration {
                 ExportDeclaration::Symbol { symbol, .. } => {
-                    self.attach_symbol_description(completion, symbol)?
+                    self.resolve_symbol(completion, symbol)?
                 }
                 ExportDeclaration::Namespace { .. } => completion,
             };

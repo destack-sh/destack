@@ -20,7 +20,7 @@ impl ModuleQueryContext<'_> {
             return Ok(Some(context));
         }
 
-        // resolve member access context when immediately after one dot boundary
+        // resolve member access context immediately after a dot
         if let Some(context) = self.classify_member_access_dot(file_id, offset)? {
             return Ok(Some(context));
         }
@@ -68,22 +68,9 @@ impl ModuleQueryContext<'_> {
             let Some(dir_node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
                 continue;
             };
-            if dir_node_id.ty != dir::NodeType::Expression {
-                continue;
-            }
-
-            let expression_id = dir::LocalNodeId::<dir::Expression>::new(dir_node_id.id);
-            let expression = view.get::<dir::Expression>(expression_id);
-
-            // use the left operand when inside a member expression
-            let dir::Expression::Member {
-                left, is_optional, ..
-            } = expression
-            else {
+            let Some(receiver) = CompletionReceiver::resolve_member(dir_node_id, self)? else {
                 continue;
             };
-
-            let receiver = CompletionReceiver::resolve((*left).into(), *is_optional, self)?;
             let context = CompletionContext::MemberAccess { receiver };
 
             return Ok(Some(context));
@@ -107,21 +94,9 @@ impl ModuleQueryContext<'_> {
             let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
                 continue;
             };
-            if node_id.ty != dir::NodeType::Expression {
+            let Some(receiver) = CompletionReceiver::resolve_member(node_id, self)? else {
                 continue;
-            }
-
-            let expression_id = dir::LocalNodeId::<dir::Expression>::new(node_id.id);
-            let expression = view.get::<dir::Expression>(expression_id);
-
-            // prefer the member left operand as the receiver
-            let (receiver, is_optional) = match expression {
-                dir::Expression::Member {
-                    left, is_optional, ..
-                } => ((*left).into(), *is_optional),
-                _ => (node_id, false),
             };
-            let receiver = CompletionReceiver::resolve(receiver, is_optional, self)?;
 
             return Ok(Some(CompletionContext::MemberAccess { receiver }));
         }
@@ -138,9 +113,6 @@ impl ModuleQueryContext<'_> {
         let Some(dot) = self.member_access_dot_before_offset(file_id, offset)? else {
             return Ok(None);
         };
-        let is_optional = self
-            .previous_significant_token(file_id, dot.span.start)?
-            .is_some_and(|token| token.token.ty() == dir::TokenType::Maybe);
         let Some(receiver_token) = self.receiver_token_before_member_access_dot(dot)? else {
             return Ok(None);
         };
@@ -153,52 +125,68 @@ impl ModuleQueryContext<'_> {
                 receiver_token.span
             )))?;
 
-        let context = self.classify_member_access_receiver(file_id, receiver_offset)?;
-        let context = context.map(|context| context.with_optional_access(is_optional));
-
-        Ok(context)
-    }
-}
-
-impl CompletionContext {
-    /// Return this context with optional access applied to a typed receiver.
-    fn with_optional_access(self, is_optional: bool) -> Self {
-        match self {
-            Self::MemberAccess {
-                receiver: CompletionReceiver::Type { type_id, .. },
-            } => Self::MemberAccess {
-                receiver: CompletionReceiver::Type {
-                    type_id,
-                    is_optional,
-                },
-            },
-            context => context,
-        }
+        self.classify_member_access_receiver(file_id, receiver_offset)
     }
 }
 
 impl CompletionReceiver {
-    /// Resolve one member receiver.
-    fn resolve(
-        node_id: dir::LocalNodeIdAny,
-        is_optional: bool,
+    /// Resolve one value or type member projection.
+    fn resolve_member(
+        source: dir::LocalNodeIdAny,
         module: &ModuleQueryContext<'_>,
-    ) -> QueryResult<Self> {
-        let global_id = node_id.into_global(module.module_id());
-        let receiver = if let Some(module_id) = Self::namespace(global_id, module)? {
-            Self::Namespace { module_id }
-        } else if let Some(type_id) = module.types()?.get_node_type_id(global_id) {
-            Self::Type {
-                type_id,
-                is_optional,
+    ) -> QueryResult<Option<Self>> {
+        let view = module.view()?;
+        let global_source = source.into_global(module.module_id());
+        let receiver = match source.ty {
+            dir::NodeType::Expression => {
+                let source = dir::LocalNodeId::<dir::Expression>::new(source.id);
+                let dir::Expression::Member { left, .. } = view.get(source) else {
+                    return Ok(None);
+                };
+
+                left.into_any()
             }
+            dir::NodeType::TypeExpression => {
+                let source = dir::LocalNodeId::<dir::TypeExpression>::new(source.id);
+                match view.get(source) {
+                    dir::TypeExpression::Member { left, .. } => left.into_any(),
+                    dir::TypeExpression::Reference { .. } => {
+                        return match module.resolved()?.references.get(global_source) {
+                            Some(dir::Reference::Namespace(module_id)) => {
+                                Ok(Some(Self::Namespace {
+                                    module_id: *module_id,
+                                }))
+                            }
+                            Some(dir::Reference::Projected {
+                                base: dir::ImportTarget::Namespace(module_id),
+                                ..
+                            }) => Ok(Some(Self::Namespace {
+                                module_id: *module_id,
+                            })),
+                            Some(dir::Reference::Projected {
+                                base: dir::ImportTarget::Symbol(_),
+                                ..
+                            }) => Ok(Some(Self::Access {
+                                source: global_source,
+                            })),
+                            _ => Ok(None),
+                        };
+                    }
+                    _ => return Ok(None),
+                }
+            }
+            _ => return Ok(None),
+        };
+        let receiver = receiver.into_global(module.module_id());
+        let receiver = if let Some(module_id) = Self::namespace(receiver, module)? {
+            Self::Namespace { module_id }
         } else {
-            return Err(QueryError::missing(format!(
-                "completion receiver: {global_id:?}"
-            )));
+            Self::Access {
+                source: global_source,
+            }
         };
 
-        Ok(receiver)
+        Ok(Some(receiver))
     }
 
     /// Return the imported namespace selected by one receiver expression.
@@ -206,52 +194,11 @@ impl CompletionReceiver {
         receiver: dir::GlobalNodeIdAny,
         module: &ModuleQueryContext<'_>,
     ) -> QueryResult<Option<ModuleId>> {
-        if let Some(dir::Reference::Namespace(module_id)) =
-            module.resolved()?.references.get(receiver)
-        {
-            return Ok(Some(*module_id));
-        }
-
-        let Some(symbols) = module.recorded_symbol_targets(receiver)? else {
-            return Ok(None);
+        let module_id = match module.resolved()?.references.get(receiver) {
+            Some(dir::Reference::Namespace(module_id)) => Some(*module_id),
+            _ => None,
         };
-        let mut modules = Vec::new();
 
-        // follow exact namespace references on local dependency bindings
-        for symbol_id in symbols {
-            if symbol_id.module_id != module.module_id() {
-                continue;
-            }
-
-            let symbol = module.bindings()?.get_symbol(symbol_id.local_id);
-            let Some(declaration) = symbol.declaration else {
-                continue;
-            };
-            if declaration.local_id.ty != dir::NodeType::DependencyItem {
-                continue;
-            }
-
-            let reference =
-                module
-                    .resolved()?
-                    .references
-                    .get(declaration)
-                    .ok_or(QueryError::missing(format!(
-                        "canonical reference: {declaration:?}"
-                    )))?;
-            if let dir::Reference::Namespace(module_id) = reference {
-                modules.push(*module_id);
-            }
-        }
-
-        modules.sort();
-        modules.dedup();
-        match modules.as_slice() {
-            [] => Ok(None),
-            [module_id] => Ok(Some(*module_id)),
-            _ => Err(QueryError::invalid(format!(
-                "completion namespace: {receiver:?}"
-            ))),
-        }
+        Ok(module_id)
     }
 }

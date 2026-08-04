@@ -1,41 +1,90 @@
 use destack_dir as dir;
-use rustc_hash::FxHashSet;
 
 use super::builder::CompletionBuilder;
-use crate::{CompletionCandidate, CompletionOrigin, QueryResult, SORT_BUILTIN};
+use crate::{
+    CompletionCandidate, CompletionOrigin, Formatter, QueryError, QueryResult, SORT_BUILTIN,
+};
 
 impl CompletionBuilder<'_, '_, '_> {
-    /// Complete members of a type after `.`.
+    /// Complete one member expression.
     pub(super) fn complete_members(
         &self,
-        type_id: dir::GlobalTypeId,
-        is_optional: bool,
+        source: dir::GlobalNodeIdAny,
     ) -> QueryResult<Vec<CompletionCandidate>> {
+        let members = self.module.members()?;
+        let subject = members
+            .subject(source)
+            .ok_or(QueryError::missing(format!("member subject: {source:?}")))?;
+        let bindings = members.members(source).ok_or(QueryError::missing(format!(
+            "member bindings: source={source:?}, subject={subject:?}"
+        )))?;
+        let formatter = Formatter::new(self.module, self.program);
         let mut results = Vec::new();
-        let mut seen = FxHashSet::default();
 
-        // offer the receiver's apparent members in selection precedence
-        let origin = self.module.module_id();
-        for member in self
-            .program
-            .apparent_members(origin, type_id, is_optional)?
-        {
-            if !seen.insert(member.name.clone()) {
+        // render members expressible after a dot in precedence order
+        for member in bindings {
+            let dir::StaticKey::Name(name) = member.key else {
                 continue;
-            }
+            };
+            let label = self.module.strings().get(name).to_string();
             let completion = CompletionCandidate::new(
-                member.name,
-                member.kind,
+                label,
+                member.kind.into(),
                 CompletionOrigin::Member,
                 SORT_BUILTIN,
             );
-            let completion = match member.symbol {
-                Some(symbol) => self.attach_symbol_completion(completion, symbol)?,
-                None => completion,
-            };
-            results.push(completion);
+            results.push(self.describe_member(completion, member, &formatter)?);
         }
 
         Ok(results)
+    }
+
+    /// Build one completion from a selected member.
+    pub(super) fn describe_member(
+        &self,
+        mut completion: CompletionCandidate,
+        member: &dir::MemberBinding,
+        formatter: &Formatter<'_, '_, '_>,
+    ) -> QueryResult<CompletionCandidate> {
+        let declaration = member.declarations.first();
+        if let Some(symbol) = declaration.map(|declaration| declaration.symbol) {
+            completion = self.resolve_symbol(completion, symbol)?;
+            if completion.kind.is_callable() {
+                completion = completion.with_call();
+            }
+        }
+
+        // render the selected access type
+        let type_id = member
+            .access
+            .read()
+            .or_else(|| member.access.write())
+            .ok_or(QueryError::invalid("member selection has no access type"))?;
+        let is_callable = matches!(
+            member.kind,
+            dir::MemberKind::Method
+                | dir::MemberKind::Constructor
+                | dir::MemberKind::CallSignature
+                | dir::MemberKind::ConstructSignature
+        );
+        let callable = if is_callable {
+            declaration.and_then(|declaration| declaration.callable_type)
+        } else {
+            None
+        };
+        let detail = match callable {
+            Some(callable) => {
+                let names = declaration
+                    .map(|declaration| declaration.symbol)
+                    .map(|symbol| self.program.symbol_parameter_names(symbol))
+                    .transpose()?
+                    .flatten();
+
+                formatter.callable_type(callable, names.as_deref())?
+            }
+            None => formatter.global_type(type_id)?,
+        };
+
+        Ok(completion.with_detail(detail).with_type_id(type_id))
     }
 }

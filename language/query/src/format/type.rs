@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::{ModuleQueryContext, QueryError, QueryResult};
+use crate::{QueryError, QueryResult};
 
 use super::Formatter;
 use super::literal::quote_string;
@@ -25,7 +25,7 @@ pub(super) enum TypeOperand {
 impl Formatter<'_, '_, '_> {
     /// Format one node type.
     pub(crate) fn node_type(&self, node_id: dir::GlobalNodeIdAny) -> QueryResult<String> {
-        let Some(type_id) = self.module.types()?.get_node_type_id(node_id) else {
+        let Some(type_id) = self.types()?.get_node_type_id(node_id) else {
             return Err(QueryError::missing(format!("node type: {node_id:?}")));
         };
 
@@ -34,12 +34,12 @@ impl Formatter<'_, '_, '_> {
 
     /// Format one global type id.
     pub(crate) fn global_type(&self, type_id: dir::GlobalTypeId) -> QueryResult<String> {
-        self.query.read_type(type_id, |type_value, owner| {
+        self.read_type(type_id, |type_value, formatter| {
             if matches!(type_value, dir::Type::Error) {
                 return Err(QueryError::missing(format!("type formatting: {type_id:?}")));
             }
 
-            Formatter::new(owner, self.query).local_type(type_value)
+            formatter.local_type(type_value)
         })
     }
 
@@ -60,9 +60,9 @@ impl Formatter<'_, '_, '_> {
             dir::Type::Application(instance) => return self.instance(*instance),
             dir::Type::Parameter(parameter) => return self.generic_parameter_type(*parameter),
             dir::Type::Erased(_) => "*".to_string(),
-            dir::Type::Member(member) => return self.member(*self.module.types()?.member(*member)),
+            dir::Type::Member(member) => return self.member(*self.types()?.member(*member)),
             dir::Type::Refined(refined) => {
-                let refined = *self.module.types()?.refined(*refined);
+                let refined = *self.types()?.refined(*refined);
                 let base = self.type_operand(refined.base, TypeOperand::Postfix)?;
                 let key = self.property_key(refined.key)?;
                 let value = self.global_type(refined.value)?;
@@ -96,7 +96,7 @@ impl Formatter<'_, '_, '_> {
             dir::Type::Tuple(tuple) => return self.tuple(*tuple),
             dir::Type::Shape(shape) => return self.shape(*shape),
             dir::Type::FunctionSignature(function) => {
-                return self.function_type(self.module.types()?.signature(*function), None);
+                return self.function_type(self.types()?.signature(*function), None);
             }
             dir::Type::Function(function) => return self.global_type(function.signature),
             dir::Type::FunctionPointer(function) => {
@@ -110,7 +110,7 @@ impl Formatter<'_, '_, '_> {
             }
             dir::Type::This => "this".to_string(),
             dir::Type::Operation(operation) => {
-                return self.operation(self.module.types()?.operation(*operation));
+                return self.operation(self.types()?.operation(*operation));
             }
             dir::Type::Key(key) => return self.key_type(*key),
             dir::Type::Memory(literal) => quote_string(literal.text()),
@@ -158,7 +158,7 @@ impl Formatter<'_, '_, '_> {
     /// Format one generic instance.
     fn instance(&self, instance: dir::GenericApplication) -> QueryResult<String> {
         let symbol = self.symbol(instance.symbol)?;
-        let arguments = self.module.types()?.type_ids(instance.arguments);
+        let arguments = self.types()?.type_ids(instance.arguments);
 
         if arguments.is_empty() {
             return Ok(symbol);
@@ -173,7 +173,7 @@ impl Formatter<'_, '_, '_> {
     fn member(&self, member: dir::MemberType) -> QueryResult<String> {
         let owner = self.type_operand(member.owner, TypeOperand::Postfix)?;
         let key = self.member_key(member.key)?;
-        let arguments = self.module.types()?.type_ids(member.arguments);
+        let arguments = self.types()?.type_ids(member.arguments);
 
         if arguments.is_empty() {
             return Ok(format!("{owner}{key}"));
@@ -201,7 +201,7 @@ impl Formatter<'_, '_, '_> {
 
     /// Format one borrowed form from its solved lifetime and access.
     fn borrowed_form(&self, borrow: dir::BorrowFormId, value: &str) -> QueryResult<String> {
-        let borrow = *self.module.types()?.borrow_form(borrow);
+        let borrow = *self.types()?.borrow_form(borrow);
         let lifetime = self.borrow_lifetime(borrow.lifetime)?;
         let access = self.borrow_access(borrow.access)?;
 
@@ -274,7 +274,7 @@ impl Formatter<'_, '_, '_> {
 
     /// Format one tuple type.
     fn tuple(&self, tuple: dir::TupleType) -> QueryResult<String> {
-        let elements = self.module.types()?.elements(tuple.elements);
+        let elements = self.types()?.elements(tuple.elements);
         let is_singleton = elements.len() == 1;
         let mut formatted_elements = Vec::with_capacity(elements.len());
         for element in elements {
@@ -320,7 +320,7 @@ impl Formatter<'_, '_, '_> {
     fn shape(&self, shape: dir::ShapeType) -> QueryResult<String> {
         let mut members = Vec::new();
 
-        for property in self.module.types()?.properties(shape.properties) {
+        for property in self.types()?.properties(shape.properties) {
             members.push(self.property(property)?);
         }
         for signature in self
@@ -392,7 +392,7 @@ impl Formatter<'_, '_, '_> {
         separator: &str,
         operand: TypeOperand,
     ) -> QueryResult<String> {
-        let types = self.module.types()?.type_ids(list);
+        let types = self.types()?.type_ids(list);
         let mut formatted_types = Vec::with_capacity(types.len());
         for type_id in types {
             formatted_types.push(self.type_operand(*type_id, operand)?);
@@ -417,10 +417,9 @@ impl Formatter<'_, '_, '_> {
         type_id: dir::GlobalTypeId,
         operand: TypeOperand,
     ) -> QueryResult<String> {
-        self.query.read_type(type_id, |type_value, module| {
-            let formatter = Formatter::new(module, self.query);
+        self.read_type(type_id, |type_value, formatter| {
             let text = formatter.local_type(type_value)?;
-            if type_needs_parentheses(type_value, operand, module)? {
+            if type_needs_parentheses(type_value, operand, formatter)? {
                 Ok(format!("({text})"))
             } else {
                 Ok(text)
@@ -433,7 +432,7 @@ impl Formatter<'_, '_, '_> {
 fn type_needs_parentheses(
     type_value: &dir::Type,
     operand: TypeOperand,
-    module: &ModuleQueryContext<'_>,
+    formatter: &Formatter<'_, '_, '_>,
 ) -> QueryResult<bool> {
     let needs_parentheses = match type_value {
         dir::Type::Union(_) => matches!(
@@ -463,7 +462,7 @@ fn type_needs_parentheses(
                 | TypeOperand::StaticBinary
         ),
         dir::Type::Operation(operation) => {
-            let operation = module.types()?.operation(*operation);
+            let operation = formatter.types()?.operation(*operation);
             operation_needs_parentheses(operation, operand)
         }
         _ => false,

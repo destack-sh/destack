@@ -55,6 +55,8 @@ pub struct ModuleQueryContext<'a> {
     definitions: OnceLock<dir::DefinitionTable<'static>>,
     /// The cumulative resolution table.
     resolutions: OnceLock<dir::ResolutionTable<'static>>,
+    /// The checked member table.
+    members: OnceLock<dir::MemberTable<'static>>,
 }
 
 impl Debug for ModuleQueryContext<'_> {
@@ -99,6 +101,7 @@ impl<'a> ModuleQueryContext<'a> {
             generics: OnceLock::new(),
             definitions: OnceLock::new(),
             resolutions: OnceLock::new(),
+            members: OnceLock::new(),
         }
     }
 
@@ -388,6 +391,17 @@ impl<'a> ModuleQueryContext<'a> {
         Ok(self
             .resolutions
             .get_or_init(|| checked.resolution_table(declared)))
+    }
+
+    /// Return the checked DIR member table.
+    pub(crate) fn members(&self) -> QueryResult<&dir::MemberTable<'static>> {
+        if let Some(members) = self.members.get() {
+            return Ok(members);
+        }
+
+        let checked = self.checked()?;
+
+        Ok(self.members.get_or_init(|| checked.member_table()))
     }
 
     /// Return the cumulative DIR module table.

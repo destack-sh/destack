@@ -355,8 +355,10 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
     ) -> ProviderResult<Option<Span>> {
         // projected type paths bind the final namespace prefix, not the final source segment
         if source.local_id.ty == dir::NodeType::TypeExpression
-            && let Some(dir::Reference::Projected { base, from }) =
-                self.module.resolved().references.get(source)
+            && let Some(dir::Reference::Projected {
+                base: dir::ImportTarget::Symbol(base),
+                from,
+            }) = self.module.resolved().references.get(source)
         {
             if *base != target {
                 return Err(ProviderError::internal(format!(

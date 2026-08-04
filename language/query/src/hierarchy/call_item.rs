@@ -485,11 +485,7 @@ impl ModuleQueryContext<'_> {
                 "call item member: {symbol_id:?}"
             )));
         };
-        let name = member
-            .name(self.strings())
-            .ok_or(QueryError::missing(format!(
-                "call item member name: {symbol_id:?}"
-            )))?;
+        let name = Formatter::new(self, query).member_name(member)?;
         let kind = match method.slot {
             dir::MemberSlot::Constructor | dir::MemberSlot::New => CallItemKind::Constructor,
             dir::MemberSlot::Key(_) | dir::MemberSlot::Call => CallItemKind::Method,
@@ -643,12 +639,13 @@ impl ModuleQueryContext<'_> {
             )));
         };
 
-        // format the derived constructor from its retained variant row
-        let Some(name) = member.name(self.strings()) else {
-            return Err(QueryError::missing(format!(
+        // read the derived constructor key
+        let dir::StaticKey::Name(name) = variant.key else {
+            return Err(QueryError::invalid(format!(
                 "tagged variant key: {symbol_id:?}"
             )));
         };
+        let name = self.strings().get(name).to_string();
         let detail = match self.types()?.get_symbol_type_id(variant.symbol) {
             Some(type_id) => Some(Formatter::new(self, query).callable_signature(&name, type_id)?),
             None => None,

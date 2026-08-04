@@ -59,14 +59,13 @@ impl CompletionBuilder<'_, '_, '_> {
                 CompletionOrigin::Local,
                 SORT_LOCAL_SYMBOL,
             )
-            .with_detail(format!("new {signature}"))
-            .with_insert_text(snippet.text);
+            .with_detail(format!("new {signature}"));
             let completion = if snippet.is_snippet {
-                completion.with_snippet()
+                completion.with_snippet(snippet.text)
             } else {
-                completion
+                completion.with_insert_text(snippet.text)
             };
-            completions.push(self.attach_symbol_description(completion, symbol_id)?);
+            completions.push(self.resolve_symbol(completion, symbol_id)?);
         }
 
         Ok(completions)
@@ -137,15 +136,14 @@ impl CompletionBuilder<'_, '_, '_> {
             CompletionOrigin::Local,
             SORT_LOCAL_SYMBOL,
         )
-        .with_detail(name)
-        .with_insert_text(insert_text);
+        .with_detail(name);
         let completion = if fields.is_empty() {
-            completion
+            completion.with_insert_text(insert_text)
         } else {
-            completion.with_snippet()
+            completion.with_snippet(insert_text)
         };
 
-        self.attach_symbol_description(completion, symbol_id)
+        self.resolve_symbol(completion, symbol_id)
     }
 
     /// Build completion candidates for one newtype constructor family.
@@ -201,14 +199,13 @@ impl CompletionBuilder<'_, '_, '_> {
                 CompletionOrigin::Local,
                 SORT_LOCAL_SYMBOL,
             )
-            .with_detail(detail)
-            .with_insert_text(snippet.text);
+            .with_detail(detail);
             let completion = if snippet.is_snippet {
-                completion.with_snippet()
+                completion.with_snippet(snippet.text)
             } else {
-                completion
+                completion.with_insert_text(snippet.text)
             };
-            completions.push(self.attach_symbol_description(completion, symbol_id)?);
+            completions.push(self.resolve_symbol(completion, symbol_id)?);
         }
 
         Ok(completions)

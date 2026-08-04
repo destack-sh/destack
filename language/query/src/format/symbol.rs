@@ -195,7 +195,7 @@ impl Formatter<'_, '_, '_> {
         Ok(signature)
     }
 
-    /// Format one checked member symbol.
+    /// Format one member symbol.
     fn member_symbol_signature(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<String> {
         let (declaring, definition, member) =
             self.module
@@ -209,110 +209,98 @@ impl Formatter<'_, '_, '_> {
             .map(|owner| self.query.symbol_name(owner))
             .transpose()?
             .flatten();
-        let name = member
-            .name(self.module.strings())
-            .ok_or(QueryError::missing(format!(
-                "signature member name: {symbol_id:?}"
-            )))?;
+        let name = self.member_name(member)?;
         let name = match container {
             Some(container) => format!("{container}.{name}"),
             None => name,
         };
 
-        let signature = match member {
-            dir::DefinitionMember::Field(_) => {
-                let type_text = self.member_type(member)?;
-
-                format!("(property) {name}: {type_text}")
-            }
-            dir::DefinitionMember::Method(method) => {
-                if matches!(
-                    method.role,
-                    Some(dir::FunctionRole::Getter | dir::FunctionRole::Setter)
-                ) {
+        let signature =
+            match member {
+                dir::DefinitionMember::Field(_) => {
                     let type_text = self.member_type(member)?;
 
-                    return Ok(format!("(property) {name}: {type_text}"));
+                    format!("(property) {name}: {type_text}")
                 }
+                dir::DefinitionMember::Method(method) => {
+                    if matches!(
+                        method.role,
+                        Some(dir::FunctionRole::Getter | dir::FunctionRole::Setter)
+                    ) {
+                        let type_text = self.member_type(member)?;
 
-                let signature = self.authored_member_signature(member.source())?;
-                let signature = self.call_signature(&name, signature, false)?;
-                let kind = match method.slot {
-                    dir::MemberSlot::Key(_) => "method",
-                    dir::MemberSlot::Constructor | dir::MemberSlot::New => "constructor",
-                    dir::MemberSlot::Call => "function",
-                };
-
-                format!("({kind}) {signature}")
-            }
-            dir::DefinitionMember::AssociatedType(associated) => {
-                let constraint = associated
-                    .constraint
-                    .map(|constraint| self.global_type(constraint))
-                    .transpose()?;
-                let value = associated
-                    .value
-                    .map(|value| self.global_type(value))
-                    .transpose()?;
-
-                match (constraint, value) {
-                    (None, None) => format!("(type member) {name}"),
-                    (Some(constraint), None) => {
-                        format!("(type member) {name}: {constraint}")
+                        return Ok(format!("(property) {name}: {type_text}"));
                     }
-                    (None, Some(value)) => format!("(type member) {name} = {value}"),
-                    (Some(constraint), Some(value)) => {
-                        format!("(type member) {name}: {constraint} = {value}")
+
+                    let signature = self.authored_member_signature(member.source())?;
+                    let signature = self.call_signature(&name, signature, false)?;
+                    let kind = match method.slot {
+                        dir::MemberSlot::Key(_) => "method",
+                        dir::MemberSlot::Constructor | dir::MemberSlot::New => "constructor",
+                        dir::MemberSlot::Call => "function",
+                    };
+
+                    format!("({kind}) {signature}")
+                }
+                dir::DefinitionMember::AssociatedType(associated) => {
+                    let constraint = associated
+                        .constraint
+                        .map(|constraint| self.global_type(constraint))
+                        .transpose()?;
+                    let value = associated
+                        .value
+                        .map(|value| self.global_type(value))
+                        .transpose()?;
+
+                    match (constraint, value) {
+                        (None, None) => format!("(type member) {name}"),
+                        (Some(constraint), None) => {
+                            format!("(type member) {name}: {constraint}")
+                        }
+                        (None, Some(value)) => format!("(type member) {name} = {value}"),
+                        (Some(constraint), Some(value)) => {
+                            format!("(type member) {name}: {constraint} = {value}")
+                        }
                     }
                 }
-            }
-            dir::DefinitionMember::AssociatedConst(_) => {
-                let type_text = self.member_type(member)?;
+                dir::DefinitionMember::AssociatedConst(_) => {
+                    let type_text = self.member_type(member)?;
 
-                format!("(comptime const) {name}: {type_text}")
-            }
-            dir::DefinitionMember::EnumVariant(_) => {
-                let type_text = self.member_type(member)?;
-
-                format!("(enum member) {name}: {type_text}")
-            }
-            // format keys left behind by rejected variant derivations
-            dir::DefinitionMember::TaggedKey(key) => {
-                match self.module.types()?.get_symbol_type_id(key.symbol) {
-                    Some(type_id) => {
-                        let signature = self.callable_signature(&name, type_id)?;
-
-                        format!("(constructor) {signature}")
-                    }
-                    None => format!("(constructor) {name}"),
+                    format!("(comptime const) {name}: {type_text}")
                 }
-            }
-            dir::DefinitionMember::TaggedVariant(variant) => {
-                let type_id = self
-                    .module
-                    .types()?
-                    .get_symbol_type_id(variant.symbol)
-                    .ok_or(QueryError::missing(format!(
-                        "tagged variant type: {:?}",
-                        variant.symbol
-                    )))?;
-                let signature = self.callable_signature(&name, type_id)?;
+                dir::DefinitionMember::EnumVariant(_) => {
+                    let type_text = self.member_type(member)?;
 
-                format!("(constructor) {signature}")
-            }
-            dir::DefinitionMember::CallSignature(_)
-            | dir::DefinitionMember::ConstructSignature(_) => {
-                let signature = self.authored_member_signature(member.source())?;
-                let signature = self.call_signature(&name, signature, false)?;
+                    format!("(enum member) {name}: {type_text}")
+                }
+                // FUGU #Broken: check must replace every tagged key with a variant
+                dir::DefinitionMember::TaggedKey(key) => {
+                    return Err(QueryError::invalid(format!(
+                        "unresolved tagged key: {:?}",
+                        key.symbol
+                    )));
+                }
+                dir::DefinitionMember::TaggedVariant(variant) => {
+                    let type_id = self.types()?.get_symbol_type_id(variant.symbol).ok_or(
+                        QueryError::missing(format!("tagged variant type: {:?}", variant.symbol)),
+                    )?;
+                    let signature = self.callable_signature(&name, type_id)?;
 
-                format!("(function) {signature}")
-            }
-            dir::DefinitionMember::IndexSignature(_) => {
-                let type_text = self.member_type(member)?;
+                    format!("(constructor) {signature}")
+                }
+                dir::DefinitionMember::CallSignature(_)
+                | dir::DefinitionMember::ConstructSignature(_) => {
+                    let signature = self.authored_member_signature(member.source())?;
+                    let signature = self.call_signature(&name, signature, false)?;
 
-                format!("(property) {name}: {type_text}")
-            }
-        };
+                    format!("(function) {signature}")
+                }
+                dir::DefinitionMember::IndexSignature(_) => {
+                    let type_text = self.member_type(member)?;
+
+                    format!("(property) {name}: {type_text}")
+                }
+            };
 
         Ok(signature)
     }
@@ -337,7 +325,7 @@ impl Formatter<'_, '_, '_> {
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<String> {
         let symbol = self.module.bindings()?.get_symbol(symbol_id.local_id);
-        let Some(type_id) = self.module.types()?.get_symbol_type_id(symbol_id) else {
+        let Some(type_id) = self.types()?.get_symbol_type_id(symbol_id) else {
             return Err(QueryError::missing(format!(
                 "binding symbol type: {symbol_id:?}"
             )));
@@ -380,11 +368,10 @@ impl Formatter<'_, '_, '_> {
         signature.ok_or(QueryError::missing(format!("member signature: {source:?}")))
     }
 
-    /// Format the type carried by one checked member.
+    /// Format the type carried by one member.
     fn member_type(&self, member: &dir::DefinitionMember) -> QueryResult<String> {
         let type_id = if let Some(symbol) = member.type_symbol() {
-            self.module
-                .types()?
+            self.types()?
                 .get_symbol_type_id(symbol)
                 .ok_or(QueryError::missing(format!("member type: {symbol:?}")))?
         } else {

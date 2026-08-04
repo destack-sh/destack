@@ -1,14 +1,9 @@
 use destack_dir as dir;
 use destack_source::FileId;
 
-use rustc_hash::FxHashSet;
-
 use super::CompletionContext;
 use super::builder::CompletionBuilder;
-use crate::{
-    CompletionCandidate, CompletionItemKind, CompletionOrigin, ModuleQueryContext, QueryError,
-    QueryResult, SORT_BUILTIN, SymbolUse,
-};
+use crate::{CompletionCandidate, ModuleQueryContext, QueryError, QueryResult};
 
 /// Source spans owned by one object literal.
 struct ObjectLiteralSpans<'a> {
@@ -38,7 +33,9 @@ impl ModuleQueryContext<'_> {
         // resolve visible DIR for object literal context
         let view = self.view()?;
 
-        // look for an object expression under the cursor
+        let mut literal = None;
+
+        // select the innermost object expression by its complete authored span
         for enclosing_span in &enclosing {
             let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
                 continue;
@@ -51,60 +48,36 @@ impl ModuleQueryContext<'_> {
             else {
                 continue;
             };
-            let Some(scope) = self.expression_scope_at_offset(expression_id)? else {
-                return Ok(None);
-            };
-            let object_spans = ObjectLiteralSpans {
-                module: self,
-                view,
-                properties,
-            };
-
-            // property values stay in the surrounding expression scope
-            if !object_spans.owns_key_cursor(offset)? {
-                return Ok(Some(CompletionContext::ObjectLiteralValue { scope }));
+            let span = self.node_span(view, expression_id.into())?;
+            if !span.owns_cursor(offset) {
+                continue;
             }
-
-            let existing_fields = self.object_property_names(properties)?;
-
-            return Ok(Some(CompletionContext::ObjectLiteralKey {
-                literal: expression_id,
-                existing_fields,
-                scope,
-            }));
-        }
-
-        Ok(None)
-    }
-
-    /// Return object literal property names.
-    fn object_property_names(
-        &self,
-        properties: &[dir::LocalNodeId<dir::Property>],
-    ) -> QueryResult<Vec<String>> {
-        let view = self.view()?;
-        let mut names = Vec::new();
-
-        // collect static property names from declared fields and methods
-        for &property_id in properties {
-            let property = view.get::<dir::Property>(property_id);
-            match property {
-                dir::Property::Field { key, .. } => {
-                    if let dir::Key::Name(name) = *key {
-                        names.push(self.strings().get(name.string()).to_string());
-                    }
-                }
-                dir::Property::Method { key, .. } => {
-                    if let Some(dir::Key::Name(name)) = key {
-                        names.push(self.strings().get(name.string()).to_string());
-                    }
-                }
-                dir::Property::Spread { .. } => {}
-                dir::Property::Error => {}
+            if literal.is_none_or(|(length, _, _)| span.len() < length) {
+                literal = Some((span.len(), expression_id, properties.as_slice()));
             }
         }
 
-        Ok(names)
+        let Some((_, expression_id, properties)) = literal else {
+            return Ok(None);
+        };
+        let Some(scope) = self.expression_scope_at_offset(expression_id)? else {
+            return Ok(None);
+        };
+        let object_spans = ObjectLiteralSpans {
+            module: self,
+            view,
+            properties,
+        };
+
+        // property values stay in the surrounding expression scope
+        if !object_spans.owns_key_cursor(offset)? {
+            return Ok(Some(CompletionContext::ObjectLiteralValue { scope }));
+        }
+
+        Ok(Some(CompletionContext::ObjectLiteralKey {
+            literal: expression_id,
+            scope,
+        }))
     }
 }
 
@@ -198,82 +171,13 @@ impl CompletionBuilder<'_, '_, '_> {
     pub(super) fn complete_expected_fields(
         &self,
         literal: dir::LocalNodeId<dir::Expression>,
-        existing_fields: &[String],
+        _scope: dir::LocalScope,
     ) -> QueryResult<Vec<CompletionCandidate>> {
-        let mut results = Vec::new();
-
-        // read the contextual expectation retained by check
         let node = literal.into_global_any(self.module.module_id());
-        let types = self.module.types()?;
-        let Some(expected) = types
-            .get_expected_type_id(node)
-            .or_else(|| types.get_node_type_id(node))
-        else {
-            return Ok(results);
-        };
 
-        // offer each missing field declared by the expected type
-        for (name, symbol) in self.program.type_field_names(expected)? {
-            if existing_fields.contains(&name) {
-                continue;
-            }
-            let completion = CompletionCandidate::new(
-                name,
-                CompletionItemKind::Field,
-                CompletionOrigin::Local,
-                SORT_BUILTIN,
-            );
-            let completion = match symbol {
-                Some(symbol) => self.attach_symbol_completion(completion, symbol)?,
-                None => completion,
-            };
-            results.push(completion);
-        }
-
-        Ok(results)
-    }
-
-    /// Complete visible shorthand values inside an object literal.
-    pub(super) fn complete_object_literal_shorthands(
-        &self,
-        existing_fields: &[String],
-        scope: dir::LocalScope,
-    ) -> QueryResult<Vec<CompletionCandidate>> {
-        let mut results = Vec::new();
-        let mut seen_names = FxHashSet::default();
-
-        // collect visible values that can form shorthand fields
-        let symbols = self.module.bindings()?;
-        for visible in symbols
-            .visible_bindings(scope)
-            .filter(|binding| SymbolUse::Value.accepts_symbol_kind(binding.symbol.kind))
-        {
-            let dir::StaticKey::Name(name_id) = visible.key else {
-                continue;
-            };
-
-            let name = self.module.strings().get(name_id).to_string();
-            if !seen_names.insert(name.clone()) {
-                continue;
-            }
-
-            if existing_fields.contains(&name) {
-                continue;
-            }
-
-            let symbol_id = dir::GlobalSymbolId {
-                module_id: self.module.module_id(),
-                local_id: visible.symbol_id,
-            };
-            let completion = CompletionCandidate::new(
-                name,
-                CompletionItemKind::Field,
-                CompletionOrigin::Local,
-                SORT_BUILTIN,
-            );
-            results.push(self.attach_symbol_completion(completion, symbol_id)?);
-        }
-
-        Ok(results)
+        // FUGU #Incomplete: checked construction must retain accepted and authored fields
+        Err(QueryError::missing(format!(
+            "object construction bindings: {node:?}"
+        )))
     }
 }

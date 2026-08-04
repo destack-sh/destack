@@ -16,8 +16,8 @@ struct CompletionScore {
     context_order: u8,
     /// The semantic origin order bucket.
     origin_order: u8,
-    /// The context-shaped semantic order bucket.
-    semantic_order: u8,
+    /// The item-kind order bucket for the active context.
+    kind_order: u8,
     /// The producer order bucket.
     producer_order: u32,
     /// The deprecated order bucket.
@@ -74,7 +74,7 @@ impl CompletionScore {
             lexical,
             context_order: scorer.context_order(completion),
             origin_order: scorer.origin_order(completion),
-            semantic_order: scorer.semantic_order(completion),
+            kind_order: scorer.kind_order(completion),
             producer_order: completion.producer_order,
             deprecated_order: u8::from(completion.is_deprecated),
         }
@@ -109,7 +109,7 @@ impl CompletionScorer<'_> {
             .context_order
             .cmp(&right.score.context_order)
             .then(left.score.origin_order.cmp(&right.score.origin_order))
-            .then(left.score.semantic_order.cmp(&right.score.semantic_order))
+            .then(left.score.kind_order.cmp(&right.score.kind_order))
             .then(
                 left.score
                     .lexical
@@ -212,8 +212,8 @@ impl CompletionScorer<'_> {
         }
     }
 
-    /// Return the context-shaped semantic order for this completion.
-    fn semantic_order(&self, completion: &CompletionCandidate) -> u8 {
+    /// Return the item-kind order for the active context.
+    fn kind_order(&self, completion: &CompletionCandidate) -> u8 {
         match self.context {
             CompletionContext::TypePosition { .. } => completion.kind.type_position_order(),
             CompletionContext::NewExpression { .. } => completion.kind.new_expression_order(),
@@ -227,7 +227,7 @@ impl CompletionScorer<'_> {
 }
 
 impl CompletionItemKind {
-    /// Return the semantic order for type-position completions.
+    /// Return the item-kind order for type-position completions.
     fn type_position_order(self) -> u8 {
         match self {
             CompletionItemKind::AssociatedType
@@ -246,7 +246,7 @@ impl CompletionItemKind {
         }
     }
 
-    /// Return the semantic order for new-expression completions.
+    /// Return the item-kind order for new-expression completions.
     fn new_expression_order(self) -> u8 {
         match self {
             CompletionItemKind::Struct => 0,
@@ -257,7 +257,7 @@ impl CompletionItemKind {
         }
     }
 
-    /// Return the semantic order for object-literal completions.
+    /// Return the item-kind order for object-literal completions.
     fn object_literal_order(self) -> u8 {
         match self {
             CompletionItemKind::Field => 0,
@@ -276,7 +276,7 @@ impl CompletionItemKind {
         }
     }
 
-    /// Return the semantic order for member completions.
+    /// Return the item-kind order for member completions.
     fn member_access_order(self) -> u8 {
         match self {
             CompletionItemKind::Field
@@ -292,7 +292,7 @@ impl CompletionItemKind {
         }
     }
 
-    /// Return the semantic order for import-clause completions.
+    /// Return the item-kind order for import-clause completions.
     fn import_clause_order(self) -> u8 {
         match self {
             CompletionItemKind::AssociatedType
@@ -319,7 +319,7 @@ impl CompletionItemKind {
         }
     }
 
-    /// Return the semantic order for import-path completions.
+    /// Return the item-kind order for import-path completions.
     fn import_path_order(self) -> u8 {
         match self {
             CompletionItemKind::Module => 0,
@@ -328,7 +328,7 @@ impl CompletionItemKind {
         }
     }
 
-    /// Return the semantic order for value-position completions.
+    /// Return the item-kind order for value-position completions.
     fn value_position_order(self) -> u8 {
         match self {
             CompletionItemKind::AssociatedConst

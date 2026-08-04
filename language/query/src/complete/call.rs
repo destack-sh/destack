@@ -69,6 +69,28 @@ impl CallSnippet {
             }
         }
     }
+
+    /// Build a call insertion from one object argument's fields.
+    pub(super) fn object(function_name: &str, fields: &[String]) -> Self {
+        if fields.is_empty() {
+            Self {
+                text: format!("{function_name}()"),
+                is_snippet: false,
+            }
+        } else {
+            let fields = fields
+                .iter()
+                .enumerate()
+                .map(|(index, field)| format!("{field}: ${{{}}}", index + 1))
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            Self {
+                text: format!("{function_name}({{ {fields} }})$0"),
+                is_snippet: true,
+            }
+        }
+    }
 }
 
 impl<'a> CallExpression<'a> {

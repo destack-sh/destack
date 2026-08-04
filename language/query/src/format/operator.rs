@@ -137,8 +137,8 @@ impl Formatter<'_, '_, '_> {
 
     /// Format one template literal type.
     fn template_literal(&self, template: dir::TemplateLiteralType) -> QueryResult<String> {
-        let strings = self.module.types()?.type_ids(template.strings);
-        let spans = self.module.types()?.type_ids(template.spans);
+        let strings = self.types()?.type_ids(template.strings);
+        let spans = self.types()?.type_ids(template.spans);
         if strings.len() != spans.len() + 1 {
             return Err(QueryError::invalid("template literal"));
         }

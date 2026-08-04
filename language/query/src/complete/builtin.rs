@@ -73,7 +73,7 @@ pub(super) fn keyword_completions() -> Vec<CompletionCandidate> {
         )
         .with_ordering_text(length_ordering_text(label));
         if let Some(snippet) = keyword_snippet(keyword) {
-            completion = completion.with_insert_text(snippet).with_snippet();
+            completion = completion.with_snippet(snippet);
         }
 
         completions.push(completion);

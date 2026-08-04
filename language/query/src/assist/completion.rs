@@ -4,7 +4,9 @@ use destack_source::{FileId, Patch, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::complete::{CompletionBuilder, CompletionCursor, filter_completions};
-use crate::{ImportOrder, ModuleQueryContext, ProgramQueryContext, QueryPosition, QueryResult};
+use crate::{
+    ImportOrder, ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult,
+};
 
 /// Sort order for local declaration candidates.
 pub(crate) const SORT_LOCAL_SYMBOL: u32 = 10;
@@ -119,6 +121,21 @@ impl From<dir::SymbolKind> for CompletionItemKind {
     }
 }
 
+impl From<dir::MemberKind> for CompletionItemKind {
+    /// Convert one member kind into a completion kind.
+    fn from(kind: dir::MemberKind) -> Self {
+        match kind {
+            dir::MemberKind::Field | dir::MemberKind::IndexSignature => Self::Field,
+            dir::MemberKind::Property => Self::Property,
+            dir::MemberKind::Method | dir::MemberKind::CallSignature => Self::Method,
+            dir::MemberKind::Constructor | dir::MemberKind::ConstructSignature => Self::Constructor,
+            dir::MemberKind::AssociatedType => Self::AssociatedType,
+            dir::MemberKind::AssociatedConst => Self::AssociatedConst,
+            dir::MemberKind::Variant => Self::EnumMember,
+        }
+    }
+}
+
 impl From<&dir::Symbol> for CompletionItemKind {
     /// Convert one checked symbol into its exact completion kind.
     fn from(symbol: &dir::Symbol) -> Self {
@@ -179,10 +196,8 @@ pub(crate) struct CompletionCandidate {
     pub(crate) detail: Option<String>,
     /// Documentation for the item.
     pub(crate) documentation: Option<String>,
-    /// Text to insert when selected if different from the label.
-    pub(crate) insert_text: Option<String>,
-    /// Whether the insert text is one snippet.
-    pub(crate) is_snippet: bool,
+    /// The insertion produced when this candidate is selected.
+    insertion: CompletionInsertion,
     /// The producer ordering bucket.
     pub(crate) producer_order: u32,
     /// Stable text used to order otherwise equal candidates.
@@ -201,6 +216,21 @@ pub(crate) struct CompletionCandidate {
     pub(crate) import_order: Option<ImportOrder>,
     /// The exact checked value type when this candidate denotes one.
     pub(crate) type_id: Option<dir::GlobalTypeId>,
+    /// The declaration used to describe this candidate.
+    pub(crate) symbol: Option<dir::GlobalSymbolId>,
+}
+
+/// The insertion produced by one completion candidate.
+#[derive(Debug, Clone)]
+enum CompletionInsertion {
+    /// Insert the candidate label.
+    Label,
+    /// Render a call after filtering.
+    Call,
+    /// Insert exact text.
+    Text(String),
+    /// Insert an editor snippet.
+    Snippet(String),
 }
 
 /// Completion candidates and whether collection was truncated.
@@ -266,14 +296,19 @@ impl ModuleQueryContext<'_> {
         let replacement_start = token.as_ref().map_or(offset, |token| token.start);
         let replacement_end = token.as_ref().map_or(offset, |token| token.end);
         let replacement = Span::new(file_id, replacement_start, replacement_end);
-        let items = filter_completions(completions.items, &context, token.as_ref())
-            .into_iter()
-            .map(|completion| completion.into_item(replacement))
-            .collect();
+        let is_incomplete = completions.is_incomplete;
+        let completions = filter_completions(completions.items, &context, token.as_ref());
+        let mut items = Vec::with_capacity(completions.len());
+
+        // render only candidates returned to the editor
+        for completion in completions {
+            let completion = builder.describe(completion)?;
+            items.push(completion.into_item(replacement)?);
+        }
 
         Ok(CompletionResponse {
             items,
-            is_incomplete: completions.is_incomplete,
+            is_incomplete,
         })
     }
 }
@@ -291,8 +326,7 @@ impl CompletionCandidate {
             kind,
             detail: None,
             documentation: None,
-            insert_text: None,
-            is_snippet: false,
+            insertion: CompletionInsertion::Label,
             producer_order,
             ordering_text: None,
             preselect: false,
@@ -302,7 +336,20 @@ impl CompletionCandidate {
             origin,
             import_order: None,
             type_id: None,
+            symbol: None,
         }
+    }
+
+    /// Build a call insertion after filtering.
+    pub(crate) fn with_call(mut self) -> Self {
+        self.insertion = CompletionInsertion::Call;
+
+        self
+    }
+
+    /// Return whether this candidate still needs call rendering.
+    pub(crate) fn is_call(&self) -> bool {
+        matches!(self.insertion, CompletionInsertion::Call)
     }
 
     /// Set the detail text.
@@ -319,13 +366,15 @@ impl CompletionCandidate {
 
     /// Set the insert text.
     pub(crate) fn with_insert_text(mut self, text: impl Into<String>) -> Self {
-        self.insert_text = Some(text.into());
+        self.insertion = CompletionInsertion::Text(text.into());
+
         self
     }
 
-    /// Mark the item as one snippet.
-    pub(crate) fn with_snippet(mut self) -> Self {
-        self.is_snippet = true;
+    /// Set the insertion snippet.
+    pub(crate) fn with_snippet(mut self, text: impl Into<String>) -> Self {
+        self.insertion = CompletionInsertion::Snippet(text.into());
+
         self
     }
 
@@ -367,10 +416,19 @@ impl CompletionCandidate {
     }
 
     /// Build the public completion item for one exact replacement range.
-    fn into_item(self, span: Span) -> CompletionItem {
-        let new_text = self.insert_text.unwrap_or_else(|| self.label.clone());
+    fn into_item(self, span: Span) -> QueryResult<CompletionItem> {
+        let (new_text, is_snippet) = match self.insertion {
+            CompletionInsertion::Label => (self.label.clone(), false),
+            CompletionInsertion::Text(text) => (text, false),
+            CompletionInsertion::Snippet(text) => (text, true),
+            CompletionInsertion::Call => {
+                return Err(QueryError::invalid(
+                    "completion call insertion was not rendered",
+                ));
+            }
+        };
 
-        CompletionItem {
+        Ok(CompletionItem {
             label: self.label,
             kind: self.kind,
             detail: self.detail,
@@ -378,13 +436,20 @@ impl CompletionCandidate {
             edit: CompletionEdit {
                 span,
                 new_text,
-                is_snippet: self.is_snippet,
+                is_snippet,
             },
             preselect: self.preselect,
             is_deprecated: self.is_deprecated,
             additional_edits: self.additional_edits,
             is_auto_import: self.origin == CompletionOrigin::AutoImport,
             match_positions: self.match_positions,
-        }
+        })
+    }
+}
+
+impl CompletionItemKind {
+    /// Return whether this item can insert a call.
+    pub(crate) fn is_callable(self) -> bool {
+        matches!(self, Self::Constructor | Self::Function | Self::Method)
     }
 }
