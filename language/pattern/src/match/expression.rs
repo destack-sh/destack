@@ -934,16 +934,6 @@ impl Matcher<'_, '_> {
                     ty: candidate_type,
                     arguments: candidate_arguments,
                 },
-            )
-            | (
-                dir::Expression::NewMaybe {
-                    ty: pattern_type,
-                    arguments: pattern_arguments,
-                },
-                dir::Expression::NewMaybe {
-                    ty: candidate_type,
-                    arguments: candidate_arguments,
-                },
             ) => {
                 if !self.match_type_expression(nodes, *pattern_type, *candidate_type, bindings)? {
                     return Ok(false);

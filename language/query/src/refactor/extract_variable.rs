@@ -437,9 +437,7 @@ fn first_argument_owner(
         .try_into_typed::<dir::Expression>()
         .map_err(|_| invalid_extraction_node(parent, module))?;
     let is_first = match view.get(owner) {
-        dir::Expression::New { arguments, .. } | dir::Expression::NewMaybe { arguments, .. } => {
-            arguments.first() == Some(&argument)
-        }
+        dir::Expression::New { arguments, .. } => arguments.first() == Some(&argument),
         dir::Expression::ArrayExpression { elements }
         | dir::Expression::TupleExpression { elements } => elements.first() == Some(&argument),
         _ => false,

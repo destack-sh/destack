@@ -332,10 +332,6 @@ impl ModuleQueryContext<'_> {
                 dir::Expression::New {
                     ty: type_expression,
                     ..
-                }
-                | dir::Expression::NewMaybe {
-                    ty: type_expression,
-                    ..
                 } if type_expression.into_any() == current => {
                     return CallableSelection::from_construct(expression_id, self).map(Some);
                 }

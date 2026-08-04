@@ -147,10 +147,7 @@ impl Sequence {
                     None
                 }
             }
-            dir::Expression::New { arguments, .. }
-            | dir::Expression::NewMaybe { arguments, .. }
-                if node.ty == dir::NodeType::Argument =>
-            {
+            dir::Expression::New { arguments, .. } if node.ty == dir::NodeType::Argument => {
                 Self::containing(arguments, node)
             }
             _ => None,

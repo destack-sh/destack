@@ -679,10 +679,6 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
             dir::Expression::New {
                 ty: type_expression,
                 ..
-            }
-            | dir::Expression::NewMaybe {
-                ty: type_expression,
-                ..
             } => Ok(vec![
                 type_expression.into_global_any(self.module.module_id()),
             ]),

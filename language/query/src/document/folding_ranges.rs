@@ -275,7 +275,6 @@ impl ModuleQueryContext<'_> {
                     | dir::Expression::StructExpression { .. }
                     | dir::Expression::Call { .. }
                     | dir::Expression::New { .. }
-                    | dir::Expression::NewMaybe { .. }
             ) {
                 continue;
             }
