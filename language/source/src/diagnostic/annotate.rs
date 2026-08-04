@@ -259,7 +259,14 @@ fn write_annotated_line(
     let (visible_start, visible_end, line_start, line_end) = bounds;
 
     // source row
-    write_gutter(buffer, Some(line), width, is_annotated, options);
+    write_gutter(
+        buffer,
+        Some(line),
+        width,
+        is_annotated,
+        !visible.is_empty(),
+        options,
+    );
     if truncate_left {
         buffer.push_str(ELIDE);
     }
@@ -324,7 +331,7 @@ fn write_annotated_line(
     labels.sort_by_key(|label| label.column);
     let inline = labels.pop();
 
-    write_gutter(buffer, None, width, true, options);
+    write_gutter(buffer, None, width, true, true, options);
     write_caret_cells(buffer, &cells, options);
     if let Some(inline) = &inline {
         buffer.push(' ');
@@ -334,11 +341,11 @@ fn write_annotated_line(
 
     // remaining labels stack under connector rows, right to left
     if !labels.is_empty() {
-        write_gutter(buffer, None, width, true, options);
+        write_gutter(buffer, None, width, true, true, options);
         write_connectors(buffer, &labels, labels.len(), options);
         buffer.push('\n');
         for index in (0..labels.len()).rev() {
-            write_gutter(buffer, None, width, true, options);
+            write_gutter(buffer, None, width, true, true, options);
             let column = write_connectors(buffer, &labels, index, options);
             for _ in column..labels[index].column {
                 buffer.push(' ');
@@ -485,6 +492,7 @@ fn write_gutter(
     line: Option<u32>,
     width: u32,
     is_annotated: bool,
+    is_padded: bool,
     options: &AnnotateOptions,
 ) {
     let number = line.map(|line| line.saturating_add(1).to_string());
@@ -503,10 +511,11 @@ fn write_gutter(
             buffer.push_str(number);
         }
     }
+    let gutter = if is_padded { GUTTER } else { GUTTER.trim_end() };
     if options.use_color {
-        buffer.push_str(&options.color_meta.apply(GUTTER));
+        buffer.push_str(&options.color_meta.apply(gutter));
     } else {
-        buffer.push_str(GUTTER);
+        buffer.push_str(gutter);
     }
 }
 
