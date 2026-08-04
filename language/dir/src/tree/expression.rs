@@ -721,18 +721,6 @@ pub enum Expression {
         arguments: Vec<LocalNodeId<Argument>>,
     },
 
-    /// Fallible new constructor call with immediate allocation failure propagation.
-    ///
-    /// Examples:
-    /// ```
-    /// new? Foo()
-    /// new? Foo(1, 2, 3)
-    /// ```
-    NewMaybe {
-        ty: LocalNodeId<TypeExpression>,
-        arguments: Vec<LocalNodeId<Argument>>,
-    },
-
     /// Optional chain boundary around accesses that may short-circuit.
     ///
     /// Examples:
@@ -901,7 +889,6 @@ impl Expression {
             Self::Infer { .. } => "Infer",
             Self::Call { .. } => "Call",
             Self::New { .. } => "New",
-            Self::NewMaybe { .. } => "NewMaybe",
             Self::Chain { .. } => "Chain",
             Self::Maybe { .. } => "Maybe",
             Self::Must { .. } => "Must",
