@@ -554,7 +554,7 @@ entry:
             r#"
 function backoff(): void {
 entry:
-    intrinsic.sync.spinLoop()
+    intrinsic.hint.spinLoop()
     return
 }
 "#,
@@ -575,7 +575,7 @@ entry:
             r#"
 function conceal(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = intrinsic.error.debug.blackBox(v0)
+    v1: int32 = intrinsic.hint.blackBox(v0)
     return v1
 }
 "#,

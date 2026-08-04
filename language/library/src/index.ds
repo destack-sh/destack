@@ -41,6 +41,7 @@ export * as ffi from "./ffi";
 export * as fs from "./fs";
 export * as fuzz from "./fuzz";
 export * as gpu from "./gpu";
+export * as hint from "./hint";
 export * as http from "./http";
 export * as https from "./https";
 export * as input from "./input";

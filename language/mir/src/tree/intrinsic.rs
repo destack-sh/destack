@@ -270,9 +270,9 @@ impl Intrinsic {
             Intrinsic::Round => "math.float.round",
 
             // compiler hints
-            Intrinsic::SpinLoop => "sync.spinLoop",
+            Intrinsic::SpinLoop => "hint.spinLoop",
             Intrinsic::Expect => "expect",
-            Intrinsic::BlackBox => "error.debug.blackBox",
+            Intrinsic::BlackBox => "hint.blackBox",
         }
     }
 
@@ -430,9 +430,9 @@ impl FromStr for Intrinsic {
             "math.float.ceil" => Ok(Intrinsic::Ceil),
             "math.float.trunc" => Ok(Intrinsic::Trunc),
             "math.float.round" => Ok(Intrinsic::Round),
-            "sync.spinLoop" => Ok(Intrinsic::SpinLoop),
+            "hint.spinLoop" => Ok(Intrinsic::SpinLoop),
             "expect" => Ok(Intrinsic::Expect),
-            "error.debug.blackBox" => Ok(Intrinsic::BlackBox),
+            "hint.blackBox" => Ok(Intrinsic::BlackBox),
             _ => Err(()),
         }
     }

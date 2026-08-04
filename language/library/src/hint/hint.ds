@@ -1,0 +1,21 @@
+/// Prevent the optimizer from reasoning through a value.
+///
+/// This is a best-effort optimization barrier and must not be used for correctness or security.
+///
+/// ```
+/// const input = blackBox(42);
+/// ```
+@intrinsic("hint.blackBox")
+export declare function blackBox<T>(value: T): T;
+
+/// Signal that execution is inside a short busy-wait loop.
+///
+/// Longer waits should stop spinning and use a blocking synchronization operation.
+///
+/// ```
+/// while (!ready.load()) {
+///     spinLoop();
+/// }
+/// ```
+@intrinsic("hint.spinLoop")
+export declare function spinLoop(): void;

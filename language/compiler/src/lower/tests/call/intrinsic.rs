@@ -104,7 +104,7 @@ entry(v0: int32):
 fn test_lower_spin_loop_intrinsic_without_a_result() {
     let session = TestSession::single(
         r#"
-@intrinsic("sync.spinLoop")
+@intrinsic("hint.spinLoop")
 declare function spinLoop(): void;
 
 function wait(): void {
@@ -118,7 +118,7 @@ function wait(): void {
         r#"
 function test.main.wait(): void {
 entry:
-    intrinsic.sync.spinLoop()
+    intrinsic.hint.spinLoop()
     return
 }
 "#,
