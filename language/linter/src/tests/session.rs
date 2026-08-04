@@ -2,19 +2,24 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
-use destack_artifact::{ArtifactKey, BuildId, MemoryBlobStore, NullArtifactStore};
+use destack_artifact::{
+    ArtifactKey, BuildId, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay, DiagnosticError,
+    MemoryBlobStore, MirLowered, NullArtifactStore, ToDiagnostic,
+};
+use destack_mir as mir;
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Ref, Repository,
     Revision, Settings,
 };
 use destack_session::Session;
 use destack_source::{
-    Applicability, Content, DiagnosticCollection, DiffOptions, File, FileId, FilePatch,
-    MemoryFileSystem, PrintOptions, TargetId, apply_file_patch, format_diff, print_diagnostics,
+    Applicability, Content, DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity,
+    DiagnosticTarget, DiffOptions, File, FileId, FilePatch, FileType, MemoryFileSystem, ModuleId,
+    PackageId, PrintOptions, TargetId, Uri, apply_file_patch, format_diff, print_diagnostics,
 };
 use serde_json::{Map, Value, json};
 
-use crate::{Fixability, LINTS, Lint};
+use crate::{Fixability, LINTS, Lint, LintCheck, LintScope, MirModule};
 
 const SOURCE_PATH: &str = "main.ds";
 const TARGET_NAME: &str = "native";
@@ -23,21 +28,17 @@ const TARGET_NAME: &str = "native";
 pub(crate) struct TestSession {
     /// The lint under test.
     lint: &'static Lint,
-    /// The shared repository.
-    repository: Arc<Repository>,
-    /// The immutable test revision.
-    revision: Revision,
     /// The emitted diagnostics.
     diagnostics: DiagnosticCollection,
-    /// The source file id.
-    file: FileId,
+    /// The displayed fixture file.
+    file: Arc<File>,
 }
 
 impl TestSession {
     /// Assert the canonical reported and accepted examples for one lint.
     #[track_caller]
     pub(crate) fn assert_example(lint: &'static Lint) {
-        let reported = Self::new(lint, lint.example.reported());
+        let reported = Self::dir(lint, lint.example.reported());
         let [diagnostic] = reported.diagnostics.diagnostics.as_slice() else {
             panic!(
                 "lint '{}' example emitted {} diagnostics:\n{}",
@@ -75,12 +76,12 @@ impl TestSession {
         }
 
         // require the accepted form to remain clean
-        let accepted = Self::new(lint, lint.example.accepted());
+        let accepted = Self::dir(lint, lint.example.accepted());
         accepted.assert_no_diagnostics();
     }
 
-    /// Run one isolated lint test.
-    pub(crate) fn new(lint: &'static Lint, source: &str) -> Self {
+    /// Run one isolated checked DIR lint fixture.
+    pub(crate) fn dir(lint: &'static Lint, source: &str) -> Self {
         let (repository, base) = shared_repository();
         let configuration = lint_configuration(lint);
         let edits = [
@@ -128,20 +129,100 @@ impl TestSession {
             None,
         )
         .expect("lint test session should open");
-        let key = ArtifactKey::module_linted(module.id, profile, target);
-        session
-            .require(revision, key)
-            .expect("lint test artifact should be provided");
+        let key = match lint.check.scope() {
+            LintScope::Module => ArtifactKey::module_linted(module.id, profile, target),
+            LintScope::Program => ArtifactKey::program_linted(profile, target),
+        };
+        if let Err(error) = session.require(revision, key) {
+            let diagnostics = repository
+                .diagnostics(revision, None)
+                .expect("lint test diagnostics should be readable");
+            let diagnostics = render_diagnostics(repository, revision, &diagnostics);
+
+            panic!("lint test artifact failed: {error}\n\n{diagnostics}");
+        }
         let diagnostics = repository
             .diagnostics_for_keys(revision, &[key])
             .expect("lint test diagnostics should be readable");
+        let file = repository
+            .file(revision, module.file_id)
+            .expect("lint test source should be readable")
+            .expect("lint test source should exist");
 
         Self {
             lint,
-            repository: repository.clone(),
-            revision,
             diagnostics,
-            file: module.file_id,
+            file,
+        }
+    }
+
+    /// Run one isolated MIR module lint fixture.
+    pub(crate) fn mir(lint: &'static Lint, source: &str) -> Self {
+        let file = Arc::new(File::from_text(
+            FileId::new(0),
+            "main.mir".to_string(),
+            Uri::from_string("main.mir"),
+            None,
+            FileType::Text,
+            trim_source_frame(source).to_string(),
+        ));
+        let parsed = mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
+            .expect("lint MIR should be text");
+        if parsed
+            .diagnostics
+            .has_diagnostics_of_severity(DiagnosticSeverity::Error)
+        {
+            let diagnostics = render_diagnostics_with(&parsed.diagnostics, |id| {
+                (id == file.id).then(|| file.clone())
+            });
+
+            panic!("failed to parse lint MIR:\n{diagnostics}");
+        }
+
+        // build the MIR module consumed by the lint
+        let (tree, target, types, layouts, dispatch, drops, memory, effects, profile, strings, _) =
+            parsed.into_parts();
+        let lowered = MirLowered {
+            tree,
+            target,
+            types,
+            layouts,
+            dispatch,
+            drops,
+            memory,
+            effects,
+            profile,
+            initializer: None,
+        };
+        let module = MirModule::new(
+            ModuleId::new(PackageId::new(0), 0),
+            Arc::new(lowered),
+            Arc::new(strings),
+        );
+        let LintCheck::MirModule(check) = lint.check else {
+            panic!("lint '{}' is not a MIR module lint", lint.id);
+        };
+        let output = check(&module, lint).expect("MIR lint should run");
+
+        // convert through the same diagnostic model as production lints
+        let context = MirDiagnosticContext { file: file.clone() };
+        let diagnostics = output
+            .into_diagnostics()
+            .into_iter()
+            .map(|mut diagnostic| {
+                diagnostic
+                    .diagnostic_mut()
+                    .set_severity(Some(DiagnosticSeverity::Warning));
+                diagnostic
+                    .to_diagnostic(&context)
+                    .expect("MIR lint diagnostic should resolve")
+            })
+            .collect();
+
+        Self {
+            lint,
+            diagnostics: DiagnosticCollection::from_diagnostics(diagnostics),
+            file,
         }
     }
 
@@ -182,7 +263,7 @@ impl TestSession {
     /// Assert the source produced by suggestions at one applicability.
     #[track_caller]
     fn assert_edits(&self, expected: &str, applicability: Applicability) -> &Self {
-        let mut file_patch = FilePatch::new(self.file);
+        let mut file_patch = FilePatch::new(self.file.id);
 
         // collect matching suggestions for the source file
         for diagnostic in self.diagnostics.iter() {
@@ -192,7 +273,7 @@ impl TestSession {
                 }
                 for suggested_file in &suggestion.patches.files {
                     assert_eq!(
-                        suggested_file.file, self.file,
+                        suggested_file.file, self.file.id,
                         "single-module lint test received a fix for another file"
                     );
                     for patch in &suggested_file.patches {
@@ -207,13 +288,13 @@ impl TestSession {
         );
 
         // apply the exact emitted patches
-        let file = self.file(self.file);
-        let actual = apply_file_patch(&file, &file_patch).expect("lint test fixes should apply");
+        let actual =
+            apply_file_patch(&self.file, &file_patch).expect("lint test fixes should apply");
 
         assert_snapshot(&actual, expected);
 
         // require the corrected source to pass the same lint after checking again
-        let corrected = Self::new(self.lint, &actual);
+        let corrected = Self::dir(self.lint, &actual);
         corrected.assert_no_diagnostics();
 
         self
@@ -221,15 +302,45 @@ impl TestSession {
 
     /// Render all diagnostics in stable source order.
     fn render_diagnostics(&self) -> String {
-        render_diagnostics(&self.repository, self.revision, &self.diagnostics)
+        let file = self.file.clone();
+
+        render_diagnostics_with(&self.diagnostics, move |id| {
+            (id == file.id).then(|| file.clone())
+        })
+    }
+}
+
+/// Diagnostic context for one raw MIR file.
+struct MirDiagnosticContext {
+    /// The raw MIR file.
+    file: Arc<File>,
+}
+
+impl DiagnosticContext for MirDiagnosticContext {
+    /// Resolve one MIR diagnostic anchor.
+    fn label(
+        &self,
+        anchor: &DiagnosticAnchor,
+        message: Option<String>,
+    ) -> Result<DiagnosticLabel, DiagnosticError> {
+        let DiagnosticAnchor::Span(span) = anchor else {
+            return Err(DiagnosticError::InvalidAnchor {
+                message: format!("raw MIR module lint emitted {anchor:?}"),
+            });
+        };
+
+        Ok(DiagnosticLabel {
+            content: self.file.content_id(),
+            target: DiagnosticTarget::Span(*span),
+            message,
+        })
     }
 
-    /// Return one source file in the test revision.
-    fn file(&self, file: FileId) -> Arc<File> {
-        self.repository
-            .file(self.revision, file)
-            .expect("lint test source should be readable")
-            .expect("lint test source should exist")
+    /// Display one diagnostic value.
+    fn display(&self, display: DiagnosticDisplay) -> Result<String, DiagnosticError> {
+        Err(DiagnosticError::InvalidDiagnostic {
+            message: format!("raw MIR module lint cannot display {display:?}"),
+        })
     }
 }
 
@@ -238,6 +349,20 @@ pub(super) fn render_diagnostics(
     repository: &Repository,
     revision: Revision,
     diagnostics: &DiagnosticCollection,
+) -> String {
+    let file = |file| {
+        repository
+            .file(revision, file)
+            .expect("lint diagnostic source should be readable")
+    };
+
+    render_diagnostics_with(diagnostics, file)
+}
+
+/// Render diagnostics through one source file resolver.
+fn render_diagnostics_with(
+    diagnostics: &DiagnosticCollection,
+    file: impl Fn(FileId) -> Option<Arc<File>>,
 ) -> String {
     let lines = Arc::new(Mutex::new(Vec::new()));
     let output = lines.clone();
@@ -251,12 +376,6 @@ pub(super) fn render_diagnostics(
         .with_color(false)
         .with_skip_summary(true)
         .with_line_writer(writer);
-    let file = |file| {
-        repository
-            .file(revision, file)
-            .expect("lint diagnostic source should be readable")
-    };
-
     print_diagnostics(&file, diagnostics, options).expect("lint diagnostics should render");
 
     lines

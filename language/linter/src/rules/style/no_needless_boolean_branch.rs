@@ -136,7 +136,7 @@ mod tests {
     /// Replace reversed return branches with a negated condition.
     #[test]
     fn test_replaces_reversed_boolean_returns() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_NEEDLESS_BOOLEAN_BRANCH,
             r#"
 function inactive(condition: boolean): boolean {
@@ -193,7 +193,7 @@ function inactive(condition: boolean): boolean {
     /// Accept branches that perform additional work before returning.
     #[test]
     fn test_accepts_nontrivial_boolean_branches() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_NEEDLESS_BOOLEAN_BRANCH,
             r#"
 declare function record(): void;
@@ -214,7 +214,7 @@ function active(condition: boolean): boolean {
     /// Accept branches that return the same boolean literal.
     #[test]
     fn test_accepts_equal_boolean_returns() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_NEEDLESS_BOOLEAN_BRANCH,
             r#"
 function active(condition: boolean): boolean {

@@ -165,7 +165,7 @@ mod tests {
     /// Report a rounded approximation of pi.
     #[test]
     fn test_reports_rounded_pi() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_APPROX_CONSTANT,
             r#"
 const angle = 3.1416;
@@ -194,7 +194,7 @@ warning[no-approx-constant]: approximate value of `Math.PI`
     /// Report a truncated approximation of Euler's number.
     #[test]
     fn test_reports_truncated_e() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_APPROX_CONSTANT,
             r#"
 const growth = 2.718;
@@ -211,7 +211,7 @@ const growth = Math.E;
     /// Accept a decimal with insufficient precision to identify pi.
     #[test]
     fn test_accepts_short_decimal() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_APPROX_CONSTANT,
             r#"
 const estimate = 3.1;
@@ -224,7 +224,7 @@ const estimate = 3.1;
     /// Accept an unrelated decimal with the same authored precision as pi.
     #[test]
     fn test_accepts_unrelated_decimal() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_APPROX_CONSTANT,
             r#"
 const estimate = 3.10;
@@ -237,7 +237,7 @@ const estimate = 3.10;
     /// Ignore separators when measuring authored precision.
     #[test]
     fn test_reports_separated_pi() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_APPROX_CONSTANT,
             r#"
 const angle = 3.1_4;
@@ -254,7 +254,7 @@ const angle = Math.PI;
     /// Accept the canonical standard-library constant.
     #[test]
     fn test_accepts_math_constant() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_APPROX_CONSTANT,
             r#"
 const angle = Math.PI;

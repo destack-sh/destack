@@ -77,7 +77,7 @@ mod tests {
     /// Report concatenation between a string and a plain template literal.
     #[test]
     fn test_reports_string_and_template_literals() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_USELESS_CONCAT,
             r#"
 function message(): string {
@@ -105,7 +105,7 @@ warning[no-useless-concat]: adjacent string literals are concatenated
     /// Accept concatenation with a dynamic string value.
     #[test]
     fn test_accepts_dynamic_string_operand() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_USELESS_CONCAT,
             r#"
 function greet(name: string): string {
@@ -120,7 +120,7 @@ function greet(name: string): string {
     /// Accept an interpolated template literal without an added literal operand.
     #[test]
     fn test_accepts_interpolated_template() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_USELESS_CONCAT,
             r#"
 function greet(name: string): string {

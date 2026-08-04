@@ -141,7 +141,7 @@ mod tests {
     /// Report `first()` after the canonical Array filter.
     #[test]
     fn test_reports_filter_first() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &PREFER_FIND,
             r#"
 function firstPositive(values: int32[]): int32 | undefined {
@@ -156,7 +156,7 @@ function firstPositive(values: int32[]): int32 | undefined {
     /// Accept checked indexing because it traps instead of returning undefined.
     #[test]
     fn test_accepts_filter_index_zero() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &PREFER_FIND,
             r#"
 function firstPositive(values: int32[]): int32 {
@@ -171,7 +171,7 @@ function firstPositive(values: int32[]): int32 {
     /// Accept optional lookup at any position other than the first.
     #[test]
     fn test_accepts_filter_at_nonzero_index() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &PREFER_FIND,
             r#"
 function secondPositive(values: int32[]): int32 | undefined {
@@ -186,7 +186,7 @@ function secondPositive(values: int32[]): int32 | undefined {
     /// Preserve an optional receiver when replacing the filtered read.
     #[test]
     fn test_reports_optional_filter() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &PREFER_FIND,
             r#"
 function firstPositive(values: int32[] | undefined): int32 | undefined {
@@ -207,7 +207,7 @@ function firstPositive(values: int32[] | undefined): int32 | undefined {
     /// Accept a user-defined method named filter.
     #[test]
     fn test_accepts_user_filter_method() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &PREFER_FIND,
             r#"
 class Values {
@@ -232,7 +232,7 @@ function firstPositive(values: Values): int32 | undefined {
     /// Accept a user extension whose method shares the canonical Array member name.
     #[test]
     fn test_accepts_user_array_filter_extension() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &PREFER_FIND,
             r#"
 import { Array } from "destack:collections";

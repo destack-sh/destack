@@ -159,7 +159,7 @@ mod tests {
     /// Remove a leading bigint multiplicative identity.
     #[test]
     fn test_removes_leading_bigint_identity() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_IDENTITY_OPERATION,
             r#"
 function retain(value: bigint): bigint {
@@ -200,7 +200,7 @@ function retain(value: bigint): bigint {
     /// Remove a zero shift without changing the checked integer type.
     #[test]
     fn test_removes_zero_shift() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_IDENTITY_OPERATION,
             r#"
 function retain(value: int32): int32 {
@@ -221,7 +221,7 @@ function retain(value: int32): int32 {
     /// Remove a signed all-bits-set AND identity.
     #[test]
     fn test_removes_all_bits_set_identity() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_IDENTITY_OPERATION,
             r#"
 function retain(value: int32): int32 {
@@ -242,7 +242,7 @@ function retain(value: int32): int32 {
     /// Preserve floating-point operations whose signed-zero behavior is observable.
     #[test]
     fn test_accepts_float_zero_addition() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_IDENTITY_OPERATION,
             r#"
 function retain(value: float64): float64 {

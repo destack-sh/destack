@@ -172,7 +172,7 @@ mod tests {
     /// Replace positive equality to true with the compared value.
     #[test]
     fn test_replaces_equal_true() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 function active(value: boolean): boolean {
@@ -213,7 +213,7 @@ function active(value: boolean): boolean {
     /// Replace reversed positive equality to true with the compared value.
     #[test]
     fn test_replaces_reversed_equal_true() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 function active(value: boolean): boolean {
@@ -234,7 +234,7 @@ function active(value: boolean): boolean {
     /// Replace inequality to true with the negated value.
     #[test]
     fn test_replaces_not_equal_true() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 function inactive(value: boolean): boolean {
@@ -255,7 +255,7 @@ function inactive(value: boolean): boolean {
     /// Replace reversed inequality to true with the negated value.
     #[test]
     fn test_replaces_reversed_not_equal_true() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 function inactive(value: boolean): boolean {
@@ -276,7 +276,7 @@ function inactive(value: boolean): boolean {
     /// Replace equality to false with the negated value.
     #[test]
     fn test_replaces_equal_false() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 function inactive(value: boolean): boolean {
@@ -297,7 +297,7 @@ function inactive(value: boolean): boolean {
     /// Replace reversed equality to false with the negated value.
     #[test]
     fn test_replaces_reversed_equal_false() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 function inactive(value: boolean): boolean {
@@ -318,7 +318,7 @@ function inactive(value: boolean): boolean {
     /// Replace inequality to false with the compared value.
     #[test]
     fn test_replaces_not_equal_false() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 function active(value: boolean): boolean {
@@ -339,7 +339,7 @@ function active(value: boolean): boolean {
     /// Replace reversed inequality to false with the compared value.
     #[test]
     fn test_replaces_reversed_not_equal_false() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 function active(value: boolean): boolean {
@@ -360,7 +360,7 @@ function active(value: boolean): boolean {
     /// Keep nullable boolean comparisons whose result cannot be replaced by the operand.
     #[test]
     fn test_accepts_nullable_boolean_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 function active(value: boolean | undefined): boolean {
@@ -375,7 +375,7 @@ function active(value: boolean | undefined): boolean {
     /// Keep mixed boolean comparisons whose result cannot be replaced by the operand.
     #[test]
     fn test_accepts_mixed_boolean_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 function active(value: boolean | string): boolean {
@@ -390,7 +390,7 @@ function active(value: boolean | string): boolean {
     /// Replace a comparison whose generic operand is constrained to booleans.
     #[test]
     fn test_replaces_constrained_boolean_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 function active<T: boolean>(value: T): boolean {
@@ -411,7 +411,7 @@ function active<T: boolean>(value: T): boolean {
     /// Replace a comparison under a boolean where-clause predicate.
     #[test]
     fn test_replaces_where_constrained_boolean_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 function active<T>(value: T): boolean where T: boolean {
@@ -432,7 +432,7 @@ function active<T>(value: T): boolean where T: boolean {
     /// Intersect declared and where-clause bounds before classifying the parameter.
     #[test]
     fn test_replaces_intersected_boolean_parameter_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 function active<T: boolean | string>(value: T): boolean where T: boolean {
@@ -453,7 +453,7 @@ function active<T: boolean | string>(value: T): boolean where T: boolean {
     /// Use a method predicate that constrains an outer generic parameter.
     #[test]
     fn test_replaces_outer_parameter_comparison_under_method_predicate() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 class Flag<T> {
@@ -478,7 +478,7 @@ class Flag<T> {
     /// Follow an induced method template to its outer boolean parameter.
     #[test]
     fn test_replaces_outer_parameter_comparison_under_induced_template() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 class Flag<T> {
@@ -503,7 +503,7 @@ class Flag<T> {
     /// Keep comparisons whose generic operand can also hold strings.
     #[test]
     fn test_accepts_mixed_generic_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 function active<T: boolean | string>(value: T): boolean {
@@ -518,7 +518,7 @@ function active<T: boolean | string>(value: T): boolean {
     /// Replace a comparison through a reduced boolean alias.
     #[test]
     fn test_replaces_boolean_alias_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 type Flag = boolean;
@@ -543,7 +543,7 @@ function active(value: Flag): boolean {
     /// Replace a comparison over the complete boolean literal union.
     #[test]
     fn test_replaces_boolean_literal_union_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 function active(value: true | false): boolean {
@@ -564,7 +564,7 @@ function active(value: true | false): boolean {
     /// Replace a statically fixed literal comparison.
     #[test]
     fn test_replaces_constant_literal_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 const active = true === false;
@@ -581,7 +581,7 @@ const active = !true;
     /// Keep equality calls selected through a user-defined implementation.
     #[test]
     fn test_accepts_overloaded_equality() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 import { PartialEqual } from "destack:ops";
@@ -607,7 +607,7 @@ const active = flag == true;
     /// Parenthesize a lower-precedence value exactly once when negating it.
     #[test]
     fn test_parenthesizes_negated_binary_value() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 function inactive(left: boolean, right: boolean): boolean {
@@ -628,7 +628,7 @@ function inactive(left: boolean, right: boolean): boolean {
     /// Negate a postfix value without adding parentheses.
     #[test]
     fn test_negates_call_value() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 function inactive(value: () => boolean): boolean {
@@ -649,7 +649,7 @@ function inactive(value: () => boolean): boolean {
     /// Preserve comments owned by the retained value.
     #[test]
     fn test_preserves_value_comment() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
 function inactive(value: boolean): boolean {
@@ -670,7 +670,7 @@ function inactive(value: boolean): boolean {
     /// Report without a fix when replacement would discard a comment.
     #[test]
     fn test_preserves_comparison_comment() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"function active(value: boolean): boolean {
     return value /* comparison */ === true;

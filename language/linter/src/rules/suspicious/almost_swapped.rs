@@ -114,7 +114,7 @@ mod tests {
     /// Report adjacent reversed stored field assignments.
     #[test]
     fn test_reports_reversed_field_assignments() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &ALMOST_SWAPPED,
             r#"
 struct Pair {
@@ -150,7 +150,7 @@ warning[almost-swapped]: assignments overwrite a value instead of swapping
     /// Accept an exchange through a temporary value.
     #[test]
     fn test_accepts_temporary_exchange() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &ALMOST_SWAPPED,
             r#"
 function exchange(pair: { left: int32; right: int32 }): void {
@@ -167,7 +167,7 @@ function exchange(pair: { left: int32; right: int32 }): void {
     /// Accept reversed assignments separated by another statement.
     #[test]
     fn test_accepts_nonadjacent_assignments() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &ALMOST_SWAPPED,
             r#"
 function update(pair: { left: int32; right: int32 }): void {

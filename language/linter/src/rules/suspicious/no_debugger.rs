@@ -135,7 +135,7 @@ mod tests {
     /// Suppress the lint through its canonical id.
     #[test]
     fn test_allows_debugger_by_id() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_DEBUGGER,
             r#"@allow("no-debugger")
 debugger;
@@ -148,7 +148,7 @@ debugger;
     /// Remove the debugger statement without changing surrounding source.
     #[test]
     fn test_removes_debugger_statement() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_DEBUGGER,
             r#"const before = 1;
 debugger;
@@ -167,7 +167,7 @@ const after = 2;
     /// Remove a debugger statement from an explicit block.
     #[test]
     fn test_removes_debugger_from_block() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_DEBUGGER,
             r#"declare const active: boolean;
 if (active) {
@@ -187,7 +187,7 @@ if (active) {
     /// Preserve the required body of a catch clause.
     #[test]
     fn test_replaces_catch_body() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_DEBUGGER,
             r#"try {} catch (error) debugger;
 "#,
@@ -219,7 +219,7 @@ warning[no-debugger]: `debugger` statement is not allowed
     /// Preserve the required body of a finally clause.
     #[test]
     fn test_replaces_finally_body() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_DEBUGGER,
             r#"try {} finally debugger;
 "#,
@@ -234,7 +234,7 @@ warning[no-debugger]: `debugger` statement is not allowed
     /// Remove the debugger statement from a switch case.
     #[test]
     fn test_removes_switch_case_statement() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_DEBUGGER,
             r#"switch (1) {
     case 1: debugger;
@@ -253,7 +253,7 @@ warning[no-debugger]: `debugger` statement is not allowed
     /// Preserve the required value of a direct match arm.
     #[test]
     fn test_replaces_match_arm() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_DEBUGGER,
             r#"match (undefined) {
     _ => debugger
@@ -272,7 +272,7 @@ warning[no-debugger]: `debugger` statement is not allowed
     /// Ignore property declarations and accesses named debugger.
     #[test]
     fn test_ignores_debugger_property() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_DEBUGGER,
             r#"const value = { debugger: true };
 value.debugger;

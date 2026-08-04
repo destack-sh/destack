@@ -97,7 +97,7 @@ mod tests {
     /// Report a leading zero division that may also trap.
     #[test]
     fn test_reports_leading_zero_division() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_ERASING_OPERATION,
             r#"
 function erase(value: int32): int32 {
@@ -125,7 +125,7 @@ warning[no-erasing-operation]: constant operand erases the other value
     /// Report an erasing operation without dropping an effectful operand.
     #[test]
     fn test_reports_effectful_erased_operand_without_fix() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_ERASING_OPERATION,
             r#"
 declare function next(): int32;
@@ -155,7 +155,7 @@ warning[no-erasing-operation]: constant operand erases the other value
     /// Report a remainder whose unit divisor erases the dividend.
     #[test]
     fn test_reports_unit_remainder() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_ERASING_OPERATION,
             r#"
 function erase(value: int32): int32 {
@@ -183,7 +183,7 @@ warning[no-erasing-operation]: constant operand erases the other value
     /// Report a zero exponent that erases the base.
     #[test]
     fn test_reports_zero_exponent() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_ERASING_OPERATION,
             r#"
 function erase(value: int32): int32 {
@@ -211,7 +211,7 @@ warning[no-erasing-operation]: constant operand erases the other value
     /// Report an all-bits-set OR that erases the other operand.
     #[test]
     fn test_reports_all_bits_set_or() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_ERASING_OPERATION,
             r#"
 function erase(value: int32): int32 {
@@ -239,7 +239,7 @@ warning[no-erasing-operation]: constant operand erases the other value
     /// Preserve floating-point multiplication because NaN and infinity are observable.
     #[test]
     fn test_accepts_float_zero_multiplication() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_ERASING_OPERATION,
             r#"
 function erase(value: float64): float64 {

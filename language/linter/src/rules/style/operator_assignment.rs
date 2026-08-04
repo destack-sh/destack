@@ -126,7 +126,7 @@ mod tests {
     /// Replace a repeated field update over one stable receiver.
     #[test]
     fn test_replaces_repeated_field_update() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &OPERATOR_ASSIGNMENT,
             r#"
 struct Counter {
@@ -174,7 +174,7 @@ function advance(counter: Counter): void {
     /// Accept an operation whose first operand is a distinct place.
     #[test]
     fn test_accepts_distinct_binary_operand() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &OPERATOR_ASSIGNMENT,
             r#"
 function replace(current: int32, next: int32): int32 {
@@ -191,7 +191,7 @@ function replace(current: int32, next: int32): int32 {
     /// Do not commute operands to manufacture compound assignment.
     #[test]
     fn test_accepts_repeated_second_operand() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &OPERATOR_ASSIGNMENT,
             r#"
 function advance(value: int32): int32 {
@@ -208,7 +208,7 @@ function advance(value: int32): int32 {
     /// Replace an update through an overloaded operator.
     #[test]
     fn test_replaces_overloaded_operator_update() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &OPERATOR_ASSIGNMENT,
             r#"
 import { Add } from "destack:ops";

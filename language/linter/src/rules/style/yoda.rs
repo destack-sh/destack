@@ -114,7 +114,7 @@ mod tests {
     /// Reverse a literal-first relational comparison.
     #[test]
     fn test_reverses_relational_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &YODA,
             r#"
 function isLarge(value: int32): boolean {
@@ -155,7 +155,7 @@ function isLarge(value: int32): boolean {
     /// Accept the ordinary subject-first comparison order.
     #[test]
     fn test_accepts_subject_first_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &YODA,
             r#"
 function isLarge(value: int32): boolean {
@@ -170,7 +170,7 @@ function isLarge(value: int32): boolean {
     /// Accept comparisons between two authored literals.
     #[test]
     fn test_accepts_two_literal_operands() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &YODA,
             r#"
 const ordered = 1 < 2;

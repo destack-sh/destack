@@ -265,7 +265,7 @@ mod tests {
     /// Accept a binding that is reassigned after initialization.
     #[test]
     fn test_accepts_reassigned_binding() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &PREFER_CONST,
             r#"
 function replace(value: int32): int32 {
@@ -282,7 +282,7 @@ function replace(value: int32): int32 {
     /// Accept a binding whose storage is borrowed mutably.
     #[test]
     fn test_accepts_mutably_borrowed_binding() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &PREFER_CONST,
             r#"
 function replace(): int32 {
@@ -300,7 +300,7 @@ function replace(): int32 {
     /// Replace a binding whose storage is only borrowed read-only.
     #[test]
     fn test_replaces_readonly_borrowed_binding() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &PREFER_CONST,
             r#"
 function read(): int32 {
@@ -325,7 +325,7 @@ function read(): int32 {
     /// Accept a binding implicitly borrowed with mutable access.
     #[test]
     fn test_accepts_implicitly_borrowed_binding() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &PREFER_CONST,
             r#"
 declare function replace(value: &int32): void;
@@ -343,7 +343,7 @@ function update(): int32 {
     /// Replace a binding implicitly borrowed with read-only access.
     #[test]
     fn test_replaces_implicitly_readonly_borrowed_binding() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &PREFER_CONST,
             r#"
 declare function read(value: &readonly int32): int32;
@@ -368,7 +368,7 @@ function inspect(): int32 {
     /// Report a separately initialized binding without offering an unsafe rewrite.
     #[test]
     fn test_reports_separately_initialized_binding() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &PREFER_CONST,
             r#"
 function identity(value: int32): int32 {
@@ -397,7 +397,7 @@ warning[prefer-const]: binding is never reassigned
     /// Accept a separately initialized binding with another write.
     #[test]
     fn test_accepts_separately_reassigned_binding() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &PREFER_CONST,
             r#"
 function replace(value: int32): int32 {
@@ -415,7 +415,7 @@ function replace(value: int32): int32 {
     /// Accept a binding initialized only inside a nested block.
     #[test]
     fn test_accepts_nested_initialization() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &PREFER_CONST,
             r#"
 function initialize(active: boolean): void {
@@ -433,7 +433,7 @@ function initialize(active: boolean): void {
     /// Ignore mutation behind a binding because const only prevents rebinding.
     #[test]
     fn test_replaces_binding_with_mutated_value() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &PREFER_CONST,
             r#"
 class Counter {
@@ -494,7 +494,7 @@ function increment(counter: Counter): Counter {
     /// Replace an initialized destructuring declaration when no binding is reassigned.
     #[test]
     fn test_replaces_destructured_bindings() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &PREFER_CONST,
             r#"
 function sum(point: { x: int32, y: int32 }): int32 {
@@ -517,7 +517,7 @@ function sum(point: { x: int32, y: int32 }): int32 {
     /// Report only the constant binding in a partially reassigned destructuring declaration.
     #[test]
     fn test_reports_constant_destructured_binding() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &PREFER_CONST,
             r#"
 function sum(point: { x: int32, y: int32 }): int32 {

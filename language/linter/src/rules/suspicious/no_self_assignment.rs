@@ -76,7 +76,7 @@ mod tests {
     /// Report a stored field self-assignment.
     #[test]
     fn test_reports_field_self_assignment() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_ASSIGNMENT,
             r#"
 struct Point {
@@ -106,7 +106,7 @@ warning[no-self-assignment]: assignment writes a value back to the same place
     /// Accept assignment from a distinct binding.
     #[test]
     fn test_accepts_distinct_binding_assignment() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_ASSIGNMENT,
             r#"
 function replace(current: int32, next: int32): int32 {
@@ -123,7 +123,7 @@ function replace(current: int32, next: int32): int32 {
     /// Accept compound assignment because it computes a new value.
     #[test]
     fn test_accepts_compound_self_assignment() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_ASSIGNMENT,
             r#"
 function double(value: int32): int32 {

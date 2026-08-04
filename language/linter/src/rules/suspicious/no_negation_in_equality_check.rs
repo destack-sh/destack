@@ -104,7 +104,7 @@ mod tests {
     /// Preserve comments while regrouping the negation.
     #[test]
     fn test_preserves_equality_comments() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_NEGATION_IN_EQUALITY_CHECK,
             r#"
 function differs(left: boolean, right: boolean): boolean {
@@ -145,7 +145,7 @@ function differs(left: boolean, right: boolean): boolean {
     /// Report negation on the left of strict inequality.
     #[test]
     fn test_reports_negated_left_inequality_operand() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_NEGATION_IN_EQUALITY_CHECK,
             r#"
 function same(left: boolean, right: boolean): boolean {
@@ -166,7 +166,7 @@ function same(left: boolean, right: boolean): boolean {
     /// Accept a negated right operand because its grouping is unambiguous.
     #[test]
     fn test_accepts_negated_right_equality_operand() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_NEGATION_IN_EQUALITY_CHECK,
             r#"
 function same(left: boolean, right: boolean): boolean {
@@ -181,7 +181,7 @@ function same(left: boolean, right: boolean): boolean {
     /// Report truthiness negation without suggesting a behavior change.
     #[test]
     fn test_reports_non_boolean_negation_without_suggestion() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_NEGATION_IN_EQUALITY_CHECK,
             r#"
 function hasValue(value: string): boolean {

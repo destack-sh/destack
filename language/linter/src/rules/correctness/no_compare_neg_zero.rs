@@ -81,7 +81,7 @@ mod tests {
     /// Report negative zero on the left of an ordering comparison.
     #[test]
     fn test_reports_reversed_negative_zero_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_COMPARE_NEG_ZERO,
             r#"
 function isPositive(value: float64): boolean {
@@ -109,7 +109,7 @@ warning[no-compare-neg-zero]: comparison cannot distinguish negative zero
     /// Accept positive floating-point zero.
     #[test]
     fn test_accepts_positive_zero_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_COMPARE_NEG_ZERO,
             r#"
 function isZero(value: float64): boolean {
@@ -124,7 +124,7 @@ function isZero(value: float64): boolean {
     /// Accept negated integer zero, which has no sign bit.
     #[test]
     fn test_accepts_integer_zero_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_COMPARE_NEG_ZERO,
             r#"
 function isZero(value: int32): boolean {
@@ -139,7 +139,7 @@ function isZero(value: int32): boolean {
     /// Accept negative zero passed to user-defined equality.
     #[test]
     fn test_accepts_overloaded_negative_zero_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_COMPARE_NEG_ZERO,
             r#"
 import { PartialEqual } from "destack:ops";
@@ -165,7 +165,7 @@ const same = measure == -0.0;
     /// Report a named negative-zero constant.
     #[test]
     fn test_reports_named_negative_zero_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_COMPARE_NEG_ZERO,
             r#"
 const NegativeZero = -0.0;

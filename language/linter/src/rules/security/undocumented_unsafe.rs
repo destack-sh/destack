@@ -168,7 +168,7 @@ mod tests {
     /// Report an unsafe declaration without caller documentation.
     #[test]
     fn test_reports_unsafe_declaration_without_safety_section() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &UNDOCUMENTED_UNSAFE,
             r#"
 /// Read one raw pointer.
@@ -196,7 +196,7 @@ warning[undocumented-unsafe]: unsafe declaration has no `# Safety` section
     /// Accept an unsafe declaration with caller documentation.
     #[test]
     fn test_accepts_unsafe_declaration_with_safety_section() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &UNDOCUMENTED_UNSAFE,
             r#"
 /// Read one raw pointer.
@@ -215,7 +215,7 @@ export declare function read<T>(pointer: *T): ^T;
     /// Report a private unsafe declaration without caller documentation.
     #[test]
     fn test_reports_private_unsafe_declaration() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &UNDOCUMENTED_UNSAFE,
             r#"
 /// Read one raw pointer.
@@ -243,7 +243,7 @@ warning[undocumented-unsafe]: unsafe declaration has no `# Safety` section
     /// Report a local unsafe block without an associated rationale.
     #[test]
     fn test_reports_unsafe_block_without_rationale() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &UNDOCUMENTED_UNSAFE,
             r#"
 function run(): void {
@@ -273,7 +273,7 @@ warning[undocumented-unsafe]: unsafe region has no safety rationale
     /// Accept a local unsafe block with an attached safety comment.
     #[test]
     fn test_accepts_unsafe_block_with_safety_comment() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &UNDOCUMENTED_UNSAFE,
             r#"
 function run(): void {
@@ -290,7 +290,7 @@ function run(): void {
     /// Reject a detached safety comment separated by a blank line.
     #[test]
     fn test_reports_unsafe_block_with_detached_safety_comment() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &UNDOCUMENTED_UNSAFE,
             r#"
 function run(): void {
@@ -323,7 +323,7 @@ warning[undocumented-unsafe]: unsafe region has no safety rationale
     /// Accept a local unsafe block with a checked decorator reason.
     #[test]
     fn test_accepts_unsafe_block_with_decorator_reason() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &UNDOCUMENTED_UNSAFE,
             r#"
 function run(): void {

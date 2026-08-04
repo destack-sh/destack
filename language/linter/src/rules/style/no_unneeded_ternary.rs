@@ -115,7 +115,7 @@ mod tests {
     /// Replace reversed boolean branches with a negated condition.
     #[test]
     fn test_replaces_reversed_boolean_ternary() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_UNNEEDED_TERNARY,
             r#"
 function inactive(condition: boolean): boolean {
@@ -156,7 +156,7 @@ function inactive(condition: boolean): boolean {
     /// Preserve precedence when negating a compound condition.
     #[test]
     fn test_parenthesizes_negated_compound_condition() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_UNNEEDED_TERNARY,
             r#"
 function inactive(left: boolean, right: boolean): boolean {
@@ -177,7 +177,7 @@ function inactive(left: boolean, right: boolean): boolean {
     /// Accept ternaries that select non-boolean values.
     #[test]
     fn test_accepts_value_ternary() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_UNNEEDED_TERNARY,
             r#"
 function select(condition: boolean): int32 {

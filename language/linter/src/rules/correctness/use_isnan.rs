@@ -206,7 +206,7 @@ mod tests {
     /// Report inequality with a checked NaN constant expression.
     #[test]
     fn test_reports_nan_inequality() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &USE_ISNAN,
             r#"
 function isPresent(value: float64): boolean {
@@ -249,7 +249,7 @@ function isPresent(value: float64): boolean {
     /// Report equality with the canonical NaN constant.
     #[test]
     fn test_reports_named_nan_equality() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &USE_ISNAN,
             r#"
 function isMissing(value: float64): boolean {
@@ -284,7 +284,7 @@ warning[use-isnan]: equality cannot test for NaN
     /// Report equality with the Number NaN constant.
     #[test]
     fn test_reports_number_nan_equality() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &USE_ISNAN,
             r#"
 function isMissing(value: float64): boolean {
@@ -319,7 +319,7 @@ warning[use-isnan]: equality cannot test for NaN
     /// Report equality with a user scalar constant that evaluates to NaN.
     #[test]
     fn test_reports_nan_constant_equality() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &USE_ISNAN,
             r#"
 const Missing = 0.0 / 0.0;
@@ -356,7 +356,7 @@ warning[use-isnan]: equality cannot test for NaN
     /// Preserve comparison comments by omitting the review suggestion.
     #[test]
     fn test_reports_commented_nan_equality_without_suggestion() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &USE_ISNAN,
             r#"
 function isMissing(value: float64): boolean {
@@ -384,7 +384,7 @@ warning[use-isnan]: equality cannot test for NaN
     /// Parenthesize a compound receiver in the review suggestion.
     #[test]
     fn test_parenthesizes_nan_predicate_receiver() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &USE_ISNAN,
             r#"
 function isMissing(value: float64): boolean {
@@ -405,7 +405,7 @@ function isMissing(value: float64): boolean {
     /// Accept the typed predicate through a generic Float bound.
     #[test]
     fn test_accepts_generic_float_predicate() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &USE_ISNAN,
             r#"
 import { Float } from "destack:math";
@@ -422,7 +422,7 @@ function isMissing<T: Float>(value: T): boolean {
     /// Accept ordinary floating-point equality for this rule.
     #[test]
     fn test_accepts_finite_float_equality() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &USE_ISNAN,
             r#"
 function isZero(value: float64): boolean {
@@ -437,7 +437,7 @@ function isZero(value: float64): boolean {
     /// Accept NaN passed to user-defined equality.
     #[test]
     fn test_accepts_overloaded_nan_equality() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &USE_ISNAN,
             r#"
 import { PartialEqual } from "destack:ops";
@@ -463,7 +463,7 @@ const same = measure == NaN;
     /// Report a NaN switch case.
     #[test]
     fn test_reports_nan_switch_case() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &USE_ISNAN,
             r#"
 function select(value: float64): void {
@@ -496,7 +496,7 @@ warning[use-isnan]: switch case cannot match NaN
     /// Report a NaN switch value.
     #[test]
     fn test_reports_nan_switch_value() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &USE_ISNAN,
             r#"
 function select(): void {
@@ -530,7 +530,7 @@ warning[use-isnan]: NaN switch value cannot match a case
     /// Accept a NaN switch value when no case performs equality.
     #[test]
     fn test_accepts_nan_switch_value_without_case() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &USE_ISNAN,
             r#"
 function select(): void {

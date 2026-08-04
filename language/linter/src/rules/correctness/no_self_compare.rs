@@ -97,7 +97,7 @@ mod tests {
     /// Ignore parentheses when comparing stable value paths.
     #[test]
     fn test_reports_parenthesized_binding_self_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_COMPARE,
             r#"
 function changed(value: int32): boolean {
@@ -123,7 +123,7 @@ warning[no-self-compare]: comparison has identical operands
     /// Report the same direct field read on one stable receiver.
     #[test]
     fn test_reports_field_self_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_COMPARE,
             r#"
 struct Point {
@@ -153,7 +153,7 @@ warning[no-self-compare]: comparison has identical operands
     /// Report identical builtin operations over repeatable operands.
     #[test]
     fn test_reports_builtin_operation_self_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_COMPARE,
             r#"
 function unchanged(value: int32): boolean {
@@ -179,7 +179,7 @@ warning[no-self-compare]: comparison has identical operands
     /// Report identical builtin unary operations over repeatable operands.
     #[test]
     fn test_reports_builtin_unary_self_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_COMPARE,
             r#"
 function unchanged(value: int32): boolean {
@@ -205,7 +205,7 @@ warning[no-self-compare]: comparison has identical operands
     /// Report a relational comparison with identical operands.
     #[test]
     fn test_reports_relational_self_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_COMPARE,
             r#"
 function ordered(value: int32): boolean {
@@ -231,7 +231,7 @@ warning[no-self-compare]: comparison has identical operands
     /// Recommend a NaN predicate for the traditional float self-inequality idiom.
     #[test]
     fn test_reports_float_nan_self_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_COMPARE,
             r#"
 function isNaN(value: float64): boolean {
@@ -259,7 +259,7 @@ warning[no-self-compare]: comparison has identical operands
     /// Recommend a negated NaN predicate for float self-equality.
     #[test]
     fn test_reports_float_non_nan_self_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_COMPARE,
             r#"
 function isPresent(value: float64): boolean {
@@ -287,7 +287,7 @@ warning[no-self-compare]: comparison has identical operands
     /// Keep comparisons between distinct bindings.
     #[test]
     fn test_accepts_distinct_bindings() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_COMPARE,
             r#"
 function changed(left: int32, right: int32): boolean {
@@ -302,7 +302,7 @@ function changed(left: int32, right: int32): boolean {
     /// Keep equal field names selected from distinct receivers.
     #[test]
     fn test_accepts_fields_on_distinct_receivers() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_COMPARE,
             r#"
 struct Point {
@@ -321,7 +321,7 @@ function aligned(left: Point, right: Point): boolean {
     /// Keep repeated calls because each evaluation can produce another value.
     #[test]
     fn test_accepts_repeated_calls() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_COMPARE,
             r#"
 declare function next(): int32;
@@ -336,7 +336,7 @@ const unchanged = next() === next();
     /// Keep repeated overloaded operations because each evaluation invokes user code.
     #[test]
     fn test_accepts_repeated_overloaded_operations() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_COMPARE,
             r#"
 import { Multiply } from "destack:ops";
@@ -362,7 +362,7 @@ const unchanged = force * 2.0 === force * 2.0;
     /// Keep self-comparisons that invoke user-defined equality.
     #[test]
     fn test_accepts_overloaded_self_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_COMPARE,
             r#"
 import { PartialEqual } from "destack:ops";
@@ -388,7 +388,7 @@ const same = badge == badge;
     /// Keep repeated accessor reads because each evaluation invokes the getter.
     #[test]
     fn test_accepts_repeated_getter_reads() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_COMPARE,
             r#"
 class Counter {
@@ -408,7 +408,7 @@ const unchanged = counter.value === counter.value;
     /// Keep repeated dynamic subscripts because key lookup is not a stable field path.
     #[test]
     fn test_accepts_repeated_dynamic_subscripts() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_COMPARE,
             r#"
 declare const values: int32[];
@@ -424,7 +424,7 @@ const unchanged = values[index] === values[index];
     /// Keep repeated array allocations because they create distinct identities.
     #[test]
     fn test_accepts_repeated_array_allocations() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_COMPARE,
             r#"
 const unchanged = [1] === [1];
@@ -437,7 +437,7 @@ const unchanged = [1] === [1];
     /// Report a literal compared with itself.
     #[test]
     fn test_reports_literal_self_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_COMPARE,
             r#"
 const unchanged = 1 === 1;
@@ -459,7 +459,7 @@ warning[no-self-compare]: comparison has identical operands
     /// Report a plain template string through its canonical scalar value.
     #[test]
     fn test_reports_template_string_self_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_COMPARE,
             r#"
 const unchanged = `value` === `value`;
@@ -481,7 +481,7 @@ warning[no-self-compare]: comparison has identical operands
     /// Keep interpolated templates because evaluating their values can invoke user code.
     #[test]
     fn test_accepts_interpolated_template_self_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_SELF_COMPARE,
             r#"
 declare function next(): int32;

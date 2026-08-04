@@ -116,7 +116,7 @@ mod tests {
     /// Replace a redundant failed-value unwrap with its error.
     #[test]
     fn test_replaces_err_unwrap_err() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_LITERAL_UNWRAP,
             r#"
 const error: string = Result<never, "failure">.err("failure").unwrapErr();
@@ -133,7 +133,7 @@ const error: string = "failure";
     /// Preserve grouping when the constructed value has lower precedence.
     #[test]
     fn test_groups_binary_replacement() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_LITERAL_UNWRAP,
             r#"
 declare const left: int32;
@@ -156,7 +156,7 @@ const value = (left + right) * factor;
     /// Require review when removing the unwrap changes the inferred static type.
     #[test]
     fn test_suggests_literal_replacement() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_LITERAL_UNWRAP,
             r#"
 const value = Result<int32, string>.ok(42).unwrap();
@@ -173,7 +173,7 @@ const value = 42;
     /// Leave a statically failing unwrap to the dedicated correctness rule.
     #[test]
     fn test_ignores_err_unwrap() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_LITERAL_UNWRAP,
             r#"
 const value: int32 = Result<int32, "failure">.err("failure").unwrap();
@@ -186,7 +186,7 @@ const value: int32 = Result<int32, "failure">.err("failure").unwrap();
     /// Accept an unwrap whose receiver is not constructed in place.
     #[test]
     fn test_accepts_stored_result() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_LITERAL_UNWRAP,
             r#"
 declare const result: Result<int32, string>;
@@ -200,7 +200,7 @@ const value = result.unwrap();
     /// Report without a correction when replacement would discard a comment.
     #[test]
     fn test_preserves_constructor_comment() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_LITERAL_UNWRAP,
             r#"
 const value: int32 = Result<int32, string>.ok(/* retained */ 42).unwrap();

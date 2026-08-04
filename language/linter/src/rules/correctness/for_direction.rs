@@ -251,7 +251,7 @@ mod tests {
     /// Interpret the condition relative to a counter on the right.
     #[test]
     fn test_reports_reversed_counter_condition() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &FOR_DIRECTION,
             r#"
 for (let index: int32 = 0; 10 > index; index--) {}
@@ -285,7 +285,7 @@ for (let index: int32 = 0; 10 > index; index++) {}
     /// Report an increment under a lower-bound condition.
     #[test]
     fn test_reports_increment_under_lower_bound() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &FOR_DIRECTION,
             r#"
 for (let index: int32 = 10; index >= 0; index++) {}
@@ -302,7 +302,7 @@ for (let index: int32 = 10; index >= 0; index--) {}
     /// Accept a decrement under a lower-bound condition.
     #[test]
     fn test_accepts_decrement_under_lower_bound() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &FOR_DIRECTION,
             r#"
 for (let index: int32 = 10; index >= 0; index--) {}
@@ -315,7 +315,7 @@ for (let index: int32 = 10; index >= 0; index--) {}
     /// Read a named step whose checked type retains its exact value.
     #[test]
     fn test_reports_named_negative_step() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &FOR_DIRECTION,
             r#"
 const Step = -2;
@@ -334,7 +334,7 @@ for (let index: int32 = 0; index < 10; index -= Step) {}
     /// Report subtraction that moves away from an upper bound.
     #[test]
     fn test_reports_subtraction_under_upper_bound() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &FOR_DIRECTION,
             r#"
 for (let index: int32 = 0; index < 10; index -= 1) {}
@@ -351,7 +351,7 @@ for (let index: int32 = 0; index < 10; index += 1) {}
     /// Accept subtraction that moves toward a lower bound.
     #[test]
     fn test_accepts_subtraction_under_lower_bound() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &FOR_DIRECTION,
             r#"
 for (let index: int32 = 10; index >= 0; index -= 1) {}
@@ -364,7 +364,7 @@ for (let index: int32 = 10; index >= 0; index -= 1) {}
     /// Accept an update whose direction is unknown.
     #[test]
     fn test_accepts_unknown_step() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &FOR_DIRECTION,
             r#"
 function run(step: int32): void {
@@ -379,7 +379,7 @@ function run(step: int32): void {
     /// Accept a zero step because this rule compares directions only.
     #[test]
     fn test_accepts_zero_step() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &FOR_DIRECTION,
             r#"
 for (let index: int32 = 0; index < 10; index -= 0) {}
@@ -392,7 +392,7 @@ for (let index: int32 = 0; index < 10; index -= 0) {}
     /// Accept a condition that observes another storage path.
     #[test]
     fn test_accepts_condition_on_another_counter() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &FOR_DIRECTION,
             r#"
 let remaining: int32 = 10;
@@ -406,7 +406,7 @@ for (let index: int32 = 0; remaining > 0; index--) {}
     /// Accept overloaded relational behavior.
     #[test]
     fn test_accepts_overloaded_comparison() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &FOR_DIRECTION,
             r#"
 import { PartialCompare, Ordering } from "destack:ops";

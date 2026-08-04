@@ -123,7 +123,7 @@ mod tests {
     /// Report a parenthesized assignment in a while condition.
     #[test]
     fn test_reports_parenthesized_while_assignment() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_COND_ASSIGN,
             r#"
 function repeat(next: boolean): void {
@@ -153,7 +153,7 @@ warning[no-cond-assign]: assignment is evaluated as a condition
     /// Report an assignment in a three-part for-loop condition.
     #[test]
     fn test_reports_for_condition_assignment() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_COND_ASSIGN,
             r#"
 function repeat(next: boolean): void {
@@ -183,7 +183,7 @@ warning[no-cond-assign]: assignment is evaluated as a condition
     /// Report an assignment in a match-arm guard.
     #[test]
     fn test_reports_match_guard_assignment() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_COND_ASSIGN,
             r#"
 function select(value: int32, next: boolean): boolean {
@@ -217,7 +217,7 @@ warning[no-cond-assign]: assignment is evaluated as a condition
     /// Accept assignment before a condition.
     #[test]
     fn test_accepts_assignment_before_condition() {
-        let session = TestSession::new(
+        let session = TestSession::dir(
             &NO_COND_ASSIGN,
             r#"
 function select(next: boolean): boolean {
