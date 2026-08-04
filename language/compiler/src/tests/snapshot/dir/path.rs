@@ -24,9 +24,14 @@ impl SnapshotTable for dir::ReferenceTable {
                         .field("module", builder.module_path(*module))
                 }
                 dir::Reference::Projected { base, from } => {
+                    let base = match base {
+                        dir::ImportTarget::Symbol(symbol) => builder.symbol_path_label(*symbol),
+                        dir::ImportTarget::Namespace(module) => builder.module_path(*module),
+                    };
+
                     SnapshotRow::new(anchor, "reference", "projected")
                         .field("source", source)
-                        .field("base", builder.symbol_path_label(*base))
+                        .field("base", base)
                         .field("from", from.to_string())
                 }
                 dir::Reference::Ambiguous(ambiguous) => {

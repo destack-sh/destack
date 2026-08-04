@@ -168,7 +168,7 @@ impl ResolveState<'_> {
 
     /// Record the single reference carried by one flat type reference node.
     ///
-    /// The segment count exceeds the prefix count when the tail projects as members.
+    /// Retain a resolved prefix when later segments require member selection.
     fn record_flat_reference(
         &mut self,
         source: dir::GlobalNodeIdAny,
@@ -176,35 +176,43 @@ impl ResolveState<'_> {
         segment_count: usize,
         declarations: &[dir::GlobalSymbolId],
     ) -> CompilerResult<()> {
-        // find the first bound prefix whose tail still requires member projection
-        let projected = prefixes
-            .iter()
-            .enumerate()
-            .find_map(|(index, prefix)| match prefix {
-                dir::Reference::Bound(symbols) if index + 1 < segment_count => {
-                    Some((symbols, index as u32 + 1))
-                }
-                _ => None,
-            });
+        let final_prefix = prefixes.last().ok_or_else(|| CompilerError::Internal {
+            message: format!("reference {source:?} has no resolved prefix"),
+        })?;
+        let is_complete =
+            prefixes.len() == segment_count && !matches!(final_prefix, dir::Reference::Missing);
 
-        // project only one exact base and preserve multiple bases as ambiguous
-        let reference = match projected {
-            Some((symbols, from)) => match symbols.as_slice() {
-                [base] => dir::Reference::Projected { base: *base, from },
-                _ => dir::Reference::Ambiguous(
-                    symbols
+        // retain the nearest resolved prefix before an unresolved tail
+        let mut projection = None;
+        if !is_complete && !matches!(final_prefix, dir::Reference::Ambiguous(_)) {
+            for (index, prefix) in prefixes.iter().enumerate().rev() {
+                if index + 1 >= segment_count {
+                    continue;
+                }
+                let targets = match prefix {
+                    dir::Reference::Bound(symbols) => symbols
                         .iter()
                         .copied()
                         .map(dir::ImportTarget::Symbol)
-                        .collect(),
-                ),
+                        .collect::<SmallVec<[_; 2]>>(),
+                    dir::Reference::Namespace(module) => {
+                        smallvec![dir::ImportTarget::Namespace(*module)]
+                    }
+                    _ => continue,
+                };
+                projection = Some((targets, index as u32 + 1));
+
+                break;
+            }
+        }
+
+        // project only one exact base and preserve multiple bases as ambiguous
+        let reference = match projection {
+            Some((targets, from)) => match targets.as_slice() {
+                [base] => dir::Reference::Projected { base: *base, from },
+                _ => dir::Reference::Ambiguous(targets),
             },
-            None => prefixes
-                .last()
-                .cloned()
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("reference {source:?} has no resolved prefix"),
-                })?,
+            None => final_prefix.clone(),
         };
 
         self.references.insert(source, reference);
