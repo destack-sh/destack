@@ -87,7 +87,7 @@ pub enum Fixability {
     None,
     /// Emits corrections that are safe to apply automatically.
     Automatic,
-    /// Emits corrections that require review.
+    /// Emits corrections whose safety is decided for each report.
     Suggestion,
 }
 

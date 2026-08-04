@@ -21,6 +21,8 @@ const TARGET_NAME: &str = "native";
 
 /// One isolated lint test session.
 pub(crate) struct TestSession {
+    /// The lint under test.
+    lint: &'static Lint,
     /// The shared repository.
     repository: Arc<Repository>,
     /// The immutable test revision.
@@ -34,7 +36,7 @@ pub(crate) struct TestSession {
 impl TestSession {
     /// Assert the canonical reported and accepted examples for one lint.
     #[track_caller]
-    pub(crate) fn assert_example(lint: &Lint) {
+    pub(crate) fn assert_example(lint: &'static Lint) {
         let reported = Self::new(lint, lint.example.reported());
         let [diagnostic] = reported.diagnostics.diagnostics.as_slice() else {
             panic!(
@@ -46,13 +48,8 @@ impl TestSession {
         };
         assert_eq!(diagnostic.id, lint.id, "lint example reported another id");
 
-        // require the declared correction capability
-        let applicability = match lint.fixability {
-            Fixability::None => None,
-            Fixability::Automatic => Some(Applicability::Automatic),
-            Fixability::Suggestion => Some(Applicability::Dangerous),
-        };
-        if let Some(applicability) = applicability {
+        // require one correction allowed by the declared capability
+        if lint.is_fixable() {
             let [suggestion] = diagnostic.suggestions.as_slice() else {
                 panic!(
                     "lint '{}' example emitted {} corrections",
@@ -60,12 +57,15 @@ impl TestSession {
                     diagnostic.suggestions.len()
                 );
             };
-            assert_eq!(
-                suggestion.applicability, applicability,
-                "lint '{}' example emitted the wrong correction applicability",
-                lint.id
-            );
-            reported.assert_edits(lint.example.accepted(), applicability);
+            if lint.fixability == Fixability::Automatic {
+                assert_eq!(
+                    suggestion.applicability,
+                    Applicability::Automatic,
+                    "lint '{}' example emitted a review correction",
+                    lint.id
+                );
+            }
+            reported.assert_edits(lint.example.accepted(), suggestion.applicability);
         } else {
             assert!(
                 diagnostic.suggestions.is_empty(),
@@ -80,7 +80,7 @@ impl TestSession {
     }
 
     /// Run one isolated lint test.
-    pub(crate) fn new(lint: &Lint, source: &str) -> Self {
+    pub(crate) fn new(lint: &'static Lint, source: &str) -> Self {
         let (repository, base) = shared_repository();
         let configuration = lint_configuration(lint);
         let edits = [
@@ -133,10 +133,11 @@ impl TestSession {
             .require(revision, key)
             .expect("lint test artifact should be provided");
         let diagnostics = repository
-            .diagnostics(revision, Some(key))
+            .diagnostics_for_keys(revision, &[key])
             .expect("lint test diagnostics should be readable");
 
         Self {
+            lint,
             repository: repository.clone(),
             revision,
             diagnostics,
@@ -209,7 +210,11 @@ impl TestSession {
         let file = self.file(self.file);
         let actual = apply_file_patch(&file, &file_patch).expect("lint test fixes should apply");
 
-        assert_snapshot(actual, expected);
+        assert_snapshot(&actual, expected);
+
+        // require the corrected source to pass the same lint after checking again
+        let corrected = Self::new(self.lint, &actual);
+        corrected.assert_no_diagnostics();
 
         self
     }
