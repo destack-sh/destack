@@ -119,7 +119,6 @@ impl CheckState<'_> {
         self.write_auto_conformances(module)?;
 
         // record checked member bindings for every authored lookup subject
-        self.write_member_bindings(module)?;
 
         // seal every embedded type id
         self.close_output_segments(module, failed_applications, &mut sealed)?;
@@ -374,51 +373,6 @@ impl CheckState<'_> {
         }
 
         Ok(resolved)
-    }
-
-    /// Record the checked member bindings behind every authored lookup subject.
-    ///
-    /// The subject's key domain enumerates from declared tables and each key
-    /// resolves through the solved keyed lookup, so the table transcribes the
-    /// checker's own answers instead of re-deriving members.
-    fn write_member_bindings(&mut self, module: ModuleId) -> CompilerResult<()> {
-        let subjects = self
-            .module(module)
-            .members
-            .iter_subjects()
-            .collect::<Vec<_>>();
-
-        for (source, subject) in subjects {
-            // subjects recorded at many sites bind once
-            if self.module(module).members.members(subject).is_some() {
-                continue;
-            }
-
-            // resolve each declared key through the solved lookup
-            let origin = Origin::Node(source, subject.scope);
-            let keys = self.body().subject_member_keys(origin, module, &subject)?;
-            let mut bindings = Vec::with_capacity(keys.len());
-            for key in keys {
-                let lookup = match self.body().lookup_member(origin, module, subject, key)? {
-                    Answer::Ready(lookup) => lookup,
-                    Answer::Pending(blockers) => {
-                        return Err(CompilerError::Internal {
-                            message: format!(
-                                "member binding lookup suspended after solving: {blockers:?}"
-                            ),
-                        });
-                    }
-                };
-                if let Some(binding) = self.body().member_binding(origin, key, &lookup)? {
-                    bindings.push(binding);
-                }
-            }
-            self.module_mut(module)
-                .members
-                .record_bindings(subject, bindings);
-        }
-
-        Ok(())
     }
 
     /// Resolve one module's recorded contextual expectations.

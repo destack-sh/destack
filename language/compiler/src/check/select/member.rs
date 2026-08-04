@@ -1105,6 +1105,15 @@ impl BodyState<'_, '_> {
         }
         let lookup = answer!(self.lookup_member(origin, module, subject, key,)?);
 
+        // retain the checked binding resolved for the touched key
+        if !matches!(lookup, MemberLookup::Missing)
+            && let Some(binding) = self.member_binding(origin, key, &lookup)?
+        {
+            self.module_mut(module)
+                .members
+                .record_binding(subject, binding);
+        }
+
         match lookup {
             MemberLookup::Missing => {
                 let key = self.strings().get(name).to_string();
