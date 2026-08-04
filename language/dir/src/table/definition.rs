@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_core::{FxIndexMap as IndexMap, StringId, StringPool};
+use destack_core::{FxIndexMap as IndexMap, StringId};
 use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
@@ -8,8 +8,8 @@ use smallvec::SmallVec;
 
 use crate::{
     EnumBackingType, EnumVariantValue, FunctionRole, GlobalNodeIdAny, GlobalStaticId,
-    GlobalSymbolId, GlobalTypeId, IntegerType, LocalGenericTemplateId, MemberSlot,
-    MethodAbstraction, PrimitiveType, SegmentView, Space, StaticKey,
+    GlobalSymbolId, GlobalTypeId, IntegerType, LocalGenericTemplateId, MemberKind, MemberSlot,
+    MemberSpace, MethodAbstraction, PrimitiveType, SegmentView, Space, StaticKey,
 };
 
 /// Cumulative declaration definitions for one DIR module.
@@ -1087,15 +1087,6 @@ pub struct IndexSignatureDefinition {
     pub is_readonly: bool,
 }
 
-/// Member namespace selected by member lookup.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum MemberSpace {
-    /// Instance members selected from a runtime receiver.
-    Instance,
-    /// Static members selected from a declaration receiver.
-    Static,
-}
-
 /// One declaration member.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum DefinitionMember {
@@ -1122,28 +1113,57 @@ pub enum DefinitionMember {
 }
 
 impl DefinitionMember {
-    /// Return the member name.
-    pub fn name(&self, strings: &StringPool) -> Option<String> {
-        if let Some(key) = self.key() {
-            return match key {
-                StaticKey::Name(string_id) => Some(strings.get(string_id).to_string()),
-                StaticKey::Index(index) => Some(index.to_string()),
-                StaticKey::Symbol(_) => None,
-            };
-        }
-
+    /// Return the member kind.
+    pub fn kind(&self) -> MemberKind {
         match self {
+            Self::Field(_) => MemberKind::Field,
+            Self::Method(method)
+                if matches!(
+                    method.role,
+                    Some(FunctionRole::Getter | FunctionRole::Setter)
+                ) =>
+            {
+                MemberKind::Property
+            }
             Self::Method(method) => match method.slot {
-                MemberSlot::Constructor => Some("constructor".to_string()),
-                MemberSlot::New => Some("new".to_string()),
-                MemberSlot::Call => Some("call".to_string()),
-                MemberSlot::Key(_) => None,
+                MemberSlot::Constructor | MemberSlot::New => MemberKind::Constructor,
+                MemberSlot::Call => MemberKind::CallSignature,
+                MemberSlot::Key(_) => MemberKind::Method,
             },
-            Self::CallSignature(_) => Some("call".to_string()),
-            Self::ConstructSignature(_) => Some("new".to_string()),
-            Self::IndexSignature(_) => Some("[]".to_string()),
-            _ => None,
+            Self::AssociatedType(_) => MemberKind::AssociatedType,
+            Self::AssociatedConst(_) => MemberKind::AssociatedConst,
+            Self::EnumVariant(_) | Self::TaggedKey(_) => MemberKind::Variant,
+            Self::TaggedVariant(variant) if variant.argument.is_some() => MemberKind::Constructor,
+            Self::TaggedVariant(_) => MemberKind::Variant,
+            Self::CallSignature(_) => MemberKind::CallSignature,
+            Self::ConstructSignature(_) => MemberKind::ConstructSignature,
+            Self::IndexSignature(_) => MemberKind::IndexSignature,
         }
+    }
+
+    /// Return whether this member has a source-level name.
+    pub fn is_named(&self) -> bool {
+        matches!(self.key(), Some(StaticKey::Name(_)))
+            || matches!(
+                self,
+                Self::Method(MethodDefinition {
+                    slot: MemberSlot::Constructor | MemberSlot::New,
+                    ..
+                })
+            )
+    }
+
+    /// Return whether this member accepts writes.
+    pub fn is_writable(&self) -> bool {
+        matches!(self, Self::Field(field) if !field.is_readonly)
+            || matches!(self, Self::Method(method) if method.role == Some(FunctionRole::Setter))
+            || matches!(self, Self::IndexSignature(index) if !index.is_readonly)
+    }
+
+    /// Return whether this member may be absent.
+    pub fn is_optional(&self) -> bool {
+        matches!(self, Self::Field(field) if field.is_optional)
+            || matches!(self, Self::IndexSignature(index) if index.is_optional)
     }
 
     /// Return whether this member carries a default implementation.

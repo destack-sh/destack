@@ -1,9 +1,12 @@
-use crate::{GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, MemberSpace, Postings};
+use crate::{
+    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, MemberKind, MemberOrigin, MemberSpace, Postings,
+    StaticKey,
+};
 use destack_serde::Reflect;
 use destack_source::{FileId, Span};
 use serde::{Deserialize, Serialize};
 
-/// Indexed checked members.
+/// Indexed members.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct MemberIndex {
     /// The members in stable source order.
@@ -19,8 +22,8 @@ pub struct MemberIndex {
 /// Member postings by lookup key.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct MemberPostings {
-    /// Member name postings.
-    pub names: Postings<String>,
+    /// Member key postings.
+    pub keys: Postings<StaticKey>,
     /// Member owner postings.
     pub owners: Postings<GlobalSymbolId>,
     /// Member declaring symbol postings.
@@ -134,13 +137,13 @@ impl MemberIndex {
 impl MemberPostings {
     /// Build member postings from module index sections.
     pub fn build(indexes: &[&MemberIndex]) -> Self {
-        let names = Postings::from_pairs((0..indexes.len()).flat_map(|ordinal| {
+        let keys = Postings::from_pairs((0..indexes.len()).flat_map(|ordinal| {
             let module = ordinal as u32;
 
             indexes[ordinal]
                 .entries()
                 .iter()
-                .map(move |entry| (entry.name.clone(), module))
+                .filter_map(move |entry| entry.key.map(|key| (key, module)))
         }));
         let owners = Postings::from_pairs((0..indexes.len()).flat_map(|ordinal| {
             let module = ordinal as u32;
@@ -160,7 +163,7 @@ impl MemberPostings {
         }));
 
         Self {
-            names,
+            keys,
             owners,
             declaring,
         }
@@ -168,10 +171,8 @@ impl MemberPostings {
 
     /// Replace postings for one module member index.
     pub fn update(&mut self, module: u32, index: &MemberIndex) {
-        self.names.replace(
-            module,
-            index.entries().iter().map(|entry| entry.name.clone()),
-        );
+        self.keys
+            .replace(module, index.entries().iter().filter_map(|entry| entry.key));
         self.owners.replace(
             module,
             index.entries().iter().filter_map(|entry| entry.owner),
@@ -184,8 +185,8 @@ impl MemberPostings {
 /// One indexed member.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct MemberEntry {
-    /// The member name.
-    pub name: String,
+    /// The member key when the member is keyed.
+    pub key: Option<StaticKey>,
     /// The member kind.
     pub kind: MemberKind,
     /// The symbol this member belongs to or extends.
@@ -204,11 +205,11 @@ pub struct MemberEntry {
     pub selection: Option<Span>,
     /// The containing symbol display name.
     pub container: Option<String>,
-    /// The checked type of the member when known.
+    /// The type of the member when known.
     pub ty: Option<GlobalTypeId>,
     /// The member origin.
     pub origin: MemberOrigin,
-    /// The checked member space.
+    /// The member space.
     pub space: MemberSpace,
 }
 
@@ -248,7 +249,7 @@ impl MemberEntry {
     fn compare_by_owner(&self, other: &Self) -> std::cmp::Ordering {
         let left = (
             self.owner,
-            self.name.as_str(),
+            self.key,
             self.source.module_id,
             self.file,
             self.span.start,
@@ -259,7 +260,7 @@ impl MemberEntry {
         );
         let right = (
             other.owner,
-            other.name.as_str(),
+            other.key,
             other.source.module_id,
             other.file,
             other.span.start,
@@ -276,7 +277,7 @@ impl MemberEntry {
     fn compare_by_declaring(&self, other: &Self) -> std::cmp::Ordering {
         let left = (
             self.declaring,
-            self.name.as_str(),
+            self.key,
             self.source.module_id,
             self.file,
             self.span.start,
@@ -287,7 +288,7 @@ impl MemberEntry {
         );
         let right = (
             other.declaring,
-            other.name.as_str(),
+            other.key,
             other.source.module_id,
             other.file,
             other.span.start,
@@ -325,45 +326,4 @@ impl MemberEntry {
 
         left.cmp(&right)
     }
-}
-
-/// Indexed member kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
-pub enum MemberKind {
-    /// Field member.
-    Field,
-    /// Getter or setter property member.
-    Property,
-    /// Method member.
-    Method,
-    /// Constructor member.
-    Constructor,
-    /// Call signature member.
-    CallSignature,
-    /// Construct signature member.
-    ConstructSignature,
-    /// Index signature member.
-    IndexSignature,
-    /// Associated type member.
-    AssociatedType,
-    /// Associated constant member.
-    AssociatedConst,
-    /// Enum variant member.
-    Variant,
-}
-
-/// The declaring surface one member came from.
-///
-/// Nearer surfaces shadow farther ones during selection: declarations shadow
-/// rooted extensions, which shadow blanket extensions.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
-)]
-pub enum MemberOrigin {
-    /// A member declared by the owning declaration itself.
-    Declaration,
-    /// A member declared by an extension rooted at its target.
-    RootedExtension,
-    /// A member declared by an open blanket extension.
-    BlanketExtension,
 }

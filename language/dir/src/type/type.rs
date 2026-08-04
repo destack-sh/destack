@@ -2181,6 +2181,18 @@ pub enum PropertyAccess {
 }
 
 impl PropertyAccess {
+    /// Apply one mapping to every type id stored in this property access.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        *self = match *self {
+            Self::Read(type_id) => Self::Read(map(type_id)),
+            Self::Write(type_id) => Self::Write(map(type_id)),
+            Self::ReadWrite { read, write } => Self::ReadWrite {
+                read: map(read),
+                write: map(write),
+            },
+        };
+    }
+
     /// Return the value type produced by a read.
     pub fn read(self) -> Option<GlobalTypeId> {
         match self {
