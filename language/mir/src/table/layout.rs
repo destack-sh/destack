@@ -107,6 +107,8 @@ pub struct Layout<T = LocalNodeId<Type>, L = LayoutId> {
     pub shape: LayoutShape<T, L>,
     /// The physical value representation.
     pub representation: Representation,
+    /// The largest scalar field containing invalid values.
+    pub niche: Option<ScalarField>,
     /// Total size in bytes, including trailing padding.
     pub size: u32,
     /// Alignment requirement in bytes.
@@ -118,9 +120,15 @@ pub struct Layout<T = LocalNodeId<Type>, L = LayoutId> {
 impl Layout {
     /// Create one scalar layout of the given size and alignment.
     pub const fn scalar(scalar: Scalar, size: u32, alignment: u32) -> Self {
+        let niche = match scalar.validity.invalid(scalar.bit_width()) {
+            Some(_) => Some(ScalarField::new(scalar, 0)),
+            None => None,
+        };
+
         Self {
             shape: LayoutShape::Scalar,
             representation: Representation::Scalar(scalar),
+            niche,
             size,
             alignment,
             trace_map: TraceMap::Empty,
@@ -188,7 +196,7 @@ pub enum Representation {
     Scalar(Scalar),
     /// Two scalar register values in canonical byte order.
     ScalarPair([ScalarField; 2]),
-    /// One native vector register value.
+    /// One fixed vector value eligible for target legalization.
     Vector(Vector),
     /// Canonical bytes addressed in memory.
     Memory,
@@ -307,7 +315,7 @@ impl ScalarField {
     }
 }
 
-/// One native vector representation.
+/// One fixed vector representation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Vector {
     /// The scalar lane representation.
@@ -317,7 +325,7 @@ pub struct Vector {
 }
 
 impl Vector {
-    /// Create one native vector representation.
+    /// Create one fixed vector representation.
     pub const fn new(element: Scalar, lanes: u32) -> Self {
         Self { element, lanes }
     }
