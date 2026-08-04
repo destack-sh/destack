@@ -1,3 +1,5 @@
+use std::slice;
+
 use destack_dir as dir;
 use destack_source::{EnclosingSpan, FileId, Span};
 
@@ -403,7 +405,7 @@ impl CompletionBuilder<'_, '_, '_> {
         let mut results = Vec::new();
 
         let node = call.into_global_any(self.module.module_id());
-        // FUGU #Incomplete: DIR must retain call selections for incomplete named arguments
+        // FUGU #Incomplete: DIR must retain attempted candidates for rejected overloads
         let resolution =
             self.module
                 .resolutions()?
@@ -412,17 +414,44 @@ impl CompletionBuilder<'_, '_, '_> {
                     "completion call selection: {node:?}"
                 )))?;
 
-        // FUGU #Incomplete: DIR must retain shared parameters for union calls
-        let selected = match resolution {
-            dir::OperationResolution::One(selected) => selected,
-            dir::OperationResolution::Union { .. } => {
-                return Err(QueryError::missing(format!(
-                    "completion union call target: {node:?}"
-                )));
-            }
+        // union calls offer only the names every runtime arm still accepts
+        let selections = match resolution {
+            dir::OperationResolution::One(selected) => slice::from_ref(selected),
+            dir::OperationResolution::Union { arms, .. } => arms.as_slice(),
         };
 
-        // exclude parameters already bound by positional arguments
+        // intersect the unbound names across every arm
+        let mut shared: Option<Vec<String>> = None;
+        for selected in selections {
+            let Some(names) = self.unbound_parameter_names(selected)? else {
+                return Ok(results);
+            };
+            shared = Some(match shared {
+                None => names,
+                Some(shared) => shared
+                    .into_iter()
+                    .filter(|name| names.contains(name))
+                    .collect(),
+            });
+        }
+
+        // offer each shared unbound parameter name
+        for name in shared.unwrap_or_default() {
+            let completion = CompletionCandidate::new(
+                name,
+                CompletionItemKind::ValueParameter,
+                CompletionOrigin::Local,
+                SORT_BUILTIN,
+            );
+            results.push(completion);
+        }
+
+        Ok(results)
+    }
+
+    /// Return one selected call's parameter names past the bound arguments.
+    fn unbound_parameter_names(&self, selected: &dir::Call) -> QueryResult<Option<Vec<String>>> {
+        // read the selected target's parameter names
         let names = match selected.target.symbol() {
             Some(symbol) => self
                 .program
@@ -441,21 +470,12 @@ impl CompletionBuilder<'_, '_, '_> {
             },
         };
         let Some(names) = names else {
-            return Ok(results);
+            return Ok(None);
         };
 
-        // offer each parameter past the bound argument prefix
+        // exclude parameters already bound by positional arguments
         let bound = selected.arguments.len();
-        for name in names.into_iter().skip(bound).flatten() {
-            let completion = CompletionCandidate::new(
-                name,
-                CompletionItemKind::ValueParameter,
-                CompletionOrigin::Local,
-                SORT_BUILTIN,
-            );
-            results.push(completion);
-        }
 
-        Ok(results)
+        Ok(Some(names.into_iter().skip(bound).flatten().collect()))
     }
 }

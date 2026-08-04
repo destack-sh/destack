@@ -3,7 +3,10 @@ use destack_source::FileId;
 
 use super::CompletionContext;
 use super::builder::CompletionBuilder;
-use crate::{CompletionCandidate, ModuleQueryContext, QueryError, QueryResult};
+use crate::{
+    CompletionCandidate, CompletionItemKind, CompletionOrigin, ModuleQueryContext, QueryError,
+    QueryResult, SORT_BUILTIN,
+};
 
 /// Source spans owned by one object literal.
 struct ObjectLiteralSpans<'a> {
@@ -171,13 +174,112 @@ impl CompletionBuilder<'_, '_, '_> {
     pub(super) fn complete_expected_fields(
         &self,
         literal: dir::LocalNodeId<dir::Expression>,
-        _scope: dir::LocalScope,
     ) -> QueryResult<Vec<CompletionCandidate>> {
         let node = literal.into_global_any(self.module.module_id());
 
-        // FUGU #Incomplete: checked construction must retain accepted and authored fields
-        Err(QueryError::missing(format!(
-            "object construction bindings: {node:?}"
-        )))
+        // read the contextual type expected at the literal
+        let types = self.module.types()?;
+        let Some(expected) = types
+            .get_expected_type_id(node)
+            .or_else(|| types.get_node_type_id(node))
+        else {
+            return Ok(Vec::new());
+        };
+        let expected = types.get_reduced_type_id(expected);
+
+        // collect the keys the literal already authored
+        let view = self.module.view()?;
+        let dir::Expression::ObjectExpression { properties, .. } = view.get(literal) else {
+            return Err(QueryError::invalid(format!("object literal: {node:?}")));
+        };
+        let mut authored = Vec::new();
+        for property in properties.iter() {
+            if let dir::Property::Field { key, .. } = view.get(*property)
+                && let Some(key) = key.direct_static_key()
+            {
+                authored.push(key);
+            }
+        }
+
+        // offer each expected field the literal has not authored
+        let mut results = Vec::new();
+        for (key, ty) in self.expected_field_entries(expected)? {
+            if authored.contains(&key) {
+                continue;
+            }
+            let dir::StaticKey::Name(name) = key else {
+                continue;
+            };
+            let label = self.module.strings().get(name).to_string();
+            let mut completion = CompletionCandidate::new(
+                label,
+                CompletionItemKind::Field,
+                CompletionOrigin::Member,
+                SORT_BUILTIN,
+            );
+            if let Some(ty) = ty {
+                completion = completion.with_type_id(ty);
+            }
+            results.push(completion);
+        }
+
+        Ok(results)
     }
+
+    /// Return the field keys and types declared by one expected type.
+    fn expected_field_entries(
+        &self,
+        expected: dir::GlobalTypeId,
+    ) -> QueryResult<Vec<(dir::StaticKey, Option<dir::GlobalTypeId>)>> {
+        // structural expectations list their properties directly
+        let source = self.program.read_type(expected, |ty, owner| match ty {
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
+                let entries = owner
+                    .types()?
+                    .properties(shape.properties)
+                    .iter()
+                    .map(|field| (field.key, field.access.read()))
+                    .collect();
+
+                Ok(ExpectedFields::Structural(entries))
+            }
+            dir::Type::Application(instance) => Ok(ExpectedFields::Nominal(instance.symbol)),
+            dir::Type::Reference(reference) => Ok(ExpectedFields::Nominal(reference.symbol)),
+            _ => Ok(ExpectedFields::Structural(Vec::new())),
+        })?;
+        let symbol = match source {
+            ExpectedFields::Nominal(symbol) => symbol,
+            ExpectedFields::Structural(entries) => return Ok(entries),
+        };
+
+        // nominal expectations list their declared instance fields
+        let Some(symbol) = self.program.canonical_symbol(symbol)? else {
+            return Ok(Vec::new());
+        };
+        let declaration = self.program.module(symbol.module_id)?;
+        let Some(definition) = declaration.definitions()?.definition(symbol) else {
+            return Ok(Vec::new());
+        };
+        let mut entries = Vec::new();
+        for member in definition.members() {
+            let dir::DefinitionMember::Field(field) = member else {
+                continue;
+            };
+            if field.space != dir::MemberSpace::Instance {
+                continue;
+            }
+            let ty = declaration.types()?.get_symbol_type_id(field.symbol);
+            entries.push((field.key, ty));
+        }
+
+        Ok(entries)
+    }
+}
+
+/// Field source resolved from one expected literal type.
+enum ExpectedFields {
+    /// Structural fields listed by the type itself.
+    Structural(Vec<(dir::StaticKey, Option<dir::GlobalTypeId>)>),
+    /// A nominal declaration listing its instance fields.
+    Nominal(dir::GlobalSymbolId),
 }

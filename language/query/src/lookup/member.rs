@@ -66,16 +66,28 @@ impl ModuleQueryContext<'_> {
             if entry.kind != HeritageKind::Implements {
                 continue;
             }
-            let derived_module = program.module(entry.declaration.module_id)?;
-            let Some(definition) = derived_module.definitions()?.definition(entry.declaration)
-            else {
-                continue;
-            };
 
-            // collect the implementer's declarations under the same member key
-            for member in definition.members_with_key(space, key) {
-                if let Some(symbol) = member.symbol() {
-                    symbols.push(symbol);
+            // search the conformance declaration before the conforming root
+            let mut providers = vec![entry.declaration];
+            if entry.derived != entry.declaration {
+                providers.push(entry.derived);
+            }
+            for provider in providers {
+                let derived_module = program.module(provider.module_id)?;
+                let Some(definition) = derived_module.definitions()?.definition(provider) else {
+                    continue;
+                };
+
+                // collect the implementer's declarations under the same member key
+                let mut found = false;
+                for member in definition.members_with_key(space, key) {
+                    if let Some(symbol) = member.symbol() {
+                        symbols.push(symbol);
+                        found = true;
+                    }
+                }
+                if found {
+                    break;
                 }
             }
         }

@@ -273,12 +273,9 @@ impl Formatter<'_, '_, '_> {
 
                     format!("(enum member) {name}: {type_text}")
                 }
-                // FUGU #Broken: check must replace every tagged key with a variant
-                dir::DefinitionMember::TaggedKey(key) => {
-                    return Err(QueryError::invalid(format!(
-                        "unresolved tagged key: {:?}",
-                        key.symbol
-                    )));
+                // format the declared variant identity alone in unchecked modules
+                dir::DefinitionMember::TaggedKey(_) => {
+                    format!("(constructor) {name}")
                 }
                 dir::DefinitionMember::TaggedVariant(variant) => {
                     let type_id = self.types()?.get_symbol_type_id(variant.symbol).ok_or(

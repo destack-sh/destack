@@ -63,7 +63,11 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
                 self.complete_values(*scope, matches!(trigger, CompletionTrigger::Invoked))?
             }
             CompletionContext::ObjectLiteralKey { literal, scope } => {
-                self.complete_expected_fields(*literal, *scope)?
+                // offer the expected type's missing fields before scope values
+                let mut candidates = self.complete_expected_fields(*literal)?;
+                candidates.extend(self.complete_values(*scope, false)?);
+
+                candidates
             }
             CompletionContext::ObjectLiteralValue { scope } => {
                 self.complete_values(*scope, false)?
