@@ -362,8 +362,8 @@ pub(super) fn damaged_statement_boundaries(scale: usize, _width: usize) -> Strin
                 let _ = writeln!(source, "const recoveredAfterUsing{index} = value{index};");
             }
             _ => {
-                let _ = writeln!(source, "throw ;");
-                let _ = writeln!(source, "const recoveredAfterThrow{index} = value{index};");
+                let _ = writeln!(source, "panic(;");
+                let _ = writeln!(source, "const recoveredAfterPanic{index} = value{index};");
             }
         }
     }

@@ -4,7 +4,7 @@
 match (result) {
 // <- keyword.control.conditional.ds
     Ok(value) => value,
-    Err(error) => throw error
+    Err(error) => panic("unhandled error")
 }
 
 // expressions / match / guards and struct patterns

@@ -24,7 +24,7 @@ try {
 Try branches, catch-match arms, and nested if-let branches all preserve value-tail shape.
 
 ```ds
-function read(): number { try { if (let Some(value) = maybe) { value } else { fallback() } } catch match (error) { Network.Timeout({ duration }) if (duration > 1000) => retry(duration); Validation.Errors([first, ...rest]) => { report(first, rest); fallback() }; _ => throw error } }
+function read(): number { try { if (let Some(value) = maybe) { value } else { fallback() } } catch match (error) { Network.Timeout({ duration }) if (duration > 1000) => retry(duration); Validation.Errors([first, ...rest]) => { report(first, rest); fallback() }; _ => panic("unhandled error") } }
 ```
 
 ```ds expected
@@ -41,7 +41,7 @@ function read(): number {
             report(first, rest);
             fallback()
         }
-        _ => throw error
+        _ => panic("unhandled error")
     }
 }
 ```
@@ -51,7 +51,7 @@ function read(): number {
 Catch match clauses keep patterns and guards structured.
 
 ```ds
-try { read() } catch match (error) { Network.Timeout({ duration }) if (duration > 1000) => retry(duration); Validation.Errors([first, ...rest]) => report(first, rest); _ => throw error }
+try { read() } catch match (error) { Network.Timeout({ duration }) if (duration > 1000) => retry(duration); Validation.Errors([first, ...rest]) => report(first, rest); _ => panic("unhandled error") }
 ```
 
 ```ds expected
@@ -60,7 +60,7 @@ try {
 } catch match (error) {
     Network.Timeout({ duration }) if (duration > 1000) => retry(duration)
     Validation.Errors([first, ...rest]) => report(first, rest)
-    _ => throw error
+    _ => panic("unhandled error")
 }
 ```
 
@@ -97,13 +97,13 @@ Comments around catch match selectors and arms stay attached.
 try {
     read()
 } catch match (
-    // thrown value
+    // failure value
     error
 ) {
     // timeout branch
     Network.Timeout(/* duration */ duration) => retry(duration);
     // fallback branch
-    _ => throw error
+    _ => panic("unhandled error")
 }
 ```
 
@@ -111,13 +111,13 @@ try {
 try {
     read()
 } catch match (
-    // thrown value
+    // failure value
     error
 ) {
     // timeout branch
     Network.Timeout(/* duration */ duration) => retry(duration)
     // fallback branch
-    _ => throw error
+    _ => panic("unhandled error")
 }
 ```
 
@@ -160,7 +160,7 @@ Catch-match patterns keep comments attached while preserving arm value tails.
 ```ds
 try { read() } catch match (error) { // network
 Network.Timeout({ duration }) if (duration > 1000) => retry(duration); // validation
-Validation.Errors([first, ...rest]) => { report(first, rest); fallback() }; _ => throw error }
+Validation.Errors([first, ...rest]) => { report(first, rest); fallback() }; _ => panic("unhandled error") }
 ```
 
 ```ds expected
@@ -174,6 +174,6 @@ try {
         report(first, rest);
         fallback()
     }
-    _ => throw error
+    _ => panic("unhandled error")
 }
 ```

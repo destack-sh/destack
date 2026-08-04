@@ -27,7 +27,7 @@ pub(super) fn convoluted_patterns(scale: usize, _width: usize) -> String {
         ));
     }
 
-    source.push_str("        Err(error) => throw error\n    };\n}\n");
+    source.push_str("        Err(error) => panic(\"unhandled error\")\n    };\n}\n");
 
     source
 }

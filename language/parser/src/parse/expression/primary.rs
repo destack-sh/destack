@@ -338,7 +338,9 @@ impl Parser {
         }
 
         match keyword {
-            Keyword::Function => Err(ParserError::unexpected(self.peek_token_span())),
+            Keyword::Function | Keyword::Throw => {
+                Err(ParserError::unexpected(self.peek_token_span()))
+            }
             Keyword::This => {
                 let keyword_range = self.peek_token().range();
                 self.bump();
@@ -387,7 +389,6 @@ impl Parser {
             Keyword::Switch => self.parse_switch(context.function),
             Keyword::Break => self.parse_break(context.function),
             Keyword::Continue => self.parse_continue(),
-            Keyword::Throw => self.parse_throw(context.function),
             Keyword::Return => self.parse_return(context.function),
             Keyword::Yield if context.function.yield_context == YieldContext::Forbidden => {
                 Err(ParserError::unexpected(self.peek_token_span()))

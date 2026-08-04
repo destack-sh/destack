@@ -48,19 +48,6 @@ fn test_format_new_expression_does_not_use_test_call_layout() {
     );
 }
 
-/// Fallible new expressions should keep the `new?` marker attached.
-#[test]
-fn test_format_new_maybe_expression() {
-    assert_format_program!(
-        r#"new? User("florian");
-"#,
-        r#"new? User("florian");
-"#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
-    );
-}
-
 /// Inferred call heads should format as ordinary compact call heads.
 #[test]
 fn test_format_inferred_call_head() {

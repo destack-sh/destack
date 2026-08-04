@@ -3,8 +3,8 @@ use smallvec::SmallVec;
 
 use super::InferMode;
 use crate::check::{
-    Answer, BodyState, Cause, CauseKind, CheckOutcome, ConstructResult, Expectation, FlowSite,
-    PlaceUse, Relation, ValueUse, answer,
+    Answer, BodyState, Cause, CauseKind, CheckOutcome, Expectation, FlowSite, PlaceUse, Relation,
+    ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -253,21 +253,8 @@ impl BodyState<'_, '_> {
                     site,
                     ty,
                     &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
-                    ConstructResult::Direct,
                     None,
                 )?);
-
-                Ok(Answer::Ready(()))
-            }
-            dir::Expression::NewMaybe { ty, arguments } => {
-                let value = answer!(self.select_construct(
-                    site,
-                    ty,
-                    &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
-                    ConstructResult::Fallible,
-                    None,
-                )?);
-                self.propagate_try_residual(node.into_any(), value, site)?;
 
                 Ok(Answer::Ready(()))
             }
@@ -317,7 +304,6 @@ impl BodyState<'_, '_> {
             | dir::Expression::While { .. }
             | dir::Expression::Loop { .. }
             | dir::Expression::For { .. }
-            | dir::Expression::Throw { .. }
             | dir::Expression::Break { .. }
             | dir::Expression::Continue { .. }) => self.infer_statement(site, &expression),
             expression => self.reject_expression_without_inference_owner(node, expression),

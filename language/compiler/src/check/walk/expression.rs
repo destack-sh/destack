@@ -232,10 +232,6 @@ impl WalkState<'_, '_> {
                         .report_await_outside_async_context(self.module, id.into_any());
                 }
             }
-            // throw value
-            dir::Expression::Throw { value } => {
-                self.walk_expression(*value, self.tree.get(*value))?;
-            }
             // return value
             dir::Expression::Return { value } => {
                 if self.flow().current_function().is_none() {
@@ -537,16 +533,6 @@ impl WalkState<'_, '_> {
                         self.mark_moved_argument(value, *argument, id);
                     }
                 }
-            }
-            // new? Type<T>(argument)
-            dir::Expression::NewMaybe { ty, arguments } => {
-                let arguments = arguments.iter().copied().collect::<SmallVec<[_; 4]>>();
-                self.walk_construct_type_expression(*ty)?;
-                for argument in &arguments {
-                    self.walk_argument(*argument, self.tree.get(*argument))?;
-                }
-
-                self.propagate_try(id.into_any())?;
             }
             // await? value
             dir::Expression::AwaitMaybe {

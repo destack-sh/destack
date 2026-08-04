@@ -1481,7 +1481,6 @@ impl AssignmentLike {
                     value_inner_expr,
                     Expression::Call { .. }
                         | Expression::New { .. }
-                        | Expression::NewMaybe { .. }
                         | Expression::Instantiation { .. }
                 );
                 let rhs_has_generic_class_heritage =

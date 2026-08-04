@@ -338,13 +338,12 @@ let a: User = new User();   // managed
 let b: ^User = new User();  // owned
 ```
 
-In some situations it is useful to handle allocation errors directly, and for that Destack supports more direct fallible allocation accessors both via higher level `try*` methods in standard library types (like `Array.tryReserve`) and the low level intrinsics (`MaybeUninit<T>`, `Unique<T>`, etc.) that they are built on.
-Regular managed object allocation (`new T()`) can also be made fallible via the `new?` operator, which behaves similar in spirit to the regular [`?`](./expressions.md#maybe-must-and-coalesce) and `await?` operators, propagating an `AllocationError` to the containing context:
+In some situations it is useful to handle allocation errors directly, and for that Destack supports fallible allocation accessors both via higher level `try*` methods in standard library types (like `Array.tryReserve`) and the low level intrinsics (`MaybeUninit<T>`, `Unique<T>`, etc.) that they are built on.
 
 ```ds
 try {
     let buffer: Block[] = Array.tryWithCapacity(count)?; // fallible library allocation
-    let page = new? Page(buffer);                        // fallible managed allocation
+    let page = new Page(buffer);
     page.fill()?;
 
     return page;

@@ -157,7 +157,7 @@ fn expression_is_simple(
             arguments,
             ..
         } => call_like_is_simple(context, *left, generic_arguments, arguments, depth),
-        Expression::New { ty, arguments } | Expression::NewMaybe { ty, arguments } => {
+        Expression::New { ty, arguments } => {
             new_expression_is_simple(context, *ty, arguments, depth)
         }
         // anything else is too complex

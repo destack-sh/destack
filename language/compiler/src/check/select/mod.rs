@@ -27,7 +27,6 @@ mod template;
 mod tree;
 mod tuple;
 
-pub(in crate::check) use construct::ConstructResult;
 pub(in crate::check) use instantiation::TypeArgumentInference;
 pub(in crate::check) use member::*;
 pub(in crate::check) use newtype::{

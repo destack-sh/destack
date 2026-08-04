@@ -595,7 +595,7 @@ fn write_expanded_adjacent_statement_value<'ast>(
     )
 }
 
-/// Format one adjacent return, throw, or yield argument.
+/// Format one adjacent return or yield argument.
 pub(crate) fn format_adjacent_statement_argument<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     value_id: LocalNodeId<Expression>,
@@ -1057,18 +1057,6 @@ pub(crate) fn format_yield_expression<'ast>(
     if let Some(value_id) = value {
         format_adjacent_statement_argument(f, value_id)?;
     }
-
-    Ok(())
-}
-
-/// Format one throw expression in statement position.
-pub(crate) fn format_throw_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    _node_id: LocalNodeId<Expression>,
-    value_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    write!(f, [token("throw")])?;
-    format_adjacent_statement_argument(f, value_id)?;
 
     Ok(())
 }

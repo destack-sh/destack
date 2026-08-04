@@ -108,8 +108,7 @@ impl ModuleQueryContext<'_> {
                         )
                     }
                 }
-                dir::Expression::New { arguments, .. }
-                | dir::Expression::NewMaybe { arguments, .. } => {
+                dir::Expression::New { arguments, .. } => {
                     let Some(resolution) = self.resolutions()?.construct_resolution(global_id)
                     else {
                         return Ok(None);

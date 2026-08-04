@@ -123,7 +123,7 @@ pub enum Expression {
     /// }
     ///
     /// const [head, ...tail] = values else {
-    ///     throw Error("expected values");
+    ///     panic("expected values");
     /// }
     /// ```
     LetElse {
@@ -372,15 +372,6 @@ pub enum Expression {
         cardinality: YieldCardinality,
         value: Option<LocalNodeId<Expression>>,
     },
-
-    /// Throw an expression.
-    ///
-    /// Examples:
-    /// ```
-    /// throw someError
-    /// throw anyOldExpression()
-    /// ```
-    Throw { value: LocalNodeId<Expression> },
 
     /// Return an expression.
     ///
@@ -730,18 +721,6 @@ pub enum Expression {
         arguments: Vec<LocalNodeId<Argument>>,
     },
 
-    /// Fallible new constructor call with immediate allocation failure propagation.
-    ///
-    /// Examples:
-    /// ```
-    /// new? Foo()
-    /// new? Foo(1, 2, 3)
-    /// ```
-    NewMaybe {
-        ty: LocalNodeId<TypeExpression>,
-        arguments: Vec<LocalNodeId<Argument>>,
-    },
-
     /// Optional chain boundary around accesses that may short-circuit.
     ///
     /// Examples:
@@ -834,7 +813,6 @@ impl Expression {
             | Self::Comptime { .. }
             | Self::Yield { .. }
             | Self::BorrowOf { .. }
-            | Self::Throw { .. }
             | Self::Return { .. } => OperatorPrecedence::Prefix,
 
             // binary and comparison expressions
@@ -881,7 +859,6 @@ impl Expression {
             Self::AwaitMaybe { .. } => "AwaitMaybe",
             Self::AwaitMust { .. } => "AwaitMust",
             Self::Yield { .. } => "Yield",
-            Self::Throw { .. } => "Throw",
             Self::Return { .. } => "Return",
             Self::Identifier { .. } => "Identifier",
             Self::This => "This",
@@ -912,7 +889,6 @@ impl Expression {
             Self::Infer { .. } => "Infer",
             Self::Call { .. } => "Call",
             Self::New { .. } => "New",
-            Self::NewMaybe { .. } => "NewMaybe",
             Self::Chain { .. } => "Chain",
             Self::Maybe { .. } => "Maybe",
             Self::Must { .. } => "Must",
@@ -971,7 +947,6 @@ impl Expression {
             Expression::Continue { .. } => true,
             Expression::Yield { .. } => true,
             Expression::Return { .. } => true,
-            Expression::Throw { .. } => true,
             Expression::Debugger => true,
             Expression::If { form, .. } => *form == IfForm::If,
             Expression::While { .. } => true,
@@ -1042,7 +1017,6 @@ impl Expression {
                 | Expression::Continue { .. }
                 | Expression::Yield { .. }
                 | Expression::Return { .. }
-                | Expression::Throw { .. }
                 | Expression::Debugger
                 | Expression::Try { catch: Some(_), .. }
                 | Expression::Try {

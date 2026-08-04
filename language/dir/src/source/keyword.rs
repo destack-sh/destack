@@ -180,7 +180,7 @@ pub enum Keyword {
     Try,
     /// Catch expression.
     Catch,
-    /// Throw expression.
+    /// Reserved throw keyword.
     Throw,
     /// Finally expression.
     Finally,
@@ -230,7 +230,6 @@ impl Keyword {
                 | Keyword::If
                 | Keyword::Try
                 | Keyword::Catch
-                | Keyword::Throw
                 | Keyword::Finally
                 | Keyword::Async
                 | Keyword::Await

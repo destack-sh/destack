@@ -443,8 +443,8 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
                     self.reify_inferred_construct_head(module_id, expression_id, expression)?;
                     self.reify_call_arguments(module_id, expression_id, expression)?;
                 }
-                dir::Expression::New { .. } | dir::Expression::NewMaybe { .. } => {
-                    self.reify_construct_arguments(module_id, expression_id, expression)?;
+                dir::Expression::New { ty, .. } => {
+                    self.reify_construct_arguments(module_id, expression_id, *ty)?;
                 }
                 dir::Expression::StructExpression { ty, .. } => {
                     self.reify_struct_expression_target(module_id, expression_id, *ty)?;
@@ -631,12 +631,8 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         &mut self,
         module_id: ModuleId,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        expression: &dir::Expression,
+        ty: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<()> {
-        let ty = match expression {
-            dir::Expression::New { ty, .. } | dir::Expression::NewMaybe { ty, .. } => *ty,
-            _ => return Ok(()),
-        };
         let node = expression_id.into_global_any(module_id);
         let Some(resolution) = self.check.resolutions(module_id).construct_resolution(node) else {
             return Ok(());

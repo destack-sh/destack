@@ -909,12 +909,6 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
-            dir::Expression::NewMaybe { .. } => {
-                return Err(self.unsupported_construct(
-                    expression_id.into_global_any(self.module.id),
-                    Some("fallible new expressions are not lowered to JS".to_string()),
-                ));
-            }
             dir::Expression::If {
                 form,
                 condition,
@@ -1171,13 +1165,6 @@ impl ModuleLowerer<'_> {
             dir::Expression::Continue { label } => {
                 let label = *label;
                 let statement = js::Statement::Continue { label };
-                self.tree
-                    .insert_from_source(statement, self.module.id, expression_id)
-                    .into_any()
-            }
-            dir::Expression::Throw { value } => {
-                let value = self.lower_expression_as::<js::Expression>(*value)?;
-                let statement = js::Statement::Throw { value };
                 self.tree
                     .insert_from_source(statement, self.module.id, expression_id)
                     .into_any()

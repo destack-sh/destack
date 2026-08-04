@@ -86,7 +86,6 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::Break { .. }
         | Expression::Continue { .. }
         | Expression::Yield { .. }
-        | Expression::Throw { .. }
         | Expression::Return { .. } => {
             write_statement_expression_trailing_annotations(f, expression_id, expression)
         }
@@ -123,7 +122,6 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::Instantiation { .. }
         | Expression::Call { .. }
         | Expression::New { .. }
-        | Expression::NewMaybe { .. }
         | Expression::Chain { .. }
         | Expression::Maybe { .. }
         | Expression::Must { .. }
@@ -284,7 +282,6 @@ fn format_expression_body_inner<'ast>(
         | Expression::Break { .. }
         | Expression::Continue { .. }
         | Expression::Yield { .. }
-        | Expression::Throw { .. }
         | Expression::Return { .. } => {
             let is_formatted = format_statement_expression(f, node_id, expression)?;
             debug_assert!(is_formatted);
@@ -323,7 +320,6 @@ fn format_expression_body_inner<'ast>(
         | Expression::Instantiation { .. }
         | Expression::Call { .. }
         | Expression::New { .. }
-        | Expression::NewMaybe { .. }
         | Expression::Chain { .. }
         | Expression::Maybe { .. }
         | Expression::Must { .. }

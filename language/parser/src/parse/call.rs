@@ -100,7 +100,6 @@ impl Parser {
 
         // keyword
         self.eat_keyword(Keyword::New)?;
-        let is_maybe = self.eat_token_if(TokenType::Maybe);
 
         // constructor name
         let ty = if self.peek_is_on_new_line() {
@@ -125,11 +124,7 @@ impl Parser {
         let arguments = arguments.unwrap_or_default();
 
         // call
-        let expression = if is_maybe {
-            Expression::NewMaybe { ty, arguments }
-        } else {
-            Expression::New { ty, arguments }
-        };
+        let expression = Expression::New { ty, arguments };
         let call_id = self.insert_node(expression, self.range_since(&start));
         if let Some(arguments_range) = arguments_range {
             let span_type = NodeSpanType::Region(NodeSpanRegion::Arguments);

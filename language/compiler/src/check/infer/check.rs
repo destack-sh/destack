@@ -2,8 +2,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CandidateOutcome, CandidateVerdict, CheckAttempt, CheckOutcome,
-    ConstructResult, Expectation, FlowSite, PlaceUse, Relation, ValueCheck, answer,
+    Answer, BodyState, CandidateOutcome, CandidateVerdict, CheckAttempt, CheckOutcome, Expectation,
+    FlowSite, PlaceUse, Relation, ValueCheck, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -372,23 +372,6 @@ impl BodyState<'_, '_> {
                     site,
                     ty,
                     &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
-                    ConstructResult::Direct,
-                    Some(expectation),
-                )?);
-                let check = ValueCheck {
-                    source,
-                    outcome: CheckOutcome::Holds,
-                    target,
-                };
-
-                Ok(Answer::Ready(CheckAttempt::Checked(check)))
-            }
-            dir::Expression::NewMaybe { ty, arguments } => {
-                let source = answer!(self.select_construct(
-                    site,
-                    ty,
-                    &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
-                    ConstructResult::Fallible,
                     Some(expectation),
                 )?);
                 let check = ValueCheck {

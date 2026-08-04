@@ -304,7 +304,7 @@ function read<T>(result: Result<T>): T {
         return result.value;
     }
 
-    throw "not yielded";
+    return unreachable();
 }
 "#,
     );
@@ -331,7 +331,7 @@ function read<T>(result: Result<T>): T {
         return result.value;
     }
 
-    throw "not yielded";
+    return unreachable();
 }
 
 === checked ===
@@ -417,9 +417,11 @@ function read<T>(result: Result<T>): T {
 
     }
 
-    throw "not yielded";
-    /// @type.node source="throw \"not yielded\"" type=never
-    /// @type.node source="\"not yielded\"" type="not yielded"
+    return unreachable();
+    /// @type.node source=unreachable type=() => never
+    /// @type.node source=unreachable() type=never
+    /// @resolution.name source=unreachable target=error.panic.unreachable
+    /// @resolution.call source=unreachable() parameters=() return=never kind=symbol target=error.panic.unreachable
 
 }
 
@@ -458,7 +460,7 @@ function read<T>(result: Result<T>): T {
         return result.value;
     }
 
-    throw "not yielded";
+    return unreachable();
 }
 "#,
         )
@@ -476,7 +478,7 @@ function read<T>(result: Result<T>): T {
         return result.value;
     }
 
-    throw "not yielded";
+    return unreachable();
 }
 
 === checked ===
@@ -518,9 +520,11 @@ function read<T>(result: Result<T>): T {
 
     }
 
-    throw "not yielded";
-    /// @type.node source="throw \"not yielded\"" type=never
-    /// @type.node source="\"not yielded\"" type="not yielded"
+    return unreachable();
+    /// @type.node source=unreachable type=() => never
+    /// @type.node source=unreachable() type=never
+    /// @resolution.name source=unreachable target=error.panic.unreachable
+    /// @resolution.call source=unreachable() parameters=() return=never kind=symbol target=error.panic.unreachable
 
 }
 

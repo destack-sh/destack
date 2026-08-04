@@ -42,11 +42,10 @@ impl WalkState<'_, '_> {
             {
                 true
             }
-            // return, break, continue, throw
+            // return, break, continue
             dir::Expression::Return { .. }
             | dir::Expression::Break { .. }
-            | dir::Expression::Continue { .. }
-            | dir::Expression::Throw { .. } => false,
+            | dir::Expression::Continue { .. } => false,
             // value?.member
             dir::Expression::Chain { expression } => {
                 self.expression_can_complete_normally(*expression)
@@ -143,7 +142,6 @@ impl WalkState<'_, '_> {
             | dir::Expression::Instantiation { .. }
             | dir::Expression::Call { .. }
             | dir::Expression::New { .. }
-            | dir::Expression::NewMaybe { .. }
             | dir::Expression::AwaitMaybe { .. }
             | dir::Expression::AwaitMust { .. }
             | dir::Expression::Maybe { .. }

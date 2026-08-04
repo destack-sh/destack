@@ -61,5 +61,5 @@ try {
     read()?
 } catch match (failure) {
     Missing(path) => create(path),
-    IOError(error) => throw error
+    IOError(error) => panic("unhandled error")
 }
