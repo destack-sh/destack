@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, MemorySSA, Mutation, PureExpression, MemoryLocation,
+    AliasAnalysis, MemoryLocation, MemorySSA, Mutation, PureExpression,
     instruction_has_side_effects, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
 };

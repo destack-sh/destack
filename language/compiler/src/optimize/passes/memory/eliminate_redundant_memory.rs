@@ -562,8 +562,7 @@ fn memop_alias_result(
         (
             MemoryRegion::Address { location: dest, .. },
             MemoryRegion::Address {
-                location: source,
-                ..
+                location: source, ..
             },
         ) => alias.alias(dest, source),
         _ => AliasResult::MayAlias,

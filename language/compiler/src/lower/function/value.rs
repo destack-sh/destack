@@ -14,8 +14,8 @@ impl FunctionLowerer<'_, '_, '_> {
         let ty = self.lower_type(self.node_type_id(expression)?)?;
         let key = GenericInstanceKey::non_generic(symbol);
 
-        match *self.builder.tree().get(ty) {
-            // fat values pair the function with an empty environment
+        match self.builder.tree().get(ty) {
+            // pair fat function values with an empty environment
             mir::Type::Function {
                 kind,
                 lifetime,
@@ -23,9 +23,13 @@ impl FunctionLowerer<'_, '_, '_> {
                 access,
                 ..
             } => {
-                let Ok(function) = self.function(&key) else {
-                    return Err(self.foreign_function_error());
-                };
+                let kind = *kind;
+                let lifetime = lifetime.clone();
+                let storage = *storage;
+                let access = *access;
+                let function = self
+                    .function(&key)
+                    .map_err(|_| self.foreign_function_error())?;
                 let pointee = self.builder.tree_mut().void_type();
                 let environment = self.builder.tree_mut().intern_type(mir::Type::Reference {
                     kind,
@@ -39,11 +43,11 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 Ok(Some(self.builder.function_bind(function, ty, environment)))
             }
-            // thin values carry the bare code pointer
+            // emit thin function pointers directly
             mir::Type::FunctionPointer { .. } => {
-                let Ok(function) = self.function(&key) else {
-                    return Err(self.foreign_function_error());
-                };
+                let function = self
+                    .function(&key)
+                    .map_err(|_| self.foreign_function_error())?;
 
                 Ok(Some(self.builder.function_addr(function, ty)))
             }

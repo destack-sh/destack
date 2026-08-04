@@ -240,6 +240,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                 let signature = self.lower_callable_signature(id)?;
 
                 Ok(self.tree.intern_type(mir::Type::Function {
+                    multiplicity: mir::Multiplicity::Repeatable,
                     kind: mir::ReferenceKind::Managed,
                     lifetime: mir::Lifetime::empty(),
                     signature,

@@ -95,7 +95,8 @@ impl TypeLowerer<'_, '_> {
         let nullability = match self.tree.get(value) {
             mir::Type::Reference { nullability, .. }
             | mir::Type::Slice { nullability, .. }
-            | mir::Type::Dynamic { nullability, .. } => Some(*nullability),
+            | mir::Type::Dynamic { nullability, .. }
+            | mir::Type::Function { nullability, .. } => Some(*nullability),
             _ => None,
         };
         if let Some(nullability) = nullability {
@@ -106,7 +107,7 @@ impl TypeLowerer<'_, '_> {
                 }
             };
 
-            return self.insert_nullable_reference(value, nullability);
+            return self.insert_nullability(value, nullability);
         }
 
         // grow a variant case for optional value carriers
