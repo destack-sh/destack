@@ -851,10 +851,12 @@ interface Container<S> {
         this.Output,
         Container<S>.Item,
         /// @resolution.name source=Container target=Container
+        /// @resolution.name source=Container<S>.Item target=Container.Item
         /// @resolution.name source=S target=Container.S
 
         Container<string>.Item,
         /// @resolution.name source=Container target=Container
+        /// @resolution.name source=Container<string>.Item target=Container.Item
 
         Container<S, type Item = string>.Item,
         /// @resolution.name source=Container target=Container
@@ -897,6 +899,7 @@ extension<T> of Box<T> implements Container<T> {
     /// @type.symbol symbol=get.value source="value: T" type=T#2
     /// @resolution.name source=T target=T
     /// @resolution.name source=Container target=Container
+    /// @resolution.name source=Container<string>.Item target=Container.Item
 
         todo("get")
         /// @resolution.name source=todo target=error.panic.todo

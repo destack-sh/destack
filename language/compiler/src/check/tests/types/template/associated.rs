@@ -42,6 +42,7 @@ class Topic<T: string> {
 declare const channel: Topic<"orders">.Channel;
 /// @type.symbol symbol=channel source=channel type=Topic<"orders">.Channel reduced="topic:orders"
 /// @resolution.pattern source=channel kind=binding target=channel
+/// @resolution.name source="Topic<\"orders\">.Channel" target=Topic.Channel
 /// @resolution.name source=Topic target=Topic
 
 channel satisfies `topic:${"orders"}`;
@@ -193,6 +194,7 @@ class EventName<T: string> {
 declare const kind: EventName<"evt:login">.Kind;
 /// @type.symbol symbol=kind source=kind type=EventName<"evt:login">.Kind reduced="login"
 /// @resolution.pattern source=kind kind=binding target=kind
+/// @resolution.name source="EventName<\"evt:login\">.Kind" target=EventName.Kind
 /// @resolution.name source=EventName target=EventName
 
 kind satisfies "login";

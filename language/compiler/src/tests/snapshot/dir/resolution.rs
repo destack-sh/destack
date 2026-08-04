@@ -18,6 +18,10 @@ impl SnapshotTable for dir::ResolutionTable<'_> {
             add_name_resolution_row(builder, node_id, resolution);
         }
 
+        for (node_id, segment, resolution) in self.path_entries() {
+            add_path_resolution_row(builder, node_id, segment, resolution);
+        }
+
         for (node_id, resolution) in self.instantiation_entries() {
             add_instantiation_resolution_row(builder, node_id, resolution);
         }
@@ -83,6 +87,7 @@ impl SnapshotTable for dir::ResolutionTable<'_> {
         }
 
         let name_count = self.name_entries().count();
+        let path_count = self.path_entries().count();
         let instantiation_count = self.instantiation_entries().count();
         let label_count = self.label_entries().count();
         let receiver_count = self.receiver_entries().count();
@@ -99,6 +104,7 @@ impl SnapshotTable for dir::ResolutionTable<'_> {
         let pattern_count = self.pattern_entries().count();
         let assign_pattern_count = self.assign_pattern_entries().count();
         if name_count == 0
+            && path_count == 0
             && instantiation_count == 0
             && label_count == 0
             && receiver_count == 0
@@ -120,6 +126,7 @@ impl SnapshotTable for dir::ResolutionTable<'_> {
 
         let row = SnapshotRow::new(SnapshotAnchor::End, "resolution", "summary")
             .count_field("names", name_count)
+            .count_field("paths", path_count)
             .count_field("instantiations", instantiation_count)
             .count_field("labels", label_count)
             .count_field("receivers", receiver_count)
@@ -133,7 +140,7 @@ impl SnapshotTable for dir::ResolutionTable<'_> {
             .count_field("constructs", construct_count)
             .count_field("trees", tree_count)
             .count_field("patterns", pattern_count)
-            .count_field("assign_patterns", assign_pattern_count);
+            .count_field("assigns", assign_pattern_count);
         builder.push(row);
     }
 }
@@ -306,6 +313,25 @@ fn add_name_resolution_row(
                 .map(|symbol| builder.symbol_path_label(*symbol)),
         )
     };
+
+    builder.push(row);
+}
+
+/// Add one path segment resolution row.
+fn add_path_resolution_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    segment: u16,
+    resolution: &dir::NameResolution,
+) {
+    let row = SnapshotRow::new(
+        builder.name_resolution_anchor(node_id),
+        "resolution",
+        "path",
+    )
+    .optional_field("source", builder.name_resolution_source(node_id))
+    .field("index", segment.to_string())
+    .field("target", builder.symbol_path_label(resolution.symbol()));
 
     builder.push(row);
 }
