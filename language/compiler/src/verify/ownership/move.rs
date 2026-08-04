@@ -1,5 +1,5 @@
 use super::flow::FlowState;
-use destack_mir as mir;
+use destack_mir::{self as mir, Place};
 
 /// Move state for one place.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -14,7 +14,7 @@ pub(super) enum MoveState {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Move {
     /// The moved place.
-    pub(super) place: mir::Place,
+    pub(super) place: Place,
     /// The move state.
     pub(super) state: MoveState,
     /// MIR node for diagnostics.
@@ -43,7 +43,7 @@ pub(super) struct MoveUse {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Decomposition {
     /// The aggregate being decomposed.
-    parent: mir::Place,
+    parent: Place,
     /// The move-only children not yet extracted.
     remaining: u64,
     /// The first extraction for diagnostics.
@@ -75,8 +75,8 @@ impl MoveSet {
     /// Check one place use.
     pub(super) fn check_use(
         &self,
-        place: &mir::Place,
-        mut may_overlap: impl FnMut(&mir::Place, &mir::Place) -> bool,
+        place: &Place,
+        mut may_overlap: impl FnMut(&Place, &Place) -> bool,
     ) -> Option<MoveUse> {
         self.moves.iter().find_map(|moved| {
             // reject exact child use after parent move
@@ -100,7 +100,7 @@ impl MoveSet {
     }
 
     /// Mark one place as moved.
-    pub(super) fn move_place(&mut self, place: mir::Place, at: mir::LocalNodeIdAny) -> bool {
+    pub(super) fn move_place(&mut self, place: Place, at: mir::LocalNodeIdAny) -> bool {
         // skip places already covered by parent moves
         if self.moves.iter().any(|moved| moved.place.contains(&place)) {
             return false;
@@ -121,7 +121,7 @@ impl MoveSet {
     /// Begin one aggregate decomposition after its first child move.
     pub(super) fn begin_decomposition(
         &mut self,
-        parent: mir::Place,
+        parent: Place,
         child_count: u64,
         at: mir::LocalNodeIdAny,
     ) {
@@ -137,11 +137,7 @@ impl MoveSet {
     }
 
     /// Advance one aggregate decomposition after another child move.
-    pub(super) fn step_decomposition(
-        &mut self,
-        parent: &mir::Place,
-        at: mir::LocalNodeIdAny,
-    ) -> bool {
+    pub(super) fn step_decomposition(&mut self, parent: &Place, at: mir::LocalNodeIdAny) -> bool {
         let index = self
             .decompositions
             .iter()
@@ -163,7 +159,7 @@ impl MoveSet {
     }
 
     /// Mark one place as initialized.
-    pub(super) fn assign_place(&mut self, place: &mir::Place) {
+    pub(super) fn assign_place(&mut self, place: &Place) {
         self.moves.retain(|moved| !place.contains(&moved.place));
     }
 
@@ -176,7 +172,7 @@ impl MoveSet {
 
     /// Merge predecessor move sets.
     pub(super) fn merge_predecessors(predecessors: &[FlowState]) -> Self {
-        let mut places: Vec<(mir::Place, mir::LocalNodeIdAny)> = Vec::new();
+        let mut places: Vec<(Place, mir::LocalNodeIdAny)> = Vec::new();
 
         // collect places moved by at least one predecessor
         for predecessor in predecessors {

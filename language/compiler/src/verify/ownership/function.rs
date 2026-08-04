@@ -2,7 +2,7 @@ use std::collections::{HashMap, VecDeque};
 
 use crate::verify::{VerifyError, VerifyState};
 use destack_artifact::DiagnosticBuilder;
-use destack_mir as mir;
+use destack_mir::{self as mir, Place, PlaceOrigin};
 
 use super::alias::PlaceAlias;
 use super::borrow::{BorrowSource, BorrowSources};
@@ -282,7 +282,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         // update loans and borrow sources from instruction forms
         match instruction {
             mir::Instruction::LocalSet { local, .. } => {
-                let place = mir::Place::local(*local);
+                let place = Place::local(*local);
                 if self.check_place_change(&place, anchor) {
                     self.flow.moves.assign_place(&place);
                 }
@@ -301,6 +301,13 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 destination, base, ..
             } => {
                 self.create_projection_loan(*destination, *base, anchor);
+            }
+            mir::Instruction::VariantPayloadAddr {
+                destination,
+                variant,
+                ..
+            } => {
+                self.create_projection_loan(*destination, *variant, anchor);
             }
             mir::Instruction::SliceView {
                 destination,
@@ -331,7 +338,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             mir::Instruction::LocalAddr {
                 destination, local, ..
             } => {
-                self.create_loan_from_place(*destination, mir::Place::local(*local), anchor, None);
+                self.create_loan_from_place(*destination, Place::local(*local), anchor, None);
             }
             mir::Instruction::FieldSet {
                 destination,
@@ -482,6 +489,10 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 self.check_projection_use(*base, projection, anchor);
                 self.check_value_use(*index, anchor);
             }
+            mir::Instruction::VariantPayloadAddr { variant, case, .. } => {
+                let projection = mir::Projection::Variant { case: *case };
+                self.check_projection_use(*variant, projection, anchor);
+            }
             mir::Instruction::SliceView {
                 source,
                 start,
@@ -517,7 +528,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     }
 
     /// Check one place use.
-    fn check_place_use(&mut self, place: &mir::Place, anchor: mir::LocalNodeIdAny) {
+    fn check_place_use(&mut self, place: &Place, anchor: mir::LocalNodeIdAny) {
         let Some(moved) = self.flow.moves.check_use(place, |left, right| {
             self.aliases.moved_may_alias(left, right)
         }) else {
@@ -660,7 +671,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     fn create_loan_from_place(
         &mut self,
         reference: mir::Value,
-        place: mir::Place,
+        place: Place,
         anchor: mir::LocalNodeIdAny,
         parent: Option<mir::Value>,
     ) -> bool {
@@ -1113,7 +1124,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     }
 
     /// Check whether changing a place invalidates active loans.
-    fn check_place_change(&mut self, place: &mir::Place, anchor: mir::LocalNodeIdAny) -> bool {
+    fn check_place_change(&mut self, place: &Place, anchor: mir::LocalNodeIdAny) -> bool {
         let Some(loan) = self
             .flow
             .loans
@@ -1292,7 +1303,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     }
 
     /// Propagate known borrow sources from one place to another value.
-    fn propagate_sources_from_place(&mut self, place: &mir::Place, destination: mir::Value) {
+    fn propagate_sources_from_place(&mut self, place: &Place, destination: mir::Value) {
         if !self.value_can_carry_sources(destination) {
             return;
         }
@@ -1308,7 +1319,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         // propagate nested borrowed paths without collapsing sibling fields
         for borrowed_path in self.tree.type_borrowed_source_paths(destination_type) {
             let path = place.path.clone().with_path(&borrowed_path.path);
-            let place = mir::Place {
+            let place = Place {
                 origin: place.origin,
                 path,
             };
@@ -1420,11 +1431,11 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     }
 
     /// Return borrow sources for one place.
-    fn sources_for_place(&self, place: &mir::Place) -> BorrowSources {
+    fn sources_for_place(&self, place: &Place) -> BorrowSources {
         match place.origin {
-            mir::PlaceOrigin::Local(_) => BorrowSources::one(BorrowSource::Owned),
-            mir::PlaceOrigin::Global(_) => BorrowSources::one(BorrowSource::Static),
-            mir::PlaceOrigin::Value(value) => self.sources_for_storage_path(value, &place.path),
+            PlaceOrigin::Local(_) => BorrowSources::one(BorrowSource::Owned),
+            PlaceOrigin::Global(_) => BorrowSources::one(BorrowSource::Static),
+            PlaceOrigin::Value(value) => self.sources_for_storage_path(value, &place.path),
         }
     }
 
@@ -1598,12 +1609,12 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     }
 
     /// Return the best known place for one value.
-    fn place_for_value(&self, value: mir::Value) -> mir::Place {
+    fn place_for_value(&self, value: mir::Value) -> Place {
         self.flow.place_for_value(value)
     }
 
     /// Return the projected place for one base value.
-    fn projected_place(&self, base: mir::Value, projection: mir::Projection) -> mir::Place {
+    fn projected_place(&self, base: mir::Value, projection: mir::Projection) -> Place {
         let mut place = self.place_for_value(base);
         place.push(projection);
 
@@ -1611,11 +1622,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     }
 
     /// Return the moved place for one projected move.
-    fn place_moved_by_projection(
-        &self,
-        base: mir::Value,
-        projection: mir::Projection,
-    ) -> mir::Place {
+    fn place_moved_by_projection(&self, base: mir::Value, projection: mir::Projection) -> Place {
         let place = self.place_for_value(base);
         if self.is_variant_value(base) {
             return place;

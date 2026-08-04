@@ -1,10 +1,10 @@
-use destack_mir as mir;
+use destack_mir::{self as mir, Place};
 
 /// One active borrow loan.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Loan {
     /// The borrowed place.
-    pub(super) place: mir::Place,
+    pub(super) place: Place,
     /// Access granted by the borrow.
     pub(super) access: mir::Access,
     /// The reference value created by the borrow.
@@ -26,7 +26,7 @@ impl LoanSet {
         &self,
         loan: &Loan,
         parent: Option<mir::Value>,
-        mut may_overlap: impl FnMut(&mir::Place, &mir::Place) -> bool,
+        mut may_overlap: impl FnMut(&Place, &Place) -> bool,
     ) -> Option<&Loan> {
         for active in &self.loans {
             if Some(active.reference) == parent {
@@ -55,8 +55,8 @@ impl LoanSet {
     /// Return the loan blocking a place change.
     pub(super) fn blocking_change(
         &self,
-        place: &mir::Place,
-        mut may_overlap: impl FnMut(&mir::Place, &mir::Place) -> bool,
+        place: &Place,
+        mut may_overlap: impl FnMut(&Place, &Place) -> bool,
     ) -> Option<&Loan> {
         self.loans
             .iter()
@@ -66,9 +66,9 @@ impl LoanSet {
     /// Return the exclusive loan blocking a write through one reference.
     pub(super) fn blocking_write(
         &self,
-        place: &mir::Place,
+        place: &Place,
         writer: Option<mir::Value>,
-        mut may_overlap: impl FnMut(&mir::Place, &mir::Place) -> bool,
+        mut may_overlap: impl FnMut(&Place, &Place) -> bool,
     ) -> Option<&Loan> {
         self.loans.iter().find(|loan| {
             loan.access.is_exclusive()

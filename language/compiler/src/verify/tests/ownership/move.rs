@@ -259,7 +259,7 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: ref<
 fn test_reject_variant_use_after_payload_move() {
     let mut program = TestProgram::mir(
         r#"
-type Value = variant<uint8, ref<int32, unique, mutable>> { 0uint8 = ref<int32, unique, mutable>; 1uint8 = int32; };
+type Value = variant<uint8> { 0uint8 = ref<int32, unique, mutable>; 1uint8 = int32; };
 
 function test(v0: Value): void {
 entry(v0: Value):
@@ -301,7 +301,7 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
 fn test_reject_move_out_of_variant_with_drop() {
     let mut program = TestProgram::mir(
         r#"
-type Value = variant<uint8, ref<int32, unique, mutable>> { 0uint8 = ref<int32, unique, mutable>; };
+type Value = variant<uint8> { 0uint8 = ref<int32, unique, mutable>; };
 
 external function dropValue(ref<Value, borrowed, exclusive>): void
 

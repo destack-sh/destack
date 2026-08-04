@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use destack_mir as mir;
+use destack_mir::{self as mir, Place, PlaceOrigin};
 
 /// Conservative place alias relation for one function.
 pub(super) struct PlaceAlias {
@@ -17,7 +17,7 @@ impl PlaceAlias {
     }
 
     /// Return whether two places may alias.
-    pub(super) fn may_alias(&self, left: &mir::Place, right: &mir::Place) -> bool {
+    pub(super) fn may_alias(&self, left: &Place, right: &Place) -> bool {
         if left.origin != right.origin {
             return Self::origins_may_alias(left.origin, right.origin);
         }
@@ -26,7 +26,7 @@ impl PlaceAlias {
     }
 
     /// Return whether two moved places may alias.
-    pub(super) fn moved_may_alias(&self, left: &mir::Place, right: &mir::Place) -> bool {
+    pub(super) fn moved_may_alias(&self, left: &Place, right: &Place) -> bool {
         if left.origin != right.origin {
             return false;
         }
@@ -35,7 +35,7 @@ impl PlaceAlias {
     }
 
     /// Return whether two places with the same origin may alias.
-    fn same_origin_may_alias(&self, left: &mir::Place, right: &mir::Place) -> bool {
+    fn same_origin_may_alias(&self, left: &Place, right: &Place) -> bool {
         // stop once any shared projection proves disjointness
         for (left, right) in left.path.projections.iter().zip(&right.path.projections) {
             if self.projections_are_disjoint(left, right) {
@@ -47,8 +47,8 @@ impl PlaceAlias {
     }
 
     /// Return whether two place origins may alias.
-    fn origins_may_alias(left: mir::PlaceOrigin, right: mir::PlaceOrigin) -> bool {
-        matches!(left, mir::PlaceOrigin::Value(_)) || matches!(right, mir::PlaceOrigin::Value(_))
+    fn origins_may_alias(left: PlaceOrigin, right: PlaceOrigin) -> bool {
+        matches!(left, PlaceOrigin::Value(_)) || matches!(right, PlaceOrigin::Value(_))
     }
 
     /// Return whether two projections are proven disjoint.
@@ -84,6 +84,7 @@ impl PlaceAlias {
 
                 Some((start, end))
             }
+            mir::Projection::Variant { .. } => None,
             mir::Projection::AnyElement => None,
             mir::Projection::Slice { start, length } => {
                 let start = self.constant_index(*start)?;

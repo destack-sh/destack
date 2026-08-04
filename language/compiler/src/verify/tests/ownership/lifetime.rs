@@ -305,7 +305,7 @@ entry(v0: Pair<'L0, 'L1>):
 fn test_reject_variant_borrow_return_as_static() {
     let mut program = TestProgram::mir(
         r#"
-type Value = variant<uint8, ref<int32, borrowed, mutable>> { 0uint8 = ref<int32, borrowed, mutable>; 1uint8 = int32; };
+type Value = variant<uint8> { 0uint8 = ref<int32, borrowed, mutable>; 1uint8 = int32; };
 
 function test(v0: Value): ref<int32, borrowed, 'static, mutable> {
 entry(v0: Value):
