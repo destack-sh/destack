@@ -1207,8 +1207,6 @@ mod tests {
             encoding: VariantEncoding::Niche {
                 field: DiscriminantField::scalar(0, 1),
                 untagged_case: 0,
-                niche_case_start: 1,
-                niche_case_end: 1,
                 niche_start: 0u128.into(),
             },
             cases: vec![

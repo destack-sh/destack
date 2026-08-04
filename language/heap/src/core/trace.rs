@@ -328,9 +328,13 @@ impl TraceView<'_> {
                             .iter()
                             .find(|case| case.discriminant.bits() == discriminant)
                     }
-                    encoding @ VariantEncoding::Niche { .. } => encoding
-                        .decode_niche(scalar)
-                        .and_then(|index| cases.get(index as usize)),
+                    encoding @ VariantEncoding::Niche { .. } => {
+                        let case_count = cases.len() as u32;
+
+                        encoding
+                            .decode_niche(scalar, case_count)
+                            .and_then(|index| cases.get(index as usize))
+                    }
                 };
                 let Some(case) = case else {
                     return Ok(());
@@ -569,10 +573,6 @@ struct VariantTraceEntry {
     field: DiscriminantField,
     /// Case represented outside one niche range.
     untagged_case: u32,
-    /// First case represented by the niche range.
-    niche_case_start: u32,
-    /// Last case represented by the niche range.
-    niche_case_end: u32,
     /// First physical niche value.
     niche_start: Discriminant,
     /// Variant trace cases.
@@ -589,23 +589,17 @@ impl VariantTraceEntry {
                 tag: VARIANT_DIRECT,
                 field,
                 untagged_case: 0,
-                niche_case_start: 0,
-                niche_case_end: 0,
                 niche_start: Discriminant::from_bits(0),
                 cases,
             },
             VariantEncoding::Niche {
                 field,
                 untagged_case,
-                niche_case_start,
-                niche_case_end,
                 niche_start,
             } => Self {
                 tag: VARIANT_NICHE,
                 field,
                 untagged_case,
-                niche_case_start,
-                niche_case_end,
                 niche_start,
                 cases,
             },
@@ -619,8 +613,6 @@ impl VariantTraceEntry {
             VARIANT_NICHE => Ok(VariantEncoding::Niche {
                 field: self.field,
                 untagged_case: self.untagged_case,
-                niche_case_start: self.niche_case_start,
-                niche_case_end: self.niche_case_end,
                 niche_start: self.niche_start,
             }),
             tag => Err(TraceTableError::InvalidVariantTag { tag }),
