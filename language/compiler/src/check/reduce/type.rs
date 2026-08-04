@@ -227,7 +227,7 @@ impl CheckState<'_> {
         }
     }
 
-    /// Reduce one type graph to its simplest available form.
+    /// Reduce one type graph to its simplest closed form.
     pub(in crate::check) fn reduce_type(
         &mut self,
         origin: Origin,

@@ -217,7 +217,11 @@ impl CheckState<'_> {
             self.replace_type(self.module_id, id, base, implementation)?
         };
 
-        self.reduce_type(origin, id)
+        // keep open instantiation arguments symbolic in the requirement
+        match self.reduce_type(origin, id)? {
+            Answer::Ready(reduced) => Ok(Answer::Ready(reduced)),
+            Answer::Pending(_) => Ok(Answer::Ready(id)),
+        }
     }
 
     /// Remove inference barriers after candidate inference has closed.

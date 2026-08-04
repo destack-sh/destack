@@ -169,10 +169,10 @@ async function sum(): Promise<int32> {
 /// @generic.instance id="AsyncGenerator<int32, void, void>" template=async.generator.AsyncGenerator arguments=(int32, void, void)
 /// @generic.instance id=Promise<int32> template=async.promise.Promise arguments=(int32)
 "#, r#"
+/// @diagnostic.error id=for-of-source-not-iterable message="for-of source must be iterable"
+/// @diagnostic.label line=8 column=5 span="for await (const value of stream()) {\n        total += value;\n    }" line_source="for await (const value of stream()) {"
 /// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
 /// @diagnostic.label line=8 column=5 span="for await (const value of stream()) {\n        total += value;\n    }" line_source="for await (const value of stream()) {"
 /// @diagnostic.help message="annotate the type explicitly"
-/// @diagnostic.error id=for-of-source-not-iterable message="for-of source must be iterable"
-/// @diagnostic.label line=8 column=5 span="for await (const value of stream()) {\n        total += value;\n    }" line_source="for await (const value of stream()) {"
 "#);
 }

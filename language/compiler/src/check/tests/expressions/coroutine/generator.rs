@@ -53,4 +53,3 @@ function* count(limit: int32): Generator<int32, void, void> {
 /// @generic.instance id="Generator<int32, void, void>" template=async.generator.Generator arguments=(int32, void, void)
 "#);
 }
-

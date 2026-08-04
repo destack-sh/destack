@@ -626,6 +626,12 @@ impl BodyState<'_, '_> {
         let Some((substitution, implementation)) = answer!(matched) else {
             return Ok(Answer::Ready(None));
         };
+        let implementation = self.refine_extension_implementation(
+            extension_symbol,
+            implementation,
+            lookup_receiver,
+            &substitution,
+        )?;
         let candidates =
             self.extension_member_candidates(origin, extension_symbol, &substitution, members)?;
         let candidates = answer!(candidates);
