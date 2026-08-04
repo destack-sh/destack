@@ -44,11 +44,13 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 operator,
                 right,
             } => {
-                if !operator.is_equality()
-                    || !module
-                        .operator_resolution(expression_id.into_any())?
-                        .is_builtin()
-                {
+                if !operator.is_equality() {
+                    continue;
+                }
+                let Some(resolution) = module.operator_resolution(expression_id.into_any())? else {
+                    continue;
+                };
+                if !resolution.is_builtin() {
                     continue;
                 }
 
@@ -86,7 +88,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                         continue;
                     };
                     has_selector = true;
-                    let is_builtin = module.operator_resolution(case.into_any())?.is_builtin();
+                    let is_builtin = module
+                        .operator_resolution(case.into_any())?
+                        .is_some_and(dir::OperatorResolution::is_builtin);
                     uses_builtin_equality &= is_builtin;
                     if is_builtin {
                         selectors.push(selector);
@@ -174,15 +178,7 @@ impl NanEquality {
         }
 
         // preserve the exact compared expression text
-        let source = module.source(value_span)?;
-        let is_parenthesized = module.source_parentheses(self.value.into_any()).is_some();
-        let receiver = if is_parenthesized
-            || module.view().get(self.value).precedence() >= dir::OperatorPrecedence::Postfix
-        {
-            source.to_string()
-        } else {
-            format!("({source})")
-        };
+        let receiver = module.postfix_source(self.value)?;
         let predicate = format!("{receiver}.isNaN()");
         let replacement = if self.is_negated {
             format!("!{predicate}")

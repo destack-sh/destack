@@ -48,7 +48,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         // require the compiler's builtin comparison selection
-        let resolution = module.operator_resolution(expression_id.into_any())?;
+        let Some(resolution) = module.operator_resolution(expression_id.into_any())? else {
+            continue;
+        };
         let Some([left_operand, right_operand]) = resolution.builtin_operands() else {
             continue;
         };
@@ -62,7 +64,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let span = module.span(expression_id.into_any())?;
         let mut diagnostic = lint.diagnostic("comparison has identical operands", span);
         if operator.is_equality() {
-            let operand = module.builtin_operand(expression_id.into_any(), *left)?;
+            let Some(operand) = module.builtin_operand(expression_id.into_any(), *left)? else {
+                continue;
+            };
             let has_float_family = operand.scalar_families.as_ref().is_some_and(|families| {
                 families.contains(dir::ScalarFamily::Domain(dir::ScalarDomain::Float))
             });
@@ -343,7 +347,7 @@ extension of Force implements Multiply<float64> {
     type Output = float64;
 
     multiply(other: float64): float64 {
-        return this as float64 * other;
+        return other;
     }
 }
 
@@ -450,5 +454,41 @@ warning[no-self-compare]: comparison has identical operands
   │
 "#,
         );
+    }
+
+    /// Report a plain template string through its canonical scalar value.
+    #[test]
+    fn test_reports_template_string_self_comparison() {
+        let session = TestSession::new(
+            &NO_SELF_COMPARE,
+            r#"
+const unchanged = `value` === `value`;
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-self-compare]: comparison has identical operands
+ ──▶ main.ds:1:19
+  │
+1 │ const unchanged = `value` === `value`;
+  │                   ^^^^^^^^^^^^^^^^^^^
+  │
+"#,
+        );
+    }
+
+    /// Keep interpolated templates because evaluating their values can invoke user code.
+    #[test]
+    fn test_accepts_interpolated_template_self_comparison() {
+        let session = TestSession::new(
+            &NO_SELF_COMPARE,
+            r#"
+declare function next(): int32;
+const unchanged = `${next()}` === `${next()}`;
+"#,
+        );
+
+        session.assert_no_diagnostics();
     }
 }
