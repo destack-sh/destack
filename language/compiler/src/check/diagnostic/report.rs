@@ -82,18 +82,6 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
-    /// Report a function declaration without a written result type.
-    pub(in crate::check) fn report_missing_result_type(
-        &mut self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
-    ) {
-        let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::MissingResultType { anchor, module };
-
-        self.report(module, diagnostic);
-    }
-
     /// Report a break with no target.
     pub(in crate::check) fn report_break_outside_control_target(
         &mut self,

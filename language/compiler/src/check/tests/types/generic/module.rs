@@ -482,6 +482,9 @@ const text = identity("x");
 /// @generic.instance id=lib.identity<string> template=lib.identity arguments=(string)
 "#,
         r#"
+/// @diagnostic.error id=missing-result-type message="function declaration needs a written result type"
+/// @diagnostic.label line=2 column=17 span="identity" line_source="export function identity<T>(value: T) {"
+/// @diagnostic.help message="state the result type on the declaration"
 "#,
     );
 }
@@ -1056,6 +1059,46 @@ const value = boxed.value;
 /// @resolution.place source=boxed placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=boxed root=boxed
 /// @resolution.access source=boxed.value root=boxed keys=[value]
+"#,
+    );
+}
+
+#[test]
+fn test_reject_unannotated_exported_function_at_its_declaration() {
+    let session = TestSession::builder()
+        .module(
+            "lib.ds",
+            r#"
+export function make() {
+    return 1;
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { make } from "./lib.ds";
+
+const value = make();
+"#,
+        )
+        .build();
+
+    session.assert_dir_checked(
+        "lib.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+export function make() {
+    return 1;
+}
+
+=== checked ===
+export function make() {
+/// @type.symbol symbol=make type=() => <error>
+
+    return 1;
+}
 "#,
     );
 }

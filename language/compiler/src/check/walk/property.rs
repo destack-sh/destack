@@ -800,17 +800,6 @@ impl WalkState<'_, '_> {
                     self.push_this_predicate(source, interface, template)?;
                 }
 
-                // require a written result type on declared members,
-                //  accessors and constructors write none
-                if self.check.is_declaration()
-                    && signature.return_type.is_none()
-                    && !signature.is_generator
-                    && signature.role.is_none()
-                {
-                    self.check
-                        .report_missing_result_type(self.module, id.into_any());
-                }
-
                 let (header, result, tracked) =
                     self.walk_signature_header(id.into_any(), template, signature, body)?;
                 let receiver_type =

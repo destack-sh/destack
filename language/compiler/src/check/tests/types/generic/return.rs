@@ -727,10 +727,10 @@ function pong(n: float64) {
 "#,
         r#"
 /// @diagnostic.error id=missing-result-type message="function declaration needs a written result type"
-/// @diagnostic.label line=2 column=10 span="ping" line_source="function ping(n: float64) {"
+/// @diagnostic.label line=6 column=10 span="pong" line_source="function pong(n: float64) {"
 /// @diagnostic.help message="state the result type on the declaration"
 /// @diagnostic.error id=missing-result-type message="function declaration needs a written result type"
-/// @diagnostic.label line=6 column=10 span="pong" line_source="function pong(n: float64) {"
+/// @diagnostic.label line=2 column=10 span="ping" line_source="function ping(n: float64) {"
 /// @diagnostic.help message="state the result type on the declaration"
 "#,
     );

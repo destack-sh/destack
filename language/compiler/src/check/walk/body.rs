@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 
 use crate::check::{
     Answer, CauseKind, CheckState, ClassInitializationObligation, FlowBranch, Obligation, Origin,
-    Receiver, ValueUse, WalkState, function_needs_written_result,
+    Receiver, ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -96,13 +96,6 @@ impl WalkState<'_, '_> {
         match declaration {
             // walk the function body against its declared signature
             dir::Declaration::Function(function) => {
-                // report a missing written result in the owner's checked pass,
-                //  importers read declared rows without body diagnostics
-                if function_needs_written_result(function) {
-                    self.check
-                        .report_missing_result_type(self.module, id.into_any());
-                }
-
                 self.walk_declared_function_body(id, function, symbol)
             }
             // walk class members under a managed receiver

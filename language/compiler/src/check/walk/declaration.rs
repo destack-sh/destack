@@ -1642,17 +1642,35 @@ impl WalkState<'_, '_> {
             return Ok((None, Vec::new()));
         }
 
-        // open the inferred result: lambdas hold a contextual slot,
-        //  declarations hold a producer cell
-        let role = match signature.form {
-            dir::FunctionForm::Lambda => VariableRole::Parameter,
-            _ => VariableRole::Return,
-        };
+        // open a contextual result slot for lambdas and constructor roles
+        let infers = signature.form == dir::FunctionForm::Lambda
+            || matches!(
+                signature.role,
+                Some(dir::FunctionRole::Constructor | dir::FunctionRole::New)
+            );
+        if infers {
+            let role = match signature.form {
+                dir::FunctionForm::Lambda => VariableRole::Parameter,
+                _ => VariableRole::Return,
+            };
 
-        Ok((
-            Some(self.open_type_hole(source, Widening::Never, role)?),
-            Vec::new(),
-        ))
+            return Ok((
+                Some(self.open_type_hole(source, Widening::Never, role)?),
+                Vec::new(),
+            ));
+        }
+
+        // require a written result type on every named declaration
+        if self.check.is_declaration() {
+            let anchor = self.check.diagnostic_anchor(self.module, source);
+            let error = CheckError::MissingResultType {
+                anchor,
+                module: self.module,
+            };
+            self.check.report(self.module, error);
+        }
+
+        Ok((Some(self.intern_type(dir::Type::Error)?), Vec::new()))
     }
 
     /// Return one nominal declaration receiver scope.
@@ -1797,14 +1815,4 @@ impl WalkState<'_, '_> {
 
         Ok(dir::BlanketCoverage::Interface(interface))
     }
-}
-
-/// Return whether one named function declaration must write its result type.
-pub(in crate::check) fn function_needs_written_result(
-    declaration: &dir::FunctionDeclaration,
-) -> bool {
-    declaration.signature.return_type.is_none()
-        && !declaration.signature.is_generator
-        && declaration.name.is_some()
-        && declaration.signature.form != dir::FunctionForm::Lambda
 }
