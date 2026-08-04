@@ -118,22 +118,6 @@ function run() {
 }
 ```
 
-### throw trailing comment
-
-Trailing comments on throw expressions stay on the throw line.
-
-```ds:main.ds
-function fail() {
-  throw error // throw-tail
-}
-```
-
-```ds expected
-function fail() {
-    throw error; // throw-tail
-}
-```
-
 ## Control Flow
 
 ### control rvalue argument comments

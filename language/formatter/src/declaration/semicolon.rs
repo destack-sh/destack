@@ -367,7 +367,6 @@ pub(crate) fn expression_needs_statement_terminator(
             | Expression::Continue { .. }
             | Expression::Yield { .. }
             | Expression::Return { .. }
-            | Expression::Throw { .. }
             | Expression::Debugger
     );
 
@@ -459,7 +458,6 @@ pub(crate) fn statement_trailing_comment_anchor_end(
             value: Some(value_id),
             ..
         } => expression_trivia_anchor_end(context, *value_id),
-        Expression::Throw { value } => expression_trivia_anchor_end(context, *value),
         _ => expression_trivia_anchor_end(context, expression_id),
     }
 }

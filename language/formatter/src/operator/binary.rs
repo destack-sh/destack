@@ -329,7 +329,6 @@ impl BinaryLikeExpression {
         !matches!(
             context.tree.get(parent_expression_id),
             Expression::Return { .. }
-                | Expression::Throw { .. }
                 | Expression::Call { .. }
                 | Expression::New { .. }
                 | Expression::NewMaybe { .. }
@@ -352,7 +351,6 @@ impl BinaryLikeExpression {
 
         match context.tree.get(parent_id) {
             Expression::Return { value } => value.is_some_and(|value| value == self.node_id),
-            Expression::Throw { value } => *value == self.node_id,
             Expression::For { condition, .. } => {
                 condition.is_some_and(|condition| condition == self.node_id)
             }

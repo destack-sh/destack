@@ -7,13 +7,13 @@
 Enum variants can be matched with destructuring.
 
 ```ds
-match (result) { Ok(value) => value; Err(e) => throw e }
+match (result) { Ok(value) => value; Err(e) => panic("unhandled error") }
 ```
 
 ```ds expected
 match (result) {
     Ok(value) => value
-    Err(e) => throw e
+    Err(e) => panic("unhandled error")
 }
 ```
 
