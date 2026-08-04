@@ -7,7 +7,6 @@ use super::{correctness, performance, security, style, suspicious};
 pub static LINTS: &[&Lint] = &[
     // correctness
     &correctness::BLOCKING_CALL_IN_ASYNC,
-    &correctness::FAILING_UNWRAP,
     &correctness::FLOAT_EQUALITY_WITHOUT_ABS,
     &correctness::FOR_DIRECTION,
     &correctness::IMPRECISE_FLOAT_OPERATION,
@@ -35,7 +34,6 @@ pub static LINTS: &[&Lint] = &[
     &correctness::USE_ISNAN,
 
     // performance
-    &performance::ALLOCATION_IN_LOOP,
     &performance::BUSY_WAIT_WITHOUT_YIELD,
     &performance::CLONE_ON_COPY,
     &performance::CLONED_INSTEAD_OF_COPIED,
@@ -44,8 +42,6 @@ pub static LINTS: &[&Lint] = &[
     &performance::ITER_CLONED_COLLECT,
     &performance::ITER_OVEREAGER_CLONED,
     &performance::LARGE_COROUTINE_STATE,
-    &performance::LARGE_PASS_BY_VALUE,
-    &performance::LARGE_RETURN_BY_VALUE,
     &performance::LARGE_STACK_FRAME,
     &performance::LARGE_VARIANT,
     &performance::LINEAR_OPERATION_IN_LOOP,

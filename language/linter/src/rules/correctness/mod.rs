@@ -1,5 +1,4 @@
 mod blocking_call_in_async;
-mod failing_unwrap;
 mod float_equality_without_abs;
 mod for_direction;
 mod imprecise_float_operation;
@@ -27,7 +26,6 @@ mod suspension_holding_guard;
 mod use_isnan;
 
 pub use blocking_call_in_async::*;
-pub use failing_unwrap::*;
 pub use float_equality_without_abs::*;
 pub use for_direction::*;
 pub use imprecise_float_operation::*;
