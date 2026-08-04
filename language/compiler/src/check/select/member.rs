@@ -419,8 +419,6 @@ impl DeclaredMember {
 /// One declaration-backed member candidate.
 #[derive(Debug, Clone)]
 pub(in crate::check) struct MemberCandidate {
-    /// The selected member key.
-    pub(in crate::check) key: dir::StaticKey,
     /// The declaring member symbol.
     pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The declaration that exposed the member.

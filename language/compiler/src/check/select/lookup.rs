@@ -814,7 +814,6 @@ impl BodyState<'_, '_> {
             )?);
 
             candidates.push(MemberCandidate {
-                key,
                 symbol: member.symbol,
                 owner: symbol,
                 origin: dir::MemberOrigin::Declaration,
@@ -908,7 +907,6 @@ impl BodyState<'_, '_> {
                 self.symbol_generic_argument_bindings(instance.symbol, &instance.arguments)?;
 
             candidates.push(MemberCandidate {
-                key,
                 symbol,
                 owner: instance.symbol,
                 origin: dir::MemberOrigin::Declaration,

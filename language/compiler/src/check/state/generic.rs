@@ -861,7 +861,7 @@ impl CheckState<'_> {
 
         Ok(TypeSubstitution {
             bindings,
-            receiver: None
+            receiver: None,
         })
     }
 

@@ -747,9 +747,6 @@ impl BodyState<'_, '_> {
                 answer!(self.projected_member_type(origin, None, member.role, access_type)?);
 
             candidates.push(MemberCandidate {
-                key: member.key.ok_or_else(|| CompilerError::Internal {
-                    message: format!("static extension member {:?} has no key", member.symbol),
-                })?,
                 symbol: member.symbol,
                 owner: extension_symbol,
                 origin: dir::MemberOrigin::RootedExtension,
@@ -820,9 +817,6 @@ impl BodyState<'_, '_> {
             let generic_arguments = self.settled_argument_bindings(&substitution.bindings)?;
 
             candidates.push(MemberCandidate {
-                key: member.key.ok_or_else(|| CompilerError::Internal {
-                    message: format!("extension member {:?} has no key", member.symbol),
-                })?,
                 symbol: member.symbol,
                 owner: extension_symbol,
                 origin: member_origin,

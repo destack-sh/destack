@@ -104,10 +104,7 @@ impl CheckState<'_> {
 
             // reuse a parameter opened earlier at this typing position
             let origin_id = self.solver.intern_origin(origin);
-            if let Some(existing) =
-                self.solver
-                    .instantiation(origin_id, parameter, substitution.receiver)
-            {
+            if let Some(existing) = self.solver.instantiation(origin_id, parameter) {
                 let argument = self.variable_type(existing)?;
                 substitution.bind(parameter, argument)?;
 
@@ -120,7 +117,7 @@ impl CheckState<'_> {
             let variable =
                 self.allocate_variable(origin, widening, VariableRole::Instantiation { parameter });
             self.solver
-                .record_instantiation(origin_id, parameter, substitution.receiver, variable);
+                .record_instantiation(origin_id, parameter, variable);
 
             // retain the declared default for dry inference
             if let Some(default) = binding.default {

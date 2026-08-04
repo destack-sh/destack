@@ -33,8 +33,7 @@ pub(in crate::check) struct Solver {
     /// Interned constraint causes.
     pub(in crate::check) causes: CauseArena,
     /// Variables opened for generic parameters, keyed by application.
-    instantiations:
-        FxIndexMap<(OriginId, GenericParameterId, Option<dir::GlobalTypeId>), dir::TypeVariableId>,
+    instantiations: FxIndexMap<(OriginId, GenericParameterId), dir::TypeVariableId>,
     /// Tasks parked on unresolved dependencies.
     waiters: FxIndexMap<Dependency, SmallVec<[Task; 2]>>,
     /// Undo entries recorded by active snapshots.
@@ -112,8 +111,8 @@ enum Undo {
     },
     /// Undo one recorded instantiation.
     Instantiation {
-        /// The application that opened the parameter.
-        key: (OriginId, GenericParameterId, Option<dir::GlobalTypeId>),
+        /// The typing position that opened the parameter.
+        key: (OriginId, GenericParameterId),
     },
 }
 
@@ -478,11 +477,8 @@ impl Solver {
         &self,
         origin: OriginId,
         parameter: GenericParameterId,
-        receiver: Option<dir::GlobalTypeId>,
     ) -> Option<dir::TypeVariableId> {
-        self.instantiations
-            .get(&(origin, parameter, receiver))
-            .copied()
+        self.instantiations.get(&(origin, parameter)).copied()
     }
 
     /// Record the variable opened for one parameter at one typing position.
@@ -490,14 +486,12 @@ impl Solver {
         &mut self,
         origin: OriginId,
         parameter: GenericParameterId,
-        receiver: Option<dir::GlobalTypeId>,
         variable: dir::TypeVariableId,
     ) {
         self.record_undo(Undo::Instantiation {
-            key: (origin, parameter, receiver),
+            key: (origin, parameter),
         });
-        self.instantiations
-            .insert((origin, parameter, receiver), variable);
+        self.instantiations.insert((origin, parameter), variable);
     }
 
     /// Record one variable if a snapshot is active.
