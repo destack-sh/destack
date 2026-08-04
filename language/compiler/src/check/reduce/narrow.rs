@@ -1,8 +1,8 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Dependency, Origin, Relation, answer};
+use crate::check::{Answer, CheckState, Dependency, GenericParameterId, Origin, Relation, answer};
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Narrow one receiver through a successful static property-membership test.
@@ -98,6 +98,54 @@ impl CheckState<'_> {
         };
 
         Ok(Answer::Ready(Some(narrowed)))
+    }
+
+    /// Return the finite runtime domain of one rigid parameter.
+    pub(in crate::check) fn parameter_domain(
+        &mut self,
+        origin: Origin,
+        parameter: GenericParameterId,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        // select one finite bound that enumerates the domain
+        let bounds = self.parameter_bounds(origin, parameter)?;
+        let mut enumerated = None;
+        for bound in &bounds {
+            let bound = answer!(self.reduce_type(origin, *bound)?);
+            if answer!(self.union_arms(origin, bound)?).is_some() {
+                enumerated = Some(bound);
+
+                break;
+            }
+        }
+        let Some(enumerated) = enumerated else {
+            return Ok(Answer::Ready(None));
+        };
+
+        // intersect the enumerated alternatives with every active bound
+        let domain = self.normalized_intersection_type(bounds)?;
+        let narrowing = dir::NarrowType {
+            source: enumerated,
+            target: domain,
+            is_positive: true,
+        };
+        let Some(domain) = answer!(self.reduce_narrowing(origin, narrowing)?) else {
+            let shown = self.intern_type(dir::Type::Parameter(parameter))?;
+
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "parameter {} has an irreducible domain {}",
+                    self.format_type(shown),
+                    self.format_type(domain),
+                ),
+            });
+        };
+
+        // reject an empty narrowed domain
+        if matches!(self.ty(domain)?, dir::Type::Never) {
+            return Ok(Answer::Ready(None));
+        }
+
+        Ok(Answer::Ready(Some(domain)))
     }
 
     /// Evaluate one runtime guard narrowing.

@@ -407,49 +407,15 @@ impl BodyState<'_, '_> {
         if let Some(cases) = answer!(self.union_arms(origin, source)?) {
             return Ok(Answer::Ready(Some(cases)));
         }
+
+        // rigid parameters convert case by case over their settled domain
         let source_value = answer!(self.strip_form(origin, source)?);
         let dir::Type::Parameter(parameter) = self.ty(source_value)? else {
             return Ok(Answer::Ready(None));
         };
-
-        // select one finite bound that enumerates the parameter domain
-        let bounds = self.parameter_bounds(origin, parameter)?;
-        let mut enumerated = None;
-        for bound in &bounds {
-            let bound = answer!(self.reduce_type(origin, *bound)?);
-            if answer!(self.union_arms(origin, bound)?).is_some() {
-                enumerated = Some(bound);
-
-                break;
-            }
-        }
-        let Some(enumerated) = enumerated else {
+        let Some(domain) = answer!(self.parameter_domain(origin, parameter)?) else {
             return Ok(Answer::Ready(None));
         };
-
-        // intersect the enumerated alternatives with every active bound
-        let domain = self.normalized_intersection_type(bounds)?;
-        let narrowing = dir::NarrowType {
-            source: enumerated,
-            target: domain,
-            is_positive: true,
-        };
-        let Some(domain) = answer!(self.reduce_narrowing(origin, narrowing)?) else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "parameter {} has an irreducible domain {}",
-                    self.format_type(source_value),
-                    self.format_type(domain),
-                ),
-            });
-        };
-
-        // reject an empty narrowed domain
-        if matches!(self.ty(domain)?, dir::Type::Never) {
-            return Ok(Answer::Ready(None));
-        }
-
-        // return the domain arms, or the domain itself
         let cases = match answer!(self.union_arms(origin, domain)?) {
             Some(cases) => cases,
             None => SmallVec::from_slice(&[domain]),
