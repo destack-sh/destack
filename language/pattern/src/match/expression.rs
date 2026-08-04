@@ -665,14 +665,6 @@ impl Matcher<'_, '_> {
                 },
             )
             | (
-                dir::Expression::Throw {
-                    value: pattern_body,
-                },
-                dir::Expression::Throw {
-                    value: candidate_body,
-                },
-            )
-            | (
                 dir::Expression::Chain {
                     expression: pattern_body,
                 },

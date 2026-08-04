@@ -160,7 +160,7 @@ fn integer_types() -> [dir::IntegerType; 14] {
 }
 
 /// Return keywords that can begin a declaration or statement.
-fn keywords() -> [dir::Keyword; 42] {
+fn keywords() -> [dir::Keyword; 41] {
     [
         dir::Keyword::Import,
         dir::Keyword::Export,
@@ -193,7 +193,6 @@ fn keywords() -> [dir::Keyword; 42] {
         dir::Keyword::Yield,
         dir::Keyword::Try,
         dir::Keyword::Catch,
-        dir::Keyword::Throw,
         dir::Keyword::Finally,
         dir::Keyword::Async,
         dir::Keyword::Await,

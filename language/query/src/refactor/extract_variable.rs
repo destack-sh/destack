@@ -382,7 +382,6 @@ fn expression_statement_owns(
         dir::Expression::Return { value }
         | dir::Expression::Break { value, .. }
         | dir::Expression::Yield { value, .. } => *value == Some(child),
-        dir::Expression::Throw { value } => *value == child,
         _ => false,
     }
 }

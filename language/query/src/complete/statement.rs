@@ -89,9 +89,6 @@ impl ModuleQueryContext<'_> {
             dir::Expression::Return { value } | dir::Expression::Yield { value, .. } => {
                 value.is_some_and(|value| matches!(view.get(value), dir::Expression::Missing))
             }
-            dir::Expression::Throw { value } => {
-                matches!(view.get(*value), dir::Expression::Missing)
-            }
             _ => false,
         }
     }

@@ -94,7 +94,6 @@ impl ExpressionSlotOwner {
             dir::Expression::Return { value } | dir::Expression::Yield { value, .. } => {
                 *value == Some(expression_id)
             }
-            dir::Expression::Throw { value } => *value == expression_id,
             dir::Expression::Index { left, index, .. } => {
                 *left == expression_id || *index == Some(expression_id)
             }
