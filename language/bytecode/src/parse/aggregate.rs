@@ -19,6 +19,9 @@ impl Parser<'_> {
             "insert" => Opcode::INSERT,
             "variant.new" => Opcode::VARIANT_NEW,
             "variant.tag" => Opcode::VARIANT_TAG,
+            "variant.tag.load" => Opcode::VARIANT_TAG_LOAD,
+            "variant.tag.load.constant" => Opcode::VARIANT_TAG_LOAD_CONSTANT,
+            "variant.tag.load.pointer" => Opcode::VARIANT_TAG_LOAD_POINTER,
             _ => return Err(ParseError::new("unknown aggregate operation", token.span)),
         };
         let results = self.parse_definitions(opcode)?;
@@ -29,6 +32,9 @@ impl Parser<'_> {
             "insert" => self.parse_insert(&results, function),
             "variant.new" => self.parse_variant_new(&results, function),
             "variant.tag" => self.parse_variant_tag(&results, function),
+            "variant.tag.load" | "variant.tag.load.constant" | "variant.tag.load.pointer" => {
+                self.parse_variant_tag_load(opcode, &results, function)
+            }
             _ => Err(ParseError::new("invalid aggregate operation", token.span)),
         }
     }
@@ -144,6 +150,25 @@ impl Parser<'_> {
         // encode the exact linked variant layout
         let mut instruction = InstructionBuilder::new(Opcode::VARIANT_TAG);
         instruction.span(variant);
+        instruction.relocation(RelocationTag::LAYOUT, layout.0);
+
+        function.emit(instruction, results, self.empty_span())
+    }
+
+    /// Parse one stored variant discriminant load.
+    fn parse_variant_tag_load(
+        &mut self,
+        opcode: Opcode,
+        results: &[RegisterSpan],
+        function: &mut FunctionParser,
+    ) -> ParseResult<()> {
+        let variant = self.parse_register()?;
+        self.eat_token(TokenType::Comma)?;
+        let layout = self.parse_layout_id()?;
+
+        // encode the exact address representation and linked variant layout
+        let mut instruction = InstructionBuilder::new(opcode);
+        instruction.register(variant);
         instruction.relocation(RelocationTag::LAYOUT, layout.0);
 
         function.emit(instruction, results, self.empty_span())

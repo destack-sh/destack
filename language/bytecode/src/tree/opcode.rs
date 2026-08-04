@@ -169,6 +169,21 @@ opcodes! {
         signature: "(variant: value, layout: LayoutId) => value",
         operands: [ResultRange, RegisterSpan, Layout],
     }
+    VARIANT_TAG_LOAD = 0x001d {
+        text: "variant.tag.load",
+        signature: "(variant: reference, layout: LayoutId) => value",
+        operands: [ResultRange, Register, Layout],
+    }
+    VARIANT_TAG_LOAD_CONSTANT = 0x001e {
+        text: "variant.tag.load.constant",
+        signature: "(variant: reference, layout: LayoutId) => value",
+        operands: [ResultRange, Register, Layout],
+    }
+    VARIANT_TAG_LOAD_POINTER = 0x001f {
+        text: "variant.tag.load.pointer",
+        signature: "(variant: pointer, layout: LayoutId) => value",
+        operands: [ResultRange, Register, Layout],
+    }
 
     // constants
     CONSTANT_INT128 = 0x0021 {
@@ -904,6 +919,25 @@ impl Opcode {
             (MemoryOperation::Load, Address::Pointer, true) => Some(Self::LOAD_VOLATILE_POINTER),
             (MemoryOperation::Store, Address::Memory, true) => Some(Self::STORE_VOLATILE),
             (MemoryOperation::Store, Address::Pointer, true) => Some(Self::STORE_VOLATILE_POINTER),
+            _ => None,
+        }
+    }
+
+    /// Create one stored variant discriminant opcode.
+    pub const fn variant_tag_load(address: Address) -> Self {
+        match address {
+            Address::Memory => Self::VARIANT_TAG_LOAD,
+            Address::Constant => Self::VARIANT_TAG_LOAD_CONSTANT,
+            Address::Pointer => Self::VARIANT_TAG_LOAD_POINTER,
+        }
+    }
+
+    /// Return this stored variant discriminant opcode's address representation.
+    pub const fn variant_tag_load_address(self) -> Option<Address> {
+        match self {
+            Self::VARIANT_TAG_LOAD => Some(Address::Memory),
+            Self::VARIANT_TAG_LOAD_CONSTANT => Some(Address::Constant),
+            Self::VARIANT_TAG_LOAD_POINTER => Some(Address::Pointer),
             _ => None,
         }
     }

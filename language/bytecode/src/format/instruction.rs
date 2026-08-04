@@ -136,7 +136,10 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::EXTRACT
             | Opcode::INSERT
             | Opcode::VARIANT_NEW
-            | Opcode::VARIANT_TAG => self.format_aggregate(opcode),
+            | Opcode::VARIANT_TAG
+            | Opcode::VARIANT_TAG_LOAD
+            | Opcode::VARIANT_TAG_LOAD_CONSTANT
+            | Opcode::VARIANT_TAG_LOAD_POINTER => self.format_aggregate(opcode),
 
             // constants
             Opcode::CONSTANT_TYPE

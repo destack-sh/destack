@@ -13,6 +13,9 @@ function f0 {
     insert r5:r6, r2:r3, 8:8, r1
     variant.new r7:r8, l1, 1, r0
     variant.tag r9, r7:r8, l1
+    variant.tag.load r10, r0, l1
+    variant.tag.load.constant r11, r0, l1
+    variant.tag.load.pointer r12, r0, l1
     return r4
 }
 "#,
@@ -27,6 +30,9 @@ function f0 {
             Opcode::INSERT,
             Opcode::VARIANT_NEW,
             Opcode::VARIANT_TAG,
+            Opcode::VARIANT_TAG_LOAD,
+            Opcode::VARIANT_TAG_LOAD_CONSTANT,
+            Opcode::VARIANT_TAG_LOAD_POINTER,
             Opcode::RETURN,
         ]
     );
@@ -36,7 +42,13 @@ function f0 {
             .iter()
             .map(|relocation| relocation.tag)
             .collect::<Vec<_>>(),
-        vec![RelocationTag::LAYOUT, RelocationTag::LAYOUT]
+        vec![
+            RelocationTag::LAYOUT,
+            RelocationTag::LAYOUT,
+            RelocationTag::LAYOUT,
+            RelocationTag::LAYOUT,
+            RelocationTag::LAYOUT,
+        ]
     );
 
     // retain exact source ranges and destination byte spans

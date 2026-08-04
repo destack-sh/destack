@@ -15,6 +15,9 @@ impl InstructionFormatter<'_, '_, '_> {
             Opcode::INSERT => self.format_insert(),
             Opcode::VARIANT_NEW => self.format_variant_new(),
             Opcode::VARIANT_TAG => self.format_variant_tag(),
+            Opcode::VARIANT_TAG_LOAD
+            | Opcode::VARIANT_TAG_LOAD_CONSTANT
+            | Opcode::VARIANT_TAG_LOAD_POINTER => self.format_variant_tag_load(opcode),
             _ => Err(FormatError::SyntaxError {
                 message: "invalid aggregate opcode",
             }),
@@ -115,6 +118,23 @@ impl InstructionFormatter<'_, '_, '_> {
         // write the variant and exact linked layout
         self.write_comma()?;
         self.write_span(variant)?;
+        self.write_comma()?;
+        self.write_text(&layout)
+    }
+
+    /// Format one stored variant discriminant load.
+    fn format_variant_tag_load(&mut self, opcode: Opcode) -> FormatResult<()> {
+        let name = opcode.name().ok_or(FormatError::SyntaxError {
+            message: "stored variant tag opcode has no name",
+        })?;
+        self.write_opcode(name)?;
+        self.result_span()?;
+        let variant = self.register_id()?;
+        let layout = self.layout()?;
+
+        // write the address register and exact linked layout
+        self.write_comma()?;
+        self.write_register(variant)?;
         self.write_comma()?;
         self.write_text(&layout)
     }
