@@ -7,31 +7,12 @@ use super::r#static::format_static;
 use super::r#type::{format_type_expanded, format_type_name};
 
 use crate::{
-    BlockId, Constant, Formatter, FunctionId, GlobalId, LocalNodeId, Place, PlaceOrigin,
-    Projection, Type, TypeId, Value, Writer,
+    BlockId, Constant, Formatter, FunctionId, GlobalId, LocalNodeId, Type, TypeId, Value, Writer,
 };
 
 impl<'a> Format<'a, Formatter<'a>> for Value {
     fn format(&self, f: &mut Writer<'a, '_>) -> FormatResult<()> {
         write!(f, [copied_text(&format!("v{}", self.0))])
-    }
-}
-
-impl<'a> Format<'a, Formatter<'a>> for Place {
-    fn format(&self, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-        if let PlaceOrigin::Value(value) = self.origin
-            && self.path.is_root()
-        {
-            return value.format(f);
-        }
-
-        write!(f, [token("place"), token("(")])?;
-        format_place_origin(&self.origin, f)?;
-        for projection in &self.path.projections {
-            write!(f, [token(","), space()])?;
-            format_place_projection(projection, f)?;
-        }
-        write!(f, [token(")")])
     }
 }
 
@@ -187,60 +168,5 @@ fn constant_storage_type<'a>(ty: LocalNodeId<Type>, f: &mut Writer<'a, '_>) -> L
         *inner
     } else {
         ty
-    }
-}
-
-/// Format one MIR place origin.
-fn format_place_origin<'a>(origin: &PlaceOrigin, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-    match origin {
-        PlaceOrigin::Local(local) => {
-            let index = f.context().local_index(*local)?;
-            write!(f, [copied_text(&format!("l{index}"))])
-        }
-        PlaceOrigin::Global(global) => global.format(f),
-        PlaceOrigin::Value(value) => value.format(f),
-    }
-}
-
-/// Format one MIR place projection.
-fn format_place_projection<'a>(
-    projection: &Projection,
-    f: &mut Writer<'a, '_>,
-) -> FormatResult<()> {
-    match projection {
-        Projection::Field { index } => write!(
-            f,
-            [
-                token("field"),
-                token("("),
-                copied_text(&index.to_string()),
-                token(")")
-            ]
-        ),
-        Projection::Element { index } => write!(
-            f,
-            [
-                token("element"),
-                token("("),
-                copied_text(&index.to_string()),
-                token(")")
-            ]
-        ),
-        Projection::Index { index } => write!(f, [token("index"), token("("), index, token(")")]),
-        Projection::AnyElement => {
-            write!(f, [token("element"), token("("), token("any"), token(")")])
-        }
-        Projection::Slice { start, length } => write!(
-            f,
-            [
-                token("slice"),
-                token("("),
-                start,
-                token(","),
-                space(),
-                length,
-                token(")")
-            ]
-        ),
     }
 }
