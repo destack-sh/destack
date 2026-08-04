@@ -432,7 +432,7 @@ fn tree_literal_is_call_argument(
     let parent_id = LocalNodeId::<Expression>::new(parent_id);
     matches!(
         context.tree.get(parent_id),
-        Expression::Call { .. } | Expression::New { .. } | Expression::NewMaybe { .. }
+        Expression::Call { .. } | Expression::New { .. }
     )
 }
 
@@ -485,7 +485,6 @@ pub(crate) fn tree_literal_wraps_on_break(
                 context.tree.get(grand_id),
                 Expression::Call { .. }
                     | Expression::New { .. }
-                    | Expression::NewMaybe { .. }
                     | Expression::ArrayExpression { .. }
                     | Expression::TupleExpression { .. }
                     | Expression::TreeExpression { .. }
@@ -537,7 +536,7 @@ fn tree_literal_should_expand_in_parent(
         if current_type == NodeType::Expression {
             let current_expression_id = LocalNodeId::<Expression>::new(current_id);
             match context.tree.get(current_expression_id) {
-                Expression::Call { .. } | Expression::New { .. } | Expression::NewMaybe { .. } => {
+                Expression::Call { .. } | Expression::New { .. } => {
                     if is_lambda_body {
                         is_inside_call = true;
                     }

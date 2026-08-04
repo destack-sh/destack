@@ -167,9 +167,9 @@ pub fn is_expression_breakable(tree: &Tree, expression: &Expression) -> bool {
                     .as_ref()
                     .is_some_and(|children| !children.is_empty())
         }
-        Expression::Call { arguments, .. }
-        | Expression::New { arguments, .. }
-        | Expression::NewMaybe { arguments, .. } => !arguments.is_empty(),
+        Expression::Call { arguments, .. } | Expression::New { arguments, .. } => {
+            !arguments.is_empty()
+        }
         Expression::Match { .. }
         | Expression::Switch { .. }
         | Expression::If { .. }
