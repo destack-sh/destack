@@ -647,10 +647,9 @@ impl<'a, 'b> DestructorEmitter<'a, 'b> {
             }
             mir::Type::Variant {
                 discriminant,
-                storage: storage_type,
                 cases,
                 ..
-            } => self.drop_variant(pointer, discriminant, storage_type, storage, cases),
+            } => self.drop_variant(ty, pointer, discriminant, storage, cases),
             _ => {}
         }
     }
@@ -706,19 +705,23 @@ impl<'a, 'b> DestructorEmitter<'a, 'b> {
     /// Emit drop for one logical variant value.
     fn drop_variant(
         &mut self,
+        variant_type: mir::TypeId,
         pointer: mir::Value,
         discriminant_type: mir::TypeId,
-        storage_type: mir::TypeId,
         storage: mir::Storage,
         cases: Vec<mir::VariantCase>,
     ) {
         let cases = cases
             .into_iter()
-            .filter(|case| Self::type_emits(self.drops, self.builder.tree(), case.ty, storage))
+            .enumerate()
+            .filter(|(_, case)| Self::type_emits(self.drops, self.builder.tree(), case.ty, storage))
             .collect::<Vec<_>>();
         if cases.is_empty() {
             return;
         }
+
+        // read only the encoded discriminant before dispatching its active case
+        let discriminant = self.builder.variant_tag_load(pointer, variant_type);
 
         // build one payload block per nontrivial case
         let case_blocks = cases
@@ -732,22 +735,15 @@ impl<'a, 'b> DestructorEmitter<'a, 'b> {
             .map(|_| self.builder.block())
             .collect::<Vec<_>>();
         let mut check = self.builder.current_block();
-        let discriminant_pointer_type = self.storage_pointer_type(discriminant_type, storage);
-        let discriminant_pointer = self
-            .builder
-            .field_addr(pointer, 0, discriminant_pointer_type);
-        let discriminant = self.builder.load(discriminant_pointer, discriminant_type);
-        let storage_pointer_type = self.storage_pointer_type(storage_type, storage);
-        let storage_pointer = self.builder.field_addr(pointer, 1, storage_pointer_type);
         let case_count = cases.len();
 
         // dispatch on the active tag
-        for (index, case) in cases.into_iter().enumerate() {
-            let case_block = case_blocks[index];
-            let failure = if index + 1 == case_count {
+        for (dispatch_index, (case_index, case)) in cases.into_iter().enumerate() {
+            let case_block = case_blocks[dispatch_index];
+            let failure = if dispatch_index + 1 == case_count {
                 done
             } else {
-                check_blocks[index]
+                check_blocks[dispatch_index]
             };
 
             self.builder.switch_to_block(check);
@@ -759,8 +755,10 @@ impl<'a, 'b> DestructorEmitter<'a, 'b> {
 
             // drop matching payload
             self.builder.switch_to_block(case_block);
+            let payload_pointer_type = self.storage_pointer_type(case.ty, storage);
             let payload_pointer =
-                self.variant_payload_pointer(storage_pointer, storage_type, case.ty, storage);
+                self.builder
+                    .variant_payload_addr(pointer, case_index as u32, payload_pointer_type);
             self.drop_at(case.ty, payload_pointer, storage);
             self.builder.jump(done);
 
@@ -768,40 +766,6 @@ impl<'a, 'b> DestructorEmitter<'a, 'b> {
         }
 
         self.builder.switch_to_block(done);
-    }
-
-    /// Return the address of one active variant payload.
-    fn variant_payload_pointer(
-        &mut self,
-        storage_pointer: mir::Value,
-        storage_type: mir::TypeId,
-        payload_type: mir::TypeId,
-        storage: mir::Storage,
-    ) -> mir::Value {
-        if storage_type == payload_type {
-            return storage_pointer;
-        }
-
-        // follow boxed variant storage before reinterpreting its pointee
-        if let mir::Type::Reference {
-            kind,
-            access,
-            storage: reference_storage,
-            nullability,
-            ..
-        } = self.builder.tree().get(storage_type).clone()
-        {
-            let storage = self.builder.load(storage_pointer, storage_type);
-            let payload_reference =
-                self.reference_type(kind, payload_type, access, reference_storage, nullability);
-
-            return self.builder.bitcast(storage, payload_reference);
-        }
-
-        // reinterpret inline variant storage in place
-        let payload_pointer_type = self.storage_pointer_type(payload_type, storage);
-
-        self.builder.bitcast(storage_pointer, payload_pointer_type)
     }
 
     /// Emit drop for one value at its storage address.

@@ -512,7 +512,7 @@ entry(v0: ref<Outer, borrowed, exclusive, frame>):
 fn test_variant_payload_move_consumes_variant() {
     let mut program = TestProgram::mir(
         r#"
-type Value = variant<uint8, ref<int32, unique, mutable>> { 0uint8 = ref<int32, unique, mutable>; 1uint8 = int32; };
+type Value = variant<uint8> { 0uint8 = ref<int32, unique, mutable>; 1uint8 = int32; };
 
 function test(v0: Value): void {
 entry(v0: Value):
@@ -524,7 +524,7 @@ entry(v0: Value):
 
     program.assert_drop_mir(
         r#"
-type Value = variant<uint8, ref<int32, unique, mutable>> { 0uint8 = ref<int32, unique, mutable>; 1uint8 = int32; };
+type Value = variant<uint8> { 0uint8 = ref<int32, unique, mutable>; 1uint8 = int32; };
 
 function test(v0: Value): void {
 entry(v0: Value):
@@ -535,16 +535,15 @@ entry(v0: Value):
 
 function Value.destruct.frame(v0: ref<Value, borrowed, exclusive, frame>): void {
 entry(v0: ref<Value, borrowed, exclusive, frame>):
-    v1: ref<uint8, borrowed, exclusive, frame> = field.address v0, 0
-    v2: uint8 = load v1
-    v3: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = field.address v0, 1
-    v4: uint8 = 0
-    v5: boolean = int.eq v2, v4
-    branch v5 => b1 | b2
+    v1: uint8 = variant.tag.load v0
+    v2: uint8 = 0
+    v3: boolean = int.eq v1, v2
+    branch v3 => b1 | b2
 
 b1:
-    v6: ref<int32, unique, mutable> = load v3
-    free v6
+    v4: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = variant.payload.address v0, 0
+    v5: ref<int32, unique, mutable> = load v4
+    free v5
     jump b2
 
 b2:
