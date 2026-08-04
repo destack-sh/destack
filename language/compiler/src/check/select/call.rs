@@ -971,7 +971,27 @@ impl BodyState<'_, '_> {
                     self.report_signature_rejection(origin, rejection)?;
                     return Ok(Answer::Ready(self.reject_call(node, expectation)?));
                 }
-                SignatureMatch::Invalid { .. } => {}
+                SignatureMatch::Invalid { selection, .. } => {
+                    // retain the first declared candidate for query consumers
+                    let mut rejections = overload.rejections;
+                    rejections.truncate(4);
+                    let arguments = answer!(self.infer_argument_types(site, argument_nodes)?);
+                    self.report_no_matching_call(origin, &arguments, &rejections)?;
+                    let source = answer!(self.commit_callable_signature(
+                        node,
+                        callee,
+                        candidate,
+                        argument_nodes,
+                        selection,
+                    )?);
+                    let target = expectation.map_or(source, |expectation| expectation.target);
+
+                    return Ok(Answer::Ready(ValueCheck {
+                        source,
+                        outcome: CheckOutcome::Holds,
+                        target,
+                    }));
+                }
                 SignatureMatch::Inapplicable(_) => {}
             }
         }
