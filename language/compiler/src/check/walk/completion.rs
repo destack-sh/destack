@@ -142,7 +142,6 @@ impl WalkState<'_, '_> {
             | dir::Expression::Instantiation { .. }
             | dir::Expression::Call { .. }
             | dir::Expression::New { .. }
-            | dir::Expression::NewMaybe { .. }
             | dir::Expression::AwaitMaybe { .. }
             | dir::Expression::AwaitMust { .. }
             | dir::Expression::Maybe { .. }

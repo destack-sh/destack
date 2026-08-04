@@ -534,16 +534,6 @@ impl WalkState<'_, '_> {
                     }
                 }
             }
-            // new? Type<T>(argument)
-            dir::Expression::NewMaybe { ty, arguments } => {
-                let arguments = arguments.iter().copied().collect::<SmallVec<[_; 4]>>();
-                self.walk_construct_type_expression(*ty)?;
-                for argument in &arguments {
-                    self.walk_argument(*argument, self.tree.get(*argument))?;
-                }
-
-                self.propagate_try(id.into_any())?;
-            }
             // await? value
             dir::Expression::AwaitMaybe {
                 expression: awaited,

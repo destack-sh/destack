@@ -10,15 +10,6 @@ use crate::check::{
 };
 use crate::{CompilerError, CompilerResult};
 
-/// Result shape produced by one construct expression.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::check) enum ConstructResult {
-    /// Construct expression produces the constructed value directly.
-    Direct,
-    /// Construct expression produces the fallible construction carrier.
-    Fallible,
-}
-
 impl BodyState<'_, '_> {
     /// Select the target type named by one construct head.
     pub(in crate::check) fn select_construct_target(
@@ -290,7 +281,6 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         ty: dir::LocalNodeId<dir::TypeExpression>,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
-        result: ConstructResult,
         expectation: Option<Expectation>,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let node = site.node.into_typed::<dir::Expression>();
@@ -329,7 +319,6 @@ impl BodyState<'_, '_> {
                 dynamic.constraint,
                 argument_nodes,
                 &arguments,
-                result,
                 &forms,
             );
         }
@@ -475,7 +464,6 @@ impl BodyState<'_, '_> {
                         &instance,
                         constructor.constructor,
                         signature,
-                        result,
                         &forms,
                     );
                 }
@@ -492,7 +480,6 @@ impl BodyState<'_, '_> {
                         &instance,
                         constructor.constructor,
                         selection,
-                        result,
                         &forms,
                     )?);
 
@@ -803,7 +790,6 @@ impl BodyState<'_, '_> {
         instance: &dir::GenericApplication,
         constructor: dir::ClassConstructor,
         signature: SignatureSelection,
-        result: ConstructResult,
         forms: &[dir::Form],
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let generic_arguments = if signature.generic_arguments.is_empty() {
@@ -822,12 +808,7 @@ impl BodyState<'_, '_> {
             constructor,
             generic_arguments,
         });
-        let mut produced = match result {
-            ConstructResult::Direct => signature.return_type,
-            ConstructResult::Fallible => {
-                self.fallible_construct_type(node, signature.return_type)?
-            }
-        };
+        let mut produced = signature.return_type;
         for form in forms.iter().rev().copied() {
             produced = self.intern_type(dir::Type::Form(dir::FormType {
                 form,
@@ -851,18 +832,6 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(produced))
     }
 
-    /// Return the result carrier for one fallible construction.
-    fn fallible_construct_type(
-        &mut self,
-        _node: dir::GlobalNodeIdAny,
-        value: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let allocation_error = self.language_type(dir::LanguageItem::AllocationError, &[])?;
-        let carrier = self.language_type(dir::LanguageItem::Result, &[value, allocation_error])?;
-
-        Ok(carrier)
-    }
-
     /// Select one construction through an erased interface construct signature.
     fn select_dynamic_construct(
         &mut self,
@@ -873,7 +842,6 @@ impl BodyState<'_, '_> {
         constraint: dir::GlobalTypeId,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         arguments: &[CallableArgument],
-        result: ConstructResult,
         forms: &[dir::Form],
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let module = node.module_id;
@@ -954,7 +922,6 @@ impl BodyState<'_, '_> {
                         signature.source,
                         argument_nodes,
                         selection,
-                        result,
                         forms,
                     );
                 }
@@ -973,7 +940,6 @@ impl BodyState<'_, '_> {
                         signature.source,
                         argument_nodes,
                         selection,
-                        result,
                         forms,
                     );
                 }
@@ -1003,7 +969,6 @@ impl BodyState<'_, '_> {
         source: dir::GlobalNodeIdAny,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         signature: SignatureSelection,
-        result: ConstructResult,
         forms: &[dir::Form],
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         // commit conversions only after the signature has been selected
@@ -1026,7 +991,6 @@ impl BodyState<'_, '_> {
             construct_target,
             argument_nodes,
             &signature,
-            result,
             forms,
         )
     }
@@ -1220,16 +1184,10 @@ impl BodyState<'_, '_> {
         target: dir::ConstructTarget,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         signature: &SignatureSelection,
-        result: ConstructResult,
         forms: &[dir::Form],
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         // wrap the produced instance in its destination forms
-        let mut produced = match result {
-            ConstructResult::Direct => signature.return_type,
-            ConstructResult::Fallible => {
-                self.fallible_construct_type(node, signature.return_type)?
-            }
-        };
+        let mut produced = signature.return_type;
         for form in forms.iter().rev().copied() {
             produced = self.intern_type(dir::Type::Form(dir::FormType {
                 form,
