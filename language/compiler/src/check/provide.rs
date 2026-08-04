@@ -144,7 +144,7 @@ impl Compiler {
             ArtifactProjectionKey::Content,
         );
 
-        // require the declared aggregate standing for the implicit surface
+        // require the aggregate implicit declarations
         dependencies.require_projection(
             ArtifactKey::environment_declared(profile),
             ArtifactProjectionKey::Content,

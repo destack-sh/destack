@@ -154,6 +154,14 @@ impl WalkState<'_, '_> {
                 let arguments: Vec<_> = arguments.into_iter().map(|argument| argument.ty).collect();
                 let arguments = self.intern_type_ids(&arguments)?;
 
+                // retain the lookup subject even when the written member is incomplete
+                let subject = dir::MemberSubject::new(owner, owner, dir::MemberSpace::Static)
+                    .with_scope(self.flow().template_scope());
+                self.check
+                    .module_mut(self.module)
+                    .members
+                    .record_subject(id.into_global_any(self.module), subject);
+
                 self.intern_member(dir::MemberType {
                     owner,
                     key: dir::StaticKey::Name(name),
@@ -639,14 +647,22 @@ impl WalkState<'_, '_> {
                     }
                 }
             }
-            Some(dir::Reference::Projected { base, .. }) => {
+            Some(dir::Reference::Projected {
+                base: dir::ImportTarget::Symbol(base),
+                ..
+            }) => {
                 self.commit_reference_name(source, base)?;
             }
             Some(dir::Reference::Ambiguous(_)) => {
                 self.check
                     .report_ambiguous_reference(self.module, id.into_any(), path);
             }
-            Some(dir::Reference::Namespace(_)) | Some(dir::Reference::Missing) => {
+            Some(dir::Reference::Namespace(_))
+            | Some(dir::Reference::Projected {
+                base: dir::ImportTarget::Namespace(_),
+                ..
+            })
+            | Some(dir::Reference::Missing) => {
                 self.check
                     .reject_unresolved_reference(self.module, id.into_any(), path);
             }
@@ -680,7 +696,10 @@ impl WalkState<'_, '_> {
             }
 
             // project a type-member path from the resolved base declaration
-            Some(dir::Reference::Projected { base, from }) => self.walk_member_path_type(
+            Some(dir::Reference::Projected {
+                base: dir::ImportTarget::Symbol(base),
+                from,
+            }) => self.walk_member_path_type(
                 id,
                 base,
                 &path.segments[from as usize..],
@@ -696,7 +715,12 @@ impl WalkState<'_, '_> {
             }
 
             // reject namespaces and missing references in type position
-            Some(dir::Reference::Namespace(_)) | Some(dir::Reference::Missing) => {
+            Some(dir::Reference::Namespace(_))
+            | Some(dir::Reference::Projected {
+                base: dir::ImportTarget::Namespace(_),
+                ..
+            })
+            | Some(dir::Reference::Missing) => {
                 self.check
                     .reject_unresolved_reference(self.module, id.into_any(), path);
 
@@ -1017,6 +1041,7 @@ impl WalkState<'_, '_> {
         tail: &[dir::StringId],
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // FUGU #Incomplete: retain each authored path segment as its own DIR node
         self.commit_reference_name(id.into_global_any(self.module), base)?;
 
         // start from the resolved base symbol
@@ -1034,6 +1059,16 @@ impl WalkState<'_, '_> {
                 Vec::new()
             };
             let arguments = self.intern_type_ids(&arguments)?;
+
+            // retain the final lookup subject represented by this authored path
+            if is_last {
+                let subject = dir::MemberSubject::new(ty, ty, dir::MemberSpace::Static)
+                    .with_scope(self.flow().template_scope());
+                self.check
+                    .module_mut(self.module)
+                    .members
+                    .record_subject(id.into_global_any(self.module), subject);
+            }
 
             ty = self.intern_member(dir::MemberType {
                 owner: ty,

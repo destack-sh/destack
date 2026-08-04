@@ -357,13 +357,11 @@ impl CheckState<'_> {
         // require each member from the source
         let mut decision = Answer::Ready(true);
         for member in requirements.members {
-            let lookup = answer!(self.body().lookup_member(
-                origin,
-                module,
-                source,
-                member.space,
-                member.key
-            )?);
+            let subject = dir::MemberSubject::new(source, source, member.space);
+            let lookup = answer!(
+                self.body()
+                    .lookup_member(origin, module, subject, member.key)?
+            );
 
             // require presence when an associated type stays abstract
             let Some(member_type) = member.ty else {

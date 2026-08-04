@@ -66,6 +66,8 @@ struct ModuleProbeMark {
     types: dir::TypeMark,
     /// Resolution segment mark before the probe.
     resolutions: dir::ResolutionMark,
+    /// Member segment mark before the probe.
+    members: dir::MemberMark,
     /// Coercion segment mark before the probe.
     coercions: dir::CoercionMark,
     /// Diagnostic count before the probe.
@@ -436,6 +438,7 @@ impl CheckState<'_> {
                     ModuleProbeMark {
                         types: state.types_tail.mark(),
                         resolutions: state.resolutions.mark(),
+                        members: state.members.mark(),
                         coercions: state.coercions.mark(),
                         diagnostics: state.diagnostics.len(),
                         warnings: state.warnings.len(),
@@ -546,6 +549,7 @@ impl CheckState<'_> {
             if let Some(state) = self.module_maybe_mut(module) {
                 state.types_tail.truncate_to(mark.types);
                 state.resolutions.truncate_to(mark.resolutions);
+                state.members.truncate_to(mark.members);
                 state.coercions.truncate_to(mark.coercions);
                 state.diagnostics.truncate(mark.diagnostics);
                 state.warnings.truncate(mark.warnings);

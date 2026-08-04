@@ -25,6 +25,8 @@ pub(in crate::check) struct CheckModuleSegments {
     pub(super) statics: dir::StaticSegment,
     /// Checked resolution segment.
     pub(super) resolutions: dir::ResolutionSegment,
+    /// Checked member segment.
+    pub(super) members: dir::MemberSegment,
     /// Checked generic segment.
     pub(super) generics: dir::GenericSegment,
     /// Checked definition segment.
@@ -46,6 +48,7 @@ impl CheckModuleSegments {
             types: state.types_tail,
             statics: state.statics,
             resolutions: state.resolutions,
+            members: state.members,
             generics: state.generics,
             definitions: state.definitions,
             coercions: state.coercions,
@@ -64,6 +67,7 @@ impl CheckModuleSegments {
             &self.types,
             &self.statics,
             &self.resolutions,
+            &self.members,
             &self.generics,
             &self.definitions,
             &self.coercions,
@@ -82,6 +86,7 @@ impl CheckModuleSegments {
             types: Arc::new(self.types),
             statics: Arc::new(self.statics),
             resolutions: Arc::new(self.resolutions),
+            members: Arc::new(self.members),
             generics: Arc::new(self.generics),
             definitions: Arc::new(self.definitions),
             coercions: Arc::new(self.coercions),
@@ -100,6 +105,7 @@ impl CheckModuleSegments {
             &self.generics,
             &self.definitions,
             &self.resolutions,
+            &self.members,
         ))
         .map_err(|error| CompilerError::Internal {
             message: format!(
@@ -116,6 +122,7 @@ impl CheckModuleSegments {
             generics: Arc::new(self.generics),
             definitions: Arc::new(self.definitions),
             resolutions: Arc::new(self.resolutions),
+            members: Arc::new(self.members),
         })
     }
 }

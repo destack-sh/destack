@@ -30,13 +30,7 @@ impl BodyState<'_, '_> {
             let dir::Type::Primitive(primitive) = self.ty(value)? else {
                 continue;
             };
-            let Some(environment) = &self.check.environment_declared else {
-                continue;
-            };
-            let Some(implicit) = environment.extensions_by_primitive.get(&primitive) else {
-                continue;
-            };
-            for symbol in implicit.clone() {
+            for symbol in self.primitive_extensions(primitive)? {
                 if !extensions.contains(&symbol) {
                     extensions.push(symbol);
                 }
@@ -78,6 +72,26 @@ impl BodyState<'_, '_> {
         }
 
         Ok(Answer::Ready(MemberLookup::from_candidates(candidates)))
+    }
+
+    /// Return the implicit extensions declared for one primitive type.
+    pub(in crate::check) fn primitive_extensions(
+        &self,
+        primitive: dir::PrimitiveType,
+    ) -> CompilerResult<SmallVec<[dir::GlobalSymbolId; 4]>> {
+        let environment =
+            self.check
+                .environment_declared
+                .as_ref()
+                .ok_or(CompilerError::Internal {
+                    message: "primitive member lookup has no declared environment".to_string(),
+                })?;
+        let extensions = match environment.extensions_by_primitive.get(&primitive) {
+            Some(extensions) => extensions.iter().copied().collect(),
+            None => SmallVec::new(),
+        };
+
+        Ok(extensions)
     }
 
     /// Look up one static extension member on a declaration reference.
@@ -779,11 +793,16 @@ impl BodyState<'_, '_> {
                 answer!(self.projected_member_type(origin, None, member.role, access_type)?);
 
             candidates.push(MemberCandidate {
+                key: member.key.ok_or_else(|| CompilerError::Internal {
+                    message: format!("static extension member {:?} has no key", member.symbol),
+                })?,
                 symbol: member.symbol,
                 owner: extension_symbol,
                 origin: dir::MemberOrigin::RootedExtension,
                 space: dir::MemberSpace::Static,
                 role: member.role,
+                kind: member.kind,
+                is_writable: member.is_writable,
                 access_type,
                 callable,
                 is_optional: member.is_optional,
@@ -847,11 +866,16 @@ impl BodyState<'_, '_> {
             let generic_arguments = self.settled_argument_bindings(&substitution.bindings)?;
 
             candidates.push(MemberCandidate {
+                key: member.key.ok_or_else(|| CompilerError::Internal {
+                    message: format!("extension member {:?} has no key", member.symbol),
+                })?,
                 symbol: member.symbol,
                 owner: extension_symbol,
                 origin: member_origin,
                 space: member.space,
                 role: member.role,
+                kind: member.kind,
+                is_writable: member.is_writable,
                 access_type,
                 callable,
                 is_optional: member.is_optional,

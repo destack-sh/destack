@@ -621,13 +621,8 @@ impl CheckState<'_> {
         let source = self.reference_type(origin, source_module, source_instance)?;
         let mut decision = Answer::Ready(true);
         for (key, field_type, is_optional) in fields {
-            let lookup = answer!(self.body().lookup_member(
-                origin,
-                module,
-                source,
-                dir::MemberSpace::Instance,
-                key
-            )?);
+            let subject = dir::MemberSubject::new(source, source, dir::MemberSpace::Instance);
+            let lookup = answer!(self.body().lookup_member(origin, module, subject, key)?);
 
             let member = self.body().member_read_type(origin, &lookup)?;
 

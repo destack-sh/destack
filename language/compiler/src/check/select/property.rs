@@ -145,7 +145,6 @@ impl BodyState<'_, '_> {
                         self.commit_decision(node.into_any(), Decision::Rejected)?;
                         let source = self.commit_error_node(node.into_any())?;
                         let target = target.unwrap_or(source);
-
                         return Ok(Answer::Ready(ValueCheck {
                             source,
                             outcome: CheckOutcome::Fails(CheckFailure::Relation),
@@ -202,7 +201,6 @@ impl BodyState<'_, '_> {
 
                 // publish the selected struct instance at the literal
                 self.commit_node_type(node.into_any(), target)?;
-
                 Ok(Answer::Ready(ValueCheck {
                     source: target,
                     outcome: check,
@@ -216,7 +214,6 @@ impl BodyState<'_, '_> {
                     value: shape,
                 }))?;
                 self.commit_node_type(node.into_any(), managed)?;
-
                 Ok(Answer::Ready(ValueCheck {
                     source: managed,
                     outcome: check,
@@ -287,13 +284,9 @@ impl BodyState<'_, '_> {
                     seen.push(key);
 
                     // read each member through the receiver instance
-                    let lookup = answer!(self.lookup_member(
-                        origin,
-                        module,
-                        current,
-                        dir::MemberSpace::Instance,
-                        key,
-                    )?);
+                    let subject =
+                        dir::MemberSubject::new(current, current, dir::MemberSpace::Instance);
+                    let lookup = answer!(self.lookup_member(origin, module, subject, key,)?);
                     let ty = self.member_read_type(origin, &lookup)?;
                     if let Some(ty) = ty {
                         fields.push(dir::TypeProperty {

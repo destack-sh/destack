@@ -655,7 +655,7 @@ const counter: Counter = { value: 1 };
 /// @resolution.name source=Counter target=Counter
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '{ value: 1 }' is not assignable to type 'Counter'"
+/// @diagnostic.error id=not-assignable message="type '{ value: int32 }' is not assignable to type 'Counter'"
 /// @diagnostic.label line=6 column=26 span="{ value: 1 }" line_source="const counter: Counter = { value: 1 };"
 /// @diagnostic.related line=6 column=16 span="Counter" line_source="const counter: Counter = { value: 1 };" message="expected due to this annotation"
 "#,

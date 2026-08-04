@@ -142,11 +142,11 @@ impl CheckState<'_> {
             dir::Type::Reference(_) => dir::MemberSpace::Static,
             _ => dir::MemberSpace::Instance,
         };
-        let lookup =
-            answer!(
-                self.body()
-                    .lookup_member(origin, origin.module(), owner, space, key)?
-            );
+        let subject = dir::MemberSubject::new(owner, owner, space);
+        let lookup = answer!(
+            self.body()
+                .lookup_member(origin, origin.module(), subject, key)?
+        );
 
         let reduction = self.reduce_member_lookup(origin, owner, key_type, lookup)?;
 

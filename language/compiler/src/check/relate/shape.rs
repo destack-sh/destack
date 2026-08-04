@@ -509,13 +509,11 @@ impl CheckState<'_> {
 
         // require each target field from the static declaration
         for field in target_fields {
-            let lookup = answer!(self.body().lookup_member(
-                origin,
-                module,
-                source,
-                dir::MemberSpace::Static,
-                field.key
-            )?);
+            let subject = dir::MemberSubject::new(source, source, dir::MemberSpace::Static);
+            let lookup = answer!(
+                self.body()
+                    .lookup_member(origin, module, subject, field.key)?
+            );
             let found = self.body().member_read_type(origin, &lookup)?;
             let Some(found) = found else {
                 if field.is_optional {

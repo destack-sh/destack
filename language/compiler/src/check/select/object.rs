@@ -434,8 +434,8 @@ impl BodyState<'_, '_> {
         owner: dir::GlobalTypeId,
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<ObjectField>> {
-        let lookup =
-            answer!(self.lookup_member(origin, module, owner, dir::MemberSpace::Instance, key)?);
+        let subject = dir::MemberSubject::new(owner, owner, dir::MemberSpace::Instance);
+        let lookup = answer!(self.lookup_member(origin, module, subject, key)?);
 
         let field = answer!(self.object_lookup_field(origin, owner, key, lookup)?);
 

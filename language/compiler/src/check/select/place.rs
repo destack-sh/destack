@@ -381,7 +381,8 @@ impl BodyState<'_, '_> {
                 };
                 let space = self.member_receiver_space(receiver_node, receiver)?;
                 let key = dir::StaticKey::Name(name);
-                let lookup = answer!(self.lookup_member(origin, module, receiver, space, key)?);
+                let subject = dir::MemberSubject::new(receiver, receiver, space);
+                let lookup = answer!(self.lookup_member(origin, module, subject, key)?);
 
                 let Some(selection) = answer!(self.select_member_assignment(
                     origin,

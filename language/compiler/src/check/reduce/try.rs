@@ -50,13 +50,8 @@ impl CheckState<'_> {
         let projected = match carrier {
             None => None,
             Some(carrier) => {
-                let lookup = answer!(self.body().lookup_member(
-                    origin,
-                    module,
-                    carrier,
-                    dir::MemberSpace::Static,
-                    key
-                )?);
+                let subject = dir::MemberSubject::new(carrier, carrier, dir::MemberSpace::Static);
+                let lookup = answer!(self.body().lookup_member(origin, module, subject, key)?);
 
                 match &lookup {
                     // non-carriers keep their own value as the success type

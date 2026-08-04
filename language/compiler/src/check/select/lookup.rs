@@ -10,9 +10,9 @@ use crate::check::{
 };
 use crate::{CompilerError, CompilerResult};
 
-/// One active member lookup query.
+/// One member lookup on the active recursion path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct MemberQuery {
+struct MemberLookupKey {
     /// The module whose visibility rules apply.
     module: ModuleId,
     /// The receiver type retained in selected resolutions.
@@ -29,7 +29,7 @@ struct MemberQuery {
 
 /// Which member sources one lookup admits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum ExtensionFilter {
+pub(super) enum ExtensionFilter {
     /// Search receiver and base declarations only.
     Inherent,
     /// Search inherent members first, then extensions.
@@ -80,15 +80,12 @@ impl BodyState<'_, '_> {
         };
 
         let symbol = self.resolve_symbol_alias(symbol)?;
-        // default unreadable foreign kinds to the instance space
-        let Some(kind) = self.symbol_kind_maybe(symbol)? else {
-            return Ok(dir::MemberSpace::Instance);
-        };
+        let kind = self.symbol_kind(symbol)?;
 
-        // a name naming a type reaches its static members, so
-        //  parameters serve bound statics like rustc's T::default()
-        let names_type = kind.is_nominal() || matches!(kind, dir::SymbolKind::GenericTypeParameter);
-        let space = if names_type {
+        // select static members for names that resolve to types
+        let is_type_name =
+            kind.is_nominal() || matches!(kind, dir::SymbolKind::GenericTypeParameter);
+        let space = if is_type_name {
             dir::MemberSpace::Static
         } else {
             dir::MemberSpace::Instance
@@ -102,8 +99,7 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        receiver: dir::GlobalTypeId,
-        space: dir::MemberSpace,
+        subject: dir::MemberSubject,
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<MemberLookup>> {
         let mut active_queries = FxIndexSet::default();
@@ -111,9 +107,9 @@ impl BodyState<'_, '_> {
         self.lookup_subject_member(
             origin,
             module,
-            receiver,
-            receiver,
-            space,
+            subject.receiver,
+            subject.target,
+            subject.space,
             key,
             ExtensionFilter::All,
             &mut active_queries,
@@ -153,7 +149,7 @@ impl BodyState<'_, '_> {
         space: dir::MemberSpace,
         key: dir::StaticKey,
         extensions: ExtensionFilter,
-        active: &mut FxIndexSet<MemberQuery>,
+        active: &mut FxIndexSet<MemberLookupKey>,
     ) -> CompilerResult<Answer<MemberLookup>> {
         // static names read the written declaration before aliases reduce
         let root = self.settled_root(subject)?;
@@ -171,7 +167,7 @@ impl BodyState<'_, '_> {
         };
 
         // stop cyclic paths through constraints, unions, and heritage
-        let query = MemberQuery {
+        let query = MemberLookupKey {
             module,
             receiver,
             subject,
@@ -201,7 +197,7 @@ impl BodyState<'_, '_> {
         space: dir::MemberSpace,
         key: dir::StaticKey,
         extensions: ExtensionFilter,
-        active: &mut FxIndexSet<MemberQuery>,
+        active: &mut FxIndexSet<MemberLookupKey>,
     ) -> CompilerResult<Answer<MemberLookup>> {
         match self.ty(subject)? {
             // memory forms look through their payloads
@@ -529,7 +525,7 @@ impl BodyState<'_, '_> {
         space: dir::MemberSpace,
         key: dir::StaticKey,
         extensions: ExtensionFilter,
-        active: &mut FxIndexSet<MemberQuery>,
+        active: &mut FxIndexSet<MemberLookupKey>,
     ) -> CompilerResult<Answer<MemberLookup>> {
         for bound in bounds {
             let lookup = self.lookup_subject_member(
@@ -582,7 +578,7 @@ impl BodyState<'_, '_> {
         space: dir::MemberSpace,
         key: dir::StaticKey,
         extensions: ExtensionFilter,
-        active: &mut FxIndexSet<MemberQuery>,
+        active: &mut FxIndexSet<MemberLookupKey>,
     ) -> CompilerResult<Answer<MemberLookup>> {
         if space != dir::MemberSpace::Static {
             return Ok(Answer::Ready(MemberLookup::Missing));
@@ -649,7 +645,7 @@ impl BodyState<'_, '_> {
         space: dir::MemberSpace,
         key: dir::StaticKey,
         extensions: ExtensionFilter,
-        active: &mut FxIndexSet<MemberQuery>,
+        active: &mut FxIndexSet<MemberLookupKey>,
     ) -> CompilerResult<Answer<MemberLookup>> {
         let mut lookups = Vec::with_capacity(elements.len());
 
@@ -818,11 +814,14 @@ impl BodyState<'_, '_> {
             )?);
 
             candidates.push(MemberCandidate {
+                key,
                 symbol: member.symbol,
                 owner: symbol,
                 origin: dir::MemberOrigin::Declaration,
                 space: dir::MemberSpace::Static,
                 role: member.role,
+                kind: member.kind,
+                is_writable: member.is_writable,
                 access_type,
                 callable,
                 is_optional: member.is_optional,
@@ -909,11 +908,14 @@ impl BodyState<'_, '_> {
                 self.symbol_generic_argument_bindings(instance.symbol, &instance.arguments)?;
 
             candidates.push(MemberCandidate {
+                key,
                 symbol,
                 owner: instance.symbol,
                 origin: dir::MemberOrigin::Declaration,
                 space,
                 role: member.role,
+                kind: member.kind,
+                is_writable: member.is_writable,
                 access_type,
                 callable,
                 is_optional: member.is_optional,
@@ -946,5 +948,170 @@ impl BodyState<'_, '_> {
         }
 
         Ok(Answer::Ready(MemberLookup::Missing))
+    }
+
+    /// Collect the declared member keys reachable from one lookup subject.
+    ///
+    /// Keys over-approximate the member set: the keyed lookup judges
+    /// applicability, so inapplicable keys resolve as missing lookups.
+    pub(in crate::check) fn subject_member_keys(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        subject: &dir::MemberSubject,
+    ) -> CompilerResult<Vec<dir::StaticKey>> {
+        let mut keys = FxIndexSet::default();
+        let mut visited = FxIndexSet::default();
+        self.collect_subject_keys(
+            origin,
+            module,
+            subject.target,
+            subject.space,
+            &mut keys,
+            &mut visited,
+        )?;
+
+        Ok(keys.into_iter().collect())
+    }
+
+    /// Collect declared member keys from one subject type.
+    fn collect_subject_keys(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        subject: dir::GlobalTypeId,
+        space: dir::MemberSpace,
+        keys: &mut FxIndexSet<dir::StaticKey>,
+        visited: &mut FxIndexSet<dir::GlobalTypeId>,
+    ) -> CompilerResult<()> {
+        // stop cyclic paths through bounds, unions, and heritage
+        let subject = self.settled_root(subject)?;
+        if !visited.insert(subject) {
+            return Ok(());
+        }
+
+        match self.ty(subject)? {
+            // declarations expose their own, inherited, and extension keys
+            dir::Type::Reference(reference) => {
+                self.collect_symbol_keys(module, reference.symbol, space, keys, visited)?;
+            }
+            dir::Type::Application(instance) => {
+                self.collect_symbol_keys(module, instance.symbol, space, keys, visited)?;
+            }
+            // structural subjects expose their property keys
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
+                for property in self.shape_properties(subject.module_id, shape.properties)? {
+                    keys.insert(property.key);
+                }
+            }
+            // scalar families expose their blanket extension keys
+            dir::Type::Primitive(_) | dir::Type::Literal(_) => {
+                for extension in self.visible_blanket_extensions(module)? {
+                    self.collect_definition_keys(extension, space, keys)?;
+                }
+            }
+            // memory forms expose their pointee keys
+            dir::Type::Form(form) => {
+                self.collect_subject_keys(origin, module, form.value, space, keys, visited)?;
+            }
+            // erased subjects expose their constraint keys
+            dir::Type::Dynamic(dynamic) => {
+                self.collect_subject_keys(
+                    origin,
+                    module,
+                    dynamic.constraint,
+                    space,
+                    keys,
+                    visited,
+                )?;
+            }
+            // parameters expose the keys of their declared bounds
+            dir::Type::Parameter(parameter) => {
+                for bound in self.parameter_bounds(origin, parameter)? {
+                    self.collect_subject_keys(origin, module, bound, space, keys, visited)?;
+                }
+            }
+            // composite subjects expose the keys of every element
+            dir::Type::Union(union) => {
+                let elements = self.type_ids(subject.module_id, union.elements)?.to_vec();
+                for element in elements {
+                    self.collect_subject_keys(origin, module, element, space, keys, visited)?;
+                }
+            }
+            dir::Type::Intersection(intersection) => {
+                let elements = self
+                    .type_ids(subject.module_id, intersection.elements)?
+                    .to_vec();
+                for element in elements {
+                    self.collect_subject_keys(origin, module, element, space, keys, visited)?;
+                }
+            }
+            _ => {}
+        }
+
+        Ok(())
+    }
+
+    /// Collect declared member keys from one nominal declaration.
+    fn collect_symbol_keys(
+        &mut self,
+        module: ModuleId,
+        symbol: dir::GlobalSymbolId,
+        space: dir::MemberSpace,
+        keys: &mut FxIndexSet<dir::StaticKey>,
+        visited: &mut FxIndexSet<dir::GlobalTypeId>,
+    ) -> CompilerResult<()> {
+        // collect the declaration's own member keys
+        let symbol = self.resolve_symbol_alias(symbol)?;
+        self.collect_definition_keys(symbol, space, keys)?;
+
+        // collect inherited keys through the heritage clauses
+        let heritages = match self.definition(symbol)? {
+            Some(definition) => definition
+                .heritages()
+                .into_iter()
+                .map(|heritage| heritage.ty)
+                .collect::<SmallVec<[_; 2]>>(),
+            None => SmallVec::new(),
+        };
+        for heritage in heritages {
+            let mut origin_visited = visited.clone();
+            self.collect_subject_keys(
+                Origin::Symbol(symbol),
+                module,
+                heritage,
+                space,
+                keys,
+                &mut origin_visited,
+            )?;
+        }
+
+        // collect extension keys targeting this declaration
+        for extension in self.visible_extensions(module, symbol)? {
+            self.collect_definition_keys(extension, space, keys)?;
+        }
+
+        Ok(())
+    }
+
+    /// Collect the member keys declared by one definition.
+    fn collect_definition_keys(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        space: dir::MemberSpace,
+        keys: &mut FxIndexSet<dir::StaticKey>,
+    ) -> CompilerResult<()> {
+        let Some(definition) = self.definition(symbol)? else {
+            return Ok(());
+        };
+        for member in definition.members() {
+            if member.space() == space
+                && let Some(key) = member.key()
+            {
+                keys.insert(key);
+            }
+        }
+
+        Ok(())
     }
 }

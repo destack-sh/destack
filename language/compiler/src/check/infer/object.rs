@@ -450,7 +450,19 @@ impl BodyState<'_, '_> {
 
                 Ok(Answer::Ready(Some((fields, indexes))))
             }
-            // read fields from a structural interface, a nominal one needs its wrapper
+            // read fields accepted by nominal struct construction
+            dir::Type::Application(instance)
+                if matches!(
+                    self.definition(instance.symbol)?,
+                    Some(dir::Definition::Struct(_))
+                ) =>
+            {
+                let fields = answer!(self.struct_constructor_fields(origin, target)?);
+
+                Ok(Answer::Ready(Some((fields, SmallVec::new()))))
+            }
+
+            // read fields from structural interfaces
             dir::Type::Application(instance)
                 if matches!(
                     self.definition(instance.symbol)?,
@@ -463,10 +475,12 @@ impl BodyState<'_, '_> {
                     &instance,
                     target,
                 )?);
-                let members = fields.map(|fields| (SmallVec::from_vec(fields), SmallVec::new()));
+                let fields = fields.map(|fields| (SmallVec::from_vec(fields), SmallVec::new()));
 
-                Ok(Answer::Ready(members))
+                Ok(Answer::Ready(fields))
             }
+
+            // other targets do not accept object literal fields
             _ => Ok(Answer::Ready(None)),
         }
     }

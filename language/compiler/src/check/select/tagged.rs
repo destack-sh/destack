@@ -83,7 +83,11 @@ impl BodyState<'_, '_> {
             }
             dir::TypeExpression::Reference { path, .. } => {
                 let reference = self.module(module).resolved.references.get(source).cloned();
-                let Some(dir::Reference::Projected { base, from }) = reference else {
+                let Some(dir::Reference::Projected {
+                    base: dir::ImportTarget::Symbol(base),
+                    from,
+                }) = reference
+                else {
                     // bound references name declarations, never variant cases
                     return Ok(Answer::Ready(None));
                 };

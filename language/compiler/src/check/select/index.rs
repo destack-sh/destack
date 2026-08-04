@@ -768,7 +768,8 @@ impl BodyState<'_, '_> {
         space: dir::MemberSpace,
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
-        let lookup = answer!(self.lookup_member(origin, module, lookup_receiver, space, key)?);
+        let subject = dir::MemberSubject::new(lookup_receiver, lookup_receiver, space);
+        let lookup = answer!(self.lookup_member(origin, module, subject, key)?);
 
         match use_ {
             PlaceUse::Read => {

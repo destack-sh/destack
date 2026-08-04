@@ -17,7 +17,7 @@ impl CheckState<'_> {
         let mut sealed = FxIndexMap::default();
         let node_types = self.resolved_node_types(module, failed_applications, &mut sealed)?;
         let expected_types =
-            self.resolved_expected_types(module, &node_types, failed_applications, &mut sealed)?;
+            self.resolved_expected_types(module, failed_applications, &mut sealed)?;
         let symbol_types = self.resolved_symbol_types(module, failed_applications, &mut sealed)?;
         let reduced_types = self.resolved_reduced_types(module, &node_types, &symbol_types)?;
         let symbol_literals = self.static_symbol_literals(module)?;
@@ -26,19 +26,22 @@ impl CheckState<'_> {
         let state = self.module_mut(module);
         let declared = state.declared.clone();
         let declared_types = declared.as_ref().map(|declared| &declared.types);
+        let effective_types = node_types.iter().copied().collect::<FxIndexMap<_, _>>();
 
         // write the node types this pass inferred
-        for (node, ty) in node_types {
+        for (node, type_id) in node_types {
             let carried =
-                declared_types.is_some_and(|types| types.get_node_type_id(node) == Some(ty));
+                declared_types.is_some_and(|types| types.get_node_type_id(node) == Some(type_id));
             if !carried {
-                state.types_tail.set_node_type(node, ty);
+                state.types_tail.set_node_type(node, type_id);
             }
         }
 
-        // write the expectations that differ from the effective types
-        for (node, ty) in expected_types {
-            state.types_tail.set_expected_type(node, ty);
+        // write the contextual expectations
+        for (node, type_id) in expected_types {
+            if effective_types.get(&node) != Some(&type_id) {
+                state.types_tail.set_expected_type(node, type_id);
+            }
         }
 
         // write the symbol types this pass inferred
@@ -112,8 +115,13 @@ impl CheckState<'_> {
         // record derived newtype constructor rows
         self.write_newtype_constructors(module)?;
 
-        // record marker conformances, then seal every embedded type id
+        // record marker conformances
         self.write_auto_conformances(module)?;
+
+        // record checked member bindings for every authored lookup subject
+        self.write_member_bindings(module)?;
+
+        // seal every embedded type id
         self.close_output_segments(module, failed_applications, &mut sealed)?;
 
         Ok(())
@@ -290,6 +298,14 @@ impl CheckState<'_> {
         });
         self.module_mut(module).resolutions = resolutions;
 
+        // seal checked member bindings
+        let empty = dir::MemberSegment::new(module);
+        let mut members = replace(&mut self.module_mut(module).members, empty);
+        members.map_type_ids(&mut |id| {
+            self.close_or_record(id, failed_applications, sealed, &mut result)
+        });
+        self.module_mut(module).members = members;
+
         // seal closure capture frames
         let empty = dir::CaptureSegment::new(module);
         let mut captures = replace(&mut self.module_mut(module).capture_segment, empty);
@@ -360,12 +376,55 @@ impl CheckState<'_> {
         Ok(resolved)
     }
 
-    /// Resolve one module's recorded expectations, keeping the rows whose
-    /// written expectation differs from the effective node type.
+    /// Record the checked member bindings behind every authored lookup subject.
+    ///
+    /// The subject's key domain enumerates from declared tables and each key
+    /// resolves through the solved keyed lookup, so the table transcribes the
+    /// checker's own answers instead of re-deriving members.
+    fn write_member_bindings(&mut self, module: ModuleId) -> CompilerResult<()> {
+        let subjects = self
+            .module(module)
+            .members
+            .iter_subjects()
+            .collect::<Vec<_>>();
+
+        for (source, subject) in subjects {
+            // subjects recorded at many sites bind once
+            if self.module(module).members.members(subject).is_some() {
+                continue;
+            }
+
+            // resolve each declared key through the solved lookup
+            let origin = Origin::Node(source, subject.scope);
+            let keys = self.body().subject_member_keys(origin, module, &subject)?;
+            let mut bindings = Vec::with_capacity(keys.len());
+            for key in keys {
+                let lookup = match self.body().lookup_member(origin, module, subject, key)? {
+                    Answer::Ready(lookup) => lookup,
+                    Answer::Pending(blockers) => {
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "member binding lookup suspended after solving: {blockers:?}"
+                            ),
+                        });
+                    }
+                };
+                if let Some(binding) = self.body().member_binding(origin, key, &lookup)? {
+                    bindings.push(binding);
+                }
+            }
+            self.module_mut(module)
+                .members
+                .record_bindings(subject, bindings);
+        }
+
+        Ok(())
+    }
+
+    /// Resolve one module's recorded contextual expectations.
     fn resolved_expected_types(
         &mut self,
         module: ModuleId,
-        node_types: &[(dir::GlobalNodeIdAny, dir::GlobalTypeId)],
         failed_applications: &FxIndexSet<dir::GlobalTypeId>,
         sealed: &mut FxIndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
     ) -> CompilerResult<Vec<(dir::GlobalNodeIdAny, dir::GlobalTypeId)>> {
@@ -376,8 +435,7 @@ impl CheckState<'_> {
             .filter(|(node, _)| node.module_id == module)
             .collect::<Vec<_>>();
 
-        // settle each expectation and drop rows the node rows already carry
-        let effective = node_types.iter().copied().collect::<FxIndexMap<_, _>>();
+        // settle each committed expectation
         let mut resolved = Vec::new();
         for (node, ty) in expected_types {
             let ty = self.settled_root(ty)?;
@@ -385,9 +443,6 @@ impl CheckState<'_> {
                 continue;
             }
             let ty = self.close_type(ty, failed_applications, sealed)?;
-            if effective.get(&node) == Some(&ty) {
-                continue;
-            }
             resolved.push((node, ty));
         }
 
@@ -502,8 +557,8 @@ impl CheckState<'_> {
         symbol_types: &[(dir::GlobalSymbolId, dir::GlobalTypeId)],
     ) -> CompilerResult<Vec<(dir::GlobalTypeId, dir::GlobalTypeId)>> {
         let mut sources = Vec::new();
-        for (node, ty) in node_types {
-            sources.push((self.node_origin(*node)?, *ty));
+        for (node, type_id) in node_types {
+            sources.push((self.node_origin(*node)?, *type_id));
         }
         sources.extend(
             symbol_types

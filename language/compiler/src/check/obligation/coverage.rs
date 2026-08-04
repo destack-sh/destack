@@ -608,13 +608,8 @@ impl CheckState<'_> {
                         self.module(module).view().get(pattern),
                         dir::Pattern::Default { .. }
                     );
-                    let lookup = answer!(self.body().lookup_member(
-                        origin,
-                        module,
-                        value,
-                        dir::MemberSpace::Instance,
-                        key
-                    )?);
+                    let subject = dir::MemberSubject::new(value, value, dir::MemberSpace::Instance);
+                    let lookup = answer!(self.body().lookup_member(origin, module, subject, key)?);
                     let member = self.body().member_read_type(origin, &lookup)?;
 
                     match member {

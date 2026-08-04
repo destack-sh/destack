@@ -60,6 +60,8 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) statics: dir::StaticSegment,
     /// Checked node resolutions.
     pub(in crate::check) resolutions: dir::ResolutionSegment,
+    /// Checked member availability.
+    pub(in crate::check) members: dir::MemberSegment,
     /// Checked implicit coercions.
     pub(in crate::check) coercions: dir::CoercionSegment,
     /// Checked captures.
@@ -140,6 +142,10 @@ impl CheckModuleState {
         // open the remaining segments and this module's diagnostic controls
         let auto = dir::AutoSegment::new(module.id);
         let resolutions = dir::ResolutionSegment::new(module.id);
+        let members = match &declared {
+            Some(declared) => (*declared.members).clone(),
+            None => dir::MemberSegment::new(module.id),
+        };
         let coercions = dir::CoercionSegment::new(module.id);
         let capture_segment = dir::CaptureSegment::new(module.id);
         let files = parsed.files.iter().map(|file| file.file_id).collect();
@@ -164,6 +170,7 @@ impl CheckModuleState {
             generics,
             statics,
             resolutions,
+            members,
             coercions,
             capture_segment,
             decorators,
