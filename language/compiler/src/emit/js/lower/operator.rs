@@ -37,7 +37,7 @@ impl ModuleLowerer<'_> {
             dir::UnaryOperator::Void => unary(js::UnaryOperator::Void),
             dir::UnaryOperator::Dereference => right_id,
             dir::UnaryOperator::Spread => {
-                return Err(self.unsupported_construct(
+                return Err(self.unhandled(
                     expression_id.into_global_any(self.module.id),
                     Some("spread unary expressions are not lowered to JS".to_string()),
                 ));
@@ -126,7 +126,7 @@ impl ModuleLowerer<'_> {
 
         let expression_id = match operator {
             dir::AssignOperator::Assign => {
-                return Err(self.unsupported_construct(
+                return Err(self.unhandled(
                     expression_id.into_global_any(self.module.id),
                     Some("plain assignment is not a compound assignment".to_string()),
                 ));

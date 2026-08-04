@@ -10,7 +10,7 @@ fn test_execute_slice_view() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    new.local.managed.slice.uninit r3:r4, a0, r0
+    new.slice.uninit r3:r4, a0, r0: ref<managed, local>
     move r5:r6, r3:r4
     slice.view r7:r8, r5:r6, 8, r1, r2
     return r5:r8

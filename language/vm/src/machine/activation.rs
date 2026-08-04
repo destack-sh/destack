@@ -116,7 +116,13 @@ where
             let memory = self.activation.memory.reborrow();
             self.activation
                 .runtime
-                .call_binding(memory, binding, arguments, &mut result)
+                .call_binding(
+                    memory,
+                    *self.activation.context,
+                    binding,
+                    arguments,
+                    &mut result,
+                )
                 .map_err(ExecutionError::runtime)?;
 
             return Ok(Outcome::Completed { value: result });
@@ -345,9 +351,9 @@ where
             frame_count,
         };
         let frame = self.machine.allocate_frame(function, 1, return_to)?;
-        let reference = value_offset + 2;
+        let reference = self.machine.stack.memory_offset(value_offset);
 
-        // pass one non-null stack-relative reference to retained value storage
+        // pass one MemoryMap-relative reference to retained value storage
         self.machine
             .stack
             .write(frame.register_offset, Word::from_bits(reference as u64));
@@ -479,7 +485,7 @@ where
         let memory = activation.memory.reborrow();
         activation
             .runtime
-            .call_binding(memory, binding, arguments, result)
+            .call_binding(memory, *activation.context, binding, arguments, result)
             .map_err(ExecutionError::runtime)?;
 
         // retain only returned words in the existing allocation
@@ -665,7 +671,7 @@ where
         let state = self.machine.frame_state_at(frame, pc)?;
         self.save_position();
 
-        self.machine.capture(state)
+        self.machine.capture(state, *self.activation.context)
     }
 
     /// Derive native execution addresses for the active canonical frame.

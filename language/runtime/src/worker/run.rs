@@ -80,6 +80,7 @@ impl Worker {
         self.refresh_debugger(world);
 
         // execute the entrypoint
+        let mut context = program::Context::empty();
         let mut activation = Activation::new(
             self.runtime_id,
             self.id,
@@ -98,15 +99,16 @@ impl Worker {
         );
         let activation = program::Activation {
             runtime: &mut activation,
+            context: &mut context,
             memory: program::Memory {
                 allocation_plans: self.allocation_plans.as_ref(),
-                heap: &mut self.heap,
+                local_heap: &mut self.heap,
                 shared_heap: self.shared_heap.as_ref(),
                 shared_cache: &mut self.shared_cache,
                 shared_mark_worker: &self.shared_mark_worker,
-                local_static: &mut self.local_static,
-                shared_static,
-                constant_space,
+                local_statics: &mut self.local_static,
+                shared_statics: shared_static,
+                constants: constant_space,
             },
         };
         let mut outcome = self.machine.run(
@@ -740,6 +742,7 @@ impl Worker {
         host_queue: &HostQueue,
         drop: heap::GcDrop,
     ) -> RuntimeResult<()> {
+        let mut context = program::Context::empty();
         let mut activation = Activation::new(
             self.runtime_id,
             self.id,
@@ -758,15 +761,16 @@ impl Worker {
         );
         let activation = program::Activation {
             runtime: &mut activation,
+            context: &mut context,
             memory: program::Memory {
                 allocation_plans: self.allocation_plans.as_ref(),
-                heap: &mut self.heap,
+                local_heap: &mut self.heap,
                 shared_heap: self.shared_heap.as_ref(),
                 shared_cache: &mut self.shared_cache,
                 shared_mark_worker: &self.shared_mark_worker,
-                local_static: &mut self.local_static,
-                shared_static,
-                constant_space,
+                local_statics: &mut self.local_static,
+                shared_statics: shared_static,
+                constants: constant_space,
             },
         };
 
@@ -964,6 +968,7 @@ impl Worker {
 
         // begin one queued task continuation before entering the machine
         let task = invocation.task();
+        let mut context = invocation.context();
         let is_cancelled = if let Some(task) = task {
             match self.event_loop.begin_task(task) {
                 Ok(is_cancelled) => is_cancelled,
@@ -996,15 +1001,16 @@ impl Worker {
         );
         let activation = program::Activation {
             runtime: &mut activation,
+            context: &mut context,
             memory: program::Memory {
                 allocation_plans: self.allocation_plans.as_ref(),
-                heap: &mut self.heap,
+                local_heap: &mut self.heap,
                 shared_heap: self.shared_heap.as_ref(),
                 shared_cache: &mut self.shared_cache,
                 shared_mark_worker: &self.shared_mark_worker,
-                local_static: &mut self.local_static,
-                shared_static,
-                constant_space,
+                local_statics: &mut self.local_static,
+                shared_statics: shared_static,
+                constants: constant_space,
             },
         };
 
@@ -1013,6 +1019,7 @@ impl Worker {
                 function,
                 environment,
                 arguments,
+                ..
             } => self.machine.run_function(
                 activation,
                 function,
@@ -1102,6 +1109,7 @@ impl Worker {
         stop_reason: Option<program::StopReason>,
     ) -> RuntimeResult<InvocationOutcome> {
         self.refresh_debugger(world);
+        let mut context = program::Context::empty();
 
         let mut activation = Activation::new(
             self.runtime_id,
@@ -1121,15 +1129,16 @@ impl Worker {
         );
         let activation = program::Activation {
             runtime: &mut activation,
+            context: &mut context,
             memory: program::Memory {
                 allocation_plans: self.allocation_plans.as_ref(),
-                heap: &mut self.heap,
+                local_heap: &mut self.heap,
                 shared_heap: self.shared_heap.as_ref(),
                 shared_cache: &mut self.shared_cache,
                 shared_mark_worker: &self.shared_mark_worker,
-                local_static: &mut self.local_static,
-                shared_static,
-                constant_space,
+                local_statics: &mut self.local_static,
+                shared_statics: shared_static,
+                constants: constant_space,
             },
         };
 
@@ -1179,6 +1188,7 @@ impl Worker {
         awaitable: Value,
         continuation: program::Continuation,
     ) -> RuntimeResult<InvocationOutcome> {
+        let mut context = continuation.context();
         let waiter = if let Some(task) = task {
             match self.event_loop.suspend_task(task, continuation) {
                 Ok(waiter) => waiter,
@@ -1211,15 +1221,16 @@ impl Worker {
         );
         let activation = program::Activation {
             runtime: &mut activation,
+            context: &mut context,
             memory: program::Memory {
                 allocation_plans: self.allocation_plans.as_ref(),
-                heap: &mut self.heap,
+                local_heap: &mut self.heap,
                 shared_heap: self.shared_heap.as_ref(),
                 shared_cache: &mut self.shared_cache,
                 shared_mark_worker: &self.shared_mark_worker,
-                local_static: &mut self.local_static,
-                shared_static,
-                constant_space,
+                local_statics: &mut self.local_static,
+                shared_statics: shared_static,
+                constants: constant_space,
             },
         };
         let outcome = self.machine.run_function(
@@ -1346,6 +1357,7 @@ impl Worker {
         host_queue: &HostQueue,
         value: program::Value,
     ) -> RuntimeResult<()> {
+        let mut context = program::Context::empty();
         let mut activation = Activation::new(
             self.runtime_id,
             self.id,
@@ -1364,15 +1376,16 @@ impl Worker {
         );
         let activation = program::Activation {
             runtime: &mut activation,
+            context: &mut context,
             memory: program::Memory {
                 allocation_plans: self.allocation_plans.as_ref(),
-                heap: &mut self.heap,
+                local_heap: &mut self.heap,
                 shared_heap: self.shared_heap.as_ref(),
                 shared_cache: &mut self.shared_cache,
                 shared_mark_worker: &self.shared_mark_worker,
-                local_static: &mut self.local_static,
-                shared_static,
-                constant_space,
+                local_statics: &mut self.local_static,
+                shared_statics: shared_static,
+                constants: constant_space,
             },
         };
 

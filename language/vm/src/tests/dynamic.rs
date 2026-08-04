@@ -13,15 +13,15 @@ fn test_execute_dynamic_value() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    constant.int32 r1, 41
+    constant r1, 41: int32
     return r1
 }
 
 function f1 {
     dynamic.bind r1:r2, r0, d1
-    extract r3, r1:r2, 0, 8
+    extract r3, r1:r2, 0:8
     dynamic.type r4, r1:r2
-    call.dynamic r5, r1:r2, 0, r0
+    call.dynamic r5, r1:r2[0](r0)
     return r3:r5
 }
 "#,

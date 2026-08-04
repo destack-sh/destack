@@ -1,12 +1,8 @@
-use std::sync::Arc;
-
-use destack_native as native;
-use destack_native::abi;
 use destack_program as program;
 use destack_repository::RuntimeOptions;
 
 use crate::binding::BindingTable;
-use crate::machine::native::{Call, Code, Function, Image, ModuleTable};
+use crate::machine::native::{Loader, Platform};
 use crate::tests::{TestProgram, TestWorker};
 use crate::worker::{Request, RunnableProgress, WorkerRunOutcome};
 
@@ -56,14 +52,6 @@ entry(v0: int32):
 /// Retain native execution at a poll and resume its canonical frame through bytecode.
 #[test]
 fn test_inspect_native_task() {
-    let value = native::FrameValueBuilder::new().locations([native::FrameLocation::new(
-        native::FrameSource::Stack,
-        0,
-        0,
-        4,
-    )]);
-    let frame = native::FrameMapBuilder::new(0, 0, 0, 0, 1).values([value]);
-    let map = native::CodeMapBuilder::new().frames([frame]);
     let program = TestProgram::mir(
         r#"
 export function task(v0: int32): int32 {
@@ -75,22 +63,11 @@ entry(v0: int32):
 }
 "#,
     )
-    .native(map)
+    .compile_native()
     .build();
-    let task = program
-        .function_id_by_name("task")
-        .expect("native test task should link");
-    let frames = program
-        .native()
-        .expect("native test program should retain native code")
-        .map;
-    let mut code = Code::new(
-        Image::resident(),
-        Arc::new(ModuleTable::empty()),
-        frames,
-        Vec::new(),
-    );
-    code.set_function(Function::new(task, native_poll_task));
+    let code = Platform
+        .load(&program)
+        .expect("native inspection program should load");
     let mut worker = TestWorker::native(
         &RuntimeOptions::default(),
         program,
@@ -124,21 +101,51 @@ entry(v0: int32):
     );
 }
 
-/// Poll one resident native frame whose first argument remains live on the stack.
-unsafe extern "C" fn native_poll_task(
-    activation: *mut abi::Activation,
-    arguments: *const u64,
-    _result: *mut u64,
-) -> abi::ExitCode {
-    // SAFETY: the runtime supplies one int32 argument in a complete ABI word
-    let value = unsafe { arguments.read() };
-    let anchor = std::ptr::from_ref(&value).cast::<u8>();
-    // SAFETY: frame map zero describes the live stack word anchored above
-    let status = unsafe { (Call::poll_entry())(activation, 0, anchor) };
-    if status == abi::RuntimeStatus::Continue.code() {
-        abi::ExitKind::Completed.code()
-    } else {
-        // SAFETY: the runtime activation owns one live exit record
-        unsafe { (*(*activation).exit).kind }
-    }
+/// Retain a native breakpoint and resume after its operation through bytecode.
+#[test]
+fn test_inspect_native_instruction() {
+    let program = TestProgram::mir(
+        r#"
+export function task(v0: int32): int32 {
+entry(v0: int32):
+    breakpoint
+    return v0
+}
+"#,
+    )
+    .compile_native()
+    .build();
+    let code = Platform
+        .load(&program)
+        .expect("native breakpoint program should load");
+    let mut worker = TestWorker::native(
+        &RuntimeOptions::default(),
+        program,
+        BindingTable::new(),
+        code,
+    );
+    let task_id = worker.enqueue_task("task", 41);
+
+    // retain the breakpoint operation while capturing its following frame state
+    let stopped = worker
+        .run_task()
+        .expect("native breakpoint should retain the active task");
+    let WorkerRunOutcome::Stopped {
+        reason: program::StopReason::Instruction { point },
+    } = stopped
+    else {
+        panic!("native breakpoint should stop at its instruction");
+    };
+    assert_eq!(point.operation, 0);
+
+    // continue from the following operation without executing the breakpoint again
+    let resumed = worker
+        .continue_stop()
+        .expect("native breakpoint should resume through bytecode");
+    assert_eq!(
+        resumed,
+        WorkerRunOutcome::Progressed {
+            progress: RunnableProgress::Task { task_id },
+        }
+    );
 }

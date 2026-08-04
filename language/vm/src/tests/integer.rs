@@ -8,10 +8,10 @@ fn test_execute_integer_widths() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    int.add.overflowing.int8 r3, r4, r0, r1
-    int.add.saturating.int8 r5, r0, r1
-    int.countLeadingZeros.int8 r6, r0
-    int.byteSwap.uint16 r7, r2
+    int.add.overflowing r3, r4, r0, r1: int8
+    int.add.saturating r5, r0, r1: int8
+    int.countLeadingZeros r6, r0: int8
+    int.byteSwap r7, r2: uint16
     return r3:r7
 }
 
@@ -39,9 +39,9 @@ fn test_execute_integer128() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    int.add.overflowing.int128 r7:r8, r9, r0:r1, r2:r3
-    int.rotateLeft.uint128 r10:r11, r4:r5, r6
-    int.countOnes.uint128 r12, r10:r11
+    int.add.overflowing r7:r8, r9, r0:r1, r2:r3: int128
+    int.rotateLeft r10:r11, r4:r5, r6: uint128
+    int.countOnes r12, r10:r11: uint128
     return r7:r12
 }
 "#,

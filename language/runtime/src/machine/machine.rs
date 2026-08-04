@@ -459,12 +459,22 @@ impl Machine {
         arguments: &[program::Value],
         stop_points: Option<&'run program::StopSet>,
         watch_points: Option<&'run program::WatchSet>,
-        profile: Option<&'run mut program::Profile>,
+        mut profile: Option<&'run mut program::Profile>,
     ) -> RuntimeResult<Outcome<Value>> {
-        let target = self
+        let mut target = self
             .engine
             .target(function)
             .ok_or_else(|| Self::entry_unavailable(format!("function {}", function.index())))?;
+        let is_observed = stop_points.is_some_and(|points| !points.is_empty())
+            || watch_points.is_some_and(|points| !points.is_empty());
+
+        // execute observed native entries through their canonical bytecode form
+        if target == Target::Native && is_observed {
+            if !self.engine.has_bytecode(function) {
+                return Err(Self::unsupported("native observation without bytecode"));
+            }
+            target = Target::Bytecode;
+        }
 
         match target {
             Target::Bytecode => {
@@ -495,23 +505,58 @@ impl Machine {
                 Self::capture_vm_outcome(captured, machine, outcome)
             }
             Target::Native => {
-                Self::reject_native_hooks(stop_points, watch_points, profile.as_deref())?;
-                let code = self.engine.loaded_native().ok_or_else(|| {
+                let engine = self.engine.clone();
+                let code = engine.loaded_native().ok_or_else(|| {
                     RuntimeError::Internal {
                         message: "native entry has no loaded code".to_string(),
                     }
                     .boxed()
                 })?;
 
-                code.run(
-                    self.engine.program(),
+                let outcome = code.run(
+                    engine.program(),
                     &mut activation,
+                    engine.functions(),
+                    engine.virtuals(),
+                    engine.dynamics(),
                     &self.memory,
                     program::EntryPoint::from(function),
                     environment,
                     arguments,
+                    profile.as_deref_mut(),
                     &mut self.activation,
-                )
+                )?;
+
+                // continue canonical deoptimized state without exposing a host stop
+                match outcome {
+                    super::native::Outcome::Program(outcome) => Ok(outcome),
+                    super::native::Outcome::Deoptimized => {
+                        let image = self.activation.take().ok_or_else(|| {
+                            RuntimeError::Internal {
+                                message: "native deoptimization retained no activation".to_string(),
+                            }
+                            .boxed()
+                        })?;
+                        let Self {
+                            activation: captured,
+                            continuations,
+                            vm,
+                            ..
+                        } = self;
+                        let machine = Self::require_vm(vm, "native deoptimization")?;
+                        machine.restore(image).map_err(Box::<RuntimeError>::from)?;
+                        let outcome = machine.continue_execution(
+                            continuations,
+                            activation,
+                            stop_points,
+                            watch_points,
+                            profile,
+                            None,
+                        )?;
+
+                        Self::capture_vm_outcome(captured, machine, outcome)
+                    }
+                }
             }
         }
     }
@@ -541,31 +586,6 @@ impl Machine {
         }
 
         Ok(outcome)
-    }
-
-    /// Reject runtime hooks that native code does not implement.
-    fn reject_native_hooks(
-        stop_points: Option<&program::StopSet>,
-        watch_points: Option<&program::WatchSet>,
-        profile: Option<&program::Profile>,
-    ) -> RuntimeResult<()> {
-        let feature = if profile.is_some() {
-            Some("profile recording")
-        } else if stop_points.is_some_and(|points| !points.is_empty()) {
-            Some("stop points")
-        } else if watch_points.is_some_and(|points| !points.is_empty()) {
-            Some("watch points")
-        } else {
-            None
-        };
-        let Some(feature) = feature else {
-            return Ok(());
-        };
-
-        Err(RuntimeError::machine(MachineError::Unsupported {
-            feature: feature.to_string(),
-        })
-        .boxed())
     }
 
     /// Return one unavailable entry error.

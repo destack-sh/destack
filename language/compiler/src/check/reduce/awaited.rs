@@ -6,7 +6,68 @@ use crate::CompilerResult;
 use crate::check::{Answer, CheckState, Origin, answer};
 
 impl CheckState<'_> {
-    /// Reduce one awaited type through nullish values, unions, and promises.
+    /// Return the completed value carried by one async function result type.
+    pub(in crate::check) fn async_completion_type(
+        &mut self,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let mut active = FxIndexSet::default();
+
+        self.async_completion_type_guarded(target, &mut active)
+    }
+
+    /// Resolve one async completion type while guarding transparent recursion.
+    fn async_completion_type_guarded(
+        &mut self,
+        target: dir::GlobalTypeId,
+        active: &mut FxIndexSet<dir::GlobalTypeId>,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let target = self.settled_root(target)?;
+        if !active.insert(target) {
+            return Ok(None);
+        }
+
+        // recognize the two compiler-owned async result carriers
+        if let dir::Type::Application(instance) = self.ty(target)?
+            && matches!(
+                self.language_item(instance.symbol)?,
+                Some(dir::LanguageItem::Promise | dir::LanguageItem::Task)
+            )
+        {
+            let completed = self.type_id_at(target.module_id, instance.arguments, 0)?;
+            active.swap_remove(&target);
+
+            return Ok(completed);
+        }
+
+        // preserve transparent aliases and nominal wrappers around an owner
+        let backing = if let dir::Type::Application(instance) = self.ty(target)? {
+            let definition = self.definition(instance.symbol)?.cloned();
+            let declared = match definition {
+                Some(dir::Definition::TypeAlias(definition)) => Some(definition.value),
+                Some(dir::Definition::Newtype(definition)) => Some(definition.backing),
+                _ => None,
+            };
+            if let Some(declared) = declared {
+                let substitution = self.instance_substitution(target.module_id, &instance)?;
+
+                Some(self.substitute_type(declared, &substitution)?)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let completed = match backing {
+            Some(backing) => self.async_completion_type_guarded(backing, active)?,
+            None => None,
+        };
+        active.swap_remove(&target);
+
+        Ok(completed)
+    }
+
+    /// Reduce one awaited type through nullish values, unions, and async carriers.
     pub(super) fn reduce_awaited(
         &mut self,
         origin: Origin,
@@ -17,7 +78,7 @@ impl CheckState<'_> {
         self.reduce_awaited_guarded(origin, target, &mut active)
     }
 
-    /// Reduce one awaited type with active promise unwrapping tracked.
+    /// Reduce one awaited type with active carrier unwrapping tracked.
     fn reduce_awaited_guarded(
         &mut self,
         origin: Origin,
@@ -75,14 +136,17 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(Some(target)));
         }
 
-        // unwrap compiler-recognized promises
+        // unwrap compiler-recognized async result carriers
         let instance = match self.ty(target)? {
             dir::Type::Application(instance) => Some(instance),
             _ => None,
         };
         let inner = match instance {
             Some(instance)
-                if self.language_item(instance.symbol)? == Some(dir::LanguageItem::Promise) =>
+                if matches!(
+                    self.language_item(instance.symbol)?,
+                    Some(dir::LanguageItem::Promise | dir::LanguageItem::Task)
+                ) =>
             {
                 self.type_id_at(target.module_id, instance.arguments, 0)?
             }

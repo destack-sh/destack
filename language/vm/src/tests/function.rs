@@ -25,13 +25,13 @@ function f2 {
 
 function f3 {
     function.bind r2:r3, f0, r0
-    constant.null r4
+    constant r4, null
     function.bind r5:r6, f2, r4
-    call.indirect r7, r5:r6, r1
-    extract r8, r2:r3, 8, 8
-    call.indirect r9:r10, r2:r3, r1
+    call.indirect r7, r5:r6(r1)
+    extract r8, r2:r3, 8:8
+    call.indirect r9:r10, r2:r3(r1)
     function.address r11, f1
-    call.indirect r12, r11, r1
+    call.indirect r12, r11(r1)
     move r13, r7
     return r8:r13
 }

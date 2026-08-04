@@ -14,6 +14,8 @@ use destack_program::{Runtime, Word};
 use crate::diagnostic::{Error, Result, Trap};
 use crate::machine::Activation;
 
+use super::arithmetic::Arithmetic;
+
 impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one packed vector operation.
     pub(crate) fn execute_vector(
@@ -227,7 +229,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             } else {
                 None
             };
-            let value = self.float_value(operation, vector.scalar, left, right, addend)?;
+            let value = Arithmetic::float(operation, vector.scalar, left, right, addend)?;
             self.write_vector_lane(target, result, lane, value.bits());
         }
 
@@ -274,7 +276,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             } else {
                 None
             };
-            let value = self.integer_value(operation, vector.scalar, left, right)?;
+            let value = Arithmetic::integer(operation, vector.scalar, left, right)?;
             self.write_vector_lane(target, result, lane, value.bits());
         }
 
@@ -299,7 +301,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         for lane in 0..source_type.lane_count {
             let value = self.read_vector_lane(source, source_type, lane);
             let value = Word::from_bits(source_type.scalar.encode(value));
-            let value = self.convert_scalar(value, source_type.scalar, target_type.scalar, mode)?;
+            let value = Arithmetic::convert(value, source_type.scalar, target_type.scalar, mode)?;
             self.write_vector_lane(target, target_type, lane, value.bits());
         }
 
@@ -354,7 +356,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         for lane in 1..vector.lane_count {
             let right = self.read_vector_lane(source, vector, lane);
             let right = Word::from_bits(vector.scalar.encode(right));
-            value = self.reduce_value(operation, vector.scalar, value, right)?;
+            value = Arithmetic::reduce(operation, vector.scalar, value, right)?;
         }
         self.write(target.0, value);
 
@@ -408,10 +410,11 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
         Ok(Word::from_bits(vector.scalar.encode(value)))
     }
+}
 
+impl Arithmetic {
     /// Reduce two scalar lanes with one associative operation.
-    pub(super) fn reduce_value(
-        &self,
+    pub(super) fn reduce(
         operation: ReduceOperation,
         scalar: Scalar,
         left: Word,
@@ -423,27 +426,27 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                 ReduceOperation::Multiply => FloatOperation::Multiply,
                 ReduceOperation::Minimum => FloatOperation::Minimum,
                 ReduceOperation::Maximum => FloatOperation::Maximum,
-                _ => return Err(self.invalid_instruction()),
+                _ => return Err(Error::invalid_instruction()),
             };
 
-            self.float_value(operation, scalar, left, Some(right), None)
+            Self::float(operation, scalar, left, Some(right), None)
         } else {
             let operation = match operation {
                 ReduceOperation::Add => IntegerOperation::Add,
                 ReduceOperation::Multiply => IntegerOperation::Multiply,
                 ReduceOperation::Minimum => {
-                    let is_less = self
-                        .integer_value(IntegerOperation::LessThan, scalar, left, Some(right))?
-                        .bits()
-                        != 0;
+                    let is_less =
+                        Self::integer(IntegerOperation::LessThan, scalar, left, Some(right))?
+                            .bits()
+                            != 0;
 
                     return Ok(if is_less { left } else { right });
                 }
                 ReduceOperation::Maximum => {
-                    let is_greater = self
-                        .integer_value(IntegerOperation::GreaterThan, scalar, left, Some(right))?
-                        .bits()
-                        != 0;
+                    let is_greater =
+                        Self::integer(IntegerOperation::GreaterThan, scalar, left, Some(right))?
+                            .bits()
+                            != 0;
 
                     return Ok(if is_greater { left } else { right });
                 }
@@ -452,10 +455,12 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                 ReduceOperation::Xor => IntegerOperation::Xor,
             };
 
-            self.integer_value(operation, scalar, left, Some(right))
+            Self::integer(operation, scalar, left, Some(right))
         }
     }
+}
 
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Read one packed lane from a contiguous register range.
     #[inline(always)]
     fn read_vector_lane(&self, range: RegisterSpan, vector: VectorType, lane: u16) -> u64 {

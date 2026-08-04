@@ -15,7 +15,7 @@ use crate::world::time::ClockSource;
 use crate::world::trace::{EntropySubject, TraceLog};
 use crate::world::{Decision, RuntimeId, WorldState};
 
-use super::{Handshake, Request, RunnableScope, WorkerId};
+use super::{Handshake, RunnableScope, WorkerId};
 
 /// Runtime state exposed during one worker activation.
 #[derive(Debug)]
@@ -64,7 +64,7 @@ impl program::Runtime for Activation<'_> {
     fn poll(
         &mut self,
         _memory: program::Memory<'_>,
-        _roots: &mut dyn program::RootSource<Error = Self::Error>,
+        _roots: &mut dyn program::RootSet<Error = Self::Error>,
     ) -> RuntimeResult<program::Poll> {
         if !self.handshake.is_pending() {
             return Ok(program::Poll::Continue);
@@ -77,13 +77,14 @@ impl program::Runtime for Activation<'_> {
     fn call_binding(
         &mut self,
         memory: program::Memory<'_>,
+        context: program::Context,
         binding: &program::Binding,
         arguments: &[program::Word],
         result: &mut [program::Word],
     ) -> RuntimeResult<()> {
         let table = self.binding_table;
 
-        table.call(binding, self, memory, arguments, result)
+        table.call(binding, self, memory, context, arguments, result)
     }
 
     /// Attempt to queue one suspended language waiter.
@@ -196,11 +197,6 @@ impl<'a> Activation<'a> {
     /// Return the process-local request word address used by native code.
     pub(crate) fn poll_address(&self) -> *const u32 {
         self.handshake.address()
-    }
-
-    /// Request interpreter continuation at the next runtime boundary.
-    pub(crate) fn deoptimize(&self) {
-        self.handshake.request(Request::Deoptimize);
     }
 
     /// Borrow the runtime diagnostics store.

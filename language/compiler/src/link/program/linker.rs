@@ -1,22 +1,21 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use artifact::{EmitFormat, Object};
-use destack_artifact as artifact;
-use destack_core::{Optional, StringId, StringPool};
+use destack_core::{StringId, StringPool};
 use destack_heap::DropId;
 use destack_mir as mir;
 use destack_program::{
-    AllocationSiteId, CounterId, DropEntry, DynamicTableId, FunctionId, GlobalId, LayoutId,
+    AllocationSiteId, CounterId, DropEntry, DynamicTableId, FunctionId, GlobalId, LayoutId, Object,
     Program, ProgramBuilder, SamplerId, Signature, SignatureId, TypeId, VirtualTableId,
 };
-use destack_source::{ModuleId, PackageId, TargetId};
+use destack_source::{ModuleId, PackageId};
 
 use crate::{LinkError, LinkResult};
 
+use super::super::{BytecodeLinker, NativeLinker};
 use super::{
-    BindingLinker, BytecodeLinker, DispatchLinker, FrameLinker, FunctionLinker, LayoutLinker,
-    SiteLinker, StaticLinker, TypeLinker,
+    BindingLinker, DispatchLinker, FrameLinker, FunctionLinker, LayoutLinker, SiteLinker,
+    StaticLinker, TypeLinker,
 };
 
 /// Build one Program from optimized module objects and an immutable string pool.
@@ -24,10 +23,6 @@ use super::{
 pub struct ProgramLinker<'a> {
     /// Package that owns the linked program.
     package: PackageId,
-    /// Target that owns the linked program.
-    target: TargetId,
-    /// Program format selected by the target.
-    format: EmitFormat,
     /// Module objects in stable link order.
     objects: Vec<(ModuleId, Arc<Object>)>,
     /// Object positions keyed by module id.
@@ -74,36 +69,32 @@ impl<'a> ProgramLinker<'a> {
     /// Create one program linker.
     pub fn new(
         package: PackageId,
-        target: TargetId,
-        format: EmitFormat,
         objects: Vec<(ModuleId, Arc<Object>)>,
         strings: &'a StringPool,
     ) -> LinkResult<Self> {
-        let object_ids = Self::build_object_ids(package, &objects)?;
-        let target_layout = Self::target_layout(package, &objects)?;
-        let (type_ids, types_by_id) = Self::build_type_ids(&objects);
+        let object_ids = Self::object_ids(package, &objects)?;
+        let target_layout = Self::common_layout(package, &objects)?;
+        let (type_ids, types_by_id) = TypeLinker::index(&objects);
         let (function_ids, functions_by_id) =
-            Self::build_function_ids(package, &objects, &type_ids, strings)?;
+            FunctionLinker::index(package, &objects, &type_ids, strings)?;
         let (signatures, function_signatures, type_signatures) =
-            Self::build_signatures(&objects, &type_ids);
-        let (drop_ids, drops) = Self::build_drops(
+            FunctionLinker::signatures(&objects, &type_ids);
+        let (drop_ids, drops) = TypeLinker::drops(
             package,
             &objects,
             &type_ids,
             types_by_id.len(),
             &function_ids,
         )?;
-        let virtual_table_ids = Self::build_virtual_table_ids(package, &objects, &type_ids)?;
-        let dynamic_table_ids = Self::build_dynamic_table_ids(&objects, &type_ids);
-        let (global_ids, globals_by_id) = Self::build_global_ids(package, &objects, &type_ids)?;
+        let virtual_table_ids = DispatchLinker::virtual_ids(package, &objects, &type_ids)?;
+        let dynamic_table_ids = DispatchLinker::dynamic_ids(&objects, &type_ids);
+        let (global_ids, globals_by_id) = StaticLinker::index(package, &objects, &type_ids)?;
         let (counter_starts, sampler_starts) =
-            Self::build_profile_starts(package, &objects, &functions_by_id)?;
-        let allocation_starts = Self::build_allocation_starts(&objects);
+            SiteLinker::profile_starts(package, &objects, &functions_by_id)?;
+        let allocation_starts = SiteLinker::allocation_starts(&objects);
 
         Ok(Self {
             package,
-            target,
-            format,
             objects,
             object_ids,
             target_layout,
@@ -129,43 +120,23 @@ impl<'a> ProgramLinker<'a> {
 
     /// Link the program.
     pub fn link(self) -> LinkResult<Program> {
-        // reject Program formats whose generator is unavailable
-        match self.format {
-            EmitFormat::Bytecode => {}
-            EmitFormat::Wasm | EmitFormat::Native => {
-                return Err(LinkError::CodeGenerationUnavailable {
-                    anchor: self.package.into(),
-                    package: self.package,
-                    target: self.target,
-                    format: self.format.canonical_tag().to_string(),
-                });
-            }
-            EmitFormat::Js => {
-                return Err(LinkError::InvalidTarget {
-                    anchor: self.package.into(),
-                    package: self.package,
-                    target: self.target,
-                    message: "script targets do not produce Program artifacts".to_string(),
-                });
-            }
-        }
-
         // project engine-neutral program tables
         let mut frame_linker = FrameLinker::new(&self);
         let frames = frame_linker.link()?;
-        let bytecode_linker = BytecodeLinker::new(&self, &frame_linker);
-        let bytecode = bytecode_linker.link()?;
+        let statics = StaticLinker::new(&self).link()?;
         let layouts = LayoutLinker::new(&self).link()?;
         let functions = FunctionLinker::new(&self).link()?;
         let bindings = BindingLinker::new(&self).link()?;
         let sites = SiteLinker::new(&self, &frame_linker).link()?;
         let types = TypeLinker::new(&self).link()?;
-        let statics = StaticLinker::new(&self).link()?;
         let dispatch = DispatchLinker::new(&self).link()?;
 
+        // link each explicitly emitted execution form
+        let bytecode = BytecodeLinker::new(&self, &frame_linker, &statics).link()?;
+        let native = NativeLinker::new(&self, &frame_linker, &statics).link()?;
+
         // assemble the durable program image
-        let program = ProgramBuilder::new(self.target_layout)
-            .bytecode(bytecode)
+        let mut program = ProgramBuilder::new(self.target_layout)
             .strings(self.strings, self.string_ids()?)
             .types(types)
             .drops(self.drops)
@@ -177,10 +148,16 @@ impl<'a> ProgramLinker<'a> {
             .sites(sites)
             .traces(layouts.traces)
             .globals(statics.globals)
-            .constant_space(statics.constants)
-            .shared_static_space(statics.shared)
-            .local_static_space(statics.local)
-            .build();
+            .constants(statics.constants)
+            .shared_statics(statics.shared)
+            .local_statics(statics.local);
+        if let Some(bytecode) = bytecode {
+            program = program.bytecode(bytecode);
+        }
+        if let Some(native) = native {
+            program = program.native(native);
+        }
+        let program = program.build();
 
         Ok(program)
     }
@@ -226,6 +203,25 @@ impl<'a> ProgramLinker<'a> {
 
             for table in object.dispatch().iter_dynamic_tables() {
                 ids.extend(table.names.iter().map(|entry| entry.name));
+            }
+        }
+
+        // retain native target identity
+        if self
+            .objects
+            .iter()
+            .any(|(_, object)| object.native().is_some())
+        {
+            for (_, object) in &self.objects {
+                let Some(native) = object.native() else {
+                    continue;
+                };
+                ids.push(self.strings.intern(native.target()));
+                ids.extend(
+                    native
+                        .features()
+                        .map(|feature| self.strings.intern(feature)),
+                );
             }
         }
 
@@ -335,6 +331,16 @@ impl<'a> ProgramLinker<'a> {
         self.strings.get(string)
     }
 
+    /// Intern one Program string.
+    pub(crate) fn intern_string(&self, string: &str) -> StringId {
+        self.strings.intern(string)
+    }
+
+    /// Return the linked target ABI layout.
+    pub(crate) const fn target_layout(&self) -> mir::TargetLayout {
+        self.target_layout
+    }
+
     /// Return the program type id for one module-local MIR type.
     pub fn type_id(&self, module: ModuleId, ty: mir::TypeId) -> TypeId {
         self.type_ids[&(module, ty)]
@@ -426,24 +432,8 @@ impl<'a> ProgramLinker<'a> {
         AllocationSiteId(self.allocation_starts[&module].0 + allocation)
     }
 
-    /// Build first allocation site ids for each object.
-    fn build_allocation_starts(
-        objects: &[(ModuleId, Arc<Object>)],
-    ) -> HashMap<ModuleId, AllocationSiteId> {
-        let mut starts = HashMap::with_capacity(objects.len());
-        let mut next = 0;
-
-        // assign each object's contiguous allocation site range
-        for (module, object) in objects {
-            starts.insert(*module, AllocationSiteId(next));
-            next += object.allocations().len() as u32;
-        }
-
-        starts
-    }
-
     /// Build module lookups for the object sequence.
-    fn build_object_ids(
+    fn object_ids(
         package: PackageId,
         objects: &[(ModuleId, Arc<Object>)],
     ) -> LinkResult<HashMap<ModuleId, usize>> {
@@ -452,7 +442,7 @@ impl<'a> ProgramLinker<'a> {
         // assign each module exactly one object position
         for (index, (module, _)) in objects.iter().enumerate() {
             if ids.insert(*module, index).is_some() {
-                return Err(Self::invalid_input_for(
+                return Err(LinkError::invalid_input(
                     package,
                     format!("module {module:?} has multiple objects"),
                 ));
@@ -463,7 +453,7 @@ impl<'a> ProgramLinker<'a> {
         for (module, object) in objects {
             for dependency in object.dependencies() {
                 if !ids.contains_key(dependency) {
-                    return Err(Self::invalid_input_for(
+                    return Err(LinkError::invalid_input(
                         package,
                         format!("module {module:?} requires missing module {dependency:?}"),
                     ));
@@ -475,12 +465,12 @@ impl<'a> ProgramLinker<'a> {
     }
 
     /// Resolve the target layout shared by all module objects.
-    fn target_layout(
+    fn common_layout(
         package: PackageId,
         objects: &[(ModuleId, Arc<Object>)],
     ) -> LinkResult<mir::TargetLayout> {
         let Some((_, first)) = objects.first() else {
-            return Err(Self::invalid_input_for(
+            return Err(LinkError::invalid_input(
                 package,
                 "Program has no module objects",
             ));
@@ -490,7 +480,7 @@ impl<'a> ProgramLinker<'a> {
         // require one ABI across every linked module
         for (module, object) in &objects[1..] {
             if object.target() != target {
-                return Err(Self::invalid_input_for(
+                return Err(LinkError::invalid_input(
                     package,
                     format!("module {module:?} uses a different target layout"),
                 ));
@@ -498,627 +488,5 @@ impl<'a> ProgramLinker<'a> {
         }
 
         Ok(target)
-    }
-
-    /// Build dense function ids from definitions and imported symbols.
-    fn build_function_ids(
-        package: PackageId,
-        objects: &[(ModuleId, Arc<Object>)],
-        type_ids: &HashMap<(ModuleId, mir::TypeId), TypeId>,
-        strings: &StringPool,
-    ) -> LinkResult<(
-        HashMap<(ModuleId, mir::FunctionId), FunctionId>,
-        Vec<(ModuleId, mir::FunctionId)>,
-    )> {
-        let mut ids = HashMap::new();
-        let mut functions = Vec::new();
-        let mut symbols = HashMap::new();
-        let mut bindings = HashMap::new();
-
-        // assign every local and exported definition
-        for (module, object) in objects {
-            for function in object.functions() {
-                let function_id = function.id;
-                if function.linkage.is_import() {
-                    continue;
-                }
-
-                let id = FunctionId::from(functions.len() as u32);
-                if function.linkage.is_exported() {
-                    let definition = (id, *module, function);
-                    if symbols.insert(function.symbol, definition).is_some() {
-                        return Err(Self::invalid_input_for(
-                            package,
-                            format!(
-                                "function symbol {:?} has multiple definitions",
-                                function.symbol
-                            ),
-                        ));
-                    }
-                }
-
-                ids.insert((*module, function_id), id);
-                functions.push((*module, function_id));
-
-                // register each program-defined binding implementation once
-                if let Some(binding) = &function.binding {
-                    let definition = (id, *module, function);
-                    if bindings.insert(binding.name, definition).is_some() {
-                        let binding = strings.get(binding.name);
-                        return Err(Self::invalid_input_for(
-                            package,
-                            format!("binding '{binding}' has multiple definitions"),
-                        ));
-                    }
-                }
-            }
-        }
-
-        // assign host bindings as external definitions
-        for (module, object) in objects {
-            for function in object.functions() {
-                let function_id = function.id;
-                let Some(binding) = &function.binding else {
-                    continue;
-                };
-                if !function.linkage.is_import() {
-                    continue;
-                }
-
-                let id = match bindings.get(&binding.name).copied() {
-                    Some((id, definition_module, definition)) => {
-                        if !Self::function_signatures_match(
-                            *module,
-                            function,
-                            definition_module,
-                            definition,
-                            type_ids,
-                        ) {
-                            let binding = strings.get(binding.name);
-                            return Err(Self::invalid_input_for(
-                                package,
-                                format!("binding '{binding}' has conflicting declarations"),
-                            ));
-                        }
-                        if definition.binding.as_deref() != Some(binding.as_ref()) {
-                            let binding = strings.get(binding.name);
-                            return Err(Self::invalid_input_for(
-                                package,
-                                format!("binding '{binding}' has conflicting declarations"),
-                            ));
-                        }
-
-                        id
-                    }
-                    None => {
-                        let id = FunctionId::from(functions.len() as u32);
-                        bindings.insert(binding.name, (id, *module, function));
-                        functions.push((*module, function_id));
-                        id
-                    }
-                };
-                ids.insert((*module, function_id), id);
-            }
-        }
-
-        // resolve remaining imports against exported definitions
-        for (module, object) in objects {
-            for function in object.functions() {
-                let function_id = function.id;
-                if !function.linkage.is_import() || function.binding.is_some() {
-                    continue;
-                }
-                let Some((id, definition_module, definition)) =
-                    symbols.get(&function.symbol).copied()
-                else {
-                    return Err(Self::invalid_input_for(
-                        package,
-                        format!("function symbol {:?} is undefined", function.symbol),
-                    ));
-                };
-                if !Self::function_signatures_match(
-                    *module,
-                    function,
-                    definition_module,
-                    definition,
-                    type_ids,
-                ) {
-                    return Err(Self::invalid_input_for(
-                        package,
-                        format!(
-                            "function symbol {:?} has conflicting signatures",
-                            function.symbol
-                        ),
-                    ));
-                }
-
-                ids.insert((*module, function_id), id);
-            }
-        }
-
-        Ok((ids, functions))
-    }
-
-    /// Return whether two functions have the same callable signature.
-    fn function_signatures_match(
-        left_module: ModuleId,
-        left: &artifact::Function,
-        right_module: ModuleId,
-        right: &artifact::Function,
-        type_ids: &HashMap<(ModuleId, mir::TypeId), TypeId>,
-    ) -> bool {
-        if left.lifetimes.len() != right.lifetimes.len()
-            || left.parameters.len() != right.parameters.len()
-        {
-            return false;
-        }
-
-        // compare parameter types
-        for (left_parameter, right_parameter) in left.parameters.iter().zip(&right.parameters) {
-            if !Self::types_match(
-                left_module,
-                left_parameter.ty,
-                right_module,
-                right_parameter.ty,
-                type_ids,
-            ) {
-                return false;
-            }
-        }
-
-        // compare result and optional closure environment types
-        let result_matches = Self::types_match(
-            left_module,
-            left.result,
-            right_module,
-            right.result,
-            type_ids,
-        );
-        let environment_matches = match (left.environment, right.environment) {
-            (Some(left), Some(right)) => {
-                Self::types_match(left_module, left, right_module, right, type_ids)
-            }
-            (None, None) => true,
-            _ => false,
-        };
-
-        result_matches && environment_matches
-    }
-
-    /// Return whether two module-local types denote the same declaration type.
-    fn types_match(
-        left_module: ModuleId,
-        left: mir::TypeId,
-        right_module: ModuleId,
-        right: mir::TypeId,
-        type_ids: &HashMap<(ModuleId, mir::TypeId), TypeId>,
-    ) -> bool {
-        let left_id = type_ids[&(left_module, left)];
-        let right_id = type_ids[&(right_module, right)];
-
-        left_id == right_id
-    }
-
-    /// Build dense type ids from nominal identity and anonymous structure.
-    fn build_type_ids(
-        objects: &[(ModuleId, Arc<Object>)],
-    ) -> (
-        HashMap<(ModuleId, mir::TypeId), TypeId>,
-        Vec<(ModuleId, mir::TypeId)>,
-    ) {
-        let mut ids = HashMap::new();
-        let mut types = Vec::new();
-        let mut fingerprints = HashMap::new();
-
-        // canonicalize nominal identities and anonymous structural types
-        for (module, object) in objects {
-            for ty in object.types() {
-                if object.layouts().layout_id(ty.id).is_none() {
-                    continue;
-                }
-
-                let id = *fingerprints.entry(ty.fingerprint).or_insert_with(|| {
-                    let id = TypeId::from(types.len() as u32);
-                    types.push((*module, ty.id));
-                    id
-                });
-
-                ids.insert((*module, ty.id), id);
-            }
-        }
-
-        (ids, types)
-    }
-
-    /// Build one canonical signature table for declarations and signature types.
-    fn build_signatures(
-        objects: &[(ModuleId, Arc<Object>)],
-        type_ids: &HashMap<(ModuleId, mir::TypeId), TypeId>,
-    ) -> (
-        Vec<Signature>,
-        HashMap<(ModuleId, mir::FunctionId), SignatureId>,
-        HashMap<(ModuleId, mir::TypeId), SignatureId>,
-    ) {
-        let mut signatures = Vec::new();
-        let mut function_signatures = HashMap::new();
-        let mut type_signatures = HashMap::new();
-
-        // assign callable declarations first in stable object order
-        for (module, object) in objects {
-            for function in object.functions() {
-                let signature = Signature {
-                    parameters: function
-                        .parameters
-                        .iter()
-                        .map(|parameter| type_ids[&(*module, parameter.ty)])
-                        .collect(),
-                    result: type_ids[&(*module, function.result)],
-                };
-                let id = Self::insert_signature(&mut signatures, signature);
-                function_signatures.insert((*module, function.id), id);
-            }
-        }
-
-        // assign explicit signature types through the same canonical table
-        for (module, object) in objects {
-            for ty in object.types() {
-                let mir::Type::FunctionSignature {
-                    parameters, result, ..
-                } = &ty.definition
-                else {
-                    continue;
-                };
-                let signature = Signature {
-                    parameters: parameters
-                        .iter()
-                        .map(|parameter| type_ids[&(*module, parameter.ty)])
-                        .collect(),
-                    result: type_ids[&(*module, *result)],
-                };
-                let id = Self::insert_signature(&mut signatures, signature);
-                type_signatures.insert((*module, ty.id), id);
-            }
-        }
-
-        (signatures, function_signatures, type_signatures)
-    }
-
-    /// Insert one canonical signature or return its existing dense id.
-    fn insert_signature(signatures: &mut Vec<Signature>, signature: Signature) -> SignatureId {
-        let index = signatures
-            .iter()
-            .position(|existing| *existing == signature)
-            .unwrap_or_else(|| {
-                signatures.push(signature);
-
-                signatures.len() - 1
-            });
-
-        SignatureId(index as u32)
-    }
-
-    /// Build dense drop identities and destructor functions in program type order.
-    fn build_drops(
-        package: PackageId,
-        objects: &[(ModuleId, Arc<Object>)],
-        type_ids: &HashMap<(ModuleId, mir::TypeId), TypeId>,
-        type_count: usize,
-        function_ids: &HashMap<(ModuleId, mir::FunctionId), FunctionId>,
-    ) -> LinkResult<(HashMap<TypeId, DropId>, Vec<DropEntry>)> {
-        let mut functions = HashMap::new();
-
-        // resolve every specialized destructor into canonical program identity
-        for (module, object) in objects {
-            for (&(ty, storage), &function) in &object.drops().destructors {
-                if matches!(storage, mir::Storage::Global(_)) {
-                    return Err(Self::invalid_input_for(
-                        package,
-                        format!("type {ty:?} defines a destructor for global storage"),
-                    ));
-                }
-
-                let ty = type_ids[&(*module, ty)];
-                let function_id = function_ids[&(*module, function)];
-                let key = (ty, storage);
-
-                if let Some((previous_module, previous_function)) = functions.get(&key) {
-                    let previous_id = function_ids[&(*previous_module, *previous_function)];
-                    if previous_id != function_id {
-                        return Err(Self::invalid_input_for(
-                            package,
-                            format!("type {ty:?} has multiple {storage:?} destructors"),
-                        ));
-                    }
-                } else {
-                    functions.insert(key, (*module, function));
-                }
-            }
-        }
-
-        // assign drop ids in canonical program type order
-        let mut ids = HashMap::new();
-        let mut drops = Vec::new();
-        for index in 0..type_count {
-            let ty = TypeId::from(index as u32);
-            let frame = functions
-                .remove(&(ty, mir::Storage::Frame))
-                .map(|(module, function)| function_ids[&(module, function)]);
-            let local = functions
-                .remove(&(ty, mir::Storage::Heap(mir::Space::Local)))
-                .map(|(module, function)| function_ids[&(module, function)]);
-            let shared = functions
-                .remove(&(ty, mir::Storage::Heap(mir::Space::Shared)))
-                .map(|(module, function)| function_ids[&(module, function)]);
-            if frame.is_none() && local.is_none() && shared.is_none() {
-                continue;
-            }
-
-            ids.insert(ty, DropId::from_index(drops.len() as u32));
-            drops.push(DropEntry {
-                frame: Optional::from(frame),
-                local: Optional::from(local),
-                shared: Optional::from(shared),
-            });
-        }
-
-        Ok((ids, drops))
-    }
-
-    /// Build dense virtual table ids from canonical concrete types.
-    fn build_virtual_table_ids(
-        package: PackageId,
-        objects: &[(ModuleId, Arc<Object>)],
-        type_ids: &HashMap<(ModuleId, mir::TypeId), TypeId>,
-    ) -> LinkResult<HashMap<TypeId, VirtualTableId>> {
-        let mut ids = HashMap::new();
-
-        // require every virtual receiver to expose its dispatch id
-        for (module, object) in objects {
-            for table in object.dispatch().iter_virtual_tables() {
-                let layout = object
-                    .layouts()
-                    .type_layout(table.concrete)
-                    .ok_or_else(|| {
-                        Self::invalid_input_for(
-                            package,
-                            format!("missing layout for virtual type {:?}", table.concrete),
-                        )
-                    })?;
-                let mir::LayoutShape::Object(object_layout) = &layout.shape else {
-                    return Err(Self::invalid_input_for(
-                        package,
-                        format!(
-                            "virtual type {:?} does not have an object layout",
-                            table.concrete
-                        ),
-                    ));
-                };
-                let Some(dispatch_offset) = object_layout.dispatch_offset else {
-                    return Err(Self::invalid_input_for(
-                        package,
-                        format!("virtual type {:?} has no dispatch offset", table.concrete),
-                    ));
-                };
-                let dispatch_end = u64::from(dispatch_offset) + size_of::<u32>() as u64;
-                if dispatch_end > u64::from(layout.size) {
-                    return Err(Self::invalid_input_for(
-                        package,
-                        format!(
-                            "virtual type {:?} has a dispatch offset outside its layout",
-                            table.concrete
-                        ),
-                    ));
-                }
-
-                let concrete = type_ids[&(*module, table.concrete)];
-                let next = VirtualTableId(ids.len() as u32);
-                ids.entry(concrete).or_insert(next);
-            }
-        }
-
-        // require every dispatch field to have one canonical virtual table
-        for (module, object) in objects {
-            for ty in object.types() {
-                let Some(layout) = object.layouts().type_layout(ty.id) else {
-                    continue;
-                };
-                let mir::LayoutShape::Object(layout) = &layout.shape else {
-                    continue;
-                };
-                if layout.dispatch_offset.is_none() {
-                    continue;
-                }
-
-                let concrete = type_ids[&(*module, ty.id)];
-                if !ids.contains_key(&concrete) {
-                    return Err(Self::invalid_input_for(
-                        package,
-                        format!("object type {:?} has no virtual table", ty.id),
-                    ));
-                }
-            }
-        }
-
-        Ok(ids)
-    }
-
-    /// Build dense dynamic table ids from canonical concrete and constraint types.
-    fn build_dynamic_table_ids(
-        objects: &[(ModuleId, Arc<Object>)],
-        type_ids: &HashMap<(ModuleId, mir::TypeId), TypeId>,
-    ) -> HashMap<(TypeId, TypeId), DynamicTableId> {
-        let mut ids = HashMap::new();
-
-        // assign one row to each canonical implementation pair
-        for (module, object) in objects {
-            for table in object.dispatch().iter_dynamic_tables() {
-                let key = (
-                    type_ids[&(*module, table.concrete)],
-                    type_ids[&(*module, table.constraint)],
-                );
-                let next = DynamicTableId(ids.len() as u32);
-                ids.entry(key).or_insert(next);
-            }
-        }
-
-        ids
-    }
-
-    /// Build dense global ids from definitions and imported symbols.
-    fn build_global_ids(
-        package: PackageId,
-        objects: &[(ModuleId, Arc<Object>)],
-        type_ids: &HashMap<(ModuleId, mir::TypeId), TypeId>,
-    ) -> LinkResult<(
-        HashMap<(ModuleId, mir::GlobalId), GlobalId>,
-        Vec<(ModuleId, mir::GlobalId)>,
-    )> {
-        let mut ids = HashMap::new();
-        let mut globals = Vec::new();
-        let mut symbols = HashMap::new();
-
-        // assign local and exported definitions
-        for (module, object) in objects {
-            for global in object.globals() {
-                let global_id = global.id;
-                if global.linkage.is_import() {
-                    continue;
-                }
-
-                let id = GlobalId::from(globals.len() as u32);
-                if global.linkage.is_exported() {
-                    let definition = (id, *module, global);
-                    if symbols.insert(global.symbol, definition).is_some() {
-                        return Err(Self::invalid_input_for(
-                            package,
-                            format!("global symbol {:?} has multiple definitions", global.symbol),
-                        ));
-                    }
-                }
-
-                ids.insert((*module, global_id), id);
-                globals.push((*module, global_id));
-            }
-        }
-
-        // resolve imports against exported definitions
-        for (module, object) in objects {
-            for global in object.globals() {
-                let global_id = global.id;
-                if !global.linkage.is_import() {
-                    continue;
-                }
-                let Some((id, definition_module, definition)) =
-                    symbols.get(&global.symbol).copied()
-                else {
-                    return Err(Self::invalid_input_for(
-                        package,
-                        format!("global symbol {:?} is undefined", global.symbol),
-                    ));
-                };
-                if !Self::types_match(
-                    *module,
-                    global.ty,
-                    definition_module,
-                    definition.ty,
-                    type_ids,
-                ) || global.mutability != definition.mutability
-                    || global.storage != definition.storage
-                {
-                    return Err(Self::invalid_input_for(
-                        package,
-                        format!(
-                            "global symbol {:?} has conflicting declarations",
-                            global.symbol
-                        ),
-                    ));
-                }
-
-                ids.insert((*module, global_id), id);
-            }
-        }
-
-        Ok((ids, globals))
-    }
-
-    /// Assign contiguous Program counter and sampler ranges in function order.
-    fn build_profile_starts(
-        package: PackageId,
-        objects: &[(ModuleId, Arc<Object>)],
-        functions: &[(ModuleId, mir::FunctionId)],
-    ) -> LinkResult<(
-        HashMap<(ModuleId, mir::FunctionId), CounterId>,
-        HashMap<(ModuleId, mir::FunctionId), SamplerId>,
-    )> {
-        let mut counter_starts = HashMap::new();
-        let mut sampler_starts = HashMap::new();
-        let mut counts = HashMap::new();
-        let mut counter_start = 0u32;
-        let mut sampler_start = 0u32;
-
-        // initialize every object-local function profile range
-        for (module, object) in objects {
-            for function in object.functions() {
-                counts.insert((*module, function.id), (0, 0));
-            }
-
-            // derive local counter widths from their semantic sites
-            for site in object.counters() {
-                let count = counts
-                    .get_mut(&(*module, site.point.function))
-                    .ok_or_else(|| {
-                        Self::invalid_input_for(package, "counter function is absent")
-                    })?;
-                let end = site
-                    .counter
-                    .0
-                    .checked_add(1)
-                    .ok_or_else(|| Self::invalid_input_for(package, "counter id overflow"))?;
-                count.0 = count.0.max(end);
-            }
-
-            // derive local sampler widths from their semantic sites
-            for site in object.samples() {
-                let count = counts
-                    .get_mut(&(*module, site.point.function))
-                    .ok_or_else(|| {
-                        Self::invalid_input_for(package, "sampler function is absent")
-                    })?;
-                let end = site
-                    .sampler
-                    .0
-                    .checked_add(1)
-                    .ok_or_else(|| Self::invalid_input_for(package, "sampler id overflow"))?;
-                count.1 = count.1.max(end);
-            }
-        }
-
-        // assign one contiguous profile range to each canonical function
-        for &(module, function) in functions {
-            let (counter_count, sampler_count) = counts
-                .get(&(module, function))
-                .copied()
-                .ok_or_else(|| Self::invalid_input_for(package, "missing bytecode function"))?;
-
-            counter_starts.insert((module, function), CounterId(counter_start));
-            sampler_starts.insert((module, function), SamplerId(sampler_start));
-            counter_start = counter_start
-                .checked_add(counter_count)
-                .ok_or_else(|| Self::invalid_input_for(package, "counter id overflow"))?;
-            sampler_start = sampler_start
-                .checked_add(sampler_count)
-                .ok_or_else(|| Self::invalid_input_for(package, "sampler id overflow"))?;
-        }
-
-        Ok((counter_starts, sampler_starts))
-    }
-
-    /// Build one invalid input diagnostic before the linker exists.
-    fn invalid_input_for(package: PackageId, context: impl Into<String>) -> LinkError {
-        LinkError::InvalidInput {
-            anchor: package.into(),
-            package,
-            context: context.into(),
-        }
     }
 }

@@ -1,4 +1,5 @@
 use std::ops::Range;
+use std::ptr;
 
 use destack_bytecode::{Instruction, Opcode};
 use destack_mir::{DiscriminantField, VariantEncoding};
@@ -16,6 +17,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             Opcode::INSERT => self.execute_insert(instruction),
             Opcode::VARIANT_NEW => self.execute_variant_new(instruction),
             Opcode::VARIANT_TAG => self.execute_variant_tag(instruction),
+            Opcode::VARIANT_TAG_LOAD
+            | Opcode::VARIANT_TAG_LOAD_CONSTANT
+            | Opcode::VARIANT_TAG_LOAD_POINTER => self.execute_variant_tag_load(instruction),
             _ => unreachable!("aggregate dispatch selects one aggregate opcode"),
         }
     }
@@ -126,10 +130,15 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let scalar = self.read_discriminant(result.start, field)?;
         let scalar = match variant.encoding {
             VariantEncoding::Direct { field } => field.insert(scalar, case.discriminant.bits()),
-            VariantEncoding::Niche { .. } => variant
-                .encoding
-                .encode_niche(scalar, case_index)
-                .ok_or_else(|| self.invalid_instruction())?,
+            VariantEncoding::Niche { .. } => {
+                let cases = self.machine.program.variant_cases(variant);
+                let case_count = cases.len() as u32;
+
+                variant
+                    .encoding
+                    .encode_niche(scalar, case_index, case_count)
+                    .ok_or_else(|| self.invalid_instruction())?
+            }
         };
 
         self.write_discriminant(result.start, field, scalar)
@@ -150,27 +159,86 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         self.check_layout_range(&layout, &source)?;
         let field = variant.encoding.field();
         let scalar = self.read_discriminant(source.start, field)?;
+        let discriminant = self.decode_variant_tag(variant, scalar)?;
+
+        self.write_variant_tag(result, discriminant)
+    }
+
+    /// Read one stored variant's logical discriminant.
+    fn execute_variant_tag_load(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = self.operands(instruction);
+        let result = operands.span()?;
+        let source = operands.register()?;
+        let layout = operands.u32()?;
+        let layout = LayoutId::from_raw(layout).ok_or_else(|| self.invalid_instruction())?;
+        let layout = self.layout(layout)?;
+        let variant = self.variant(&layout)?;
+        let field = variant.encoding.field();
+        let byte_len = field.offset as usize + field.byte_len as usize;
+        let address = instruction
+            .opcode()
+            .variant_tag_load_address()
+            .ok_or_else(|| self.invalid_instruction())?;
+        let source = self.resolve_address(source.0, address, byte_len)?;
+        let scalar = self.read_address_discriminant(source, field)?;
+        let discriminant = self.decode_variant_tag(variant, scalar)?;
+
+        self.write_variant_tag(result, discriminant)
+    }
+
+    /// Return one stored variant tag's exact native byte range.
+    pub(crate) fn variant_tag_address(
+        &self,
+        instruction: Instruction<'_>,
+    ) -> Result<(usize, usize)> {
+        let mut operands = self.operands(instruction);
+        let _result = operands.span()?;
+        let source = operands.register()?;
+        let layout = operands.u32()?;
+        let layout = LayoutId::from_raw(layout).ok_or_else(|| self.invalid_instruction())?;
+        let layout = self.layout(layout)?;
+        let variant = self.variant(&layout)?;
+        let field = variant.encoding.field();
+        let byte_len = field.offset as usize + field.byte_len as usize;
+        let address = instruction
+            .opcode()
+            .variant_tag_load_address()
+            .ok_or_else(|| self.invalid_instruction())?;
+        let address = self.resolve_address(source.0, address, byte_len)?;
+
+        Ok((address + field.offset as usize, field.byte_len as usize))
+    }
+
+    /// Decode one physical discriminant into its logical value.
+    fn decode_variant_tag(&self, variant: VariantLayout, scalar: u128) -> Result<u128> {
         let discriminant = match variant.encoding {
             VariantEncoding::Direct { field } => field.extract(scalar),
             VariantEncoding::Niche { .. } => {
+                let cases = self.machine.program.variant_cases(variant);
+                let case_count = cases.len() as u32;
                 let case = variant
                     .encoding
-                    .decode_niche(scalar)
-                    .and_then(|case| {
-                        self.machine
-                            .program
-                            .variant_cases(variant)
-                            .get(case as usize)
-                    })
+                    .decode_niche(scalar, case_count)
+                    .and_then(|case| cases.get(case as usize))
                     .ok_or_else(|| self.invalid_instruction())?;
 
                 case.discriminant.bits()
             }
         };
 
-        // write the discriminant into its exact result width
+        Ok(discriminant)
+    }
+
+    /// Write one logical variant tag into its exact result range.
+    fn write_variant_tag(
+        &mut self,
+        result: destack_bytecode::RegisterSpan,
+        tag: u128,
+    ) -> Result<()> {
         let result = self.register_byte_range(result)?;
-        let bytes = discriminant.to_le_bytes();
+        let bytes = tag.to_le_bytes();
+
+        // write the discriminant into its exact result width
         if result.len() > bytes.len() {
             return Err(self.invalid_instruction());
         }
@@ -179,6 +247,26 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             .write_bytes(result.start, &bytes[..result.len()])?;
 
         Ok(())
+    }
+
+    /// Read one physical discriminant through a native address.
+    fn read_address_discriminant(&self, address: usize, field: DiscriminantField) -> Result<u128> {
+        let byte_len = field.byte_len as usize;
+        if byte_len > size_of::<u128>() {
+            return Err(self.invalid_instruction());
+        }
+        let mut bytes = [0; size_of::<u128>()];
+
+        // SAFETY: address resolution checked the complete discriminant field range
+        unsafe {
+            ptr::copy_nonoverlapping(
+                (address + field.offset as usize) as *const u8,
+                bytes.as_mut_ptr(),
+                byte_len,
+            );
+        }
+
+        Ok(u128::from_le_bytes(bytes))
     }
 
     /// Return one copied Program layout.

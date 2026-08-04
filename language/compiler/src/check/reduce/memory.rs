@@ -913,6 +913,7 @@ impl CheckState<'_> {
             | dir::Type::Dynamic(_)
             | dir::Type::Shape(_)
             | dir::Type::Array(_)
+            | dir::Type::Slice(_)
             | dir::Type::Function(_) => Some(dir::Ownership::Managed),
             dir::Type::Never
             | dir::Type::Void
@@ -924,7 +925,6 @@ impl CheckState<'_> {
             | dir::Type::Key(_)
             | dir::Type::Range(_)
             | dir::Type::Tuple(_)
-            | dir::Type::Slice(_)
             | dir::Type::FixedArray(_)
             | dir::Type::FunctionPointer(_) => Some(dir::Ownership::Owned),
             dir::Type::Primitive(primitive) => {

@@ -11,11 +11,11 @@ fn test_pause_at_poll() {
     let program = TestProgram::words()
         .allocations([allocation])
         .reference(1, 0, ReferenceKind::Managed, Storage::Heap(Space::Local))
-        .frame(0, 1, [(RegisterSpan::new(RegisterId(0), 1), 1)]);
+        .frame(0, 2, [(RegisterSpan::new(RegisterId(0), 1), 1)]);
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    new.local.managed.zeroed r0, a0
+    new.zeroed r0, a0: ref<managed, local>
     poll
     return r0
 }
@@ -57,7 +57,7 @@ fn test_stop_at_breakpoint() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    int.add.int32 r2, r0, r1
+    int.add r2, r0, r1: int32
     return r2
 }
 "#,
@@ -108,30 +108,29 @@ function f0 {
 /// Stop after one selected write while preserving the completed mutation.
 #[test]
 fn test_stop_at_watchpoint() {
-    let point = TestProgram::point(0, 2);
+    let point = TestProgram::point(0, 1);
     let site = TestProgram::memory_site(
         0,
-        2,
+        1,
         MemoryAccess::Write,
-        Storage::Global(GlobalStorage::Local),
+        Some(Storage::Global(GlobalStorage::Local)),
     );
-    let watch = TestProgram::watchpoint(0, 2, 11, MemoryAccess::Write);
+    let watch = TestProgram::watchpoint(0, 1, 11, MemoryAccess::Write);
     let watchpoint_id = watch.watchpoint_id;
     let watches = WatchSet::new(vec![watch]);
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    global.address r15, g0
-    pointer.global r1, r15
-    store.int32 r1, r0
-    load.int32 r2, r1
+    global.address.local r15, g0
+    store r15, r0: int32
+    load r2, r15: int32
     return r2
 }
 "#,
         TestProgram::words().local_global().memory([site]).frame(
             0,
-            3,
-            [(RegisterSpan::new(RegisterId(1), 1), 0)],
+            2,
+            [(RegisterSpan::new(RegisterId(15), 1), 0)],
         ),
     );
 
@@ -173,13 +172,12 @@ fn test_restore_nested_stop() {
         r#"
 function f0 {
     frame.address r1, r0
-    call r2, f1, r1
+    call r2, f1(r1)
     return r2
 }
 
 function f1 {
-    pointer.frame r2, r0
-    load.int32 r1, r2
+    load r1, r0: int32
     return r1
 }
 "#,
@@ -215,11 +213,9 @@ fn test_restore_continuation_destruction() {
         r#"
 function destroy {
     breakpoint
-    pointer.frame r14, r0
-    load.int32 r1, r14
-    global.address r15, g0
-    pointer.global r2, r15
-    store.int32 r2, r1
+    load r1, r0: int32
+    global.address.local r15, g0
+    store r15, r1: int32
     return
 }
 
@@ -230,9 +226,8 @@ function generate {
 function owner {
     continuation.new r1, generate, r0
     continuation.destroy r1
-    global.address r15, g0
-    pointer.global r2, r15
-    load.int32 r3, r2
+    global.address.local r15, g0
+    load r3, r15: int32
     return r3
 }
 "#,
@@ -261,7 +256,7 @@ fn test_visit_stopped_roots() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    new.local.managed.zeroed r0, a0
+    new.zeroed r0, a0: ref<managed, local>
     breakpoint
     return r0
 }

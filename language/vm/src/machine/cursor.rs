@@ -1,4 +1,5 @@
 use std::ptr::{self, NonNull};
+use std::slice;
 
 use destack_bytecode::{CodeOffset, Instruction};
 use destack_program::Word;
@@ -155,6 +156,13 @@ impl Cursor {
         }
     }
 
+    /// Return the complete active register window.
+    #[inline(always)]
+    pub(crate) fn registers(&mut self, word_count: u16) -> &mut [Word] {
+        // SAFETY: the active frame owns this exact contiguous register window
+        unsafe { slice::from_raw_parts_mut(self.registers.as_ptr(), word_count as usize) }
+    }
+
     /// Move one possibly overlapping active register range.
     #[inline(always)]
     pub(crate) fn move_words(&mut self, source: u16, target: u16, word_count: u16) {
@@ -162,6 +170,32 @@ impl Cursor {
         unsafe {
             ptr::copy(
                 self.registers.as_ptr().add(source as usize),
+                self.registers.as_ptr().add(target as usize),
+                word_count as usize,
+            );
+        }
+    }
+
+    /// Copy active register words into one non-overlapping native destination.
+    #[inline(always)]
+    pub(crate) unsafe fn store_words(&self, source: u16, target: *mut Word, word_count: u16) {
+        // SAFETY: the caller guarantees a writable non-overlapping destination
+        unsafe {
+            ptr::copy_nonoverlapping(
+                self.registers.as_ptr().add(source as usize),
+                target,
+                word_count as usize,
+            );
+        }
+    }
+
+    /// Copy native source words into active result registers.
+    #[inline(always)]
+    pub(crate) unsafe fn load_words(&mut self, source: *const Word, target: u16, word_count: u16) {
+        // SAFETY: the caller guarantees a readable non-overlapping source
+        unsafe {
+            ptr::copy_nonoverlapping(
+                source,
                 self.registers.as_ptr().add(target as usize),
                 word_count as usize,
             );

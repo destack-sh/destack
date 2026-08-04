@@ -120,7 +120,7 @@ function owner {
     assert_eq!(machine.roots(), vec![Root::HeapReference(reference)]);
 }
 
-/// Yield one generator value and resume independent continuation forks.
+/// Yield generator values and resume independent continuations.
 #[test]
 fn test_execute_yield() {
     let site = TestProgram::yield_site(0, 1, 2, 4, 5, 0, 0, 0);
@@ -132,11 +132,11 @@ fn test_execute_yield() {
     let mut machine = TestMachine::parse(
         r#"
 function generate {
-    constant.int32 r1, 5
+    constant r1, 5: int32
     yield r2, r4, r0 => b0 | b1 | b2
 
 b0:
-    int.add.int32 r3, r1, r2
+    int.add r3, r1, r2: int32
     return r3
 
 b1:
@@ -149,20 +149,20 @@ b2:
         program,
     );
 
-    // retain the yielded value and forkable generator state
-    let (value, continuation) = machine.run_to_yield(0, &[Word::int32(13)]);
+    // retain the yielded value and two independent generator states
+    let (value, first) = machine.run_to_yield(0, &[Word::int32(13)]);
     assert_eq!(value, vec![Word::int32(13)]);
     assert_eq!(
-        machine.continuation_bytes(&continuation),
+        machine.continuation_bytes(&first),
         Word::int32(5).to_bytes()
     );
-    let fork = machine.fork_continuation(&continuation);
+    let (_, second) = machine.run_to_yield(0, &[Word::int32(13)]);
 
-    // resume each fork with its captured value and an independent next value
-    let value = machine.resume_to_completion(continuation, &[Word::int32(17)]);
+    // resume each continuation with its captured value and an independent next value
+    let value = machine.resume_to_completion(first, &[Word::int32(17)]);
     assert_eq!(value, vec![Word::int32(22)]);
 
-    let value = machine.resume_to_completion(fork, &[Word::int32(19)]);
+    let value = machine.resume_to_completion(second, &[Word::int32(19)]);
     assert_eq!(value, vec![Word::int32(24)]);
 
     // enter the explicit completion edge with its independent result value
@@ -186,11 +186,9 @@ fn test_complete_ready_continuation() {
     let mut machine = TestMachine::parse(
         r#"
 function destroy {
-    pointer.frame r14, r0
-    load.int32 r1, r14
-    global.address r15, g0
-    pointer.global r2, r15
-    store.int32 r2, r1
+    load r1, r0: int32
+    global.address.local r15, g0
+    store r15, r1: int32
     return
 }
 
@@ -207,10 +205,9 @@ b0:
     unreachable
 
 b1:
-    global.address r15, g0
-    pointer.global r6, r15
-    load.int32 r7, r6
-    int.add.int32 r8, r5, r7
+    global.address.local r15, g0
+    load r7, r15: int32
+    int.add r8, r5, r7: int32
     return r8
 
 b2:
@@ -238,11 +235,9 @@ fn test_destroy_ready_continuation() {
     let mut machine = TestMachine::parse(
         r#"
 function destroy {
-    pointer.frame r14, r0
-    load.int32 r1, r14
-    global.address r15, g0
-    pointer.global r2, r15
-    store.int32 r2, r1
+    load r1, r0: int32
+    global.address.local r15, g0
+    store r15, r1: int32
     return
 }
 
@@ -253,9 +248,8 @@ function generate {
 function owner {
     continuation.new r1, generate, r0
     continuation.destroy r1
-    global.address r15, g0
-    pointer.global r2, r15
-    load.int32 r3, r2
+    global.address.local r15, g0
+    load r3, r15: int32
     return r3
 }
 "#,
@@ -285,11 +279,9 @@ fn test_destroy_suspended_continuation() {
     let mut machine = TestMachine::parse(
         r#"
 function destroy {
-    pointer.frame r14, r0
-    load.int32 r1, r14
-    global.address r15, g0
-    pointer.global r2, r15
-    store.int32 r2, r1
+    load r1, r0: int32
+    global.address.local r15, g0
+    store r15, r1: int32
     return
 }
 
@@ -312,9 +304,8 @@ function owner {
 
 b0:
     continuation.destroy r4
-    global.address r15, g0
-    pointer.global r6, r15
-    load.int32 r7, r6
+    global.address.local r15, g0
+    load r7, r15: int32
     return r7
 
 b1:
@@ -420,7 +411,7 @@ function wait {
 }
 
 function caller {
-    call _, wait, _
+    call _, wait()
     return
 }
 "#,

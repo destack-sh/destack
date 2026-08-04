@@ -1,10 +1,9 @@
-use destack_artifact::EmitFormat;
-use destack_source::{ModuleId, PackageId, TargetId};
+use destack_source::{ModuleId, PackageId};
 
 use crate::LinkError;
 
-use super::super::ProgramLinker;
-use super::harness::TestModule;
+use crate::ProgramLinker;
+use crate::link::tests::TestModule;
 
 /// Resolve functions, globals, and structural types across independently emitted objects.
 #[test]
@@ -38,7 +37,7 @@ entry(v0: int32):
 
 export function readAnswer(): int32 {
 entry:
-    v0: ref<int32, raw, mutable, global> = global.address answer
+    v0: ref<int32, borrowed, mutable, global> = global.address answer
     v1: int32 = load v0
     return v1
 }
@@ -48,8 +47,6 @@ entry:
     let strings = TestModule::merge_strings([&provider, &consumer]);
     let linker = ProgramLinker::new(
         package,
-        TargetId::new(package, "test"),
-        EmitFormat::Bytecode,
         vec![
             (consumer.module, consumer.object.clone()),
             (provider.module, provider.object.clone()),
@@ -113,8 +110,6 @@ external function transform((int32, boolean)): (int32, boolean)
     let strings = TestModule::merge_strings([&provider, &consumer]);
     let linker = ProgramLinker::new(
         package,
-        TargetId::new(package, "test"),
-        EmitFormat::Bytecode,
         vec![
             (consumer.module, consumer.object.clone()),
             (provider.module, provider.object.clone()),
@@ -191,8 +186,6 @@ external function transform(Right): int32
     let strings = TestModule::merge_strings([&provider, &consumer]);
     let error = ProgramLinker::new(
         package,
-        TargetId::new(package, "test"),
-        EmitFormat::Bytecode,
         vec![
             (consumer.module, consumer.object.clone()),
             (provider.module, provider.object.clone()),
@@ -237,8 +230,6 @@ entry(v0: int32):
     let strings = TestModule::merge_strings([&first, &second]);
     let error = ProgramLinker::new(
         package,
-        TargetId::new(package, "test"),
-        EmitFormat::Bytecode,
         vec![
             (first.module, first.object.clone()),
             (second.module, second.object.clone()),

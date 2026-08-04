@@ -1,6 +1,5 @@
 use std::fmt;
 
-use destack_core::StringId;
 use destack_native::abi;
 use destack_program as program;
 use destack_program::{TypeId, Value};
@@ -40,36 +39,56 @@ pub enum Error {
     },
     /// Native execution reported a language panic.
     Panicked {
-        /// The optional panic payload.
+        /// Optional language panic payload.
         payload: Option<Value>,
     },
-    /// A native exit code could not be decoded.
-    InvalidExit(abi::ExitError),
     /// A native trap code could not be decoded.
     InvalidTrap(abi::TrapError),
     /// Program metadata rejected one native call value.
     Program(Box<program::Error>),
     /// The program has no native code.
     NativeCodeMissing,
-    /// A native entry references an undefined linked module.
-    NativeModuleMissing {
-        /// Missing native module index.
-        module: u32,
+    /// The linked code requires a different native runtime ABI.
+    AbiVersion {
+        /// Runtime ABI version.
+        expected: u32,
+        /// Linked code ABI version.
+        actual: u32,
     },
-    /// A program string id could not be resolved.
-    ProgramStringMissing {
-        /// Missing program string id.
-        string: StringId,
+    /// One linked native range escapes its executable image.
+    NativeImageRange,
+    /// The executable mapping does not satisfy the linked image alignment.
+    NativeImageMisaligned {
+        /// Required executable base alignment.
+        required: u32,
     },
-    /// A resident native symbol could not be resolved.
-    NativeSymbolMissing {
-        /// The missing native symbol.
-        symbol: String,
+    /// One linked native function has no callable entry bytes.
+    NativeEntryEmpty {
+        /// Program function with the empty entry.
+        function: program::FunctionId,
+    },
+    /// The platform could not map, protect, or register native code.
+    NativeLoad {
+        /// Failed platform operation.
+        operation: LoadOperation,
+        /// Platform diagnostic.
+        message: String,
     },
 }
 
+/// One platform native loading operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum LoadOperation {
+    /// Reserve writable memory.
+    Map,
+    /// Make generated code executable.
+    Protect,
+    /// Register platform unwind tables.
+    Register,
+}
+
 impl Clone for Error {
-    /// Copy diagnostic state while explicitly sharing panic value storage.
+    /// Copy native execution diagnostic state.
     fn clone(&self) -> Self {
         match self {
             Self::EntryNotFound { name } => Self::EntryNotFound { name: name.clone() },
@@ -86,14 +105,23 @@ impl Clone for Error {
             Self::Panicked { payload } => Self::Panicked {
                 payload: payload.as_ref().map(Value::fork),
             },
-            Self::InvalidExit(error) => Self::InvalidExit(*error),
             Self::InvalidTrap(error) => Self::InvalidTrap(*error),
             Self::Program(error) => Self::Program(error.clone()),
             Self::NativeCodeMissing => Self::NativeCodeMissing,
-            Self::NativeModuleMissing { module } => Self::NativeModuleMissing { module: *module },
-            Self::ProgramStringMissing { string } => Self::ProgramStringMissing { string: *string },
-            Self::NativeSymbolMissing { symbol } => Self::NativeSymbolMissing {
-                symbol: symbol.clone(),
+            Self::AbiVersion { expected, actual } => Self::AbiVersion {
+                expected: *expected,
+                actual: *actual,
+            },
+            Self::NativeImageRange => Self::NativeImageRange,
+            Self::NativeImageMisaligned { required } => Self::NativeImageMisaligned {
+                required: *required,
+            },
+            Self::NativeEntryEmpty { function } => Self::NativeEntryEmpty {
+                function: *function,
+            },
+            Self::NativeLoad { operation, message } => Self::NativeLoad {
+                operation: *operation,
+                message: message.clone(),
             },
         }
     }
@@ -123,18 +151,26 @@ impl fmt::Display for Error {
             Self::Panicked { payload } => {
                 write!(formatter, "native execution panicked with {payload:?}")
             }
-            Self::InvalidExit(error) => write!(formatter, "native exit error: {error}"),
             Self::InvalidTrap(error) => write!(formatter, "native trap error: {error}"),
             Self::Program(error) => write!(formatter, "native program error: {error}"),
             Self::NativeCodeMissing => write!(formatter, "program has no native code"),
-            Self::NativeModuleMissing { module } => {
-                write!(formatter, "native module not found: {module}")
+            Self::AbiVersion { expected, actual } => {
+                write!(
+                    formatter,
+                    "native code requires ABI {actual}, runtime provides ABI {expected}"
+                )
             }
-            Self::ProgramStringMissing { string } => {
-                write!(formatter, "program string not found: {string:?}")
+            Self::NativeImageRange => {
+                formatter.write_str("native code range escapes its executable image")
             }
-            Self::NativeSymbolMissing { symbol } => {
-                write!(formatter, "native symbol not found: {symbol}")
+            Self::NativeImageMisaligned { required } => {
+                write!(formatter, "native code requires {required}-byte alignment")
+            }
+            Self::NativeEntryEmpty { function } => {
+                write!(formatter, "native function {function:?} has an empty entry")
+            }
+            Self::NativeLoad { operation, message } => {
+                write!(formatter, "native {operation:?} failed: {message}")
             }
         }
     }

@@ -28,13 +28,13 @@ impl ModuleLowerer<'_> {
                 body,
             } => {
                 let Some(body) = body else {
-                    return Err(self.unsupported_construct(
+                    return Err(self.unhandled(
                         property_id.into_global_any(self.module.id),
                         Some("JavaScript object methods require executable bodies".to_string()),
                     ));
                 };
                 let Some(key) = key else {
-                    return Err(self.unsupported_construct(
+                    return Err(self.unhandled(
                         property_id.into_global_any(self.module.id),
                         Some("JavaScript object methods require a key".to_string()),
                     ));
@@ -58,7 +58,7 @@ impl ModuleLowerer<'_> {
                 value: self.lower_expression_as::<js::Expression>(*value)?,
             },
             dir::Property::Error => {
-                return Err(self.unsupported_construct(
+                return Err(self.unhandled(
                     property_id.into_global_any(self.module.id),
                     Some("property error slots cannot enter JavaScript output".to_string()),
                 ));
@@ -125,7 +125,7 @@ impl ModuleLowerer<'_> {
                     }
                 } else {
                     let Some(key) = key else {
-                        return Err(self.unsupported_construct(
+                        return Err(self.unhandled(
                             member_id.into_global_any(self.module.id),
                             Some("JavaScript methods require a key".to_string()),
                         ));
@@ -152,7 +152,7 @@ impl ModuleLowerer<'_> {
                 body: self.lower_expression_as_block(*body)?,
             },
             dir::Member::Error => {
-                return Err(self.unsupported_construct(
+                return Err(self.unhandled(
                     member_id.into_global_any(self.module.id),
                     Some("member error slots cannot enter JavaScript output".to_string()),
                 ));

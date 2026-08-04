@@ -132,6 +132,19 @@ impl Stack {
         self.base + byte_offset
     }
 
+    /// Return one stack byte as an offset inside world memory.
+    #[inline(always)]
+    pub(crate) const fn memory_offset(&self, byte_offset: usize) -> usize {
+        self.range.offset + byte_offset
+    }
+
+    /// Return the stack byte offset of one live memory offset.
+    pub(crate) fn stack_offset(&self, memory_offset: usize) -> Option<usize> {
+        let byte_offset = memory_offset.checked_sub(self.range.offset)?;
+
+        (byte_offset < self.byte_len).then_some(byte_offset)
+    }
+
     /// Return the stack-relative offset of one native address.
     pub(crate) fn byte_offset(&self, address: usize) -> Option<usize> {
         let offset = address.checked_sub(self.base)?;

@@ -388,6 +388,19 @@ impl CheckState<'_> {
                         dir::Form::Owned | dir::Form::Placed { .. }
                     ) =>
             {
+                // never relabel a safe reference as uniquely owned storage
+                if target_form.form == dir::Form::Owned {
+                    let is_reference = match self.type_is_reference(origin, source)? {
+                        Answer::Ready(is_reference) => is_reference,
+                        Answer::Pending(blockers) => {
+                            return Ok(Some(Answer::Pending(blockers)));
+                        }
+                    };
+                    if is_reference {
+                        return Ok(Some(Answer::Ready(false)));
+                    }
+                }
+
                 if matches!(target_form.form, dir::Form::Placed { .. }) {
                     // defer open places to the payload for the concrete recheck
                     if target_place != Some(dir::Space::Shared) {
@@ -550,6 +563,12 @@ impl CheckState<'_> {
         payload: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
+        // preserve views over reference carriers instead of copying their handles
+        let is_reference = answer!(self.type_is_reference(origin, payload)?);
+        if is_reference {
+            return Ok(Answer::Ready(false));
+        }
+
         // reject writable borrow targets before reading the copy out
         if let dir::Type::Form(target_form) = self.ty(target)?
             && let dir::Form::Borrowed(borrow) = target_form.form

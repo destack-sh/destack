@@ -18,8 +18,16 @@ use crate::world::time::Nanos;
 fn test_event_loop_drains_microtasks_before_tasks() {
     // set up an event loop with one task and one microtask
     let mut event_loop = EventLoop::default();
-    let task_id = event_loop.enqueue_task(Invocation::call(program::FunctionId(0), []));
-    let microtask_id = event_loop.enqueue_microtask(Invocation::call(program::FunctionId(0), []));
+    let task_id = event_loop.enqueue_task(Invocation::call(
+        program::FunctionId(0),
+        [],
+        program::Context::empty(),
+    ));
+    let microtask_id = event_loop.enqueue_microtask(Invocation::call(
+        program::FunctionId(0),
+        [],
+        program::Context::empty(),
+    ));
 
     // verify microtask dispatch precedes task dispatch
     let first = event_loop
@@ -66,8 +74,16 @@ fn test_event_loop_fork_preserves_pending_state() {
     ));
 
     // forked allocation continues from the same deterministic identity
-    let expected_id = event_loop.enqueue_task(Invocation::call(program::FunctionId(0), []));
-    let forked_id = forked.enqueue_task(Invocation::call(program::FunctionId(0), []));
+    let expected_id = event_loop.enqueue_task(Invocation::call(
+        program::FunctionId(0),
+        [],
+        program::Context::empty(),
+    ));
+    let forked_id = forked.enqueue_task(Invocation::call(
+        program::FunctionId(0),
+        [],
+        program::Context::empty(),
+    ));
     assert_eq!(forked_id, expected_id);
 }
 
@@ -108,7 +124,7 @@ fn test_event_loop_identifies_repeated_dispatches() {
     event_loop.add_resource_waiter(
         resource_id,
         Readiness::Readable,
-        Callback::call(program::FunctionId(0), []),
+        Callback::call(program::FunctionId(0), [], program::Context::empty()),
     );
     let wake = Wake::Resource(ResourceWake::poller(PollerEvent {
         resource_id,

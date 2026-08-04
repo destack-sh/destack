@@ -11,10 +11,9 @@ fn test_execute_local_allocation() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    new.local.managed.zeroed r1, a0
-    pointer.local r2, r1
-    store.int32 r2, r0
-    load.int32 r3, r2
+    new.zeroed r1, a0: ref<managed, local>
+    store r1, r0: int32
+    load r3, r1: int32
     return r3
 }
 "#,
@@ -35,19 +34,16 @@ fn test_execute_drop() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    pointer.frame r4, r0
-    load.int32 r1, r4
-    global.address r3, g0
-    pointer.global r2, r3
-    store.int32 r2, r1
+    load r1, r0: int32
+    global.address.local r3, g0
+    store r3, r1: int32
     return
 }
 
 function f1 {
     drop r0, f0
-    global.address r3, g0
-    pointer.global r1, r3
-    load.int32 r2, r1
+    global.address.local r3, g0
+    load r2, r3: int32
     return r2
 }
 "#,
@@ -69,10 +65,9 @@ fn test_execute_shared_allocation() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    new.shared.managed.zeroed r1, a0
-    pointer.shared r2, r1
-    store.int32 r2, r0
-    load.int32 r3, r2
+    new.zeroed r1, a0: ref<managed, shared>
+    store r1, r0: int32
+    load r3, r1: int32
     return r3
 }
 "#,
@@ -92,13 +87,13 @@ fn test_execute_reference_lifetime() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    new.local.managed.zeroed r2, a0
-    pin.local.managed r2
-    barrier.local.managed r2, r0, r1
-    unpin.local.managed r2
-    new.local.unique.zeroed r3, a1
-    free.local.unique r3
-    constant.boolean r4, true
+    new.zeroed r2, a0: ref<managed, local>
+    pin r2: ref<managed, local>
+    barrier r2, r0, r1: ref<managed, local>
+    unpin r2: ref<managed, local>
+    new.zeroed r3, a1: ref<unique, local>
+    free r3: ref<unique, local>
+    constant r4, true: boolean
     return r4
 }
 "#,

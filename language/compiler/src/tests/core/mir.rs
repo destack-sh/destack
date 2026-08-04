@@ -3,17 +3,20 @@ use std::sync::Arc;
 use bytecode::{BytecodeFormatOptions, format_bytecode};
 use destack_artifact::{
     ArtifactKey, ArtifactSidecar, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
-    DiagnosticError, DiagnosticLike, DiagnosticRecord, MirLowered, MirOptimized, Object,
+    DiagnosticError, DiagnosticLike, DiagnosticRecord, MirLowered, MirOptimized,
 };
 use destack_bytecode as bytecode;
 use destack_core::StringPool;
 use destack_mir as mir;
+use destack_program::Object;
 use destack_repository::{ProviderContext, Revision};
 use destack_source::{
     DiagnosticLabel, DiagnosticSeverity, DiagnosticTarget, File, FileId, FileType, ModuleId,
     PackageId, ProfileId, Span, TargetId, Uri,
 };
 
+#[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+use crate::NativeEmitter;
 use crate::lower::LayoutBuilder;
 use crate::tests::snapshot::assert_snapshot;
 use crate::{BytecodeEmitter, ObjectEmitter};
@@ -87,31 +90,7 @@ impl TestProgram {
     /// Emit one object and assert its exact bytecode text.
     #[track_caller]
     pub(crate) fn assert_bytecode(&self, expected: &str) -> Object {
-        let mut tree = self.lowered.tree.clone();
-        let mut layouts = self.lowered.layouts.clone();
-
-        // complete physical layouts before exercising the emission boundary
-        let mut builder = LayoutBuilder::new(
-            self.module_id(),
-            &mut tree,
-            &mut layouts,
-            self.lowered.target,
-        );
-        builder
-            .layout_reachable_types()
-            .expect("test MIR layouts should lower");
-
-        let optimized = MirOptimized {
-            tree,
-            target: self.lowered.target,
-            types: self.lowered.types.clone(),
-            layouts,
-            dispatch: self.lowered.dispatch.clone(),
-            drops: self.lowered.drops.clone(),
-            memory: self.lowered.memory.clone(),
-            effects: self.lowered.effects.clone(),
-            profile: self.lowered.profile.clone(),
-        };
+        let optimized = self.optimized();
 
         // emit and format the exact relocatable bytecode object
         let object = ObjectEmitter::new(self.module_id(), &optimized, Vec::new())
@@ -142,7 +121,41 @@ impl TestProgram {
 
         assert_snapshot(formatted, expected);
 
-        object.build(bytecode)
+        object.bytecode(bytecode).build()
+    }
+
+    /// Assert complete native emission and return the reloaded object.
+    #[track_caller]
+    #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+    pub(crate) fn assert_native(&self, expected: &str) -> destack_native::Object {
+        let optimized = self.optimized();
+        let object = ObjectEmitter::new(self.module_id(), &optimized, Vec::new())
+            .expect("test MIR should emit object metadata");
+        let emitter = NativeEmitter::new(
+            self.module_id(),
+            &optimized,
+            &object,
+            &destack_repository::Target::native(),
+        )
+        .expect("host native emitter should initialize");
+        let cranelift = emitter
+            .format_cranelift()
+            .expect("test MIR should lower to Cranelift IR");
+        assert_snapshot(cranelift, expected);
+
+        // compile and reload the complete zero-copy object
+        let native = NativeEmitter::new(
+            self.module_id(),
+            &optimized,
+            &object,
+            &destack_repository::Target::native(),
+        )
+        .expect("host native emitter should initialize")
+        .emit()
+        .expect("test MIR should emit native code");
+
+        destack_native::Object::from_bytes(native.bytes())
+            .expect("emitted native object should reload")
     }
 
     /// Return the type id with one display name.
@@ -184,6 +197,61 @@ impl TestProgram {
             .effects
             .functions
             .insert(function, mir::FunctionEffect::none());
+    }
+
+    /// Register one generated frame destructor.
+    #[track_caller]
+    pub(crate) fn mark_destructor(&mut self, name: &str, function_name: &str) {
+        let ty = self.type_by_name(name);
+        let function = self.function_by_name(function_name);
+
+        self.lowered
+            .drops
+            .set_destructor(ty, mir::Storage::Frame, function);
+    }
+
+    /// Register one empty dynamic implementation table.
+    #[track_caller]
+    pub(crate) fn mark_dynamic(&mut self, concrete: &str, constraint: &str) {
+        let concrete = self.type_by_name(concrete);
+        let constraint = self.type_by_name(constraint);
+
+        self.lowered
+            .dispatch
+            .insert_dynamic_table(mir::DynamicTable {
+                concrete,
+                constraint,
+                entries: Vec::new(),
+            });
+    }
+
+    /// Complete the physical MIR required by execution emitters.
+    fn optimized(&self) -> MirOptimized {
+        let mut tree = self.lowered.tree.clone();
+        let mut layouts = self.lowered.layouts.clone();
+
+        // complete physical layouts before exercising the emission boundary
+        let mut builder = LayoutBuilder::new(
+            self.module_id(),
+            &mut tree,
+            &mut layouts,
+            self.lowered.target,
+        );
+        builder
+            .layout_reachable_types()
+            .expect("test MIR layouts should lower");
+
+        MirOptimized {
+            tree,
+            target: self.lowered.target,
+            types: self.lowered.types.clone(),
+            layouts,
+            dispatch: self.lowered.dispatch.clone(),
+            drops: self.lowered.drops.clone(),
+            memory: self.lowered.memory.clone(),
+            effects: self.lowered.effects.clone(),
+            profile: self.lowered.profile.clone(),
+        }
     }
 }
 

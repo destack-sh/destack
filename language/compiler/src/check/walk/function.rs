@@ -422,7 +422,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         signature: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let function = dir::FunctionType { signature };
+        let function = dir::FunctionType {
+            signature,
+            multiplicity: dir::Multiplicity::Repeatable,
+        };
 
         self.intern_type(dir::Type::Function(function))
     }
@@ -487,23 +490,32 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // open the async completion type
         if signature.asynchrony == dir::Asynchrony::Async && !signature.is_generator {
-            let completed = if signature.return_type.is_none() {
-                self.open_type_hole(source, Widening::Never, VariableRole::Return)?
-            } else {
-                self.intern_operation(dir::TypeOperation::Awaited(dir::UnaryType {
-                    target: result,
-                }))?
-            };
-            let promised =
-                self.language_type_reference(dir::LanguageItem::Promise, &[completed])?;
+            // infer unannotated async functions as promises
             if signature.return_type.is_none() {
+                let completed =
+                    self.open_type_hole(source, Widening::Never, VariableRole::Return)?;
+                let promised =
+                    self.language_type_reference(dir::LanguageItem::Promise, &[completed])?;
                 let Some(variable) = self.check.root_variable(result)? else {
                     return Err(CompilerError::Internal {
                         message: "inferred async return is not an inference variable".into(),
                     });
                 };
                 self.check.commit_solution(variable, promised)?;
-            } else {
+                return_target = completed;
+            }
+            // retain the declared Promise, Task, or transparent owner
+            else if let Some(completed) = self.check.async_completion_type(result)? {
+                return_target = completed;
+            }
+            // reject every other declared async result through the established relation
+            else {
+                let completed =
+                    self.intern_operation(dir::TypeOperation::Awaited(dir::UnaryType {
+                        target: result,
+                    }))?;
+                let promised =
+                    self.language_type_reference(dir::LanguageItem::Promise, &[completed])?;
                 self.relate_type(
                     origin,
                     CauseKind::Return { annotation: None },
@@ -512,8 +524,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
                     result,
                 );
             }
-
-            return_target = completed;
         }
 
         // open the generator yielded, completed, and resumed types

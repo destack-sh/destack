@@ -120,7 +120,7 @@ impl program::Runtime for TestRuntime {
     fn poll(
         &mut self,
         _memory: program::Memory<'_>,
-        roots: &mut dyn program::RootSource<Error = Self::Error>,
+        roots: &mut dyn program::RootSet<Error = Self::Error>,
     ) -> Result<program::Poll> {
         let action = self.poll.take().ok_or_else(Error::invalid_instruction)?;
         let mut root_count = 0;
@@ -138,6 +138,7 @@ impl program::Runtime for TestRuntime {
     fn call_binding(
         &mut self,
         memory: program::Memory<'_>,
+        _context: program::Context,
         binding: &program::Binding,
         arguments: &[program::Word],
         result: &mut [program::Word],

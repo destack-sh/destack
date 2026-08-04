@@ -15,10 +15,8 @@ pub enum Request {
     Collect = 1 << 0,
     /// Retain execution for host inspection.
     Pause = 1 << 1,
-    /// Continue retained execution through bytecode.
-    Deoptimize = 1 << 2,
     /// Terminate the active runnable.
-    Terminate = 1 << 3,
+    Terminate = 1 << 2,
 }
 
 /// One set of runtime requests consumed by a worker.

@@ -1,11 +1,10 @@
 use std::cmp::Ordering;
 use std::{ptr, slice};
 
-use destack_bytecode::{Instruction, MemoryOperation, Opcode, Scalar};
-use destack_mir::Space;
-use destack_program::{GlobalAddress, GlobalId, GlobalLocation, Runtime, Word};
+use destack_bytecode::{Address, Instruction, MemoryOperation, Opcode, Prefetch, Scalar, Transfer};
+use destack_program::{GlobalAddress, Runtime, Word};
 
-use crate::diagnostic::{Error, Result};
+use crate::diagnostic::Result;
 use crate::machine::Activation;
 
 impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
@@ -13,8 +12,26 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     pub(crate) fn execute_global_address(&mut self, instruction: Instruction<'_>) -> Result<()> {
         let mut operands = self.operands(instruction);
         let target = operands.register()?;
-        let global = GlobalId(operands.u32()?);
-        let reference = GlobalAddress::new(global, 0);
+        let offset = usize::try_from(operands.u64()?).map_err(|_| self.invalid_instruction())?;
+        let offset = match instruction.opcode() {
+            Opcode::GLOBAL_ADDRESS_CONSTANT => offset,
+            Opcode::GLOBAL_ADDRESS_LOCAL => self
+                .activation
+                .memory
+                .local_statics
+                .offset()
+                .checked_add(offset)
+                .ok_or_else(|| self.invalid_instruction())?,
+            Opcode::GLOBAL_ADDRESS_SHARED => self
+                .activation
+                .memory
+                .shared_statics
+                .offset()
+                .checked_add(offset)
+                .ok_or_else(|| self.invalid_instruction())?,
+            _ => unreachable!("global address dispatch selects one static storage"),
+        };
+        let reference = GlobalAddress::new(offset);
 
         self.write(target.0, reference.into());
 
@@ -28,48 +45,15 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let registers = operands.span()?;
         let frame = self.frame();
         let byte_offset = frame.range(registers) * Word::BYTE_LEN;
+        let reference = self.machine.stack.memory_offset(byte_offset);
 
-        self.write(target.0, Word::from_bits((byte_offset + 2) as u64));
-
-        Ok(())
-    }
-
-    /// Materialize one relative reference as a native pointer.
-    pub(crate) fn execute_pointer(&mut self, instruction: Instruction<'_>) -> Result<()> {
-        let mut operands = self.operands(instruction);
-        let target = operands.register()?;
-        let reference = operands.register()?;
-        let bits = self.read(reference.0).bits();
-        let address = match instruction.opcode() {
-            Opcode::POINTER_FRAME => {
-                let byte_offset = (bits as usize)
-                    .checked_sub(2)
-                    .filter(|offset| *offset < self.machine.stack.byte_len())
-                    .ok_or_else(|| self.invalid_instruction())?;
-
-                self.machine.stack.address(byte_offset)
-            }
-            Opcode::POINTER_GLOBAL => self.global_pointer(GlobalAddress::from_bits(bits))?,
-            Opcode::POINTER_LOCAL => {
-                let edge = self.read_edge(reference, Space::Local)?;
-
-                self.activation.memory.address(edge)
-            }
-            Opcode::POINTER_SHARED => {
-                let edge = self.read_edge(reference, Space::Shared)?;
-
-                self.activation.memory.address(edge)
-            }
-            _ => unreachable!("pointer reference dispatch selects one storage space"),
-        };
-
-        self.write(target.0, Word::from_bits(address as u64));
+        self.write(target.0, Word::from_bits(reference as u64));
 
         Ok(())
     }
 
-    /// Execute one native pointer arithmetic operation.
-    pub(crate) fn execute_pointer_arithmetic(
+    /// Execute one reference or native pointer arithmetic operation.
+    pub(crate) fn execute_address_arithmetic(
         &mut self,
         instruction: Instruction<'_>,
     ) -> Result<()> {
@@ -78,29 +62,29 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let left = operands.register()?;
         let left = self.read(left.0).bits();
         let value = match instruction.opcode() {
-            Opcode::POINTER_ADD_IMMEDIATE => {
+            Opcode::REFERENCE_ADD_IMMEDIATE | Opcode::POINTER_ADD_IMMEDIATE => {
                 let offset = operands.i32()?;
 
                 left.wrapping_add_signed(i64::from(offset))
             }
-            Opcode::POINTER_ADD => {
+            Opcode::REFERENCE_ADD | Opcode::POINTER_ADD => {
                 let offset = operands.register()?;
 
                 left.wrapping_add_signed(self.read(offset.0).as_i64())
             }
-            Opcode::POINTER_ADD_SCALED => {
+            Opcode::REFERENCE_ADD_SCALED | Opcode::POINTER_ADD_SCALED => {
                 let offset = operands.register()?;
                 let stride = operands.u32()?;
                 let offset = self.read(offset.0).as_i64().wrapping_mul(i64::from(stride));
 
                 left.wrapping_add_signed(offset)
             }
-            Opcode::POINTER_BYTE_OFFSET_FROM => {
+            Opcode::REFERENCE_DIFF | Opcode::POINTER_DIFF => {
                 let origin = operands.register()?;
 
                 left.wrapping_sub(self.read(origin.0).bits())
             }
-            _ => unreachable!("pointer dispatch selects one pointer opcode"),
+            _ => unreachable!("address dispatch selects one arithmetic opcode"),
         };
 
         self.write(target.0, Word::from_bits(value));
@@ -114,95 +98,148 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         &mut self,
         instruction: Instruction<'_>,
         operation: MemoryOperation,
+        mode: Address,
         scalar: Scalar,
+        is_volatile: bool,
     ) -> Result<()> {
         let mut operands = self.operands(instruction);
         if operation == MemoryOperation::Load {
             let target = operands.register()?;
-            let address = operands.register()?;
-            let value = self.load(self.read(address.0).bits() as usize, scalar);
+            let reference = operands.register()?;
+            let byte_len = usize::from(scalar.bit_width() / 8);
+            let address = self.resolve_address(reference.0, mode, byte_len)?;
+            let value = if is_volatile {
+                self.load_volatile(address, scalar)
+            } else {
+                self.load(address, scalar)
+            };
 
             self.write(target.0, value);
         } else {
-            let address = operands.register()?;
+            let reference = operands.register()?;
             let value = operands.register()?;
+            let byte_len = usize::from(scalar.bit_width() / 8);
+            let address = self.resolve_address(reference.0, mode, byte_len)?;
 
-            self.store(
-                self.read(address.0).bits() as usize,
-                scalar,
-                self.read(value.0),
-            );
+            if is_volatile {
+                self.store_volatile(address, scalar, self.read(value.0));
+            } else {
+                self.store(address, scalar, self.read(value.0));
+            }
         }
 
         Ok(())
     }
 
     /// Execute one byte-range memory operation or prefetch hint.
-    pub(crate) fn execute_byte_memory(&mut self, instruction: Instruction<'_>) -> Result<()> {
+    pub(crate) fn execute_transfer(
+        &mut self,
+        instruction: Instruction<'_>,
+        operation: Transfer,
+        target_mode: Address,
+        source_mode: Address,
+        is_immediate: bool,
+    ) -> Result<()> {
         let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let source = operands.register()?;
+        let byte_len = if is_immediate {
+            operands.u32()? as usize
+        } else {
+            let byte_len = operands.register()?;
 
-        // execute the selected byte-range operation
-        match instruction.opcode() {
-            Opcode::COPY_BYTES | Opcode::MOVE_BYTES => {
-                let target = operands.register()?;
-                let source = operands.register()?;
-                let byte_len = operands.register()?;
-                let target = self.read(target.0).bits() as *mut u8;
-                let source = self.read(source.0).bits() as *const u8;
-                let byte_len = self.read(byte_len.0).bits() as usize;
+            self.read(byte_len.0).bits() as usize
+        };
+        let target = self.resolve_address(target.0, target_mode, byte_len)? as *mut u8;
+        let source = self.resolve_address(source.0, source_mode, byte_len)? as *const u8;
 
-                // SAFETY: raw byte operations require live ranges for the encoded byte length
-                unsafe {
-                    if instruction.opcode() == Opcode::COPY_BYTES {
-                        ptr::copy_nonoverlapping(source, target, byte_len);
-                    } else {
-                        ptr::copy(source, target, byte_len);
-                    }
-                }
+        // SAFETY: bytecode range operations require live ranges for the encoded byte length
+        unsafe {
+            match operation {
+                Transfer::Copy => ptr::copy_nonoverlapping(source, target, byte_len),
+                Transfer::Move => ptr::copy(source, target, byte_len),
             }
-            Opcode::FILL_BYTES => {
-                let target = operands.register()?;
-                let byte = operands.register()?;
-                let byte_len = operands.register()?;
-                let target = self.read(target.0).bits() as *mut u8;
-                let byte = self.read(byte.0).bits() as u8;
-                let byte_len = self.read(byte_len.0).bits() as usize;
-
-                // SAFETY: raw byte operations require one live mutable target range
-                unsafe { ptr::write_bytes(target, byte, byte_len) };
-            }
-            Opcode::COMPARE_BYTES => {
-                let target = operands.register()?;
-                let left = operands.register()?;
-                let right = operands.register()?;
-                let byte_len = operands.register()?;
-                let byte_len = self.read(byte_len.0).bits() as usize;
-                let order = if byte_len == 0 {
-                    Ordering::Equal
-                } else {
-                    // SAFETY: raw byte comparison requires two live ranges of the encoded length
-                    let left = unsafe {
-                        slice::from_raw_parts(self.read(left.0).bits() as *const u8, byte_len)
-                    };
-                    let right = unsafe {
-                        slice::from_raw_parts(self.read(right.0).bits() as *const u8, byte_len)
-                    };
-
-                    left.cmp(right)
-                };
-                let value = match order {
-                    Ordering::Less => -1,
-                    Ordering::Equal => 0,
-                    Ordering::Greater => 1,
-                };
-
-                self.write(target.0, Word::int32(value));
-            }
-            Opcode::PREFETCH_READ | Opcode::PREFETCH_WRITE => {
-                let _pointer = operands.register()?;
-            }
-            _ => unreachable!("byte memory dispatch selects one byte-range opcode"),
         }
+
+        Ok(())
+    }
+
+    /// Fill one byte range through one exact address representation.
+    pub(crate) fn execute_fill(
+        &mut self,
+        instruction: Instruction<'_>,
+        target_mode: Address,
+        is_immediate: bool,
+    ) -> Result<()> {
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let byte = operands.register()?;
+        let byte_len = if is_immediate {
+            operands.u32()? as usize
+        } else {
+            let byte_len = operands.register()?;
+
+            self.read(byte_len.0).bits() as usize
+        };
+        let target = self.resolve_address(target.0, target_mode, byte_len)? as *mut u8;
+        let byte = self.read(byte.0).bits() as u8;
+
+        // SAFETY: bytecode fill requires one live mutable target range
+        unsafe { ptr::write_bytes(target, byte, byte_len) };
+
+        Ok(())
+    }
+
+    /// Compare two byte ranges through exact address representations.
+    pub(crate) fn execute_compare(
+        &mut self,
+        instruction: Instruction<'_>,
+        left_mode: Address,
+        right_mode: Address,
+        is_immediate: bool,
+    ) -> Result<()> {
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let left = operands.register()?;
+        let right = operands.register()?;
+        let byte_len = if is_immediate {
+            operands.u32()? as usize
+        } else {
+            let byte_len = operands.register()?;
+
+            self.read(byte_len.0).bits() as usize
+        };
+        let left = self.resolve_address(left.0, left_mode, byte_len)?;
+        let right = self.resolve_address(right.0, right_mode, byte_len)?;
+        let order = if byte_len == 0 {
+            Ordering::Equal
+        } else {
+            // SAFETY: bytecode comparison requires two live ranges of the encoded length
+            let left = unsafe { slice::from_raw_parts(left as *const u8, byte_len) };
+            let right = unsafe { slice::from_raw_parts(right as *const u8, byte_len) };
+
+            left.cmp(right)
+        };
+        let value = match order {
+            Ordering::Less => -1,
+            Ordering::Equal => 0,
+            Ordering::Greater => 1,
+        };
+
+        self.write(target.0, Word::int32(value));
+
+        Ok(())
+    }
+
+    /// Consume one memory prefetch hint.
+    pub(crate) fn execute_prefetch(
+        &mut self,
+        instruction: Instruction<'_>,
+        _operation: Prefetch,
+        _address: Address,
+    ) -> Result<()> {
+        let mut operands = self.operands(instruction);
+        let _pointer = operands.register()?;
 
         Ok(())
     }
@@ -210,15 +247,24 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one packed value load or store.
     #[inline(always)]
     pub(crate) fn execute_value_memory(&mut self, instruction: Instruction<'_>) -> Result<()> {
-        match instruction.opcode() {
-            Opcode::LOAD => self.execute_value_load(instruction),
-            Opcode::STORE => self.execute_value_store(instruction),
-            _ => unreachable!("value memory dispatch selects load or store"),
+        let Some((operation, address, is_volatile)) = instruction.opcode().memory_range_operation()
+        else {
+            unreachable!("value memory dispatch selects load or store");
+        };
+
+        match operation {
+            MemoryOperation::Load => self.execute_value_load(instruction, address, is_volatile),
+            MemoryOperation::Store => self.execute_value_store(instruction, address, is_volatile),
         }
     }
 
-    /// Load one packed value from a native pointer.
-    fn execute_value_load(&mut self, instruction: Instruction<'_>) -> Result<()> {
+    /// Load one packed value through the selected address representation.
+    fn execute_value_load(
+        &mut self,
+        instruction: Instruction<'_>,
+        mode: Address,
+        is_volatile: bool,
+    ) -> Result<()> {
         let mut operands = self.operands(instruction);
         let target = operands.span()?;
         let address = operands.register()?;
@@ -227,25 +273,36 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         if byte_len > target.len() {
             return Err(self.invalid_instruction());
         }
-        let address = self.read(address.0).bits() as usize;
+        let address = self.resolve_address(address.0, mode, byte_len)?;
 
         // clear register padding before loading exact layout bytes
         self.machine.stack.zero(target.start, target.len())?;
 
-        // SAFETY: load requires a live source layout and the target range was checked above
-        unsafe {
-            ptr::copy(
-                address as *const u8,
-                self.machine.stack.address(target.start) as *mut u8,
-                byte_len,
-            );
+        // load each volatile byte exactly once or copy the ordinary range
+        let target = self.machine.stack.address(target.start) as *mut u8;
+        if is_volatile {
+            for offset in 0..byte_len {
+                // SAFETY: volatile load requires one live source and target byte
+                unsafe {
+                    let value = ptr::read_volatile((address + offset) as *const u8);
+                    ptr::write(target.add(offset), value);
+                }
+            }
+        } else {
+            // SAFETY: load requires a live source layout and checked target range
+            unsafe { ptr::copy(address as *const u8, target, byte_len) };
         }
 
         Ok(())
     }
 
-    /// Store one packed value through a native pointer.
-    fn execute_value_store(&mut self, instruction: Instruction<'_>) -> Result<()> {
+    /// Store one packed value through the selected address representation.
+    fn execute_value_store(
+        &mut self,
+        instruction: Instruction<'_>,
+        mode: Address,
+        is_volatile: bool,
+    ) -> Result<()> {
         let mut operands = self.operands(instruction);
         let address = operands.register()?;
         let value = operands.span()?;
@@ -254,55 +311,46 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         if byte_len > value.len() {
             return Err(self.invalid_instruction());
         }
-        let address = self.read(address.0).bits() as usize;
+        let address = self.resolve_address(address.0, mode, byte_len)?;
 
-        // SAFETY: store requires a live mutable target layout and the source range was checked
-        unsafe {
-            ptr::copy(
-                self.machine.stack.address(value.start) as *const u8,
-                address as *mut u8,
-                byte_len,
-            );
+        // store each volatile byte exactly once or copy the ordinary range
+        let value = self.machine.stack.address(value.start) as *const u8;
+        if is_volatile {
+            for offset in 0..byte_len {
+                // SAFETY: volatile store requires one live source and target byte
+                unsafe {
+                    let value = ptr::read(value.add(offset));
+                    ptr::write_volatile((address + offset) as *mut u8, value);
+                }
+            }
+        } else {
+            // SAFETY: store requires a live target layout and checked source range
+            unsafe { ptr::copy(value, address as *mut u8, byte_len) };
         }
 
         Ok(())
     }
 
-    /// Materialize one global reference in activation memory.
-    fn global_pointer(&mut self, address: GlobalAddress) -> Result<usize> {
-        let program = &self.machine.program;
-        let global_id = address.global().ok_or_else(|| self.invalid_instruction())?;
-        let Some(global) = program.global(global_id).copied() else {
-            return Err(self.invalid_instruction());
-        };
-        let byte_len = global.byte_len();
-        let native = match global.location {
-            GlobalLocation::Constant => program.constant_address(address, byte_len),
-            GlobalLocation::SharedStatic if global.is_mutable() => self
-                .activation
-                .memory
-                .shared_static
-                .address_mut(&global, address, byte_len)
-                .map_err(|_| Error::memory_exhausted())?,
-            GlobalLocation::LocalStatic if global.is_mutable() => self
-                .activation
-                .memory
-                .local_static
-                .address_mut(&global, address, byte_len)
-                .map_err(|_| Error::memory_exhausted())?,
-            GlobalLocation::SharedStatic => self
-                .activation
-                .memory
-                .shared_static
-                .address(&global, address, byte_len),
-            GlobalLocation::LocalStatic => self
-                .activation
-                .memory
-                .local_static
-                .address(&global, address, byte_len),
+    /// Resolve one encoded memory operand to a process-local address.
+    #[inline(always)]
+    pub(crate) fn resolve_address(
+        &self,
+        register: u16,
+        mode: Address,
+        byte_len: usize,
+    ) -> Result<usize> {
+        let bits = self.read(register).bits();
+        let pointer = match mode {
+            Address::Memory => self.activation.memory.base_address() + bits as usize,
+            Address::Constant => self
+                .machine
+                .program
+                .constant_address(GlobalAddress::from_bits(bits), byte_len)
+                .ok_or_else(|| self.invalid_instruction())?,
+            Address::Pointer => bits as usize,
         };
 
-        native.ok_or_else(|| self.invalid_instruction())
+        Ok(pointer)
     }
 
     /// Load one scalar from a valid native address.
@@ -335,6 +383,38 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                 32 => ptr::write_unaligned(address as *mut u32, bits as u32),
                 64 => ptr::write_unaligned(address as *mut u64, bits),
                 _ => unreachable!("scalar memory operations use one bytecode word"),
+            }
+        }
+    }
+
+    /// Load one volatile scalar from one native address.
+    fn load_volatile(&self, address: usize, scalar: Scalar) -> Word {
+        // SAFETY: volatile bytecode requires a live naturally aligned scalar address
+        let bits = unsafe {
+            match scalar.bit_width() {
+                8 => ptr::read_volatile(address as *const u8) as u64,
+                16 => ptr::read_volatile(address as *const u16) as u64,
+                32 => ptr::read_volatile(address as *const u32) as u64,
+                64 => ptr::read_volatile(address as *const u64),
+                _ => unreachable!("volatile scalars occupy one bytecode word"),
+            }
+        };
+
+        Word::from_bits(scalar.encode(bits))
+    }
+
+    /// Store one volatile scalar at one native address.
+    fn store_volatile(&self, address: usize, scalar: Scalar, value: Word) {
+        let bits = value.bits();
+
+        // SAFETY: volatile bytecode requires a live naturally aligned mutable scalar address
+        unsafe {
+            match scalar.bit_width() {
+                8 => ptr::write_volatile(address as *mut u8, bits as u8),
+                16 => ptr::write_volatile(address as *mut u16, bits as u16),
+                32 => ptr::write_volatile(address as *mut u32, bits as u32),
+                64 => ptr::write_volatile(address as *mut u64, bits),
+                _ => unreachable!("volatile scalars occupy one bytecode word"),
             }
         }
     }

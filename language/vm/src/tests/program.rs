@@ -8,10 +8,10 @@ use destack_mir::{
 use destack_program as program;
 use destack_program::{
     AllocationSite, BreakpointId, CallDispatch, CallMode, CallSite, ContinuationSite, CounterId,
-    CounterSite, DynamicEntry, DynamicTableBuilder, FunctionId, InstructionStop, LayoutId,
-    LayoutShapeBuilder, MemoryAccess, MemorySite, MemoryStop, MemoryTarget, ObjectLayoutBuilder,
-    ProgramPoint, ReferenceLayout, SampleSite, SamplerId, ScalarFormat, Signature, SignatureId,
-    SiteTableBuilder, StopReason, Suspension, SuspensionSite, TensorDimension, TensorLayoutBuilder,
+    CounterSite, DynamicEntry, DynamicTableBuilder, FunctionId, LayoutId, LayoutShapeBuilder,
+    MemoryAccess, MemorySite, MemoryStop, MemoryTarget, ObjectLayoutBuilder, ProgramPoint,
+    ReferenceLayout, SampleSite, SamplerId, ScalarFormat, Signature, SignatureId, SiteTableBuilder,
+    StopPoint, StopReason, Suspension, SuspensionSite, TensorDimension, TensorLayoutBuilder,
     TensorViewLayoutBuilder, TypeId, VirtualTableBuilder, WatchpointId, Word,
 };
 
@@ -210,16 +210,16 @@ impl TestProgram {
     }
 
     /// Create one word-sized memory site.
-    pub(crate) const fn memory_site(
+    pub(crate) fn memory_site(
         function: u32,
         operation: u32,
         access: MemoryAccess,
-        storage: Storage,
+        storage: Option<Storage>,
     ) -> MemorySite {
         MemorySite {
             point: Self::point(function, operation),
             access,
-            storage,
+            storage: Optional::from(storage),
             value_type: TypeId(0),
         }
     }
@@ -324,18 +324,14 @@ impl TestProgram {
     }
 
     /// Create one runtime breakpoint.
-    pub(crate) const fn breakpoint(
-        function: u32,
-        operation: u32,
-        breakpoint: u64,
-    ) -> InstructionStop {
+    pub(crate) const fn breakpoint(function: u32, operation: u32, breakpoint: u64) -> StopPoint {
         let point = Self::point(function, operation);
         let reason = StopReason::Breakpoint {
             breakpoint_id: BreakpointId::new(breakpoint),
             point,
         };
 
-        InstructionStop::new(point, reason)
+        StopPoint::new(point, reason)
     }
 
     /// Create one point watchpoint.

@@ -56,7 +56,7 @@ impl OutputLayout {
     ) -> Result<PathBuf, String> {
         let module_path = module_source_path(module)?;
 
-        Ok(target.resolve_out_file(package_dir, root_dir, &module_path, extension))
+        Ok(target.resolve_output_file(package_dir, root_dir, &module_path, extension))
     }
 
     /// Resolve one preserve-modules JS output location for one module.
@@ -81,7 +81,7 @@ impl OutputLayout {
         let output_name = Self::render_entry_file_name(output_layout, target, name, hash);
 
         // explicit out_file wins for single-file entry outputs
-        if target.output.file.is_some() {
+        if target.destination.file.is_some() {
             return OutputLocation::new(output_layout.default_target_output_path("js"));
         }
 
@@ -328,7 +328,6 @@ impl<'a> JsLinker<'a> {
         output.kind().hash(&mut hasher);
         output.facade_module().hash(&mut hasher);
         output.manual_name().hash(&mut hasher);
-        self.target.emit.hash(&mut hasher);
 
         // source-backed module content
         for module_id in output.modules() {
@@ -420,7 +419,7 @@ mod tests {
     #[test]
     fn test_renders_configured_js_output_file_names() {
         let mut target = Target::js();
-        target.output.directory = Path::new("dist/bundle").to_path_buf();
+        target.destination.directory = Path::new("dist/bundle").to_path_buf();
         target.js.output.entry_file_names = Some("entries/[name]-entry.[ext]".to_string());
         target.js.output.chunk_file_names = Some("chunks/[name]-shared.[ext]".to_string());
 

@@ -46,7 +46,7 @@ declare const user: readonly User;
 
 user.profile.name = "Grace";
 /// @resolution.name source=user target=user
-/// @resolution.member source=user.profile receiver=Readonly<{ profile: { name: string } }> type={ name: string } kind=field target_receiver=Readonly<{ profile: { name: string } }> key=profile target_type={ name: string }
+/// @resolution.member source=user.profile receiver=Readonly<{ profile: { name: string } }> type=Readonly<{ name: string }> kind=field target_receiver=Readonly<{ profile: { name: string } }> key=profile target_type=Readonly<{ name: string }>
 /// @resolution.place source=user placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=user root=user
 /// @resolution.place source=user.profile placement="local" lifetime="static" access="readonly"

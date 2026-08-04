@@ -44,7 +44,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             .stack
             .words(frame.range(arguments), arguments.word_count as usize);
         self.save_position();
-        let continuation = self.machine.create_continuation(function, &arguments)?;
+        let continuation =
+            self.machine
+                .create_continuation(function, &arguments, *self.activation.context)?;
         self.activate();
         let id = self.continuations.insert(continuation);
 

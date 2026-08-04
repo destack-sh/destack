@@ -1,5 +1,3 @@
-use destack_bytecode as bytecode;
-
 use crate::tests::TestProgram;
 
 /// Emit scalar and multiword function registers into canonical bytecode text.
@@ -29,7 +27,7 @@ entry(v0: int32):
     program.assert_bytecode(
         r#"
 function add {
-    int.add.int32 r2, r0, r1
+    int.add r2, r0, r1: int32
     return r2
 }
 
@@ -44,43 +42,66 @@ function closure {
     );
 }
 
-/// Pack scattered MIR values into one contiguous outgoing call window.
+/// Emit function pointers, captured environments, and environment projection.
 #[test]
-fn test_emit_call_arguments() {
+fn test_emit_bytecode_function_value() {
     let program = TestProgram::mir(
         r#"
-external function consume(int32, boolean, int32): int32
+function increment(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 1
+    v2: int32 = int.add v0, v1
+    return v2
+}
 
-export function caller(v0: int32, v1: boolean, v2: int32): int32 {
-entry(v0: int32, v1: boolean, v2: int32):
-    v3: int32 = int.add v0, v2
-    v4: int32 = call consume(v3, v1, v0): (int32, boolean, int32) => int32
-    return v4
+@environment(ref<void, managed, mutable>)
+function captured(v0: int32): int32 {
+entry(v0: int32):
+    return v0
+}
+
+export function address(): fn(int32) => int32 {
+entry:
+    v0: fn(int32) => int32 = function.address increment
+    return v0
+}
+
+@environment(ref<void, managed, mutable>)
+export function environment(
+    v0: ref<void, managed, mutable>,
+): ref<void, managed, mutable> {
+entry(v0: ref<void, managed, mutable>):
+    v1: ref<void, managed, mutable> = function.environment.current
+    v2: function<(int32) => int32, repeatable, managed, mutable> = function.bind captured, v0
+    v3: ref<void, managed, mutable> = function.environment v2
+    return v3
 }
 "#,
     );
 
-    let object = program.assert_bytecode(
+    program.assert_bytecode(
         r#"
-function consume
-
-function caller {
-    int.add.int32 r3, r0, r2
-    move r4, r3
-    move r5, r1
-    move r6, r0
-    call r2, consume, r4:r6
+function increment {
+    constant r1, 1: int32
+    int.add r2, r0, r1: int32
     return r2
 }
+
+function captured {
+    return r1
+}
+
+function address {
+    function.address r0, increment
+    return r0
+}
+
+function environment {
+    move r2, r0
+    function.bind r3:r4, captured, r1
+    extract r1, r3:r4, 8:8
+    return r1
+}
 "#,
     );
-
-    // retain the semantic call coordinate after its outgoing register moves
-    let bytecode = object.bytecode();
-    let function = bytecode::FunctionId(1);
-    let instruction = bytecode
-        .operation(function, 1)
-        .expect("caller operation should decode")
-        .expect("caller operation should exist");
-    assert_eq!(instruction.opcode(), bytecode::Opcode::CALL);
 }

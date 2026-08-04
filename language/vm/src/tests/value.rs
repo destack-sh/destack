@@ -8,7 +8,7 @@ fn test_execute_zeroed_storage() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    constant.zeroed r0
+    constant r0, zeroed
     return r0
 }
 "#,

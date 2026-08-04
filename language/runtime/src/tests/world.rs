@@ -11,6 +11,7 @@ use crate::binding::BindingTable;
 use crate::host::time::TimerClock;
 use crate::host::{HostEvent, HostEventKind, ResourceId};
 use crate::machine::Engine;
+use crate::machine::native::{Loader, Platform};
 use crate::scheduler::{Callback, Invocation, RunnableId, ScheduledTimer, TimerDeadline};
 use crate::tests::{TestProgram, TestWorker};
 use crate::worker::{Worker, WorkerId, WorkerOptions};
@@ -34,7 +35,7 @@ impl TestWorld {
         let environment = Arc::new(Environment::default());
         let mut world = World::new(options, environment.clone()).expect("world should build");
         let program = Arc::new(program.build());
-        let engine = Engine::new(program, vm::MachineLimits::test());
+        let engine = Self::engine(program);
         let runtime_id = world
             .spawn_runtime(
                 environment,
@@ -138,7 +139,7 @@ impl TestWorld {
     ) -> RuntimeId {
         let environment = Arc::new(Environment::default());
         let program = Arc::new(program.build());
-        let engine = Engine::new(program, vm::MachineLimits::test());
+        let engine = Self::engine(program);
 
         self.world
             .spawn_runtime(
@@ -149,6 +150,19 @@ impl TestWorld {
                 engine,
             )
             .expect("runtime should spawn")
+    }
+
+    /// Build one engine and load linked native code when present.
+    fn engine(program: Arc<program::Program>) -> Engine {
+        let engine = Engine::new(program.clone(), vm::MachineLimits::test());
+        let Some(_) = program.native() else {
+            return engine;
+        };
+        let code = Platform
+            .load(&program)
+            .expect("runtime test native code should load");
+
+        engine.native(code)
     }
 
     /// Return the conditions shared by this runtime.
@@ -370,7 +384,7 @@ impl TestWorld {
             .program
             .function_id_by_name(entry)
             .expect("runtime test function should exist");
-        let callback = Callback::call(function, [value]);
+        let callback = Callback::call(function, [value], program::Context::empty());
 
         self.with_worker_mut(worker_id, |worker| {
             worker.add_host_waiter(kind, callback);
@@ -560,14 +574,14 @@ impl TestWorld {
     ) -> Invocation {
         let (function, value) = self.call(worker_id, entry, value);
 
-        Invocation::call(function, [value])
+        Invocation::call(function, [value], program::Context::empty())
     }
 
     /// Build one repeatable callback for one explicit worker.
     pub(crate) fn callback(&mut self, worker_id: WorkerId, entry: &str, value: u64) -> Callback {
         let (function, value) = self.call(worker_id, entry, value);
 
-        Callback::call(function, [value])
+        Callback::call(function, [value], program::Context::empty())
     }
 
     /// Resolve one test function and its single argument.

@@ -1,4 +1,5 @@
 use crate::DiagnosticAnchor;
+use destack_artifact::Code;
 use destack_artifact_macros::Diagnostic;
 use destack_source::ModuleId;
 
@@ -9,12 +10,20 @@ pub enum EmitError {
     // -------------------------------------------------------------------------
     // target and setup
     // -------------------------------------------------------------------------
-    /// Unsupported target/output format.
+    /// Unsupported target output.
     #[diagnostic(id = "unsupported-target", message = "unsupported target: {target}")]
     UnsupportedTarget {
         anchor: DiagnosticAnchor,
         module: ModuleId,
         target: String,
+    },
+
+    /// Selected code has no emitter in this compiler build.
+    #[diagnostic(id = "missing-emitter", message = "missing {code} emitter")]
+    MissingEmitter {
+        anchor: DiagnosticAnchor,
+        module: ModuleId,
+        code: Code,
     },
 
     // -------------------------------------------------------------------------
@@ -32,20 +41,6 @@ pub enum EmitError {
     MissingType {
         anchor: DiagnosticAnchor,
         module: ModuleId,
-    },
-
-    // -------------------------------------------------------------------------
-    // constructs
-    // -------------------------------------------------------------------------
-    /// Unsupported construct (instruction, expression, etc.).
-    #[diagnostic(
-        id = "unsupported-emission-construct",
-        message = "unsupported construct: {message}"
-    )]
-    UnsupportedConstruct {
-        anchor: DiagnosticAnchor,
-        module: ModuleId,
-        message: String,
     },
 
     /// Unexpected construct (wrong node type).

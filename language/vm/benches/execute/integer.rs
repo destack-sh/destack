@@ -13,7 +13,7 @@ function f0 {
     constant.int32 r3, 0
 
 b0:
-    branch.lt.int32 r1, r0 => b1, b2
+    branch.lt.int32 r1, r0 => b1 | b2
 
 b1:
     int.add.int32 r3, r3, r1

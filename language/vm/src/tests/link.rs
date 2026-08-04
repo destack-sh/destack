@@ -11,8 +11,9 @@ use destack_program::{
     BindingAffinity, BindingBuilder, BindingEffect, BindingId, BindingProvider, BindingReplay,
     DispatchTableBuilder, DropEntry, FrameLayoutBuilder, FrameLayoutId, FramePoint, FrameSlot,
     FrameState, FrameTableBuilder, FunctionBuilder, FunctionId, FunctionTableBuilder,
-    GlobalTableBuilder, LayoutBuilder, LayoutId, Program, ProgramBuilder, ProgramPoint,
-    SignatureId, Symbol, TypeDescriptorBuilder, TypeFingerprint, TypeId, TypeTableBuilder, Word,
+    GlobalAllocator, GlobalTableBuilder, LayoutBuilder, LayoutId, Program, ProgramBuilder,
+    ProgramPoint, SignatureId, StaticBytes, Symbol, TypeDescriptorBuilder, TypeFingerprint, TypeId,
+    TypeTableBuilder, Word,
 };
 use destack_source::FileId;
 
@@ -25,29 +26,42 @@ impl TestProgram {
         let object = Parser::new(FileId::new(0), source)
             .parse()
             .expect("test bytecode should parse");
+        let (globals, constants, shared_statics, local_statics) = self.globals();
 
         // resolve object relocations into their dense linked identities
         let mut code = object.code().to_vec();
         for relocation in object.relocations() {
             let start = relocation.byte_offset as usize;
-            let end = start + size_of::<u32>();
-            let encoded = u32::from_le_bytes(
-                code[start..end]
-                    .try_into()
-                    .expect("relocation operand should be complete"),
-            );
-            let value = match relocation.tag {
-                RelocationTag::TYPE => encoded,
-                RelocationTag::LAYOUT => encoded + 1,
-                RelocationTag::FUNCTION => encoded,
-                RelocationTag::GLOBAL => encoded,
-                RelocationTag::DYNAMIC => encoded,
-                RelocationTag::ALLOCATION => encoded,
-                RelocationTag::COUNTER => encoded,
-                RelocationTag::SAMPLER => encoded,
-                _ => panic!("unknown test bytecode relocation"),
-            };
-            code[start..end].copy_from_slice(&value.to_le_bytes());
+            if relocation.tag == RelocationTag::GLOBAL {
+                let end = start + size_of::<u64>();
+                let encoded = u64::from_le_bytes(
+                    code[start..end]
+                        .try_into()
+                        .expect("global relocation should be complete"),
+                );
+                let global = globals
+                    .get(encoded as usize)
+                    .expect("global relocation should name test metadata");
+                code[start..end].copy_from_slice(&global.offset.to_le_bytes());
+            } else {
+                let end = start + size_of::<u32>();
+                let encoded = u32::from_le_bytes(
+                    code[start..end]
+                        .try_into()
+                        .expect("relocation operand should be complete"),
+                );
+                let value = match relocation.tag {
+                    RelocationTag::TYPE => encoded,
+                    RelocationTag::LAYOUT => encoded + 1,
+                    RelocationTag::FUNCTION => encoded,
+                    RelocationTag::DYNAMIC => encoded,
+                    RelocationTag::ALLOCATION => encoded,
+                    RelocationTag::COUNTER => encoded,
+                    RelocationTag::SAMPLER => encoded,
+                    _ => panic!("unknown test bytecode relocation"),
+                };
+                code[start..end].copy_from_slice(&value.to_le_bytes());
+            }
         }
 
         // build physical bytecode and canonical Program frame tables
@@ -60,7 +74,6 @@ impl TestProgram {
             .operations(object.operations().iter().copied());
 
         // build the Program metadata and static storage
-        let (globals, constants, shared_statics, local_statics) = self.globals();
         let (types, layouts, traces, drops) = self.types(&object);
         let (strings, names, functions, bindings) = self.functions(&object);
         let types = TypeTableBuilder::new().types(
@@ -99,9 +112,9 @@ impl TestProgram {
                     .dynamic_tables(self.dynamic_tables),
             )
             .globals(globals)
-            .constant_space(constants)
-            .shared_static_space(shared_statics)
-            .local_static_space(local_statics)
+            .constants(constants)
+            .shared_statics(shared_statics)
+            .local_statics(local_statics)
             .build();
 
         Arc::new(program)
@@ -217,25 +230,25 @@ impl TestProgram {
     }
 
     /// Build dense Program global storage from configured test metadata.
-    fn globals(&self) -> (Vec<program::Global>, Vec<u8>, Vec<u8>, Vec<u8>) {
+    fn globals(&self) -> (Vec<program::Global>, StaticBytes, StaticBytes, StaticBytes) {
         let mut globals = Vec::with_capacity(self.globals.len());
-        let mut constant_space = Vec::new();
-        let mut shared_static_space = Vec::new();
-        let mut local_static_space = Vec::new();
+        let mut constant_space = GlobalAllocator::new();
+        let mut shared_static_space = GlobalAllocator::new();
+        let mut local_static_space = GlobalAllocator::new();
+        let bytes = [0; TEST_GLOBAL_BYTES];
 
         // preserve configured order so global ids are already linked ids
         for &location in &self.globals {
-            let bytes = match location {
+            let allocator = match location {
                 program::GlobalLocation::Constant => &mut constant_space,
                 program::GlobalLocation::SharedStatic => &mut shared_static_space,
                 program::GlobalLocation::LocalStatic => &mut local_static_space,
             };
-            let offset = bytes.len();
-            bytes.resize(offset + TEST_GLOBAL_BYTES, 0);
+            let (offset, byte_len) = allocator.allocate(Word::BYTE_LEN, &bytes);
             globals.push(program::Global::new(
                 location,
                 offset,
-                TEST_GLOBAL_BYTES,
+                byte_len,
                 TypeId(0),
                 location != program::GlobalLocation::Constant,
             ));
@@ -243,9 +256,9 @@ impl TestProgram {
 
         (
             globals,
-            constant_space,
-            shared_static_space,
-            local_static_space,
+            constant_space.build(),
+            shared_static_space.build(),
+            local_static_space.build(),
         )
     }
 

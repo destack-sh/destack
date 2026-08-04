@@ -18,7 +18,7 @@ function f0 {
     tensor.splat r7, r1, a2
 
 b0:
-    branch.lt.int32 r1, r0 => b1, b2
+    branch.lt.int32 r1, r0 => b1 | b2
 
 b1:
     tensor.element r7, [(r5, l0), (r6, l0)], int.add, a3

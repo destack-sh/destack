@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_dir::LanguageItem;
 use destack_source::{FileType, ModuleId, PackageId, ProductId, ProfileId, TargetId, Uri};
 
-use crate::{DiagnosticContext, DiagnosticDisplay, DiagnosticError};
+use crate::{Code, DiagnosticContext, DiagnosticDisplay, DiagnosticError};
 
 /// Formatter for diagnostic message fields.
 pub struct DiagnosticFormatter<'a> {
@@ -199,6 +199,16 @@ impl DiagnosticFormat for FileType {
         };
 
         Ok(name.to_string())
+    }
+}
+
+impl DiagnosticFormat for Code {
+    /// Format one executable representation.
+    fn format_diagnostic(
+        &self,
+        _formatter: &DiagnosticFormatter<'_>,
+    ) -> Result<String, DiagnosticError> {
+        Ok(self.canonical_tag().to_string())
     }
 }
 

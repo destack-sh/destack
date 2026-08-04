@@ -2,7 +2,7 @@ use crate::tests::TestProgram;
 
 /// Emit aggregate construction, local transfer, update, and projection.
 #[test]
-fn test_emit_aggregate() {
+fn test_emit_bytecode_aggregate() {
     let program = TestProgram::mir(
         r#"
 type Pair {
@@ -26,11 +26,11 @@ entry(v0: int32, v1: int32):
     program.assert_bytecode(
         r#"
 function transform {
-    aggregate r2, ([r0, 0, 4], [r1, 4, 4])
-    insert r1, r2, 4, 4, r0
+    aggregate r2, [r0 @ 0:4, r1 @ 4:4]
+    insert r1, r2, 4:4, r0
     move r3, r1
     move r0, r3
-    extract r1, r0, 4, 4
+    extract r1, r0, 4:4
     return r1
 }
 "#,

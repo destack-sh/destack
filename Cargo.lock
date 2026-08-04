@@ -936,6 +936,11 @@ version = "0.55.4"
 dependencies = [
  "base64",
  "clap",
+ "cranelift-codegen",
+ "cranelift-frontend",
+ "cranelift-module",
+ "cranelift-native",
+ "cranelift-object",
  "criterion",
  "dashmap",
  "destack_artifact",
@@ -957,6 +962,7 @@ dependencies = [
  "destack_source",
  "destack_webassembly",
  "filetime",
+ "gimli 0.33.0",
  "indexmap",
  "mime_guess",
  "parking_lot",
@@ -1234,7 +1240,6 @@ dependencies = [
  "destack_core",
  "destack_mir",
  "destack_serde",
- "destack_source",
  "serde",
 ]
 

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, Asset};
+use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, Asset, Code, Output};
 use destack_repository::{ProfileId, ProviderContext};
 use destack_source::{ModuleId, TargetId};
 
@@ -8,6 +8,8 @@ use crate::{Compiler, CompilerError, CompilerResult, EmitError};
 
 use super::ObjectEmitter;
 use super::bytecode::BytecodeEmitter;
+#[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+use super::native::NativeEmitter;
 
 impl Compiler {
     /// Collect inputs for one structured script.
@@ -28,7 +30,7 @@ impl Compiler {
                 })?;
         let mut dependencies = ArtifactDependencySet::default();
 
-        if !target_config.emit.is_script() {
+        if target_config.output != Output::Bundle {
             return Err(EmitError::UnsupportedTarget {
                 anchor: module.into(),
                 module,
@@ -66,7 +68,7 @@ impl Compiler {
                 })?;
         let mut dependencies = ArtifactDependencySet::default();
 
-        if !target_config.emit.is_program() {
+        if target_config.output != Output::Program {
             return Err(EmitError::UnsupportedTarget {
                 anchor: module.into(),
                 module,
@@ -128,7 +130,7 @@ impl Compiler {
             .into());
         }
 
-        if !target_config.emit.is_script() {
+        if target_config.output != Output::Bundle {
             return Err(EmitError::UnsupportedTarget {
                 anchor: module.into(),
                 module,
@@ -172,7 +174,7 @@ impl Compiler {
             }
             .into());
         }
-        if !target_config.emit.is_program() {
+        if target_config.output != Output::Program {
             return Err(EmitError::UnsupportedTarget {
                 anchor: module.into(),
                 module,
@@ -193,9 +195,47 @@ impl Compiler {
             .target_modules()
             .filter(|target| *target != module)
             .collect::<Vec<_>>();
-        let object = ObjectEmitter::new(module, &mir, modules)?;
-        let bytecode = BytecodeEmitter::new(module, &mir, &object).emit()?;
-        let output = object.build(bytecode);
+        let mut object = ObjectEmitter::new(module, &mir, modules)?;
+
+        // emit every representation selected by this Program target
+        for code in target_config.code.iter().copied() {
+            object = match code {
+                Code::Bytecode => {
+                    let bytecode = BytecodeEmitter::new(module, &mir, &object).emit()?;
+
+                    object.bytecode(bytecode)
+                }
+                Code::Native => {
+                    #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+                    {
+                        let native =
+                            NativeEmitter::new(module, &mir, &object, &target_config)?.emit()?;
+
+                        object.native(native)
+                    }
+                    #[cfg(any(not(feature = "native"), target_arch = "wasm32"))]
+                    {
+                        return Err(EmitError::MissingEmitter {
+                            anchor: module.into(),
+                            module,
+                            code,
+                        }
+                        .into());
+                    }
+                }
+                Code::Wasm => {
+                    return Err(EmitError::MissingEmitter {
+                        anchor: module.into(),
+                        module,
+                        code,
+                    }
+                    .into());
+                }
+            };
+        }
+
+        // finalize the complete relocatable object
+        let output = object.build();
 
         Ok(ArtifactPayload::Object(Arc::new(output)))
     }

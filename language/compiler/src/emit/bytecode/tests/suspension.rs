@@ -1,10 +1,10 @@
-use destack_artifact::{ContinuationSite, Point, Suspension, SuspensionSite};
+use destack_program::object::{ContinuationSite, Point, Suspension, SuspensionSite};
 
 use crate::tests::TestProgram;
 
 /// Emit Await, Yield, Continuation, Waiter, and Task operations.
 #[test]
-fn test_emit_suspension() {
+fn test_emit_bytecode_suspension() {
     let program = TestProgram::mir(
         r#"
 type Task {
@@ -104,7 +104,7 @@ entry(v0: continuation<void, never, int32>):
 
     let object = program.assert_bytecode(
         r#"
-function park
+external function park
 
 function wait {
     await r0, park, r0 => b0 | b1 | b2

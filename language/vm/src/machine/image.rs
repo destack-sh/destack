@@ -3,8 +3,8 @@ use destack_heap::{HeapResult, RootSlot};
 use destack_memory::MemoryRange;
 use destack_mir as mir;
 use destack_program::{
-    ActivationImage, FrameImage, FrameLayout, FrameLink, FramePoint, FrameSlot, FrameStateId,
-    FunctionId, Program, ProgramPoint, TypeId, Word,
+    ActivationImage, Context, FrameImage, FrameLayout, FramePoint, FrameReturn, FrameSlot,
+    FrameStateId, FunctionId, Program, ProgramPoint, TypeId, Word,
 };
 
 use crate::diagnostic::{Error, Result};
@@ -74,7 +74,7 @@ impl Machine {
     }
 
     /// Capture physical execution as the canonical activation.
-    pub(crate) fn capture(&mut self, active_state: FrameStateId) -> Result<()> {
+    pub(crate) fn capture(&mut self, active_state: FrameStateId, context: Context) -> Result<()> {
         if self.activation.is_some() {
             return Err(Error::execution_active());
         }
@@ -90,7 +90,7 @@ impl Machine {
             .collect::<Result<Vec<_>>>()?;
         let bytes = self.pack_frames(&mappings)?;
         let memory = self.store_image(&bytes)?;
-        self.activation = Some(ActivationImage::new(completion, frames, memory));
+        self.activation = Some(ActivationImage::new(completion, frames, memory, context));
         self.clear_physical();
 
         Ok(())
@@ -127,7 +127,7 @@ impl Machine {
 
     /// Materialize one canonical activation into physical VM storage.
     fn materialize_image(&mut self, image: &ActivationImage) -> Result<()> {
-        if image.frames().first().copied().map(FrameImage::link) != Some(FrameLink::Root) {
+        if image.frames().first().copied().map(FrameImage::return_to) != Some(FrameReturn::Root) {
             return Err(Error::invalid_image());
         }
         let root_return = Return::Exit {
@@ -278,7 +278,7 @@ impl Machine {
         Ok(FrameImage::new(
             mapping.state,
             point,
-            mapping.frame.return_to.link(),
+            mapping.frame.return_to.frame_return(),
         ))
     }
 
@@ -428,7 +428,7 @@ impl Machine {
                 if word.is_nullish() {
                     return Ok(());
                 }
-                let Some(physical_offset) = (word.bits() as usize).checked_sub(2) else {
+                let Some(physical_offset) = self.stack.stack_offset(word.bits() as usize) else {
                     is_valid = false;
 
                     return Ok(());
@@ -439,7 +439,8 @@ impl Machine {
 
                     return Ok(());
                 };
-                address.copy_from_slice(&Word::from_bits((canonical_offset + 2) as u64).to_bytes());
+                let canonical_reference = canonical_offset + 2;
+                address.copy_from_slice(&Word::from_bits(canonical_reference as u64).to_bytes());
 
                 Ok(())
             })
@@ -469,18 +470,19 @@ impl Machine {
                 if word.is_nullish() {
                     return Ok(());
                 }
-                let Some(physical_offset) = (word.bits() as usize).checked_sub(2) else {
+                let Some(canonical_offset) = (word.bits() as usize).checked_sub(2) else {
                     is_valid = false;
 
                     return Ok(());
                 };
-                let physical_offset = self.physical_offset(physical_offset, mappings);
+                let physical_offset = self.physical_offset(canonical_offset, mappings);
                 let Ok(Some(physical_offset)) = physical_offset else {
                     is_valid = false;
 
                     return Ok(());
                 };
-                address.copy_from_slice(&Word::from_bits((physical_offset + 2) as u64).to_bytes());
+                let reference = self.stack.memory_offset(physical_offset);
+                address.copy_from_slice(&Word::from_bits(reference as u64).to_bytes());
 
                 Ok(())
             })

@@ -25,6 +25,7 @@ pub struct Binding {
 pub type BindingFn = fn(
     activation: &mut Activation<'_>,
     memory: Memory<'_>,
+    context: program::Context,
     arguments: &[Word],
     result: &mut [Word],
 ) -> RuntimeResult<()>;
@@ -77,12 +78,13 @@ impl Binding {
         declaration: &program::Binding,
         activation: &mut Activation<'_>,
         memory: Memory<'_>,
+        context: program::Context,
         arguments: &[Word],
         result: &mut [Word],
     ) -> RuntimeResult<()> {
         activation.on_before_binding(declaration)?;
 
-        (self.invoke)(activation, memory, arguments, result)
+        (self.invoke)(activation, memory, context, arguments, result)
     }
 }
 
@@ -101,6 +103,7 @@ impl BindingTable {
         declaration: &program::Binding,
         activation: &mut Activation<'_>,
         memory: Memory<'_>,
+        context: program::Context,
         arguments: &[Word],
         result: &mut [Word],
     ) -> RuntimeResult<()> {
@@ -110,7 +113,7 @@ impl BindingTable {
         };
         let binding = self.bindings[index];
 
-        binding.call(declaration, activation, memory, arguments, result)
+        binding.call(declaration, activation, memory, context, arguments, result)
     }
 
     /// Ensure every binding required by one program is registered.

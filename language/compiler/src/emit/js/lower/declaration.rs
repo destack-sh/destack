@@ -81,7 +81,7 @@ impl ModuleLowerer<'_> {
             }
             dir::Declaration::Function(declaration) => {
                 let Some(body) = declaration.body else {
-                    return Err(self.unsupported_construct(
+                    return Err(self.unhandled(
                         declaration_id.into_global_any(self.module.id),
                         Some("JavaScript functions require executable bodies".to_string()),
                     ));
@@ -100,13 +100,13 @@ impl ModuleLowerer<'_> {
                 js::Declaration::Function(declaration)
             }
             dir::Declaration::Enum(_) => {
-                return Err(self.unsupported_construct(
+                return Err(self.unhandled(
                     declaration_id.into_global_any(self.module.id),
                     Some("JavaScript enum representation is undefined".to_string()),
                 ));
             }
             dir::Declaration::Global(_) => {
-                return Err(self.unsupported_construct(
+                return Err(self.unhandled(
                     declaration_id.into_global_any(self.module.id),
                     Some(
                         "non-ambient global declarations have no JavaScript runtime form"
@@ -120,8 +120,7 @@ impl ModuleLowerer<'_> {
                 ));
             }
             dir::Declaration::Module(_) | dir::Declaration::Extension(_) => {
-                return Err(self
-                    .unsupported_construct(declaration_id.into_global_any(self.module.id), None));
+                return Err(self.unhandled(declaration_id.into_global_any(self.module.id), None));
             }
         };
 

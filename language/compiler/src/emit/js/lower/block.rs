@@ -33,7 +33,7 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(statement, self.module.id, source_expression_id)
             }
             _ => {
-                return Err(self.unsupported_construct(
+                return Err(self.unhandled(
                     source_expression_id.into_global_any(self.module.id),
                     Some(format!(
                         "statement lowering expected expression, statement, or block, got {}",
@@ -78,7 +78,7 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(block, self.module.id, source_expression_id)
             }
             _ => {
-                return Err(self.unsupported_construct(
+                return Err(self.unhandled(
                     source_expression_id.into_global_any(self.module.id),
                     Some(format!(
                         "block lowering expected expression, statement, or block, got {}",

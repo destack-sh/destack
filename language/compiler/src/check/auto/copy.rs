@@ -35,6 +35,27 @@ impl CheckState<'_> {
         let ty = answer!(self.reduce_type_head(origin, ty)?);
         let kind = self.ty(ty)?;
 
+        // decide explicit memory carriers before their payload types
+        if let dir::Type::Form(form) = kind {
+            return match form.form {
+                dir::Form::Managed | dir::Form::Raw | dir::Form::Readonly => {
+                    Ok(Answer::Ready(true))
+                }
+                dir::Form::Owned => Ok(Answer::Ready(false)),
+                dir::Form::Borrowed(borrow) => {
+                    let access = self.type_borrow(ty.module_id, borrow)?.access;
+
+                    self.body().access_is_readonly(origin, access)
+                }
+                dir::Form::Placed { .. } => self.satisfies_copy(origin, form.value, active),
+            };
+        }
+
+        // managed defaults copy their compact runtime handles
+        if answer!(self.default_ownership(origin, ty)?) == Some(dir::Ownership::Managed) {
+            return Ok(Answer::Ready(true));
+        }
+
         match kind {
             dir::Type::Variable(variable) => {
                 Ok(Answer::pending([Dependency::Variable(variable)]))
@@ -55,7 +76,7 @@ impl CheckState<'_> {
             | dir::Type::Memory(_)
             | dir::Type::Static(_)
             | dir::Type::FunctionPointer(_)
-            // primitives copy as values or as immutable managed references
+            // owned scalar values copy directly
             | dir::Type::Primitive(_)
             | dir::Type::Literal(_)
             | dir::Type::Range(_) => Ok(Answer::Ready(true)),
@@ -65,8 +86,8 @@ impl CheckState<'_> {
             | dir::Type::Intrinsic
             | dir::Type::Member(_)
             | dir::Type::Operation(_)
-            | dir::Type::Dynamic(_)
             | dir::Type::FunctionSignature(_)
+            | dir::Type::Dynamic(_)
             | dir::Type::Function(_)
             | dir::Type::Reference(_) => Ok(Answer::Ready(false)),
             dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) => {
@@ -94,46 +115,22 @@ impl CheckState<'_> {
 
                 Ok(decision)
             }
-            dir::Type::Form(form) => match form.form {
-                dir::Form::Raw | dir::Form::Readonly => Ok(Answer::Ready(true)),
-                dir::Form::Borrowed(borrow) => {
-                    let access = self.type_borrow(ty.module_id, borrow)?.access;
-
-                    self.body()
-                        .access_is_readonly(origin, access)
-                }
-                dir::Form::Managed | dir::Form::Owned | dir::Form::Placed { .. } => {
-                    Ok(Answer::Ready(false))
-                }
-            },
+            dir::Type::Form(_) => unreachable!("memory forms return before structural copy"),
             dir::Type::Application(instance) => {
                 self.satisfies_copy_instance(origin, ty.module_id, instance, active)
             }
-            dir::Type::Array(_) | dir::Type::Slice(_) => Ok(Answer::Ready(false)),
+            dir::Type::Array(_)
+            | dir::Type::Slice(_)
+            | dir::Type::Shape(_)
+            | dir::Type::Object(_) => {
+                unreachable!("managed defaults return before structural copy")
+            }
             dir::Type::FixedArray(array) => self.satisfies_copy(origin, array.element, active),
             dir::Type::Tuple(tuple) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> = self
                     .tuple_elements(ty.module_id, tuple.elements)?
                     .iter()
                     .map(|element| element.ty)
-                    .collect();
-
-                self.all_copy(origin, ids, active)
-            }
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
-                if !self
-                    .type_ids(ty.module_id, shape.call_signatures)?
-                    .is_empty()
-                    || !self
-                        .type_ids(ty.module_id, shape.construct_signatures)?
-                        .is_empty()
-                {
-                    return Ok(Answer::Ready(false));
-                }
-                let ids: SmallVec<[dir::GlobalTypeId; 8]> = self
-                    .shape_properties(ty.module_id, shape.properties)?
-                    .iter()
-                    .flat_map(|field| field.access.types())
                     .collect();
 
                 self.all_copy(origin, ids, active)
@@ -197,9 +194,10 @@ impl CheckState<'_> {
                 [definition.backing],
                 active,
             ),
-            dir::Definition::Class(_)
-            | dir::Definition::Interface(_)
-            | dir::Definition::Extension(_) => Ok(Answer::Ready(false)),
+            dir::Definition::Class(_) | dir::Definition::Interface(_) => {
+                unreachable!("managed instances return before structural copy")
+            }
+            dir::Definition::Extension(_) => Ok(Answer::Ready(false)),
         }
     }
 

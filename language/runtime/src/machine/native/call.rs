@@ -8,28 +8,29 @@ use destack_native as native;
 use destack_native::abi;
 use destack_program as program;
 use destack_program::Runtime;
+use destack_vm::TensorExecutor;
 
 use crate::diagnostic::RuntimeError;
 use crate::worker::Activation;
 
-use super::{Error, Function};
+use super::{Error, Function, Platform};
 
-/// Runtime owner for one active native call.
-pub struct Call<'program, 'runtime, 'memory, 'state> {
+/// Runtime state for one active native call.
+pub struct Call<'call, 'runtime, 'memory, 'state> {
     /// The executing Program.
-    program: &'program program::Program,
+    program: &'call program::Program,
     /// Native frame maps for this call.
     frames: native::CodeMap,
     /// Process-local native functions used to resolve caller return addresses.
-    functions: &'program [Option<Function>],
+    functions: &'call [Option<Function>],
     /// World memory receiving canonical native activation bytes.
-    memory: &'program MemoryMap,
+    memory: &'call MemoryMap,
     /// Runtime and memory operations available to generated code.
-    activation: &'program mut program::Activation<'runtime, 'memory, Activation<'state>>,
-    /// The panic payload copied before native frames return.
-    panic: Option<program::Value>,
+    activation: &'call mut program::Activation<'runtime, 'memory, Activation<'state>>,
+    /// Optional profile receiving explicit native observations.
+    profile: Option<&'call mut program::Profile>,
     /// A failure raised by one native runtime operation.
-    error: Option<Box<RuntimeError>>,
+    transfer: Option<Transfer>,
     /// The stop produced by the active native call when present.
     stop: Option<Stop>,
     /// Native frames captured from active to caller order.
@@ -42,7 +43,7 @@ pub(super) enum Stop {
     /// A runtime poll requested host work.
     Poll,
     /// Program execution reached an explicit stop operation.
-    Instruction,
+    Instruction(u32),
 }
 
 /// One canonical frame captured while native execution unwinds.
@@ -65,14 +66,61 @@ struct FrameRange {
     target: usize,
 }
 
-impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'state> {
+/// Nonlocal result retained by one active native call.
+pub(super) enum Transfer {
+    /// One runtime failure.
+    Error(Box<RuntimeError>),
+    /// One language panic payload.
+    Panic(Option<program::Value>),
+    /// One captured activation retained for the host.
+    Retain,
+}
+
+/// Private platform-unwind payload.
+pub(super) struct Unwind;
+
+impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
+    /// Runtime operation table shared by generated native code.
+    const RUNTIME: abi::Runtime = abi::Runtime {
+        allocate: Self::allocate,
+        allocate_repeated: Self::allocate_repeated,
+        free: Self::free,
+        pin: Self::pin,
+        unpin: Self::unpin,
+        write_barrier: Self::write_barrier,
+        poll: Self::poll,
+        stop: Self::stop,
+        deopt: Self::deopt,
+        panic: Self::panic,
+        panic_value: Self::panic_value,
+        unwind_classify: Self::unwind_classify,
+        unwind_resume: Self::unwind_resume,
+        waiter_queue: Self::queue_waiter,
+        waiter_cancel: Self::cancel_waiter,
+        task_resolve: Self::resolve_task,
+        task_start: Self::start_task,
+        task_suspend: Self::suspend_task,
+        task_park: Self::park_task,
+        task_cancel: Self::cancel_task,
+        task_is_cancelled: Self::is_task_cancelled,
+        task_detach: Self::detach_task,
+        task_finish: Self::finish_task,
+        profile_increment: Self::increment_profile,
+        profile_sample: Self::sample_profile,
+        binding_call: Self::binding,
+        volatile_read: Self::volatile_read,
+        volatile_write: Self::volatile_write,
+        tensor_execute: Self::execute_tensor,
+    };
+
     /// Create one active native call.
     pub fn new(
-        program: &'program program::Program,
+        program: &'call program::Program,
         frames: native::CodeMap,
-        functions: &'program [Option<Function>],
-        memory: &'program MemoryMap,
-        activation: &'program mut program::Activation<'runtime, 'memory, Activation<'state>>,
+        functions: &'call [Option<Function>],
+        memory: &'call MemoryMap,
+        activation: &'call mut program::Activation<'runtime, 'memory, Activation<'state>>,
+        profile: Option<&'call mut program::Profile>,
     ) -> Self {
         Self {
             program,
@@ -80,26 +128,48 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
             functions,
             memory,
             activation,
-            panic: None,
-            error: None,
+            profile,
+            transfer: None,
             stop: None,
             captures: Vec::new(),
         }
     }
 
     /// Build the ABI activation borrowing this call.
-    pub fn activation(&mut self, exit: &mut abi::Exit) -> abi::Activation {
+    pub fn activation(
+        &mut self,
+        functions: *const usize,
+        virtuals: *const *const u32,
+        dynamics: *const *const u32,
+        exit: &mut abi::Exit,
+    ) -> abi::Activation {
         let call = (self as *mut Self).cast::<abi::Call>();
         let memory = &mut self.activation.memory;
 
         abi::Activation::new(
             call,
-            memory.constant_space.native(self.program.sections()),
-            memory.shared_static.native(),
-            memory.local_static.native(),
+            Self::runtime(),
+            functions,
+            virtuals,
+            dynamics,
+            self.memory.base_address() as *mut u8,
+            memory.constants.native(self.program.sections()),
+            memory.shared_statics.native(),
+            memory.local_statics.native(),
+            self.activation.context.reference().bits(),
             self.activation.runtime.poll_address(),
             exit,
         )
+    }
+
+    /// Retain the execution context selected by generated code.
+    pub fn set_context(&mut self, context: usize) {
+        *self.activation.context = program::Context::new(HeapReference::from_bits(context));
+    }
+
+    /// Return the native runtime operation table.
+    fn runtime() -> *const abi::Runtime {
+        std::ptr::from_ref(&Self::RUNTIME)
     }
 
     /// Take the canonical activation captured by one retained native exit.
@@ -182,13 +252,13 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
             .iter()
             .enumerate()
             .map(|(index, capture)| {
-                let link = if index == 0 {
-                    program::FrameLink::Root
+                let return_to = if index == 0 {
+                    program::FrameReturn::Root
                 } else {
-                    program::FrameLink::Call
+                    program::FrameReturn::Call
                 };
 
-                program::FrameImage::new(capture.state, capture.point, link)
+                program::FrameImage::new(capture.state, capture.point, return_to)
             })
             .collect::<Vec<_>>();
 
@@ -201,17 +271,13 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
             program::Completion::Return,
             frames,
             range,
+            *self.activation.context,
         ))
     }
 
-    /// Take one panic payload copied by generated native code.
-    pub fn take_panic(&mut self) -> Option<program::Value> {
-        self.panic.take()
-    }
-
-    /// Take one native runtime operation failure.
-    pub fn take_error(&mut self) -> Option<Box<RuntimeError>> {
-        self.error.take()
+    /// Take the nonlocal result raised by generated native code.
+    pub(super) fn take_transfer(&mut self) -> Option<Transfer> {
+        self.transfer.take()
     }
 
     /// Take the exact source of one retained native stop.
@@ -220,24 +286,24 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
     }
 
     /// Call one linked runtime binding.
-    unsafe extern "C" fn binding(
+    unsafe extern "C-unwind" fn binding(
         activation: *mut abi::Activation,
         function: u32,
         arguments: *const u64,
         argument_count: usize,
         result: *mut u64,
         result_count: usize,
-    ) -> abi::RuntimeStatusCode {
+    ) {
         // SAFETY: generated code passes the active activation supplied to abi::Entry
         let call = unsafe { Self::from_activation(activation) };
         let function = program::FunctionId(function);
         let Some(binding) = call.program.function_binding(function) else {
-            return call.fail(RuntimeError::Internal {
+            call.fail(RuntimeError::Internal {
                 message: format!("function {function:?} has no runtime binding"),
             });
         };
         if (argument_count != 0 && arguments.is_null()) || (result_count != 0 && result.is_null()) {
-            return call.fail(RuntimeError::Internal {
+            call.fail(RuntimeError::Internal {
                 message: format!("native binding call for {function:?} has null value storage"),
             });
         }
@@ -254,35 +320,29 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
             unsafe { std::slice::from_raw_parts_mut(result.cast(), result_count) }
         };
         let memory = call.activation.memory.reborrow();
-        match call
+        let context = *call.activation.context;
+        if let Err(error) = call
             .activation
             .runtime
-            .call_binding(memory, binding, arguments, result)
+            .call_binding(memory, context, binding, arguments, result)
         {
-            Ok(()) => abi::RuntimeStatus::Continue.code(),
-            Err(error) => call.fail_boxed(error),
+            call.fail_boxed(error);
         }
     }
 
     /// Allocate one fixed heap object.
-    unsafe extern "C" fn allocate(
+    unsafe extern "C-unwind" fn allocate(
         activation: *mut abi::Activation,
         space: abi::Space,
         allocation: u32,
         initialization: abi::AllocationInitialization,
-        result: *mut usize,
-    ) -> abi::RuntimeStatusCode {
+    ) -> usize {
         // SAFETY: generated code passes the active activation supplied to abi::Entry
         let call = unsafe { Self::from_activation(activation) };
-        if result.is_null() {
-            return call.fail(RuntimeError::Internal {
-                message: "native allocation has no result storage".to_string(),
-            });
-        }
         let site = program::AllocationSiteId(allocation);
         let space = Self::space(space);
         let Some(plan) = call.activation.memory.allocation_plan(site) else {
-            return call.fail(RuntimeError::Internal {
+            call.fail(RuntimeError::Internal {
                 message: format!("native allocation site {site:?} has no plan"),
             });
         };
@@ -292,38 +352,26 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
                 .memory
                 .allocate(space, plan, payload, call.program.trace_view());
 
-        // return the stable space-relative reference bits
         match allocation {
-            Ok(reference) => {
-                // SAFETY: generated code supplies writable pointer-width result storage
-                unsafe { result.write(reference.bits()) };
-
-                abi::RuntimeStatus::Continue.code()
-            }
+            Ok(reference) => reference.bits(),
             Err(error) => call.fail(error),
         }
     }
 
     /// Allocate one repeated heap backing.
-    unsafe extern "C" fn allocate_slice(
+    unsafe extern "C-unwind" fn allocate_repeated(
         activation: *mut abi::Activation,
         space: abi::Space,
         allocation: u32,
         length: usize,
         initialization: abi::AllocationInitialization,
-        result: *mut usize,
-    ) -> abi::RuntimeStatusCode {
+    ) -> usize {
         // SAFETY: generated code passes the active activation supplied to abi::Entry
         let call = unsafe { Self::from_activation(activation) };
-        if result.is_null() {
-            return call.fail(RuntimeError::Internal {
-                message: "native slice allocation has no result storage".to_string(),
-            });
-        }
         let site = program::AllocationSiteId(allocation);
         let space = Self::space(space);
         let Some(element) = call.activation.memory.allocation_plan(site) else {
-            return call.fail(RuntimeError::Internal {
+            call.fail(RuntimeError::Internal {
                 message: format!("native allocation site {site:?} has no plan"),
             });
         };
@@ -331,11 +379,11 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
         // derive the exact repeated allocation plan
         let trace = match element.trace_map(call.program.trace_view()) {
             Ok(trace) => trace,
-            Err(error) => return call.fail(error),
+            Err(error) => call.fail(error),
         };
         let shape = match element.repeat(&trace, length) {
             Ok(shape) => shape,
-            Err(error) => return call.fail(error),
+            Err(error) => call.fail(error),
         };
         let plan = call.activation.memory.plan_allocation(space, &shape);
         let payload = Self::payload(initialization);
@@ -344,85 +392,66 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
                 .memory
                 .allocate(space, plan, payload, call.program.trace_view());
 
-        // return the stable space-relative reference bits
         match allocation {
-            Ok(reference) => {
-                // SAFETY: generated code supplies writable pointer-width result storage
-                unsafe { result.write(reference.bits()) };
-
-                abi::RuntimeStatus::Continue.code()
-            }
+            Ok(reference) => reference.bits(),
             Err(error) => call.fail(error),
         }
     }
 
     /// Release one unique heap object.
-    unsafe extern "C" fn free(
+    unsafe extern "C-unwind" fn free(
         activation: *mut abi::Activation,
         space: abi::Space,
         value: usize,
-    ) -> abi::RuntimeStatusCode {
+    ) {
         // SAFETY: generated code passes the active activation supplied to abi::Entry
         let call = unsafe { Self::from_activation(activation) };
         let edge = Self::edge(space, value);
 
-        match call.activation.memory.free(edge) {
-            Ok(()) => abi::RuntimeStatus::Continue.code(),
-            Err(error) => call.fail(error),
+        if let Err(error) = call.activation.memory.free(edge) {
+            call.fail(error);
         }
     }
 
     /// Pin one managed heap object.
-    unsafe extern "C" fn pin(
+    unsafe extern "C-unwind" fn pin(
         activation: *mut abi::Activation,
         space: abi::Space,
         value: usize,
-        result: *mut usize,
-    ) -> abi::RuntimeStatusCode {
+    ) -> usize {
         // SAFETY: generated code passes the active activation supplied to abi::Entry
         let call = unsafe { Self::from_activation(activation) };
-        if result.is_null() {
-            return call.fail(RuntimeError::Internal {
-                message: "native pin has no result storage".to_string(),
-            });
-        }
         let edge = Self::edge(space, value);
 
         match call.activation.memory.pin(edge) {
-            Ok(reference) => {
-                // SAFETY: generated code supplies writable pointer-width result storage
-                unsafe { result.write(reference.bits()) };
-
-                abi::RuntimeStatus::Continue.code()
-            }
+            Ok(reference) => reference.bits(),
             Err(error) => call.fail(error),
         }
     }
 
     /// Release one managed heap pin.
-    unsafe extern "C" fn unpin(
+    unsafe extern "C-unwind" fn unpin(
         activation: *mut abi::Activation,
         space: abi::Space,
         value: usize,
-    ) -> abi::RuntimeStatusCode {
+    ) {
         // SAFETY: generated code passes the active activation supplied to abi::Entry
         let call = unsafe { Self::from_activation(activation) };
         let edge = Self::edge(space, value);
 
-        match call.activation.memory.unpin(edge) {
-            Ok(()) => abi::RuntimeStatus::Continue.code(),
-            Err(error) => call.fail(error),
+        if let Err(error) = call.activation.memory.unpin(edge) {
+            call.fail(error);
         }
     }
 
     /// Record one managed-reference write.
-    unsafe extern "C" fn write_barrier(
+    unsafe extern "C-unwind" fn write_barrier(
         activation: *mut abi::Activation,
         space: abi::Space,
         object: usize,
         offset: usize,
         byte_len: usize,
-    ) -> abi::RuntimeStatusCode {
+    ) {
         // SAFETY: generated code passes the active activation supplied to abi::Entry
         let call = unsafe { Self::from_activation(activation) };
         let edge = Self::edge(space, object);
@@ -431,22 +460,82 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
                 .memory
                 .barrier(edge, offset, byte_len, call.program.trace_view());
 
-        match barrier {
-            Ok(()) => abi::RuntimeStatus::Continue.code(),
-            Err(error) => call.fail(error),
+        if let Err(error) = barrier {
+            call.fail(error);
+        }
+    }
+
+    /// Read one volatile byte range into ordinary native storage.
+    unsafe extern "C-unwind" fn volatile_read(
+        _activation: *mut abi::Activation,
+        source: *const u8,
+        destination: *mut u8,
+        byte_len: usize,
+    ) {
+        for offset in 0..byte_len {
+            // SAFETY: generated code supplies accessible source and destination ranges
+            let value = unsafe { source.add(offset).read_volatile() };
+            unsafe { destination.add(offset).write(value) };
+        }
+    }
+
+    /// Write one ordinary native byte range into volatile storage.
+    unsafe extern "C-unwind" fn volatile_write(
+        _activation: *mut abi::Activation,
+        destination: *mut u8,
+        source: *const u8,
+        byte_len: usize,
+    ) {
+        for offset in 0..byte_len {
+            // SAFETY: generated code supplies accessible source and destination ranges
+            let value = unsafe { source.add(offset).read() };
+            unsafe { destination.add(offset).write_volatile(value) };
+        }
+    }
+
+    /// Execute one linked tensor instruction over generated native storage.
+    unsafe extern "C-unwind" fn execute_tensor(
+        activation: *mut abi::Activation,
+        instruction: *const u8,
+        registers: *mut u64,
+        register_count: usize,
+    ) {
+        // SAFETY: generated code passes the active activation and complete descriptor
+        let call = unsafe { Self::from_activation(activation) };
+        if instruction.is_null() || (register_count != 0 && registers.is_null()) {
+            call.fail(RuntimeError::Internal {
+                message: "native tensor command has invalid storage".to_string(),
+            });
+        }
+
+        // execute through the same semantics as interpreted bytecode
+        let registers = unsafe {
+            std::slice::from_raw_parts_mut(registers.cast::<program::Word>(), register_count)
+        };
+        let execution = unsafe {
+            TensorExecutor::execute_raw(
+                call.program,
+                call.activation.memory.reborrow(),
+                registers,
+                call.profile.as_deref_mut(),
+                instruction,
+            )
+        };
+        if let Err(error) = execution {
+            call.fail(error);
         }
     }
 
     /// Poll runtime work at one reconstructable native frame.
-    unsafe extern "C" fn poll(
+    unsafe extern "C-unwind" fn poll(
         activation: *mut abi::Activation,
         frame_map: u32,
         anchor: *const u8,
-    ) -> abi::RuntimeStatusCode {
+    ) -> ! {
         // SAFETY: generated code passes its active frame marker
         let call = unsafe { Self::from_activation(activation) };
         if let Err(error) = unsafe { call.capture(frame_map, anchor) } {
-            return call.fail_boxed(error);
+            call.fail_boxed(error);
         }
         call.stop = Some(Stop::Poll);
 
@@ -454,48 +543,231 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
         let exit = unsafe { &mut *(*activation).exit };
         exit.stop(frame_map);
 
-        abi::RuntimeStatus::Exit.code()
+        call.retain()
     }
 
     /// Stop native execution at one reconstructable native frame.
-    unsafe extern "C" fn stop(
+    unsafe extern "C-unwind" fn stop(
         activation: *mut abi::Activation,
         frame_map: u32,
+        operation: u32,
         anchor: *const u8,
-    ) -> abi::RuntimeStatusCode {
+    ) -> ! {
         // SAFETY: generated code passes its active frame marker
         let call = unsafe { Self::from_activation(activation) };
         if let Err(error) = unsafe { call.capture(frame_map, anchor) } {
-            return call.fail_boxed(error);
+            call.fail_boxed(error);
         }
-        call.stop = Some(Stop::Instruction);
+        call.stop = Some(Stop::Instruction(operation));
 
         // SAFETY: the active activation owns one live exit record
         let exit = unsafe { &mut *(*activation).exit };
         exit.stop(frame_map);
 
-        abi::RuntimeStatus::Exit.code()
+        call.retain()
     }
 
     /// Deoptimize native execution at one reconstructable frame.
-    unsafe extern "C" fn deopt(
+    unsafe extern "C-unwind" fn deopt(
         activation: *mut abi::Activation,
         frame_map: u32,
         anchor: *const u8,
-    ) -> abi::RuntimeStatusCode {
+    ) -> ! {
         // SAFETY: generated code passes its active frame marker
         let call = unsafe { Self::from_activation(activation) };
         if let Err(error) = unsafe { call.capture(frame_map, anchor) } {
-            return call.fail_boxed(error);
+            call.fail_boxed(error);
         }
-        call.stop = Some(Stop::Poll);
-        call.activation.runtime.deoptimize();
 
         // SAFETY: the active activation owns one live exit record
         let exit = unsafe { &mut *(*activation).exit };
-        exit.stop(frame_map);
+        exit.deoptimize(frame_map);
 
-        abi::RuntimeStatus::Exit.code()
+        call.retain()
+    }
+
+    /// Queue one suspended waiter.
+    unsafe extern "C-unwind" fn queue_waiter(
+        activation: *mut abi::Activation,
+        waiter: u64,
+        ty: u32,
+        words: *const u64,
+    ) -> u32 {
+        // SAFETY: generated code passes the active activation supplied to abi::Entry
+        let call = unsafe { Self::from_activation(activation) };
+        let value = unsafe { call.value(program::TypeId(ty), words) };
+        let waiter = program::Waiter::from_bits(waiter);
+
+        match call.activation.runtime.queue_waiter(waiter, value) {
+            Ok(is_settled) => u32::from(is_settled),
+            Err(error) => call.fail_boxed(error),
+        }
+    }
+
+    /// Cancel one suspended waiter.
+    unsafe extern "C-unwind" fn cancel_waiter(
+        activation: *mut abi::Activation,
+        waiter: u64,
+    ) -> u32 {
+        // SAFETY: generated code passes the active activation supplied to abi::Entry
+        let call = unsafe { Self::from_activation(activation) };
+        let waiter = program::Waiter::from_bits(waiter);
+
+        match call.activation.runtime.cancel_waiter(waiter) {
+            Ok(is_settled) => u32::from(is_settled),
+            Err(error) => call.fail_boxed(error),
+        }
+    }
+
+    /// Create one completed task.
+    unsafe extern "C-unwind" fn resolve_task(
+        activation: *mut abi::Activation,
+        ty: u32,
+        words: *const u64,
+    ) -> u64 {
+        // SAFETY: generated code passes the active activation supplied to abi::Entry
+        let call = unsafe { Self::from_activation(activation) };
+        let value = unsafe { call.value(program::TypeId(ty), words) };
+
+        call.activation.runtime.resolve_task(value).bits()
+    }
+
+    /// Start one running task.
+    unsafe extern "C-unwind" fn start_task(activation: *mut abi::Activation) -> u64 {
+        // SAFETY: generated code passes the active activation supplied to abi::Entry
+        let call = unsafe { Self::from_activation(activation) };
+
+        call.activation.runtime.start_task().bits()
+    }
+
+    /// Suspend one running task.
+    unsafe extern "C-unwind" fn suspend_task(
+        activation: *mut abi::Activation,
+        task: u64,
+        frame_map: u32,
+        anchor: *const u8,
+    ) -> u64 {
+        // SAFETY: generated code passes its active frame marker
+        let call = unsafe { Self::from_activation(activation) };
+        if let Err(error) = unsafe { call.capture(frame_map, anchor) } {
+            call.fail_boxed(error);
+        }
+        let image = call
+            .take_activation()
+            .unwrap_or_else(|error| call.fail_boxed(error));
+        let continuation = program::Continuation::new(image);
+        let task = program::Task::from_bits(task);
+
+        match call.activation.runtime.suspend_task(task, continuation) {
+            Ok(waiter) => waiter.bits(),
+            Err((error, continuation)) => {
+                if let Err(release) = continuation.release(call.memory) {
+                    call.fail(release);
+                }
+
+                call.fail_boxed(error)
+            }
+        }
+    }
+
+    /// Park one waiter until its task settles.
+    unsafe extern "C-unwind" fn park_task(
+        activation: *mut abi::Activation,
+        task: u64,
+        waiter: u64,
+    ) {
+        // SAFETY: generated code passes the active activation supplied to abi::Entry
+        let call = unsafe { Self::from_activation(activation) };
+        let task = program::Task::from_bits(task);
+        let waiter = program::Waiter::from_bits(waiter);
+
+        if let Err(error) = call.activation.runtime.park_task(task, waiter) {
+            call.fail_boxed(error);
+        }
+    }
+
+    /// Request cancellation of one task.
+    unsafe extern "C-unwind" fn cancel_task(activation: *mut abi::Activation, task: u64) {
+        // SAFETY: generated code passes the active activation supplied to abi::Entry
+        let call = unsafe { Self::from_activation(activation) };
+        let task = program::Task::from_bits(task);
+
+        if let Err(error) = call.activation.runtime.cancel_task(task) {
+            call.fail_boxed(error);
+        }
+    }
+
+    /// Return whether cancellation was requested for one task.
+    unsafe extern "C-unwind" fn is_task_cancelled(
+        activation: *mut abi::Activation,
+        task: u64,
+    ) -> u32 {
+        // SAFETY: generated code passes the active activation supplied to abi::Entry
+        let call = unsafe { Self::from_activation(activation) };
+        let task = program::Task::from_bits(task);
+
+        match call.activation.runtime.is_task_cancelled(task) {
+            Ok(is_cancelled) => u32::from(is_cancelled),
+            Err(error) => call.fail_boxed(error),
+        }
+    }
+
+    /// Detach one task result.
+    unsafe extern "C-unwind" fn detach_task(activation: *mut abi::Activation, task: u64) {
+        // SAFETY: generated code passes the active activation supplied to abi::Entry
+        let call = unsafe { Self::from_activation(activation) };
+        let task = program::Task::from_bits(task);
+
+        if let Err(error) = call.activation.runtime.detach_task(task) {
+            call.fail_boxed(error);
+        }
+    }
+
+    /// Finish one task with its terminal outcome.
+    unsafe extern "C-unwind" fn finish_task(
+        activation: *mut abi::Activation,
+        task: u64,
+        outcome: abi::TaskOutcome,
+        result_type: u32,
+        result: *const u64,
+    ) {
+        // SAFETY: generated code passes the active activation supplied to abi::Entry
+        let call = unsafe { Self::from_activation(activation) };
+        let task = program::Task::from_bits(task);
+        let outcome = match outcome {
+            abi::TaskOutcome::Completed => {
+                let value = unsafe { call.value(program::TypeId(result_type), result) };
+
+                program::TaskOutcome::Completed(value)
+            }
+            abi::TaskOutcome::Cancelled => program::TaskOutcome::Cancelled,
+        };
+
+        if let Err(error) = call.activation.runtime.finish_task(task, outcome) {
+            call.fail_boxed(error);
+        }
+    }
+
+    /// Increment one explicit profile counter when recording is active.
+    unsafe extern "C-unwind" fn increment_profile(activation: *mut abi::Activation, counter: u32) {
+        // SAFETY: generated code passes the active activation supplied to abi::Entry
+        let call = unsafe { Self::from_activation(activation) };
+        if let Some(profile) = call.profile.as_deref_mut() {
+            profile.increment_counter(program::CounterId(counter));
+        }
+    }
+
+    /// Record one explicit profile sample when recording is active.
+    unsafe extern "C-unwind" fn sample_profile(
+        activation: *mut abi::Activation,
+        sampler: u32,
+        value: u64,
+    ) {
+        // SAFETY: generated code passes the active activation supplied to abi::Entry
+        let call = unsafe { Self::from_activation(activation) };
+        if let Some(profile) = call.profile.as_deref_mut() {
+            profile.record_sample(program::SamplerId(sampler), value);
+        }
     }
 
     /// Capture one native stack in canonical Program layout.
@@ -510,10 +782,16 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
         loop {
             // retain the current frame before following its physical caller link
             let frame = unsafe { self.capture_frame(frame_map, anchor) }?;
+            let state = program::FrameStateId(frame.state);
             let function = self
-                .functions
-                .get(frame.function as usize)
-                .and_then(Option::as_ref);
+                .program
+                .frame_state(state)
+                .map(|state| state.point.function());
+            let function = function.and_then(|function| {
+                self.functions
+                    .get(function.index())
+                    .and_then(Option::as_ref)
+            });
             if !function.is_some_and(Function::is_reconstructable) {
                 break;
             }
@@ -539,7 +817,7 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
         let sections = self.program.sections();
 
         for function in self.functions.iter().flatten() {
-            let Some(return_offset) = function.return_offset(return_address) else {
+            let Some(code_offset) = function.code_offset(return_address) else {
                 continue;
             };
             let frame = self
@@ -547,9 +825,7 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
                 .frames(sections)
                 .iter()
                 .enumerate()
-                .find(|(_, frame)| {
-                    frame.function == function.function.0 && frame.return_offset == return_offset
-                });
+                .find(|(_, frame)| frame.return_offset == code_offset);
             if let Some((index, frame)) = frame {
                 return Some((index as u32, *frame));
             }
@@ -577,9 +853,6 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
             .program
             .frame_state(state)
             .ok_or_else(|| self.internal("native frame state is missing"))?;
-        if linked.point.function().index() != frame.function as usize {
-            return Err(self.internal("native frame map selects a different function"));
-        }
         let layout = self
             .program
             .frame_layout(linked.layout)
@@ -597,7 +870,7 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
         for (slot, value) in slots.iter().zip(values) {
             let mut written = vec![false; slot.byte_len as usize];
             for location in self.frames.locations(sections, *value) {
-                let target = location.target_offset as usize;
+                let target = location.value_offset as usize;
                 let byte_len = location.byte_len as usize;
                 let target_end = target + byte_len;
                 let Some(written) = written.get_mut(target..target_end) else {
@@ -634,7 +907,10 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
                 return Err(self.internal("native frame value is incomplete"));
             }
         }
-        let point = program::ProgramPoint::new(program::FunctionId(frame.function), frame.resume);
+        let point = linked
+            .point
+            .operation_point()
+            .ok_or_else(|| self.internal("native frame state is not executable"))?;
         self.captures.push(FrameCapture {
             state,
             point,
@@ -645,58 +921,16 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
         Ok(frame)
     }
 
-    /// Record one payloadless language panic.
-    unsafe extern "C" fn panic(activation: *mut abi::Activation) -> abi::RuntimeStatusCode {
-        // SAFETY: generated code passes the active activation supplied to abi::Entry
-        let call = unsafe { Self::from_activation(activation) };
-        call.panic = None;
-
-        // SAFETY: the active activation owns one live exit record
-        let exit = unsafe { &mut *(*activation).exit };
-        exit.panic();
-
-        abi::RuntimeStatus::Exit.code()
-    }
-
-    /// Copy one typed language panic payload into this call.
-    unsafe extern "C" fn panic_value(
-        activation: *mut abi::Activation,
-        ty: u32,
-        words: *const u64,
-    ) -> abi::RuntimeStatusCode {
-        // SAFETY: generated code passes the active activation supplied to abi::Entry
-        let call = unsafe { Self::from_activation(activation) };
-        let ty = program::TypeId(ty);
-        let Some(byte_len) = call.program.type_byte_len(ty) else {
-            call.error = Some(Error::TypeMissing { ty }.into());
-
-            // SAFETY: the active activation owns one live exit record
-            let exit = unsafe { &mut *(*activation).exit };
-            exit.panic();
-
-            return abi::RuntimeStatus::Exit.code();
-        };
-
-        // SAFETY: generated code keeps the exact typed payload words live for this callback
-        let word_count = byte_len.div_ceil(program::Word::BYTE_LEN);
-        let words = unsafe { std::slice::from_raw_parts(words.cast(), word_count) };
-
-        match call.program.value(ty, words.iter().copied()) {
-            Ok(payload) => call.panic = Some(payload),
-            Err(error) => call.error = Some(Error::from(error).into()),
-        }
-
-        // SAFETY: the active activation owns one live exit record
-        let exit = unsafe { &mut *(*activation).exit };
-        exit.panic();
-
-        abi::RuntimeStatus::Exit.code()
-    }
-
     /// Recover the runtime call owning one ABI activation.
-    unsafe fn from_activation<'call>(activation: *mut abi::Activation) -> &'call mut Self {
+    unsafe fn from_activation<'activation>(
+        activation: *mut abi::Activation,
+    ) -> &'activation mut Self {
         // SAFETY: abi::Activation.call was built from this exact Call type
-        unsafe { &mut *(*activation).call.cast::<Self>() }
+        let call = unsafe { &mut *(*activation).call.cast::<Self>() };
+        let context = unsafe { (*activation).context };
+        *call.activation.context = program::Context::new(HeapReference::from_bits(context));
+
+        call
     }
 
     /// Build one heap edge from stable ABI bits.
@@ -723,16 +957,122 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
         }
     }
 
-    /// Retain one runtime operation failure and stop native execution.
-    fn fail(&mut self, error: impl Into<Box<RuntimeError>>) -> abi::RuntimeStatusCode {
+    /// Copy one typed value from generated native storage.
+    unsafe fn value(&mut self, ty: program::TypeId, words: *const u64) -> program::Value {
+        let byte_len = self.program.type_byte_len(ty).unwrap_or_else(|| {
+            self.fail(RuntimeError::Internal {
+                message: format!("native value type {ty:?} has no layout"),
+            })
+        });
+        let word_count = byte_len.div_ceil(program::Word::BYTE_LEN);
+        if word_count != 0 && words.is_null() {
+            self.fail(RuntimeError::Internal {
+                message: format!("native value type {ty:?} has no words"),
+            });
+        }
+        let words = if word_count == 0 {
+            Vec::new()
+        } else {
+            // SAFETY: generated code supplies the exact typed value range
+            unsafe { std::slice::from_raw_parts(words.cast(), word_count).to_vec() }
+        };
+
+        self.program
+            .value(ty, words)
+            .unwrap_or_else(|error| self.fail(error))
+    }
+
+    /// Raise one runtime operation failure through native cleanup blocks.
+    fn fail(&mut self, error: impl Into<Box<RuntimeError>>) -> ! {
         self.fail_boxed(error.into())
     }
 
-    /// Retain one boxed runtime failure and stop native execution.
-    fn fail_boxed(&mut self, error: Box<RuntimeError>) -> abi::RuntimeStatusCode {
-        self.error = Some(error);
+    /// Raise one boxed runtime failure through native cleanup blocks.
+    fn fail_boxed(&mut self, error: Box<RuntimeError>) -> ! {
+        self.transfer = Some(Transfer::Error(error));
 
-        abi::RuntimeStatus::Exit.code()
+        Self::raise()
+    }
+
+    /// Return one captured activation without running native cleanup blocks.
+    fn retain(&mut self) -> ! {
+        self.transfer = Some(Transfer::Retain);
+
+        Self::raise()
+    }
+
+    /// Start one zero-cost platform unwind.
+    fn raise() -> ! {
+        std::panic::resume_unwind(Box::new(Unwind))
+    }
+
+    /// Record one payloadless language panic.
+    unsafe extern "C-unwind" fn panic(activation: *mut abi::Activation) -> ! {
+        // SAFETY: generated code passes the active activation supplied to abi::Entry
+        let call = unsafe { Self::from_activation(activation) };
+        call.transfer = Some(Transfer::Panic(None));
+
+        Self::raise()
+    }
+
+    /// Record one typed language panic.
+    unsafe extern "C-unwind" fn panic_value(
+        activation: *mut abi::Activation,
+        ty: u32,
+        words: *const u64,
+    ) -> ! {
+        // SAFETY: generated code passes the active activation supplied to abi::Entry
+        let call = unsafe { Self::from_activation(activation) };
+        let ty = program::TypeId(ty);
+        let byte_len = call.program.type_byte_len(ty).unwrap_or_else(|| {
+            call.fail(RuntimeError::Internal {
+                message: format!("native panic type {ty:?} has no layout"),
+            })
+        });
+        let word_count = byte_len.div_ceil(program::Word::BYTE_LEN);
+        if word_count != 0 && words.is_null() {
+            call.fail(RuntimeError::Internal {
+                message: "native panic payload has no words".to_string(),
+            });
+        }
+
+        // copy the payload before unwinding destroys the originating frame
+        let words = if word_count == 0 {
+            Vec::new()
+        } else {
+            // SAFETY: generated code supplies the exact payload word range
+            unsafe { std::slice::from_raw_parts(words.cast(), word_count).to_vec() }
+        };
+        let value = call
+            .program
+            .value(ty, words)
+            .unwrap_or_else(|error| call.fail(error));
+        call.transfer = Some(Transfer::Panic(Some(value)));
+
+        Self::raise()
+    }
+
+    /// Classify the active platform unwind for one cleanup landing pad.
+    unsafe extern "C-unwind" fn unwind_classify(
+        activation: *mut abi::Activation,
+    ) -> abi::UnwindAction {
+        // SAFETY: generated code passes the active activation supplied to abi::Entry
+        let call = unsafe { Self::from_activation(activation) };
+
+        match call.transfer {
+            Some(Transfer::Error(_) | Transfer::Panic(_)) => abi::UnwindAction::Cleanup,
+            Some(Transfer::Retain) => abi::UnwindAction::Retain,
+            None => std::process::abort(),
+        }
+    }
+
+    /// Continue one active platform unwind.
+    unsafe extern "C-unwind" fn unwind_resume(
+        _activation: *mut abi::Activation,
+        unwind: *mut abi::Unwind,
+    ) -> ! {
+        // SAFETY: generated cleanup code passes the active platform unwind object
+        unsafe { Platform::resume(unwind) }
     }
 
     /// Build one internal native capture failure.
@@ -754,8 +1094,8 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
     }
 
     /// Return the repeated allocation operation.
-    pub const fn allocate_slice_entry() -> abi::AllocateSlice {
-        Self::allocate_slice
+    pub const fn allocate_repeated_entry() -> abi::AllocateRepeated {
+        Self::allocate_repeated
     }
 
     /// Return the unique release operation.
@@ -792,16 +1132,6 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
     pub const fn deopt_entry() -> abi::Deopt {
         Self::deopt
     }
-
-    /// Return the payloadless panic runtime operation.
-    pub const fn panic_entry() -> abi::Panic {
-        Self::panic
-    }
-
-    /// Return the typed panic runtime operation.
-    pub const fn panic_value_entry() -> abi::PanicValue {
-        Self::panic_value
-    }
 }
 
 impl fmt::Debug for Call<'_, '_, '_, '_> {
@@ -810,8 +1140,7 @@ impl fmt::Debug for Call<'_, '_, '_, '_> {
         formatter
             .debug_struct("Call")
             .field("program", &self.program)
-            .field("panic", &self.panic)
-            .field("error", &self.error)
+            .field("transfer", &self.transfer.is_some())
             .finish_non_exhaustive()
     }
 }

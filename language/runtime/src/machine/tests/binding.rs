@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use destack_native::abi;
 use destack_program as program;
 use destack_repository::RuntimeOptions;
@@ -7,7 +5,7 @@ use destack_repository::RuntimeOptions;
 use crate::binding::{Binding, BindingTable, ReplayPayload};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::family_name;
-use crate::machine::native::{Call, Code, Function, Image, ModuleTable};
+use crate::machine::native::{Call, Code, Function, Image};
 use crate::tests::{TestProgram, TestWorker};
 use crate::worker::Activation;
 
@@ -98,10 +96,8 @@ fn test_execute_native_binding() {
     };
     assert_eq!(binding.function, TOUCH_FUNCTION);
     assert!(binding.is_imported());
-    let modules = Arc::new(ModuleTable::empty());
     let mut code = Code::new(
         Image::resident(),
-        modules,
         destack_native::CodeMap::empty(),
         Vec::new(),
     );
@@ -135,6 +131,7 @@ fn test_execute_native_binding() {
 fn touch(
     _activation: &mut Activation<'_>,
     _memory: program::Memory<'_>,
+    _context: program::Context,
     arguments: &[program::Word],
     result: &mut [program::Word],
 ) -> RuntimeResult<()> {
@@ -190,18 +187,11 @@ entry(v0: int32):
 }
 
 /// Call the runtime binding imported by one resident native entry.
-unsafe extern "C" fn native_task(
+unsafe extern "C-unwind" fn native_task(
     activation: *mut abi::Activation,
     arguments: *const u64,
     result: *mut u64,
-) -> abi::ExitCode {
+) {
     // SAFETY: the runtime supplies one active native activation and exact ABI value ranges
-    let status =
-        unsafe { (Call::binding_entry())(activation, TOUCH_FUNCTION.0, arguments, 1, result, 1) };
-    if status == abi::RuntimeStatus::Continue.code() {
-        abi::ExitKind::Completed.code()
-    } else {
-        // SAFETY: the runtime activation owns one live exit record
-        unsafe { (*(*activation).exit).kind }
-    }
+    unsafe { (Call::binding_entry())(activation, TOUCH_FUNCTION.0, arguments, 1, result, 1) };
 }

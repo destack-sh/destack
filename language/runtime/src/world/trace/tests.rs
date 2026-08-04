@@ -55,6 +55,7 @@ fn test_binding(name: &'static str) -> Binding {
 fn test_binding_call(
     _activation: &mut Activation<'_>,
     _memory: program::Memory<'_>,
+    _context: program::Context,
     _arguments: &[program::Word],
     _result: &mut [program::Word],
 ) -> RuntimeResult<()> {

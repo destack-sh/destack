@@ -136,8 +136,8 @@ impl<'a> ModuleLowerer<'a> {
         Ok(DiagnosticAnchor::Span(span))
     }
 
-    /// Build one unsupported construct error.
-    pub(crate) fn unsupported_construct(
+    /// Build one internal error for a valid construct that emission did not handle.
+    pub(crate) fn unhandled(
         &self,
         node: dir::GlobalNodeIdAny,
         message: Option<String>,
@@ -147,10 +147,10 @@ impl<'a> ModuleLowerer<'a> {
             Err(error) => return error,
         };
 
-        EmitError::UnsupportedConstruct {
+        EmitError::Internal {
             anchor,
             module: self.module.id,
-            message: message.unwrap_or_else(|| format!("unsupported {}", node.local_id.ty.name())),
+            message: message.unwrap_or_else(|| format!("unhandled {}", node.local_id.ty.name())),
         }
     }
 

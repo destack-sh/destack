@@ -1,5 +1,5 @@
 use crate::{Compiler, CompilerResult, LinkError};
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, Product, ProductTarget};
+use destack_artifact::{ArtifactDependencySet, ArtifactKey, Output, Product, ProductTarget};
 use destack_repository::{ArtifactReader, ProviderContext, RepositoryError, Target};
 use destack_source::{PackageId, ProductId, TargetId};
 use indexmap::IndexMap;
@@ -75,10 +75,9 @@ impl<'a> ProductLinker<'a> {
 
     /// Return the artifacts required by one product target.
     fn required_artifact_keys(&self, target: TargetId, config: &Target) -> Vec<ArtifactKey> {
-        if config.emit.is_program() {
-            vec![ArtifactKey::program(self.package, target)]
-        } else {
-            vec![ArtifactKey::bundle(self.package, target)]
+        match config.output {
+            Output::Bundle => vec![ArtifactKey::bundle(self.package, target)],
+            Output::Program => vec![ArtifactKey::program(self.package, target)],
         }
     }
 
@@ -89,9 +88,8 @@ impl<'a> ProductLinker<'a> {
         target: TargetId,
         config: &Target,
     ) -> ProductTarget {
-        let includes_bundle = config.emit.is_script();
-
-        let includes_program = config.emit.is_program();
+        let includes_bundle = config.output == Output::Bundle;
+        let includes_program = config.output == Output::Program;
 
         ProductTarget::new(
             target_name,

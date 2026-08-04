@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, Bundle, EmitFormat};
+use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, Bundle, Output};
 use destack_repository::{ArtifactReader, ProviderContext, ProviderError, RepositoryError, Target};
 use destack_source::{ModuleId, PackageId, ProductId, TargetId};
 
@@ -39,11 +39,11 @@ impl Compiler {
         self.observe_package_config(context, package, &mut dependencies)?;
 
         // declare the reachable artifact closure of the selected linker family
-        match resolved.target.emit {
-            EmitFormat::Js => self
+        match resolved.target.output {
+            Output::Bundle => self
                 .js_linker(package, &target, context, &artifacts, &resolved)?
                 .collect_modules(&resolved.modules, &mut dependencies)?,
-            EmitFormat::Bytecode | EmitFormat::Wasm | EmitFormat::Native => {
+            Output::Program => {
                 return Err(LinkError::InvalidTarget {
                     anchor: package.into(),
                     package,
@@ -79,7 +79,7 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
         let resolved = self.resolve_link_target(package, &target, context)?;
-        if !resolved.target.emit.is_program() {
+        if resolved.target.output != Output::Program {
             return Err(LinkError::InvalidTarget {
                 anchor: package.into(),
                 package,
@@ -126,7 +126,7 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let resolved = self.resolve_link_target(package, &target, context)?;
-        if !resolved.target.emit.is_program() {
+        if resolved.target.output != Output::Program {
             return Err(LinkError::InvalidTarget {
                 anchor: package.into(),
                 package,
@@ -156,14 +156,7 @@ impl Compiler {
             index += 1;
         }
         // link module objects into one Program
-        let program = ProgramLinker::new(
-            package,
-            target,
-            resolved.target.emit,
-            objects,
-            self.strings(),
-        )?
-        .link()?;
+        let program = ProgramLinker::new(package, objects, self.strings())?.link()?;
 
         Ok(ArtifactPayload::Program(Arc::new(program)))
     }
@@ -202,11 +195,11 @@ impl Compiler {
         let resolved = self.resolve_link_target(package_id, target_id, context)?;
 
         // dispatch through the selected linker family
-        let output = match resolved.target.emit {
-            EmitFormat::Js => self
+        let output = match resolved.target.output {
+            Output::Bundle => self
                 .js_linker(package_id, target_id, context, artifacts, &resolved)?
                 .link_target(&resolved.modules)?,
-            EmitFormat::Bytecode | EmitFormat::Wasm | EmitFormat::Native => {
+            Output::Program => {
                 return Err(LinkError::InvalidTarget {
                     anchor: package_id.into(),
                     package: package_id,

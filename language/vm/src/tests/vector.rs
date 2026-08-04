@@ -1,5 +1,4 @@
 use destack_bytecode::{RegisterId, RegisterSpan};
-use destack_mir::{Space, Storage};
 use destack_program::{MemoryAccess, StopReason, WatchSet, Word};
 
 use super::{TestMachine, TestProgram};
@@ -10,19 +9,19 @@ fn test_execute_vectors() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    vector.add.int32x4 r6:r7, r0:r1, r2:r3
-    vector.compare.gt.int32x4 r8, r6:r7, r0:r1
-    vector.select.int32x4 r9:r10, r8, r6:r7, r0:r1
-    vector.insert.int32x4 r11:r12, r9:r10, r4, r5
-    vector.shuffle.int32x4 r13:r14, r11:r12, r2:r3, [0, 5, 2, 7]
-    vector.reduce.add.int32x4 r15, r9:r10
-    vector.extract.int32x4 r16, r9:r10, r4
+    vector.add r6:r7, r0:r1, r2:r3: vector<int32, 4>
+    vector.compare.gt r8, r6:r7, r0:r1: vector<int32, 4>
+    vector.select r9:r10, r8, r6:r7, r0:r1: vector<int32, 4>
+    vector.insert r11:r12, r9:r10, r4, r5: vector<int32, 4>
+    vector.shuffle r13:r14, r11:r12, r2:r3, [0, 5, 2, 7]: vector<int32, 4>
+    vector.reduce.add r15, r9:r10: vector<int32, 4>
+    vector.extract r16, r9:r10, r4: vector<int32, 4>
     return r13:r16
 }
 
 function f1 {
-    vector.convert.roundFloor.float32x4.int16x4 r3, r0:r1
-    vector.extract.int16x4 r4, r3, r2
+    vector.convert.roundFloor r3, r0:r1: vector<float32, 4> -> vector<int16, 4>
+    vector.extract r4, r3, r2: vector<int16, 4>
     return r3:r4
 }
 "#,
@@ -62,15 +61,15 @@ function f1 {
 /// Execute vector memory through the observed loop and stop after the write.
 #[test]
 fn test_watch_vector_memory() {
-    let site = TestProgram::memory_site(0, 0, MemoryAccess::Write, Storage::Heap(Space::Local));
+    let site = TestProgram::memory_site(0, 0, MemoryAccess::Write, None);
     let watch = TestProgram::watchpoint(0, 0, 17, MemoryAccess::Write);
     let watchpoint_id = watch.watchpoint_id;
     let watches = WatchSet::new(vec![watch]);
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    vector.store.uint32x4 r0, r1:r2
-    vector.load.uint32x4 r3:r4, r0
+    vector.store r0, r1:r2: vector<uint32, 4>
+    vector.load r3:r4, r0: vector<uint32, 4>
     return r3:r4
 }
 "#,

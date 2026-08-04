@@ -1,8 +1,8 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::CompilerResult;
 use crate::check::{Answer, CheckState, Origin, answer};
+use crate::{CheckError, CompilerResult};
 
 impl CheckState<'_> {
     /// Reduce one compiler-recognized intrinsic application.
@@ -40,6 +40,19 @@ impl CheckState<'_> {
             dir::LanguageItem::Dynamic => self.reduce_dynamic_application(origin, module, instance),
             dir::LanguageItem::Function => {
                 self.reduce_function_application(origin, module, instance)
+            }
+            dir::LanguageItem::OnceFunction => {
+                let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+                let diagnostic = CheckError::UnsupportedType {
+                    anchor,
+                    module,
+                    name: "OnceFunction".into(),
+                };
+                self.report(module, diagnostic);
+
+                let error = self.intern_type(dir::Type::Error)?;
+
+                Ok(Answer::Ready(Some(error)))
             }
             dir::LanguageItem::FunctionPointer => {
                 self.reduce_function_pointer_application(origin, module, instance)
@@ -262,7 +275,10 @@ impl CheckState<'_> {
         else {
             return Ok(Answer::Ready(None));
         };
-        let function = dir::Type::Function(dir::FunctionType { signature });
+        let function = dir::Type::Function(dir::FunctionType {
+            signature,
+            multiplicity: dir::Multiplicity::Repeatable,
+        });
         let ty = self.intern_type(function)?;
 
         Ok(Answer::Ready(Some(ty)))

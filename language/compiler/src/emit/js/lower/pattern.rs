@@ -84,7 +84,7 @@ impl ModuleLowerer<'_> {
                             Some(self.lower_expression_as::<js::Expression>(*value)?)
                         }
                         _ => {
-                            return Err(self.unsupported_construct(
+                            return Err(self.unhandled(
                                 assign_pattern_field_id.into_global_any(self.module.id),
                                 Some("invalid JavaScript shorthand assignment target".to_string()),
                             ));
@@ -124,7 +124,7 @@ impl ModuleLowerer<'_> {
             }
             dir::AssignPatternField::Rest { pattern } => {
                 let Some(pattern) = pattern else {
-                    return Err(self.unsupported_construct(
+                    return Err(self.unhandled(
                         assign_pattern_field_id.into_global_any(self.module.id),
                         Some("JavaScript rest assignments require a target".to_string()),
                     ));
@@ -229,7 +229,7 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(pattern, self.module.id, pattern_id)
             }
             _ => {
-                return Err(self.unsupported_construct(
+                return Err(self.unhandled(
                     pattern_id.into_global_any(self.module.id),
                     Some(format!("unsupported pattern kind: {pattern:?}")),
                 ));
@@ -272,7 +272,7 @@ impl ModuleLowerer<'_> {
                     .tree
                     .insert_from_source(pattern_field, self.module.id, pattern_field_id))
             }
-            dir::PatternField::Computed { .. } => Err(self.unsupported_construct(
+            dir::PatternField::Computed { .. } => Err(self.unhandled(
                 pattern_field_id.into_global_any(self.module.id),
                 Some("computed array or tuple pattern fields are not lowered to JS".to_string()),
             )),
@@ -310,7 +310,7 @@ impl ModuleLowerer<'_> {
                                 None
                             }
                             _ => {
-                                return Err(self.unsupported_construct(
+                                return Err(self.unhandled(
                                     pattern_field_id.into_global_any(self.module.id),
                                     Some("invalid JavaScript shorthand binding".to_string()),
                                 ));
@@ -321,7 +321,7 @@ impl ModuleLowerer<'_> {
                     js::PatternField::Shorthand { name, value }
                 } else {
                     let Some(pattern) = pattern else {
-                        return Err(self.unsupported_construct(
+                        return Err(self.unhandled(
                             pattern_field_id.into_global_any(self.module.id),
                             Some("JavaScript named patterns require a target".to_string()),
                         ));
@@ -353,7 +353,7 @@ impl ModuleLowerer<'_> {
             }
             dir::PatternField::Rest { pattern } => {
                 let Some(pattern) = pattern else {
-                    return Err(self.unsupported_construct(
+                    return Err(self.unhandled(
                         pattern_field_id.into_global_any(self.module.id),
                         Some("JavaScript rest bindings require a target".to_string()),
                     ));

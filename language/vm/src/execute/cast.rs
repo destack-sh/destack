@@ -4,6 +4,8 @@ use destack_program::{Runtime, Word};
 use crate::diagnostic::{Error, Result, Trap};
 use crate::machine::Activation;
 
+use super::arithmetic::Arithmetic;
+
 impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one scalar or pointer conversion.
     pub(crate) fn execute_cast(
@@ -37,10 +39,11 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
         Ok(())
     }
+}
 
+impl Arithmetic {
     /// Convert one numeric scalar under an explicit conversion mode.
-    pub(super) fn convert_scalar(
-        &self,
+    pub(super) fn convert(
         value: Word,
         source: Scalar,
         target: Scalar,
@@ -52,26 +55,25 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
         // boolean values only convert through identity
         if source == Scalar::Boolean || target == Scalar::Boolean {
-            return Err(self.invalid_instruction());
+            return Err(Error::invalid_instruction());
         }
 
         // select the numeric conversion domain
         if source.is_integer() && target.is_integer() {
-            self.convert_integer(value, source, target, mode)
+            Self::convert_integer(value, source, target, mode)
         } else if source.is_integer() && target.is_float() {
-            self.convert_integer_to_float(value, source, target, mode)
+            Self::convert_integer_to_float(value, source, target, mode)
         } else if source.is_float() && target.is_integer() {
-            self.convert_float_to_integer(value, source, target, mode)
+            Self::convert_float_to_integer(value, source, target, mode)
         } else if source.is_float() && target.is_float() {
-            self.convert_float(value, source, target, mode)
+            Self::convert_float(value, source, target, mode)
         } else {
-            Err(self.invalid_instruction())
+            Err(Error::invalid_instruction())
         }
     }
 
     /// Convert one integer between scalar representations.
     fn convert_integer(
-        &self,
         value: Word,
         source: Scalar,
         target: Scalar,
@@ -79,10 +81,10 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     ) -> Result<Word> {
         let value = source
             .integer(value.bits())
-            .ok_or_else(|| self.invalid_instruction())?;
+            .ok_or_else(Error::invalid_instruction)?;
         let (minimum, maximum) = target
             .integer_bounds()
-            .ok_or_else(|| self.invalid_instruction())?;
+            .ok_or_else(Error::invalid_instruction)?;
         let value = if mode == ConvertMode::Saturate {
             value.clamp(minimum, maximum)
         } else if value < minimum || value > maximum {
@@ -96,7 +98,6 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
     /// Convert one integer into a floating-point representation.
     fn convert_integer_to_float(
-        &self,
         value: Word,
         source: Scalar,
         target: Scalar,
@@ -104,17 +105,15 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     ) -> Result<Word> {
         let integer = source
             .integer(value.bits())
-            .ok_or_else(|| self.invalid_instruction())?;
+            .ok_or_else(Error::invalid_instruction)?;
         let value = integer as f64;
         let bits = target
             .float_bits(value)
-            .ok_or_else(|| self.invalid_instruction())?;
+            .ok_or_else(Error::invalid_instruction)?;
 
         // exact conversion must preserve the mathematical integer
         if mode == ConvertMode::Exact {
-            let converted = target
-                .float(bits)
-                .ok_or_else(|| self.invalid_instruction())?;
+            let converted = target.float(bits).ok_or_else(Error::invalid_instruction)?;
             let is_exact =
                 converted.is_finite() && converted.fract() == 0.0 && converted as i128 == integer;
             if !is_exact {
@@ -127,7 +126,6 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
     /// Convert one floating-point value into an integer representation.
     fn convert_float_to_integer(
-        &self,
         value: Word,
         source: Scalar,
         target: Scalar,
@@ -135,10 +133,10 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     ) -> Result<Word> {
         let value = source
             .float(value.bits())
-            .ok_or_else(|| self.invalid_instruction())?;
+            .ok_or_else(Error::invalid_instruction)?;
         let (minimum, maximum) = target
             .integer_bounds()
-            .ok_or_else(|| self.invalid_instruction())?;
+            .ok_or_else(Error::invalid_instruction)?;
 
         // apply the requested integer rounding rule
         let rounded = match mode {
@@ -174,7 +172,6 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
     /// Convert one floating-point value into another representation.
     fn convert_float(
-        &self,
         value: Word,
         source: Scalar,
         target: Scalar,
@@ -182,13 +179,11 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     ) -> Result<Word> {
         let value = source
             .float(value.bits())
-            .ok_or_else(|| self.invalid_instruction())?;
+            .ok_or_else(Error::invalid_instruction)?;
         let bits = target
             .float_bits(value)
-            .ok_or_else(|| self.invalid_instruction())?;
-        let converted = target
-            .float(bits)
-            .ok_or_else(|| self.invalid_instruction())?;
+            .ok_or_else(Error::invalid_instruction)?;
+        let converted = target.float(bits).ok_or_else(Error::invalid_instruction)?;
 
         // exact narrowing rejects any representational change
         if mode == ConvertMode::Exact && converted != value {
@@ -197,7 +192,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
         Ok(Word::from_bits(target.encode(bits)))
     }
+}
 
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Truncate one integer into a narrower representation.
     fn truncate_cast(&self, value: Word, target: ValueType) -> Result<Word> {
         let scalar = target

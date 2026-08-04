@@ -1798,6 +1798,12 @@ impl BodyState<'_, '_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         let ty = answer!(self.reduce_type_head(origin, ty)?);
+
+        // retain readonly access over every safe reference carrier
+        if answer!(self.type_is_reference(origin, ty)?) {
+            return Ok(Answer::Ready(true));
+        }
+
         if answer!(self.satisfies_auto_interface(origin, ty, dir::AutoInterface::Copy)?) {
             return Ok(Answer::Ready(false));
         }

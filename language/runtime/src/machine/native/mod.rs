@@ -1,17 +1,21 @@
 mod call;
 mod code;
+#[cfg(target_vendor = "apple")]
+mod darwin;
 mod error;
 mod function;
-mod library;
+mod import;
 mod load;
 mod mapping;
-mod module;
+mod platform;
 
 pub use call::*;
 pub use code::*;
 pub use error::*;
 pub use function::*;
-pub use library::*;
 pub use load::*;
 pub use mapping::*;
-pub use module::*;
+pub use platform::*;
+
+#[cfg(test)]
+mod tests;

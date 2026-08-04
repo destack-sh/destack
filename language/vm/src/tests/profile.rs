@@ -10,8 +10,8 @@ fn test_record_profile() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    profile.increment counter(0)
-    profile.sample sampler(0), r0
+    profile.increment c0
+    profile.sample s0, r0
     return r0
 }
 "#,

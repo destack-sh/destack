@@ -1,12 +1,17 @@
-use destack_artifact::Object;
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use destack_core::{float_from_bits, float_to_bits};
 use destack_mir as mir;
-use destack_program::{Global, GlobalAllocator, GlobalLocation, GlobalTableBuilder, Symbol};
-use destack_source::ModuleId;
+use destack_program::{
+    Global, GlobalAllocator, GlobalId, GlobalLocation, GlobalTableBuilder, Object, StaticBytes,
+    Symbol, TypeId,
+};
+use destack_source::{ModuleId, PackageId};
 
-use crate::LinkResult;
+use crate::{LinkError, LinkResult};
 
-use super::ProgramLinker;
+use super::{ProgramLinker, TypeLinker};
 
 /// Linked static memory spaces for one program.
 #[derive(Debug)]
@@ -14,11 +19,11 @@ pub(crate) struct ProgramStatics {
     /// Program global table.
     pub(crate) globals: GlobalTableBuilder,
     /// Immutable program constants.
-    pub(crate) constants: Vec<u8>,
+    pub(crate) constants: StaticBytes,
     /// Shared mutable program statics.
-    pub(crate) shared: Vec<u8>,
+    pub(crate) shared: StaticBytes,
     /// Local mutable program statics.
-    pub(crate) local: Vec<u8>,
+    pub(crate) local: StaticBytes,
 }
 
 /// Link MIR globals into program static spaces.
@@ -94,6 +99,13 @@ impl<'a> StaticLinker<'a> {
             shared: shared.build(),
             local: local.build(),
         })
+    }
+}
+
+impl ProgramStatics {
+    /// Return one linked global by final dense id.
+    pub(crate) fn global(&self, global: GlobalId) -> Option<&Global> {
+        self.globals.get(global)
     }
 }
 
@@ -302,7 +314,7 @@ impl<'a> GlobalLinker<'a> {
                 self.integer_constant_bytes(constant, u32::BITS as u16, false, byte_len)
             }
             mir::Type::Float(format) => self.float_constant_bytes(constant, *format, byte_len),
-            mir::Type::Reference { nullability, .. } => {
+            mir::Type::Reference { nullability, .. } | mir::Type::Pointer { nullability, .. } => {
                 self.reference_constant_bytes(constant, *nullability, byte_len)
             }
             _ => Err(self
@@ -625,13 +637,7 @@ impl<'a> GlobalLinker<'a> {
             | mir::Type::Boolean
             | mir::Type::Character
             | mir::Type::TypeId => Ok(()),
-            mir::Type::Reference {
-                kind: _,
-                storage: _,
-                access: _,
-                nullability,
-                ..
-            } => {
+            mir::Type::Reference { nullability, .. } | mir::Type::Pointer { nullability, .. } => {
                 if !nullability.allows_null() {
                     return Err(self
                         .program
@@ -767,6 +773,7 @@ impl<'a> GlobalLinker<'a> {
                 | mir::Type::TypeDescriptor
                 | mir::Type::TypeId
                 | mir::Type::Reference { .. }
+                | mir::Type::Pointer { .. }
                 | mir::Type::FunctionPointer { .. }
                 | mir::Type::Tensor { .. }
         )
@@ -804,5 +811,84 @@ impl<'a> GlobalLinker<'a> {
             self.program.type_id(self.module, ty),
             is_mutable,
         )
+    }
+}
+
+impl StaticLinker<'_> {
+    /// Build dense global ids from definitions and imported symbols.
+    pub(crate) fn index(
+        package: PackageId,
+        objects: &[(ModuleId, Arc<Object>)],
+        type_ids: &HashMap<(ModuleId, mir::TypeId), TypeId>,
+    ) -> LinkResult<(
+        HashMap<(ModuleId, mir::GlobalId), GlobalId>,
+        Vec<(ModuleId, mir::GlobalId)>,
+    )> {
+        let mut ids = HashMap::new();
+        let mut globals = Vec::new();
+        let mut symbols = HashMap::new();
+
+        // assign local and exported definitions
+        for (module, object) in objects {
+            for global in object.globals() {
+                let global_id = global.id;
+                if global.linkage.is_import() {
+                    continue;
+                }
+
+                let id = GlobalId::from(globals.len() as u32);
+                if global.linkage.is_exported() {
+                    let definition = (id, *module, global);
+                    if symbols.insert(global.symbol, definition).is_some() {
+                        return Err(LinkError::invalid_input(
+                            package,
+                            format!("global symbol {:?} has multiple definitions", global.symbol),
+                        ));
+                    }
+                }
+
+                ids.insert((*module, global_id), id);
+                globals.push((*module, global_id));
+            }
+        }
+
+        // resolve imports against exported definitions
+        for (module, object) in objects {
+            for global in object.globals() {
+                let global_id = global.id;
+                if !global.linkage.is_import() {
+                    continue;
+                }
+                let Some((id, definition_module, definition)) =
+                    symbols.get(&global.symbol).copied()
+                else {
+                    return Err(LinkError::invalid_input(
+                        package,
+                        format!("global symbol {:?} is undefined", global.symbol),
+                    ));
+                };
+                if !TypeLinker::same(
+                    *module,
+                    global.ty,
+                    definition_module,
+                    definition.ty,
+                    type_ids,
+                ) || global.mutability != definition.mutability
+                    || global.storage != definition.storage
+                {
+                    return Err(LinkError::invalid_input(
+                        package,
+                        format!(
+                            "global symbol {:?} has conflicting declarations",
+                            global.symbol
+                        ),
+                    ));
+                }
+
+                ids.insert((*module, global_id), id);
+            }
+        }
+
+        Ok((ids, globals))
     }
 }

@@ -20,7 +20,7 @@ fn test_execute_binding_definition() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    constant.int32 r0, 42
+    constant r0, 42: int32
     return r0
 }
 "#,
@@ -40,22 +40,22 @@ fn test_execute_runtime_binding() {
         .binding(0, "runtime.touch");
     let mut machine = TestMachine::parse(
         r#"
-function f0
+external function f0
 
 function f1 {
-    constant.int32 r0, 41
-    call r1, f0, r0
+    constant r0, 41: int32
+    call r1, f0(r0)
     return r1
 }
 
 function f2 {
-    constant.int32 r0, 41
-    tail.call f0, r0
+    constant r0, 41: int32
+    tail.call f0(r0)
 }
 
 function f3 {
-    constant.int32 r0, 41
-    invoke r1, f0, r0 => b0 | b1
+    constant r0, 41: int32
+    invoke r1, f0(r0) => b0 | b1
 
 b0:
     return r1
@@ -99,18 +99,18 @@ fn test_execute_virtual_call() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    constant.int32 r1, 7
+    constant r1, 7: int32
     return r1
 }
 
 function f1 {
-    constant.int32 r1, 42
+    constant r1, 42: int32
     return r1
 }
 
 function f2 {
-    new.local.managed.zeroed r0, a0
-    call.virtual r1, r0, ref<managed, local>, 12, 0, r0
+    new.zeroed r0, a0: ref<managed, local>
+    call.virtual r1, r0: ref<managed, local>[12, 0](r0)
     return r1
 }
 "#,

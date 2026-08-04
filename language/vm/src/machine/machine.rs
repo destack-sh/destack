@@ -189,7 +189,8 @@ impl Machine {
             completion: program::Completion::Return,
         };
         let frame = self.allocate_frame(function, 1, return_to)?;
-        let reference = Word::from_bits((payload + 2) as u64);
+        let reference = self.stack.memory_offset(payload);
+        let reference = Word::from_bits(reference as u64);
         self.stack.write(frame.register_offset, reference);
         self.frames.push(frame);
         let outcome = Activation::new(self, continuations, activation).execute();
@@ -227,6 +228,12 @@ impl Machine {
         R::Error: From<Error>,
     {
         if self.frames.is_empty() && self.activation.is_some() {
+            let context = self
+                .activation
+                .as_ref()
+                .map(ActivationImage::context)
+                .ok_or_else(Error::execution_not_stopped)?;
+            *activation.context = context;
             self.materialize()?;
         }
         let Some(frame) = self.frames.first().copied() else {

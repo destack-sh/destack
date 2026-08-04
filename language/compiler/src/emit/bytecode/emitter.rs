@@ -1,7 +1,6 @@
 use destack_artifact::MirOptimized;
 use destack_bytecode as bytecode;
 use destack_core::{EntryRange, Optional};
-use destack_mir as mir;
 use destack_source::ModuleId;
 
 use crate::{EmitError, ObjectEmitter};
@@ -35,16 +34,16 @@ impl<'a> BytecodeEmitter<'a> {
 
     /// Emit one relocatable bytecode object.
     pub fn emit(&self) -> Result<bytecode::Object, EmitError> {
-        let functions = self.ordered_functions()?;
         let mut frames = Vec::new();
         let mut registers = Vec::new();
         let mut operations = Vec::new();
         let mut relocations = Vec::new();
         let mut code = Vec::new();
-        let mut rows = Vec::with_capacity(functions.len());
+        let mut rows = Vec::with_capacity(self.object.functions().len());
 
         // emit functions in object order
-        for (function_id, function) in functions {
+        for &function_id in self.object.functions() {
+            let function = self.optimized.tree.get(function_id);
             if function.body.is_none() {
                 rows.push(bytecode::Function::declaration());
 
@@ -72,7 +71,7 @@ impl<'a> BytecodeEmitter<'a> {
 
         // require one physical map for every logical bytecode frame state
         if frames.len() != self.object.frames().len() {
-            return Err(self.invalid("bytecode frame map count does not match object states"));
+            return Err(self.internal("bytecode frame map count does not match object states"));
         }
 
         Ok(bytecode::ObjectBuilder::new()
@@ -83,26 +82,6 @@ impl<'a> BytecodeEmitter<'a> {
             .relocations(relocations)
             .code(code)
             .build())
-    }
-
-    /// Return MIR functions in object identity order.
-    fn ordered_functions(&self) -> Result<Vec<(mir::FunctionId, &mir::Function)>, EmitError> {
-        let mut functions = self
-            .optimized
-            .tree
-            .iter_nodes::<mir::Function>()
-            .map(|(id, function)| {
-                let index = self.types.function_id(id)?.index();
-
-                Ok((index, id, function))
-            })
-            .collect::<Result<Vec<_>, EmitError>>()?;
-        functions.sort_unstable_by_key(|(index, _, _)| *index);
-
-        Ok(functions
-            .into_iter()
-            .map(|(_, id, function)| (id, function))
-            .collect())
     }
 
     /// Append one emitted function and return its physical object row.
@@ -123,10 +102,10 @@ impl<'a> BytecodeEmitter<'a> {
         // append physical maps in canonical logical frame order
         for frame in emitted_frames {
             let Some(state) = self.object.frames().get(frames.len()) else {
-                return Err(self.invalid("bytecode emitted an unknown frame map"));
+                return Err(self.internal("bytecode emitted an unknown frame map"));
             };
             if state.point != frame.point {
-                return Err(self.invalid("bytecode frame maps are not in object order"));
+                return Err(self.internal("bytecode frame maps are not in object order"));
             }
             let register_start = registers.len() as u32;
             let register_count = frame.registers.len() as u32;
@@ -160,9 +139,9 @@ impl<'a> BytecodeEmitter<'a> {
         ))
     }
 
-    /// Build one invalid bytecode input diagnostic.
-    fn invalid(&self, message: &str) -> EmitError {
-        EmitError::UnexpectedConstruct {
+    /// Build one internal bytecode emission diagnostic.
+    fn internal(&self, message: &str) -> EmitError {
+        EmitError::Internal {
             anchor: self.module.into(),
             module: self.module,
             message: message.to_owned(),

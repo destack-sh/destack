@@ -1,9 +1,8 @@
-use destack_artifact::EmitFormat;
 use destack_program::{BindingAffinity, BindingEffect, BindingId, BindingProvider, BindingReplay};
-use destack_source::{ModuleId, PackageId, TargetId};
+use destack_source::{ModuleId, PackageId};
 
-use super::super::ProgramLinker;
-use super::harness::TestModule;
+use crate::ProgramLinker;
+use crate::link::tests::TestModule;
 
 /// Resolve one binding declaration to its program-defined implementation.
 #[test]
@@ -40,8 +39,6 @@ entry:
     let strings = TestModule::merge_strings([&provider, &consumer]);
     let linker = ProgramLinker::new(
         package,
-        TargetId::new(package, "test"),
-        EmitFormat::Bytecode,
         vec![
             (consumer.module, consumer.object.clone()),
             (provider.module, provider.object.clone()),

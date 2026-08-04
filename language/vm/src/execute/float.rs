@@ -1,8 +1,10 @@
 use destack_bytecode::{FloatOperation, Instruction, Scalar};
 use destack_program::{Runtime, Word};
 
-use crate::diagnostic::Result;
+use crate::diagnostic::{Error, Result};
 use crate::machine::Activation;
+
+use super::arithmetic::Arithmetic;
 
 impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one scalar floating-point operation.
@@ -32,16 +34,17 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             None
         };
 
-        let value = self.float_value(operation, scalar, left, right, addend)?;
+        let value = Arithmetic::float(operation, scalar, left, right, addend)?;
 
         self.write(target.0, value);
 
         Ok(())
     }
+}
 
+impl Arithmetic {
     /// Execute one floating-point operation over unpacked scalar words.
-    pub(super) fn float_value(
-        &self,
+    pub(super) fn float(
         operation: FloatOperation,
         scalar: Scalar,
         left: Word,
@@ -49,15 +52,14 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         addend: Option<Word>,
     ) -> Result<Word> {
         if scalar == Scalar::Float64 {
-            self.float64(operation, left, right, addend)
+            Self::float64(operation, left, right, addend)
         } else {
-            self.float32(operation, scalar, left, right, addend)
+            Self::float32(operation, scalar, left, right, addend)
         }
     }
 
     /// Execute one binary64 operation.
     fn float64(
-        &self,
         operation: FloatOperation,
         left: Word,
         right: Option<Word>,
@@ -69,33 +71,33 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
         // comparisons produce canonical boolean words
         if operation.is_comparison() {
-            let right = right.ok_or_else(|| self.invalid_instruction())?;
+            let right = right.ok_or_else(Error::invalid_instruction)?;
             let value = Self::compare_float(operation, left, right);
 
             return Ok(Word::boolean(value));
         }
 
         let value = match operation {
-            FloatOperation::Add => left + right.ok_or_else(|| self.invalid_instruction())?,
-            FloatOperation::Subtract => left - right.ok_or_else(|| self.invalid_instruction())?,
-            FloatOperation::Multiply => left * right.ok_or_else(|| self.invalid_instruction())?,
-            FloatOperation::Divide => left / right.ok_or_else(|| self.invalid_instruction())?,
-            FloatOperation::Remainder => left % right.ok_or_else(|| self.invalid_instruction())?,
+            FloatOperation::Add => left + right.ok_or_else(Error::invalid_instruction)?,
+            FloatOperation::Subtract => left - right.ok_or_else(Error::invalid_instruction)?,
+            FloatOperation::Multiply => left * right.ok_or_else(Error::invalid_instruction)?,
+            FloatOperation::Divide => left / right.ok_or_else(Error::invalid_instruction)?,
+            FloatOperation::Remainder => left % right.ok_or_else(Error::invalid_instruction)?,
             FloatOperation::Negate => -left,
             FloatOperation::SquareRoot => left.sqrt(),
             FloatOperation::Absolute => left.abs(),
             FloatOperation::FusedMultiplyAdd => left.mul_add(
-                right.ok_or_else(|| self.invalid_instruction())?,
-                addend.ok_or_else(|| self.invalid_instruction())?,
+                right.ok_or_else(Error::invalid_instruction)?,
+                addend.ok_or_else(Error::invalid_instruction)?,
             ),
             FloatOperation::CopySign => {
-                left.copysign(right.ok_or_else(|| self.invalid_instruction())?)
+                left.copysign(right.ok_or_else(Error::invalid_instruction)?)
             }
             FloatOperation::Minimum => {
-                Self::minimum64(left, right.ok_or_else(|| self.invalid_instruction())?)
+                Self::minimum64(left, right.ok_or_else(Error::invalid_instruction)?)
             }
             FloatOperation::Maximum => {
-                Self::maximum64(left, right.ok_or_else(|| self.invalid_instruction())?)
+                Self::maximum64(left, right.ok_or_else(Error::invalid_instruction)?)
             }
             FloatOperation::Sin => left.sin(),
             FloatOperation::Cos => left.cos(),
@@ -103,13 +105,13 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             FloatOperation::Asin => left.asin(),
             FloatOperation::Acos => left.acos(),
             FloatOperation::Atan => left.atan(),
-            FloatOperation::Atan2 => left.atan2(right.ok_or_else(|| self.invalid_instruction())?),
+            FloatOperation::Atan2 => left.atan2(right.ok_or_else(Error::invalid_instruction)?),
             FloatOperation::Exp => left.exp(),
             FloatOperation::Exp2 => left.exp2(),
             FloatOperation::Log => left.ln(),
             FloatOperation::Log2 => left.log2(),
             FloatOperation::Log10 => left.log10(),
-            FloatOperation::Pow => left.powf(right.ok_or_else(|| self.invalid_instruction())?),
+            FloatOperation::Pow => left.powf(right.ok_or_else(Error::invalid_instruction)?),
             FloatOperation::Floor => left.floor(),
             FloatOperation::Ceil => left.ceil(),
             FloatOperation::Truncate => left.trunc(),
@@ -122,7 +124,6 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
     /// Execute one binary32, binary16, or bfloat16 operation.
     fn float32(
-        &self,
         operation: FloatOperation,
         scalar: Scalar,
         left: Word,
@@ -131,12 +132,12 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     ) -> Result<Word> {
         let left = scalar
             .float(left.bits())
-            .ok_or_else(|| self.invalid_instruction())? as f32;
+            .ok_or_else(Error::invalid_instruction)? as f32;
         let right = match right {
             Some(value) => Some(
                 scalar
                     .float(value.bits())
-                    .ok_or_else(|| self.invalid_instruction())? as f32,
+                    .ok_or_else(Error::invalid_instruction)? as f32,
             ),
             None => None,
         };
@@ -144,40 +145,40 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             Some(value) => Some(
                 scalar
                     .float(value.bits())
-                    .ok_or_else(|| self.invalid_instruction())? as f32,
+                    .ok_or_else(Error::invalid_instruction)? as f32,
             ),
             None => None,
         };
 
         // comparisons produce canonical boolean words
         if operation.is_comparison() {
-            let right = right.ok_or_else(|| self.invalid_instruction())?;
+            let right = right.ok_or_else(Error::invalid_instruction)?;
             let value = Self::compare_float(operation, left, right);
 
             return Ok(Word::boolean(value));
         }
 
         let value = match operation {
-            FloatOperation::Add => left + right.ok_or_else(|| self.invalid_instruction())?,
-            FloatOperation::Subtract => left - right.ok_or_else(|| self.invalid_instruction())?,
-            FloatOperation::Multiply => left * right.ok_or_else(|| self.invalid_instruction())?,
-            FloatOperation::Divide => left / right.ok_or_else(|| self.invalid_instruction())?,
-            FloatOperation::Remainder => left % right.ok_or_else(|| self.invalid_instruction())?,
+            FloatOperation::Add => left + right.ok_or_else(Error::invalid_instruction)?,
+            FloatOperation::Subtract => left - right.ok_or_else(Error::invalid_instruction)?,
+            FloatOperation::Multiply => left * right.ok_or_else(Error::invalid_instruction)?,
+            FloatOperation::Divide => left / right.ok_or_else(Error::invalid_instruction)?,
+            FloatOperation::Remainder => left % right.ok_or_else(Error::invalid_instruction)?,
             FloatOperation::Negate => -left,
             FloatOperation::SquareRoot => left.sqrt(),
             FloatOperation::Absolute => left.abs(),
             FloatOperation::FusedMultiplyAdd => left.mul_add(
-                right.ok_or_else(|| self.invalid_instruction())?,
-                addend.ok_or_else(|| self.invalid_instruction())?,
+                right.ok_or_else(Error::invalid_instruction)?,
+                addend.ok_or_else(Error::invalid_instruction)?,
             ),
             FloatOperation::CopySign => {
-                left.copysign(right.ok_or_else(|| self.invalid_instruction())?)
+                left.copysign(right.ok_or_else(Error::invalid_instruction)?)
             }
             FloatOperation::Minimum => {
-                Self::minimum32(left, right.ok_or_else(|| self.invalid_instruction())?)
+                Self::minimum32(left, right.ok_or_else(Error::invalid_instruction)?)
             }
             FloatOperation::Maximum => {
-                Self::maximum32(left, right.ok_or_else(|| self.invalid_instruction())?)
+                Self::maximum32(left, right.ok_or_else(Error::invalid_instruction)?)
             }
             FloatOperation::Sin => left.sin(),
             FloatOperation::Cos => left.cos(),
@@ -185,13 +186,13 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             FloatOperation::Asin => left.asin(),
             FloatOperation::Acos => left.acos(),
             FloatOperation::Atan => left.atan(),
-            FloatOperation::Atan2 => left.atan2(right.ok_or_else(|| self.invalid_instruction())?),
+            FloatOperation::Atan2 => left.atan2(right.ok_or_else(Error::invalid_instruction)?),
             FloatOperation::Exp => left.exp(),
             FloatOperation::Exp2 => left.exp2(),
             FloatOperation::Log => left.ln(),
             FloatOperation::Log2 => left.log2(),
             FloatOperation::Log10 => left.log10(),
-            FloatOperation::Pow => left.powf(right.ok_or_else(|| self.invalid_instruction())?),
+            FloatOperation::Pow => left.powf(right.ok_or_else(Error::invalid_instruction)?),
             FloatOperation::Floor => left.floor(),
             FloatOperation::Ceil => left.ceil(),
             FloatOperation::Truncate => left.trunc(),
@@ -200,7 +201,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         };
         let bits = scalar
             .float_bits(value as f64)
-            .ok_or_else(|| self.invalid_instruction())?;
+            .ok_or_else(Error::invalid_instruction)?;
 
         Ok(Word::from_bits(scalar.encode(bits)))
     }

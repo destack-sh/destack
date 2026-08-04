@@ -66,10 +66,6 @@ impl<'a> JsLinker<'a> {
 
     /// Build the packaged JS output groups for this target.
     pub(crate) fn bundle(&self, files: Vec<BundleFile>) -> Bundle {
-        Bundle::new(
-            self.target.emit,
-            Compiler::package_assembly(self.target.js.mode),
-            files,
-        )
+        Bundle::new(Compiler::package_assembly(self.target.js.mode), files)
     }
 }

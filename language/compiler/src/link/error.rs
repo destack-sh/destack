@@ -141,22 +141,6 @@ pub enum LinkError {
         context: String,
     },
 
-    /// Code generation is unavailable for one Program target.
-    #[diagnostic(
-        id = "code-generation-unavailable",
-        message = "code generation is unavailable: {target}: {format}"
-    )]
-    CodeGenerationUnavailable {
-        /// The package selecting the unavailable generator.
-        anchor: DiagnosticAnchor,
-        /// The package being linked.
-        package: PackageId,
-        /// The target selecting the unavailable generator.
-        target: TargetId,
-        /// The unavailable code format.
-        format: String,
-    },
-
     // -------------------------------------------------------------------------
     // internal failures
     // -------------------------------------------------------------------------
@@ -167,4 +151,15 @@ pub enum LinkError {
         package: PackageId,
         message: String,
     },
+}
+
+impl LinkError {
+    /// Create one invalid Program input error.
+    pub(crate) fn invalid_input(package: PackageId, context: impl Into<String>) -> Self {
+        Self::InvalidInput {
+            anchor: package.into(),
+            package,
+            context: context.into(),
+        }
+    }
 }

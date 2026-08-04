@@ -100,7 +100,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             .iter()
             .rposition(|frame| matches!(frame.return_to, Return::Task { .. }))
         else {
-            let continuation = self.machine.suspend(state)?;
+            let continuation = self.machine.suspend(state, *self.activation.context)?;
 
             return Ok(Some(Outcome::Awaited {
                 park,
@@ -143,7 +143,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         }
 
         // capture the task suffix before committing the runtime waiter transition
-        let continuation = self.machine.capture_suffix(first_frame, state)?;
+        let continuation =
+            self.machine
+                .capture_suffix(first_frame, state, *self.activation.context)?;
         self.park_task_awaitable(task_pc, park, value, task, continuation, first_frame)?;
 
         Ok(None)
@@ -161,7 +163,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             .iter()
             .rposition(|frame| matches!(frame.return_to, Return::Continuation { .. }))
         else {
-            let continuation = self.machine.suspend(state)?;
+            let continuation = self.machine.suspend(state, *self.activation.context)?;
 
             return Ok(Some(Outcome::Yielded {
                 value,
@@ -180,7 +182,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         if yielded_registers.word_count as usize != value.len() {
             return Err(self.invalid_instruction().into());
         }
-        let continuation = self.machine.suspend_suffix(first_frame, state)?;
+        let continuation =
+            self.machine
+                .suspend_suffix(first_frame, state, *self.activation.context)?;
         self.activate();
         let id = self.continuations.insert(continuation);
         let caller = self.frame();

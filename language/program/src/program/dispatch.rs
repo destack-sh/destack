@@ -182,7 +182,6 @@ impl DispatchTable {
     }
 }
 
-
 /// Virtual dispatch table for one concrete type.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]

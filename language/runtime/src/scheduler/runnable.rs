@@ -15,6 +15,8 @@ pub struct Callback {
     environment: Option<program::Value>,
     /// Copyable source-level arguments in parameter order.
     arguments: Vec<program::Value>,
+    /// Dynamically scoped context captured at registration.
+    context: program::Context,
 }
 
 /// One consumable program invocation.
@@ -28,6 +30,8 @@ pub enum Invocation {
         environment: Option<program::Value>,
         /// Source-level arguments in parameter order.
         arguments: Vec<program::Value>,
+        /// Dynamically scoped context captured when this call was queued.
+        context: program::Context,
     },
     /// Resume one suspended continuation.
     Resume {
@@ -85,11 +89,13 @@ impl Invocation {
     pub fn call(
         function: program::FunctionId,
         arguments: impl IntoIterator<Item = program::Value>,
+        context: program::Context,
     ) -> Self {
         Self::Function {
             function,
             environment: None,
             arguments: arguments.into_iter().collect(),
+            context,
         }
     }
 
@@ -126,10 +132,12 @@ impl Invocation {
                 function,
                 environment,
                 arguments,
+                context,
             } => Self::Function {
                 function: *function,
                 environment: environment.as_ref().map(program::Value::fork),
                 arguments: arguments.iter().map(program::Value::fork).collect(),
+                context: *context,
             },
             Self::Resume {
                 task,
@@ -159,6 +167,16 @@ impl Invocation {
         match self {
             Self::Resume { task, .. } | Self::Cancel { task, .. } => *task,
             Self::Function { .. } | Self::Complete { .. } => None,
+        }
+    }
+
+    /// Return the dynamically scoped context carried by this invocation.
+    pub const fn context(&self) -> program::Context {
+        match self {
+            Self::Function { context, .. } => *context,
+            Self::Resume { continuation, .. }
+            | Self::Complete { continuation, .. }
+            | Self::Cancel { continuation, .. } => continuation.context(),
         }
     }
 
@@ -201,8 +219,11 @@ impl Invocation {
             Self::Function {
                 environment,
                 arguments,
+                context,
                 ..
             } => {
+                visit(heap::RootSlot::HeapReference(context.reference_mut()))?;
+
                 if let Some(environment) = environment {
                     program
                         .visit_value_root_slots(environment, visit)
@@ -249,11 +270,13 @@ impl Callback {
     pub fn call(
         function: program::FunctionId,
         arguments: impl IntoIterator<Item = program::Value>,
+        context: program::Context,
     ) -> Self {
         Self {
             function,
             environment: None,
             arguments: arguments.into_iter().collect(),
+            context,
         }
     }
 
@@ -263,6 +286,7 @@ impl Callback {
             function: self.function,
             environment: self.environment.as_ref().map(program::Value::fork),
             arguments: self.arguments.iter().map(program::Value::fork).collect(),
+            context: self.context,
         }
     }
 
@@ -272,6 +296,7 @@ impl Callback {
             function: self.function,
             environment: self.environment.as_ref().map(program::Value::fork),
             arguments: self.arguments.iter().map(program::Value::fork).collect(),
+            context: self.context,
         }
     }
 
@@ -281,6 +306,8 @@ impl Callback {
         program: &program::Program,
         visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
     ) -> RuntimeResult<()> {
+        visit(heap::RootSlot::HeapReference(self.context.reference_mut()))?;
+
         if let Some(environment) = &mut self.environment {
             program
                 .visit_value_root_slots(environment, visit)

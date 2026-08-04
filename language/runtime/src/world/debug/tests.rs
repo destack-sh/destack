@@ -21,7 +21,8 @@ entry(v0: int32):
     return v0
 }
 "#,
-    );
+    )
+    .compile_native();
     let mut runtime = TestWorld::build(&options, program);
     let worker_id = runtime.default_worker_id();
     let runnable_id = runtime.enqueue_task(worker_id, "stop", 313);
@@ -105,7 +106,8 @@ entry(v0: int32):
     return v0
 }
 "#,
-    );
+    )
+    .compile_native();
     let mut runtime = TestWorld::build(&options, program);
     let runtime_id = runtime.runtime_id();
     let worker_id = runtime.default_worker_id();

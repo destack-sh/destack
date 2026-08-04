@@ -245,7 +245,7 @@ impl Debugger {
                 continue;
             }
 
-            instructions.push(program::InstructionStop::new(
+            instructions.push(program::StopPoint::new(
                 breakpoint.target.point,
                 program::StopReason::Breakpoint {
                     breakpoint_id: breakpoint.id,

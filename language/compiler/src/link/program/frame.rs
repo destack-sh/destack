@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
-use destack_artifact as artifact;
 use destack_mir as mir;
-use destack_program as program;
+use destack_program::{object, program};
 use destack_source::ModuleId;
 
 use crate::LinkResult;
@@ -15,7 +14,7 @@ pub(crate) struct FrameLinker<'a> {
     /// Dense Program identity projection.
     program: &'a ProgramLinker<'a>,
     /// Program frame state ids keyed by module and object-local point.
-    states: HashMap<(ModuleId, artifact::FramePoint), program::FrameStateId>,
+    states: HashMap<(ModuleId, object::FramePoint), program::FrameStateId>,
 }
 
 impl<'a> FrameLinker<'a> {
@@ -53,8 +52,8 @@ impl<'a> FrameLinker<'a> {
                 };
                 let function = self.program.function_id(*module, state.point.function());
                 let point = match state.point {
-                    artifact::FramePoint::Entry { .. } => program::FramePoint::entry(function),
-                    artifact::FramePoint::Operation(point) => {
+                    object::FramePoint::Entry { .. } => program::FramePoint::entry(function),
+                    object::FramePoint::Operation(point) => {
                         let point = program::ProgramPoint::new(function, point.operation);
 
                         program::FramePoint::operation(point)
@@ -64,17 +63,15 @@ impl<'a> FrameLinker<'a> {
             }
         }
 
-        // assign dense frame state ids in logical coordinate order
+        // assign dense frame state ids in logical point order
         states.sort_unstable_by_key(|(point, _, _, _)| *point);
         let mut linked_states = Vec::with_capacity(states.len());
         for (index, (point, module, source, layout)) in states.into_iter().enumerate() {
             let id = program::FrameStateId(index as u32);
 
-            // reject repeated source coordinates before publishing their ids
+            // reject repeated source points before publishing their ids
             if self.states.insert((module, source), id).is_some() {
-                return Err(self
-                    .program
-                    .invalid_input("duplicate logical frame coordinate"));
+                return Err(self.program.invalid_input("duplicate logical frame point"));
             }
 
             // append the state under its assigned dense id
@@ -90,9 +87,14 @@ impl<'a> FrameLinker<'a> {
     pub(crate) fn state(
         &self,
         module: ModuleId,
-        point: artifact::FramePoint,
+        point: object::FramePoint,
     ) -> Option<program::FrameStateId> {
         self.states.get(&(module, point)).copied()
+    }
+
+    /// Return the number of linked frame states.
+    pub(crate) fn len(&self) -> usize {
+        self.states.len()
     }
 
     /// Build one canonical packed frame layout.

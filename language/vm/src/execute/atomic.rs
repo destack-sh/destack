@@ -1,8 +1,9 @@
+use std::mem::size_of;
 use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, AtomicU64, Ordering, fence};
 
 use destack_bytecode::{
-    AtomicAccess, AtomicOperation, AtomicOrder, CompareExchangeAccess, FenceAccess, Instruction,
-    Scalar,
+    Address, AtomicAccess, AtomicOperation, AtomicOrder, CompareExchangeAccess, FenceAccess,
+    Instruction, Scalar,
 };
 use destack_program::{Runtime, Word};
 
@@ -15,6 +16,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         &mut self,
         instruction: Instruction<'_>,
         operation: AtomicOperation,
+        address: Address,
         scalar: Scalar,
     ) -> Result<()> {
         if !operation.supports(scalar) {
@@ -23,10 +25,10 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
         // execute through the exact machine width
         match scalar.bit_width() {
-            8 => self.execute_atomic_word::<AtomicU8>(instruction, operation, scalar)?,
-            16 => self.execute_atomic_word::<AtomicU16>(instruction, operation, scalar)?,
-            32 => self.execute_atomic_word::<AtomicU32>(instruction, operation, scalar)?,
-            64 => self.execute_atomic_word::<AtomicU64>(instruction, operation, scalar)?,
+            8 => self.execute_atomic_word::<AtomicU8>(instruction, operation, address, scalar)?,
+            16 => self.execute_atomic_word::<AtomicU16>(instruction, operation, address, scalar)?,
+            32 => self.execute_atomic_word::<AtomicU32>(instruction, operation, address, scalar)?,
+            64 => self.execute_atomic_word::<AtomicU64>(instruction, operation, address, scalar)?,
             _ => unreachable!("atomic scalars occupy one bytecode word"),
         }
 
@@ -55,15 +57,16 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         &mut self,
         instruction: Instruction<'_>,
         operation: AtomicOperation,
+        address: Address,
         scalar: Scalar,
     ) -> Result<()> {
         match operation {
-            AtomicOperation::Load => self.execute_atomic_load::<A>(instruction, scalar),
-            AtomicOperation::Store => self.execute_atomic_store::<A>(instruction),
+            AtomicOperation::Load => self.execute_atomic_load::<A>(instruction, address, scalar),
+            AtomicOperation::Store => self.execute_atomic_store::<A>(instruction, address),
             operation if operation.is_compare_exchange() => {
-                self.execute_atomic_compare_exchange::<A>(instruction, operation, scalar)
+                self.execute_atomic_compare_exchange::<A>(instruction, operation, address, scalar)
             }
-            operation => self.execute_atomic_update::<A>(instruction, operation, scalar),
+            operation => self.execute_atomic_update::<A>(instruction, operation, address, scalar),
         }
     }
 
@@ -72,6 +75,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     fn execute_atomic_load<A: AtomicWord>(
         &mut self,
         instruction: Instruction<'_>,
+        address: Address,
         scalar: Scalar,
     ) -> Result<()> {
         let mut operands = self.operands(instruction);
@@ -85,7 +89,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             .ok_or_else(|| self.invalid_instruction())?;
 
         // SAFETY: atomic bytecode requires a live naturally aligned atomic address
-        let atomic = unsafe { A::from_address(self.read(pointer.0).bits() as usize) };
+        let address = self.resolve_address(pointer.0, address, scalar.bit_width() as usize / 8)?;
+        let atomic = unsafe { A::from_address(address) };
         let value = atomic.load(Self::atomic_order(access.order));
 
         self.write(target.0, Word::from_bits(scalar.encode(value)));
@@ -95,7 +100,11 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
     /// Execute one exact-width atomic store.
     #[inline(always)]
-    fn execute_atomic_store<A: AtomicWord>(&mut self, instruction: Instruction<'_>) -> Result<()> {
+    fn execute_atomic_store<A: AtomicWord>(
+        &mut self,
+        instruction: Instruction<'_>,
+        address: Address,
+    ) -> Result<()> {
         let mut operands = self.operands(instruction);
         let pointer = operands.register()?;
         let value = operands.register()?;
@@ -107,7 +116,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             .ok_or_else(|| self.invalid_instruction())?;
 
         // SAFETY: atomic bytecode requires a live naturally aligned atomic address
-        let atomic = unsafe { A::from_address(self.read(pointer.0).bits() as usize) };
+        let address = self.resolve_address(pointer.0, address, size_of::<A>())?;
+        let atomic = unsafe { A::from_address(address) };
         atomic.store(self.read(value.0).bits(), Self::atomic_order(access.order));
 
         Ok(())
@@ -119,6 +129,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         &mut self,
         instruction: Instruction<'_>,
         operation: AtomicOperation,
+        address: Address,
         scalar: Scalar,
     ) -> Result<()> {
         let mut operands = self.operands(instruction);
@@ -135,7 +146,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             .ok_or_else(|| self.invalid_instruction())?;
 
         // SAFETY: atomic bytecode requires a live naturally aligned atomic address
-        let atomic = unsafe { A::from_address(self.read(pointer.0).bits() as usize) };
+        let address = self.resolve_address(pointer.0, address, scalar.bit_width() as usize / 8)?;
+        let atomic = unsafe { A::from_address(address) };
         let result = atomic.compare_exchange(
             self.read(expected.0).bits(),
             self.read(replacement.0).bits(),
@@ -160,6 +172,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         &mut self,
         instruction: Instruction<'_>,
         operation: AtomicOperation,
+        address: Address,
         scalar: Scalar,
     ) -> Result<()> {
         let mut operands = self.operands(instruction);
@@ -173,7 +186,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             .ok_or_else(|| self.invalid_instruction())?;
 
         // SAFETY: atomic bytecode requires a live naturally aligned atomic address
-        let atomic = unsafe { A::from_address(self.read(pointer.0).bits() as usize) };
+        let address = self.resolve_address(pointer.0, address, scalar.bit_width() as usize / 8)?;
+        let atomic = unsafe { A::from_address(address) };
         let value = self.read(value.0).bits();
         let order = Self::atomic_order(access.order);
         let previous = if operation == AtomicOperation::Exchange {

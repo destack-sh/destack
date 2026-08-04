@@ -11,6 +11,8 @@ pub struct Function {
     pub function: FunctionId,
     /// The executable internal body range when caller reconstruction is available.
     body: Option<Range<usize>>,
+    /// The internal body offset inside the linked code image.
+    body_offset: u32,
     /// The canonical runtime entry function.
     entry: abi::Entry,
 }
@@ -21,13 +23,15 @@ impl Function {
         Self {
             function,
             body: None,
+            body_offset: 0,
             entry,
         }
     }
 
     /// Set the executable internal body range.
-    pub fn body(mut self, body: Range<usize>) -> Self {
+    pub fn body(mut self, body: Range<usize>, offset: u32) -> Self {
         self.body = Some(body);
+        self.body_offset = offset;
 
         self
     }
@@ -37,22 +41,24 @@ impl Function {
         self.body.is_some()
     }
 
-    /// Return the body-relative byte offset of one return address.
-    pub fn return_offset(&self, address: usize) -> Option<u32> {
+    /// Return the typed native body address when available.
+    pub fn body_address(&self) -> Option<usize> {
+        self.body.as_ref().map(|body| body.start)
+    }
+
+    /// Return the linked code offset of one return address.
+    pub fn code_offset(&self, address: usize) -> Option<u32> {
         let body = self.body.as_ref()?;
         let offset = address.checked_sub(body.start)?;
         let offset = u32::try_from(offset).ok()?;
 
-        body.contains(&address).then_some(offset)
+        body.contains(&address)
+            .then(|| self.body_offset.checked_add(offset))
+            .flatten()
     }
 
     /// Call this native function.
-    pub fn call(
-        &self,
-        activation: &mut abi::Activation,
-        arguments: &[Word],
-        result: &mut [Word],
-    ) -> abi::ExitCode {
+    pub fn call(&self, activation: &mut abi::Activation, arguments: &[Word], result: &mut [Word]) {
         // native entries are produced by the native linker with this ABI
         unsafe {
             (self.entry)(

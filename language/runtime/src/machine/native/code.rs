@@ -1,115 +1,99 @@
 use std::fmt;
-use std::sync::Arc;
+use std::panic::{AssertUnwindSafe, catch_unwind, resume_unwind};
 
 use destack_memory::MemoryMap;
 use destack_native as native;
 use destack_native::abi;
 use destack_program as program;
-use destack_program::{EntryPoint, FunctionId, Outcome, Program, Value};
+use destack_program::{EntryPoint, FunctionId, Program, Value};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::worker::Activation;
 
-use super::{Call, Error, Function, Library, Mapping, ModuleTable, Stop};
+use super::{Call, Error, Function, Mapping, Stop, Transfer, Unwind};
 
 /// Process-local native code table.
 #[derive(Debug, Clone)]
 pub struct Code {
     /// The process-local native image backing this code.
     image: Image,
-    /// Process-local modules referenced by generated code.
-    modules: Arc<ModuleTable>,
     /// Durable native frame maps used by runtime capture.
     frames: native::CodeMap,
     /// Process-local native functions keyed by Program function id.
     functions: Vec<Option<Function>>,
 }
 
+/// Outcome returned by one native execution.
+#[derive(Debug)]
+pub enum Outcome {
+    /// One language-visible execution outcome.
+    Program(program::Outcome<Value>),
+    /// Canonical execution retained for immediate bytecode continuation.
+    Deoptimized,
+}
+
 impl Code {
     /// Create one native code table.
-    pub fn new(
-        image: Image,
-        modules: Arc<ModuleTable>,
-        frames: native::CodeMap,
-        functions: Vec<Option<Function>>,
-    ) -> Self {
+    pub fn new(image: Image, frames: native::CodeMap, functions: Vec<Option<Function>>) -> Self {
         Self {
             image,
-            modules,
             frames,
             functions,
         }
     }
 
-    /// Link one durable native code payload into process-local native code.
-    pub fn link(
-        image: Image,
-        modules: Arc<ModuleTable>,
+    /// Resolve one mapped Program code image into process-local function pointers.
+    pub fn mapped(
+        mapping: Mapping,
         program: &Program,
         native: &native::Code,
-        mut body: impl FnMut(&str) -> Option<usize>,
-        mut entry: impl FnMut(&str) -> Option<abi::Entry>,
     ) -> Result<Self, Error> {
+        if native.abi_version != abi::VERSION {
+            return Err(Error::AbiVersion {
+                expected: abi::VERSION,
+                actual: native.abi_version,
+            });
+        }
         let sections = program.sections();
-        let mut code = Self {
-            image,
-            modules,
-            frames: native.map,
-            functions: vec![None; native.definitions(sections).len()],
-        };
+        let required_alignment = native.alignment.bytes() as usize;
+        if !mapping.base().is_multiple_of(required_alignment) {
+            return Err(Error::NativeImageMisaligned {
+                required: native.alignment.bytes(),
+            });
+        }
+        if mapping.byte_size() < native.bytes(sections).len() {
+            return Err(Error::NativeImageRange);
+        }
+        let mut functions = Vec::with_capacity(native.functions(sections).len());
 
-        for (index, definition) in
-            native
-                .definitions(sections)
-                .iter()
-                .enumerate()
-                .filter_map(|(index, definition)| {
-                    definition.get().map(|definition| (index, definition))
-                })
-        {
-            let Some(body_symbol) = program.string(definition.body) else {
-                return Err(Error::ProgramStringMissing {
-                    string: definition.body,
-                });
+        // resolve every linked range directly against the executable mapping
+        for (index, function) in native.functions(sections).iter().enumerate() {
+            let Some(function) = function.get() else {
+                functions.push(None);
+
+                continue;
             };
-            let Some(entry_symbol) = program.string(definition.entry) else {
-                return Err(Error::ProgramStringMissing {
-                    string: definition.entry,
-                });
-            };
-            let Some(body) = body(body_symbol) else {
-                return Err(Error::NativeSymbolMissing {
-                    symbol: body_symbol.to_owned(),
-                });
-            };
-            let Some(entry) = entry(entry_symbol) else {
-                return Err(Error::NativeSymbolMissing {
-                    symbol: entry_symbol.to_owned(),
-                });
-            };
-            if native.module(sections, definition.module).is_none() {
-                return Err(Error::NativeModuleMissing {
-                    module: definition.module,
+            let body = Self::range(&mapping, function.body.bytes)?;
+            let entry = Self::range(&mapping, function.entry.bytes)?;
+            if entry.is_empty() {
+                return Err(Error::NativeEntryEmpty {
+                    function: FunctionId(index as u32),
                 });
             }
-
-            let body_end = body + definition.body_byte_len as usize;
-            let body = body..body_end;
-            let function = Function::new(FunctionId(index as u32), entry).body(body);
-            code.set_function(function);
+            let entry_address = entry.start;
+            // SAFETY: the native linker emits every entry with the fixed Destack entry ABI.
+            let entry = unsafe { std::mem::transmute::<usize, abi::Entry>(entry_address) };
+            let function = Function::new(FunctionId(index as u32), entry)
+                .body(body, function.body.bytes.offset);
+            functions.push(Some(function));
         }
 
-        Ok(code)
+        Ok(Self::new(Image::Object(mapping), native.map(), functions))
     }
 
     /// Borrow the process-local native image backing this code.
     pub const fn image(&self) -> &Image {
         &self.image
-    }
-
-    /// Borrow process-local Program identity mappings.
-    pub fn modules(&self) -> &ModuleTable {
-        &self.modules
     }
 
     /// Return one process-local native function.
@@ -127,6 +111,19 @@ impl Code {
         }
 
         self.functions[index] = Some(function);
+    }
+
+    /// Resolve one linked code range inside an executable mapping.
+    fn range(mapping: &Mapping, range: native::CodeRange) -> Result<std::ops::Range<usize>, Error> {
+        let start = range.offset as usize;
+        let end = start
+            .checked_add(range.byte_len as usize)
+            .ok_or(Error::NativeImageRange)?;
+        if end > mapping.byte_size() {
+            return Err(Error::NativeImageRange);
+        }
+
+        Ok(mapping.base() + start..mapping.base() + end)
     }
 
     /// Return process-local native functions in dense Program id order.
@@ -150,12 +147,16 @@ impl Code {
         &self,
         program: &'program Program,
         activation: &'program mut program::Activation<'runtime, 'memory, Activation<'state>>,
+        functions: *const usize,
+        virtuals: *const *const u32,
+        dynamics: *const *const u32,
         memory: &MemoryMap,
         entry: EntryPoint,
         environment: Option<&Value>,
         args: &[Value],
+        profile: Option<&'program mut program::Profile>,
         captured: &mut Option<program::ActivationImage>,
-    ) -> RuntimeResult<Outcome<Value>> {
+    ) -> RuntimeResult<Outcome> {
         let Some(entry) = self.function(entry.function()) else {
             return Err(Error::EntryNotFound {
                 name: format!("entry {}", entry.index()),
@@ -206,16 +207,45 @@ impl Code {
         let mut result =
             vec![program::Word::ZERO; result_byte_len.div_ceil(program::Word::BYTE_LEN)];
         let mut exit = abi::Exit::new();
-        let mut call = Call::new(program, self.frames, &self.functions, memory, activation);
-        let mut activation = call.activation(&mut exit);
+        let mut call = Call::new(
+            program,
+            self.frames,
+            &self.functions,
+            memory,
+            activation,
+            profile,
+        );
+        let mut activation = call.activation(functions, virtuals, dynamics, &mut exit);
 
-        // enter generated native code
-        let code = entry.call(&mut activation, &arguments, &mut result);
+        // contain platform unwinds at the canonical engine transition
+        let execution = catch_unwind(AssertUnwindSafe(|| {
+            entry.call(&mut activation, &arguments, &mut result)
+        }));
+        call.set_context(activation.context);
+
+        // reject foreign Rust panics crossing generated code
+        let kind = match execution {
+            Ok(()) => abi::ExitKind::Completed,
+            Err(unwind) if unwind.is::<Unwind>() => match call.take_transfer() {
+                Some(Transfer::Error(error)) => return Err(error),
+                Some(Transfer::Panic(payload)) => {
+                    return Err(Error::Panicked { payload }.into());
+                }
+                Some(Transfer::Retain) => exit.kind,
+                None => {
+                    return Err(RuntimeError::Internal {
+                        message: "native unwind has no retained transfer".to_string(),
+                    }
+                    .boxed());
+                }
+            },
+            Err(unwind) => resume_unwind(unwind),
+        };
 
         self.outcome_from_exit(
             program,
             result_type,
-            code,
+            kind,
             result,
             exit,
             &mut call,
@@ -228,27 +258,19 @@ impl Code {
         &self,
         program: &Program,
         result_type: program::TypeId,
-        code: u32,
+        kind: abi::ExitKind,
         result: Vec<program::Word>,
         exit: abi::Exit,
         call: &mut Call<'_, '_, '_, '_>,
         captured: &mut Option<program::ActivationImage>,
-    ) -> RuntimeResult<Outcome<Value>> {
-        if let Some(error) = call.take_error() {
-            return Err(error);
-        }
-
-        let kind = abi::ExitKind::try_from(code)
-            .map_err(Error::InvalidExit)
-            .map_err(Box::<RuntimeError>::from)?;
-
+    ) -> RuntimeResult<Outcome> {
         match kind {
             abi::ExitKind::Completed => {
                 let value = program.value(result_type, result)?;
 
-                Ok(Outcome::Completed { value })
+                Ok(Outcome::Program(program::Outcome::Completed { value }))
             }
-            abi::ExitKind::Cancelled => Ok(Outcome::Cancelled),
+            abi::ExitKind::Cancelled => Ok(Outcome::Program(program::Outcome::Cancelled)),
             abi::ExitKind::Trapped => {
                 let trap = abi::Trap::try_from(exit.trap)
                     .map_err(Error::InvalidTrap)
@@ -282,21 +304,26 @@ impl Code {
                     message: "native stopped exit has no stop source".to_string(),
                 })? {
                     Stop::Poll => program::StopReason::Pause { point },
-                    Stop::Instruction => program::StopReason::Instruction { point },
+                    Stop::Instruction(operation) => {
+                        let point = program::ProgramPoint::new(point.function, operation);
+
+                        program::StopReason::Instruction { point }
+                    }
                 };
 
-                Ok(Outcome::Stopped { reason })
+                Ok(Outcome::Program(program::Outcome::Stopped { reason }))
+            }
+            abi::ExitKind::Deoptimized => {
+                *captured = Some(call.take_activation()?);
+
+                Ok(Outcome::Deoptimized)
             }
             abi::ExitKind::Awaited | abi::ExitKind::Yielded => Err(Error::StateUnavailable {
                 kind,
                 frame_map: exit.frame_map,
             }
             .into()),
-            abi::ExitKind::Panicked => {
-                let payload = call.take_panic();
-
-                Err(Error::Panicked { payload }.into())
-            }
+            abi::ExitKind::Panicked => Err(Error::Panicked { payload: None }.into()),
         }
     }
 }
@@ -306,8 +333,6 @@ impl Code {
 pub enum Image {
     /// Native symbols are already resident in this process.
     Resident,
-    /// Native symbols are owned by one loaded library handle.
-    Library(Library),
     /// Native symbols are owned by one executable memory mapping.
     Object(Mapping),
 }
@@ -316,11 +341,6 @@ impl Image {
     /// Create one resident code image.
     pub const fn resident() -> Self {
         Self::Resident
-    }
-
-    /// Create one loaded library code image.
-    pub fn library(owner: impl fmt::Debug + Send + Sync + 'static) -> Self {
-        Self::Library(Library::new(owner))
     }
 
     /// Create one mapped object code image.

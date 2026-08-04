@@ -11,11 +11,11 @@ fn test_execute_aggregate() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    aggregate r2:r3, ([r0, 0, 4], [r1, 8, 4])
-    insert r4:r5, r2:r3, 8, 4, r0
-    extract r6, r4:r5, 8, 4
-    insert r7:r8, r2:r3, 8, 4, r0
-    extract r9, r7:r8, 8, 4
+    aggregate r2:r3, [r0 @ 0:4, r1 @ 8:4]
+    insert r4:r5, r2:r3, 8:4, r0
+    extract r6, r4:r5, 8:4
+    insert r7:r8, r2:r3, 8:4, r0
+    extract r9, r7:r8, 8:4
     move r10, r6
     move r11, r9
     return r10:r11
@@ -33,7 +33,6 @@ function f0 {
 #[test]
 fn test_execute_variant() {
     let variant = VariantLayoutBuilder::new(
-        TypeId(1),
         TypeId(1),
         VariantEncoding::Direct {
             field: DiscriminantField::scalar(0, 4),
@@ -64,7 +63,7 @@ fn test_execute_variant() {
 function f0 {
     variant.new r1:r2, l0, 1, r0
     variant.tag r3, r1:r2, l0
-    extract r4, r1:r2, 8, 4
+    extract r4, r1:r2, 8:4
     return r3:r4
 }
 "#,

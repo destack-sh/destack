@@ -442,9 +442,9 @@ fn test_await_unwraps_the_newtype_backing() {
         r#"
 import { Promise } from "destack:async";
 
-newtype Wrapper<T> = Promise<T>;
+newtype Wrapper<T: Copy> = Promise<T>;
 
-extension<T> of Wrapper<T> {
+extension<T: Copy> of Wrapper<T> {
     async take(): Promise<T> {
         const value = await this;
         value
@@ -460,9 +460,9 @@ extension<T> of Wrapper<T> {
 === annotated ===
 import { Promise } from "destack:async";
 
-newtype Wrapper<in out T> = Promise<T>;
+newtype Wrapper<in out T: Copy> = Promise<T>;
 
-extension<T> of Wrapper<T> {
+extension<T: Copy> of Wrapper<T> {
     async take(): Promise<T> {
         const value: T = await this;
         value
@@ -472,19 +472,21 @@ extension<T> of Wrapper<T> {
 === checked ===
 import { Promise } from "destack:async";
 
-newtype Wrapper<T> = Promise<T>;
-/// @generic.template symbol=Wrapper parameters=(in out T#1)
-/// @type.symbol symbol=Wrapper source="newtype Wrapper<T> = Promise<T>" type=Wrapper
-/// @definition.newtype symbol=Wrapper source="newtype Wrapper<T> = Promise<T>" template=(in out T#1) backing=Promise<T#1> constructors=[<T#1>(Promise<T#1>) => Wrapper<T#1>]
-/// @type.symbol symbol=Wrapper.T source=T type=T#1
+newtype Wrapper<T: Copy> = Promise<T>;
+/// @generic.template symbol=Wrapper parameters=(in out T#1: Copy)
+/// @type.symbol symbol=Wrapper source="newtype Wrapper<T: Copy> = Promise<T>" type=Wrapper
+/// @definition.newtype symbol=Wrapper source="newtype Wrapper<T: Copy> = Promise<T>" template=(in out T#1: Copy) backing=Promise<T#1> constructors=[<T#1>(Promise<T#1>) => Wrapper<T#1>]
+/// @type.symbol symbol=Wrapper.T source="T: Copy" type=T#1
+/// @resolution.name source=Copy target=memory.capability.Copy
 /// @resolution.name source=Promise target=async.promise.Promise
 /// @resolution.name source=T target=Wrapper.T
 
-extension<T> of Wrapper<T> {
-/// @generic.template symbol=<module>#2 parameters=(T#2)
+extension<T: Copy> of Wrapper<T> {
+/// @generic.template symbol=<module>#2 parameters=(T#2: Copy)
 /// @definition.extension symbol=<module>#2 form=local target=Wrapper<T#2>
 /// @definition.method symbol=take slot=take type=async (this: this) => Promise<T#2>
-/// @type.symbol symbol=T source=T type=T#2
+/// @type.symbol symbol=T source="T: Copy" type=T#2
+/// @resolution.name source=Copy target=memory.capability.Copy
 /// @resolution.name source=Wrapper target=Wrapper
 /// @resolution.name source=T target=T
 

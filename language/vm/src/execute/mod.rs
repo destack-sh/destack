@@ -1,9 +1,11 @@
 mod aggregate;
 mod allocation;
+mod arithmetic;
 mod atomic;
 mod boolean;
 mod call;
 mod cast;
+mod context;
 mod continuation;
 mod control;
 mod dispatch;
@@ -24,3 +26,5 @@ mod value;
 mod vector;
 mod waiter;
 mod watch;
+
+pub use tensor::TensorExecutor;

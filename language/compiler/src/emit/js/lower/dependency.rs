@@ -42,7 +42,7 @@ impl ModuleLowerer<'_> {
             let item = self.dir_tree.get(*item_id);
             match item {
                 dir::DependencyItem::Error => {
-                    return Err(self.unsupported_construct(
+                    return Err(self.unhandled(
                         item_id.into_global_any(self.module.id),
                         Some("dependency error slots are not lowered to JS".to_string()),
                     ));
@@ -60,7 +60,7 @@ impl ModuleLowerer<'_> {
                     }
 
                     if value.is_some() {
-                        return Err(self.unsupported_construct(
+                        return Err(self.unhandled(
                             item_id.into_global_any(self.module.id),
                             Some("export assignment has no JavaScript module form".to_string()),
                         ));

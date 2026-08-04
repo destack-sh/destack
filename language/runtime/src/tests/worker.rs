@@ -391,14 +391,14 @@ impl TestWorker {
     fn invocation(&self, entry: &str, value: u64) -> Invocation {
         let (function, value) = self.call(entry, value);
 
-        Invocation::call(function, [value])
+        Invocation::call(function, [value], program::Context::empty())
     }
 
     /// Build one repeatable callback in the wrapped worker.
     fn callback(&self, entry: &str, value: u64) -> Callback {
         let (function, value) = self.call(entry, value);
 
-        Callback::call(function, [value])
+        Callback::call(function, [value], program::Context::empty())
     }
 
     /// Resolve one test function and its single argument.

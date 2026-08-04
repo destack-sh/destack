@@ -14,7 +14,7 @@ function f0 {
     vector.splat.int32x4 r5:r6, r2
 
 b0:
-    branch.lt.int32 r1, r0 => b1, b2
+    branch.lt.int32 r1, r0 => b1 | b2
 
 b1:
     vector.add.int32x4 r7:r8, r3:r4, r5:r6

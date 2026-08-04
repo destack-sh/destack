@@ -8,9 +8,9 @@ fn test_execute_float_casts() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
-    float.add.float32 r3, r0, r1
-    cast.floatToInt.s.float32.int8 r4, r3
-    cast.intToFloat.s.int64.float64 r5, r2
+    float.add r3, r0, r1: float32
+    cast.floatToInt.s r4, r3: float32 -> int8
+    cast.intToFloat.s r5, r2: int64 -> float64
     return r3:r5
 }
 "#,

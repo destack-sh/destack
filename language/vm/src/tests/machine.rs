@@ -31,8 +31,10 @@ pub(crate) struct TestMachine {
     allocation_plans: Arc<[Option<AllocationPlan>]>,
     /// Runtime operations observed by bytecode instructions.
     runtime: TestRuntime,
+    /// Current dynamically scoped execution context.
+    context: program::Context,
     /// Worker heap used by allocation instructions.
-    heap: Heap,
+    local_heap: Heap,
     /// Runtime heap used by shared allocation instructions.
     shared_heap: SharedHeap,
     /// Worker-local shared allocation cache.
@@ -40,9 +42,9 @@ pub(crate) struct TestMachine {
     /// Shared collector worker state.
     shared_mark_worker: SharedMarkWorker,
     /// Worker-local static memory.
-    local_static: program::StaticSpace,
+    local_statics: program::StaticSpace,
     /// Runtime-shared static memory.
-    shared_static: program::StaticSpace,
+    shared_statics: program::StaticSpace,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -56,7 +58,7 @@ impl TestMachine {
         );
 
         // build the real runtime storage consumed by one activation
-        let heap = Heap::new(memory.clone(), HeapLimits::default(), HeapOptions::local())
+        let local_heap = Heap::new(memory.clone(), HeapLimits::default(), HeapOptions::local())
             .expect("test heap should build");
         let shared_heap = SharedHeap::new(
             memory.clone(),
@@ -66,14 +68,14 @@ impl TestMachine {
         .expect("test shared heap should build");
         let shared_cache = shared_heap.allocation_cache();
         let shared_mark_worker = shared_heap.register_mark_worker();
-        let local_static = program
+        let local_statics = program
             .materialize_local_statics(memory.clone())
             .expect("test local statics should materialize");
-        let shared_static = program
+        let shared_statics = program
             .materialize_shared_statics(memory.clone())
             .expect("test shared statics should materialize");
         let allocation_plans = program
-            .plan_allocations(heap.options(), shared_heap.options())
+            .plan_allocations(local_heap.options(), shared_heap.options())
             .expect("test allocation plans should build")
             .into();
         let machine = Machine::new(program.clone(), memory.clone(), MachineLimits::test())
@@ -86,12 +88,13 @@ impl TestMachine {
             machine,
             allocation_plans,
             runtime: TestRuntime::default(),
-            heap,
+            context: program::Context::empty(),
+            local_heap,
             shared_heap,
             shared_cache,
             shared_mark_worker,
-            local_static,
-            shared_static,
+            local_statics,
+            shared_statics,
         }
     }
 
@@ -224,16 +227,6 @@ impl TestMachine {
             .expect("continuation bytes should remain readable")
     }
 
-    /// Duplicate one continuation inside this test machine.
-    pub(crate) fn fork_continuation(
-        &self,
-        continuation: &program::Continuation,
-    ) -> program::Continuation {
-        continuation
-            .fork(&self.memory)
-            .expect("continuation should fork")
-    }
-
     /// Resume one continuation and require normal completion.
     pub(crate) fn resume_to_completion(
         &mut self,
@@ -296,6 +289,12 @@ impl TestMachine {
         profile: Option<&mut program::Profile>,
         resume_skip: Option<program::ResumeSkip>,
     ) -> Result<program::Outcome<Vec<Word>>> {
+        self.context = self
+            .machine
+            .activation
+            .as_ref()
+            .map(program::ActivationImage::context)
+            .ok_or_else(crate::Error::execution_not_stopped)?;
         self.machine.materialize()?;
 
         self.activation(stop_points, watch_points, profile, resume_skip)
@@ -346,14 +345,20 @@ impl TestMachine {
         let mut roots = Vec::new();
         self.machine
             .visit_root_slots(&mut |slot| {
-                roots.push(slot.load()?);
+                let root = slot.load()?;
+                if !root.is_nullish() {
+                    roots.push(root);
+                }
 
                 Ok(())
             })
             .expect("test roots should visit");
         self.continuations
             .visit_root_slots(&self.program, &self.memory, &mut |slot| {
-                roots.push(slot.load()?);
+                let root = slot.load()?;
+                if !root.is_nullish() {
+                    roots.push(root);
+                }
 
                 Ok(())
             })
@@ -377,6 +382,7 @@ impl TestMachine {
         continuation: program::Continuation,
         completion: Completion,
     ) -> Result<()> {
+        self.context = continuation.context();
         let return_to = Return::Exit { completion };
         self.machine
             .consume_continuation(continuation, |machine, continuation| {
@@ -397,15 +403,16 @@ impl TestMachine {
     {
         let activation = program::Activation {
             runtime: &mut self.runtime,
+            context: &mut self.context,
             memory: program::Memory {
                 allocation_plans: &self.allocation_plans,
-                heap: &mut self.heap,
+                local_heap: &mut self.local_heap,
                 shared_heap: &self.shared_heap,
                 shared_cache: &mut self.shared_cache,
                 shared_mark_worker: &self.shared_mark_worker,
-                local_static: &mut self.local_static,
-                shared_static: &mut self.shared_static,
-                constant_space: self.program.constants(),
+                local_statics: &mut self.local_statics,
+                shared_statics: &mut self.shared_statics,
+                constants: self.program.constants(),
             },
         };
 

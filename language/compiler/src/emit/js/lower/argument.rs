@@ -57,7 +57,7 @@ impl ModuleLowerer<'_> {
                 self.copy_source_node_symbol(parameter_id, source_parameter_id);
                 Ok(parameter_id)
             }
-            dir::Parameter::Error => Err(self.unsupported_construct(
+            dir::Parameter::Error => Err(self.unhandled(
                 parameter_id.into_global_any(self.module.id),
                 Some("parameter error slots are not lowered to JS".to_string()),
             )),
@@ -86,13 +86,13 @@ impl ModuleLowerer<'_> {
                 js::Argument::Spread { value }
             }
             dir::Argument::Elision => {
-                return Err(self.unsupported_construct(
+                return Err(self.unhandled(
                     argument_id.into_global_any(self.module.id),
                     Some("array elisions are only lowered in array literals".to_string()),
                 ));
             }
             dir::Argument::Error => {
-                return Err(self.unsupported_construct(
+                return Err(self.unhandled(
                     argument_id.into_global_any(self.module.id),
                     Some("argument error slots are not lowered to JS".to_string()),
                 ));

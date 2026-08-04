@@ -1,9 +1,9 @@
 use destack_bytecode::{CodeOffset, Instruction, Opcode};
 use destack_program as program;
 use destack_program::{
-    CallMode, Completion, Continuation, ContinuationTable, FrameImage, FrameLink, FramePoint,
-    FrameStateId, FunctionId, Outcome, Profile, ProgramPoint, Runtime, StopSet, SuspensionSite,
-    Value, WatchSet, Word,
+    ActivationImage, CallMode, Completion, Context, Continuation, ContinuationTable, FrameImage,
+    FramePoint, FrameReturn, FrameStateId, FunctionId, Outcome, Profile, ProgramPoint, Runtime,
+    StopSet, SuspensionSite, Value, WatchSet, Word,
 };
 
 use crate::diagnostic::{Error, ExecutionError, Result};
@@ -28,6 +28,9 @@ impl Machine {
         if !self.frames.is_empty() || self.activation.is_some() {
             return Err(Error::execution_active().into());
         }
+
+        // restore the captured dynamic context before materializing physical frames
+        *activation.context = continuation.context();
 
         // validate and restore before releasing the consumed canonical range
         let function = self.consume_continuation(continuation, |machine, continuation| {
@@ -70,6 +73,9 @@ impl Machine {
         if !self.frames.is_empty() || self.activation.is_some() {
             return Err(Error::execution_active().into());
         }
+
+        // restore the captured dynamic context before materializing physical frames
+        *activation.context = continuation.context();
 
         // validate and restore before releasing the consumed canonical range
         let (function, values) =
@@ -116,6 +122,9 @@ impl Machine {
             return Err(Error::execution_active().into());
         }
 
+        // restore the captured dynamic context before materializing physical frames
+        *activation.context = continuation.context();
+
         // validate and restore before releasing the consumed canonical range
         let (function, values) =
             self.consume_continuation(continuation, |machine, continuation| {
@@ -151,6 +160,7 @@ impl Machine {
         &mut self,
         function: FunctionId,
         arguments: &[Word],
+        context: Context,
     ) -> Result<Continuation> {
         let point = FramePoint::entry(function);
         let state = self
@@ -171,7 +181,8 @@ impl Machine {
         self.frames.push(frame);
 
         // canonicalize the entry frame before releasing physical storage
-        let continuation = self.capture_continuation(first_frame, state, Completion::Return);
+        let continuation =
+            self.capture_continuation(first_frame, state, Completion::Return, context);
         self.frames.truncate(first_frame);
         self.stack.truncate(byte_len);
 
@@ -179,12 +190,16 @@ impl Machine {
     }
 
     /// Capture and release the active coroutine call chain.
-    pub(crate) fn suspend(&mut self, state: FrameStateId) -> Result<Continuation> {
+    pub(crate) fn suspend(
+        &mut self,
+        state: FrameStateId,
+        context: Context,
+    ) -> Result<Continuation> {
         let completion = match self.frames.first().map(|frame| frame.return_to) {
             Some(Return::Exit { completion }) => completion,
             _ => return Err(Error::invalid_image()),
         };
-        let continuation = self.capture_continuation(0, state, completion)?;
+        let continuation = self.capture_continuation(0, state, completion, context)?;
         self.release_frames(0)?;
 
         Ok(continuation)
@@ -195,8 +210,9 @@ impl Machine {
         &mut self,
         first_frame: usize,
         state: FrameStateId,
+        context: Context,
     ) -> Result<Continuation> {
-        let continuation = self.capture_suffix(first_frame, state)?;
+        let continuation = self.capture_suffix(first_frame, state, context)?;
         self.release_frames(first_frame)?;
 
         Ok(continuation)
@@ -207,8 +223,9 @@ impl Machine {
         &self,
         first_frame: usize,
         state: FrameStateId,
+        context: Context,
     ) -> Result<Continuation> {
-        self.capture_continuation(first_frame, state, Completion::Return)
+        self.capture_continuation(first_frame, state, Completion::Return, context)
     }
 
     /// Release one active frame suffix after its canonical capture succeeds.
@@ -231,6 +248,7 @@ impl Machine {
         first_frame: usize,
         state: FrameStateId,
         completion: Completion,
+        context: Context,
     ) -> Result<Continuation> {
         let mappings = self.frame_mappings(first_frame, state)?;
         let frames = mappings
@@ -241,10 +259,12 @@ impl Machine {
         let bytes = self.pack_frames(&mappings)?;
         let memory = self.store_image(&bytes)?;
 
-        Ok(Continuation::new(completion, frames, memory))
+        Ok(Continuation::new(ActivationImage::new(
+            completion, frames, memory, context,
+        )))
     }
 
-    /// Return the innermost logical coordinate retained by one continuation.
+    /// Return the innermost logical point retained by one continuation.
     pub(crate) fn continuation_point(&self, continuation: &Continuation) -> Result<FramePoint> {
         let state = continuation
             .innermost()
@@ -335,7 +355,7 @@ impl Machine {
             let return_to = if index == 0 {
                 root_return
             } else {
-                self.frame_return(images[index - 1], image.link())?
+                self.frame_return(images[index - 1], image.return_to())?
             };
 
             // resolve the physical bytecode frame
@@ -370,11 +390,15 @@ impl Machine {
     }
 
     /// Rebuild one child return from its caller's canonical call state.
-    pub(crate) fn frame_return(&self, parent: FrameImage, link: FrameLink) -> Result<Return> {
-        if link == FrameLink::Root {
+    pub(crate) fn frame_return(
+        &self,
+        parent: FrameImage,
+        return_to: FrameReturn,
+    ) -> Result<Return> {
+        if return_to == FrameReturn::Root {
             return Err(Error::invalid_image());
         }
-        if let FrameLink::Drop { frame_count } = link {
+        if let FrameReturn::Drop { frame_count } = return_to {
             let pc = self.pc(parent.point())?;
 
             return Ok(Return::Drop {
@@ -400,11 +424,11 @@ impl Machine {
             )
             .map_err(|_| Error::invalid_image())?
             .ok_or_else(Error::invalid_image)?;
-        match link {
-            FrameLink::Call if Self::is_returning_call(instruction.opcode()) => {
+        match return_to {
+            FrameReturn::Call if Self::is_returning_call(instruction.opcode()) => {
                 self.continuation_call_return(point, instruction)
             }
-            FrameLink::Continuation
+            FrameReturn::Continuation
                 if matches!(
                     instruction.opcode(),
                     Opcode::CONTINUATION_RESUME | Opcode::CONTINUATION_COMPLETE
@@ -412,7 +436,7 @@ impl Machine {
             {
                 self.continuation_return(point, instruction)
             }
-            FrameLink::Task if instruction.opcode() == Opcode::TASK_START => {
+            FrameReturn::Task if instruction.opcode() == Opcode::TASK_START => {
                 let mut operands = instruction.operands();
                 let task_register = operands.register().map_err(|_| Error::invalid_image())?.0;
 
@@ -421,10 +445,13 @@ impl Machine {
                     task_register,
                 })
             }
-            FrameLink::Root | FrameLink::Call | FrameLink::Continuation | FrameLink::Task => {
-                Err(Error::invalid_image())
+            FrameReturn::Root
+            | FrameReturn::Call
+            | FrameReturn::Continuation
+            | FrameReturn::Task => Err(Error::invalid_image()),
+            FrameReturn::Drop { .. } => {
+                unreachable!("drop returns before decoding callers")
             }
-            FrameLink::Drop { .. } => unreachable!("drop links return before decoding callers"),
         }
     }
 

@@ -46,6 +46,12 @@ base64 = { workspace = true }
 tracing = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+cranelift-codegen = { workspace = true, optional = true }
+cranelift-frontend = { workspace = true, optional = true }
+cranelift-module = { workspace = true, optional = true }
+cranelift-native = { workspace = true, optional = true }
+cranelift-object = { workspace = true, optional = true }
+gimli = { workspace = true, features = ["write"], optional = true }
 serde_yaml_ng = { workspace = true }
 toml = { workspace = true }
 
@@ -59,7 +65,14 @@ tracing-subscriber = { workspace = true }
 
 [features]
 default = ["native"]
-native = []
+native = [
+    "dep:cranelift-codegen",
+    "dep:cranelift-frontend",
+    "dep:cranelift-module",
+    "dep:cranelift-native",
+    "dep:cranelift-object",
+    "dep:gimli",
+]
 deadlock-detection = ["parking_lot/deadlock_detection"]
 
 [[bench]]

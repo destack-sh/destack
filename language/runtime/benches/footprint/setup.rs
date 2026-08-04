@@ -227,8 +227,10 @@ impl VmMachine {
 
     /// Run the empty VM entry once.
     pub(crate) fn run(&mut self) -> Value {
+        let mut context = program::Context::empty();
         let activation = Activation {
             runtime: &mut self.runtime,
+            context: &mut context,
             memory: Memory {
                 allocation_plans: &self.allocation_plans,
                 heap: &mut self.heap,
@@ -289,6 +291,7 @@ impl program::Runtime for VmRuntime {
     fn call_binding(
         &mut self,
         _memory: Memory<'_>,
+        _context: program::Context,
         _binding: &program::Binding,
         _arguments: &[program::Word],
         _result: &mut [program::Word],
@@ -412,6 +415,7 @@ impl VmSetup {
             memory,
             effects,
             profile,
+            initializer: None,
         };
 
         // complete physical layouts required by object emission

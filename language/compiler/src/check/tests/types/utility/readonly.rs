@@ -239,7 +239,7 @@ const person: Readonly<Person> = { profile: { name: "Ada" } };
 
 person.profile.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.profile receiver=Readonly<Person> type={ name: string } kind=field target_receiver=Readonly<Person> key=profile target=Person.profile target_type={ name: string }
+/// @resolution.member source=person.profile receiver=Readonly<Person> type=Readonly<{ name: string }> kind=field target_receiver=Readonly<Person> key=profile target=Person.profile target_type=Readonly<{ name: string }>
 /// @resolution.place source=person placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.profile placement="local" lifetime="static" access="readonly"

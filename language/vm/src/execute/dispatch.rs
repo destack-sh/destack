@@ -68,6 +68,31 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     | Opcode::INSERT
                     | Opcode::VARIANT_NEW
                     | Opcode::VARIANT_TAG => self.execute_aggregate(instruction)?,
+                    Opcode::VARIANT_TAG_LOAD
+                    | Opcode::VARIANT_TAG_LOAD_CONSTANT
+                    | Opcode::VARIANT_TAG_LOAD_POINTER => {
+                        let needs_range = WATCH
+                            && self
+                                .watch_points
+                                .is_some_and(|points| points.requires_memory_range());
+                        let address = if needs_range {
+                            Some(self.variant_tag_address(instruction)?)
+                        } else {
+                            None
+                        };
+                        self.execute_aggregate(instruction)?;
+
+                        if WATCH
+                            && let Some(outcome) = self.watch_after(
+                                self.frame(),
+                                operation_pc,
+                                MemoryAccess::Read,
+                                address,
+                            )?
+                        {
+                            return Ok(outcome);
+                        }
+                    }
 
                     // values
                     Opcode::MOVE
@@ -83,20 +108,20 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     | Opcode::CONSTANT_ZEROED => self.execute_value(instruction)?,
 
                     // address construction
-                    Opcode::GLOBAL_ADDRESS => self.execute_global_address(instruction)?,
+                    Opcode::GLOBAL_ADDRESS_CONSTANT
+                    | Opcode::GLOBAL_ADDRESS_LOCAL
+                    | Opcode::GLOBAL_ADDRESS_SHARED => self.execute_global_address(instruction)?,
                     Opcode::FRAME_ADDRESS => self.execute_frame_address(instruction)?,
 
-                    // pointer materialization and arithmetic
-                    Opcode::POINTER_FRAME
-                    | Opcode::POINTER_GLOBAL
-                    | Opcode::POINTER_LOCAL
-                    | Opcode::POINTER_SHARED => self.execute_pointer(instruction)?,
-                    Opcode::POINTER_ADD_IMMEDIATE
+                    // reference and pointer arithmetic
+                    Opcode::REFERENCE_ADD_IMMEDIATE
+                    | Opcode::REFERENCE_ADD
+                    | Opcode::REFERENCE_ADD_SCALED
+                    | Opcode::REFERENCE_DIFF
+                    | Opcode::POINTER_ADD_IMMEDIATE
                     | Opcode::POINTER_ADD
                     | Opcode::POINTER_ADD_SCALED
-                    | Opcode::POINTER_BYTE_OFFSET_FROM => {
-                        self.execute_pointer_arithmetic(instruction)?
-                    }
+                    | Opcode::POINTER_DIFF => self.execute_address_arithmetic(instruction)?,
                     Opcode::CAST_POINTER_TO_INT | Opcode::CAST_INT_TO_POINTER => {
                         let Some((operation, source, target)) = opcode.cast_operation() else {
                             unreachable!("pointer cast opcodes carry one exact conversion");
@@ -105,8 +130,24 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     }
 
                     // references
-                    Opcode::LOAD | Opcode::STORE => {
-                        let access = if opcode == Opcode::LOAD {
+                    Opcode::LOAD
+                    | Opcode::LOAD_CONSTANT
+                    | Opcode::LOAD_POINTER
+                    | Opcode::STORE
+                    | Opcode::STORE_POINTER
+                    | Opcode::LOAD_VOLATILE
+                    | Opcode::LOAD_VOLATILE_POINTER
+                    | Opcode::STORE_VOLATILE
+                    | Opcode::STORE_VOLATILE_POINTER => {
+                        let is_load = matches!(
+                            opcode,
+                            Opcode::LOAD
+                                | Opcode::LOAD_CONSTANT
+                                | Opcode::LOAD_POINTER
+                                | Opcode::LOAD_VOLATILE
+                                | Opcode::LOAD_VOLATILE_POINTER
+                        );
+                        let access = if is_load {
                             MemoryAccess::Read
                         } else {
                             MemoryAccess::Write
@@ -116,7 +157,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                                 .watch_points
                                 .is_some_and(|points| points.requires_memory_range());
                         let address = if needs_range {
-                            Some(self.value_address(instruction, access == MemoryAccess::Read)?)
+                            Some(self.value_address(instruction, is_load)?)
                         } else {
                             None
                         };
@@ -136,35 +177,6 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                         self.cursor.set_position(position);
                         self.execute_drop(operation_pc, instruction)?;
                         position = self.cursor.position();
-                    }
-
-                    // byte ranges
-                    Opcode::COPY_BYTES
-                    | Opcode::MOVE_BYTES
-                    | Opcode::FILL_BYTES
-                    | Opcode::COMPARE_BYTES
-                    | Opcode::PREFETCH_READ
-                    | Opcode::PREFETCH_WRITE => {
-                        let accesses = if WATCH {
-                            self.byte_accesses(instruction)?
-                        } else {
-                            [None, None]
-                        };
-                        self.execute_byte_memory(instruction)?;
-
-                        if WATCH {
-                            for (access, address) in accesses.into_iter().flatten() {
-                                let outcome = self.watch_after(
-                                    self.frame(),
-                                    operation_pc,
-                                    access,
-                                    Some(address),
-                                )?;
-                                if let Some(outcome) = outcome {
-                                    return Ok(outcome);
-                                }
-                            }
-                        }
                     }
 
                     // atomics
@@ -198,6 +210,12 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     Opcode::FUNCTION_ADDRESS | Opcode::FUNCTION_BIND => {
                         self.execute_function(instruction)?
                     }
+
+                    // execution contexts
+                    Opcode::CONTEXT_CURRENT
+                    | Opcode::CONTEXT_REPLACE
+                    | Opcode::CONTEXT_BIND
+                    | Opcode::CONTEXT_GET => self.execute_context::<PROFILE>(instruction)?,
 
                     // continuations, waiters, and tasks
                     Opcode::CONTINUATION_NEW
@@ -271,7 +289,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     Opcode::POLL => {
                         if self.activation.runtime.is_poll_requested() {
                             let frame = self.frame();
-                            let state = self.machine.frame_state_at(frame, operation_pc)?;
+                            let state = self.machine.frame_state_at(frame, position.pc())?;
                             self.cursor.set_position(position);
                             self.save_position();
 
@@ -279,7 +297,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                                 Poll::Continue | Poll::Deoptimize => {}
                                 Poll::Pause => {
                                     let point = self.point(frame, operation_pc)?;
-                                    self.machine.capture(state)?;
+                                    self.machine.capture(state, *self.activation.context)?;
 
                                     return Ok(Outcome::Stopped {
                                         reason: StopReason::Pause { point },
@@ -336,7 +354,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     self.execute_cast(instruction, operation, source, target)?;
                 }
                 0x0a => {
-                    let Some((operation, scalar)) = opcode.memory_operation() else {
+                    let Some((operation, address, scalar, is_volatile)) = opcode.memory_operation()
+                    else {
                         unreachable!("linked memory opcodes carry one exact operation");
                     };
                     let access = match operation {
@@ -347,22 +366,22 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                         && self
                             .watch_points
                             .is_some_and(|points| points.requires_memory_range());
-                    let address = if needs_range {
-                        Some(self.memory_address(instruction, operation, scalar)?)
+                    let memory_range = if needs_range {
+                        Some(self.memory_address(instruction, operation, address, scalar)?)
                     } else {
                         None
                     };
-                    self.execute_memory(instruction, operation, scalar)?;
+                    self.execute_memory(instruction, operation, address, scalar, is_volatile)?;
 
                     if WATCH
                         && let Some(outcome) =
-                            self.watch_after(self.frame(), operation_pc, access, address)?
+                            self.watch_after(self.frame(), operation_pc, access, memory_range)?
                     {
                         return Ok(outcome);
                     }
                 }
-                0x0b => {
-                    let Some((operation, scalar)) = opcode.atomic_operation() else {
+                0x0b | 0x0c => {
+                    let Some((operation, address, scalar)) = opcode.atomic_operation() else {
                         unreachable!("linked atomic opcodes carry one exact operation");
                     };
                     let access = match operation {
@@ -374,21 +393,21 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                         && self
                             .watch_points
                             .is_some_and(|points| points.requires_memory_range());
-                    let address = if needs_range {
-                        Some(self.atomic_address(instruction, operation, scalar)?)
+                    let memory_range = if needs_range {
+                        Some(self.atomic_address(instruction, operation, address, scalar)?)
                     } else {
                         None
                     };
-                    self.execute_atomic(instruction, operation, scalar)?;
+                    self.execute_atomic(instruction, operation, address, scalar)?;
 
                     if WATCH
                         && let Some(outcome) =
-                            self.watch_after(self.frame(), operation_pc, access, address)?
+                            self.watch_after(self.frame(), operation_pc, access, memory_range)?
                     {
                         return Ok(outcome);
                     }
                 }
-                0x0c => match opcode.code() & 0x00ff {
+                0x0d => match opcode.code() & 0x00ff {
                     0x00..=0x1f => {
                         let Some(operation) = opcode.new_operation() else {
                             unreachable!("linked new opcodes carry one exact operation");
@@ -417,7 +436,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     }
                     _ => unreachable!("masked operation codes fit one byte"),
                 },
-                0x0d => {
+                0x0e => {
                     let Some(operation) = opcode.vector_operation() else {
                         unreachable!("linked vector opcodes carry one exact operation");
                     };
@@ -446,7 +465,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                         return Ok(outcome);
                     }
                 }
-                0x0e | 0x0f => {
+                0x0f if opcode.tensor_operation().is_some() => {
                     let Some(operation) = opcode.tensor_operation() else {
                         unreachable!("linked tensor opcodes carry one exact operation");
                     };
@@ -457,6 +476,48 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                             self.watch_after(self.frame(), operation_pc, access, Some(address))?
                     {
                         return Ok(outcome);
+                    }
+                }
+                0x0f => {
+                    let accesses = if WATCH {
+                        self.byte_accesses(instruction)?
+                    } else {
+                        [None, None]
+                    };
+
+                    // execute one exact byte range operation
+                    if let Some((operation, target, source, is_immediate)) =
+                        opcode.transfer_operation()
+                    {
+                        self.execute_transfer(
+                            instruction,
+                            operation,
+                            target,
+                            source,
+                            is_immediate,
+                        )?;
+                    } else if let Some((target, is_immediate)) = opcode.fill_operation() {
+                        self.execute_fill(instruction, target, is_immediate)?;
+                    } else if let Some((left, right, is_immediate)) = opcode.compare_operation() {
+                        self.execute_compare(instruction, left, right, is_immediate)?;
+                    } else if let Some((operation, address)) = opcode.prefetch_operation() {
+                        self.execute_prefetch(instruction, operation, address)?;
+                    } else {
+                        return Err(Error::unsupported_opcode(opcode.code()).into());
+                    }
+
+                    if WATCH {
+                        for (access, address) in accesses.into_iter().flatten() {
+                            let outcome = self.watch_after(
+                                self.frame(),
+                                operation_pc,
+                                access,
+                                Some(address),
+                            )?;
+                            if let Some(outcome) = outcome {
+                                return Ok(outcome);
+                            }
+                        }
                     }
                 }
                 _ => return Err(Error::unsupported_opcode(opcode.code()).into()),

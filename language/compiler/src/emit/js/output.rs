@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirExpanded, DirImported, DirMaterialized, DirParsed, EmitFormat, Script,
+    DirBound, DirExpanded, DirImported, DirMaterialized, DirParsed, Output, Script,
 };
 use destack_core::StringPool;
 use destack_repository::{Module, Target};
@@ -58,7 +58,7 @@ impl<'a> ScriptGenerator<'a> {
     /// Emit one structured script.
     pub(crate) fn emit(self) -> Result<(Script, Vec<EmitError>), EmitError> {
         // validate target
-        if self.target.emit != EmitFormat::Js {
+        if self.target.output != Output::Bundle {
             return Err(self.unsupported_target("expected JavaScript".to_string()));
         }
 
@@ -103,7 +103,7 @@ impl<'a> ScriptGenerator<'a> {
         EmitError::UnsupportedTarget {
             anchor: self.module.id.into(),
             module: self.module.id,
-            target: format!("{:?}: {message}", self.target.emit),
+            target: format!("{}: {message}", self.target.output.canonical_tag()),
         }
     }
 

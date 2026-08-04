@@ -40,7 +40,7 @@ impl<'a> TextOutput<'a> {
 
         // hidden maps emit sidecar outputs but do not annotate the text payload
         if !self.target.emits_source_map_output()
-            || matches!(self.target.source_map_mode(), Some(SourceMapMode::Hidden))
+            || matches!(self.target.source_map, Some(SourceMapMode::Hidden))
         {
             return Ok(code);
         }

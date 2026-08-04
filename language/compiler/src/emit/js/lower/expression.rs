@@ -36,7 +36,7 @@ impl ModuleLowerer<'_> {
                     .insert_from_source_any(left, self.module.id, source_id);
                 Ok(left_id)
             }
-            _ => Err(self.unsupported_construct(
+            _ => Err(self.unhandled(
                 type_expression_id.into_global_any(self.module.id),
                 Some("type callee must be a path or member expression".to_string()),
             )),
@@ -77,7 +77,7 @@ impl ModuleLowerer<'_> {
                 js::Expression::ObjectLiteral { properties }
             }
             dir::ImportAttributeValue::Error => {
-                return Err(self.unsupported_construct(
+                return Err(self.unhandled(
                     source_id.into_global(self.module.id),
                     Some("import attribute error values are not lowered to JS".to_string()),
                 ));
@@ -190,7 +190,7 @@ impl ModuleLowerer<'_> {
             }
 
             // invalid body shapes
-            _ => Err(self.unsupported_construct(
+            _ => Err(self.unhandled(
                 source_expression_id.into_global_any(self.module.id),
                 Some(format!(
                     "lambda body lowered to unsupported {}",
@@ -327,7 +327,7 @@ impl ModuleLowerer<'_> {
                 {
                     let signature = self.lower_function_signature(&declaration.signature)?;
                     let Some(body) = declaration.body else {
-                        return Err(self.unsupported_construct(
+                        return Err(self.unhandled(
                             expression_id.into_global_any(self.module.id),
                             Some("lambda declarations need a body in JS output".to_string()),
                         ));
@@ -508,7 +508,7 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
             dir::Expression::ImportSource => {
-                return Err(self.unsupported_construct(
+                return Err(self.unhandled(
                     expression_id.into_global_any(self.module.id),
                     Some("import.source has no JavaScript representation".to_string()),
                 ));
@@ -585,7 +585,7 @@ impl ModuleLowerer<'_> {
             dir::Expression::Type { value } => {
                 let type_expression = self.dir_tree.get(*value);
                 let dir::TypeExpression::Literal { value } = type_expression else {
-                    return Err(self.unsupported_construct(
+                    return Err(self.unhandled(
                         expression_id.into_global_any(self.module.id),
                         Some("runtime type values are not lowered to JS expressions".to_string()),
                     ));
@@ -595,7 +595,7 @@ impl ModuleLowerer<'_> {
                     dir::TypeLiteral::Null => js::ScalarLiteral::Null,
                     dir::TypeLiteral::Undefined => js::ScalarLiteral::Undefined,
                     _ => {
-                        return Err(self.unsupported_construct(
+                        return Err(self.unhandled(
                             expression_id.into_global_any(self.module.id),
                             Some(format!("unsupported runtime type value: {value:?}")),
                         ));
@@ -618,7 +618,7 @@ impl ModuleLowerer<'_> {
                             .map(|argument_id| {
                                 let argument = self.dir_tree.get(*argument_id);
                                 let Some(value) = argument.value() else {
-                                    return Err(self.unsupported_construct(
+                                    return Err(self.unhandled(
                                         argument_id.into_global_any(self.module.id),
                                         Some(
                                             "template arguments need expression values".to_string(),
@@ -648,7 +648,7 @@ impl ModuleLowerer<'_> {
                 generic_arguments: _,
                 value: _,
             } => {
-                return Err(self.unsupported_construct(
+                return Err(self.unhandled(
                     expression_id.into_global_any(self.module.id),
                     Some("tagged template expressions need explicit JS IR support".to_string()),
                 ));
@@ -657,7 +657,7 @@ impl ModuleLowerer<'_> {
                 .lower_unary_expression(expression_id, *operator, *right)?
                 .into_any(),
             dir::Expression::Is { .. } => {
-                return Err(self.unsupported_construct(
+                return Err(self.unhandled(
                     expression_id.into_global_any(self.module.id),
                     Some("`is` expressions are not lowered to JS yet".to_string()),
                 ));
@@ -686,7 +686,7 @@ impl ModuleLowerer<'_> {
                 if *operator != dir::AssignOperator::Assign {
                     let dir::AssignPattern::Place { expression: value } = self.dir_tree.get(*left)
                     else {
-                        return Err(self.unsupported_construct(expression_id.into_global_any(self.module.id), Some(
+                        return Err(self.unhandled(expression_id.into_global_any(self.module.id), Some(
                                 "compound assignment targets must be expression targets for JS output"
                                     .to_string(),
                             )));
@@ -709,7 +709,7 @@ impl ModuleLowerer<'_> {
             }
             dir::Expression::Chain { expression } => self.lower_expression(*expression)?,
             dir::Expression::Maybe { .. } | dir::Expression::Must { .. } => {
-                return Err(self.unsupported_construct(
+                return Err(self.unhandled(
                     expression_id.into_global_any(self.module.id),
                     Some("propagation operators must lower before JavaScript emission".to_string()),
                 ));
@@ -722,7 +722,7 @@ impl ModuleLowerer<'_> {
             } => {
                 let left_id = self.lower_expression_as::<js::Expression>(*left)?;
                 let Some(name) = *name else {
-                    return Err(self.unsupported_construct(
+                    return Err(self.unhandled(
                         expression_id.into_global_any(self.module.id),
                         Some("missing member name".to_string()),
                     ));
@@ -744,7 +744,7 @@ impl ModuleLowerer<'_> {
             } => {
                 let left_id = self.lower_expression_as::<js::Expression>(*left)?;
                 let Some(right) = *index else {
-                    return Err(self.unsupported_construct(
+                    return Err(self.unhandled(
                         expression_id.into_global_any(self.module.id),
                         Some("index expressions need a right operand".to_string()),
                     ));
@@ -812,7 +812,7 @@ impl ModuleLowerer<'_> {
                 dir::IfForm::Ternary => {
                     let Some(condition) = condition.as_expression() else {
                         // TODO #Broken: lower condition chains to JS
-                        return Err(self.unsupported_construct(
+                        return Err(self.unhandled(
                             expression_id.into_global_any(self.module.id),
                             Some("condition chains are not lowered to JS yet".to_string()),
                         ));
@@ -843,7 +843,7 @@ impl ModuleLowerer<'_> {
                 dir::IfForm::If => {
                     let Some(condition) = condition.as_expression() else {
                         // TODO #Broken: lower condition chains to JS
-                        return Err(self.unsupported_construct(
+                        return Err(self.unhandled(
                             expression_id.into_global_any(self.module.id),
                             Some("condition chains are not lowered to JS yet".to_string()),
                         ));
@@ -919,7 +919,7 @@ impl ModuleLowerer<'_> {
                                 keyword.map(|keyword| self.lower_for_each_keyword(keyword)),
                             ),
                             dir::ForEachBinding::Using { .. } => {
-                                return Err(self.unsupported_construct(
+                                return Err(self.unhandled(
                                     expression_id.into_global_any(self.module.id),
                                     Some(
                                         "using bindings in for-of are not lowered to JS yet"
@@ -946,7 +946,7 @@ impl ModuleLowerer<'_> {
                                 keyword.map(|keyword| self.lower_for_each_keyword(keyword)),
                             ),
                             dir::ForEachBinding::Using { .. } => {
-                                return Err(self.unsupported_construct(
+                                return Err(self.unhandled(
                                     expression_id.into_global_any(self.module.id),
                                     Some(
                                         "using bindings in for-in are not lowered to JS yet"
@@ -1005,7 +1005,7 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
             dir::Expression::Match { .. } => {
-                return Err(self.unsupported_construct(
+                return Err(self.unhandled(
                     expression_id.into_global_any(self.module.id),
                     Some("match expressions are not lowered to JS yet".to_string()),
                 ));
@@ -1047,7 +1047,7 @@ impl ModuleLowerer<'_> {
             }
             dir::Expression::Break { label, value } => {
                 if value.is_some() {
-                    return Err(self.unsupported_construct(
+                    return Err(self.unhandled(
                         expression_id.into_global_any(self.module.id),
                         Some("break values are not lowered to JS".to_string()),
                     ));
@@ -1079,7 +1079,7 @@ impl ModuleLowerer<'_> {
                     .map(|value| self.lower_expression_as::<js::Expression>(value))
                     .transpose()?;
                 if is_delegate && value.is_none() {
-                    return Err(self.unsupported_construct(
+                    return Err(self.unhandled(
                         expression_id.into_global_any(self.module.id),
                         Some("delegated yield requires a value".to_string()),
                     ));
@@ -1144,7 +1144,7 @@ impl ModuleLowerer<'_> {
             | dir::Expression::AwaitMaybe { .. }
             | dir::Expression::AwaitMust { .. }
             | dir::Expression::BorrowOf { .. } => {
-                return Err(self.unsupported_construct(
+                return Err(self.unhandled(
                     expression_id.into_global_any(self.module.id),
                     Some(format!("unsupported expression: {expression:?}")),
                 ));
@@ -1164,7 +1164,7 @@ impl ModuleLowerer<'_> {
 
         let array_element = match argument {
             dir::Argument::Named { .. } => {
-                return Err(self.unsupported_construct(
+                return Err(self.unhandled(
                     expression_id.into_global_any(self.module.id),
                     Some("named array elements are not lowered to JS".to_string()),
                 ));
@@ -1181,7 +1181,7 @@ impl ModuleLowerer<'_> {
             }
             dir::Argument::Elision => js::ArrayElement::Elision,
             dir::Argument::Error => {
-                return Err(self.unsupported_construct(
+                return Err(self.unhandled(
                     expression_id.into_global_any(self.module.id),
                     Some("array literal errors are not lowered to JS".to_string()),
                 ));

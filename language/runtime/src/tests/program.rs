@@ -1,14 +1,13 @@
 use std::sync::Arc;
 
-use destack_artifact::{EmitFormat, MirLowered, MirOptimized};
-use destack_compiler::{BytecodeEmitter, LayoutBuilder, ObjectEmitter, ProgramLinker};
+use destack_artifact::{MirLowered, MirOptimized};
+use destack_compiler::{
+    BytecodeEmitter, LayoutBuilder, NativeEmitter, ObjectEmitter, ProgramLinker,
+};
 use destack_core::StringPool;
 use destack_mir as mir;
-use destack_native as native;
 use destack_program as program;
-use destack_source::{
-    DiagnosticSeverity, File, FileId, FileType, ModuleId, PackageId, TargetId, Uri,
-};
+use destack_source::{DiagnosticSeverity, File, FileId, FileType, ModuleId, PackageId, Uri};
 
 /// MIR program compiled for runtime execution tests.
 pub(crate) struct TestProgram {
@@ -16,8 +15,8 @@ pub(crate) struct TestProgram {
     lowered: MirLowered,
     /// Strings referenced by the MIR module.
     strings: StringPool,
-    /// Physical native frame maps attached to this test module.
-    native: Option<native::CodeMapBuilder>,
+    /// Whether to compile this test module to host-native code.
+    is_native_compiled: bool,
 }
 
 impl TestProgram {
@@ -54,15 +53,16 @@ impl TestProgram {
                 memory,
                 effects,
                 profile,
+                initializer: None,
             },
             strings,
-            native: None,
+            is_native_compiled: false,
         }
     }
 
-    /// Attach physical native frame maps to this test program.
-    pub(crate) fn native(mut self, map: native::CodeMapBuilder) -> Self {
-        self.native = Some(map);
+    /// Compile this test program to host-native code.
+    pub(crate) fn compile_native(mut self) -> Self {
+        self.is_native_compiled = true;
 
         self
     }
@@ -91,13 +91,7 @@ impl TestProgram {
     pub(crate) fn build(self) -> program::Program {
         let package = PackageId::new(0);
         let module = ModuleId::new(package, 0);
-        let target = TargetId::new(package, "runtime-test");
         let optimized = self.optimize(module);
-        let format = if self.native.is_some() {
-            EmitFormat::Native
-        } else {
-            EmitFormat::Bytecode
-        };
 
         // emit one relocatable object from the parsed MIR
         let emitter = ObjectEmitter::new(module, &optimized, [])
@@ -105,36 +99,32 @@ impl TestProgram {
         let bytecode = BytecodeEmitter::new(module, &optimized, &emitter)
             .emit()
             .expect("runtime test MIR should emit bytecode");
-        let emitter = if let Some(map) = self.native {
-            let function_count = optimized.tree.iter_nodes::<mir::Function>().count();
-            let functions = std::iter::repeat_with(|| None).take(function_count);
-            let native = native::ObjectBuilder::new(
-                "runtime-test".to_string(),
-                native::ObjectFormat::Elf,
-                Vec::new(),
-                "runtime-test".to_string(),
+        let native = if self.is_native_compiled {
+            Some(
+                NativeEmitter::new(
+                    module,
+                    &optimized,
+                    &emitter,
+                    &destack_repository::Target::native(),
+                )
+                .expect("runtime test native emitter should initialize")
+                .emit()
+                .expect("runtime test MIR should emit native code"),
             )
-            .functions(functions)
-            .map(map)
-            .build();
-
-            emitter.native(native)
         } else {
-            emitter
+            None
         };
-        let object = Arc::new(emitter.build(bytecode));
+        let emitter = match native {
+            Some(native) => emitter.native(native),
+            None => emitter,
+        };
+        let object = Arc::new(emitter.bytecode(bytecode).build());
 
         // link the object through the production Program path
-        ProgramLinker::new(
-            package,
-            target,
-            format,
-            vec![(module, object)],
-            &self.strings,
-        )
-        .expect("runtime test object should initialize its linker")
-        .link()
-        .expect("runtime test object should link")
+        ProgramLinker::new(package, vec![(module, object)], &self.strings)
+            .expect("runtime test object should initialize its linker")
+            .link()
+            .expect("runtime test object should link")
     }
 
     /// Complete physical layouts and project optimized MIR for emission.

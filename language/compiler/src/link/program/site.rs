@@ -1,15 +1,17 @@
-use destack_artifact as artifact;
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use destack_core::Optional;
 use destack_mir as mir;
 use destack_program::{
-    AllocationSite, CallDispatch, CallMode, CallSite, ContinuationSite, CounterSite, EdgeSite,
-    MemoryAccess, MemorySite, ProgramPoint, SampleSite, SiteTableBuilder, Suspension,
-    SuspensionSite,
+    AllocationSite, AllocationSiteId, CallDispatch, CallMode, CallSite, ContinuationSite,
+    CounterId, CounterSite, EdgeSite, MemoryAccess, MemorySite, Object, ProgramPoint, SampleSite,
+    SamplerId, SiteTableBuilder, Suspension, SuspensionSite, object,
 };
-use destack_source::ModuleId;
+use destack_source::{ModuleId, PackageId};
 
 use super::{FrameLinker, ProgramLinker};
-use crate::LinkResult;
+use crate::{LinkError, LinkResult};
 
 /// Link object-local sites into one Program site table.
 #[derive(Debug)]
@@ -109,7 +111,7 @@ impl<'a> SiteLinker<'a> {
     fn allocation(
         &self,
         module: ModuleId,
-        site: &artifact::AllocationSite,
+        site: &object::AllocationSite,
     ) -> LinkResult<AllocationSite> {
         let object = self.program.object(module);
         let result_type = object
@@ -132,7 +134,7 @@ impl<'a> SiteLinker<'a> {
     }
 
     /// Link one memory site.
-    fn memory(&self, module: ModuleId, site: &artifact::MemorySite) -> MemorySite {
+    fn memory(&self, module: ModuleId, site: &object::MemorySite) -> MemorySite {
         MemorySite {
             point: self.point(module, site.point),
             access: match site.access {
@@ -140,13 +142,13 @@ impl<'a> SiteLinker<'a> {
                 mir::MemoryOperation::Write => MemoryAccess::Write,
                 mir::MemoryOperation::ReadWrite => MemoryAccess::ReadWrite,
             },
-            storage: site.storage,
+            storage: Optional::from(site.storage),
             value_type: self.program.type_id(module, site.value_type),
         }
     }
 
     /// Link one call site.
-    fn call(&self, module: ModuleId, site: &artifact::CallSite) -> LinkResult<CallSite> {
+    fn call(&self, module: ModuleId, site: &object::CallSite) -> LinkResult<CallSite> {
         let (dispatch, slot) = match site.dispatch {
             mir::CallDispatch::Direct => (CallDispatch::Direct, None),
             mir::CallDispatch::Indirect => (CallDispatch::Indirect, None),
@@ -169,8 +171,8 @@ impl<'a> SiteLinker<'a> {
             resume: Optional::from(site.resume.map(|point| self.point(module, point))),
             unwind: Optional::from(site.unwind.map(|point| self.point(module, point))),
             mode: match site.mode {
-                artifact::CallMode::Return => CallMode::Return,
-                artifact::CallMode::Tail => CallMode::Tail,
+                object::CallMode::Return => CallMode::Return,
+                object::CallMode::Tail => CallMode::Tail,
             },
             dispatch,
             space: Optional::from(site.space),
@@ -182,11 +184,7 @@ impl<'a> SiteLinker<'a> {
     }
 
     /// Link one continuation control site.
-    fn continuation(
-        &self,
-        module: ModuleId,
-        site: &artifact::ContinuationSite,
-    ) -> ContinuationSite {
+    fn continuation(&self, module: ModuleId, site: &object::ContinuationSite) -> ContinuationSite {
         ContinuationSite {
             point: self.point(module, site.point),
             yielded: self.point(module, site.yielded),
@@ -196,7 +194,7 @@ impl<'a> SiteLinker<'a> {
     }
 
     /// Link one control-flow edge.
-    fn edge(&self, module: ModuleId, site: &artifact::EdgeSite) -> EdgeSite {
+    fn edge(&self, module: ModuleId, site: &object::EdgeSite) -> EdgeSite {
         EdgeSite {
             source: self.point(module, site.source),
             target: self.point(module, site.target),
@@ -207,11 +205,11 @@ impl<'a> SiteLinker<'a> {
     fn suspension(
         &self,
         module: ModuleId,
-        site: &artifact::SuspensionSite,
+        site: &object::SuspensionSite,
     ) -> LinkResult<SuspensionSite> {
         let frame_state = self
             .frames
-            .state(module, artifact::FramePoint::operation(site.point))
+            .state(module, object::FramePoint::operation(site.point))
             .ok_or_else(|| self.program.invalid_input("missing suspension frame state"))?;
 
         Ok(SuspensionSite {
@@ -222,8 +220,8 @@ impl<'a> SiteLinker<'a> {
             unwind: Optional::from(site.unwind.map(|point| self.point(module, point))),
             frame_state,
             operation: match site.operation {
-                artifact::Suspension::Await => Suspension::Await,
-                artifact::Suspension::Yield => Suspension::Yield,
+                object::Suspension::Await => Suspension::Await,
+                object::Suspension::Yield => Suspension::Yield,
             },
             value_type: self.program.type_id(module, site.value_type),
             resume_type: self.program.type_id(module, site.resume_type),
@@ -235,7 +233,7 @@ impl<'a> SiteLinker<'a> {
     }
 
     /// Link one explicit counter site.
-    fn counter(&self, module: ModuleId, site: &artifact::CounterSite) -> CounterSite {
+    fn counter(&self, module: ModuleId, site: &object::CounterSite) -> CounterSite {
         CounterSite {
             point: self.point(module, site.point),
             counter: self
@@ -245,7 +243,7 @@ impl<'a> SiteLinker<'a> {
     }
 
     /// Link one explicit sample site.
-    fn sample(&self, module: ModuleId, site: &artifact::SampleSite) -> SampleSite {
+    fn sample(&self, module: ModuleId, site: &object::SampleSite) -> SampleSite {
         SampleSite {
             point: self.point(module, site.point),
             sampler: self
@@ -256,10 +254,100 @@ impl<'a> SiteLinker<'a> {
     }
 
     /// Link one object-local point.
-    fn point(&self, module: ModuleId, point: artifact::Point) -> ProgramPoint {
+    fn point(&self, module: ModuleId, point: object::Point) -> ProgramPoint {
         ProgramPoint::new(
             self.program.function_id(module, point.function),
             point.operation,
         )
+    }
+}
+
+impl SiteLinker<'_> {
+    /// Build first allocation site ids for each object.
+    pub(crate) fn allocation_starts(
+        objects: &[(ModuleId, Arc<Object>)],
+    ) -> HashMap<ModuleId, AllocationSiteId> {
+        let mut starts = HashMap::with_capacity(objects.len());
+        let mut next = 0;
+
+        // assign each object's contiguous allocation site range
+        for (module, object) in objects {
+            starts.insert(*module, AllocationSiteId(next));
+            next += object.allocations().len() as u32;
+        }
+
+        starts
+    }
+
+    /// Assign contiguous Program counter and sampler ranges in function order.
+    pub(crate) fn profile_starts(
+        package: PackageId,
+        objects: &[(ModuleId, Arc<Object>)],
+        functions: &[(ModuleId, mir::FunctionId)],
+    ) -> LinkResult<(
+        HashMap<(ModuleId, mir::FunctionId), CounterId>,
+        HashMap<(ModuleId, mir::FunctionId), SamplerId>,
+    )> {
+        let mut counter_starts = HashMap::new();
+        let mut sampler_starts = HashMap::new();
+        let mut counts = HashMap::new();
+        let mut counter_start = 0u32;
+        let mut sampler_start = 0u32;
+
+        // initialize every object-local function profile range
+        for (module, object) in objects {
+            for function in object.functions() {
+                counts.insert((*module, function.id), (0, 0));
+            }
+
+            // derive local counter widths from their semantic sites
+            for site in object.counters() {
+                let count = counts
+                    .get_mut(&(*module, site.point.function))
+                    .ok_or_else(|| {
+                        LinkError::invalid_input(package, "counter function is absent")
+                    })?;
+                let end = site
+                    .counter
+                    .0
+                    .checked_add(1)
+                    .ok_or_else(|| LinkError::invalid_input(package, "counter id overflow"))?;
+                count.0 = count.0.max(end);
+            }
+
+            // derive local sampler widths from their semantic sites
+            for site in object.samples() {
+                let count = counts
+                    .get_mut(&(*module, site.point.function))
+                    .ok_or_else(|| {
+                        LinkError::invalid_input(package, "sampler function is absent")
+                    })?;
+                let end = site
+                    .sampler
+                    .0
+                    .checked_add(1)
+                    .ok_or_else(|| LinkError::invalid_input(package, "sampler id overflow"))?;
+                count.1 = count.1.max(end);
+            }
+        }
+
+        // assign one contiguous profile range to each canonical function
+        for &(module, function) in functions {
+            let (counter_count, sampler_count) = counts
+                .get(&(module, function))
+                .copied()
+                .ok_or_else(|| LinkError::invalid_input(package, "missing bytecode function"))?;
+
+            counter_starts.insert((module, function), CounterId(counter_start));
+            sampler_starts.insert((module, function), SamplerId(sampler_start));
+            counter_start = counter_start
+                .checked_add(counter_count)
+                .ok_or_else(|| LinkError::invalid_input(package, "counter id overflow"))?;
+            sampler_start = sampler_start
+                .checked_add(sampler_count)
+                .ok_or_else(|| LinkError::invalid_input(package, "sampler id overflow"))?;
+        }
+
+        Ok((counter_starts, sampler_starts))
     }
 }

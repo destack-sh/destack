@@ -1,14 +1,17 @@
 use std::collections::HashMap;
+use std::sync::Arc;
+
+use destack_program::Object;
 
 use destack_mir as mir;
 use destack_program::{
     DispatchTableBuilder, DynamicEntry, DynamicNamedEntry, DynamicShapeBuilder, DynamicSlot,
-    DynamicTableBuilder, TypeId, VirtualTableBuilder,
+    DynamicTableBuilder, DynamicTableId, TypeId, VirtualTableBuilder, VirtualTableId,
 };
-use destack_source::ModuleId;
+use destack_source::{ModuleId, PackageId};
 
 use super::ProgramLinker;
-use crate::LinkResult;
+use crate::{LinkError, LinkResult};
 
 /// Link MIR dispatch entries into program dispatch tables.
 #[derive(Debug)]
@@ -153,5 +156,107 @@ impl<'a> DispatchLinker<'a> {
         }
 
         Ok(())
+    }
+}
+
+impl DispatchLinker<'_> {
+    /// Build dense virtual table ids from canonical concrete types.
+    pub(crate) fn virtual_ids(
+        package: PackageId,
+        objects: &[(ModuleId, Arc<Object>)],
+        type_ids: &HashMap<(ModuleId, mir::TypeId), TypeId>,
+    ) -> LinkResult<HashMap<TypeId, VirtualTableId>> {
+        let mut ids = HashMap::new();
+
+        // require every virtual receiver to expose its dispatch id
+        for (module, object) in objects {
+            for table in object.dispatch().iter_virtual_tables() {
+                let layout = object
+                    .layouts()
+                    .type_layout(table.concrete)
+                    .ok_or_else(|| {
+                        LinkError::invalid_input(
+                            package,
+                            format!("missing layout for virtual type {:?}", table.concrete),
+                        )
+                    })?;
+                let mir::LayoutShape::Object(object_layout) = &layout.shape else {
+                    return Err(LinkError::invalid_input(
+                        package,
+                        format!(
+                            "virtual type {:?} does not have an object layout",
+                            table.concrete
+                        ),
+                    ));
+                };
+                let Some(dispatch_offset) = object_layout.dispatch_offset else {
+                    return Err(LinkError::invalid_input(
+                        package,
+                        format!("virtual type {:?} has no dispatch offset", table.concrete),
+                    ));
+                };
+                let dispatch_end = u64::from(dispatch_offset) + size_of::<u32>() as u64;
+                if dispatch_end > u64::from(layout.size) {
+                    return Err(LinkError::invalid_input(
+                        package,
+                        format!(
+                            "virtual type {:?} has a dispatch offset outside its layout",
+                            table.concrete
+                        ),
+                    ));
+                }
+
+                let concrete = type_ids[&(*module, table.concrete)];
+                let next = VirtualTableId(ids.len() as u32);
+                ids.entry(concrete).or_insert(next);
+            }
+        }
+
+        // require every dispatch field to have one canonical virtual table
+        for (module, object) in objects {
+            for ty in object.types() {
+                let Some(layout) = object.layouts().type_layout(ty.id) else {
+                    continue;
+                };
+                let mir::LayoutShape::Object(layout) = &layout.shape else {
+                    continue;
+                };
+                if layout.dispatch_offset.is_none() {
+                    continue;
+                }
+
+                let concrete = type_ids[&(*module, ty.id)];
+                if !ids.contains_key(&concrete) {
+                    return Err(LinkError::invalid_input(
+                        package,
+                        format!("object type {:?} has no virtual table", ty.id),
+                    ));
+                }
+            }
+        }
+
+        Ok(ids)
+    }
+
+    /// Build dense dynamic table ids from canonical concrete and constraint types.
+    pub(crate) fn dynamic_ids(
+        objects: &[(ModuleId, Arc<Object>)],
+        type_ids: &HashMap<(ModuleId, mir::TypeId), TypeId>,
+    ) -> HashMap<(TypeId, TypeId), DynamicTableId> {
+        let mut ids = HashMap::new();
+
+        // assign one row to each canonical implementation pair
+        for (module, object) in objects {
+            for table in object.dispatch().iter_dynamic_tables() {
+                let key = (
+                    type_ids[&(*module, table.concrete)],
+                    type_ids[&(*module, table.constraint)],
+                );
+                let next = DynamicTableId(ids.len() as u32);
+                ids.entry(key).or_insert(next);
+            }
+        }
+
+        ids
     }
 }

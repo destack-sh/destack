@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 use super::{Machine, native};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 
+const DEOPTIMIZE_ENTRY: usize = 0;
+
 /// Process-local execution of one immutable Program.
 #[derive(Clone)]
 pub struct Engine {
@@ -53,6 +55,30 @@ impl Engine {
     /// Return the current target for one Program function.
     pub(crate) fn target(&self, function: program::FunctionId) -> Option<Target> {
         self.entries.target(function)
+    }
+
+    /// Return whether one function has executable bytecode.
+    pub(crate) fn has_bytecode(&self, function: program::FunctionId) -> bool {
+        self.program
+            .bytecode()
+            .and_then(|bytecode| bytecode.function(self.program.sections(), function.index()))
+            .and_then(|function| function.code())
+            .is_some()
+    }
+
+    /// Return typed native body addresses keyed by Program function id.
+    pub(crate) fn functions(&self) -> *const usize {
+        self.entries.native.functions.as_ptr()
+    }
+
+    /// Return virtual method rows keyed by Program virtual table id.
+    pub(crate) fn virtuals(&self) -> *const *const u32 {
+        self.entries.native.virtuals.as_ptr().cast()
+    }
+
+    /// Return dynamic entry rows keyed by Program dynamic table id.
+    pub(crate) fn dynamics(&self) -> *const *const u32 {
+        self.entries.native.dynamics.as_ptr().cast()
     }
 
     /// Return loaded native code when available.
@@ -128,14 +154,16 @@ pub struct EngineImage {
 #[derive(Debug)]
 struct EntryTable {
     /// Current target for every Program function.
-    entries: Box<[Option<Target>]>,
+    targets: Box<[Option<Target>]>,
+    /// Process-local tables read directly by generated native code.
+    native: NativeTable,
 }
 
 impl EntryTable {
     /// Build current targets from available execution forms.
     fn new(program: &program::Program, native: Option<&native::Code>) -> Self {
         let bytecode = program.bytecode().copied();
-        let entries = program
+        let targets = program
             .functions()
             .entries(program.sections())
             .iter()
@@ -157,13 +185,109 @@ impl EntryTable {
                 }
             })
             .collect();
+        let native = NativeTable::new(program, native);
 
-        Self { entries }
+        Self { targets, native }
     }
 
     /// Return the current target for one Program function.
     fn target(&self, function: program::FunctionId) -> Option<Target> {
-        self.entries.get(function.index()).copied().flatten()
+        self.targets.get(function.index()).copied().flatten()
+    }
+}
+
+/// Stable process-local storage backing native dispatch pointers.
+struct NativeTable {
+    /// Typed native body addresses keyed by Program function id.
+    functions: Box<[usize]>,
+    /// Virtual row addresses keyed by Program virtual table id.
+    virtuals: Box<[usize]>,
+    /// Dynamic row addresses keyed by Program dynamic table id.
+    dynamics: Box<[usize]>,
+    /// Virtual method identities owning the virtual row storage.
+    virtual_rows: Box<[Box<[u32]>]>,
+    /// Dynamic entry values owning the dynamic row storage.
+    dynamic_rows: Box<[Box<[u32]>]>,
+}
+
+impl NativeTable {
+    /// Build dense process-local dispatch tables from one linked Program.
+    fn new(program: &program::Program, native: Option<&native::Code>) -> Self {
+        let function_count = program.functions().entries(program.sections()).len();
+        let mut functions = Vec::with_capacity(function_count + 2);
+        functions.extend([0, 0]);
+        functions.extend((0..function_count).map(|index| {
+            let function = native
+                .and_then(|native| native.function(program::FunctionId(index as u32)))
+                .and_then(native::Function::body_address);
+
+            // leave unavailable bodies null so generated indirect calls deoptimize
+            function.map_or(DEOPTIMIZE_ENTRY, |address| address)
+        }));
+        let functions = functions.into_boxed_slice();
+        let virtual_rows = program
+            .dispatch()
+            .virtual_tables(program.sections())
+            .iter()
+            .map(|table| {
+                program
+                    .dispatch()
+                    .virtual_methods(program.sections(), table)
+                    .iter()
+                    .map(|function| function.0)
+                    .collect::<Box<_>>()
+            })
+            .collect::<Box<_>>();
+        let dynamic_rows = program
+            .dispatch()
+            .dynamic_tables(program.sections())
+            .iter()
+            .map(|table| {
+                program
+                    .dispatch()
+                    .dynamic_entries(program.sections(), table)
+                    .iter()
+                    .map(|entry| entry.value)
+                    .collect::<Box<_>>()
+            })
+            .collect::<Box<_>>();
+
+        // retain only process addresses in the hot dispatch columns
+        let virtuals = virtual_rows
+            .iter()
+            .map(|row| row.as_ptr() as usize)
+            .collect::<Box<_>>();
+        let dynamics = dynamic_rows
+            .iter()
+            .map(|row| row.as_ptr() as usize)
+            .collect::<Box<_>>();
+        Self {
+            functions,
+            virtuals,
+            dynamics,
+            virtual_rows,
+            dynamic_rows,
+        }
+    }
+}
+
+impl fmt::Debug for NativeTable {
+    /// Format native dispatch storage without exposing process addresses.
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("NativeTable")
+            .field("function_count", &self.functions.len())
+            .field("virtual_table_count", &self.virtuals.len())
+            .field(
+                "virtual_method_count",
+                &self.virtual_rows.iter().map(|row| row.len()).sum::<usize>(),
+            )
+            .field("dynamic_table_count", &self.dynamics.len())
+            .field(
+                "dynamic_entry_count",
+                &self.dynamic_rows.iter().map(|row| row.len()).sum::<usize>(),
+            )
+            .finish()
     }
 }
 

@@ -1,0 +1,564 @@
+use cranelift_codegen::ir as cir;
+use cranelift_codegen::ir::InstBuilder;
+use destack_mir as mir;
+use destack_native as native;
+use destack_program::object::FramePoint;
+
+use crate::EmitError;
+
+use super::{FunctionEmitter, Value};
+
+impl<'a> FunctionEmitter<'a> {
+    /// Emit one MIR instruction.
+    pub(super) fn emit_instruction(
+        &mut self,
+        instruction_id: mir::LocalNodeId<mir::Instruction>,
+        instruction: &mir::Instruction,
+        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
+    ) -> Result<bool, EmitError> {
+        match instruction {
+            mir::Instruction::Const { destination, value } => {
+                let value = self.emit_constant(value, builder)?;
+                self.set(*destination, Value::Direct(value), builder)?;
+            }
+            mir::Instruction::Binary {
+                destination,
+                operator,
+                left,
+                right,
+            } => {
+                let left = self.scalar(*left, builder)?;
+                let right = self.scalar(*right, builder)?;
+                let value = self.emit_binary(*operator, left, right, builder);
+                self.set(*destination, Value::Direct(value), builder)?;
+            }
+            mir::Instruction::Unary {
+                destination,
+                operator,
+                argument,
+            } => {
+                let argument = self.scalar(*argument, builder)?;
+                let value = match operator {
+                    mir::UnaryOperator::Negate => builder.ins().ineg(argument),
+                    mir::UnaryOperator::FloatNegate => builder.ins().fneg(argument),
+                    mir::UnaryOperator::Not => builder.ins().bnot(argument),
+                };
+                self.set(*destination, Value::Direct(value), builder)?;
+            }
+            mir::Instruction::Cast {
+                destination,
+                operator,
+                argument,
+                to_type,
+            } => {
+                let argument_type = self.value_type(*argument)?;
+                let argument = self.scalar(*argument, builder)?;
+                let target = self
+                    .types
+                    .value(*to_type)?
+                    .direct()
+                    .ok_or_else(|| self.invalid("native cast target is not scalar"))?;
+                let value = self.emit_cast(
+                    *operator,
+                    argument,
+                    argument_type,
+                    *to_type,
+                    target,
+                    builder,
+                )?;
+                self.set(*destination, Value::Direct(value), builder)?;
+            }
+            mir::Instruction::Select {
+                destination,
+                condition,
+                then_value,
+                else_value,
+            } => {
+                let condition = self.scalar(*condition, builder)?;
+                let then_value = self.scalar(*then_value, builder)?;
+                let else_value = self.scalar(*else_value, builder)?;
+                let value = builder.ins().select(condition, then_value, else_value);
+                self.set(*destination, Value::Direct(value), builder)?;
+            }
+            mir::Instruction::LocalGet { destination, local } => {
+                let ty = self.value_type(*destination)?;
+                let value_type = self.types.value(ty)?;
+                let value = self.load(self.locals[local].address, value_type, builder)?;
+                self.set(*destination, value, builder)?;
+            }
+            mir::Instruction::LocalSet { local, value } => {
+                let ty = self.optimized.tree.get(*local).ty;
+                let value_type = self.types.value(ty)?;
+                let value = self.value(*value, builder)?;
+                self.store(self.locals[local].address, value, value_type, builder)?;
+            }
+            mir::Instruction::LocalAddr {
+                destination, local, ..
+            } => {
+                self.set(
+                    *destination,
+                    Value::Direct(self.locals[local].address),
+                    builder,
+                )?;
+            }
+            mir::Instruction::GlobalAddr {
+                destination,
+                global,
+                ..
+            } => self.emit_global_address(*destination, *global, builder)?,
+            mir::Instruction::FunctionAddr {
+                destination,
+                function,
+            } => self.emit_function_address(*destination, *function, builder)?,
+            mir::Instruction::FunctionBind {
+                destination,
+                function,
+                environment,
+            } => self.emit_function_bind(*destination, *function, *environment, builder)?,
+            mir::Instruction::FunctionEnvironment {
+                destination,
+                function,
+            } => self.emit_function_environment(*destination, *function, builder)?,
+            mir::Instruction::FunctionEnvironmentCurrent { destination } => {
+                self.emit_function_environment_current(*destination, builder)?;
+            }
+            mir::Instruction::ContextCurrent { destination } => {
+                self.emit_context_current(*destination, builder)?;
+            }
+            mir::Instruction::ContextReplace {
+                destination,
+                context,
+            } => self.emit_context_replace(*destination, *context, builder)?,
+            mir::Instruction::ContextBind {
+                destination,
+                context,
+                variable,
+                value,
+                node_type,
+                result_type,
+            } => self.emit_context_bind(
+                instruction_id,
+                *destination,
+                *context,
+                *variable,
+                *value,
+                *node_type,
+                *result_type,
+                builder,
+            )?,
+            mir::Instruction::ContextGet {
+                destination,
+                context,
+                variable,
+                default,
+                node_type,
+                result_type,
+            } => self.emit_context_get(
+                *destination,
+                *context,
+                *variable,
+                *default,
+                *node_type,
+                *result_type,
+                builder,
+            )?,
+            mir::Instruction::ContinuationNew { .. } | mir::Instruction::TaskStart { .. } => {
+                let point = self.object.instruction_point(instruction_id);
+                self.emit_deopt(point, builder)?;
+
+                return Ok(false);
+            }
+            mir::Instruction::ContinuationDestroy { .. } => {
+                let point = self.object.instruction_point(instruction_id);
+                self.emit_deopt(point, builder)?;
+
+                return Ok(false);
+            }
+            mir::Instruction::WaiterQueue {
+                destination,
+                waiter,
+                value,
+            } => self.emit_waiter_queue(*destination, *waiter, *value, builder)?,
+            mir::Instruction::WaiterCancel {
+                destination,
+                waiter,
+            } => self.emit_waiter_cancel(*destination, *waiter, builder)?,
+            mir::Instruction::TaskResolve { destination, value } => {
+                self.emit_task_resolve(*destination, *value, builder)?
+            }
+            mir::Instruction::TaskPark { task, waiter } => {
+                self.emit_task_park(*task, *waiter, builder)?
+            }
+            mir::Instruction::TaskCancel { task } => {
+                self.emit_task(native::abi::Operation::TaskCancel, *task, builder)?
+            }
+            mir::Instruction::TaskDetach { task } => {
+                self.emit_task(native::abi::Operation::TaskDetach, *task, builder)?
+            }
+            mir::Instruction::Load {
+                destination,
+                pointer,
+                result_type,
+            } => self.emit_load(*destination, *pointer, *result_type, builder)?,
+            mir::Instruction::Store { pointer, value } => {
+                self.emit_store(*pointer, *value, builder)?
+            }
+            mir::Instruction::Aggregate {
+                destination,
+                values,
+            } => self.emit_aggregate(*destination, *values, builder)?,
+            mir::Instruction::FieldGet {
+                destination,
+                aggregate,
+                field,
+            }
+            | mir::Instruction::ElementGet {
+                destination,
+                aggregate,
+                index: field,
+            } => self.emit_projection(*destination, *aggregate, *field, builder)?,
+            mir::Instruction::FieldSet {
+                destination,
+                aggregate,
+                field,
+                value,
+            } => self.emit_field_set(*destination, *aggregate, *field, *value, builder)?,
+            mir::Instruction::ElementSet {
+                destination,
+                aggregate,
+                index,
+                value,
+            } => self.emit_element_set(*destination, *aggregate, *index, *value, builder)?,
+            mir::Instruction::FieldAddr {
+                destination,
+                aggregate,
+                field,
+                ..
+            } => self.emit_field_address(*destination, *aggregate, *field, builder)?,
+            mir::Instruction::ElementAddr {
+                destination,
+                base,
+                index,
+                ..
+            } => self.emit_element_address(*destination, *base, *index, builder)?,
+            mir::Instruction::VariantNew {
+                destination,
+                case,
+                payload,
+                result_type,
+            } => self.emit_variant_new(*destination, *case, *payload, *result_type, builder)?,
+            mir::Instruction::VariantTag {
+                destination,
+                variant,
+            } => self.emit_variant_tag(*destination, *variant, builder)?,
+            mir::Instruction::VariantTagLoad {
+                destination,
+                variant,
+            } => self.emit_variant_tag_load(*destination, *variant, builder)?,
+            mir::Instruction::VariantPayload {
+                destination,
+                variant,
+                case,
+            } => self.emit_variant_payload(*destination, *variant, *case, builder)?,
+            mir::Instruction::VariantPayloadAddr {
+                destination,
+                variant,
+                case,
+                ..
+            } => self.emit_variant_payload_address(*destination, *variant, *case, builder)?,
+            mir::Instruction::SliceView {
+                destination,
+                source,
+                start,
+                length,
+                result_type,
+            } => self.emit_slice_view(
+                *destination,
+                *source,
+                *start,
+                *length,
+                *result_type,
+                builder,
+            )?,
+            mir::Instruction::SliceLength { destination, slice } => {
+                self.emit_slice_length(*destination, *slice, builder)?
+            }
+            mir::Instruction::DynamicBind {
+                destination,
+                payload,
+                concrete,
+            } => self.emit_dynamic_bind(*destination, *payload, *concrete, builder)?,
+            mir::Instruction::DynamicPayload {
+                destination,
+                dynamic,
+                ..
+            } => self.emit_dynamic_payload(*destination, *dynamic, builder)?,
+            mir::Instruction::DynamicType {
+                destination,
+                dynamic,
+            } => self.emit_dynamic_type(*destination, *dynamic, builder)?,
+            mir::Instruction::DynamicRead { .. } => {
+                return Err(Self::internal(
+                    self.module,
+                    "dynamic field read emission is incomplete",
+                ));
+            }
+            mir::Instruction::DynamicFind { .. } => {
+                return Err(Self::internal(
+                    self.module,
+                    "dynamic property lookup requires executable string representation",
+                ));
+            }
+            mir::Instruction::Drop { value } => self.emit_drop(*value, builder)?,
+            mir::Instruction::NewZeroed {
+                destination,
+                result_type,
+                ..
+            } => self.emit_new(
+                instruction_id,
+                *destination,
+                *result_type,
+                native::abi::AllocationInitialization::Zeroed,
+                None,
+                builder,
+            )?,
+            mir::Instruction::NewUninit {
+                destination,
+                result_type,
+                ..
+            } => self.emit_new(
+                instruction_id,
+                *destination,
+                *result_type,
+                native::abi::AllocationInitialization::Uninit,
+                None,
+                builder,
+            )?,
+            mir::Instruction::NewComplete {
+                destination, value, ..
+            } => {
+                let value = self.value(*value, builder)?;
+                self.set(*destination, value, builder)?;
+            }
+            mir::Instruction::NewSliceZeroed {
+                destination,
+                length,
+                result_type,
+                ..
+            } => self.emit_new(
+                instruction_id,
+                *destination,
+                *result_type,
+                native::abi::AllocationInitialization::Zeroed,
+                Some(*length),
+                builder,
+            )?,
+            mir::Instruction::NewSliceUninit {
+                destination,
+                length,
+                result_type,
+                ..
+            } => self.emit_new(
+                instruction_id,
+                *destination,
+                *result_type,
+                native::abi::AllocationInitialization::Uninit,
+                Some(*length),
+                builder,
+            )?,
+            mir::Instruction::Free { value } => {
+                let ty = self.value_type(*value)?;
+                let space = self.heap_space(ty)?;
+                let space = builder.ins().iconst(cir::types::I32, space as i64);
+                let reference = self.reference(*value, builder)?;
+                self.emit_runtime(native::abi::Operation::Free, &[space, reference], builder)?;
+            }
+            mir::Instruction::Pin {
+                destination,
+                value,
+                result_type,
+            } => {
+                let space = self.heap_space(*result_type)?;
+                let space = builder.ins().iconst(cir::types::I32, space as i64);
+                let reference = self.reference(*value, builder)?;
+                let call =
+                    self.emit_runtime(native::abi::Operation::Pin, &[space, reference], builder)?;
+                let reference = builder.inst_results(call)[0];
+                self.set(*destination, Value::Direct(reference), builder)?;
+            }
+            mir::Instruction::Unpin { value } => {
+                let ty = self.value_type(*value)?;
+                let space = self.heap_space(ty)?;
+                let space = builder.ins().iconst(cir::types::I32, space as i64);
+                let reference = self.reference(*value, builder)?;
+                self.emit_runtime(native::abi::Operation::Unpin, &[space, reference], builder)?;
+            }
+            mir::Instruction::BarrierWrite {
+                object,
+                offset,
+                byte_len,
+            } => {
+                let ty = self.value_type(*object)?;
+                let space = self.heap_space(ty)?;
+                let space = builder.ins().iconst(cir::types::I32, space as i64);
+                let object = self.reference(*object, builder)?;
+                let offset = self.scalar(*offset, builder)?;
+                let byte_len = self.scalar(*byte_len, builder)?;
+                self.emit_runtime(
+                    native::abi::Operation::WriteBarrier,
+                    &[space, object, offset, byte_len],
+                    builder,
+                )?;
+            }
+            mir::Instruction::AtomicLoad {
+                destination,
+                pointer,
+                result_type,
+                access,
+            } => self.emit_atomic_load(*destination, *pointer, *result_type, *access, builder)?,
+            mir::Instruction::AtomicStore {
+                pointer,
+                value,
+                access,
+            } => self.emit_atomic_store(*pointer, *value, *access, builder)?,
+            mir::Instruction::AtomicCompareExchange {
+                destination,
+                pointer,
+                expected,
+                new_value,
+                is_weak,
+                access,
+            } => self.emit_atomic_compare_exchange(
+                *destination,
+                *pointer,
+                *expected,
+                *new_value,
+                *is_weak,
+                *access,
+                builder,
+            )?,
+            mir::Instruction::AtomicRmw {
+                destination,
+                operator,
+                pointer,
+                value,
+                access,
+            } => {
+                self.emit_atomic_rmw(*destination, *operator, *pointer, *value, *access, builder)?
+            }
+            mir::Instruction::AtomicFence { access } => self.emit_atomic_fence(*access, builder),
+            mir::Instruction::Assume { .. } => {}
+            mir::Instruction::ProfileIncrement { counter } => {
+                self.emit_profile_increment(*counter, builder)?
+            }
+            mir::Instruction::ProfileSample { sampler, value } => {
+                self.emit_profile_sample(*sampler, *value, builder)?
+            }
+            mir::Instruction::VectorSplat { destination, value } => {
+                self.emit_vector_splat(*destination, *value, builder)?
+            }
+            mir::Instruction::VectorExtract {
+                destination,
+                vector,
+                index,
+            } => self.emit_vector_extract(*destination, *vector, *index, builder)?,
+            mir::Instruction::VectorInsert {
+                destination,
+                vector,
+                index,
+                value,
+            } => self.emit_vector_insert(*destination, *vector, *index, *value, builder)?,
+            mir::Instruction::VectorShuffle {
+                destination,
+                left,
+                right,
+                mask,
+            } => self.emit_vector_shuffle(*destination, *left, *right, *mask, builder)?,
+            mir::Instruction::VectorSelect {
+                destination,
+                mask,
+                then_value,
+                else_value,
+            } => self.emit_vector_select(*destination, *mask, *then_value, *else_value, builder)?,
+            mir::Instruction::VectorReduce {
+                destination,
+                operator,
+                vector,
+            } => self.emit_vector_reduce(*destination, *operator, *vector, builder)?,
+            mir::Instruction::VectorCompare {
+                destination,
+                operator,
+                left,
+                right,
+            } => self.emit_vector_compare(*destination, *operator, *left, *right, builder)?,
+            mir::Instruction::VectorConvert {
+                destination,
+                mode,
+                vector,
+            } => self.emit_vector_convert(*destination, *mode, *vector, builder)?,
+            instruction @ (mir::Instruction::TensorSplat { .. }
+            | mir::Instruction::TensorLoad { .. }
+            | mir::Instruction::TensorExtract { .. }
+            | mir::Instruction::TensorStore { .. }
+            | mir::Instruction::TensorFill { .. }
+            | mir::Instruction::TensorCopy { .. }
+            | mir::Instruction::TensorReshape { .. }
+            | mir::Instruction::TensorBroadcast { .. }
+            | mir::Instruction::TensorTranspose { .. }
+            | mir::Instruction::TensorCast { .. }
+            | mir::Instruction::TensorView { .. }
+            | mir::Instruction::TensorSlice { .. }
+            | mir::Instruction::TensorPad { .. }
+            | mir::Instruction::TensorConcat { .. }
+            | mir::Instruction::TensorCompare { .. }
+            | mir::Instruction::TensorSelect { .. }
+            | mir::Instruction::TensorReduce { .. }
+            | mir::Instruction::TensorIndexReduce { .. }
+            | mir::Instruction::TensorDot { .. }
+            | mir::Instruction::TensorConvolution { .. }
+            | mir::Instruction::TensorGather { .. }
+            | mir::Instruction::TensorScatter { .. }
+            | mir::Instruction::TensorConvert { .. }) => {
+                self.emit_tensor(instruction_id, instruction, builder)?
+            }
+            mir::Instruction::Call { destination, call } => {
+                let point = self.object.instruction_point(instruction_id);
+                let frame = self.stack_map(FramePoint::operation(point), builder)?;
+                self.emit_call(*destination, call, frame, builder)?;
+            }
+            mir::Instruction::Poll => {
+                let point = self.object.instruction_point(instruction_id);
+                self.emit_poll(point, builder)?;
+            }
+            mir::Instruction::Breakpoint => {
+                let point = self.object.instruction_point(instruction_id);
+                let frame = self.stack_map(FramePoint::operation(point.next()), builder)?;
+                let id = self.frame_map_id(frame.id, builder)?;
+                let operation = builder
+                    .ins()
+                    .iconst(cir::types::I32, point.operation as i64);
+                let call = self.emit_runtime(
+                    native::abi::Operation::Stop,
+                    &[id, operation, frame.anchor],
+                    builder,
+                )?;
+                Self::attach_stack_map(frame.entries, call, builder);
+                Self::terminate_runtime(builder);
+
+                return Ok(false);
+            }
+            mir::Instruction::Intrinsic {
+                destination,
+                intrinsic,
+                arguments,
+            } => self.emit_intrinsic(*destination, *intrinsic, *arguments, builder)?,
+            _ => {
+                return Err(self.invalid(&format!(
+                    "native emission is missing instruction {instruction:?}"
+                )));
+            }
+        }
+
+        Ok(true)
+    }
+}

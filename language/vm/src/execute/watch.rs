@@ -1,7 +1,9 @@
-use destack_bytecode::{AtomicOperation, CodeOffset, Instruction, MemoryOperation, Opcode, Scalar};
+use destack_bytecode::{
+    Address, AtomicOperation, CodeOffset, Instruction, MemoryOperation, Scalar,
+};
 use destack_mir::{GlobalStorage, Space, Storage};
 use destack_program::{
-    GlobalAddress, GlobalLocation, MemoryAccess, MemoryRange, Outcome, Runtime, StopReason, Word,
+    GlobalLocation, MemoryAccess, MemoryRange, Outcome, Runtime, StopReason, Word,
 };
 
 use crate::diagnostic::{Error, Result};
@@ -13,6 +15,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         &self,
         instruction: Instruction<'_>,
         operation: MemoryOperation,
+        mode: Address,
         scalar: Scalar,
     ) -> Result<(usize, usize)> {
         let mut operands = self.operands(instruction);
@@ -23,8 +26,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         } else {
             operands.register()?
         };
-        let address = self.read(address.0).bits() as usize;
         let byte_len = scalar.bit_width() as usize / 8;
+        let address = self.resolve_address(address.0, mode, byte_len)?;
 
         Ok((address, byte_len))
     }
@@ -47,7 +50,12 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             let _value = operands.span()?;
         }
         let byte_len = operands.u32()? as usize;
-        let address = self.read(address.0).bits() as usize;
+        let mode = instruction
+            .opcode()
+            .memory_range_operation()
+            .map(|(_, address, _)| address)
+            .unwrap_or_else(|| unreachable!("value memory dispatch selects one address"));
+        let address = self.resolve_address(address.0, mode, byte_len)?;
 
         Ok((address, byte_len))
     }
@@ -57,6 +65,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         &self,
         instruction: Instruction<'_>,
         operation: AtomicOperation,
+        mode: Address,
         scalar: Scalar,
     ) -> Result<(usize, usize)> {
         let mut operands = self.operands(instruction);
@@ -76,8 +85,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
             operands.register()?
         };
-        let address = self.read(pointer.0).bits() as usize;
         let byte_len = scalar.bit_width() as usize / 8;
+        let address = self.resolve_address(pointer.0, mode, byte_len)?;
 
         Ok((address, byte_len))
     }
@@ -87,46 +96,60 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         &self,
         instruction: Instruction<'_>,
     ) -> Result<[Option<(MemoryAccess, (usize, usize))>; 2]> {
+        let opcode = instruction.opcode();
         let mut operands = self.operands(instruction);
-        match instruction.opcode() {
-            Opcode::COPY_BYTES | Opcode::MOVE_BYTES => {
-                let target = operands.register()?;
-                let source = operands.register()?;
+        if let Some((_, target_mode, source_mode, is_immediate)) = opcode.transfer_operation() {
+            let target = operands.register()?;
+            let source = operands.register()?;
+            let byte_len = if is_immediate {
+                operands.u32()? as usize
+            } else {
                 let byte_len = operands.register()?;
-                let byte_len = self.read(byte_len.0).bits() as usize;
-                let source = (self.read(source.0).bits() as usize, byte_len);
-                let target = (self.read(target.0).bits() as usize, byte_len);
 
-                Ok([
-                    Some((MemoryAccess::Read, source)),
-                    Some((MemoryAccess::Write, target)),
-                ])
-            }
-            Opcode::FILL_BYTES => {
-                let target = operands.register()?;
-                let _byte = operands.register()?;
+                self.read(byte_len.0).bits() as usize
+            };
+            let source = self.resolve_address(source.0, source_mode, byte_len)?;
+            let target = self.resolve_address(target.0, target_mode, byte_len)?;
+
+            Ok([
+                Some((MemoryAccess::Read, (source, byte_len))),
+                Some((MemoryAccess::Write, (target, byte_len))),
+            ])
+        } else if let Some((target_mode, is_immediate)) = opcode.fill_operation() {
+            let target = operands.register()?;
+            let _byte = operands.register()?;
+            let byte_len = if is_immediate {
+                operands.u32()? as usize
+            } else {
                 let byte_len = operands.register()?;
-                let byte_len = self.read(byte_len.0).bits() as usize;
-                let target = (self.read(target.0).bits() as usize, byte_len);
 
-                Ok([Some((MemoryAccess::Write, target)), None])
-            }
-            Opcode::COMPARE_BYTES => {
-                let _target = operands.register()?;
-                let left = operands.register()?;
-                let right = operands.register()?;
+                self.read(byte_len.0).bits() as usize
+            };
+            let target = self.resolve_address(target.0, target_mode, byte_len)?;
+
+            Ok([Some((MemoryAccess::Write, (target, byte_len))), None])
+        } else if let Some((left_mode, right_mode, is_immediate)) = opcode.compare_operation() {
+            let _target = operands.register()?;
+            let left = operands.register()?;
+            let right = operands.register()?;
+            let byte_len = if is_immediate {
+                operands.u32()? as usize
+            } else {
                 let byte_len = operands.register()?;
-                let byte_len = self.read(byte_len.0).bits() as usize;
-                let left = (self.read(left.0).bits() as usize, byte_len);
-                let right = (self.read(right.0).bits() as usize, byte_len);
 
-                Ok([
-                    Some((MemoryAccess::Read, left)),
-                    Some((MemoryAccess::Read, right)),
-                ])
-            }
-            Opcode::PREFETCH_READ | Opcode::PREFETCH_WRITE => Ok([None, None]),
-            _ => unreachable!("byte memory dispatch selects one byte-range opcode"),
+                self.read(byte_len.0).bits() as usize
+            };
+            let left = self.resolve_address(left.0, left_mode, byte_len)?;
+            let right = self.resolve_address(right.0, right_mode, byte_len)?;
+
+            Ok([
+                Some((MemoryAccess::Read, (left, byte_len))),
+                Some((MemoryAccess::Read, (right, byte_len))),
+            ])
+        } else if opcode.prefetch_operation().is_some() {
+            Ok([None, None])
+        } else {
+            unreachable!("byte memory dispatch selects one byte range opcode")
         }
     }
 
@@ -153,7 +176,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             let range = if watch_points.requires_memory_range() {
                 let (address, byte_len) = address.ok_or_else(Error::invalid_instruction)?;
 
-                Some(self.memory_range(site.storage, address, byte_len)?)
+                Some(self.memory_range(site.storage.get(), address, byte_len)?)
             } else {
                 None
             };
@@ -177,16 +200,16 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Project one native byte range into its program storage.
     fn memory_range(
         &self,
-        storage: Storage,
+        storage: Option<Storage>,
         address: usize,
         byte_len: usize,
     ) -> Result<MemoryRange> {
         let range = match storage {
-            Storage::Heap(space) => {
+            Some(Storage::Heap(space)) => {
                 let offset = self
                     .activation
                     .memory
-                    .heap_offset(space, address)
+                    .heap_offset(address)
                     .ok_or_else(|| self.invalid_instruction())?;
 
                 if space == Space::Local {
@@ -195,7 +218,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     MemoryRange::shared_heap(offset as u64, byte_len as u64)
                 }
             }
-            Storage::Frame => {
+            Some(Storage::Frame) => {
                 let offset = self
                     .machine
                     .stack
@@ -204,13 +227,14 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
                 MemoryRange::frame(offset as u64, byte_len as u64)
             }
-            Storage::Global(storage) => self.global_range(storage, address, byte_len)?,
+            Some(Storage::Global(storage)) => self.global_range(storage, address, byte_len)?,
+            None => MemoryRange::address(address as u64, byte_len as u64),
         };
 
         Ok(range)
     }
 
-    /// Resolve one native global byte range to its durable coordinate.
+    /// Resolve one native global byte range to its durable location.
     fn global_range(
         &self,
         storage: GlobalStorage,
@@ -225,22 +249,30 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
         // scan cold debugger metadata only when a range watchpoint is active
         for (global_id, global) in self.machine.program.globals(location) {
-            let global_address = GlobalAddress::new(global_id, 0);
+            let global_address = match location {
+                GlobalLocation::Constant => self.machine.program.constants().reference(global),
+                GlobalLocation::SharedStatic => {
+                    self.activation.memory.shared_statics.reference(global)
+                }
+                GlobalLocation::LocalStatic => {
+                    self.activation.memory.local_statics.reference(global)
+                }
+            };
             let base = match location {
                 GlobalLocation::Constant => self
                     .machine
                     .program
                     .constant_address(global_address, global.byte_len()),
-                GlobalLocation::SharedStatic => self.activation.memory.shared_static.address(
-                    global,
-                    global_address,
-                    global.byte_len(),
-                ),
-                GlobalLocation::LocalStatic => self.activation.memory.local_static.address(
-                    global,
-                    global_address,
-                    global.byte_len(),
-                ),
+                GlobalLocation::SharedStatic => self
+                    .activation
+                    .memory
+                    .shared_statics
+                    .address(global_address, global.byte_len()),
+                GlobalLocation::LocalStatic => self
+                    .activation
+                    .memory
+                    .local_statics
+                    .address(global_address, global.byte_len()),
             };
             let Some(base) = base else {
                 continue;

@@ -865,12 +865,6 @@ cleanEnvelope satisfies SharedSafe;
 /// @generic.instance id=publish<LocalEnvelope> template=publish arguments=(LocalEnvelope)
 "#,
         r#"
-/// @diagnostic.error id=use-after-moved message="'cleanEnvelope' is used after being moved"
-/// @diagnostic.label line=24 column=9 span="cleanEnvelope" line_source="publish(cleanEnvelope);"
-/// @diagnostic.help message="reassign the binding before this use, or copy instead of moving"
-/// @diagnostic.error id=use-after-moved message="'cleanEnvelope' is used after being moved"
-/// @diagnostic.label line=26 column=1 span="cleanEnvelope" line_source="cleanEnvelope satisfies SharedSafe;"
-/// @diagnostic.help message="reassign the binding before this use, or copy instead of moving"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'LocalEnvelope' does not satisfy 'SharedSafe'"
 /// @diagnostic.label line=23 column=1 span="publish<LocalEnvelope>(localEnvelope)" line_source="publish<LocalEnvelope>(localEnvelope);"
 /// @diagnostic.related line=16 column=26 span="T" line_source="declare function publish<T: SharedSafe>(value: T): void;" message="required by this bound on 'T'"

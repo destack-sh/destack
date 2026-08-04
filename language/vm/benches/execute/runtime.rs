@@ -76,6 +76,7 @@ impl program::Runtime for BenchmarkRuntime {
     fn call_binding(
         &mut self,
         _memory: program::Memory<'_>,
+        _context: program::Context,
         _binding: &program::Binding,
         _arguments: &[Word],
         _result: &mut [Word],
@@ -199,8 +200,10 @@ impl Runtime {
 
     /// Execute the benchmark entry with one iteration count.
     pub(crate) fn run(&mut self, iterations: i32) -> Value {
+        let mut context = program::Context::empty();
         let activation = program::Activation {
             runtime: &mut self.runtime,
+            context: &mut context,
             memory: program::Memory {
                 allocation_plans: &self.allocation_plans,
                 heap: &mut self.heap,

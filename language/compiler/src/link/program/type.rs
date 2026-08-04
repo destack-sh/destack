@@ -1,15 +1,19 @@
-use destack_artifact as artifact;
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use destack_core::Optional;
+use destack_heap::DropId;
 use destack_mir as mir;
 use destack_program::{
-    DynamicLayout, ElementLayout, FunctionLayout, LayoutField, LayoutShapeBuilder, NewtypeLayout,
-    ObjectLayoutBuilder, ReferenceLayout, ScalarFormat, SignatureId, SliceLayout, TensorDimension,
-    TensorLayoutBuilder, TensorShardingAxis, TensorShardingBuilder, TensorViewLayoutBuilder,
-    TypeDescriptorBuilder, TypeFingerprint, TypeId, TypeTableBuilder, VariantCaseLayout,
-    VariantLayoutBuilder,
+    DropEntry, DynamicLayout, ElementLayout, FunctionId, FunctionLayout, LayoutField,
+    LayoutShapeBuilder, NewtypeLayout, Object, ObjectLayoutBuilder, PointerLayout, ReferenceLayout,
+    ScalarFormat, SignatureId, SliceLayout, TensorDimension, TensorLayoutBuilder,
+    TensorShardingAxis, TensorShardingBuilder, TensorViewLayoutBuilder, TypeDescriptorBuilder,
+    TypeFingerprint, TypeId, TypeTableBuilder, VariantCaseLayout, VariantLayoutBuilder,
 };
-use destack_source::ModuleId;
+use destack_source::{ModuleId, PackageId};
 
-use crate::LinkResult;
+use crate::{LinkError, LinkResult};
 
 use super::ProgramLinker;
 
@@ -26,7 +30,7 @@ pub(crate) struct ObjectTypes<'a> {
     /// Module that owns the MIR type identities.
     module: ModuleId,
     /// The object containing module-local type declarations.
-    object: &'a artifact::Object,
+    object: &'a Object,
     /// Program linker owning final type identities.
     program: &'a ProgramLinker<'a>,
 }
@@ -98,7 +102,7 @@ impl<'a> ObjectTypes<'a> {
     /// Create one object type projection.
     pub(crate) fn new(
         module: ModuleId,
-        object: &'a artifact::Object,
+        object: &'a Object,
         program: &'a ProgramLinker<'a>,
     ) -> Self {
         Self {
@@ -207,12 +211,8 @@ impl<'a> ObjectTypes<'a> {
                     payload_offset: variant.payload_offset,
                 });
                 LayoutShapeBuilder::Variant(
-                    VariantLayoutBuilder::new(
-                        self.type_id(layout.discriminant),
-                        self.type_id(layout.storage),
-                        layout.encoding,
-                    )
-                    .cases(cases),
+                    VariantLayoutBuilder::new(self.type_id(layout.discriminant), layout.encoding)
+                        .cases(cases),
                 )
             }
             mir::LayoutShape::Object(layout) => {
@@ -352,6 +352,15 @@ impl<'a> ObjectTypes<'a> {
                 self.type_id(*pointee),
                 *kind,
                 *storage,
+                *access,
+                *nullability,
+            ))),
+            mir::Type::Pointer {
+                pointee,
+                access,
+                nullability,
+            } => Some(LayoutShapeBuilder::Pointer(PointerLayout::new(
+                self.type_id(*pointee),
                 *access,
                 *nullability,
             ))),
@@ -507,5 +516,119 @@ impl<'a> ObjectTypes<'a> {
         let ty = self.storage_type(ty);
 
         self.program.type_signature_id(self.module, ty)
+    }
+}
+
+impl TypeLinker<'_> {
+    /// Build dense type ids from nominal identity and anonymous structure.
+    pub(crate) fn index(
+        objects: &[(ModuleId, Arc<Object>)],
+    ) -> (
+        HashMap<(ModuleId, mir::TypeId), TypeId>,
+        Vec<(ModuleId, mir::TypeId)>,
+    ) {
+        let mut ids = HashMap::new();
+        let mut types = Vec::new();
+        let mut fingerprints = HashMap::new();
+
+        // canonicalize nominal identities and anonymous structural types
+        for (module, object) in objects {
+            for ty in object.types() {
+                if object.layouts().layout_id(ty.id).is_none() {
+                    continue;
+                }
+
+                let id = *fingerprints.entry(ty.fingerprint).or_insert_with(|| {
+                    let id = TypeId::from(types.len() as u32);
+                    types.push((*module, ty.id));
+                    id
+                });
+
+                ids.insert((*module, ty.id), id);
+            }
+        }
+
+        (ids, types)
+    }
+
+    /// Return whether two module-local types denote the same declaration type.
+    pub(crate) fn same(
+        left_module: ModuleId,
+        left: mir::TypeId,
+        right_module: ModuleId,
+        right: mir::TypeId,
+        type_ids: &HashMap<(ModuleId, mir::TypeId), TypeId>,
+    ) -> bool {
+        let left_id = type_ids[&(left_module, left)];
+        let right_id = type_ids[&(right_module, right)];
+
+        left_id == right_id
+    }
+
+    /// Build dense drop identities and destructor functions in program type order.
+    pub(crate) fn drops(
+        package: PackageId,
+        objects: &[(ModuleId, Arc<Object>)],
+        type_ids: &HashMap<(ModuleId, mir::TypeId), TypeId>,
+        type_count: usize,
+        function_ids: &HashMap<(ModuleId, mir::FunctionId), FunctionId>,
+    ) -> LinkResult<(HashMap<TypeId, DropId>, Vec<DropEntry>)> {
+        let mut functions = HashMap::new();
+
+        // resolve every specialized destructor into canonical program identity
+        for (module, object) in objects {
+            for (&(ty, storage), &function) in &object.drops().destructors {
+                if matches!(storage, mir::Storage::Global(_)) {
+                    return Err(LinkError::invalid_input(
+                        package,
+                        format!("type {ty:?} defines a destructor for global storage"),
+                    ));
+                }
+
+                let ty = type_ids[&(*module, ty)];
+                let function_id = function_ids[&(*module, function)];
+                let key = (ty, storage);
+
+                if let Some((previous_module, previous_function)) = functions.get(&key) {
+                    let previous_id = function_ids[&(*previous_module, *previous_function)];
+                    if previous_id != function_id {
+                        return Err(LinkError::invalid_input(
+                            package,
+                            format!("type {ty:?} has multiple {storage:?} destructors"),
+                        ));
+                    }
+                } else {
+                    functions.insert(key, (*module, function));
+                }
+            }
+        }
+
+        // assign drop ids in canonical program type order
+        let mut ids = HashMap::new();
+        let mut drops = Vec::new();
+        for index in 0..type_count {
+            let ty = TypeId::from(index as u32);
+            let frame = functions
+                .remove(&(ty, mir::Storage::Frame))
+                .map(|(module, function)| function_ids[&(module, function)]);
+            let local = functions
+                .remove(&(ty, mir::Storage::Heap(mir::Space::Local)))
+                .map(|(module, function)| function_ids[&(module, function)]);
+            let shared = functions
+                .remove(&(ty, mir::Storage::Heap(mir::Space::Shared)))
+                .map(|(module, function)| function_ids[&(module, function)]);
+            if frame.is_none() && local.is_none() && shared.is_none() {
+                continue;
+            }
+
+            ids.insert(ty, DropId::from_index(drops.len() as u32));
+            drops.push(DropEntry {
+                frame: Optional::from(frame),
+                local: Optional::from(local),
+                shared: Optional::from(shared),
+            });
+        }
+
+        Ok((ids, drops))
     }
 }

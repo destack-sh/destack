@@ -6,6 +6,8 @@ use destack_program::{Runtime, Word};
 use crate::diagnostic::{Error, Result, Trap};
 use crate::machine::Activation;
 
+use super::arithmetic::Arithmetic;
+
 impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one single-word integer operation.
     #[inline(always)]
@@ -23,10 +25,47 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             None
         };
         let left = operands.register()?;
-        let left = self.read(left.0).bits();
+        let left = self.read(left.0);
+        let right = if operation.input_count() == 2 {
+            let right = operands.register()?;
 
-        // unary operations consume no right register
-        let (value, overflow) = match operation {
+            Some(self.read(right.0))
+        } else {
+            None
+        };
+        let (value, overflow) = Arithmetic::integer_result(operation, scalar, left, right)?;
+
+        self.write(target.0, value);
+        if let Some(target) = overflow_target {
+            self.write(target.0, Word::boolean(overflow));
+        }
+
+        Ok(())
+    }
+}
+
+impl Arithmetic {
+    /// Execute one integer operation over unpacked scalar words.
+    pub(super) fn integer(
+        operation: IntegerOperation,
+        scalar: Scalar,
+        left: Word,
+        right: Option<Word>,
+    ) -> Result<Word> {
+        let (value, _) = Self::integer_result(operation, scalar, left, right)?;
+
+        Ok(value)
+    }
+
+    /// Execute one integer operation and preserve its overflow result.
+    fn integer_result(
+        operation: IntegerOperation,
+        scalar: Scalar,
+        left: Word,
+        right: Option<Word>,
+    ) -> Result<(Word, bool)> {
+        let left = left.bits();
+        let result = match operation {
             IntegerOperation::Not => (!left, false),
             IntegerOperation::Negate => (0_u64.wrapping_sub(left), false),
             IntegerOperation::LeadingZeroCount => (Self::leading_zeros(left, scalar), false),
@@ -38,46 +77,13 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             IntegerOperation::ByteSwap => (Self::byte_swap(left, scalar), false),
             IntegerOperation::BitReverse => (Self::bit_reverse(left, scalar), false),
             _ => {
-                let right = operands.register()?;
-                let right = self.read(right.0).bits();
-
-                Self::integer_binary(operation, scalar, left, right)?
+                let right = right.ok_or_else(Error::invalid_instruction)?;
+                Self::integer_binary(operation, scalar, left, right.bits())?
             }
         };
-        self.write(target.0, Word::from_bits(scalar.encode(value)));
-        if let Some(target) = overflow_target {
-            self.write(target.0, Word::boolean(overflow));
-        }
+        let value = Word::from_bits(scalar.encode(result.0));
 
-        Ok(())
-    }
-
-    /// Execute one integer operation over unpacked scalar words.
-    pub(super) fn integer_value(
-        &self,
-        operation: IntegerOperation,
-        scalar: Scalar,
-        left: Word,
-        right: Option<Word>,
-    ) -> Result<Word> {
-        let left = left.bits();
-        let value = match operation {
-            IntegerOperation::Not => !left,
-            IntegerOperation::Negate => 0_u64.wrapping_sub(left),
-            IntegerOperation::LeadingZeroCount => Self::leading_zeros(left, scalar),
-            IntegerOperation::TrailingZeroCount => Self::trailing_zeros(left, scalar),
-            IntegerOperation::PopulationCount => {
-                Self::truncate(left, scalar.bit_width()).count_ones() as u64
-            }
-            IntegerOperation::ByteSwap => Self::byte_swap(left, scalar),
-            IntegerOperation::BitReverse => Self::bit_reverse(left, scalar),
-            _ => {
-                let right = right.ok_or_else(|| self.invalid_instruction())?;
-                Self::integer_binary(operation, scalar, left, right.bits())?.0
-            }
-        };
-
-        Ok(Word::from_bits(scalar.encode(value)))
+        Ok((value, result.1))
     }
 
     /// Execute one binary scalar integer operation.
@@ -149,8 +155,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     ) -> (u64, bool) {
         let width = scalar.bit_width();
         if scalar.is_signed_integer() {
-            let left = Self::integer(scalar, left);
-            let right = Self::integer(scalar, right);
+            let left = Self::signed_integer(scalar, left);
+            let right = Self::signed_integer(scalar, right);
             let value = match operation {
                 IntegerOperation::AddOverflow => left + right,
                 IntegerOperation::SubtractOverflow => left - right,
@@ -185,8 +191,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     fn saturating(operation: IntegerOperation, scalar: Scalar, left: u64, right: u64) -> u64 {
         let width = scalar.bit_width();
         if scalar.is_signed_integer() {
-            let left = Self::integer(scalar, left);
-            let right = Self::integer(scalar, right);
+            let left = Self::signed_integer(scalar, left);
+            let right = Self::signed_integer(scalar, right);
             let value = match operation {
                 IntegerOperation::AddSaturating => left + right,
                 IntegerOperation::SubtractSaturating => left - right,
@@ -213,7 +219,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Compare two scalar integers with the representation's signedness.
     fn compare(scalar: Scalar, left: u64, right: u64) -> Ordering {
         if scalar.is_signed_integer() {
-            Self::integer(scalar, left).cmp(&Self::integer(scalar, right))
+            Self::signed_integer(scalar, left).cmp(&Self::signed_integer(scalar, right))
         } else {
             left.cmp(&right)
         }
@@ -222,7 +228,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Divide two scalar integers with the representation's signedness.
     fn divide(scalar: Scalar, left: u64, right: u64) -> u64 {
         if scalar.is_signed_integer() {
-            Self::integer(scalar, left).wrapping_div(Self::integer(scalar, right)) as u64
+            Self::signed_integer(scalar, left).wrapping_div(Self::signed_integer(scalar, right))
+                as u64
         } else {
             left / right
         }
@@ -231,7 +238,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Compute one scalar integer remainder with the representation's signedness.
     fn remainder(scalar: Scalar, left: u64, right: u64) -> u64 {
         if scalar.is_signed_integer() {
-            Self::integer(scalar, left).wrapping_rem(Self::integer(scalar, right)) as u64
+            Self::signed_integer(scalar, left).wrapping_rem(Self::signed_integer(scalar, right))
+                as u64
         } else {
             left % right
         }
@@ -240,7 +248,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Shift one scalar integer right with the representation's signedness.
     fn shift_right(scalar: Scalar, value: u64, count: u32) -> u64 {
         if scalar.is_signed_integer() {
-            (Self::integer(scalar, value) >> count) as u64
+            (Self::signed_integer(scalar, value) >> count) as u64
         } else {
             value >> count
         }
@@ -318,7 +326,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     }
 
     /// Decode one integer selected by an integer opcode.
-    fn integer(scalar: Scalar, bits: u64) -> i128 {
+    fn signed_integer(scalar: Scalar, bits: u64) -> i128 {
         let Some(value) = scalar.integer(bits) else {
             unreachable!("integer opcodes carry integer scalars");
         };
@@ -334,7 +342,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             value & ((1_u64 << bit_width) - 1)
         }
     }
+}
 
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one integer operation over two register words.
     pub(crate) fn execute_integer128(
         &mut self,
