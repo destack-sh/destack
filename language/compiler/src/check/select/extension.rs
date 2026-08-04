@@ -697,8 +697,13 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(MemberLookup::Missing));
         }
         let target_type = extension.target.r#type();
-        let definition_members = extension.members.clone();
-        let matched = answer!(self.matching_extension_members(&definition_members, space, key)?);
+
+        // clone only the members matching the requested key
+        let keyed = keyed_members(&extension.members, space, key);
+        if keyed.is_empty() {
+            return Ok(Answer::Ready(MemberLookup::Missing));
+        }
+        let matched = answer!(self.matching_extension_members(&keyed, space, key)?);
         if matched.is_empty() {
             return Ok(Answer::Ready(MemberLookup::Missing));
         }
@@ -765,12 +770,13 @@ impl BodyState<'_, '_> {
         if extension.target.root() != Some(symbol) {
             return Ok(Answer::Ready(MemberLookup::Missing));
         }
-        let definition_members = extension.members.clone();
-        let members = answer!(self.matching_extension_members(
-            &definition_members,
-            dir::MemberSpace::Static,
-            key
-        )?);
+        // clone only the members matching the requested key
+        let keyed = keyed_members(&extension.members, dir::MemberSpace::Static, key);
+        if keyed.is_empty() {
+            return Ok(Answer::Ready(MemberLookup::Missing));
+        }
+        let members =
+            answer!(self.matching_extension_members(&keyed, dir::MemberSpace::Static, key)?);
         if members.is_empty() {
             return Ok(Answer::Ready(MemberLookup::Missing));
         }
@@ -1012,6 +1018,19 @@ impl BodyState<'_, '_> {
 
         Ok(Answer::Ready(Some(substitution)))
     }
+}
+
+/// Clone the members declared under one space and key.
+fn keyed_members(
+    members: &[dir::DefinitionMember],
+    space: dir::MemberSpace,
+    key: dir::StaticKey,
+) -> SmallVec<[dir::DefinitionMember; 2]> {
+    members
+        .iter()
+        .filter(|member| member.space() == space && member.key() == Some(key))
+        .cloned()
+        .collect()
 }
 
 /// Collect the written associated type values declared by one member list.
