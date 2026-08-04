@@ -329,6 +329,8 @@ pub struct DirChecked {
     pub statics: Arc<dir::StaticSegment>,
     /// New resolutions.
     pub resolutions: Arc<dir::ResolutionSegment>,
+    /// Checked member availability.
+    pub members: Arc<dir::MemberSegment>,
     /// New generic slots and instances.
     pub generics: Arc<dir::GenericSegment>,
     /// New declaration definitions.
@@ -404,6 +406,11 @@ impl DirChecked {
             declared.resolutions.clone(),
             self.resolutions.clone(),
         ])
+    }
+
+    /// Return the checked member table.
+    pub fn member_table(&self) -> dir::MemberTable<'static> {
+        dir::MemberTable::from_segment(self.members.clone())
     }
 
     /// Return the cumulative generic table for checked DIR.
