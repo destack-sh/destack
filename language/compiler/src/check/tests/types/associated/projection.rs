@@ -81,11 +81,9 @@ struct Pair<T: Numeric> {
 extension<T: Numeric> of Pair<T> implements Doubles {
 /// @generic.template symbol=<module>#2 parameters=(T#2: math.numeric.Numeric)
 /// @definition.extension symbol=<module>#2 form=local target=Pair<T#2>
-/// @definition.implements symbol=<module>#2 source=Doubles target="Doubles<type Output = Pair<T#2>>"
+/// @definition.implements symbol=<module>#2 source=Doubles target=Doubles
 /// @definition.associated.type symbol=Output source="type Output = Pair<T>" key=Output value=Pair<T#2>
 /// @definition.method symbol=double slot=double type=<double.'a>(this: &double.'a exclusive this) => this.Output
-/// @definition.implementation symbol=<module>#2 requirement=Doubles.Output target=Output
-/// @definition.implementation symbol=<module>#2 requirement=Doubles.double target=double
 /// @type.symbol symbol=T source="T: Numeric" type=T#2
 /// @resolution.name source=Numeric target=math.numeric.Numeric
 /// @resolution.name source=Pair target=Pair

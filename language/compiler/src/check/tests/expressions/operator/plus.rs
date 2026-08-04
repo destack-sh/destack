@@ -97,11 +97,9 @@ struct Vector {
 
 extension of Vector implements Add<Vector> {
 /// @definition.extension symbol=<module>#2 form=local target=Vector
-/// @definition.implements symbol=<module>#2 source=Add<Vector> target="Add<Vector><type Output = Vector>"
+/// @definition.implements symbol=<module>#2 source=Add<Vector> target=Add<Vector>
 /// @definition.associated.type symbol=Output source="type Output = Vector" key=Output value=Vector
 /// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a exclusive this, Vector) => Vector
-/// @definition.implementation symbol=<module>#2 requirement=ops.plus.Add.Output target=Output
-/// @definition.implementation symbol=<module>#2 requirement=ops.plus.Add.add target=add
 /// @resolution.name source=Vector target=Vector
 /// @resolution.name source=Add target=ops.plus.Add
 /// @resolution.name source=Vector target=Vector
@@ -239,7 +237,7 @@ extension of Score implements Add<Score> {
 declare const left: Score;
 declare const right: Score;
 
-const sum: Score = left + right;
+const sum: string = left + right;
 
 === checked ===
 struct Score {}
@@ -248,12 +246,10 @@ struct Score {}
 
 extension of Score implements Add<Score> {
 /// @definition.extension symbol=<module>#2 form=local target=Score
-/// @definition.implements symbol=<module>#2 source=Add<Score> target="Add<Score><type Output = Score>"
+/// @definition.implements symbol=<module>#2 source=Add<Score> target=Add<Score>
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
 /// @definition.method symbol=add#1 slot=add type=<add#1.'a>(this: &add#1.'a exclusive this, Score) => string
 /// @definition.method symbol=add#2 slot=add type=<add#2.'a>(this: &add#2.'a exclusive this, Score) => Score
-/// @definition.implementation symbol=<module>#2 requirement=ops.plus.Add.Output target=Output
-/// @definition.implementation symbol=<module>#2 requirement=ops.plus.Add.add target=add#2
 /// @resolution.name source=Score target=Score
 /// @resolution.name source=Add target=ops.plus.Add
 /// @resolution.name source=Score target=Score
@@ -300,12 +296,12 @@ declare const right: Score;
 /// @resolution.name source=Score target=Score
 
 const sum = left + right;
-/// @type.symbol symbol=sum source=sum type=Score
+/// @type.symbol symbol=sum source=sum type=string
 /// @resolution.pattern source=sum kind=binding target=sum
-/// @type.node source="left + right" type=Score
+/// @type.node source="left + right" type=string
 /// @type.node source=left type=Score
 /// @resolution.name source=left target=left
-/// @resolution.operator source="left + right" type=Score operator="+" kind=call parameters=(Score) arguments=(provided(right) as Score) return=Score kind=symbol target=add#2 receiver=Score adjustments=(borrow(&'static exclusive Score))
+/// @resolution.operator source="left + right" type=string operator="+" kind=call parameters=(Score) arguments=(provided(right) as Score) return=string kind=symbol target=add#1 receiver=Score adjustments=(borrow(&'static exclusive Score))
 /// @resolution.place source=left placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=left root=left
 /// @type.node source=right type=Score
@@ -377,11 +373,9 @@ struct Score {
 
 extension of Score implements Add<Score> {
 /// @definition.extension symbol=<module>#2 form=local target=Score
-/// @definition.implements symbol=<module>#2 source=Add<Score> target="Add<Score><type Output = Score>"
+/// @definition.implements symbol=<module>#2 source=Add<Score> target=Add<Score>
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
 /// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a exclusive this, Score) => Score
-/// @definition.implementation symbol=<module>#2 requirement=ops.plus.Add.Output target=Output
-/// @definition.implementation symbol=<module>#2 requirement=ops.plus.Add.add target=add
 /// @resolution.name source=Score target=Score
 /// @resolution.name source=Add target=ops.plus.Add
 /// @resolution.name source=Score target=Score
@@ -497,11 +491,9 @@ struct Score {
 
 extension of Score implements Add {
 /// @definition.extension symbol=<module>#2 form=local target=Score
-/// @definition.implements symbol=<module>#2 source=Add target="Add<type Output = Score>"
+/// @definition.implements symbol=<module>#2 source=Add target=Add
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
 /// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a exclusive this, Score) => Score
-/// @definition.implementation symbol=<module>#2 requirement=ops.plus.Add.Output target=Output
-/// @definition.implementation symbol=<module>#2 requirement=ops.plus.Add.add target=add
 /// @resolution.name source=Score target=Score
 /// @resolution.name source=Add target=ops.plus.Add
 

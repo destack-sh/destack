@@ -89,12 +89,13 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<ObligationCheck>> {
         let source = self.origin_source(origin)?;
         let instance = self.declaration_instance(symbol)?;
-        let closure = answer!(self.heritage_closure(origin, source.module_id, &instance)?);
+        let ty = self.intern_type(dir::Type::Application(instance))?;
+        let closure = answer!(self.heritage_closure(origin, ty)?);
 
         // report graph errors before class member rules
         let mut failures = Vec::new();
         for conflict in closure.conflicts {
-            let (_, current) = self.require_nominal_application(conflict.current)?;
+            let (_, current) = self.nominal_application(conflict.current)?;
             failures.push(ObligationFailure::ConflictingHeritage {
                 source: conflict.source,
                 symbol,
@@ -117,7 +118,7 @@ impl CheckState<'_> {
             .and_then(dir::Definition::space)
             .map(|space| (source, symbol, space));
         for application in &closure.applications {
-            let (_, instance) = self.require_nominal_application(application.ty)?;
+            let (_, instance) = self.nominal_application(application.ty)?;
             let Some(space) = self
                 .definition(instance.symbol)?
                 .and_then(dir::Definition::space)
@@ -303,7 +304,7 @@ impl CheckState<'_> {
 
             // apply the previous base's parameters to this extends clause
             let ty = self.substitute_type(heritage.ty, &substitution)?;
-            let (instance_module, instance) = self.require_nominal_application(ty)?;
+            let (instance_module, instance) = self.nominal_application(ty)?;
 
             let Some(dir::Definition::Class(base)) = self.definition(instance.symbol)? else {
                 break;

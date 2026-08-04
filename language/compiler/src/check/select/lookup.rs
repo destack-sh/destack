@@ -930,7 +930,7 @@ impl BodyState<'_, '_> {
         // search substituted heritage applications
         for heritage in heritages {
             let heritage = self.substitute_type(heritage, &substitution)?;
-            let (heritage_module, heritage) = self.require_nominal_application(heritage)?;
+            let (heritage_module, heritage) = self.nominal_application(heritage)?;
             let arguments = self.type_ids(heritage_module, heritage.arguments)?;
             let heritage = ApparentInstance {
                 symbol: heritage.symbol,

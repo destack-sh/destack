@@ -18,3 +18,4 @@ mod union;
 pub(in crate::check) use key::{InvalidOperation, OperationReduction};
 pub(in crate::check) use memory::BorrowConversion;
 pub(in crate::check) use substitute::TypeSubstitution;
+pub(in crate::check) use r#try::TryProjection;

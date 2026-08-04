@@ -192,7 +192,7 @@ impl CheckState<'_> {
             }
             symbol = match base {
                 Some(base) => {
-                    let (_, base) = self.require_nominal_application(base)?;
+                    let (_, base) = self.nominal_application(base)?;
 
                     Some(base.symbol)
                 }

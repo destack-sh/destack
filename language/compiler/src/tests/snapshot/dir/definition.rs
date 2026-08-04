@@ -39,7 +39,7 @@ fn add_definition_rows(
             let row = declaration_row(builder, symbol, "struct", source, definition.template);
             let row = add_representation_fields(row, definition.representation);
             builder.push(row);
-            add_implementations(builder, symbol, &definition.implements);
+            add_heritage(builder, symbol, "implements", &definition.implements);
             add_members(builder, symbol, &definition.members);
         }
         dir::Definition::Class(definition) => {
@@ -52,7 +52,7 @@ fn add_definition_rows(
             let row = add_representation_fields(row, definition.representation);
             builder.push(row);
             add_optional_heritage(builder, symbol, "extends", definition.extends.as_ref());
-            add_implementations(builder, symbol, &definition.implements);
+            add_heritage(builder, symbol, "implements", &definition.implements);
             add_members(builder, symbol, &definition.members);
         }
         dir::Definition::Interface(definition) => {
@@ -64,7 +64,7 @@ fn add_definition_rows(
         }
         dir::Definition::Enum(definition) => {
             add_enum_row(builder, symbol, source, definition);
-            add_implementations(builder, symbol, &definition.implements);
+            add_heritage(builder, symbol, "implements", &definition.implements);
             add_members(builder, symbol, &definition.members);
         }
         dir::Definition::Newtype(definition) => {
@@ -73,7 +73,7 @@ fn add_definition_rows(
         }
         dir::Definition::Extension(extension) => {
             add_extension_row(builder, symbol, source, extension);
-            add_implementations(builder, symbol, &extension.implements);
+            add_heritage(builder, symbol, "implements", &extension.implements);
             add_template_predicates(builder, symbol, extension.template);
             add_members(builder, symbol, &extension.members);
         }
@@ -228,37 +228,6 @@ fn add_heritage(
 ) {
     for heritage in heritages {
         add_one_heritage(builder, owner, relation, heritage);
-    }
-}
-
-/// Add checked interface implementation rows.
-fn add_implementations(
-    builder: &mut DirSnapshotBuilder<'_>,
-    owner: dir::GlobalSymbolId,
-    implementations: &[dir::InterfaceImplementation],
-) {
-    for implementation in implementations {
-        add_one_heritage(builder, owner, "implements", &implementation.interface);
-
-        // render every selected declaration independently
-        for member in &implementation.members {
-            for selected in &member.declarations {
-                let requirement = builder
-                    .node_symbol_label(member.requirement)
-                    .or_else(|| builder.node_source(member.requirement))
-                    .unwrap_or_else(|| builder.node_label(member.requirement));
-                let selected = builder
-                    .node_symbol_label(*selected)
-                    .or_else(|| builder.node_source(*selected))
-                    .unwrap_or_else(|| builder.node_label(*selected));
-                let row =
-                    SnapshotRow::new(builder.anchor_symbol(owner), "definition", "implementation")
-                        .field("symbol", builder.symbol_path_label(owner))
-                        .field("requirement", requirement)
-                        .field("target", selected);
-                builder.push(row);
-            }
-        }
     }
 }
 

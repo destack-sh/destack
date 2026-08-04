@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
 use crate::check::{
-    Answer, BodyState, Cause, CauseKind, Constraint, Decision, Expectation, FlowSite, InferMode,
-    Obligation, OperatorExpressionResult, Origin, PlaceUse, Relation, ValueUse,
+    Answer, BodyState, Cause, CauseKind, CheckOutcome, Constraint, Decision, Expectation, FlowSite,
+    InferMode, Obligation, OperatorExpressionResult, Origin, PlaceUse, Relation, ValueUse,
     WritableTargetObligation, answer, binary_operator_protocols, unary_operator_protocols,
 };
 use crate::{CompilerError, CompilerResult};
@@ -971,7 +971,7 @@ impl BodyState<'_, '_> {
             ty: result,
         };
         let resolution = dir::OperationResolution::One(application);
-        answer!(self.check_operator_writeback(origin, node, result, writeback)?);
+        answer!(self.check_operator_writeback(origin, result, writeback)?);
         self.commit_decision(node, Decision::Operator(resolution))?;
         self.commit_node_type(node, result)?;
 
@@ -1078,7 +1078,7 @@ impl BodyState<'_, '_> {
         result: dir::GlobalTypeId,
         writeback: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<()>> {
-        answer!(self.check_operator_writeback(origin, node, result, writeback)?);
+        answer!(self.check_operator_writeback(origin, result, writeback)?);
         self.commit_decision(node, Decision::Operator(resolution))?;
         self.commit_node_type(node, result)?;
 
@@ -1089,7 +1089,6 @@ impl BodyState<'_, '_> {
     fn check_operator_writeback(
         &mut self,
         origin: Origin,
-        node: dir::GlobalNodeIdAny,
         source: dir::GlobalTypeId,
         writeback: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<()>> {
@@ -1097,10 +1096,24 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(()));
         };
 
+        // require the produced value to store into the written place
+        let relation = Relation::Assignable;
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-        let site = self.node_site(node)?;
-        let expectation = Expectation::assignable(writeback, cause, ValueUse::Store);
-        answer!(self.check_value(site, source, expectation)?);
+        let holds = answer!(self.constrain_type(origin, cause, relation, source, writeback)?);
+        let outcome =
+            answer!(self.complete_constraint_check(origin, relation, source, writeback, holds)?);
+
+        // record the failure against the store site
+        if let CheckOutcome::Fails(failure) = outcome {
+            self.check.record_failure(
+                cause,
+                relation,
+                Some(ValueUse::Store),
+                source,
+                writeback,
+                failure,
+            );
+        }
 
         Ok(Answer::Ready(()))
     }

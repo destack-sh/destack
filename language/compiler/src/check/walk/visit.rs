@@ -219,7 +219,7 @@ impl CheckState<'_> {
                     dir::GenericArgumentBinding::new(*parameter, *argument)
                 })
                 .collect(),
-            receiver: None,
+            receiver: None
         };
 
         // enqueue parameter bounds as ordinary type relations

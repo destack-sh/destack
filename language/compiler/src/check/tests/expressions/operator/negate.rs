@@ -60,11 +60,9 @@ struct Charge {
 
 extension of Charge implements Negate {
 /// @definition.extension symbol=<module>#2 form=local target=Charge
-/// @definition.implements symbol=<module>#2 source=Negate target="Negate<type Output = Charge>"
+/// @definition.implements symbol=<module>#2 source=Negate target=Negate
 /// @definition.associated.type symbol=Output source="type Output = Charge" key=Output value=Charge
 /// @definition.method symbol=negate slot=negate type=<negate.'a>(this: &negate.'a exclusive this) => Charge
-/// @definition.implementation symbol=<module>#2 requirement=ops.negate.Negate.Output target=Output
-/// @definition.implementation symbol=<module>#2 requirement=ops.negate.Negate.negate target=negate
 /// @resolution.name source=Charge target=Charge
 /// @resolution.name source=Negate target=ops.negate.Negate
 

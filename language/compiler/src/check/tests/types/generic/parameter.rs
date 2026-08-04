@@ -1239,6 +1239,44 @@ extension<K: Hash> of Box<K> where K: Equal<K> {
 }
 
 #[test]
+fn test_intersected_parameter_bounds_constrain_return_values() {
+    let session = TestSession::single(
+        r#"
+function active<T: boolean | string>(value: T): boolean where T: boolean {
+    return value;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function active<T: boolean | string>(value: T): boolean where T: boolean {
+    return value;
+}
+
+=== checked ===
+function active<T: boolean | string>(value: T): boolean where T: boolean {
+/// @generic.template symbol=active parameters=(T: boolean | string)
+/// @type.symbol symbol=active type=<T: boolean | string>(T) => boolean
+/// @type.symbol symbol=active.T source="T: boolean | string" type=T
+/// @type.symbol symbol=active.value source="value: T" type=T
+/// @resolution.name source=T target=active.T
+/// @resolution.name source=T target=active.T
+
+    return value;
+    /// @resolution.name source=value target=active.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=active.value
+
+}
+"#,
+    );
+}
+
+#[test]
 fn test_member_selects_through_where_bound() {
     let session = TestSession::single(
         r#"

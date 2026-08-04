@@ -242,6 +242,7 @@ warning[operator-assignment]: assignment repeats its target
 16 │     result = result + next;
    │     ^^^^^^^^^^^^^^^^^^^^^^
 17 │     return result;
+18 │ }
    │
 
  = fix: use compound assignment

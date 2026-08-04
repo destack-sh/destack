@@ -355,37 +355,6 @@ impl CheckState<'_> {
         Ok(type_pairs(pair_lists.0, pair_lists.1))
     }
 
-    /// Match one generic type pattern and return its direct substitution.
-    pub(in crate::check) fn match_generic_pattern(
-        &mut self,
-        origin: Origin,
-        parameters: &[GenericParameterId],
-        pattern: dir::GlobalTypeId,
-        actual: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<TypeSubstitution>>> {
-        self.match_generic_pairs(origin, parameters, &[(pattern, actual)])
-    }
-
-    /// Match one parameter list over positional pattern and actual pairs.
-    pub(in crate::check) fn match_generic_pairs(
-        &mut self,
-        origin: Origin,
-        parameters: &[GenericParameterId],
-        pairs: &[(dir::GlobalTypeId, dir::GlobalTypeId)],
-    ) -> CompilerResult<Answer<Option<TypeSubstitution>>> {
-        let mut substitution = TypeSubstitution::default();
-        if !answer!(self.extend_generic_substitution(
-            origin,
-            parameters,
-            &mut substitution,
-            pairs,
-        )?) {
-            return Ok(Answer::Ready(None));
-        }
-
-        Ok(Answer::Ready(Some(substitution)))
-    }
-
     /// Extend one substitution by structurally matching positional type pairs.
     pub(in crate::check) fn extend_generic_substitution(
         &mut self,
@@ -422,13 +391,21 @@ impl CheckState<'_> {
         pattern: dir::GlobalTypeId,
         actual: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let pattern = answer!(self.reduce_type(origin, pattern)?);
-        // open actuals reduce heads only so bounds can flow into their holes
+        // bind direct parameters before reducing the authored argument
+        let pattern = self.settled_root(pattern)?;
+        if let dir::Type::Parameter(parameter) = self.ty(pattern)?
+            && parameters.contains(&parameter)
+        {
+            let actual = self.settled_root(actual)?;
+
+            return self.bind_generic_argument(origin, substitution, parameter, actual);
+        }
+
+        // expose one constructor while preserving its authored child types
+        let pattern = answer!(self.reduce_type_head(origin, pattern)?);
         let actual = self.settled_root(actual)?;
         let actual = if self.root_variable(actual)?.is_some() {
             actual
-        } else if self.type_variables(actual)?.is_empty() {
-            answer!(self.reduce_type(origin, actual)?)
         } else {
             answer!(self.reduce_type_head(origin, actual)?)
         };
@@ -441,13 +418,6 @@ impl CheckState<'_> {
         //  serve any spread of required ones
         if self.is_lifetime_slot(&pattern_type)? && self.is_lifetime_slot(&actual_type)? {
             return Ok(Answer::Ready(true));
-        }
-
-        // bind template parameters directly
-        if let dir::Type::Parameter(parameter) = pattern_type
-            && parameters.contains(&parameter)
-        {
-            return self.bind_generic_argument(origin, substitution, parameter, actual);
         }
 
         // decompose identical parameterized types to record bindings

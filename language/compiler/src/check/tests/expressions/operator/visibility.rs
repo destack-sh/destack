@@ -134,11 +134,9 @@ export struct Force {
 
 extension of Force implements Multiply<float64> {
 /// @definition.extension symbol=<module>#2 form=local target=Force
-/// @definition.implements symbol=<module>#2 source=Multiply<float64> target="Multiply<float64><type Output = Force>"
+/// @definition.implements symbol=<module>#2 source=Multiply<float64> target=Multiply<float64>
 /// @definition.associated.type symbol=Output source="type Output = Force" key=Output value=Force
 /// @definition.method symbol=multiply slot=multiply type=<multiply.'a>(this: &multiply.'a exclusive this, float64) => Force
-/// @definition.implementation symbol=<module>#2 requirement=ops.multiply.Multiply.Output target=Output
-/// @definition.implementation symbol=<module>#2 requirement=ops.multiply.Multiply.multiply target=multiply
 /// @resolution.name source=Force target=Force
 /// @resolution.name source=Multiply target=ops.multiply.Multiply
 
@@ -274,11 +272,9 @@ import { Force } from "./force.ds";
 
 extension of Force implements Multiply<float64> {
 /// @definition.extension symbol=<module>#2 form=local target=force.Force
-/// @definition.implements symbol=<module>#2 source=Multiply<float64> target="Multiply<float64><type Output = force.Force>"
+/// @definition.implements symbol=<module>#2 source=Multiply<float64> target=Multiply<float64>
 /// @definition.associated.type symbol=Output source="type Output = Force" key=Output value=force.Force
 /// @definition.method symbol=multiply slot=multiply type=(this: this, float64) => force.Force
-/// @definition.implementation symbol=<module>#2 requirement=ops.multiply.Multiply.Output target=Output
-/// @definition.implementation symbol=<module>#2 requirement=ops.multiply.Multiply.multiply target=multiply
 /// @resolution.name source=Force target=force.Force
 /// @resolution.name source=Multiply target=ops.multiply.Multiply
 

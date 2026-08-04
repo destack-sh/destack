@@ -173,7 +173,7 @@ impl CheckState<'_> {
 
         // inherit the first concrete requirement, as heritage validation rejects disagreement
         for heritage in definition.heritages() {
-            let (_, inherited) = self.require_nominal_application(heritage.ty)?;
+            let (_, inherited) = self.nominal_application(heritage.ty)?;
             let inherited = self.nominal_space_guarded(inherited.symbol, active)?;
             if space.is_none() {
                 space = inherited;

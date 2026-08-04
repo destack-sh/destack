@@ -5,8 +5,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CallableArgument, CheckState, Decision, FlowSite, Origin, PlaceUse,
-    ReceiverSteps, Relation, SignatureMatch, TypeSubstitution, Value, ValueUse, answer,
+    Answer, BodyState, CallableArgument, CandidateOutcome, CandidateVerdict, CheckState, Decision,
+    FlowSite, Origin, PlaceUse, ReceiverSteps, Relation, SignatureMatch, TypeSubstitution, Value,
+    ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -1077,6 +1078,30 @@ impl BodyState<'_, '_> {
         origin: Origin,
         member: &dir::MemberType,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        // bind the projection from written refinements
+        if let Some(qualifier) = member.qualifier {
+            let (_, bindings) = self.refinement_bindings(qualifier)?;
+            if let Some((_, value)) = bindings.iter().find(|(key, _)| *key == member.key) {
+                return Ok(Answer::Ready(Some(*value)));
+            }
+        }
+
+        // select the implementation for applied interface scopes
+        if let Some(qualifier) = member.qualifier
+            && !self.is_rigid_projection_owner(member.owner)?
+        {
+            let (base, _) = self.refinement_bindings(qualifier)?;
+            return match self.ty(base)? {
+                dir::Type::Application(_) => self.project_selected_member(origin, member, base),
+                // project the lexical extension scope's own associated member
+                dir::Type::Reference(reference) => {
+                    self.project_scope_member(origin, member, reference.symbol)
+                }
+                _ => Ok(Answer::Ready(None)),
+            };
+        }
+
+        // resolve remaining projections through member lookup
         let module = origin.module();
         let lookup = answer!(self.lookup_member(
             origin,
@@ -1085,61 +1110,195 @@ impl BodyState<'_, '_> {
             dir::MemberSpace::Static,
             member.key,
         )?);
-
-        // qualified projections keep only their declaring scope's members
-        let lookup = match (lookup, member.qualifier) {
-            (MemberLookup::Found(candidates), Some(qualifier)) => {
-                let mut kept = Vec::new();
-                for candidate in candidates {
-                    if answer!(self.candidate_declared_by(
-                        origin,
-                        &candidate,
-                        qualifier,
-                        member.owner
-                    )?) {
-                        kept.push(candidate);
-                    }
-                }
-
-                // implementations shadow the scope's own abstract member
-                let scope = self.type_symbol(qualifier)?;
-                if let Some(scope) = scope
-                    && kept.iter().any(|candidate| candidate.owner != scope)
-                {
-                    kept.retain(|candidate| candidate.owner != scope);
-                }
-
-                MemberLookup::from_candidates(kept)
-            }
-            (lookup, _) => lookup,
-        };
-
-        // implementations shadow abstract associated members
-        let lookup = match lookup {
-            MemberLookup::Found(candidates) if candidates.len() > 1 => {
-                let mut kept = Vec::with_capacity(candidates.len());
-                for candidate in candidates {
-                    let is_abstract =
-                        self.member_head(candidate.access_type)?
-                            .is_some_and(|projected| {
-                                projected.owner == member.owner && projected.key == member.key
-                            });
-                    if !is_abstract {
-                        kept.push(candidate);
-                    }
-                }
-
-                MemberLookup::from_candidates(kept)
-            }
-            lookup => lookup,
-        };
-
         let projected = match lookup {
             MemberLookup::Missing => answer!(self.project_default_member(origin, member)?),
             lookup => self.project_member_lookup(module, member, lookup)?,
         };
 
         Ok(Answer::Ready(projected))
+    }
+
+    /// Project one associated member through its selected interface implementation.
+    fn project_selected_member(
+        &mut self,
+        origin: Origin,
+        member: &dir::MemberType,
+        qualifier: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        // read the qualifying interface application
+        let module = origin.module();
+        let (interface_module, interface) = self.nominal_application(qualifier)?;
+        let owner = member.owner;
+
+        // project a declaring class scope's own associated member
+        let scope = self.resolve_symbol_alias(interface.symbol)?;
+        if let Some(definition) = self.definition(scope)?
+            && !matches!(definition, dir::Definition::Interface(_))
+        {
+            let members = definition.members().to_vec();
+            let substitution =
+                self.qualified_instance_substitution(interface_module, &interface, owner)?;
+
+            return self.project_implemented_member(
+                origin,
+                member,
+                &members,
+                &substitution,
+                qualifier,
+            );
+        }
+
+        // enumerate candidate extensions by receiver family
+        let apparent = self.intern_apparent_type(module, owner)?;
+        let extensions = answer!(self.visible_implementation_extensions(
+            origin,
+            module,
+            apparent,
+            interface.symbol,
+        )?);
+        for extension_symbol in extensions {
+            let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)?
+            else {
+                continue;
+            };
+            if !extension.is_visible_from(module) {
+                continue;
+            }
+
+            // read the extension's target, implements, and members
+            let target_type = extension.target.r#type();
+            let implements = extension.implements.clone();
+            let members = extension.members.clone();
+            let template = self.symbol_template(extension_symbol)?;
+
+            // classify the candidate's bounds in a probe before committing
+            let verdict = self.probe_candidate(|state| {
+                let matched = state.match_extension_implementation(
+                    origin,
+                    Relation::Assignable,
+                    interface_module,
+                    owner,
+                    owner,
+                    &interface,
+                    template,
+                    target_type,
+                    &implements,
+                )?;
+
+                Ok(matched.map(|matched| match matched {
+                    Some(_) => CandidateOutcome::Accepted(()),
+                    None => CandidateOutcome::Rejected(()),
+                }))
+            })?;
+            if !matches!(verdict, Answer::Ready(CandidateVerdict::Viable)) {
+                continue;
+            }
+
+            // rerun the match to commit its substitution
+            let matched = answer!(self.match_extension_implementation(
+                origin,
+                Relation::Assignable,
+                interface_module,
+                owner,
+                owner,
+                &interface,
+                template,
+                target_type,
+                &implements,
+            )?);
+            let Some((substitution, implementation)) = matched else {
+                continue;
+            };
+
+            return self.project_implemented_member(
+                origin,
+                member,
+                &members,
+                &substitution,
+                implementation,
+            );
+        }
+
+        // match the owner's own declared implementations
+        if let Some((application_module, application)) = self.nominal_application_maybe(owner)?
+            && let Some(definition) = self.definition(application.symbol)?
+        {
+            let implements = definition.implementations().to_vec();
+            let members = definition.members().to_vec();
+            if !implements.is_empty() {
+                let mut substitution =
+                    self.instance_substitution(application_module, &application)?;
+                let matched = answer!(self.match_implemented_interface(
+                    origin,
+                    Relation::Assignable,
+                    interface_module,
+                    &[],
+                    &mut substitution,
+                    &implements,
+                    &interface,
+                )?);
+                if let Some(implementation) = matched {
+                    return self.project_implemented_member(
+                        origin,
+                        member,
+                        &members,
+                        &substitution,
+                        implementation,
+                    );
+                }
+            }
+        }
+
+        Ok(Answer::Ready(None))
+    }
+
+    /// Project one associated member declared by a lexical extension scope.
+    fn project_scope_member(
+        &mut self,
+        origin: Origin,
+        member: &dir::MemberType,
+        scope: dir::GlobalSymbolId,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let Some(definition) = self.definition(scope)? else {
+            return Ok(Answer::Ready(None));
+        };
+
+        // project the scope's own members against the written owner
+        let members = definition.members().to_vec();
+        let substitution = TypeSubstitution::default().with_receiver(member.owner);
+
+        self.project_implemented_member(origin, member, &members, &substitution, member.owner)
+    }
+
+    /// Project one associated member of a matched implementation.
+    fn project_implemented_member(
+        &mut self,
+        origin: Origin,
+        member: &dir::MemberType,
+        members: &[dir::DefinitionMember],
+        substitution: &TypeSubstitution,
+        implementation: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        // prefer the implementer's declared associated type
+        let declared = members.iter().find_map(|declared| match declared {
+            dir::DefinitionMember::AssociatedType(associated) if associated.key == member.key => {
+                associated.value
+            }
+            _ => None,
+        });
+        if let Some(value) = declared {
+            let value = self.substitute_type(value, substitution)?;
+
+            return Ok(Answer::Ready(Some(value)));
+        }
+
+        // read written refinements on the matched header
+        let (_, bindings) = self.refinement_bindings(implementation)?;
+        if let Some((_, value)) = bindings.iter().find(|(key, _)| *key == member.key) {
+            return Ok(Answer::Ready(Some(*value)));
+        }
+
+        self.project_default_member(origin, member)
     }
 
     /// Return the type projected by one selected member lookup.
@@ -1214,13 +1373,7 @@ impl BodyState<'_, '_> {
         let Some((interface_module, interface)) = self.nominal_application_maybe(qualifier)? else {
             return Ok(Answer::Ready(None));
         };
-        // explicit qualifier refinements select the associated value
-        let (_, bindings) = self.refinement_bindings(qualifier)?;
-        if let Some((_, value)) = bindings.iter().find(|(key, _)| *key == member.key) {
-            return Ok(Answer::Ready(Some(*value)));
-        }
-
-        // otherwise select the declared interface default
+        // select the declared interface default
         let value = match self.definition(interface.symbol)? {
             Some(dir::Definition::Interface(definition)) => {
                 definition
@@ -1272,8 +1425,8 @@ impl BodyState<'_, '_> {
             interfaces.extend(self.parameter_bounds(origin, parameter)?);
         }
         // nominal projections select from their checked heritage
-        else if let Some((module, instance)) = self.nominal_application_maybe(owner)? {
-            let closure = answer!(self.heritage_closure(origin, module, &instance)?);
+        else if self.nominal_application_maybe(owner)?.is_some() {
+            let closure = answer!(self.heritage_closure(origin, owner)?);
             interfaces.extend(
                 closure
                     .applications
@@ -1362,61 +1515,6 @@ impl BodyState<'_, '_> {
         }
 
         Ok(Answer::Ready(None))
-    }
-
-    /// Decide whether one candidate projects through one qualifying scope.
-    fn candidate_declared_by(
-        &mut self,
-        origin: Origin,
-        candidate: &MemberCandidate,
-        qualifier: dir::GlobalTypeId,
-        receiver: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let instance = match self.ty(qualifier)? {
-            // extension scopes bind lexically to their declaration
-            dir::Type::Reference(reference) => {
-                return Ok(Answer::Ready(candidate.owner == reference.symbol));
-            }
-            dir::Type::Application(instance) => instance,
-            _ => return Ok(Answer::Ready(false)),
-        };
-
-        // accept the declaring interface, it owns its abstract members
-        if candidate.owner == instance.symbol {
-            return Ok(Answer::Ready(true));
-        }
-        let heritages = match self.definition(candidate.owner)? {
-            Some(definition) => definition
-                .heritages()
-                .into_iter()
-                .cloned()
-                .collect::<Vec<_>>(),
-            None => return Ok(Answer::Ready(false)),
-        };
-
-        // match any implemented application against the applied scope,
-        //  binding the implementer's own parameters as pattern holes
-        let parameters = match self.symbol_template(candidate.owner)? {
-            Some(template) => self.generic_template_parameters(template)?,
-            None => SmallVec::new(),
-        };
-        let receiver_only = TypeSubstitution::default().with_receiver(receiver);
-        for heritage in heritages {
-            let (_, heritage_instance) = self.require_nominal_application(heritage.ty)?;
-            if heritage_instance.symbol != instance.symbol {
-                continue;
-            }
-
-            // resolve receiver-relative heritage at this application
-            let pattern = self.substitute_type(heritage.ty, &receiver_only)?;
-            let matched =
-                answer!(self.match_generic_pattern(origin, &parameters, pattern, qualifier)?);
-            if matched.is_some() {
-                return Ok(Answer::Ready(true));
-            }
-        }
-
-        Ok(Answer::Ready(false))
     }
 
     /// Return one field type projected through the receiver placement.

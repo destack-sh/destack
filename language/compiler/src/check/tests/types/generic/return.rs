@@ -451,7 +451,7 @@ function ok<T, E>(value: T): AsyncResult<T, E> {
 /// @generic.instance id=Promise<T#2> template=Promise arguments=(T#2)
 /// @generic.instance id=Promise<T#3> template=Promise arguments=(T#3)
 
-/// @check.stats.solve variables=3 types=71 constraints=1 obligations=12 solutions=3 bounds=3 decisions=17
+/// @check.stats.solve variables=3 types=72 constraints=1 obligations=12 solutions=3 bounds=3 decisions=17
 "#,
     );
 }
@@ -602,7 +602,7 @@ extension<T, E> of Result<T, E> {
 /// @generic.instance id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2)
 /// @generic.instance id="Result<T#3, E#3>" template=Result arguments=(T#3, E#3)
 
-/// @check.stats.solve variables=2 types=42 constraints=1 obligations=9 solutions=2 bounds=3 decisions=6
+/// @check.stats.solve variables=2 types=43 constraints=1 obligations=9 solutions=2 bounds=3 decisions=6
 "#,
     );
 }

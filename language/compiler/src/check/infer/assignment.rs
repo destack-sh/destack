@@ -124,7 +124,7 @@ impl BodyState<'_, '_> {
         let write_type = place.write.ty();
 
         // select compound operators through the binary operator protocol
-        if let Some(operator) = operator.binary_operator() {
+        if let Ok(operator) = dir::BinaryOperator::try_from(operator) {
             let right_site = self.node_site(right_node)?;
             let right_type = answer!(self.infer_node_type(right_site, PlaceUse::Read)?);
             let left_type = answer!(self.reduce_type_head(site.origin(), read_type)?);

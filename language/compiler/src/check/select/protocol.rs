@@ -276,15 +276,11 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
         protocol: &Protocol,
     ) -> CompilerResult<Answer<Option<ProtocolMember>>> {
+        // reduce the lookup receiver to its apparent type
         let module = origin.module();
-        let receiver = answer!(self.reduce_type_head(origin, receiver)?);
         let lookup_receiver = answer!(self.reduce_type_head(origin, lookup_receiver)?);
-
         let lookup_receiver = self.intern_apparent_type(module, lookup_receiver)?;
-        let interface = protocol.instance(self, module)?;
-        let interface = self.intern_type(dir::Type::Application(interface))?;
-        let requirements =
-            answer!(protocol.members(self, origin, interface, lookup_receiver, space, key)?);
+
         let extension = self.select_extension_protocol_member(
             origin,
             module,
@@ -298,6 +294,11 @@ impl BodyState<'_, '_> {
             return Ok(extension);
         }
 
+        // enumerate requirements for the fallback lookup only
+        let interface = protocol.instance(self, module)?;
+        let interface = self.intern_type(dir::Type::Application(interface))?;
+        let requirements =
+            answer!(protocol.members(self, origin, interface, lookup_receiver, space, key)?);
         let lookup =
             answer!(self.lookup_inherent_member(origin, module, lookup_receiver, space, key,)?);
         self.select_protocol_member_lookup(
@@ -325,17 +326,8 @@ impl BodyState<'_, '_> {
         argument_sources: &[dir::ArgumentSource],
     ) -> CompilerResult<Answer<Option<ProtocolCall>>> {
         let module = origin.module();
-        let receiver_type = answer!(self.reduce_type_head(origin, receiver.ty)?);
-        let receiver = Value {
-            ty: receiver_type,
-            ..receiver
-        };
         let lookup_receiver = answer!(self.reduce_type_head(origin, lookup_receiver)?);
         let lookup_receiver = self.intern_apparent_type(module, lookup_receiver)?;
-        let interface = protocol.instance(self, module)?;
-        let interface = self.intern_type(dir::Type::Application(interface))?;
-        let requirements =
-            answer!(protocol.members(self, origin, interface, lookup_receiver, space, key)?);
         let extension = self.select_extension_protocol_call(
             origin,
             module,
@@ -350,6 +342,11 @@ impl BodyState<'_, '_> {
             return Ok(extension);
         }
 
+        // enumerate requirements for the fallback lookup only
+        let interface = protocol.instance(self, module)?;
+        let interface = self.intern_type(dir::Type::Application(interface))?;
+        let requirements =
+            answer!(protocol.members(self, origin, interface, lookup_receiver, space, key)?);
         let lookup =
             answer!(self.lookup_inherent_member(origin, module, lookup_receiver, space, key,)?);
         self.select_protocol_call_lookup(
@@ -381,11 +378,12 @@ impl BodyState<'_, '_> {
         self.select_extension_protocol_operation(
             origin,
             module,
+            receiver.ty,
             lookup_receiver,
             space,
             key,
             protocol,
-            |state, implementation, selected, candidates| {
+            |state, implementation, candidates| {
                 let requirements = answer!(protocol.members(
                     state,
                     origin,
@@ -394,8 +392,12 @@ impl BodyState<'_, '_> {
                     space,
                     key,
                 )?);
-                let candidates =
-                    state.select_implementation_candidates(&selected, &requirements, candidates)?;
+
+                // skip extensions whose implementation declares no matching requirement
+                if requirements.is_empty() {
+                    return Ok(Answer::Ready(None));
+                }
+
                 match state.select_protocol_call_member(
                     origin,
                     receiver,
@@ -423,11 +425,12 @@ impl BodyState<'_, '_> {
         self.select_extension_protocol_operation(
             origin,
             module,
+            receiver,
             lookup_receiver,
             space,
             key,
             protocol,
-            |state, implementation, selected, candidates| {
+            |state, implementation, candidates| {
                 let requirements = answer!(protocol.members(
                     state,
                     origin,
@@ -436,8 +439,12 @@ impl BodyState<'_, '_> {
                     space,
                     key,
                 )?);
-                let candidates =
-                    state.select_implementation_candidates(&selected, &requirements, candidates)?;
+
+                // skip extensions whose implementation declares no matching requirement
+                if requirements.is_empty() {
+                    return Ok(Answer::Ready(None));
+                }
+
                 match state.select_protocol_member_from_candidates(receiver, candidates)? {
                     Answer::Ready(member) => Ok(Answer::Ready(member)),
                     Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
@@ -451,6 +458,7 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
+        receiver: dir::GlobalTypeId,
         lookup_receiver: dir::GlobalTypeId,
         space: dir::MemberSpace,
         key: dir::StaticKey,
@@ -458,7 +466,6 @@ impl BodyState<'_, '_> {
         mut select: impl FnMut(
             &mut BodyState<'_, '_>,
             dir::GlobalTypeId,
-            dir::InterfaceImplementation,
             Vec<MemberCandidate>,
         ) -> CompilerResult<Answer<Option<T>>>,
     ) -> CompilerResult<Answer<Option<T>>> {
@@ -506,6 +513,7 @@ impl BodyState<'_, '_> {
                 state.match_extension_protocol_candidate(
                     origin,
                     module,
+                    receiver,
                     lookup_receiver,
                     extension_symbol,
                     target_type,
@@ -513,13 +521,7 @@ impl BodyState<'_, '_> {
                     &classified,
                 )
             })?;
-            let candidate = (
-                extension_symbol,
-                target_type,
-                implements,
-                definition_members,
-                members,
-            );
+            let candidate = (extension_symbol, target_type, implements, members);
             match verdict {
                 Answer::Ready(CandidateVerdict::Viable) => {
                     viable = Some(candidate);
@@ -539,23 +541,22 @@ impl BodyState<'_, '_> {
         }
 
         // apply one selected extension in the enclosing transaction
-        let Some((extension_symbol, target_type, implements, definition_members, members)) =
-            viable.or(indeterminate)
+        let Some((extension_symbol, target_type, implements, members)) = viable.or(indeterminate)
         else {
             return Ok(Answer::ready_unless_blocked(None, blockers));
         };
         let matched = self.match_extension_protocol_members(
             origin,
             module,
+            receiver,
             lookup_receiver,
             extension_symbol,
             target_type,
             &implements,
-            &definition_members,
             &members,
             protocol,
         )?;
-        let (implementation, selected, candidates) = match matched {
+        let (implementation, candidates) = match matched {
             Answer::Ready(Some(matched)) => matched,
             Answer::Ready(None) => {
                 return Err(CompilerError::Internal {
@@ -567,7 +568,7 @@ impl BodyState<'_, '_> {
             Answer::Pending(pending) => return Ok(Answer::Pending(pending)),
         };
 
-        select(self, implementation, selected, candidates)
+        select(self, implementation, candidates)
     }
 
     /// Classify one extension protocol candidate.
@@ -575,15 +576,17 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
+        receiver: dir::GlobalTypeId,
         lookup_receiver: dir::GlobalTypeId,
         extension_symbol: dir::GlobalSymbolId,
         target_type: dir::GlobalTypeId,
-        implementations: &[dir::InterfaceImplementation],
+        implementations: &[dir::NominalHeritage],
         protocol: &Protocol,
     ) -> CompilerResult<Answer<CandidateOutcome<(), ()>>> {
         let matched = self.match_extension_protocol_implementation(
             origin,
             module,
+            receiver,
             lookup_receiver,
             extension_symbol,
             target_type,
@@ -602,32 +605,25 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
+        receiver: dir::GlobalTypeId,
         lookup_receiver: dir::GlobalTypeId,
         extension_symbol: dir::GlobalSymbolId,
         target_type: dir::GlobalTypeId,
-        implementations: &[dir::InterfaceImplementation],
-        definition_members: &[dir::DefinitionMember],
+        implementations: &[dir::NominalHeritage],
         members: &[DeclaredMember],
         protocol: &Protocol,
-    ) -> CompilerResult<
-        Answer<
-            Option<(
-                dir::GlobalTypeId,
-                dir::InterfaceImplementation,
-                Vec<MemberCandidate>,
-            )>,
-        >,
-    > {
+    ) -> CompilerResult<Answer<Option<(dir::GlobalTypeId, Vec<MemberCandidate>)>>> {
         let matched = self.match_extension_protocol_implementation(
             origin,
             module,
+            receiver,
             lookup_receiver,
             extension_symbol,
             target_type,
             implementations,
             protocol,
         )?;
-        let Some((substitution, implementation, index)) = answer!(matched) else {
+        let Some((substitution, implementation)) = answer!(matched) else {
             return Ok(Answer::Ready(None));
         };
         let candidates =
@@ -636,30 +632,8 @@ impl BodyState<'_, '_> {
         if candidates.is_empty() {
             return Ok(Answer::Ready(None));
         }
-        let declared = implementations
-            .get(index)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!(
-                    "selected interface implementation {index} is absent from {extension_symbol:?}"
-                ),
-            })?;
-        let (interface_module, interface) = self.require_nominal_application(implementation)?;
-        let selected = answer!(self.check.select_interface_implementation(
-            origin,
-            extension_symbol,
-            declared.interface.source,
-            implementation,
-            lookup_receiver,
-            definition_members,
-            &substitution,
-            interface_module,
-            &interface,
-        )?);
-        let Ok(selected) = selected else {
-            return Ok(Answer::Ready(None));
-        };
 
-        Ok(Answer::Ready(Some((implementation, selected, candidates))))
+        Ok(Answer::Ready(Some((implementation, candidates))))
     }
 
     /// Match one extension target and implemented protocol.
@@ -667,64 +641,27 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
+        receiver: dir::GlobalTypeId,
         lookup_receiver: dir::GlobalTypeId,
         extension_symbol: dir::GlobalSymbolId,
         target_type: dir::GlobalTypeId,
-        implementations: &[dir::InterfaceImplementation],
+        implementations: &[dir::NominalHeritage],
         protocol: &Protocol,
-    ) -> CompilerResult<Answer<Option<(TypeSubstitution, dir::GlobalTypeId, usize)>>> {
+    ) -> CompilerResult<Answer<Option<(TypeSubstitution, dir::GlobalTypeId)>>> {
         let template = self.symbol_template(extension_symbol)?;
-        let Some(mut substitution) =
-            answer!(self.instantiate_extension(origin, lookup_receiver, template, target_type)?)
-        else {
-            return Ok(Answer::Ready(None));
-        };
-
-        // match the declared implementation to the requested protocol
         let interface = protocol.instance(self, module)?;
-        let implementation = answer!(self.match_implemented_interface(
+
+        self.match_extension_implementation(
             origin,
             Relation::Assignable,
             module,
-            module,
-            &[],
-            &mut substitution,
-            implementations,
+            receiver,
+            lookup_receiver,
             &interface,
-        )?);
-
-        Ok(Answer::Ready(implementation.map(
-            |(implementation, index)| (substitution, implementation, index),
-        )))
-    }
-
-    /// Retain candidates selected by one checked interface implementation.
-    fn select_implementation_candidates(
-        &self,
-        implementation: &dir::InterfaceImplementation,
-        requirements: &[InterfaceMember],
-        candidates: Vec<MemberCandidate>,
-    ) -> CompilerResult<Vec<MemberCandidate>> {
-        let mut declarations = FxIndexSet::default();
-
-        // accept the interface declaration itself for generic and default dispatch
-        for requirement in requirements {
-            declarations.insert(requirement.source);
-            if let Some(member) = implementation.member(requirement.source) {
-                declarations.extend(member.declarations.iter().copied());
-            }
-        }
-
-        // retain only declarations fixed by the implementation record
-        let mut selected = Vec::new();
-        for candidate in candidates {
-            let source = self.symbol_source(candidate.symbol)?;
-            if declarations.contains(&source) {
-                selected.push(candidate);
-            }
-        }
-
-        Ok(selected)
+            template,
+            target_type,
+            implementations,
+        )
     }
 
     /// Select one protocol member from every receiver alternative.
@@ -992,7 +929,7 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(None))
     }
 
-    /// Retain candidates selected by the receiver's checked implementations.
+    /// Retain candidates declared by the interface or its proven implementers.
     fn select_nominal_protocol_candidates(
         &mut self,
         origin: Origin,
@@ -1002,13 +939,11 @@ impl BodyState<'_, '_> {
         requirements: &[InterfaceMember],
         candidates: Vec<MemberCandidate>,
     ) -> CompilerResult<Answer<Vec<MemberCandidate>>> {
-        let mut declarations = requirements
+        let declarations = requirements
             .iter()
             .map(|requirement| requirement.source)
             .collect::<FxIndexSet<_>>();
-        let Some((receiver_module, receiver_instance)) =
-            self.nominal_application_maybe(receiver)?
-        else {
+        let Some((_, receiver_instance)) = self.nominal_application_maybe(receiver)? else {
             let selected = self.select_protocol_declarations(&declarations, candidates)?;
 
             return Ok(Answer::Ready(selected));
@@ -1018,7 +953,8 @@ impl BodyState<'_, '_> {
         owners.extend(candidates.iter().map(|candidate| candidate.owner));
         let interface = protocol.instance(self.check, module)?;
 
-        // collect exact declarations from each relevant nominal implementation
+        // match the requested interface against each owner's declared implementations
+        let mut implementing_owners = FxIndexSet::default();
         for owner in owners {
             let Some(definition) = self.definition(owner)? else {
                 return Err(CompilerError::Internal {
@@ -1028,7 +964,6 @@ impl BodyState<'_, '_> {
             if matches!(definition, dir::Definition::Interface(_)) {
                 continue;
             }
-            let definition_members = definition.members().to_vec();
             let implementations = definition.implementations().to_vec();
             if implementations.is_empty() {
                 continue;
@@ -1038,61 +973,37 @@ impl BodyState<'_, '_> {
             let application_type = if owner == receiver_instance.symbol {
                 Some(receiver)
             } else {
-                answer!(self.heritage_instance(
-                    origin,
-                    receiver_module,
-                    &receiver_instance,
-                    owner,
-                )?)
+                answer!(self.heritage_instance(origin, receiver, owner)?)
             };
             let Some(application_type) = application_type else {
                 continue;
             };
-            let (application_module, application) =
-                self.require_nominal_application(application_type)?;
+
+            // match the declared implementations at this application
+            let (application_module, application) = self.nominal_application(application_type)?;
             let mut substitution = self.instance_substitution(application_module, &application)?;
             let matched = answer!(self.match_implemented_interface(
                 origin,
                 Relation::Assignable,
-                module,
                 module,
                 &[],
                 &mut substitution,
                 &implementations,
                 &interface,
             )?);
-            let Some((implemented, index)) = matched else {
-                continue;
-            };
-            let declared = implementations
-                .get(index)
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!(
-                        "selected interface implementation {index} is absent from {owner:?}"
-                    ),
-                })?;
-            let (interface_module, interface) = self.require_nominal_application(implemented)?;
-            let selected = answer!(self.check.select_interface_implementation(
-                origin,
-                owner,
-                declared.interface.source,
-                implemented,
-                application_type,
-                &definition_members,
-                &substitution,
-                interface_module,
-                &interface,
-            )?);
-            let Ok(implementation) = selected else {
-                continue;
-            };
-            for requirement in requirements {
-                if let Some(member) = implementation.member(requirement.source) {
-                    declarations.extend(member.declarations.iter().copied());
-                }
+            if matched.is_some() {
+                implementing_owners.insert(owner);
             }
         }
-        let selected = self.select_protocol_declarations(&declarations, candidates)?;
+
+        // retain interface declarations and members of proven implementers
+        let mut selected = Vec::new();
+        for candidate in candidates {
+            let source = self.symbol_source(candidate.symbol)?;
+            if implementing_owners.contains(&candidate.owner) || declarations.contains(&source) {
+                selected.push(candidate);
+            }
+        }
 
         Ok(Answer::Ready(selected))
     }

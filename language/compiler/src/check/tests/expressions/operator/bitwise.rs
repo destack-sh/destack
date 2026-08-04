@@ -180,11 +180,9 @@ struct Flags {
 
 extension of Flags implements And<Flags> {
 /// @definition.extension symbol=<module>#2 form=local target=Flags
-/// @definition.implements symbol=<module>#2 source=And<Flags> target="And<Flags><type Output = Flags>"
+/// @definition.implements symbol=<module>#2 source=And<Flags> target=And<Flags>
 /// @definition.associated.type symbol=Output source="type Output = Flags" key=Output value=Flags
 /// @definition.method symbol=and slot=and type=<and.'a>(this: &and.'a exclusive this, Flags) => Flags
-/// @definition.implementation symbol=<module>#2 requirement=ops.bitwise.And.Output target=Output
-/// @definition.implementation symbol=<module>#2 requirement=ops.bitwise.And.and target=and
 /// @resolution.name source=Flags target=Flags
 /// @resolution.name source=And target=ops.bitwise.And
 /// @resolution.name source=Flags target=Flags

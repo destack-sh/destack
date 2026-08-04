@@ -1051,6 +1051,13 @@ pub struct BuiltinOperand {
 }
 
 impl BuiltinOperand {
+    /// Return whether this operand uses builtin integral behavior.
+    pub fn is_integral(&self) -> bool {
+        self.scalar_families
+            .as_ref()
+            .is_some_and(ScalarFamilySet::is_integral)
+    }
+
     /// Apply one mapping to every type id stored in this operand.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         self.ty = map(self.ty);

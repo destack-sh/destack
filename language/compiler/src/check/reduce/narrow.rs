@@ -101,7 +101,7 @@ impl CheckState<'_> {
     }
 
     /// Evaluate one runtime guard narrowing.
-    pub(super) fn reduce_narrowing(
+    pub(in crate::check) fn reduce_narrowing(
         &mut self,
         origin: Origin,
         narrow: dir::NarrowType,

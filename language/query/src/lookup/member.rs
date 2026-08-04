@@ -268,7 +268,7 @@ impl ProgramQueryContext<'_> {
         let mut conformances = definition
             .implementations()
             .iter()
-            .map(|implementation| implementation.interface.ty)
+            .map(|implementation| implementation.ty)
             .collect::<Vec<_>>();
         for extension in self.visible_extensions(symbol.module_id, symbol)? {
             let extension_module = self.module(extension.module_id)?;
@@ -284,7 +284,7 @@ impl ProgramQueryContext<'_> {
                 declaration
                     .implements
                     .iter()
-                    .map(|implementation| implementation.interface.ty),
+                    .map(|implementation| implementation.ty),
             );
         }
 
@@ -472,6 +472,25 @@ impl ModuleQueryContext<'_> {
         requirement: dir::GlobalNodeIdAny,
         symbols: &mut Vec<dir::GlobalSymbolId>,
     ) -> QueryResult<()> {
+        // resolve the requirement to its declaring member
+        let home = program.module(owner.module_id)?;
+        let Some(definition) = home.definitions().definition(owner) else {
+            return Ok(());
+        };
+        let Some(required) = definition
+            .members()
+            .iter()
+            .find(|member| member.source() == requirement)
+        else {
+            return Ok(());
+        };
+
+        // read the required member's space and key
+        let space = required.space();
+        let Some(key) = required.key() else {
+            return Ok(());
+        };
+
         // walk implementers reached through the owner's heritage edges
         for entry in program.base_heritage(owner)? {
             if entry.kind != HeritageKind::Implements {
@@ -483,22 +502,10 @@ impl ModuleQueryContext<'_> {
                 continue;
             };
 
-            // read the stored member mapping of the matching implementation
-            for implementation in definition.implementations() {
-                if implementation.interface.ty != entry.ty {
-                    continue;
-                }
-                let Some(implemented) = implementation.member(requirement) else {
-                    continue;
-                };
-                for declaration in &implemented.declarations {
-                    let declaration_module = program.module(declaration.module_id)?;
-                    if let Some(symbol) = declaration_module
-                        .symbols()
-                        .declaration_symbol(*declaration)
-                    {
-                        symbols.push(symbol.into_global(declaration.module_id));
-                    }
+            // collect the implementer's declarations under the same member key
+            for member in definition.members_with_key(space, key) {
+                if let Some(symbol) = member.symbol() {
+                    symbols.push(symbol);
                 }
             }
         }

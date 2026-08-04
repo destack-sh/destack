@@ -457,12 +457,10 @@ impl BodyState<'_, '_> {
                     Some(dir::Definition::Interface(interface)) if !interface.is_nominal
                 ) =>
             {
-                let fields = answer!(self.check.interface_instance_fields(
-                    origin,
-                    target.module_id,
-                    &instance,
-                    target,
-                )?);
+                let fields = answer!(
+                    self.check
+                        .interface_instance_fields(origin, target, target)?
+                );
                 let members = fields.map(|fields| (SmallVec::from_vec(fields), SmallVec::new()));
 
                 Ok(Answer::Ready(members))

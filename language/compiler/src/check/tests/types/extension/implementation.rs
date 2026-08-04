@@ -66,7 +66,6 @@ extension of User implements Show {
 /// @definition.extension symbol=<module>#2 form=local target=User
 /// @definition.implements symbol=<module>#2 source=Show target=Show
 /// @definition.method symbol=show#1 slot=show type=<show#1.'a>(this: &show#1.'a exclusive this) => string
-/// @definition.implementation symbol=<module>#2 requirement=Show.show target=show#1
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 
@@ -82,7 +81,6 @@ extension of User implements Show {
 /// @definition.extension symbol=<module>#3 form=local target=User
 /// @definition.implements symbol=<module>#3 source=Show target=Show
 /// @definition.method symbol=show#2 slot=show type=<show#2.'a>(this: &show#2.'a exclusive this) => string
-/// @definition.implementation symbol=<module>#3 requirement=Show.show target=show#2
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 
@@ -334,7 +332,6 @@ extension of Badge implements Equal<Badge> {
 /// @definition.extension symbol=<module>#2 form=local target=Badge
 /// @definition.implements symbol=<module>#2 source=Equal<Badge> target=Equal<Badge>
 /// @definition.method symbol=equal slot=equal type=<equal.'a>(this: &equal.'a exclusive this, Badge) => boolean
-/// @definition.implementation symbol=<module>#2 requirement=PartialEqual.equal target=equal
 /// @resolution.name source=Badge target=Badge
 /// @resolution.name source=Equal target=Equal
 /// @resolution.name source=Badge target=Badge
@@ -642,11 +639,9 @@ interface Doubling {
 
 extension of int32 implements Doubling {
 /// @definition.extension symbol=<module>#2 form=local target=int32
-/// @definition.implements symbol=<module>#2 source=Doubling target="Doubling<type Output = int32>"
+/// @definition.implements symbol=<module>#2 source=Doubling target=Doubling
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
 /// @definition.method symbol=double slot=double type=<double.'a>(this: &double.'a exclusive this) => this.Output
-/// @definition.implementation symbol=<module>#2 requirement=Doubling.Output target=Output
-/// @definition.implementation symbol=<module>#2 requirement=Doubling.double target=double
 /// @resolution.name source=Doubling target=Doubling
 
     type Output = int32;
@@ -663,6 +658,257 @@ extension of int32 implements Doubling {
     }
 }
 "#);
+}
+
+#[test]
+fn test_generic_extension_projects_associated_type() {
+    let session = TestSession::single(
+        r#"
+interface Container {
+    type Item;
+
+    get(): this.Item;
+}
+
+struct Box<T> {
+    value: T;
+}
+
+extension<T> of Box<T> implements Container {
+    type Item = T;
+
+    get(): T {
+        todo("get")
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Container {
+    type Item;
+
+    get(): this.Item;
+}
+
+struct Box<out T> {
+    value: T;
+}
+
+extension<T> of Box<T> implements Container {
+    type Item = T;
+
+    get(): T {
+        todo("get" as string | undefined)
+    }
+}
+
+=== checked ===
+interface Container {
+/// @type.symbol symbol=Container type=Container
+/// @definition.interface symbol=Container
+/// @definition.associated.type symbol=Container.Item source="type Item" key=Item
+/// @definition.method symbol=Container.get source="get(): this.Item" slot=get type=(this: this) => this.Item
+
+    type Item;
+
+    get(): this.Item;
+    /// @type.symbol symbol=Container.get source="get(): this.Item" type=(this: this) => this.Item
+
+}
+
+struct Box<T> {
+/// @generic.template symbol=Box parameters=(out T#1)
+/// @type.symbol symbol=Box type=Box
+/// @definition.struct symbol=Box template=(out T#1)
+/// @definition.field symbol=Box.value source="value: T" key=value type=T#1
+/// @type.symbol symbol=Box.T source=T type=T#1
+
+    value: T;
+    /// @type.symbol symbol=Box.value source="value: T" type=T#1
+    /// @resolution.name source=T target=Box.T
+
+}
+
+extension<T> of Box<T> implements Container {
+/// @generic.template symbol=<module>#2 parameters=(T#2)
+/// @definition.extension symbol=<module>#2 form=local target=Box<T#2>
+/// @definition.implements symbol=<module>#2 source=Container target=Container
+/// @definition.associated.type symbol=Item source="type Item = T" key=Item value=T#2
+/// @definition.method symbol=get slot=get type=<get.'a>(this: &get.'a exclusive this) => T#2
+/// @type.symbol symbol=T source=T type=T#2
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=T target=T
+/// @resolution.name source=Container target=Container
+
+    type Item = T;
+    /// @type.symbol symbol=Item source="type Item = T" type=T#2
+    /// @resolution.name source=T target=T
+
+    get(): T {
+    /// @generic.template symbol=get parent=template#2 parameters=('a)
+    /// @type.symbol symbol=get type=<get.'a>(this: &get.'a exclusive this) => T#2
+    /// @resolution.name source=T target=T
+
+        todo("get")
+        /// @resolution.name source=todo target=error.panic.todo
+        /// @resolution.call source="todo(\"get\")" parameters=(string | undefined) arguments=(provided("get") as string | undefined) return=never kind=symbol target=error.panic.todo
+
+    }
+}
+"#,
+    );
+}
+
+#[test]
+fn test_generic_extension_preserves_other_interface_application() {
+    let session = TestSession::single(
+        r#"
+interface Container<S> {
+    type Item;
+    type Output = this.Item;
+
+    get(value: S): (
+        this.Item,
+        this.Output,
+        Container<S>.Item,
+        Container<string>.Item,
+        Container<S, type Item = string>.Item,
+    );
+}
+
+struct Box<T> {
+    value: T;
+}
+
+extension<T> of Box<T> implements Container<T> {
+    type Item = int32;
+
+    get(value: T): (int32, int32, int32, Container<string>.Item, string) {
+        todo("get")
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Container<in S> {
+    type Item;
+    type Output = this.Item;
+
+    get(
+        value: S,
+    ): (
+        this.Item,
+        this.Output,
+        Container<S>.Item,
+        Container<string>.Item,
+        Container<S, type Item = string>.Item,
+    );
+}
+
+struct Box<out T> {
+    value: T;
+}
+
+extension<T> of Box<T> implements Container<T> {
+    type Item = int32;
+
+    get(value: T): (int32, int32, int32, Container<string>.Item, string) {
+        todo("get" as string | undefined)
+    }
+}
+
+=== checked ===
+interface Container<S> {
+/// @generic.template symbol=Container parameters=(in S)
+/// @type.symbol symbol=Container type=Container
+/// @definition.interface symbol=Container template=(in S)
+/// @definition.where symbol=Container relation=satisfies left=this right=Container<S>
+/// @definition.associated.type symbol=Container.Item source="type Item" key=Item
+/// @definition.associated.type symbol=Container.Output source="type Output = this.Item" key=Output value=this.Item
+/// @definition.method symbol=Container.get slot=get type=(this: this, S) => (this.Item, this.Output, Container<S>.Item, Container<string>.Item, Container<S><type Item = string>.Item)
+/// @type.symbol symbol=Container.S source=S type=S
+
+    type Item;
+    type Output = this.Item;
+    /// @type.symbol symbol=Container.Output source="type Output = this.Item" type=this.Item
+
+    get(value: S): (
+    /// @type.symbol symbol=Container.get type=(this: this, S) => (this.Item, this.Output, Container<S>.Item, Container<string>.Item, Container<S><type Item = string>.Item) reduced=(this: this, S) => (this.Item, this.Output, Container<S>.Item, Container<string>.Item, string)
+    /// @type.symbol symbol=Container.get.value source="value: S" type=S
+    /// @resolution.name source=S target=Container.S
+
+        this.Item,
+        this.Output,
+        Container<S>.Item,
+        /// @resolution.name source=Container target=Container
+        /// @resolution.name source=S target=Container.S
+
+        Container<string>.Item,
+        /// @resolution.name source=Container target=Container
+
+        Container<S, type Item = string>.Item,
+        /// @resolution.name source=Container target=Container
+        /// @resolution.name source=S target=Container.S
+
+    );
+}
+
+struct Box<T> {
+/// @generic.template symbol=Box parameters=(out T#1)
+/// @type.symbol symbol=Box type=Box
+/// @definition.struct symbol=Box template=(out T#1)
+/// @definition.field symbol=Box.value source="value: T" key=value type=T#1
+/// @type.symbol symbol=Box.T source=T type=T#1
+
+    value: T;
+    /// @type.symbol symbol=Box.value source="value: T" type=T#1
+    /// @resolution.name source=T target=Box.T
+
+}
+
+extension<T> of Box<T> implements Container<T> {
+/// @generic.template symbol=<module>#2 parameters=(T#2)
+/// @definition.extension symbol=<module>#2 form=local target=Box<T#2>
+/// @definition.implements symbol=<module>#2 source=Container<T> target=Container<T#2>
+/// @definition.associated.type symbol=Item source="type Item = int32" key=Item value=int32
+/// @definition.method symbol=get slot=get type=<get.'a>(this: &get.'a exclusive this, T#2) => (int32, int32, int32, Container<string>.Item, string)
+/// @type.symbol symbol=T source=T type=T#2
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=T target=T
+/// @resolution.name source=Container target=Container
+/// @resolution.name source=T target=T
+
+    type Item = int32;
+    /// @type.symbol symbol=Item source="type Item = int32" type=int32
+
+    get(value: T): (int32, int32, int32, Container<string>.Item, string) {
+    /// @generic.template symbol=get parent=template#2 parameters=('a)
+    /// @type.symbol symbol=get type=<get.'a>(this: &get.'a exclusive this, T#2) => (int32, int32, int32, Container<string>.Item, string)
+    /// @type.symbol symbol=get.value source="value: T" type=T#2
+    /// @resolution.name source=T target=T
+    /// @resolution.name source=Container target=Container
+
+        todo("get")
+        /// @resolution.name source=todo target=error.panic.todo
+        /// @resolution.call source="todo(\"get\")" parameters=(string | undefined) arguments=(provided("get") as string | undefined) return=never kind=symbol target=error.panic.todo
+
+    }
+}
+
+/// @generic.instance id=Container<S> template=Container arguments=(S)
+/// @generic.instance id=Container<string> template=Container arguments=(string)
+"#,
+    );
 }
 
 #[test]
@@ -750,12 +996,10 @@ newtype Result<T, E> = T | E;
 extension<T, E> of Result<T, E> implements Source<E>, Carrier {
 /// @generic.template symbol=<module>#2 parameters=(T#3, E#2)
 /// @definition.extension symbol=<module>#2 form=local target=Result<T#3, E#2>
-/// @definition.implements symbol=<module>#2 source=Carrier target="Carrier<type Error = E#2>"
+/// @definition.implements symbol=<module>#2 source=Carrier target=Carrier
 /// @definition.implements symbol=<module>#2 source=Source<E> target=Source<E#2>
 /// @definition.associated.type symbol=Error source="type Error = E" key=Error value=E#2
 /// @definition.method symbol=from slot=from static=true type=(E#2) => Result<T#3, E#2>
-/// @definition.implementation symbol=<module>#2 requirement=Carrier.Error target=Error
-/// @definition.implementation symbol=<module>#2 requirement=Source.from target=from
 /// @type.symbol symbol=T source=T type=T#3
 /// @type.symbol symbol=E source=E type=E#2
 /// @resolution.name source=Result target=Result
@@ -841,11 +1085,9 @@ interface Halving {
 
 extension of int32 implements Halving {
 /// @definition.extension symbol=<module>#2 form=local target=int32
-/// @definition.implements symbol=<module>#2 source=Halving target="Halving<type Output = int32>"
+/// @definition.implements symbol=<module>#2 source=Halving target=Halving
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
 /// @definition.method symbol=halve slot=halve type=<halve.'a>(this: &halve.'a readonly this) => this.Output
-/// @definition.implementation symbol=<module>#2 requirement=Halving.Output target=Output
-/// @definition.implementation symbol=<module>#2 requirement=Halving.halve target=halve
 /// @resolution.name source=Halving target=Halving
 
     type Output = int32;
@@ -979,11 +1221,9 @@ struct Cell {
 
 extension of Cell implements Reading {
 /// @definition.extension symbol=<module>#2 form=local target=Cell
-/// @definition.implements symbol=<module>#2 source=Reading target="Reading<type Output = int32>"
+/// @definition.implements symbol=<module>#2 source=Reading target=Reading
 /// @definition.associated.type symbol=Output#1 source="type Output = int32" key=Output value=int32
 /// @definition.method symbol=read slot=read type=<read.'a>(this: &read.'a exclusive this) => this.Output
-/// @definition.implementation symbol=<module>#2 requirement=Reading.Output target=Output#1
-/// @definition.implementation symbol=<module>#2 requirement=Reading.read target=read
 /// @resolution.name source=Cell target=Cell
 /// @resolution.name source=Reading target=Reading
 
@@ -1003,11 +1243,9 @@ extension of Cell implements Reading {
 
 extension of Cell implements Writing {
 /// @definition.extension symbol=<module>#3 form=local target=Cell
-/// @definition.implements symbol=<module>#3 source=Writing target="Writing<type Output = float64>"
+/// @definition.implements symbol=<module>#3 source=Writing target=Writing
 /// @definition.associated.type symbol=Output#2 source="type Output = float64" key=Output value=float64
 /// @definition.method symbol=write slot=write type=<write.'a>(this: &write.'a exclusive this) => this.Output
-/// @definition.implementation symbol=<module>#3 requirement=Writing.Output target=Output#2
-/// @definition.implementation symbol=<module>#3 requirement=Writing.write target=write
 /// @resolution.name source=Cell target=Cell
 /// @resolution.name source=Writing target=Writing
 
@@ -1172,7 +1410,6 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#4>
 /// @definition.implements symbol=<module>#2 source=Has<T> target=Has<T#4>
 /// @definition.method symbol=has slot=has type=<Q: Eq<Q>, has.'a, has.'b>(this: &has.'b exclusive this, &has.'a readonly Q) => boolean
-/// @definition.implementation symbol=<module>#2 requirement=Has.has target=has
 /// @type.symbol symbol=T source="T: Eq<T>" type=T#4
 /// @resolution.name source=Eq target=Eq
 /// @resolution.name source=T target=T
@@ -1526,7 +1763,6 @@ export extension<K, V> of Bag<K, V>
 /// @definition.implements symbol=<module>#2 source="Iterable<Entry<&readonly K, &V>>" target="iter.iterator.Iterable<Entry<&<module>#2.'a readonly K#3, &<module>#2.'b V#3>>"
 /// @definition.method symbol=iterator#1 slot=iterator type=(this: this) => iter.iterator.Iterator<(K#3, V#3)>
 /// @definition.method symbol=iterator#2 slot=iterator type=<comptime A: memory.access.Access = "readonly", iterator#2.'a>(this: memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>>
-/// @definition.implementation symbol=<module>#2 requirement=iter.iterator.Iterable.iterator target=iterator#2
 /// @type.symbol symbol=K source=K type=K#3
 /// @type.symbol symbol=V source=V type=V#3
 /// @resolution.name source=Bag target=Bag
@@ -1663,7 +1899,6 @@ class Robot {
 extension of Robot implements Greeter {}
 /// @definition.extension symbol=<module>#2 source="extension of Robot implements Greeter {}" form=local target=Robot
 /// @definition.implements symbol=<module>#2 source=Greeter target=Greeter
-/// @definition.implementation symbol=<module>#2 requirement=Greeter.greet target=Robot.greet
 /// @resolution.name source=Robot target=Robot
 /// @resolution.name source=Greeter target=Greeter
 

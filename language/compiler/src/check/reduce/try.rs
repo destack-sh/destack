@@ -1,8 +1,17 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::check::{Answer, CheckState, MemberLookup, Origin, answer};
-use crate::{CompilerError, CompilerResult};
+use crate::CompilerResult;
+use crate::check::{Answer, CheckState, Origin, answer};
+
+/// One associated type projected from a tried value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum TryProjection {
+    /// The value produced when evaluation continues.
+    Output,
+    /// The value propagated when evaluation stops.
+    Residual,
+}
 
 impl CheckState<'_> {
     /// Project the success or residual type of one tried value.
@@ -10,13 +19,13 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         value: dir::GlobalTypeId,
-        residual: bool,
+        projection: TryProjection,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let value = answer!(self.reduce_type_head(origin, value)?);
 
-        // split nullish members from the carrier part
+        // split nullish members from the remaining value arms
         let mut nullish = Vec::new();
-        let mut carriers = Vec::new();
+        let mut values = Vec::new();
         let elements = match self.ty(value)? {
             dir::Type::Union(union) => {
                 SmallVec::<[_; 4]>::from_slice(self.type_ids(value.module_id, union.elements)?)
@@ -31,61 +40,40 @@ impl CheckState<'_> {
                 | dir::Type::Literal(dir::ScalarLiteral::Null | dir::ScalarLiteral::Undefined) => {
                     nullish.push(element)
                 }
-                _ => carriers.push(element),
+                _ => values.push(element),
             }
         }
 
-        let module = origin.module();
-
-        // rebuild the carrier part for associated type projection
-        let carrier = match carriers.as_slice() {
-            [] => None,
-            [single] => Some(*single),
-            _ => Some(self.normalized_union_type(carriers)?),
+        // select the requested member from each Try implementation
+        let name = match projection {
+            TryProjection::Output => "Output",
+            TryProjection::Residual => "Residual",
         };
-
-        // project the requested carrier type
-        let name = if residual { "Residual" } else { "Output" };
         let key = dir::StaticKey::Name(self.strings().intern(name));
-        let projected = match carrier {
-            None => None,
-            Some(carrier) => {
-                let lookup = answer!(self.body().lookup_member(
-                    origin,
-                    module,
-                    carrier,
-                    dir::MemberSpace::Static,
-                    key
-                )?);
 
-                match &lookup {
-                    // non-carriers keep their own value as the success type
-                    MemberLookup::Missing => {
-                        if residual {
-                            None
-                        } else {
-                            Some(carrier)
-                        }
-                    }
-                    MemberLookup::Field(_)
-                    | MemberLookup::Found(_)
-                    | MemberLookup::Union(_)
-                    | MemberLookup::Intersection(_) => {
-                        let Some(ty) = self.body().member_read_type(origin, &lookup)? else {
-                            return Err(CompilerError::Internal {
-                                message: "try carrier member has no value type".to_string(),
-                            });
-                        };
-
-                        Some(ty)
-                    }
-                }
+        // project each value through its Try implementation
+        let mut projected = Vec::new();
+        for value in values {
+            let selected = answer!(self.body().select_language_protocol_member(
+                origin,
+                value,
+                value,
+                dir::MemberSpace::Static,
+                key,
+                dir::LanguageItem::Try,
+                &[],
+                &[],
+            )?);
+            match selected {
+                Some((_, member)) => projected.push(member.ty),
+                None if projection == TryProjection::Output => projected.push(value),
+                None => {}
             }
-        };
+        }
 
         // join the projected type with propagated nullish values
         let mut elements = Vec::new();
-        if residual {
+        if projection == TryProjection::Residual {
             elements.extend(nullish);
         }
         elements.extend(projected);

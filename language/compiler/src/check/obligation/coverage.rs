@@ -453,15 +453,10 @@ impl CheckState<'_> {
                     dir::Type::Application(value_instance) => {
                         // inherited constructors cover through heritage
                         if value_instance.symbol != nominal.symbol {
-                            let closure = answer!(self.heritage_closure(
-                                origin,
-                                value_head.module_id,
-                                &value_instance,
-                            )?);
+                            let closure = answer!(self.heritage_closure(origin, value_head)?);
                             let mut inherits = false;
                             for application in &closure.applications {
-                                let (_, instance) =
-                                    self.require_nominal_application(application.ty)?;
+                                let (_, instance) = self.nominal_application(application.ty)?;
                                 if instance.symbol == nominal.symbol {
                                     inherits = true;
                                     break;
