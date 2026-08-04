@@ -7,7 +7,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, PropertyAccess, SegmentView, StaticKey,
+    GlobalGenericTemplateId, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, PropertyAccess,
+    SegmentView, StaticKey,
 };
 
 /// Cumulative checked member bindings for one DIR module.
@@ -95,6 +96,15 @@ pub struct MemberSegment {
     bindings: IndexMap<MemberSubject, Vec<MemberBinding>>,
 }
 
+/// One rollback position in a member segment.
+#[derive(Debug, Clone, Copy)]
+pub struct MemberMark {
+    /// The recorded source count.
+    subjects: usize,
+    /// The recorded subject count.
+    bindings: usize,
+}
+
 impl MemberSegment {
     /// Create an empty member segment.
     pub fn new(module_id: ModuleId) -> Self {
@@ -105,13 +115,8 @@ impl MemberSegment {
         }
     }
 
-    /// Record one source site and its checked member bindings.
-    pub fn record(
-        &mut self,
-        source: GlobalNodeIdAny,
-        subject: MemberSubject,
-        bindings: Vec<MemberBinding>,
-    ) {
+    /// Record the member lookup subject selected at one source site.
+    pub fn record_subject(&mut self, source: GlobalNodeIdAny, subject: MemberSubject) {
         // require one stable subject per source site
         if let Some(recorded) = self.subjects.get(&source) {
             assert_eq!(
@@ -121,7 +126,10 @@ impl MemberSegment {
         } else {
             self.subjects.insert(source, subject);
         }
+    }
 
+    /// Record the checked member bindings for one lookup subject.
+    pub fn record_bindings(&mut self, subject: MemberSubject, bindings: Vec<MemberBinding>) {
         // require one stable binding list per subject
         if let Some(recorded) = self.bindings.get(&subject) {
             assert_eq!(
@@ -131,6 +139,27 @@ impl MemberSegment {
         } else {
             self.bindings.insert(subject, bindings);
         }
+    }
+
+    /// Iterate the member lookup subjects retained at source sites.
+    pub fn iter_subjects(&self) -> impl Iterator<Item = (GlobalNodeIdAny, MemberSubject)> + '_ {
+        self.subjects
+            .iter()
+            .map(|(source, subject)| (*source, *subject))
+    }
+
+    /// Return a rollback position for this segment.
+    pub fn mark(&self) -> MemberMark {
+        MemberMark {
+            subjects: self.subjects.len(),
+            bindings: self.bindings.len(),
+        }
+    }
+
+    /// Truncate this segment to a previous rollback position.
+    pub fn truncate_to(&mut self, mark: MemberMark) {
+        self.subjects.truncate(mark.subjects);
+        self.bindings.truncate(mark.bindings);
     }
 
     /// Return the lookup subject selected at one source site.
@@ -184,6 +213,8 @@ pub struct MemberSubject {
     pub target: GlobalTypeId,
     /// The selected instance or static member space.
     pub space: MemberSpace,
+    /// The generic template assumptions active at the source site.
+    pub scope: Option<GlobalGenericTemplateId>,
 }
 
 impl MemberSubject {
@@ -193,7 +224,15 @@ impl MemberSubject {
             receiver,
             target,
             space,
+            scope: None,
         }
+    }
+
+    /// Attach the generic assumptions active for this lookup.
+    pub fn with_scope(mut self, scope: Option<GlobalGenericTemplateId>) -> Self {
+        self.scope = scope;
+
+        self
     }
 
     /// Apply one mapping to every type id stored in this subject.

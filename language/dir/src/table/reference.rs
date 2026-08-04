@@ -71,7 +71,7 @@ impl ReferenceTable {
                     modules.extend(targets.iter().map(|target| target.module()));
                 }
                 Reference::Namespace(module) => modules.push(*module),
-                Reference::Projected { base, .. } => modules.push(base.module_id),
+                Reference::Projected { base, .. } => modules.push(base.module()),
                 Reference::Missing => {}
             }
 
@@ -88,10 +88,10 @@ pub enum Reference {
     Bound(SmallVec<[GlobalSymbolId; 2]>),
     /// Resolved to a namespace: a prefix awaiting a further segment, or a bare namespace value.
     Namespace(ModuleId),
-    /// A flat path named through its first segments; `segments[from..]` project as members off `base`.
+    /// A flat path named through its first segments; `segments[from..]` project from `base`.
     Projected {
-        /// The declaration the leading segments name.
-        base: GlobalSymbolId,
+        /// The exact target named by the leading segments.
+        base: ImportTarget,
         /// The segment index where member projection begins.
         from: u32,
     },

@@ -620,11 +620,11 @@ pub struct TypeSegment {
 
     /// Effective checked type by node.
     pub(crate) node_types: IndexMap<GlobalNodeIdAny, GlobalTypeId>,
-    /// Contextual expected type by node (when different from effective type).
+    /// Contextual expected type by node when different from the effective type.
     pub(crate) expected_types: IndexMap<GlobalNodeIdAny, GlobalTypeId>,
     /// Checked declaration type by symbol.
     pub(crate) symbol_types: IndexMap<GlobalSymbolId, GlobalTypeId>,
-    /// Reduced checked type by surface type.
+    /// Reduced type by source type.
     pub(crate) reduced_types: IndexMap<GlobalTypeId, GlobalTypeId>,
 }
 
@@ -976,8 +976,8 @@ impl TypeSegment {
     }
 
     /// Set the effective checked type for a node.
-    pub fn set_node_type(&mut self, node_id: GlobalNodeIdAny, ty: GlobalTypeId) {
-        self.node_types.insert(node_id, ty);
+    pub fn set_node_type(&mut self, node_id: GlobalNodeIdAny, type_id: GlobalTypeId) {
+        self.node_types.insert(node_id, type_id);
     }
 
     /// Get the effective checked type id for a node.
@@ -986,8 +986,8 @@ impl TypeSegment {
     }
 
     /// Set the contextual expected type for a node.
-    pub fn set_expected_type(&mut self, node_id: GlobalNodeIdAny, ty: GlobalTypeId) {
-        self.expected_types.insert(node_id, ty);
+    pub fn set_expected_type(&mut self, node_id: GlobalNodeIdAny, type_id: GlobalTypeId) {
+        self.expected_types.insert(node_id, type_id);
     }
 
     /// Get the contextual expected type id for a node.
@@ -1005,7 +1005,7 @@ impl TypeSegment {
         self.symbol_types.get(&symbol_id).copied()
     }
 
-    /// Set the reduced type for one checked surface type.
+    /// Set the reduced type for one source type.
     pub fn set_type_reduction(&mut self, source: GlobalTypeId, target: GlobalTypeId) {
         if source == target {
             self.reduced_types.shift_remove(&source);
