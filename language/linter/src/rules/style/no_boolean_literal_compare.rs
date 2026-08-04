@@ -25,7 +25,7 @@ function active(value: boolean): boolean {
         },
         category: Style,
         level: Warning,
-        fixable: Automatic,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }
@@ -50,10 +50,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         // require the compiler's builtin equality selection
-        if !module
-            .operator_resolution(expression_id.into_any())?
-            .is_builtin()
-        {
+        let Some(resolution) = module.operator_resolution(expression_id.into_any())? else {
+            continue;
+        };
+        if !resolution.is_builtin() {
             continue;
         }
 
@@ -64,7 +64,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
 
         // require the compared value to contain only boolean runtime values
-        let operand = module.builtin_operand(expression_id.into_any(), comparison.value)?;
+        let Some(operand) = module.builtin_operand(expression_id.into_any(), comparison.value)?
+        else {
+            continue;
+        };
         if !operand
             .scalar_families
             .as_ref()
@@ -138,23 +141,24 @@ impl BooleanLiteralComparison {
         }
 
         // preserve the exact authored expression text
-        let source = module.source(value_span)?;
-        let is_parenthesized = module.source_parentheses(self.value.into_any()).is_some();
         let replacement = if !self.is_negated {
-            source.to_string()
-        } else if is_parenthesized
-            || module.view().get(self.value).precedence() >= dir::OperatorPrecedence::Prefix
-        {
-            format!("!{source}")
+            module.source(value_span)?.to_string()
         } else {
-            format!("!({source})")
+            module.negated_source(self.value)?
         };
 
         // replace the complete comparison
         let mut file_patch = FilePatch::new(comparison_span.file);
         file_patch.replace(comparison_span, replacement);
         let patches = PatchSet::single(file_patch);
-        let suggestion = lint.fix("remove the boolean literal comparison", patches)?;
+        let preserves_type = self.is_negated
+            || module.node_type_id(comparison.into_any())?
+                == module.node_type_id(self.value.into_any())?;
+        let suggestion = if preserves_type {
+            lint.fix("remove the boolean literal comparison", patches)?
+        } else {
+            lint.suggestion("remove the boolean literal comparison", patches)?
+        };
 
         Ok(Some(suggestion))
     }
@@ -177,6 +181,26 @@ function active(value: boolean): boolean {
 "#,
         );
 
+        session.assert_diagnostics(
+            r#"
+warning[no-boolean-literal-compare]: boolean literal comparison is unnecessary
+ ──▶ main.ds:2:21
+  │
+1 │ function active(value: boolean): boolean {
+2 │     return value == true;
+  │                     ^^^^
+3 │ }
+  │
+
+ = fix: remove the boolean literal comparison
+--- a/main.ds
++++ b/main.ds
+
+    1│ function active(value: boolean): boolean {
+-   2│     return value == true;
++   2│     return value;
+"#,
+        );
         session.assert_fixes(
             r#"
 function active(value: boolean): boolean {
@@ -375,7 +399,7 @@ function active<T: boolean>(value: T): boolean {
 "#,
         );
 
-        session.assert_fixes(
+        session.assert_suggestions(
             r#"
 function active<T: boolean>(value: T): boolean {
     return value;
@@ -396,7 +420,7 @@ function active<T>(value: T): boolean where T: boolean {
 "#,
         );
 
-        session.assert_fixes(
+        session.assert_suggestions(
             r#"
 function active<T>(value: T): boolean where T: boolean {
     return value;
@@ -417,7 +441,7 @@ function active<T: boolean | string>(value: T): boolean where T: boolean {
 "#,
         );
 
-        session.assert_fixes(
+        session.assert_suggestions(
             r#"
 function active<T: boolean | string>(value: T): boolean where T: boolean {
     return value;
@@ -440,7 +464,7 @@ class Flag<T> {
 "#,
         );
 
-        session.assert_fixes(
+        session.assert_suggestions(
             r#"
 class Flag<T> {
     active(value: T): boolean where T: boolean {
@@ -465,7 +489,7 @@ class Flag<T> {
 "#,
         );
 
-        session.assert_fixes(
+        session.assert_suggestions(
             r#"
 class Flag<T> {
     active(value: &T): boolean where T: boolean {
@@ -528,7 +552,7 @@ function active(value: true | false): boolean {
 "#,
         );
 
-        session.assert_fixes(
+        session.assert_suggestions(
             r#"
 function active(value: true | false): boolean {
     return value;
