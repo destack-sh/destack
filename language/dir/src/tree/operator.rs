@@ -415,6 +415,20 @@ impl BinaryOperator {
             )
     }
 
+    /// Return the operator that preserves this comparison after swapping its operands.
+    pub fn swapped(self) -> Option<Self> {
+        let operator = match self {
+            Self::Equal | Self::NotEqual | Self::EqualStrict | Self::NotEqualStrict => self,
+            Self::LessThan => Self::GreaterThan,
+            Self::LessThanOrEqual => Self::GreaterThanOrEqual,
+            Self::GreaterThan => Self::LessThan,
+            Self::GreaterThanOrEqual => Self::LessThanOrEqual,
+            _ => return None,
+        };
+
+        Some(operator)
+    }
+
     /// Return whether this operator tests overloadable value equality.
     #[inline]
     pub fn is_value_equality(self) -> bool {

@@ -802,6 +802,9 @@ impl Expression {
     pub fn as_scalar(&self) -> Option<ScalarLiteral> {
         match self {
             Self::ScalarLiteral(value) => Some(*value),
+            Self::TemplateExpression {
+                value: TemplateLiteral::String { string },
+            } => Some(ScalarLiteral::String(*string)),
             _ => None,
         }
     }
