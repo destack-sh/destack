@@ -7,7 +7,8 @@ use destack_core::{SectionEntry, StringId};
 use destack_serde::Reflect;
 
 use crate::{
-    FloatType, LocalNodeId, TensorFormat, TensorSharding, TensorViewFormat, TraceMap, Type,
+    FloatType, LocalNodeId, Nullability, TensorFormat, TensorSharding, TensorViewFormat, TraceMap,
+    Type,
 };
 
 /// Canonical layout table for one MIR module.
@@ -228,6 +229,19 @@ impl Scalar {
         }
     }
 
+    /// Create one reference-like scalar admitting the selected nullish values.
+    pub const fn with_nullability(primitive: Primitive, nullability: Nullability) -> Self {
+        let maximum = scalar_mask(primitive.bit_width());
+        let validity = match nullability {
+            Nullability::None => Validity::new(2, maximum),
+            Nullability::Null => Validity::new(2, 0),
+            Nullability::Undefined => Validity::new(1, maximum),
+            Nullability::NullOrUndefined => Validity::new(0, maximum),
+        };
+
+        Self::with_validity(primitive, validity)
+    }
+
     /// Return the scalar width in bits.
     pub const fn bit_width(self) -> u16 {
         self.primitive.bit_width()
@@ -236,6 +250,14 @@ impl Scalar {
     /// Return the mask covering every scalar bit.
     pub const fn bit_mask(self) -> u128 {
         scalar_mask(self.bit_width())
+    }
+
+    /// Return this scalar as a niche field when it excludes any bit pattern.
+    pub const fn niche(self, offset: u32) -> Option<ScalarField> {
+        match self.validity.invalid(self.bit_width()) {
+            Some(_) => Some(ScalarField::new(self, offset)),
+            None => None,
+        }
     }
 }
 
@@ -313,6 +335,14 @@ impl ScalarField {
     pub const fn new(scalar: Scalar, offset: u32) -> Self {
         Self { scalar, offset }
     }
+
+    /// Return the number of invalid scalar values available through this field.
+    pub const fn invalid_count(self) -> u128 {
+        match self.scalar.validity.invalid(self.scalar.bit_width()) {
+            Some((_, count)) => count,
+            None => 0,
+        }
+    }
 }
 
 /// One fixed vector representation.
@@ -333,7 +363,7 @@ impl Vector {
 
 /// Return the low-bit mask for one scalar width.
 const fn scalar_mask(width: u16) -> u128 {
-    if width == u128::BITS as u16 {
+    if width >= u128::BITS as u16 {
         u128::MAX
     } else {
         (1u128 << width) - 1
@@ -429,14 +459,14 @@ impl<T, L> LayoutShape<T, L> {
 /// Concrete layout for a struct.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct StructLayout<T = LocalNodeId<Type>> {
-    /// The fields in layout order.
+    /// The fields in source order.
     pub fields: Vec<LayoutField<T>>,
 }
 
 /// Concrete layout for a tuple.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TupleLayout<T = LocalNodeId<Type>> {
-    /// The tuple elements in layout order.
+    /// The tuple elements in source order.
     pub elements: Vec<LayoutField<T>>,
 }
 

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use destack_core::SectionEntry;
 use destack_serde::Reflect;
 
-use crate::{Discriminant, VariantEncoding};
+use crate::{Discriminant, ReferenceKind, Space, Storage, VariantEncoding};
 
 /// Reference trace map for one value layout.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -53,6 +53,71 @@ impl TraceMap {
     /// Return the empty trace map.
     pub const fn empty() -> Self {
         Self::Empty
+    }
+
+    /// Create the canonical trace map for one reference-like value.
+    pub fn reference(kind: ReferenceKind, storage: Storage) -> Self {
+        // frame references must be rewritten when continuations move
+        if storage == Storage::Frame {
+            return Self::Fixed {
+                local_offsets: Box::new([]),
+                shared_offsets: Box::new([]),
+                frame_offsets: Box::new([0]),
+            };
+        }
+
+        // only managed heap references keep allocations live
+        match (kind, storage.heap_space()) {
+            (ReferenceKind::Managed, Some(Space::Local)) => Self::Fixed {
+                local_offsets: Box::new([0]),
+                shared_offsets: Box::new([]),
+                frame_offsets: Box::new([]),
+            },
+            (ReferenceKind::Managed, Some(Space::Shared)) => Self::Fixed {
+                local_offsets: Box::new([]),
+                shared_offsets: Box::new([0]),
+                frame_offsets: Box::new([]),
+            },
+            _ => Self::Empty,
+        }
+    }
+
+    /// Nest one trace map at a byte offset, omitting empty maps.
+    pub fn nested(byte_offset: u32, map: Self) -> Self {
+        if map.has_reference() {
+            Self::Nested {
+                byte_offset,
+                map: Box::new(map),
+            }
+        } else {
+            Self::Empty
+        }
+    }
+
+    /// Combine trace maps into their canonical composite form.
+    pub fn composite(mut maps: Vec<Self>) -> Self {
+        maps.retain(Self::has_reference);
+
+        match maps.len() {
+            0 => Self::Empty,
+            1 => maps.remove(0),
+            _ => Self::Composite {
+                maps: maps.into_boxed_slice(),
+            },
+        }
+    }
+
+    /// Repeat one element trace map across fixed inline storage.
+    pub fn repeated(count: u32, stride: u32, element: Self) -> Self {
+        if count == 0 || !element.has_reference() {
+            Self::Empty
+        } else {
+            Self::Repeated {
+                count,
+                stride,
+                element: Box::new(element),
+            }
+        }
     }
 
     /// Return whether this map can reach any reference.
