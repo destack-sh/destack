@@ -8,6 +8,12 @@ pub struct Activation {
     pub call: *mut Call,
     /// Runtime operations callable by generated code.
     pub runtime: *const Runtime,
+    /// Typed native body addresses keyed by Program function id.
+    pub functions: *const usize,
+    /// Virtual method rows keyed by Program virtual table id.
+    pub virtuals: *const *const u32,
+    /// Dynamic entry rows keyed by Program dynamic table id.
+    pub dynamics: *const *const u32,
     /// The first byte in world memory.
     pub memory_base: *mut u8,
     /// Program constant bytes.
@@ -44,6 +50,9 @@ impl Activation {
     pub const fn new(
         call: *mut Call,
         runtime: *const Runtime,
+        functions: *const usize,
+        virtuals: *const *const u32,
+        dynamics: *const *const u32,
         memory_base: *mut u8,
         constants: ConstantSpace,
         shared_statics: StaticSpace,
@@ -55,6 +64,9 @@ impl Activation {
         Self {
             call,
             runtime,
+            functions,
+            virtuals,
+            dynamics,
             memory_base,
             constants,
             shared_statics,

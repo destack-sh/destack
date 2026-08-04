@@ -63,9 +63,9 @@ struct ObjectHeader {
     definitions: SectionSlice<Optional<Definition>>,
     /// Coroutine resume entries.
     resumes: SectionSlice<Resume>,
-    /// Independently placed native code blocks.
+    /// Independently placed native image blocks.
     blocks: SectionSlice<Block>,
-    /// Native machine-code bytes.
+    /// Native image block bytes.
     code: SectionSlice<u8>,
     /// Object-local code relocations.
     relocations: SectionSlice<Relocation>,
@@ -88,7 +88,7 @@ pub struct ObjectBuilder {
     symbols: Vec<Symbol>,
     /// Optional definitions in object-local function order.
     definitions: Vec<Option<DefinitionBuilder>>,
-    /// Independently placed native code blocks.
+    /// Independently placed native image blocks.
     blocks: Vec<BlockBuilder>,
     /// Target-native unwind tables.
     unwind: Option<ObjectUnwindBuilder>,
@@ -125,7 +125,7 @@ impl ObjectHeader {
     /// Stable native object marker.
     const MAGIC: u32 = u32::from_le_bytes(*b"DSNO");
     /// Stable native object format version.
-    const VERSION: u16 = 3;
+    const VERSION: u16 = 5;
 
     /// Create one empty native object header.
     fn new(target_layout: TargetLayout) -> Self {
@@ -304,12 +304,12 @@ impl Object {
         self.sections().entries(self.header().resumes)
     }
 
-    /// Return independently placed native code blocks.
+    /// Return independently placed native image blocks.
     pub fn blocks(&self) -> &[Block] {
         self.sections().entries(self.header().blocks)
     }
 
-    /// Return native machine-code bytes.
+    /// Return native image block bytes.
     pub fn code(&self) -> &[u8] {
         self.sections().entries(self.header().code)
     }
@@ -399,7 +399,7 @@ impl ObjectBuilder {
         self
     }
 
-    /// Set independently placed native code blocks.
+    /// Set independently placed native image blocks.
     pub fn blocks(mut self, blocks: impl IntoIterator<Item = BlockBuilder>) -> Self {
         self.blocks = blocks.into_iter().collect();
 

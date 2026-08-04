@@ -5,8 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::abi;
 
 use super::{
-    Alignment, CodeMap, CodeMapBuilder, Entry, Function, PersonalityRelocation, Unwind,
-    UnwindBuilder,
+    Alignment, CodeMap, CodeMapBuilder, Entry, Function, ImportRelocation, Unwind, UnwindBuilder,
 };
 
 /// Immutable native code linked into one Program.
@@ -21,14 +20,14 @@ pub struct Code {
     pub target: StringId,
     /// Sorted target CPU features.
     features: SectionSlice<StringId>,
-    /// Linked native code and literal pools.
+    /// Linked native code and immutable data.
     bytes: SectionSlice<u8>,
     /// Native functions keyed by Program function id.
     functions: SectionSlice<Optional<Function>>,
     /// Native resume entries keyed by Program frame state id.
     resumes: SectionSlice<Optional<Entry>>,
-    /// Platform personality pointers patched when the executable image is loaded.
-    personalities: SectionSlice<PersonalityRelocation>,
+    /// Platform imports patched when the executable image is loaded.
+    imports: SectionSlice<ImportRelocation>,
     /// Fully linked target-native unwind tables.
     unwind: Optional<Unwind>,
     /// Native frame maps for collection, inspection, and deoptimization.
@@ -44,14 +43,14 @@ pub struct CodeBuilder {
     alignment: Alignment,
     /// Sorted target CPU features.
     features: Vec<StringId>,
-    /// Linked native code and literal pools.
+    /// Linked native code and immutable data.
     bytes: Vec<u8>,
     /// Native functions keyed by Program function id.
     functions: Vec<Option<Function>>,
     /// Native resume entries keyed by Program frame state id.
     resumes: Vec<Option<Entry>>,
-    /// Platform personality pointers patched when the executable image is loaded.
-    personalities: Vec<PersonalityRelocation>,
+    /// Platform imports patched when the executable image is loaded.
+    imports: Vec<ImportRelocation>,
     /// Fully linked target-native unwind tables.
     unwind: Option<UnwindBuilder>,
     /// Native code map.
@@ -64,7 +63,7 @@ impl Code {
         let bytes = self.bytes(sections);
         let functions = self.functions(sections);
         let resumes = self.resumes(sections);
-        let personalities = self.personalities(sections);
+        let imports = self.imports(sections);
         let alignment = self.alignment.bytes() as usize;
 
         // require the linked image to satisfy its executable base alignment
@@ -85,10 +84,8 @@ impl Code {
             .unwind
             .get()
             .is_none_or(|unwind| unwind.ranges_fit(sections, bytes.len()));
-        let personalities_fit = personalities
-            .iter()
-            .all(|personality| personality.is_within(bytes.len()));
-        if !functions_fit || !resumes_fit || !personalities_fit || !unwind_fits {
+        let imports_fit = imports.iter().all(|import| import.is_within(bytes.len()));
+        if !functions_fit || !resumes_fit || !imports_fit || !unwind_fits {
             return false;
         }
 
@@ -114,7 +111,7 @@ impl Code {
         sections.entries(self.features)
     }
 
-    /// Return linked native code and literal pools.
+    /// Return linked native code and immutable data.
     pub fn bytes<'a>(&self, sections: SectionImage<'a>) -> &'a [u8] {
         sections.entries(self.bytes)
     }
@@ -145,9 +142,9 @@ impl Code {
         sections.entries(self.resumes)
     }
 
-    /// Return platform personality pointer relocations.
-    pub fn personalities<'a>(&self, sections: SectionImage<'a>) -> &'a [PersonalityRelocation] {
-        sections.entries(self.personalities)
+    /// Return platform import relocations.
+    pub fn imports<'a>(&self, sections: SectionImage<'a>) -> &'a [ImportRelocation] {
+        sections.entries(self.imports)
     }
 
     /// Return fully linked target-native unwind tables when present.
@@ -171,7 +168,7 @@ impl CodeBuilder {
             bytes: Vec::new(),
             functions: Vec::new(),
             resumes: Vec::new(),
-            personalities: Vec::new(),
+            imports: Vec::new(),
             unwind: None,
             map: CodeMapBuilder::new(),
         }
@@ -186,7 +183,7 @@ impl CodeBuilder {
         self
     }
 
-    /// Set linked native code and literal pools.
+    /// Set linked native code and immutable data.
     pub fn bytes(mut self, bytes: impl Into<Vec<u8>>, alignment: Alignment) -> Self {
         self.bytes = bytes.into();
         self.alignment = alignment;
@@ -208,12 +205,9 @@ impl CodeBuilder {
         self
     }
 
-    /// Set platform personality pointer relocations.
-    pub fn personalities(
-        mut self,
-        personalities: impl IntoIterator<Item = PersonalityRelocation>,
-    ) -> Self {
-        self.personalities = personalities.into_iter().collect();
+    /// Set platform import relocations.
+    pub fn imports(mut self, imports: impl IntoIterator<Item = ImportRelocation>) -> Self {
+        self.imports = imports.into_iter().collect();
 
         self
     }
@@ -262,7 +256,7 @@ impl CodeBuilder {
             bytes: sections.insert_bytes(bytes, alignment.bytes() as usize),
             functions: sections.insert(functions),
             resumes: sections.insert(resumes),
-            personalities: sections.insert(self.personalities),
+            imports: sections.insert(self.imports),
             unwind: Optional::from(unwind),
             map: self.map.build(sections),
         }

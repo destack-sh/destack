@@ -29,6 +29,8 @@ impl Default for Alignment {
 impl Alignment {
     /// One-byte alignment.
     pub const ONE: Self = Self(1);
+    /// Two-byte alignment.
+    pub const TWO: Self = Self(2);
 
     /// Create one power-of-two native code alignment.
     pub const fn new(bytes: u32) -> Option<Self> {

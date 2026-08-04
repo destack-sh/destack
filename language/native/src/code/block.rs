@@ -22,7 +22,7 @@ use super::{Alignment, Relocation};
 )]
 pub struct BlockId(pub u32);
 
-/// One independently placed native code block.
+/// One independently placed native image block.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct Block {
@@ -58,7 +58,7 @@ impl Block {
         self.bytes.len
     }
 
-    /// Return native machine-code bytes.
+    /// Return this block's bytes.
     pub fn bytes(self, bytes: &[u8]) -> &[u8] {
         self.bytes.slice(bytes)
     }
@@ -92,7 +92,7 @@ impl Block {
 }
 
 impl BlockBuilder {
-    /// Create one native code block.
+    /// Create one native image block.
     pub fn new(bytes: impl Into<Vec<u8>>, alignment: Alignment) -> Self {
         Self {
             bytes: bytes.into(),

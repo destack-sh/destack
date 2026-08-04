@@ -46,19 +46,25 @@ impl RelocationKind {
     pub const fn byte_len(self) -> u32 {
         match self {
             Self::Absolute64 | Self::RiscvCall => 8,
-            Self::Relative32 | Self::Aarch64Call26 | Self::Aarch64Page21 | Self::Aarch64Low12 => 4,
+            Self::Index32
+            | Self::Relative32
+            | Self::Aarch64Call26
+            | Self::Aarch64Page21
+            | Self::Aarch64Low12 => 4,
         }
     }
 }
 
-/// Machine relocation encoding inside a relocatable native object.
+/// Relocation encoding inside a native object.
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum RelocationKind {
+    /// Write one little-endian linked 32-bit Program identity.
+    Index32 = 0x00,
     /// Write one 64-bit absolute address.
-    Absolute64 = 0x00,
+    Absolute64 = 0x01,
     /// Write one 32-bit PC-relative address.
-    Relative32 = 0x01,
+    Relative32 = 0x02,
 
     /// Write one AArch64 26-bit branch target.
     Aarch64Call26 = 0x20,

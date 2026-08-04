@@ -2,7 +2,7 @@ use destack_core::{EntryRange, SectionBuilder, SectionEntry, SectionImage, Secti
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::{Alignment, RelocationKind, SymbolId};
+use super::{Alignment, Import, RelocationKind, SymbolId};
 
 /// Target-native unwind tables inside one relocatable object.
 #[repr(C)]
@@ -26,14 +26,6 @@ pub struct Unwind {
     pub format: UnwindFormat,
     /// Target unwind sections inside the native load image.
     sections: SectionSlice<UnwindSection>,
-}
-
-/// One platform personality pointer inside linked native code.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct PersonalityRelocation {
-    /// Byte offset of the target pointer inside the linked image.
-    pub offset: u32,
 }
 
 /// One target unwind section.
@@ -77,8 +69,8 @@ pub enum UnwindTarget {
         /// Byte offset inside the section.
         offset: u32,
     },
-    /// Platform unwind personality function.
-    Personality,
+    /// Platform function imported by the unwind encoding.
+    Import(Import),
 }
 
 /// Platform unwind encoding.
@@ -183,20 +175,6 @@ impl Unwind {
     }
 }
 
-impl PersonalityRelocation {
-    /// Create one platform personality relocation.
-    pub const fn new(offset: u32) -> Self {
-        Self { offset }
-    }
-
-    /// Return whether the target pointer lies inside its native image.
-    pub fn is_within(self, byte_len: usize) -> bool {
-        self.offset
-            .checked_add(size_of::<usize>() as u32)
-            .is_some_and(|end| end as usize <= byte_len)
-    }
-}
-
 impl UnwindSection {
     /// Return this section's byte offset inside its native image.
     pub const fn byte_offset(self) -> u32 {
@@ -243,7 +221,7 @@ impl UnwindRelocation {
             UnwindTarget::Section { section, offset } => sections
                 .get(section as usize)
                 .is_some_and(|section| offset <= section.byte_len()),
-            UnwindTarget::Personality => true,
+            UnwindTarget::Import(_) => true,
         }
     }
 }

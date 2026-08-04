@@ -54,8 +54,21 @@ macro_rules! runtime_operations {
             /// Finish one task.
             TaskFinish = 0x0029 => task_finish: FinishTask -> Void,
 
+            /// Increment one explicit profile counter.
+            ProfileIncrement = 0x0030 => profile_increment: IncrementProfile -> Void,
+            /// Record one explicit profile sample.
+            ProfileSample = 0x0031 => profile_sample: SampleProfile -> Void,
+
             /// Call one runtime binding.
             BindingCall = 0x0040 => binding_call: BindingCall -> Void,
+
+            /// Read one volatile byte range.
+            VolatileRead = 0x0050 => volatile_read: VolatileRead -> Void,
+            /// Write one volatile byte range.
+            VolatileWrite = 0x0051 => volatile_write: VolatileWrite -> Void,
+
+            /// Execute one tensor command.
+            TensorExecute = 0x0060 => tensor_execute: ExecuteTensor -> Void,
         }
     };
 }
@@ -126,6 +139,30 @@ pub type WriteBarrier = unsafe extern "C-unwind" fn(
     byte_len: usize,
 );
 
+/// Read one volatile byte range into ordinary native storage.
+pub type VolatileRead = unsafe extern "C-unwind" fn(
+    activation: *mut Activation,
+    source: *const u8,
+    destination: *mut u8,
+    byte_len: usize,
+);
+
+/// Write one ordinary native byte range into volatile storage.
+pub type VolatileWrite = unsafe extern "C-unwind" fn(
+    activation: *mut Activation,
+    destination: *mut u8,
+    source: *const u8,
+    byte_len: usize,
+);
+
+/// Execute one linked tensor instruction over one canonical word frame.
+pub type ExecuteTensor = unsafe extern "C-unwind" fn(
+    activation: *mut Activation,
+    instruction: *const u8,
+    registers: *mut u64,
+    register_count: usize,
+);
+
 /// Poll runtime work at one reconstructable native frame.
 pub type Poll = unsafe extern "C-unwind" fn(
     activation: *mut Activation,
@@ -137,6 +174,7 @@ pub type Poll = unsafe extern "C-unwind" fn(
 pub type Stop = unsafe extern "C-unwind" fn(
     activation: *mut Activation,
     frame_map: u32,
+    operation: u32,
     marker: *const u8,
 ) -> !;
 
@@ -220,6 +258,13 @@ pub type FinishTask = unsafe extern "C-unwind" fn(
     result_type: u32,
     result: *const u64,
 );
+
+/// Increment one explicit profile counter.
+pub type IncrementProfile = unsafe extern "C-unwind" fn(activation: *mut Activation, counter: u32);
+
+/// Record one explicit profile sample.
+pub type SampleProfile =
+    unsafe extern "C-unwind" fn(activation: *mut Activation, sampler: u32, value: u64);
 
 /// Call one runtime binding selected by its Program function.
 pub type BindingCall = unsafe extern "C-unwind" fn(

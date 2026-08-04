@@ -2,7 +2,7 @@ use destack_core::SectionEntry;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::{Block, BlockId};
+use super::{Block, BlockId, Import};
 
 /// Dense identity of one native object symbol.
 #[repr(transparent)]
@@ -40,6 +40,8 @@ pub enum Symbol {
         /// Object-local function index.
         function: u32,
     },
+    /// One platform function imported when native code is loaded.
+    Import(Import),
     /// One object-local identity resolved during Program linking.
     Index(Index),
 }
@@ -116,7 +118,7 @@ impl Symbol {
                 .get(block.index())
                 .is_some_and(|block| offset <= block.byte_len()),
             Self::Function { function } => (function as usize) < functions,
-            Self::Index(_) => true,
+            Self::Import(_) | Self::Index(_) => true,
         }
     }
 }
