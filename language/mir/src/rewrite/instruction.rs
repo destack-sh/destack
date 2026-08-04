@@ -426,7 +426,7 @@ pub fn instruction_allows_read_only_motion(
     let Some(tables) = effects.call(callsite) else {
         return false;
     };
-    if tables.behavior.must_not_duplicate
+    if tables.behavior.must_preserve_execution
         || tables.behavior.return_behavior.is_no_return()
         || tables.behavior.allocates
         || tables.behavior.frees

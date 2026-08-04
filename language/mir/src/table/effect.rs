@@ -237,8 +237,8 @@ pub struct FunctionBehavior {
     pub panic: PanicBehavior,
     /// Return behavior for this operation.
     pub return_behavior: ReturnBehavior,
-    /// Whether optimization must not duplicate this operation.
-    pub must_not_duplicate: bool,
+    /// Whether optimization must preserve each execution of this operation.
+    pub must_preserve_execution: bool,
     /// Whether this operation may allocate storage.
     pub allocates: bool,
     /// Whether this operation may free storage.
@@ -252,7 +252,7 @@ impl FunctionBehavior {
             determinism: Determinism::Deterministic,
             panic: PanicBehavior::CannotPanic,
             return_behavior: ReturnBehavior::MayReturn,
-            must_not_duplicate: false,
+            must_preserve_execution: false,
             allocates: false,
             frees: false,
         }
@@ -264,7 +264,7 @@ impl FunctionBehavior {
             determinism: Determinism::NonDeterministic,
             panic: PanicBehavior::MayPanic,
             return_behavior: ReturnBehavior::MayReturn,
-            must_not_duplicate: false,
+            must_preserve_execution: false,
             allocates: true,
             frees: true,
         }
@@ -276,7 +276,7 @@ impl FunctionBehavior {
             determinism: Determinism::Deterministic,
             panic: PanicBehavior::CannotPanic,
             return_behavior: ReturnBehavior::WillReturn,
-            must_not_duplicate: false,
+            must_preserve_execution: false,
             allocates: false,
             frees: false,
         }
@@ -300,9 +300,9 @@ impl FunctionBehavior {
         self
     }
 
-    /// Return this behavior with duplication disabled.
-    pub const fn with_no_duplicate(mut self) -> Self {
-        self.must_not_duplicate = true;
+    /// Return this behavior with execution preservation enabled.
+    pub const fn with_preserved_execution(mut self) -> Self {
+        self.must_preserve_execution = true;
         self
     }
 

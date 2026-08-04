@@ -719,7 +719,7 @@ fn call_is_pure(
 
     // reject calls with non local behavior
     if behavior.return_behavior.is_no_return()
-        || behavior.must_not_duplicate
+        || behavior.must_preserve_execution
         || behavior.allocates
         || behavior.frees
     {

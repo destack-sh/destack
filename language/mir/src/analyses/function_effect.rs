@@ -236,9 +236,11 @@ impl<'a> FunctionEffectBuilder<'a> {
             mir::Instruction::Pin { .. } | mir::Instruction::Unpin { .. } => {
                 mir::FunctionEffect::unknown()
             }
-            mir::Instruction::Intrinsic { intrinsic, .. } => {
-                mir::FunctionEffect::memory(self.intrinsic_memory(*intrinsic))
-            }
+            mir::Instruction::Intrinsic { intrinsic, .. } => self.intrinsic_effect(*intrinsic),
+            mir::Instruction::Breakpoint => mir::FunctionEffect {
+                memory: mir::MemoryEffect::none(),
+                behavior: mir::FunctionBehavior::none().with_preserved_execution(),
+            },
             _ => mir::FunctionEffect::none(),
         }
     }
@@ -344,6 +346,21 @@ impl<'a> FunctionEffectBuilder<'a> {
             _ => mir::MemoryEffect::none(),
         }
     }
+
+    /// Build the memory and behavioral effects for one intrinsic.
+    fn intrinsic_effect(&self, intrinsic: mir::Intrinsic) -> mir::FunctionEffect {
+        let memory = self.intrinsic_memory(intrinsic);
+        let behavior = if matches!(
+            intrinsic,
+            mir::Intrinsic::SpinLoop | mir::Intrinsic::BlackBox
+        ) {
+            mir::FunctionBehavior::none().with_preserved_execution()
+        } else {
+            mir::FunctionBehavior::none()
+        };
+
+        mir::FunctionEffect { memory, behavior }
+    }
 }
 
 /// Accumulated memory effects.
@@ -426,8 +443,8 @@ struct BehaviorAccumulator {
     determinism: mir::Determinism,
     /// Whether execution may panic.
     may_panic: bool,
-    /// Whether any callee must not be duplicated.
-    must_not_duplicate: bool,
+    /// Whether each execution of any operation must be preserved.
+    must_preserve_execution: bool,
     /// Whether any callee allocates.
     allocates: bool,
     /// Whether any callee frees memory.
@@ -440,7 +457,7 @@ impl BehaviorAccumulator {
         Self {
             determinism: mir::Determinism::Deterministic,
             may_panic: false,
-            must_not_duplicate: false,
+            must_preserve_execution: false,
             allocates: false,
             frees: false,
         }
@@ -453,7 +470,7 @@ impl BehaviorAccumulator {
         }
 
         self.may_panic |= behavior.panic.may_panic();
-        self.must_not_duplicate |= behavior.must_not_duplicate;
+        self.must_preserve_execution |= behavior.must_preserve_execution;
         self.allocates |= behavior.allocates;
         self.frees |= behavior.frees;
     }
@@ -472,7 +489,7 @@ impl BehaviorAccumulator {
             } else {
                 mir::PanicBehavior::CannotPanic
             },
-            must_not_duplicate: self.must_not_duplicate,
+            must_preserve_execution: self.must_preserve_execution,
             allocates: self.allocates,
             frees: self.frees,
         }
@@ -528,6 +545,69 @@ entry:
 
         assert!(effect.behavior.allocates);
         assert!(effect.behavior.frees);
+    }
+
+    /// Spin-loop hints require their containing function call to execute.
+    #[test]
+    fn test_function_effects_preserve_spin_loop_execution() {
+        let program = TestProgram::new(
+            r#"
+function backoff(): void {
+entry:
+    intrinsic.sync.spinLoop()
+    return
+}
+"#,
+        );
+
+        let analyses = program.tree_analysis_cache();
+        let effects = analyses.get::<FunctionEffectAnalysis>(&program.tree);
+        let function = program.function_id_by_name("backoff");
+        let effect = effects.function(function).expect("missing function effect");
+
+        assert!(effect.behavior.must_preserve_execution);
+    }
+
+    /// Black-box hints require their containing function call to execute.
+    #[test]
+    fn test_function_effects_preserve_black_box_execution() {
+        let program = TestProgram::new(
+            r#"
+function conceal(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = intrinsic.error.debug.blackBox(v0)
+    return v1
+}
+"#,
+        );
+
+        let analyses = program.tree_analysis_cache();
+        let effects = analyses.get::<FunctionEffectAnalysis>(&program.tree);
+        let function = program.function_id_by_name("conceal");
+        let effect = effects.function(function).expect("missing function effect");
+
+        assert!(effect.behavior.must_preserve_execution);
+    }
+
+    /// Breakpoints require their containing function call to execute.
+    #[test]
+    fn test_function_effects_preserve_breakpoint_execution() {
+        let program = TestProgram::new(
+            r#"
+function inspect(): void {
+entry:
+    breakpoint
+    return
+}
+"#,
+        );
+
+        let analyses = program.tree_analysis_cache();
+        let effects = analyses.get::<FunctionEffectAnalysis>(&program.tree);
+        let function = program.function_id_by_name("inspect");
+        let effect = effects.function(function).expect("missing function effect");
+
+        assert!(effect.behavior.must_preserve_execution);
     }
 
     /// Direct calls propagate callee effects to callers.
