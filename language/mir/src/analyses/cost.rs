@@ -368,9 +368,11 @@ impl CostModel {
             | mir::Instruction::FunctionAddr { .. }
             | mir::Instruction::FunctionBind { .. }
             | mir::Instruction::FieldAddr { .. }
-            | mir::Instruction::ElementAddr { .. } => cost.address += 1,
+            | mir::Instruction::ElementAddr { .. }
+            | mir::Instruction::VariantPayloadAddr { .. } => cost.address += 1,
             mir::Instruction::LocalGet { .. }
             | mir::Instruction::Load { .. }
+            | mir::Instruction::VariantTagLoad { .. }
             | mir::Instruction::ContextCurrent { .. }
             | mir::Instruction::TensorLoad { .. } => cost.load += 1,
             mir::Instruction::LocalSet { .. }

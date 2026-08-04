@@ -579,6 +579,25 @@ impl FormatNode for Instruction {
                 )
             }
 
+            Instruction::VariantTagLoad {
+                destination,
+                variant,
+                ..
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("variant.tag.load"),
+                        space(),
+                        variant
+                    ]
+                )
+            }
+
             Instruction::VariantPayload {
                 destination,
                 variant,
@@ -592,6 +611,29 @@ impl FormatNode for Instruction {
                         token("="),
                         space(),
                         token("variant.payload"),
+                        space(),
+                        variant,
+                        token(","),
+                        space(),
+                        copied_text(&case.to_string())
+                    ]
+                )
+            }
+
+            Instruction::VariantPayloadAddr {
+                destination,
+                variant,
+                case,
+                ..
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("variant.payload.address"),
                         space(),
                         variant,
                         token(","),

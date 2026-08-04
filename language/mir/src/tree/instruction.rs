@@ -365,6 +365,13 @@ pub enum Instruction {
         /// The variant value whose discriminant is read.
         variant: Value,
     },
+    /// Read the discriminant of a stored variant.
+    VariantTagLoad {
+        /// The SSA value to define with the discriminant.
+        destination: Value,
+        /// The variant address to read from.
+        variant: Value,
+    },
     /// Extract the payload of one statically selected variant case.
     VariantPayload {
         /// The SSA value to define with the extracted payload.
@@ -373,6 +380,17 @@ pub enum Instruction {
         variant: Value,
         /// The zero-based case index.
         case: u32,
+    },
+    /// Get the address of one statically selected variant payload.
+    VariantPayloadAddr {
+        /// The SSA value to define with the payload address.
+        destination: Value,
+        /// The variant address to project from.
+        variant: Value,
+        /// The zero-based case index.
+        case: u32,
+        /// The result type of the address.
+        result_type: TypeId,
     },
 
     // slice descriptors
@@ -1029,7 +1047,9 @@ impl Instruction {
             Instruction::ElementAddr { destination, .. } => Some(*destination),
             Instruction::VariantNew { destination, .. } => Some(*destination),
             Instruction::VariantTag { destination, .. } => Some(*destination),
+            Instruction::VariantTagLoad { destination, .. } => Some(*destination),
             Instruction::VariantPayload { destination, .. } => Some(*destination),
+            Instruction::VariantPayloadAddr { destination, .. } => Some(*destination),
             Instruction::SliceView { destination, .. } => Some(*destination),
             Instruction::SliceLength { destination, .. } => Some(*destination),
             Instruction::DynamicBind { destination, .. } => Some(*destination),
@@ -1158,7 +1178,9 @@ impl Instruction {
                 payload.iter().copied().collect::<SmallVec<[Value; 4]>>()
             }
             Instruction::VariantTag { variant, .. } => smallvec![*variant],
+            Instruction::VariantTagLoad { variant, .. } => smallvec![*variant],
             Instruction::VariantPayload { variant, .. } => smallvec![*variant],
+            Instruction::VariantPayloadAddr { variant, .. } => smallvec![*variant],
             Instruction::SliceView {
                 source,
                 start,

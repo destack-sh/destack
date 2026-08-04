@@ -94,6 +94,20 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Read the discriminant of a stored variant.
+    pub fn variant_tag_load(&mut self, variant: Value, variant_type: LocalNodeId<Type>) -> Value {
+        let destination = self.allocate_value();
+        let tag_type = self.variant_discriminant_type(variant_type);
+        let tag_type = self.expect_build(tag_type);
+        self.insert_instruction(Instruction::VariantTagLoad {
+            destination,
+            variant,
+        });
+        self.define_value(destination, tag_type);
+
+        destination
+    }
+
     /// Extract the payload of one statically selected variant case.
     pub fn variant_payload(&mut self, variant: Value, case: u32) -> Value {
         let destination = self.allocate_value();
@@ -106,6 +120,25 @@ impl<'a> FunctionBuilder<'a> {
             case,
         });
         self.define_value(destination, payload_type);
+
+        destination
+    }
+
+    /// Get the address of one statically selected variant payload.
+    pub fn variant_payload_addr(
+        &mut self,
+        variant: Value,
+        case: u32,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::VariantPayloadAddr {
+            destination,
+            variant,
+            case,
+            result_type,
+        });
+        self.define_value(destination, result_type);
 
         destination
     }

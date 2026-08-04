@@ -210,7 +210,9 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
         | Instruction::ElementGet { .. }
         | Instruction::ElementSet { .. }
         | Instruction::VariantTag { .. }
+        | Instruction::VariantTagLoad { .. }
         | Instruction::VariantPayload { .. }
+        | Instruction::VariantPayloadAddr { .. }
         | Instruction::SliceLength { .. }
         | Instruction::DynamicType { .. }
         | Instruction::VectorSplat { .. }

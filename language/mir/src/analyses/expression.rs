@@ -178,6 +178,7 @@ impl PureExpression {
             | mir::Instruction::Drop { .. }
             | mir::Instruction::Intrinsic { .. }
             | mir::Instruction::Load { .. }
+            | mir::Instruction::VariantTagLoad { .. }
             | mir::Instruction::Store { .. }
             | mir::Instruction::LocalGet { .. }
             | mir::Instruction::LocalSet { .. }
@@ -240,6 +241,7 @@ impl PureExpression {
             | mir::Instruction::LocalAddr { .. }
             | mir::Instruction::FieldAddr { .. }
             | mir::Instruction::ElementAddr { .. }
+            | mir::Instruction::VariantPayloadAddr { .. }
             | mir::Instruction::Assume { .. }
             | mir::Instruction::SliceLength { .. }
             | mir::Instruction::DynamicBind { .. }

@@ -122,3 +122,20 @@ entry(v0: ref<FileWriter, managed, readonly>):
 "#,
     );
 }
+
+/// Formats stored variant projection canonically.
+#[test]
+fn test_format_stored_variant_access() {
+    assert_format(
+        r#"
+type Maybe = variant<uint8> { 0uint8 = int32; 1uint8 = void; };
+
+function inspect(v0: ptr<Maybe, readonly>): uint8 {
+entry(v0: ptr<Maybe, readonly>):
+    v1: uint8 = variant.tag.load v0
+    v2: ptr<int32, readonly> = variant.payload.address v0, 0
+    return v1
+}
+"#,
+    );
+}

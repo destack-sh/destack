@@ -622,6 +622,13 @@ impl<'a> MemoryRegionBuilder<'a> {
                 region
             }
 
+            // preserve variant storage provenance without claiming disjoint payloads
+            mir::Instruction::VariantPayloadAddr {
+                destination,
+                variant,
+                ..
+            } if *destination == address => self.region(*variant),
+
             // casts preserve provenance
             mir::Instruction::Cast {
                 destination,

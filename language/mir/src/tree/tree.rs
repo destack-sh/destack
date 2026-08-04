@@ -510,8 +510,10 @@ impl Tree {
             }
             // descend into each possible storage shape
             Type::Variant { cases, .. } => {
-                for case in cases {
-                    let path = path.clone().with_projection(Projection::Field { index: 1 });
+                for (index, case) in cases.iter().enumerate() {
+                    let path = path
+                        .clone()
+                        .with_projection(Projection::Variant { case: index as u32 });
 
                     self.collect_type_borrowed_paths(
                         case.ty,

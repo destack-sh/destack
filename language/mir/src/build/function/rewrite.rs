@@ -348,7 +348,9 @@ impl<'a> FunctionBuilder<'a> {
                     }
                 }
                 Instruction::VariantTag { variant, .. }
-                | Instruction::VariantPayload { variant, .. } => {
+                | Instruction::VariantTagLoad { variant, .. }
+                | Instruction::VariantPayload { variant, .. }
+                | Instruction::VariantPayloadAddr { variant, .. } => {
                     Self::replace_value_in_slot(variant, from, to);
                 }
                 Instruction::ElementAddr { base, index, .. } => {

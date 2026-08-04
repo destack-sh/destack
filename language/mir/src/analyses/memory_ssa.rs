@@ -1047,6 +1047,7 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::VariantNew { .. }
             | mir::Instruction::VariantTag { .. }
             | mir::Instruction::VariantPayload { .. }
+            | mir::Instruction::VariantPayloadAddr { .. }
             | mir::Instruction::SliceView { .. }
             | mir::Instruction::SliceLength { .. }
             | mir::Instruction::DynamicBind { .. }
@@ -1168,7 +1169,10 @@ impl<'a> MemoryAccessCollector<'a> {
 
                 effects
             }
-            mir::Instruction::Load { pointer, .. } => {
+            mir::Instruction::Load { pointer, .. }
+            | mir::Instruction::VariantTagLoad {
+                variant: pointer, ..
+            } => {
                 let pointer = *pointer;
 
                 let value_type = self.address_value_type(pointer);

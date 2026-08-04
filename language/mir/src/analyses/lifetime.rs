@@ -289,6 +289,43 @@ entry(v0: Pair<'L0, 'L1>):
         assert!(paths[1].lifetime.includes_slot(1));
     }
 
+    /// Variant alternatives keep distinct borrowed paths.
+    #[test]
+    fn test_resolve_variant_borrowed_paths() {
+        let program = TestProgram::new(
+            r#"
+type Choice<'A, 'B> = variant<uint8> {
+    0uint8 = ref<int32, borrowed, 'A, readonly>;
+    1uint8 = ref<int32, borrowed, 'B, readonly>;
+};
+
+function test<'L0, 'L1>(v0: Choice<'L0, 'L1>): void {
+entry(v0: Choice<'L0, 'L1>):
+    return
+}
+"#,
+        );
+
+        let function_id = program.entry_function_id();
+        let function = program.tree.get(function_id);
+        let choice_type = function.parameters[0].ty;
+        let paths = program.tree.type_borrowed_paths(choice_type);
+
+        assert_eq!(paths.len(), 2, "{paths:#?}");
+        assert_eq!(
+            paths[0].path,
+            mir::Path::root().with_projection(mir::Projection::Variant { case: 0 })
+        );
+        assert!(paths[0].lifetime.includes_slot(0));
+        assert!(!paths[0].lifetime.includes_slot(1));
+        assert_eq!(
+            paths[1].path,
+            mir::Path::root().with_projection(mir::Projection::Variant { case: 1 })
+        );
+        assert!(!paths[1].lifetime.includes_slot(0));
+        assert!(paths[1].lifetime.includes_slot(1));
+    }
+
     /// Resolved lifetime predicates behave correctly.
     #[test]
     fn test_check_resolved_lifetime_predicates() {

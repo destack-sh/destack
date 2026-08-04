@@ -82,6 +82,7 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         // borrow producing address computations are not speculatable
         mir::Instruction::FieldAddr { .. }
         | mir::Instruction::ElementAddr { .. }
+        | mir::Instruction::VariantPayloadAddr { .. }
         | mir::Instruction::LocalAddr { .. } => false,
 
         // tensor loads read memory
@@ -95,6 +96,7 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         // reads mutable state, not speculatable
         mir::Instruction::LocalGet { .. }
         | mir::Instruction::Load { .. }
+        | mir::Instruction::VariantTagLoad { .. }
         | mir::Instruction::AtomicLoad { .. }
         | mir::Instruction::AtomicCompareExchange { .. }
         | mir::Instruction::AtomicRmw { .. } => false,
@@ -150,6 +152,7 @@ pub fn instruction_is_speculatable(instruction: &mir::Instruction, tree: &mir::T
         // borrow producing address computations are not speculatable
         mir::Instruction::FieldAddr { result_type, .. }
         | mir::Instruction::ElementAddr { result_type, .. }
+        | mir::Instruction::VariantPayloadAddr { result_type, .. }
         | mir::Instruction::LocalAddr { result_type, .. } => {
             let result_type = *result_type;
 
@@ -188,6 +191,7 @@ pub fn instruction_is_borrow_address(instruction: &mir::Instruction) -> bool {
         instruction,
         mir::Instruction::FieldAddr { .. }
             | mir::Instruction::ElementAddr { .. }
+            | mir::Instruction::VariantPayloadAddr { .. }
             | mir::Instruction::LocalAddr { .. }
     )
 }
@@ -216,9 +220,11 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::ElementSet { .. }
         | mir::Instruction::VariantNew { .. }
         | mir::Instruction::VariantTag { .. }
+        | mir::Instruction::VariantTagLoad { .. }
         | mir::Instruction::VariantPayload { .. }
         | mir::Instruction::FieldAddr { .. }
         | mir::Instruction::ElementAddr { .. }
+        | mir::Instruction::VariantPayloadAddr { .. }
         | mir::Instruction::SliceView { .. }
         | mir::Instruction::SliceLength { .. }
         | mir::Instruction::DynamicBind { .. }
@@ -331,6 +337,7 @@ pub fn instruction_is_memory_read(instruction: &mir::Instruction) -> bool {
     matches!(
         instruction,
         mir::Instruction::Load { .. }
+            | mir::Instruction::VariantTagLoad { .. }
             | mir::Instruction::LocalGet { .. }
             | mir::Instruction::ContextCurrent { .. }
             | mir::Instruction::TensorLoad { .. }
@@ -745,6 +752,13 @@ pub fn instruction_substitute_uses(
             destination: *destination,
             variant: substitute(variant),
         },
+        mir::Instruction::VariantTagLoad {
+            destination,
+            variant,
+        } => mir::Instruction::VariantTagLoad {
+            destination: *destination,
+            variant: substitute(variant),
+        },
         mir::Instruction::VariantPayload {
             destination,
             variant,
@@ -753,6 +767,17 @@ pub fn instruction_substitute_uses(
             destination: *destination,
             variant: substitute(variant),
             case: *case,
+        },
+        mir::Instruction::VariantPayloadAddr {
+            destination,
+            variant,
+            case,
+            result_type,
+        } => mir::Instruction::VariantPayloadAddr {
+            destination: *destination,
+            variant: substitute(variant),
+            case: *case,
+            result_type: *result_type,
         },
         mir::Instruction::FieldAddr {
             destination,
@@ -2181,6 +2206,13 @@ pub fn instruction_map(
             destination: remap(*destination),
             variant: remap(*variant),
         },
+        mir::Instruction::VariantTagLoad {
+            destination,
+            variant,
+        } => mir::Instruction::VariantTagLoad {
+            destination: remap(*destination),
+            variant: remap(*variant),
+        },
         mir::Instruction::VariantPayload {
             destination,
             variant,
@@ -2189,6 +2221,17 @@ pub fn instruction_map(
             destination: remap(*destination),
             variant: remap(*variant),
             case: *case,
+        },
+        mir::Instruction::VariantPayloadAddr {
+            destination,
+            variant,
+            case,
+            result_type,
+        } => mir::Instruction::VariantPayloadAddr {
+            destination: remap(*destination),
+            variant: remap(*variant),
+            case: *case,
+            result_type: *result_type,
         },
         mir::Instruction::FieldAddr {
             destination,
@@ -3489,6 +3532,13 @@ pub fn instruction_map_with_locals(
             destination: remap(*destination),
             variant: remap(*variant),
         },
+        mir::Instruction::VariantTagLoad {
+            destination,
+            variant,
+        } => mir::Instruction::VariantTagLoad {
+            destination: remap(*destination),
+            variant: remap(*variant),
+        },
         mir::Instruction::VariantPayload {
             destination,
             variant,
@@ -3497,6 +3547,17 @@ pub fn instruction_map_with_locals(
             destination: remap(*destination),
             variant: remap(*variant),
             case: *case,
+        },
+        mir::Instruction::VariantPayloadAddr {
+            destination,
+            variant,
+            case,
+            result_type,
+        } => mir::Instruction::VariantPayloadAddr {
+            destination: remap(*destination),
+            variant: remap(*variant),
+            case: *case,
+            result_type: *result_type,
         },
         mir::Instruction::FieldAddr {
             destination,
