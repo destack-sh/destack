@@ -204,6 +204,29 @@ function read(point: Point): int32 {
 @completion.item label=x kind=field replace=main.ds#member detail=int32 preselect=true matches=0
 ```
 
+### Complete immediately after a dot
+
+Member completion does not require a partial member name.
+
+```ds main.ds
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+function read(point: Point): void {
+    point.;
+          ^ cursor
+}
+```
+
+```query completion main.ds#cursor trigger=.
+@completion.item label=x kind=field replace=main.ds#cursor detail=int32
+@completion.item label=y kind=field replace=main.ds#cursor detail=int32
+@completion.item label=borrow kind=method replace=main.ds#cursor detail="() => WithAccess<&'a Point, A>" documentation="Borrow this value as itself." insert="borrow()"
+@completion.item label=clone kind=method replace=main.ds#cursor detail="() => ^Point" documentation="Clone this copyable value." insert="clone()"
+```
+
 ### Complete a structural field
 
 Structural field completion shows the field type.
@@ -217,6 +240,28 @@ const label = point.la;
 
 ```query completion main.ds#prefix@end trigger=.
 @completion.item label=label kind=field replace=main.ds#prefix detail=string preselect=true matches=0,1
+```
+
+### Complete an accessor property
+
+Getter and setter declarations form one property completion.
+
+```ds main.ds
+class Counter {
+    get current(): int32 {
+        return 0;
+    }
+
+    set current(next: int32) {}
+}
+
+declare const counter: Counter;
+const current = counter.cur;
+                        ^^^ prefix
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=current kind=property replace=main.ds#prefix detail=int32 preselect=true matches=0,1,2
 ```
 
 ### Complete an inherited interface field
@@ -261,6 +306,26 @@ function read(buffer: Buffer): uint8 {
 
 ```query completion main.ds#prefix@end trigger=.
 @completion.item label=read kind=method replace=main.ds#prefix detail="(index: uint64) => uint8" documentation="Read one byte." insert="read(${1:index})$0" snippet=true preselect=true matches=0,1
+```
+
+### Complete an inherited class method
+
+A derived class exposes methods declared by its base class.
+
+```ds main.ds
+class Resource {
+    close(): void {}
+}
+
+class File extends Resource {}
+
+declare const file: File;
+file.clo;
+     ^^^ prefix
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=close kind=method replace=main.ds#prefix detail="() => void" insert="close()" preselect=true matches=0,1,2
 ```
 
 ### Separate static and instance members
@@ -315,7 +380,7 @@ function calculate(value: Calculator): int32 {
 @completion.item label=sum kind=method replace=main.ds#prefix detail="(left: int32, right: int32) => int32" insert="sum(${1:left}, ${2:right})$0" snippet=true preselect=true matches=0,1
 ```
 
-### [ignored] Complete an applied extension method
+### Complete an applied extension method
 
 A generic extension method uses the receiver's applied type arguments.
 
@@ -340,7 +405,7 @@ function read(box: Box<string>): string {
 @completion.item label=unwrap kind=method replace=main.ds#prefix detail="() => string" insert="unwrap()" preselect=true matches=0,1,2
 ```
 
-### [ignored] Complete an applicable blanket extension
+### Complete an applicable blanket extension
 
 A blanket extension appears when its receiver constraint is satisfied.
 
@@ -384,7 +449,7 @@ function read(point: Point | undefined): int32 | undefined {
 @completion.item label=x kind=field replace=main.ds#prefix detail=int32 preselect=true matches=0
 ```
 
-### [ignored] Complete a generic field
+### Complete a generic field
 
 A generic field uses the receiver's applied type arguments.
 
@@ -403,7 +468,59 @@ function read(box: Box<string>): string {
 @completion.item label=value kind=field replace=main.ds#prefix detail=string preselect=true matches=0,1,2
 ```
 
-### [ignored] Complete a common union member once
+### Complete a constrained parameter member
+
+A type parameter exposes members declared by its constraint.
+
+```ds main.ds
+interface Named {
+    name: string;
+}
+
+function nameOf<Value: Named>(value: Value): string {
+    return value.na;
+                 ^^ prefix
+}
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=name kind=field replace=main.ds#prefix detail=string preselect=true matches=0,1
+```
+
+### Complete a newtype backing member
+
+A newtype exposes members selected through its backing value.
+
+```ds main.ds
+newtype User = { name: string };
+
+function nameOf(user: User): string {
+    return user.na;
+                ^^ prefix
+}
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=name kind=field replace=main.ds#prefix detail=string preselect=true matches=0,1
+```
+
+### Complete primitive extension members
+
+Primitive values expose their implicit extension methods.
+
+```ds main.ds
+function isEmpty(value: string): boolean {
+    return value.isE;
+                 ^^^ prefix
+}
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=isEmpty kind=property replace=main.ds#prefix detail=boolean documentation="Check if the string is empty." matches=0,1,2
+@completion.item label=isWellFormed kind=method replace=main.ds#prefix detail="() => boolean" documentation="Return whether this string is well-formed Unicode." insert="isWellFormed()" matches=0,1,3
+```
+
+### Complete a common union member once
 
 Union member completion includes only members available on every possible receiver.
 
@@ -437,6 +554,54 @@ function radius(shape: Circle | Square): float64 {
 @completion.none
 ```
 
+### Omit an unavailable union operation
+
+A union only offers members that every possible value can use in the same way.
+
+```ds main.ds
+class Source {
+    get value(): string {
+        return "";
+    }
+}
+
+class Sink {
+    set value(next: string) {}
+}
+
+function read(target: Source | Sink): void {
+    target.val;
+           ^^^ prefix
+}
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.none
+```
+
+### Complete intersection members
+
+An intersection exposes members from each constituent.
+
+```ds main.ds
+interface Named {
+    name: string;
+}
+
+interface Identified {
+    id: int32;
+}
+
+function identify(value: Named & Identified): int32 {
+    return value.i;
+                 ^ prefix
+}
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=id kind=field replace=main.ds#prefix detail=int32 preselect=true matches=0
+```
+
 ### Complete an associated constant
 
 A nominal type receiver exposes its associated values.
@@ -448,6 +613,41 @@ struct Buffer {
 
 const width = Buffer.Wi;
                      ^^ prefix
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=Width kind=associated_const replace=main.ds#prefix detail=uint64 preselect=true matches=0,1
+```
+
+### Complete an associated type
+
+A constrained type parameter exposes its associated types.
+
+```ds main.ds
+interface Collection {
+    type Item;
+}
+
+function item<T: Collection>(): T.Ite;
+                                  ^^^ prefix
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=Item kind=associated_type replace=main.ds#prefix detail=T.Item preselect=true matches=0,1,2
+```
+
+### Complete a static member through a type alias
+
+A type alias exposes static members from its target declaration.
+
+```ds main.ds
+struct Buffer {
+    comptime const Width: uint = 8;
+}
+
+type BufferAlias = Buffer;
+const width = BufferAlias.Wi;
+                          ^^ prefix
 ```
 
 ```query completion main.ds#prefix@end trigger=.
@@ -471,6 +671,25 @@ library.gr;
 
 ```query completion main.ds#prefix@end trigger=.
 @completion.item label=greet kind=function replace=main.ds#prefix detail="() => void" insert="greet()" preselect=true matches=0,1
+```
+
+### Complete a namespace type
+
+A namespace path exposes exported type declarations in type positions.
+
+```ds library.ds
+export struct Packet {}
+```
+
+```ds main.ds
+import * as library from "./library.ds";
+
+declare const packet: library.Pac;
+                              ^^^ prefix
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=Packet kind=struct replace=main.ds#prefix preselect=true matches=0,1,2
 ```
 
 ## Implementations
@@ -589,20 +808,42 @@ const color = Color.R;
 @completion.item label=Red kind=enum_member replace=main.ds#prefix detail=Color.Red preselect=true matches=0
 ```
 
-### [ignored] Complete a tagged variant
+### Complete a tagged variant
 
 A tagged case completion carries its payload constructor and result type.
 
 ```ds main.ds
 @derive(Tagged)
-newtype Status = Ok<string> | Error<int32>;
+newtype Status =
+    | { type: "ok"; value: string }
+    | { type: "error"; error: int32 };
 
-const status = Status.O;
-                      ^ prefix
+const status = Status.Ok;
+                      ^^ prefix
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=Ok kind=constructor replace=main.ds#prefix detail="({ value: string }) => Status" insert="Ok({ value: ${1} })$0" snippet=true preselect=true matches=0
+@completion.item label=Ok kind=constructor replace=main.ds#prefix detail="({ value: string }) => Status.Ok" insert="Ok({ value: ${1} })$0" snippet=true preselect=true matches=0,1
+```
+
+### Complete a tagged discriminator
+
+Tagged values expose their discriminator with every possible tag.
+
+```ds main.ds
+@derive(Tagged)
+newtype Status =
+    | { type: "ok"; value: string }
+    | { type: "error"; error: int32 };
+
+function statusType(status: Status): string {
+    return status.ty;
+                  ^^ prefix
+}
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=type kind=field replace=main.ds#prefix detail="\"ok\" | \"error\"" preselect=true matches=0,1
 ```
 
 ## Constructors
@@ -681,7 +922,7 @@ const rectangle: Rectangle = {
 @completion.item label=height kind=field replace=main.ds#prefix detail=int32 insert="height: ${1}" snippet=true preselect=true matches=0,1,2
 ```
 
-### [ignored] Complete a nested field
+### Complete a nested field
 
 Nested object literals use the expected type at their own position.
 
@@ -726,6 +967,67 @@ const rectangle: Rectangle = {
 
 ```query completion main.ds#prefix@end
 @completion.item label=height kind=field replace=main.ds#prefix detail=int32 preselect=true matches=0,1,2
+```
+
+### Complete a visible shorthand without a contextual type
+
+An object literal can use any visible value as a shorthand property.
+
+```ds main.ds
+const height: int32 = 20;
+const rectangle = {
+    hei
+    ^^^ prefix
+};
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=height kind=field replace=main.ds#prefix detail=int32 preselect=true matches=0,1,2
+```
+
+### Keep computed fields distinct
+
+A computed field does not hide a different named field.
+
+```ds main.ds
+declare const token: unique symbol;
+
+type Payload = {
+    [token]: string;
+    name: string;
+};
+
+const payload: Payload = {
+    [token]: "value",
+    na
+    ^^ prefix
+};
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=name kind=field replace=main.ds#prefix detail=string insert="name: ${1}" snippet=true preselect=true matches=0,1
+```
+
+### Omit a field supplied by a spread
+
+A spread supplies its fields to the surrounding object.
+
+```ds main.ds
+struct Rectangle {
+    width: int32;
+    height: int32;
+}
+
+const partial = { width: 10 };
+const rectangle: Rectangle = {
+    ...partial,
+    wid
+    ^^^ prefix
+};
+```
+
+```query completion main.ds#prefix@end
+@completion.none
 ```
 
 ## Call Arguments
@@ -1613,4 +1915,48 @@ const result = al;
 
 ```query completion main.ds#prefix@end
 @completion.item label=alpine kind=constant replace=main.ds#prefix detail=2 preselect=true matches=0,1
+```
+
+### Update members after successive source changes
+
+Member completion uses the receiver selected in each revision.
+
+```ds main.ds
+struct Box {
+    value: string;
+}
+
+declare const box: Box;
+const selected = box.val;
+                     ^^^ prefix
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=value kind=field replace=main.ds#prefix detail=string preselect=true matches=0,1,2
+```
+
+```ds main.ds change
+struct Box {
+    count: int32;
+}
+
+declare const box: Box;
+const selected = box.cou;
+                     ^^^ prefix
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=count kind=field replace=main.ds#prefix detail=int32 preselect=true matches=0,1,2
+```
+
+```diff main.ds
+@@ -1,3 +1,3 @@
+ struct Box {
+-    count: int32;
++    count: boolean;
+ }
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=count kind=field replace=main.ds#prefix detail=boolean preselect=true matches=0,1,2
 ```
