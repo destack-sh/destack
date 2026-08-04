@@ -49,6 +49,7 @@ impl CheckState<'_> {
         &self,
         variable: dir::TypeVariableId,
     ) -> CompilerResult<Option<dir::TypeVariableId>> {
+        let variable = self.solver.alias_root(variable)?;
         let state = self.solver.variable(variable)?;
 
         Ok(state.state.is_open().then_some(variable))
@@ -641,6 +642,7 @@ impl CheckState<'_> {
         variable: dir::TypeVariableId,
         solution: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
+        let variable = self.solver.alias_root(variable)?;
         let solution = self.settled_root(solution)?;
 
         if self.root_variable(solution)?.is_some() {
@@ -675,6 +677,76 @@ impl CheckState<'_> {
                 .collect(),
         };
         self.commit_variable_solution(variable, VariableState::Resolved(solution), bounds)
+    }
+
+    /// Alias one open variable onto an equal variable's component root.
+    pub(in crate::check) fn alias_variable(
+        &mut self,
+        first: dir::TypeVariableId,
+        second: dir::TypeVariableId,
+    ) -> CompilerResult<()> {
+        // forward the younger root, keeping the older as the component root
+        let first = self.solver.alias_root(first)?;
+        let second = self.solver.alias_root(second)?;
+        if first == second {
+            return Ok(());
+        }
+        let (root, aliased) = if first.0 < second.0 {
+            (first, second)
+        } else {
+            (second, first)
+        };
+
+        // collect the forwarded bounds and default before rewriting the state
+        let lower = self
+            .solver
+            .variables
+            .side_bounds(aliased, BoundSide::Lower)?
+            .collect::<SmallVec<[TypeBound; 2]>>();
+        let upper = self
+            .solver
+            .variables
+            .side_bounds(aliased, BoundSide::Upper)?
+            .collect::<SmallVec<[TypeBound; 2]>>();
+        let default = self.solver.variables.variable_default(aliased);
+
+        // forward the aliased variable onto the root
+        self.solver.variable_mut(aliased)?.state = VariableState::Alias(root);
+
+        // wake tasks parked on the forwarded variable
+        let waiters = self.solver.wake(Dependency::Variable(aliased));
+        for waiter in waiters.iter().cloned() {
+            self.queue_task(waiter);
+        }
+
+        // migrate collected bounds and the declared default onto the root
+        for bound in lower {
+            self.push_variable_bound(
+                root,
+                BoundSide::Lower,
+                bound.origin,
+                bound.cause,
+                bound.ty,
+                bound.relation,
+            )?;
+        }
+        for bound in upper {
+            self.push_variable_bound(
+                root,
+                BoundSide::Upper,
+                bound.origin,
+                bound.cause,
+                bound.ty,
+                bound.relation,
+            )?;
+        }
+        if let Some(default) = default
+            && self.solver.variables.variable_default(root).is_none()
+        {
+            self.solver.set_variable_default(root, default);
+        }
+
+        Ok(())
     }
 
     /// Record one failed variable solution and wake its waiters.

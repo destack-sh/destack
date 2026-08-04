@@ -130,10 +130,9 @@ impl CheckState<'_> {
         }
 
         match (source_variable, target_variable, relation) {
-            // variable equality forms one dependency component
+            // alias one open side onto the other for variable equality
             (Some(source_variable), Some(target_variable), Relation::Equal) => {
-                self.push_upper_bound(source_variable, origin, cause, target, Relation::Equal)?;
-                self.push_lower_bound(target_variable, origin, cause, source, Relation::Equal)?;
+                self.alias_variable(source_variable, target_variable)?;
 
                 Ok(Answer::Ready(true))
             }

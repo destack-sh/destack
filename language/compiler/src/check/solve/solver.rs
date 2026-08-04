@@ -8,8 +8,8 @@ use crate::check::{
     BoundSide, Cause, CauseArena, CauseId, Constraint, ConstraintId, ConstraintResult,
     ConstraintTable, Dependency, FailedCheck, GenericParameterId, InferenceScope, ObligationEntry,
     ObligationId, ObligationTable, Origin, OriginArena, OriginId, RelationCache,
-    RelationCacheSnapshot, Task, TypeBound, Variable, VariableRole, VariableTable, Widening,
-    WorkQueue,
+    RelationCacheSnapshot, Task, TypeBound, Variable, VariableRole, VariableState, VariableTable,
+    Widening, WorkQueue,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -284,6 +284,7 @@ impl Solver {
         side: BoundSide,
         bound: TypeBound,
     ) -> CompilerResult<bool> {
+        let id = self.alias_root(id)?;
         let pushed = self.variables.push_bound(id, side, bound)?;
         if pushed {
             self.record_undo(Undo::Bound { id, side });
@@ -356,12 +357,27 @@ impl Solver {
         id
     }
 
+    /// Return the root that one variable forwards to.
+    pub(in crate::check) fn alias_root(
+        &self,
+        variable: dir::TypeVariableId,
+    ) -> CompilerResult<dir::TypeVariableId> {
+        let mut current = variable;
+        while let VariableState::Alias(next) = self.variable(current)?.state {
+            current = next;
+        }
+
+        Ok(current)
+    }
+
     /// Return one variable solution.
     pub(in crate::check) fn solution(
         &self,
         variable: dir::TypeVariableId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        Ok(self.variable(variable)?.state.ty())
+        let root = self.alias_root(variable)?;
+
+        Ok(self.variable(root)?.state.ty())
     }
 
     /// Return all variable entries.

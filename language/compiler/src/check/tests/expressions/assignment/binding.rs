@@ -698,11 +698,6 @@ const b = a;
 /// @diagnostic.related line=3 column=7 span="b" line_source="const b = a;" message="declared here"
 /// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
 /// @diagnostic.label line=2 column=7 span="a" line_source="const a = b;"
-/// @diagnostic.related line=3 column=7 span="b" line_source="const b = a;" message="it must equal '_' here"
-/// @diagnostic.help message="annotate the type explicitly"
-/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
-/// @diagnostic.label line=3 column=7 span="b" line_source="const b = a;"
-/// @diagnostic.related line=2 column=7 span="a" line_source="const a = b;" message="it must equal '_' here"
 /// @diagnostic.help message="annotate the type explicitly"
 "#,
     );

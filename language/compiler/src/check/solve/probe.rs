@@ -204,7 +204,11 @@ impl CheckState<'_> {
         dependency: Dependency,
     ) -> CompilerResult<bool> {
         let is_pending = match dependency {
-            Dependency::Variable(variable) => self.solver.variable(variable)?.state.is_open(),
+            Dependency::Variable(variable) => {
+                let root = self.solver.alias_root(variable)?;
+
+                self.solver.variable(root)?.state.is_open()
+            }
             Dependency::SymbolType(symbol) => self.symbol_type_maybe(symbol).is_none(),
             Dependency::NodeType(node) => !self.node_types.contains_key(&node),
         };

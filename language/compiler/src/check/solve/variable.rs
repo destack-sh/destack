@@ -121,6 +121,8 @@ pub(in crate::check) struct Variable {
 pub(in crate::check) enum VariableState {
     /// The variable is awaiting bounds.
     Open,
+    /// The variable forwards to an equal earlier variable.
+    Alias(dir::TypeVariableId),
     /// The variable inferred one type.
     Resolved(dir::GlobalTypeId),
     /// Inference failed and produced the compiler error type.
@@ -131,7 +133,7 @@ impl VariableState {
     /// Return the completed type, when inference finished.
     pub(in crate::check) fn ty(self) -> Option<dir::GlobalTypeId> {
         match self {
-            Self::Open => None,
+            Self::Open | Self::Alias(_) => None,
             Self::Resolved(ty) | Self::Error(ty) => Some(ty),
         }
     }
