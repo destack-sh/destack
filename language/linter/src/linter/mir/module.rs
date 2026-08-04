@@ -1,45 +1,55 @@
 use std::sync::Arc;
 
 use destack_artifact::{DiagnosticAnchor, MirLowered};
+use destack_core::StringPool;
 use destack_mir as mir;
 use destack_repository::{ArtifactReader, ProfileId, ProviderError};
 use destack_source::{ModuleId, Span, TargetId};
 
-use super::Mir;
-
-/// A borrowed verified MIR module.
-#[derive(Debug, Clone, Copy)]
-pub struct MirModule<'a> {
-    /// The indexed verified MIR.
-    pub mir: &'a Mir,
+/// Verified MIR and analyses for one module.
+#[derive(Debug)]
+pub struct MirModule {
     /// The module id.
     pub id: ModuleId,
     /// The MIR artifact.
-    pub lowered: &'a MirLowered,
+    pub lowered: Arc<MirLowered>,
     /// Analyses of the verified MIR tree.
-    pub analyses: &'a mir::TreeAnalysisCache,
+    pub analyses: mir::TreeAnalysisCache,
+    /// The repository string pool.
+    pub strings: Arc<StringPool>,
 }
 
-/// Owned verified MIR storage for one module.
-#[derive(Debug)]
-pub(super) struct MirModuleStorage {
-    /// The module id.
-    id: ModuleId,
-    /// The MIR artifact.
-    lowered: Arc<MirLowered>,
-    /// Analyses of the verified MIR tree.
-    analyses: mir::TreeAnalysisCache,
-}
+impl MirModule {
+    /// Create one verified MIR module.
+    pub(crate) fn new(id: ModuleId, lowered: Arc<MirLowered>, strings: Arc<StringPool>) -> Self {
+        let options = mir::AnalysisOptions::new(lowered.target);
+        let analyses = mir::TreeAnalysisCache::with_options(
+            options,
+            &lowered.dispatch,
+            &lowered.memory,
+            &lowered.effects,
+        );
 
-impl<'a> MirModule<'a> {
-    /// Create a borrowed verified MIR module.
-    pub(super) fn new(mir: &'a Mir, storage: &'a MirModuleStorage) -> Self {
         Self {
-            mir,
-            id: storage.id,
-            lowered: &storage.lowered,
-            analyses: &storage.analyses,
+            id,
+            lowered,
+            analyses,
+            strings,
         }
+    }
+
+    /// Load one module's verified MIR.
+    pub(super) fn load(
+        artifacts: &ArtifactReader<'_>,
+        profile: ProfileId,
+        target: TargetId,
+        module: ModuleId,
+        strings: Arc<StringPool>,
+    ) -> Result<Self, ProviderError> {
+        artifacts.mir_verified(module, profile, target)?;
+        let lowered = artifacts.mir_lowered(module, profile, target)?;
+
+        Ok(Self::new(module, lowered, strings))
     }
 
     /// Return the required source span for one MIR node.
@@ -60,31 +70,5 @@ impl<'a> MirModule<'a> {
         let span = self.span(node)?;
 
         Ok(DiagnosticAnchor::Span(span))
-    }
-}
-
-impl MirModuleStorage {
-    /// Load one module's verified MIR.
-    pub(super) fn load(
-        artifacts: &ArtifactReader<'_>,
-        profile: ProfileId,
-        target: TargetId,
-        module: ModuleId,
-    ) -> Result<Self, ProviderError> {
-        artifacts.mir_verified(module, profile, target)?;
-        let lowered = artifacts.mir_lowered(module, profile, target)?;
-        let options = mir::AnalysisOptions::new(lowered.target);
-        let analyses = mir::TreeAnalysisCache::with_options(
-            options,
-            &lowered.dispatch,
-            &lowered.memory,
-            &lowered.effects,
-        );
-
-        Ok(Self {
-            id: module,
-            lowered,
-            analyses,
-        })
     }
 }

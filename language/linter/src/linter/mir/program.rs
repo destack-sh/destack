@@ -57,17 +57,17 @@ impl MirProgram {
     }
 
     /// Return verified MIR for one module.
-    pub fn module(&self, module: ModuleId) -> Result<MirModule<'_>, ProviderError> {
+    pub fn module(&self, module: ModuleId) -> Result<&MirModule, ProviderError> {
         self.mir.module(module)
     }
 
     /// Iterate every loaded MIR module.
-    pub fn modules(&self) -> impl Iterator<Item = MirModule<'_>> {
+    pub fn modules(&self) -> impl Iterator<Item = &MirModule> {
         self.mir.modules()
     }
 
     /// Iterate package-owned MIR modules.
-    pub fn owned_modules(&self) -> impl Iterator<Item = MirModule<'_>> {
+    pub fn owned_modules(&self) -> impl Iterator<Item = &MirModule> {
         self.mir
             .modules()
             .filter(|module| self.program.owns(module.id))

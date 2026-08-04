@@ -194,7 +194,7 @@ impl Linter {
 
         // execute enabled MIR lints
         for (lint, severity, check) in lints.mir_modules() {
-            let output = check(&module, lint)?;
+            let output = check(module, lint)?;
             let (diagnostics, errors) = lint.apply_controls(
                 controls,
                 severity,

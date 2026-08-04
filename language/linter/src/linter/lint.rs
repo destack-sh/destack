@@ -120,7 +120,7 @@ pub type DirModuleCheck = for<'a> fn(&DirModule<'a>, &Lint) -> LintResult;
 pub type DirProgramCheck = fn(&DirProgram, &Lint) -> LintResult;
 
 /// One verified MIR module lint function.
-pub type MirModuleCheck = for<'a> fn(&MirModule<'a>, &Lint) -> LintResult;
+pub type MirModuleCheck = fn(&MirModule, &Lint) -> LintResult;
 
 /// One verified MIR program lint function.
 pub type MirProgramCheck = fn(&MirProgram, &Lint) -> LintResult;

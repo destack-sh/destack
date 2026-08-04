@@ -16,7 +16,7 @@ declare_lint_stub! {
 }
 
 /// Check no-double-lock.
-fn check(_module: &MirModule<'_>, lint: &Lint) -> LintResult {
+fn check(_module: &MirModule, lint: &Lint) -> LintResult {
     Err(ProviderError::internal(format!(
         "lint {} is not implemented",
         lint.id

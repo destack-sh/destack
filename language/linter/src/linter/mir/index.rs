@@ -4,7 +4,7 @@ use destack_core::{FxIndexMap, StringPool};
 use destack_repository::{ArtifactReader, ProfileId, ProviderError};
 use destack_source::{ModuleId, TargetId};
 
-use super::{MirModule, MirModuleStorage};
+use super::MirModule;
 
 /// Verified MIR indexed by module id.
 #[derive(Debug)]
@@ -16,27 +16,22 @@ pub struct Mir {
     /// The repository string pool.
     pub strings: Arc<StringPool>,
     /// The loaded verified modules.
-    modules: FxIndexMap<ModuleId, MirModuleStorage>,
+    modules: FxIndexMap<ModuleId, MirModule>,
 }
 
 impl Mir {
     /// Return one loaded verified module.
-    pub fn module(&self, module: ModuleId) -> Result<MirModule<'_>, ProviderError> {
-        let storage = self
-            .modules
+    pub fn module(&self, module: ModuleId) -> Result<&MirModule, ProviderError> {
+        self.modules
             .get(&module)
             .ok_or_else(|| ProviderError::Internal {
                 message: format!("MIR module {module:?} is not loaded"),
-            })?;
-
-        Ok(MirModule::new(self, storage))
+            })
     }
 
     /// Iterate the loaded verified modules.
-    pub fn modules(&self) -> impl Iterator<Item = MirModule<'_>> {
-        self.modules
-            .values()
-            .map(|storage| MirModule::new(self, storage))
+    pub fn modules(&self) -> impl Iterator<Item = &MirModule> {
+        self.modules.values()
     }
 
     /// Load verified MIR for selected modules.
@@ -52,8 +47,9 @@ impl Mir {
 
         // load every selected module
         for module in modules.iter().copied() {
-            let storage = MirModuleStorage::load(artifacts, profile, target, module)?;
-            loaded.insert(module, storage);
+            let loaded_module =
+                MirModule::load(artifacts, profile, target, module, strings.clone())?;
+            loaded.insert(module, loaded_module);
         }
 
         Ok(Self {
