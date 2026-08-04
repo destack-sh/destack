@@ -485,35 +485,6 @@ fn test_parse_new_with_empty_parentheses() {
 }
 
 #[test]
-fn test_parse_new_maybe_with_empty_parentheses() {
-    // new? Foo()
-    let test = TestParser::new("new? Foo()");
-    let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
-
-    assert_node!(parser.tree, expression_id, Expression::NewMaybe { ty, arguments } => {
-        // constructor
-        assert_expression_path!(parser, parser.tree.get(*ty), "Foo");
-        assert!(arguments.is_empty());
-    });
-}
-
-#[test]
-fn test_parse_new_maybe_without_receiver_recovers_missing_constructor() {
-    // new?
-    let test = TestParser::new("new?");
-    let mut parser = test.prepare();
-    let expression_id = parser.parse_expression(Default::default()).unwrap();
-
-    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
-
-    assert_node!(parser.tree, expression_id, Expression::NewMaybe { ty, arguments } => {
-        assert_node!(parser.tree, *ty, TypeExpression::Missing);
-        assert!(arguments.is_empty());
-    });
-}
-
-#[test]
 fn test_parse_new_with_infer_hole() {
     let test = TestParser::new("new _()");
     let mut parser = test.prepare();

@@ -4470,21 +4470,6 @@
             "value": "new"
           },
           {
-            "type": "CHOICE",
-            "members": [
-              {
-                "type": "IMMEDIATE_TOKEN",
-                "content": {
-                  "type": "STRING",
-                  "value": "?"
-                }
-              },
-              {
-                "type": "BLANK"
-              }
-            ]
-          },
-          {
             "type": "FIELD",
             "name": "constructor",
             "content": {
@@ -18274,10 +18259,6 @@
     [
       "subscript_expression",
       "match_arm_expression_statement"
-    ],
-    [
-      "new_expression",
-      "pattern"
     ],
     [
       "primary_expression",

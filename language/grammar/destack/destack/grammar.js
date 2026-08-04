@@ -84,7 +84,6 @@ module.exports = grammar(JavaScript, {
     .filter((conflict) => !sameConflict(conflict, ['_initializer', 'binary_expression']))
     .concat([
       [$.subscript_expression, $.match_arm_expression_statement],
-      [$.new_expression, $.pattern],
       [$.primary_expression, $._static_value_operand],
       [$.primary_expression, $.static_value_argument],
       [$.nested_identifier, $.nested_type_identifier, $.primary_expression],
@@ -277,7 +276,6 @@ module.exports = grammar(JavaScript, {
 
     new_expression: $ => prec.right('new', seq(
       'new',
-      optional(token.immediate('?')),
       field('constructor', $.primary_expression),
       field('type_arguments', optional($.type_arguments)),
       field('arguments', optional($.arguments)),
