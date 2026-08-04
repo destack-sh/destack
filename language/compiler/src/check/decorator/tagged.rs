@@ -126,9 +126,62 @@ impl CheckState<'_> {
 
     /// Derive every tagged newtype definition the declared identities name.
     pub(in crate::check) fn derive_tagged_definitions(&mut self) -> CompilerResult<()> {
-        // collect the declared tagged newtypes
+        // derive the rows the declare pass deferred on foreign content
+        if self.is_checking {
+            return self.derive_deferred_tagged_definitions();
+        }
+
+        // collect the tagged newtypes the walk declared
         let module = self.module_id;
         let mut targets = Vec::new();
+        for (symbol, definition) in self.module(module).definitions.iter_definitions() {
+            if let dir::Definition::Newtype(definition) = definition
+                && definition.is_tagged
+            {
+                targets.push(symbol);
+            }
+        }
+
+        // record each derived definition onto the declared tail
+        for symbol in targets {
+            self.record_derived_tagged_definition(symbol)?;
+        }
+
+        Ok(())
+    }
+
+    /// Classify one tagged newtype and record its derived definition.
+    fn record_derived_tagged_definition(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        let Some(derived) = self.classify_tagged_newtype(symbol)? else {
+            return Ok(());
+        };
+
+        // name each declared variant identity by its derived key
+        for member in derived.tagged_variants() {
+            let mut named = self
+                .binding_table(symbol.module_id)
+                .get_symbol(member.symbol.local_id)
+                .clone();
+            named.key = Some(member.key);
+            self.module_mut(symbol.module_id)
+                .bindings_tail
+                .replace_symbol(member.symbol.local_id, named);
+        }
+
+        let source = self
+            .module(symbol.module_id)
+            .symbol_declaration_node(symbol.local_id)?
+            .into_global(symbol.module_id);
+        self.insert_definition(symbol, source, dir::Definition::Newtype(derived))
+    }
+
+    /// Derive the tagged rows the declare pass left unclassified.
+    fn derive_deferred_tagged_definitions(&mut self) -> CompilerResult<()> {
+        let module = self.module_id;
+        let mut deferred = Vec::new();
         {
             let state = self.module(module);
             let Some(declared) = &state.declared else {
@@ -137,35 +190,14 @@ impl CheckState<'_> {
             for (symbol, definition) in declared.definitions.iter_definitions() {
                 if let dir::Definition::Newtype(definition) = definition
                     && definition.is_tagged
+                    && definition.tagged_variants().next().is_none()
                 {
-                    targets.push(symbol);
+                    deferred.push(symbol);
                 }
             }
         }
-
-        // seal each derived definition onto the checked tail
-        for symbol in targets {
-            let Some(derived) = self.classify_tagged_newtype(symbol)? else {
-                continue;
-            };
-
-            // name each declared variant identity by its derived key
-            for member in derived.tagged_variants() {
-                let mut named = self
-                    .binding_table(symbol.module_id)
-                    .get_symbol(member.symbol.local_id)
-                    .clone();
-                named.key = Some(member.key);
-                self.module_mut(symbol.module_id)
-                    .bindings_tail
-                    .replace_symbol(member.symbol.local_id, named);
-            }
-
-            let source = self
-                .module(symbol.module_id)
-                .symbol_declaration_node(symbol.local_id)?
-                .into_global(symbol.module_id);
-            self.insert_definition(symbol, source, dir::Definition::Newtype(derived))?;
+        for symbol in deferred {
+            self.record_derived_tagged_definition(symbol)?;
         }
 
         Ok(())
@@ -205,31 +237,34 @@ impl CheckState<'_> {
         }
 
         // read the declared derive options
-        let Some(sealed) = declared.tagged_options.clone() else {
+        let Some(written) = declared.tagged_options.clone() else {
             return Err(CompilerError::Internal {
                 message: format!("tagged newtype {symbol:?} declared no Tagged options"),
             });
         };
 
         // resolve the written naming convention text
-        let case = sealed
+        let case = written
             .case
             .and_then(|text| TaggedCaseConvention::from_text(self.strings().get(text)))
             .unwrap_or(TaggedCaseConvention::UpperCamel);
 
-        // assemble tagged options from the sealed derive input
+        // assemble tagged options from the written derive input
         let options = TaggedOptions {
-            discriminator: sealed.discriminator,
+            discriminator: written.discriminator,
             case,
-            case_text: sealed.case,
-            names: sealed.names.iter().copied().collect(),
+            case_text: written.case,
+            names: written.names.iter().copied().collect(),
         };
 
         // classify every constructible backing arm
         let mut active = FxIndexSet::default();
         active.insert(symbol);
         let Some(arms) = self.tagged_arms(origin, backing, &mut active)? else {
-            self.report_invalid_tagged_variant(origin)?;
+            // defer foreign or invalid arms to the checking pass
+            if self.is_checking {
+                self.report_invalid_tagged_variant(origin)?;
+            }
 
             return Ok(None);
         };
@@ -257,12 +292,16 @@ impl CheckState<'_> {
         let mut distinct_keys = FxIndexSet::default();
         for variant in variants {
             let Some(name) = options.case_name(variant.discriminant, self.strings()) else {
-                self.report_invalid_tagged_case(origin, variant.discriminant)?;
+                if self.is_checking {
+                    self.report_invalid_tagged_case(origin, variant.discriminant)?;
+                }
 
                 return Ok(None);
             };
             if !distinct_keys.insert(name) {
-                self.report_duplicate_tagged_case(origin, name)?;
+                if self.is_checking {
+                    self.report_duplicate_tagged_case(origin, name)?;
+                }
 
                 return Ok(None);
             }
@@ -578,9 +617,11 @@ impl CheckState<'_> {
                 Ok(Some(vec![arm]))
             }
 
-            // return structs or flatten a nested newtype; derive
-            //  foreign arms only when checking
+            // return structs or flatten a nested newtype
             dir::Type::Application(instance) => {
+                if !self.is_own_module(instance.symbol.module_id) {
+                    self.import_external_module(instance.symbol.module_id)?;
+                }
                 match self.definition(instance.symbol)? {
                     // return one struct arm with its instantiated fields
                     Some(dir::Definition::Struct(_)) => {
@@ -653,12 +694,16 @@ impl CheckState<'_> {
             let Some(discriminants) =
                 self.collect_tagged_discriminants(origin, discriminator, arms)?
             else {
-                self.report_invalid_tagged_discriminator(origin, discriminator)?;
+                if self.is_checking {
+                    self.report_invalid_tagged_discriminator(origin, discriminator)?;
+                }
 
                 return Ok(None);
             };
             if let Some(duplicate) = Self::duplicate_tagged_discriminant(&discriminants) {
-                self.report_duplicate_tagged_discriminant(origin, duplicate)?;
+                if self.is_checking {
+                    self.report_duplicate_tagged_discriminant(origin, duplicate)?;
+                }
 
                 return Ok(None);
             }
@@ -684,18 +729,24 @@ impl CheckState<'_> {
         match candidates.as_slice() {
             [(discriminator, discriminants)] => Ok(Some((*discriminator, discriminants.clone()))),
             [] if duplicates.len() == 1 => {
-                self.report_duplicate_tagged_discriminant(origin, duplicates[0])?;
+                if self.is_checking {
+                    self.report_duplicate_tagged_discriminant(origin, duplicates[0])?;
+                }
 
                 Ok(None)
             }
             [] => {
-                self.report_missing_tagged_discriminator(origin)?;
+                if self.is_checking {
+                    self.report_missing_tagged_discriminator(origin)?;
+                }
 
                 Ok(None)
             }
             _ => {
                 let discriminators = candidates.iter().map(|(key, _)| *key).collect::<Vec<_>>();
-                self.report_ambiguous_tagged_discriminator(origin, &discriminators)?;
+                if self.is_checking {
+                    self.report_ambiguous_tagged_discriminator(origin, &discriminators)?;
+                }
 
                 Ok(None)
             }

@@ -43,8 +43,6 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) external_resolved: FxIndexMap<ModuleId, Arc<DirResolved>>,
     /// Whether this check infers the module's bodies.
     pub(in crate::check) is_checking: bool,
-    /// Whether every member template is declared and walked.
-    pub(in crate::check) templates_ready: bool,
 
     // walk state
     /// Resolved decorators in component walk order.
@@ -182,7 +180,6 @@ impl<'a> CheckState<'a> {
             external_modules: FxIndexMap::default(),
             external_resolved: FxIndexMap::default(),
             is_checking,
-            templates_ready: false,
             decorators: Vec::new(),
             derived_newtypes: FxIndexMap::default(),
             deriving_newtypes: FxIndexSet::default(),
@@ -261,6 +258,7 @@ impl<'a> CheckState<'a> {
         // drain the walk's remaining declaration tasks when declaring
         if self.is_declaration() {
             self.drain_tasks()?;
+            self.derive_tagged_definitions()?;
         }
         // infer bodies, settle every obligation, then report settled warnings
         else {
@@ -365,7 +363,6 @@ impl<'a> CheckState<'a> {
 
         // checking walks bodies against the declared rows
         if self.is_checking {
-            self.templates_ready = true;
             self.derive_tagged_definitions()?;
             self.canonicalize_declared_types()?;
 
@@ -376,7 +373,6 @@ impl<'a> CheckState<'a> {
         //  declarations resolve in any order across module cycles
         self.declare_module_templates(module)?;
         self.walk_module_templates(module)?;
-        self.templates_ready = true;
 
         self.walk_module(module)
     }
@@ -1058,6 +1054,16 @@ impl CheckState<'_> {
         definition: dir::Definition,
     ) -> CompilerResult<()> {
         self.report_duplicate_definition_members(&definition);
+
+        // keep checked segments append-grow: unchanged declared rows stay layered
+        if self.is_checking
+            && let Some(declared) = self
+                .module_maybe(symbol.module_id)
+                .and_then(|state| state.declared.as_ref())
+            && declared.definitions.definition(symbol) == Some(&definition)
+        {
+            return Ok(());
+        }
 
         let working =
             self.module_maybe_mut(symbol.module_id)
