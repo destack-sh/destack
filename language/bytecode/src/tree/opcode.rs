@@ -577,6 +577,11 @@ opcodes! {
         signature: "(sampler: SamplerId, value: value) => void",
         operands: [Sampler, Register],
     }
+    GLOBAL_ADDRESS_IMMORTAL = 0x00e2 {
+        text: "global.address.immortal",
+        signature: "(global: GlobalId) => reference",
+        operands: [Result, Global],
+    }
 
     ;
 
