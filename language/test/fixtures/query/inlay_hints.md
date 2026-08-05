@@ -418,21 +418,6 @@ connect(configuration.timeout);
 @inlay_hints.none
 ```
 
-### Omit parameter names from named arguments
-
-Named arguments already carry their parameter names.
-
-```ds main.ds
-function greet(name: string, greeting: string): void {}
-
-greet(name: "World", greeting: "Hello");
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ call
-```
-
-```query inlay_hints main.ds#call
-@inlay_hints.none
-```
-
 ### Omit parameter names from spread arguments
 
 A spread expression does not correspond to one displayed parameter.

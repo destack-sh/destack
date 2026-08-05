@@ -1095,6 +1095,23 @@ consume(candidate);
 @completion.item label=candidateAlpha kind=constant replace=main.ds#prefix detail=string matches=0,1,2,3,4,5,6,7,8
 ```
 
+### Exclude callee parameters
+
+Parameter declarations do not enter the caller's lexical scope.
+
+```ds main.ds
+function consume(target: int32): void {}
+
+const tangible: int32 = 1;
+
+consume(ta);
+        ^^ prefix
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=tangible kind=constant replace=main.ds#prefix detail=int32 preselect=true matches=0,1
+```
+
 ## Imports
 
 ### Complete a named import

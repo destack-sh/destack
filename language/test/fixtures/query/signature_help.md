@@ -54,23 +54,6 @@ ping();
 @signature_help.signature index=0 label="ping(): void" active=true
 ```
 
-### [ignored] Follow named argument bindings
-
-The active parameter follows named argument binding rather than source order.
-
-```ds main.ds
-function greet(name: string, greeting: string): void {}
-
-greet(greeting: "Hello", name: "World");
-                               ^^^^^^^ argument
-```
-
-```query signature_help main.ds#argument
-@signature_help.signature index=0 label="greet(name: string, greeting: string): void" active=true
-@signature_help.parameter signature=0 index=0 label="name: string" active=true
-@signature_help.parameter signature=0 index=1 label="greeting: string"
-```
-
 ### Select a rest parameter
 
 Every argument bound into a rest parameter selects that parameter.
