@@ -6,6 +6,7 @@ use destack_dir::{
     FunctionRole, InferForm, Key, Name, NodeType, Pattern, PostfixPosition, Property,
     ScalarLiteral, TokenType, TupleElement, TypeExpression,
 };
+use destack_source::{NodeSpanList, NodeSpanType};
 
 /// Parse a tuple literal with two elements.
 #[test]
@@ -457,6 +458,17 @@ fn test_parse_struct_literal_path() {
         Expression::StructExpression { ty, properties, .. } => {
             assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
                 assert_path!(parser, *path, "geom.Vector2");
+
+                let root_span = parser
+                    .tree
+                    .get_side_span(*ty, NodeSpanType::ListItem(NodeSpanList::Segment, 0))
+                    .unwrap();
+                let member_span = parser
+                    .tree
+                    .get_side_span(*ty, NodeSpanType::ListItem(NodeSpanList::Segment, 1))
+                    .unwrap();
+                assert_eq!(parser.span_str(root_span), "geom");
+                assert_eq!(parser.span_str(member_span), "Vector2");
             });
             assert_eq!(properties.len(), 2);
             assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {

@@ -12,7 +12,7 @@ impl Parser {
         match self.tree.get(expression) {
             Expression::Type { value } => Ok(*value),
             _ => self
-                .promote_static_type_head(expression)
+                .promote_static_type_head(expression)?
                 .ok_or_else(|| ParserError::unexpected(self.tree.get_range(expression))),
         }
     }
