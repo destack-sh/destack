@@ -7,11 +7,11 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    GlobalGenericTemplateId, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, PropertyAccess,
-    SegmentView, StaticKey,
+    GlobalGenericTemplateId, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, NameResolution,
+    PropertyAccess, SegmentView, StaticKey,
 };
 
-/// Cumulative checked member bindings for one DIR module.
+/// Cumulative member bindings for one DIR module.
 #[derive(Debug, Clone)]
 pub struct MemberTable<'a> {
     /// The module id of the member table.
@@ -62,21 +62,28 @@ impl<'a> MemberTable<'a> {
     }
 
     /// Return the lookup subject selected at one source site.
-    pub fn subject(&self, source: GlobalNodeIdAny) -> Option<MemberSubject> {
+    pub fn subject(&self, site: MemberSite) -> Option<MemberSubject> {
         self.segments
             .iter()
             .rev()
-            .find_map(|segment| segment.subject(source))
+            .find_map(|segment| segment.subject(site))
     }
 
-    /// Return the checked member bindings available at one source site.
-    pub fn members(&self, source: GlobalNodeIdAny) -> Option<&[MemberBinding]> {
-        let subject = self.subject(source)?;
+    /// Return the member bindings available at one source site.
+    pub fn members(&self, site: MemberSite) -> Option<&[MemberBinding]> {
+        let subject = self.subject(site)?;
 
         self.segments
             .iter()
             .rev()
             .find_map(|segment| segment.members(subject))
+    }
+
+    /// Return one member binding available at a source site.
+    pub fn binding(&self, site: MemberSite, key: StaticKey) -> Option<&MemberBinding> {
+        self.members(site)?
+            .iter()
+            .find(|binding| binding.key == key)
     }
 
     /// Return whether this table has no member bindings.
@@ -85,21 +92,21 @@ impl<'a> MemberTable<'a> {
     }
 }
 
-/// Checked member bindings added by one DIR phase.
+/// Member bindings added by one DIR phase.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct MemberSegment {
     /// The module id of the member segment.
     pub module_id: ModuleId,
-    /// Lookup subjects selected at source member sites.
-    subjects: IndexMap<GlobalNodeIdAny, MemberSubject>,
-    /// Checked member bindings stored once per lookup subject.
+    /// Lookup subjects selected at source sites.
+    subjects: IndexMap<MemberSite, MemberSubject>,
+    /// Member bindings stored once per lookup subject.
     bindings: IndexMap<MemberSubject, Vec<MemberBinding>>,
 }
 
 /// One rollback position in a member segment.
 #[derive(Debug, Clone, Copy)]
 pub struct MemberMark {
-    /// The recorded source count.
+    /// The recorded site count.
     subjects: usize,
     /// The recorded subject count.
     bindings: usize,
@@ -116,40 +123,28 @@ impl MemberSegment {
     }
 
     /// Record the member lookup subject selected at one source site.
-    pub fn record_subject(&mut self, source: GlobalNodeIdAny, subject: MemberSubject) {
+    pub fn record_subject(&mut self, site: MemberSite, subject: MemberSubject) {
         // require one stable subject per source site
-        if let Some(recorded) = self.subjects.get(&source) {
+        if let Some(recorded) = self.subjects.get(&site) {
             assert_eq!(
                 *recorded, subject,
-                "member source was recorded with a different subject"
+                "member site was recorded with a different subject"
             );
         } else {
-            self.subjects.insert(source, subject);
+            self.subjects.insert(site, subject);
         }
     }
 
-    /// Record the checked member binding resolved for one subject key.
-    pub fn record_binding(&mut self, subject: MemberSubject, binding: MemberBinding) {
-        let bindings = self.bindings.entry(subject).or_default();
-        match bindings
-            .iter_mut()
-            .find(|recorded| recorded.key == binding.key)
-        {
-            Some(recorded) => *recorded = binding,
-            None => bindings.push(binding),
-        }
-    }
-
-    /// Replace the checked member bindings stored for one lookup subject.
-    pub fn replace_bindings(&mut self, subject: MemberSubject, bindings: Vec<MemberBinding>) {
+    /// Set the member bindings stored for one lookup subject.
+    pub fn set_bindings(&mut self, subject: MemberSubject, bindings: Vec<MemberBinding>) {
         self.bindings.insert(subject, bindings);
     }
 
-    /// Iterate the member lookup subjects retained at source sites.
-    pub fn iter_subjects(&self) -> impl Iterator<Item = (GlobalNodeIdAny, MemberSubject)> + '_ {
+    /// Iterate the member lookup subjects stored at source sites.
+    pub fn iter_subjects(&self) -> impl Iterator<Item = (MemberSite, MemberSubject)> + '_ {
         self.subjects
             .iter()
-            .map(|(source, subject)| (*source, *subject))
+            .map(|(site, subject)| (*site, *subject))
     }
 
     /// Return a rollback position for this segment.
@@ -167,13 +162,22 @@ impl MemberSegment {
     }
 
     /// Return the lookup subject selected at one source site.
-    pub fn subject(&self, source: GlobalNodeIdAny) -> Option<MemberSubject> {
-        self.subjects.get(&source).copied()
+    pub fn subject(&self, site: MemberSite) -> Option<MemberSubject> {
+        self.subjects.get(&site).copied()
     }
 
-    /// Return the checked bindings stored for one lookup subject.
+    /// Return the bindings stored for one lookup subject.
     pub fn members(&self, subject: MemberSubject) -> Option<&[MemberBinding]> {
         self.bindings.get(&subject).map(Vec::as_slice)
+    }
+
+    /// Return one member binding available at a source site.
+    pub fn binding(&self, site: MemberSite, key: StaticKey) -> Option<&MemberBinding> {
+        let subject = self.subject(site)?;
+
+        self.members(subject)?
+            .iter()
+            .find(|binding| binding.key == key)
     }
 
     /// Return whether this segment has no member bindings.
@@ -208,7 +212,7 @@ impl MemberSegment {
     }
 }
 
-/// The exact input to checked member lookup.
+/// The exact input to member lookup.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct MemberSubject {
     /// The non-nullish receiver type.
@@ -219,6 +223,8 @@ pub struct MemberSubject {
     pub space: MemberSpace,
     /// The generic template assumptions active at the source site.
     pub scope: Option<GlobalGenericTemplateId>,
+    /// The type whose member keys are enumerated.
+    pub key_type: GlobalTypeId,
 }
 
 impl MemberSubject {
@@ -229,6 +235,7 @@ impl MemberSubject {
             target,
             space,
             scope: None,
+            key_type: target,
         }
     }
 
@@ -239,21 +246,52 @@ impl MemberSubject {
         self
     }
 
+    /// Enumerate keys from another type while retaining the lookup target.
+    pub fn with_key_type(mut self, key_type: GlobalTypeId) -> Self {
+        self.key_type = key_type;
+
+        self
+    }
+
     /// Apply one mapping to every type id stored in this subject.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         self.receiver = map(self.receiver);
         self.target = map(self.target);
+        self.key_type = map(self.key_type);
     }
 }
 
-/// One finite key bound by checked member lookup.
+/// One source member lookup location.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum MemberSite {
+    /// A member expression or member type node.
+    Node(GlobalNodeIdAny),
+    /// One segment of a flat reference path.
+    Path {
+        /// The reference path node.
+        node: GlobalNodeIdAny,
+        /// The selected path segment.
+        segment: u16,
+    },
+}
+
+impl MemberSite {
+    /// Return the source node containing this lookup.
+    pub fn node(self) -> GlobalNodeIdAny {
+        match self {
+            Self::Node(node) | Self::Path { node, .. } => node,
+        }
+    }
+}
+
+/// One member selected by lookup.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct MemberBinding {
     /// The available member key.
     pub key: StaticKey,
     /// The available member kind.
     pub kind: MemberKind,
-    /// The checked read and write types.
+    /// The selected read and write types.
     pub access: PropertyAccess,
     /// Whether the member may be absent.
     pub is_optional: bool,
@@ -262,7 +300,7 @@ pub struct MemberBinding {
 }
 
 impl MemberBinding {
-    /// Create one checked member binding.
+    /// Create one member binding.
     pub fn new(
         key: StaticKey,
         kind: MemberKind,
@@ -276,6 +314,20 @@ impl MemberBinding {
             access,
             is_optional,
             declarations,
+        }
+    }
+
+    /// Return the selected declarations as a name resolution.
+    pub fn declaration_resolution(&self) -> Option<NameResolution> {
+        let symbols = self
+            .declarations
+            .iter()
+            .map(|declaration| declaration.symbol)
+            .collect::<Vec<_>>();
+        if symbols.is_empty() {
+            None
+        } else {
+            Some(NameResolution::from_symbols(symbols))
         }
     }
 
