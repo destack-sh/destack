@@ -11,7 +11,7 @@ pub(crate) fn format_jsdoc_comment<'ast>(
     comment: Comment,
 ) -> FormatResult<bool> {
     // only declaration documentation is reformatted
-    if !comment.is_jsdoc()
+    if !comment.is_documentation()
         || comment.is_legal()
         || comment.is_line()
         || !comment_documents_declaration(f.context(), comment)

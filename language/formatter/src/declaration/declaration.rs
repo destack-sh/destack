@@ -306,7 +306,7 @@ fn type_declaration_has_jsdoc_before_value(
         .source_comments_in_range(previous_token.span.end, content_start)
         .iter()
         .copied()
-        .any(|comment| comment.is_jsdoc() && comment.followed_by_newline())
+        .any(|comment| comment.is_documentation() && comment.followed_by_newline())
 }
 
 /// Return whether one type declaration rhs should break after `=`.

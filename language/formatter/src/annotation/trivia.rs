@@ -1,7 +1,7 @@
 use crate::context::FormatNodeWithoutTrailingComments;
 use crate::jsdoc::format_jsdoc_comment;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_dir::{Comment, CommentContent, LocalNodeId, Node, Tree, TreeStore};
+use destack_dir::{Comment, LocalNodeId, Node, Tree, TreeStore};
 use destack_fir::format::{Format, FormatResult, Formatter, hard_line_break};
 use destack_fir::prelude::{
     block_indent, copied_text, empty_line, expand_parent, format_with, group, line_suffix,
@@ -12,13 +12,9 @@ use destack_source::Span;
 
 /// Return whether adjacent jsdoc comments should stay nestled together.
 fn should_nestle_adjacent_doc_comments(current: Comment, next: Comment) -> bool {
-    matches!(
-        current.content,
-        CommentContent::Jsdoc | CommentContent::JsdocLegal
-    ) && matches!(
-        next.content,
-        CommentContent::Jsdoc | CommentContent::JsdocLegal
-    ) && current.is_multiline_block()
+    current.is_documentation()
+        && next.is_documentation()
+        && current.is_multiline_block()
         && next.is_multiline_block()
         && current.span.end == next.span.start
 }

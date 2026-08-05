@@ -195,8 +195,9 @@ impl LeadingCommentShape {
             shape.has_trailing_own_line_block_comment |= comment.is_block()
                 && comment.is_trailing()
                 && comment.followed_by_newline()
-                && !comment.is_jsdoc();
-            shape.has_jsdoc_line_break |= comment.is_jsdoc() && comment.followed_by_newline();
+                && !comment.is_documentation();
+            shape.has_jsdoc_line_break |=
+                comment.is_documentation() && comment.followed_by_newline();
         }
 
         shape
