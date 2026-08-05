@@ -159,48 +159,6 @@ fn run_propagate_copies(
                 record_predecessor(target);
                 record_predecessor(unwind);
             }
-            mir::Terminator::Await {
-                resume,
-                cancel,
-                unwind,
-                ..
-            } => {
-                record_predecessor(resume);
-                record_predecessor(cancel);
-                if let Some(unwind) = unwind {
-                    record_predecessor(unwind);
-                }
-            }
-            mir::Terminator::Yield {
-                resume,
-                complete,
-                unwind,
-                ..
-            } => {
-                record_predecessor(resume);
-                record_predecessor(complete);
-                if let Some(unwind) = unwind {
-                    record_predecessor(unwind);
-                }
-            }
-            mir::Terminator::ContinuationResume {
-                yielded,
-                returned,
-                unwind,
-                ..
-            }
-            | mir::Terminator::ContinuationComplete {
-                yielded,
-                returned,
-                unwind,
-                ..
-            } => {
-                record_predecessor(yielded);
-                record_predecessor(returned);
-                if let Some(unwind) = unwind {
-                    record_predecessor(unwind);
-                }
-            }
             mir::Terminator::Return { .. }
             | mir::Terminator::Panic { .. }
             | mir::Terminator::UnwindResume

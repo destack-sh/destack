@@ -29,6 +29,7 @@ impl ModuleLowerer<'_> {
         let mut provider = None;
         let mut replay = mir::BindingReplay::Recordable;
         let mut affinity = mir::BindingAffinity::None;
+        let mut is_park = false;
         let mut requires = None;
         let mut platforms = Vec::new();
         let mut families = Vec::new();
@@ -91,6 +92,14 @@ impl ModuleLowerer<'_> {
                         }
                     })?;
                 }
+                "park" => {
+                    let Some(dir::ScalarLiteral::Boolean(value)) = value.as_scalar() else {
+                        return Err(CompilerError::Internal {
+                            message: format!("checked binding '{key}' is not a boolean"),
+                        });
+                    };
+                    is_park = value;
+                }
                 "requires" => requires = Some(self.binding_strings(value, key)?),
                 "platforms" => platforms = self.binding_strings(value, key)?,
                 "families" => families = self.binding_strings(value, key)?,
@@ -116,6 +125,7 @@ impl ModuleLowerer<'_> {
         let mut binding = mir::Binding::new(name, provider, effect);
         binding.replay = replay;
         binding.affinity = affinity;
+        binding.is_park = is_park;
         binding.requires = requires;
         binding.platforms = platforms;
         binding.families = families;

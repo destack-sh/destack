@@ -554,57 +554,6 @@ impl<'a> PropagateSparseConstantsState<'a> {
                 let arguments = unwind.arguments(self.tree);
                 self.mark_edge_executable(block_id, unwind.block, arguments);
             }
-            mir::Terminator::Await {
-                resume,
-                cancel,
-                unwind,
-                ..
-            } => {
-                let arguments = resume.arguments(self.tree);
-                self.mark_edge_executable(block_id, resume.block, arguments);
-                let arguments = cancel.arguments(self.tree);
-                self.mark_edge_executable(block_id, cancel.block, arguments);
-                if let Some(unwind) = unwind {
-                    let arguments = unwind.arguments(self.tree);
-                    self.mark_edge_executable(block_id, unwind.block, arguments);
-                }
-            }
-            mir::Terminator::Yield {
-                resume,
-                complete,
-                unwind,
-                ..
-            } => {
-                let arguments = resume.arguments(self.tree);
-                self.mark_edge_executable(block_id, resume.block, arguments);
-                let arguments = complete.arguments(self.tree);
-                self.mark_edge_executable(block_id, complete.block, arguments);
-                if let Some(unwind) = unwind {
-                    let arguments = unwind.arguments(self.tree);
-                    self.mark_edge_executable(block_id, unwind.block, arguments);
-                }
-            }
-            mir::Terminator::ContinuationResume {
-                yielded,
-                returned,
-                unwind,
-                ..
-            }
-            | mir::Terminator::ContinuationComplete {
-                yielded,
-                returned,
-                unwind,
-                ..
-            } => {
-                let arguments = yielded.arguments(self.tree);
-                self.mark_edge_executable(block_id, yielded.block, arguments);
-                let arguments = returned.arguments(self.tree);
-                self.mark_edge_executable(block_id, returned.block, arguments);
-                if let Some(unwind) = unwind {
-                    let arguments = unwind.arguments(self.tree);
-                    self.mark_edge_executable(block_id, unwind.block, arguments);
-                }
-            }
             mir::Terminator::Return { .. }
             | mir::Terminator::Panic { .. }
             | mir::Terminator::UnwindResume

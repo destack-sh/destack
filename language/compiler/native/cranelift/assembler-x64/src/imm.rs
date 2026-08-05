@@ -1,7 +1,8 @@
 //! Immediate operands to instructions.
 
 use crate::api::CodeSink;
-use alloc::{format, string::String};
+use alloc::format;
+use alloc::string::String;
 use core::fmt;
 
 /// This helper function prints the unsigned hexadecimal representation of the

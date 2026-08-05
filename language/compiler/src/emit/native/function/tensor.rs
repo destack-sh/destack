@@ -47,7 +47,7 @@ impl FunctionEmitter<'_> {
             let destination = Self::tensor_address(words, registers.start, builder);
             let ty = self.value_type(input)?;
             let value_type = self.types.value(ty)?;
-            let value = self.value(input, builder)?;
+            let value = self.value(input)?;
             self.store_words(destination, value, ty, value_type, builder)?;
         }
 
@@ -69,7 +69,7 @@ impl FunctionEmitter<'_> {
             let ty = self.value_type(destination)?;
             let value_type = self.types.value(ty)?;
             let value = self.load(address, value_type, builder)?;
-            self.set(destination, value, builder)?;
+            self.set(destination, value)?;
         }
 
         Ok(())

@@ -13,16 +13,13 @@
 //! reflects ISLE semantics than the input ISLE source code (where as the AST is
 //! the opposite).
 
-use crate::ast;
 use crate::error::*;
 use crate::files::Files;
 use crate::lexer::Pos;
-use crate::log;
 use crate::stablemapset::{StableMap, StableSet};
-use std::collections::BTreeMap;
-use std::collections::BTreeSet;
-use std::collections::HashMap;
+use crate::{ast, log};
 use std::collections::hash_map::Entry;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt;
 
 declare_id!(

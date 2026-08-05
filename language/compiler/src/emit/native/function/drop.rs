@@ -26,7 +26,7 @@ impl FunctionEmitter<'_> {
             .ok_or_else(|| self.invalid("native frame destructor was not declared"))?;
         let function = self.output.declare_func_in_func(function, builder.func);
         let value_type = self.types.value(ty)?;
-        let value = self.value(value, builder)?;
+        let value = self.value(value)?;
         let address = self.materialize(value, value_type, builder)?;
 
         // generated destructors take the activation and one exclusive frame reference

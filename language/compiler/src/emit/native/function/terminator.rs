@@ -26,7 +26,7 @@ impl<'a> FunctionEmitter<'a> {
                 };
                 let ty = self.value_type(*value)?;
                 let value_type = self.types.value(ty)?;
-                let value = self.value(*value, builder)?;
+                let value = self.value(*value)?;
                 match value_type {
                     ValueType::Direct { .. } => {
                         let value = value
@@ -54,9 +54,9 @@ impl<'a> FunctionEmitter<'a> {
                 then_target,
                 else_target,
             } => {
-                let condition = self.scalar(*condition, builder)?;
-                let then_arguments = self.block_arguments(then_target, builder)?;
-                let else_arguments = self.block_arguments(else_target, builder)?;
+                let condition = self.scalar(*condition)?;
+                let then_arguments = self.block_arguments(then_target)?;
+                let else_arguments = self.block_arguments(else_target)?;
                 builder.ins().brif(
                     condition,
                     self.blocks[&then_target.block],
@@ -90,20 +90,13 @@ impl<'a> FunctionEmitter<'a> {
                 let values = builder.inst_results(call).to_vec();
                 builder.ins().return_(&values);
             }
-            mir::Terminator::Await { .. }
-            | mir::Terminator::Yield { .. }
-            | mir::Terminator::ContinuationResume { .. }
-            | mir::Terminator::ContinuationComplete { .. } => {
-                let point = self.object.terminator_point(block);
-                self.emit_deopt(point, builder)?;
-            }
             mir::Terminator::Panic { payload } => {
                 if let Some(payload) = payload {
                     let ty = self.value_type(*payload)?;
                     let value_type = self.types.value(ty)?;
                     let word_count = value_type.word_count();
                     let words = self.allocate_words(word_count, builder);
-                    let payload = self.value(*payload, builder)?;
+                    let payload = self.value(*payload)?;
                     self.store_words(words, payload, ty, value_type, builder)?;
                     let ty = u32::try_from(ty.get())
                         .map_err(|_| self.invalid("native panic type identity exceeds u32"))?;
@@ -154,7 +147,7 @@ impl<'a> FunctionEmitter<'a> {
         target: &mir::BlockTarget,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
-        let arguments = self.block_arguments(target, builder)?;
+        let arguments = self.block_arguments(target)?;
         builder.ins().jump(self.blocks[&target.block], &arguments);
 
         Ok(())
@@ -164,13 +157,11 @@ impl<'a> FunctionEmitter<'a> {
     pub(super) fn block_arguments(
         &self,
         target: &mir::BlockTarget,
-        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<Vec<cir::BlockArg>, EmitError> {
         let values = self.optimized.tree.get_values(target.arguments);
         let mut arguments = Vec::with_capacity(values.len());
         for value in values {
-            self.value(*value, builder)?
-                .append_block_arguments(&mut arguments);
+            self.value(*value)?.append_block_arguments(&mut arguments);
         }
 
         Ok(arguments)

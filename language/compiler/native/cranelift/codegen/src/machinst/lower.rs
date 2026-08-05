@@ -20,8 +20,7 @@ use crate::machinst::{
     ValueRegs, Writable, writable_value_regs,
 };
 use crate::settings::Flags;
-use crate::{CodegenError, CodegenResult, trace};
-use crate::{FxHashMap, FxHashSet};
+use crate::{CodegenError, CodegenResult, FxHashMap, FxHashSet, trace};
 use alloc::vec::Vec;
 use core::fmt::Debug;
 use cranelift_control::ControlPlane;
@@ -1717,8 +1716,7 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
 mod tests {
     use super::ValueUseState;
     use crate::cursor::{Cursor, FuncCursor};
-    use crate::ir::types;
-    use crate::ir::{Function, InstBuilder};
+    use crate::ir::{Function, InstBuilder, types};
 
     #[test]
     fn multi_result_use_once() {

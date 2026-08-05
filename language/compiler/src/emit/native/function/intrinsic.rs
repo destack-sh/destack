@@ -46,8 +46,8 @@ impl FunctionEmitter<'_> {
                     .copied()
                     .ok_or_else(|| self.invalid("native passthrough intrinsic has no argument"))?;
                 let destination = self.intrinsic_destination(destination)?;
-                let value = self.value(source, builder)?;
-                self.set(destination, value, builder)?;
+                let value = self.value(source)?;
+                self.set(destination, value)?;
             }
             mir::Intrinsic::BlackBox => {
                 let [source] = arguments.as_slice() else {
@@ -58,7 +58,7 @@ impl FunctionEmitter<'_> {
             _ => {
                 let destination = self.intrinsic_destination(destination)?;
                 let value = self.emit_scalar_intrinsic(intrinsic, &arguments, builder)?;
-                self.set(destination, value, builder)?;
+                self.set(destination, value)?;
             }
         }
 
@@ -72,14 +72,14 @@ impl FunctionEmitter<'_> {
         arguments: &[mir::Value],
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<Value, EmitError> {
-        let left = self.scalar(arguments[0], builder)?;
+        let left = self.scalar(arguments[0])?;
         let right = arguments
             .get(1)
-            .map(|argument| self.scalar(*argument, builder))
+            .map(|argument| self.scalar(*argument))
             .transpose()?;
         let third = arguments
             .get(2)
-            .map(|argument| self.scalar(*argument, builder))
+            .map(|argument| self.scalar(*argument))
             .transpose()?;
         let value = match intrinsic {
             mir::Intrinsic::LeadingZeroCount => builder.ins().clz(left),
@@ -247,10 +247,10 @@ impl FunctionEmitter<'_> {
             return Err(self.invalid("native transmute changes value width"));
         }
         let address = self.allocate_bytes(source_type.byte_len(), source_type.alignment(), builder);
-        let value = self.value(source, builder)?;
+        let value = self.value(source)?;
         self.store(address, value, source_type, builder)?;
         let value = self.load(address, target_type, builder)?;
-        self.set(destination, value, builder)?;
+        self.set(destination, value)?;
 
         Ok(())
     }
@@ -264,10 +264,10 @@ impl FunctionEmitter<'_> {
     ) -> Result<(), EmitError> {
         let value_type = self.types.value(self.value_type(source)?)?;
         let address = self.allocate_bytes(value_type.byte_len(), value_type.alignment(), builder);
-        let value = self.value(source, builder)?;
+        let value = self.value(source)?;
         self.store_volatile(address, value, value_type, builder)?;
         let value = self.load_volatile(address, value_type, builder)?;
-        self.set(destination, value, builder)?;
+        self.set(destination, value)?;
 
         Ok(())
     }

@@ -1,7 +1,9 @@
 //! A frontend for building Cranelift IR from other languages.
 use crate::ssa::{SSABuilder, SideEffects};
 use crate::variable::Variable;
-use alloc::{boxed::Box, vec, vec::Vec};
+use alloc::boxed::Box;
+use alloc::vec;
+use alloc::vec::Vec;
 use core::fmt::{self, Debug};
 use cranelift_codegen::cursor::{Cursor, CursorPosition, FuncCursor};
 use cranelift_codegen::entity::{EntityRef, EntitySet, PrimaryMap, SecondaryMap};
@@ -1221,9 +1223,10 @@ mod tests {
     };
     use alloc::string::ToString;
     use cranelift_codegen::ir::condcodes::IntCC;
+    use cranelift_codegen::ir::types::*;
     use cranelift_codegen::ir::{
         AbiParam, BlockCall, ExceptionTableData, ExtFuncData, ExternalName, Function, InstBuilder,
-        MemFlagsData, Signature, UserExternalName, UserFuncName, Value, types::*,
+        MemFlagsData, Signature, UserExternalName, UserFuncName, Value,
     };
     use cranelift_codegen::isa::{CallConv, TargetFrontendConfig, TargetIsa};
     use cranelift_codegen::settings;

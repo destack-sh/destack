@@ -1,6 +1,7 @@
 use super::HashMap;
 use crate::frontend::FunctionBuilder;
-use alloc::{vec, vec::Vec};
+use alloc::vec;
+use alloc::vec::Vec;
 use cranelift_codegen::ir::condcodes::IntCC;
 use cranelift_codegen::ir::*;
 

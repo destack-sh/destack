@@ -35,7 +35,7 @@ block0(v0: i64, v1: i32):
     store notrap aligned v6, v5
     v7 = iconst.i64 2
     v8 = load.i64 notrap aligned v0+8
-    v9 = load.i64 notrap aligned v8+224
+    v9 = load.i64 notrap aligned v8+144
     call_indirect sig0, v9(v0, v4, v5, v7)  ; v7 = 2
     v10 = iconst.i64 8
     v11 = iadd v5, v10  ; v10 = 8
@@ -53,7 +53,7 @@ block0(v0: i64, v1: i32):
     store notrap aligned v20, v19
     v21 = iconst.i64 4
     v22 = load.i64 notrap aligned v0+8
-    v23 = load.i64 notrap aligned v22+224
+    v23 = load.i64 notrap aligned v22+144
     call_indirect sig1, v23(v0, v13, v14, v21)  ; v21 = 4
     v24 = iconst.i64 24
     v25 = iadd v14, v24  ; v24 = 24
@@ -107,7 +107,7 @@ block0(v0: i64, v1: i64, v2: i64):
     store notrap aligned v2, v6
     v7 = iconst.i64 3
     v8 = load.i64 notrap aligned v0+8
-    v9 = load.i64 notrap aligned v8+224
+    v9 = load.i64 notrap aligned v8+144
     call_indirect sig0, v9(v0, v3, v4, v7)  ; v7 = 3
     v10 = iconst.i64 16
     v11 = iadd v4, v10  ; v10 = 16

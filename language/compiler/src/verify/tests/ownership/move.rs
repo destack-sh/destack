@@ -211,30 +211,6 @@ b2:
 }
 
 #[test]
-fn test_reject_incomplete_decomposition_before_yield() {
-    let mut program = TestProgram::mir(
-        r#"
-type Pair {
-    left: ref<int32, unique, mutable>;
-    right: ref<int32, unique, mutable>;
-}
-
-function* test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: int32): int32 {
-entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: int32):
-    v3: Pair = aggregate (v0, v1)
-    v4: ref<int32, unique, mutable> = field.get v3, 0
-    yield v2 => b1 | b1
-
-b1(v5: int32):
-    return v5
-}
-"#,
-    );
-
-    program.assert_error_partial_move();
-}
-
-#[test]
 fn test_reject_incomplete_decomposition_before_panic() {
     let mut program = TestProgram::mir(
         r#"

@@ -37,7 +37,7 @@ entry:
     v0: int32 = 7
     v1: Point = aggregate (v0)
     v2: ref<Point, managed, mutable> = new.complete v1
-    v3: int32 = call test.main.read(v2)
+    v3: int32 = call test.main.read(v2): (ref<Point, managed, mutable>) => int32
     return v3
 }
 /// @layout.struct name=Point size=4 align=4
@@ -70,7 +70,7 @@ function build(): int32 {
         "main.ds",
         r#"
 type Selector {
-    depth: variant<uint8, int32> { 0uint8 = int32; 1uint8 = void; };
+    depth: variant<uint8> { 0uint8 = int32; 1uint8 = void; };
     nested: ref<Selector, managed, mutable, undefined>;
 }
 
@@ -83,11 +83,11 @@ entry(v0: ref<Selector, managed, mutable>):
 function test.main.build(): int32 {
 entry:
     v0: int32 = 3
-    v1: variant<uint8, int32> { 0uint8 = int32; 1uint8 = void; } = variant.new 0, v0
+    v1: variant<uint8> { 0uint8 = int32; 1uint8 = void; } = variant.new 0, v0
     v2: ref<Selector, managed, mutable, undefined> = undefined
     v3: Selector = aggregate (v1, v2)
     v4: ref<Selector, managed, mutable> = new.complete v3
-    v5: int32 = call test.main.pick(v4)
+    v5: int32 = call test.main.pick(v4): (ref<Selector, managed, mutable>) => int32
     return v5
 }
 /// @layout.struct name=Selector size=16 align=8

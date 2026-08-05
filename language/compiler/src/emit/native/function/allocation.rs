@@ -29,9 +29,7 @@ impl<'a> FunctionEmitter<'a> {
         let space = builder.ins().iconst(cir::types::I32, space as i64);
         let site = self.index_u32(native::Index::Allocation { site }, builder)?;
         let initialization = builder.ins().iconst(cir::types::I32, initialization as i64);
-        let length = length
-            .map(|length| self.scalar(length, builder))
-            .transpose()?;
+        let length = length.map(|length| self.scalar(length)).transpose()?;
 
         // select the fixed or repeated runtime operation
         let call = if let Some(length) = length {
@@ -51,13 +49,13 @@ impl<'a> FunctionEmitter<'a> {
         let reference = builder.inst_results(call)[0];
         match value_type {
             ValueType::Direct { .. } => {
-                self.set(destination, Value::Direct(reference), builder)?;
+                self.set(destination, Value::Direct(reference))?;
             }
             ValueType::ScalarPair { .. } => {
                 let length = length.ok_or_else(|| {
                     self.invalid("native scalar-pair allocation has no repeated length")
                 })?;
-                self.set(destination, Value::ScalarPair([reference, length]), builder)?;
+                self.set(destination, Value::ScalarPair([reference, length]))?;
             }
             ValueType::Indirect { .. } => {
                 let output = self.allocate(value_type, builder);
@@ -76,7 +74,7 @@ impl<'a> FunctionEmitter<'a> {
                         .ins()
                         .store(flags, length, output, field.offset as i32);
                 }
-                self.set(destination, Value::Address(output), builder)?;
+                self.set(destination, Value::Address(output))?;
             }
         }
 

@@ -17,11 +17,11 @@ impl FunctionEmitter<'_> {
         result_type: mir::TypeId,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
-        let Value::ScalarPair([reference, _]) = self.value(source, builder)? else {
+        let Value::ScalarPair([reference, _]) = self.value(source)? else {
             return Err(self.invalid("native slice is not a scalar pair"));
         };
-        let start = self.scalar(start, builder)?;
-        let length = self.scalar(length, builder)?;
+        let start = self.scalar(start)?;
+        let length = self.scalar(length)?;
         let element = match self.optimized.tree.get(result_type) {
             mir::Type::Slice { element, .. } => *element,
             _ => return Err(self.invalid("native slice view result is not a slice")),
@@ -35,7 +35,7 @@ impl FunctionEmitter<'_> {
         let start = self.slice_index(start, builder)?;
         let byte_offset = builder.ins().imul_imm_u(start, stride as i64);
         let reference = builder.ins().iadd(reference, byte_offset);
-        self.set(destination, Value::ScalarPair([reference, length]), builder)?;
+        self.set(destination, Value::ScalarPair([reference, length]))?;
 
         Ok(())
     }
@@ -45,12 +45,11 @@ impl FunctionEmitter<'_> {
         &mut self,
         destination: mir::Value,
         slice: mir::Value,
-        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
-        let Value::ScalarPair([_, length]) = self.value(slice, builder)? else {
+        let Value::ScalarPair([_, length]) = self.value(slice)? else {
             return Err(self.invalid("native slice is not a scalar pair"));
         };
-        self.set(destination, Value::Direct(length), builder)?;
+        self.set(destination, Value::Direct(length))?;
 
         Ok(())
     }

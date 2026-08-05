@@ -219,7 +219,8 @@ mod tests {
     use crate::ir::{InstBuilder, TrapCode};
     use alloc::string::String;
     use alloc::vec::Vec;
-    use mutatis::{Mutate, check::Check, mutators as m};
+    use mutatis::check::Check;
+    use mutatis::{Mutate, mutators as m};
 
     #[test]
     fn empty() {

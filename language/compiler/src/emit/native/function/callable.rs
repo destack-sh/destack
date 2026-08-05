@@ -17,7 +17,7 @@ impl<'a> FunctionEmitter<'a> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         let function = self.function_value(function, builder)?;
-        self.set(destination, Value::Direct(function), builder)?;
+        self.set(destination, Value::Direct(function))?;
 
         Ok(())
     }
@@ -31,12 +31,8 @@ impl<'a> FunctionEmitter<'a> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         let function = self.function_value(function, builder)?;
-        let environment = self.scalar(environment, builder)?;
-        self.set(
-            destination,
-            Value::ScalarPair([function, environment]),
-            builder,
-        )?;
+        let environment = self.scalar(environment)?;
+        self.set(destination, Value::ScalarPair([function, environment]))?;
 
         Ok(())
     }
@@ -46,13 +42,12 @@ impl<'a> FunctionEmitter<'a> {
         &mut self,
         destination: mir::Value,
         function: mir::Value,
-        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         let [_, environment] = self
-            .value(function, builder)?
+            .value(function)?
             .scalar_pair()
             .ok_or_else(|| self.invalid("native function value is not a scalar pair"))?;
-        self.set(destination, Value::Direct(environment), builder)?;
+        self.set(destination, Value::Direct(environment))?;
 
         Ok(())
     }
@@ -61,12 +56,11 @@ impl<'a> FunctionEmitter<'a> {
     pub(super) fn emit_function_environment_current(
         &mut self,
         destination: mir::Value,
-        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         let environment = self
             .environment
             .ok_or_else(|| self.invalid("native function has no current environment"))?;
-        self.set(destination, Value::Direct(environment), builder)?;
+        self.set(destination, Value::Direct(environment))?;
 
         Ok(())
     }

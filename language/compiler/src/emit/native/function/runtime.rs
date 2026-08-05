@@ -74,22 +74,6 @@ impl<'a> FunctionEmitter<'a> {
         Ok(())
     }
 
-    /// Transfer one operation into canonical bytecode execution.
-    pub(super) fn emit_deopt(
-        &mut self,
-        point: Point,
-        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
-    ) -> Result<(), EmitError> {
-        let frame = self.stack_map(FramePoint::operation(point), builder)?;
-        let id = self.frame_map_id(frame.id, builder)?;
-        let call =
-            self.emit_runtime(native::abi::Operation::Deopt, &[id, frame.anchor], builder)?;
-        Self::attach_stack_map(frame.entries, call, builder);
-        Self::terminate_runtime(builder);
-
-        Ok(())
-    }
-
     /// Return the heap space carried by one reference-like type.
     pub(super) fn heap_space(&self, ty: mir::TypeId) -> Result<native::abi::Space, EmitError> {
         let ty = self.optimized.tree.storage_type(ty);

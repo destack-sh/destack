@@ -222,6 +222,7 @@ impl TestProgram {
                 concrete,
                 constraint,
                 entries: Vec::new(),
+                names: Vec::new(),
             });
     }
 

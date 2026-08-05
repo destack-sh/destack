@@ -21,7 +21,7 @@ impl<'a> FunctionEmitter<'a> {
         let context = builder
             .ins()
             .load(self.types.pointer(), flags, activation, offset);
-        self.set(destination, Value::Direct(context), builder)?;
+        self.set(destination, Value::Direct(context))?;
 
         Ok(())
     }
@@ -41,7 +41,7 @@ impl<'a> FunctionEmitter<'a> {
             .load(self.types.pointer(), flags, activation, offset);
         let context = self.reference(context, builder)?;
         builder.ins().store(flags, context, activation, offset);
-        self.set(destination, Value::Direct(previous), builder)?;
+        self.set(destination, Value::Direct(previous))?;
 
         Ok(())
     }
@@ -85,7 +85,7 @@ impl<'a> FunctionEmitter<'a> {
         );
         let value_address = builder.ins().iadd_imm_u(address, i64::from(value_offset));
         let value_type = self.types.value(self.value_type(value)?)?;
-        let value = self.value(value, builder)?;
+        let value = self.value(value)?;
         self.store(value_address, value, value_type, builder)?;
 
         // publish managed references through the ordinary heap barrier
@@ -125,7 +125,7 @@ impl<'a> FunctionEmitter<'a> {
         let pointer = self.types.pointer();
         let context = self.reference(context, builder)?;
         let variable = self.reference(variable, builder)?;
-        let default = self.value(default, builder)?;
+        let default = self.value(default)?;
         let memory = self.activation_pointer(
             std::mem::offset_of!(native::abi::Activation, memory_base),
             builder,
@@ -189,7 +189,7 @@ impl<'a> FunctionEmitter<'a> {
 
         builder.switch_to_block(complete);
         builder.seal_block(complete);
-        self.set(destination, result, builder)?;
+        self.set(destination, result)?;
 
         Ok(())
     }

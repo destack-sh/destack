@@ -59,7 +59,7 @@ impl FunctionEmitter<'_> {
                 .ins()
                 .iadd_imm_u(argument_buffer, i64::from(argument_offset) * 8);
             let ty = self.value_type(*argument)?;
-            let argument = self.value(*argument, builder)?;
+            let argument = self.value(*argument)?;
             self.store_words(address, argument, ty, value_type, builder)?;
             argument_offset += value_type.word_count();
         }

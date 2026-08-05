@@ -13,7 +13,7 @@ use crate::{EmitError, ObjectEmitter};
 
 use super::super::object::SymbolTable;
 use super::super::r#type::{TypeEmitter, ValueType};
-use super::{Local, StackMap, Value, ValueTable, ValueVariable};
+use super::{Local, StackMap, Value};
 
 /// Emit one MIR function into Cranelift IR.
 pub(crate) struct FunctionEmitter<'a> {
@@ -40,7 +40,7 @@ pub(crate) struct FunctionEmitter<'a> {
     /// Object-local function identity.
     pub(super) function_index: u32,
     /// Physical values keyed by MIR SSA identity.
-    pub(super) values: ValueTable,
+    pub(super) values: Vec<Option<Value>>,
     /// Canonical locals keyed by MIR identity.
     pub(super) locals: HashMap<mir::LocalId, Local>,
     /// Cranelift blocks keyed by MIR identity.
@@ -80,11 +80,7 @@ impl<'a> FunctionEmitter<'a> {
         let body = function
             .body()
             .ok_or_else(|| Self::internal(module, "native function has no body"))?;
-        let values = if function.coroutine.is_some() {
-            ValueTable::Coroutine(Vec::with_capacity(body.value_capacity()))
-        } else {
-            ValueTable::Direct(vec![None; body.value_capacity()])
-        };
+        let values = vec![None; body.value_capacity()];
 
         Ok(Self {
             module,
@@ -115,7 +111,6 @@ impl<'a> FunctionEmitter<'a> {
     pub(crate) fn emit(mut self, target: &mut cir::Function) -> Result<Vec<StackMap>, EmitError> {
         let mut context = FunctionBuilderContext::new();
         let mut builder = cranelift_frontend::FunctionBuilder::new(target, &mut context);
-        self.create_variables(&mut builder)?;
         self.create_blocks(&mut builder)?;
         self.bind_parameters(&mut builder)?;
         self.create_locals(&mut builder)?;
@@ -124,31 +119,6 @@ impl<'a> FunctionEmitter<'a> {
         builder.finalize(self.types.frontend_config());
 
         Ok(self.stack_maps)
-    }
-
-    /// Declare one Cranelift variable for every physical MIR value field.
-    fn create_variables(
-        &mut self,
-        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
-    ) -> Result<(), EmitError> {
-        if matches!(self.values, ValueTable::Direct(_)) {
-            return Ok(());
-        }
-        let body = self
-            .function
-            .body()
-            .ok_or_else(|| self.invalid("native function has no body"))?;
-        let mut variables = Vec::with_capacity(body.value_capacity());
-        for ty in body.value_types() {
-            let variable = ty
-                .map(|ty| self.types.value(ty))
-                .transpose()?
-                .map(|ty| ValueVariable::declare(ty, self.types.pointer(), builder));
-            variables.push(variable);
-        }
-        self.values = ValueTable::Coroutine(variables);
-
-        Ok(())
     }
 
     /// Emit one canonical engine-transition entry.
@@ -327,29 +297,16 @@ impl<'a> FunctionEmitter<'a> {
     /// Return successors reached without deoptimization or stopping.
     fn successors(&self, block_id: mir::BlockId) -> Vec<mir::BlockId> {
         let block = self.optimized.tree.get(block_id);
-        let transfers = block.instructions.iter().any(|instruction| {
+        let stops = block.instructions.iter().any(|instruction| {
             matches!(
                 self.optimized.tree.get(*instruction),
-                mir::Instruction::ContinuationNew { .. }
-                    | mir::Instruction::ContinuationDestroy { .. }
-                    | mir::Instruction::TaskStart { .. }
-                    | mir::Instruction::Breakpoint
+                mir::Instruction::Breakpoint
             )
         });
-        if transfers {
+        if stops {
             return Vec::new();
         }
-
         let terminator = self.optimized.tree.get(block.terminator);
-        if matches!(
-            terminator,
-            mir::Terminator::Await { .. }
-                | mir::Terminator::Yield { .. }
-                | mir::Terminator::ContinuationResume { .. }
-                | mir::Terminator::ContinuationComplete { .. }
-        ) {
-            return Vec::new();
-        }
 
         terminator.successors(&self.optimized.tree).into_vec()
     }
@@ -391,7 +348,7 @@ impl<'a> FunctionEmitter<'a> {
             let value_type = self.types.value(parameter.ty)?;
             let value = Value::from_parameters(value_type, &parameters, &mut index)
                 .ok_or_else(|| self.invalid("native function parameters do not match its ABI"))?;
-            self.set(parameter.value, value, builder)?;
+            self.set(parameter.value, value)?;
         }
 
         builder.seal_block(entry);
@@ -425,7 +382,7 @@ impl<'a> FunctionEmitter<'a> {
                         .ok_or_else(|| {
                             self.invalid("native block parameters do not match the MIR block")
                         })?;
-                    self.set(parameter.value, value, builder)?;
+                    self.set(parameter.value, value)?;
                 }
             }
 

@@ -18,8 +18,8 @@ impl<'a> FunctionEmitter<'a> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         let condition = self.check_condition(constraint, builder)?;
-        let success_arguments = self.block_arguments(success, builder)?;
-        let failure_arguments = self.block_arguments(failure, builder)?;
+        let success_arguments = self.block_arguments(success)?;
+        let failure_arguments = self.block_arguments(failure)?;
         builder.ins().brif(
             condition,
             self.blocks[&success.block],
@@ -39,7 +39,7 @@ impl<'a> FunctionEmitter<'a> {
         cases: mir::SwitchCaseSlice,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
-        let value = self.scalar(value, builder)?;
+        let value = self.scalar(value)?;
         let mut transfers = Vec::new();
         let default = self.switch_block(default, &mut transfers, builder)?;
         let mut switch = Switch::new();
@@ -74,8 +74,8 @@ impl<'a> FunctionEmitter<'a> {
                 is_signed,
                 ..
             } => {
-                let index = self.scalar(*index, builder)?;
-                let length = self.scalar(*length, builder)?;
+                let index = self.scalar(*index)?;
+                let length = self.scalar(*length)?;
                 let upper = if *is_signed {
                     builder.ins().icmp(IntCC::SignedLessThan, index, length)
                 } else {
@@ -96,7 +96,7 @@ impl<'a> FunctionEmitter<'a> {
                 Ok(builder.ins().icmp_imm_u(IntCC::NotEqual, value, 0))
             }
             mir::CheckConstraint::DivZero { divisor } => {
-                let divisor = self.scalar(*divisor, builder)?;
+                let divisor = self.scalar(*divisor)?;
 
                 Ok(builder.ins().icmp_imm_u(IntCC::NotEqual, divisor, 0))
             }
@@ -105,7 +105,7 @@ impl<'a> FunctionEmitter<'a> {
                 bit_width,
                 is_signed,
             } => {
-                let value = self.scalar(*value, builder)?;
+                let value = self.scalar(*value)?;
                 let upper = if *is_signed {
                     builder
                         .ins()
@@ -159,7 +159,7 @@ impl<'a> FunctionEmitter<'a> {
             .ok_or_else(|| self.invalid("native narrow check value is not an integer"))?;
         let source_type = cir::Type::int(source_width)
             .ok_or_else(|| self.invalid("native narrow check width is unsupported"))?;
-        let value = self.scalar(value, builder)?;
+        let value = self.scalar(value)?;
         let mut conditions = Vec::with_capacity(2);
 
         // reject negative signed values for an unsigned target
@@ -219,8 +219,8 @@ impl<'a> FunctionEmitter<'a> {
         is_signed: bool,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
-        let left = self.scalar(left, builder)?;
-        let right = self.scalar(right, builder)?;
+        let left = self.scalar(left)?;
+        let right = self.scalar(right)?;
         let (_, overflow) = match (operator, is_signed) {
             (mir::BinaryOperator::Add, true) => builder.ins().sadd_overflow(left, right),
             (mir::BinaryOperator::Add, false) => builder.ins().uadd_overflow(left, right),
@@ -252,7 +252,7 @@ impl<'a> FunctionEmitter<'a> {
         transfers: &mut Vec<(cir::Block, cir::Block, Vec<cir::BlockArg>)>,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Block, EmitError> {
-        let arguments = self.block_arguments(target, builder)?;
+        let arguments = self.block_arguments(target)?;
         let target_block = self.blocks[&target.block];
         if arguments.is_empty() {
             return Ok(target_block);

@@ -19,7 +19,7 @@ impl<'a> FunctionEmitter<'a> {
         match instruction {
             mir::Instruction::Const { destination, value } => {
                 let value = self.emit_constant(value, builder)?;
-                self.set(*destination, Value::Direct(value), builder)?;
+                self.set(*destination, Value::Direct(value))?;
             }
             mir::Instruction::Binary {
                 destination,
@@ -27,23 +27,23 @@ impl<'a> FunctionEmitter<'a> {
                 left,
                 right,
             } => {
-                let left = self.scalar(*left, builder)?;
-                let right = self.scalar(*right, builder)?;
+                let left = self.scalar(*left)?;
+                let right = self.scalar(*right)?;
                 let value = self.emit_binary(*operator, left, right, builder);
-                self.set(*destination, Value::Direct(value), builder)?;
+                self.set(*destination, Value::Direct(value))?;
             }
             mir::Instruction::Unary {
                 destination,
                 operator,
                 argument,
             } => {
-                let argument = self.scalar(*argument, builder)?;
+                let argument = self.scalar(*argument)?;
                 let value = match operator {
                     mir::UnaryOperator::Negate => builder.ins().ineg(argument),
                     mir::UnaryOperator::FloatNegate => builder.ins().fneg(argument),
                     mir::UnaryOperator::Not => builder.ins().bnot(argument),
                 };
-                self.set(*destination, Value::Direct(value), builder)?;
+                self.set(*destination, Value::Direct(value))?;
             }
             mir::Instruction::Cast {
                 destination,
@@ -52,7 +52,7 @@ impl<'a> FunctionEmitter<'a> {
                 to_type,
             } => {
                 let argument_type = self.value_type(*argument)?;
-                let argument = self.scalar(*argument, builder)?;
+                let argument = self.scalar(*argument)?;
                 let target = self
                     .types
                     .value(*to_type)?
@@ -66,7 +66,7 @@ impl<'a> FunctionEmitter<'a> {
                     target,
                     builder,
                 )?;
-                self.set(*destination, Value::Direct(value), builder)?;
+                self.set(*destination, Value::Direct(value))?;
             }
             mir::Instruction::Select {
                 destination,
@@ -74,32 +74,28 @@ impl<'a> FunctionEmitter<'a> {
                 then_value,
                 else_value,
             } => {
-                let condition = self.scalar(*condition, builder)?;
-                let then_value = self.scalar(*then_value, builder)?;
-                let else_value = self.scalar(*else_value, builder)?;
+                let condition = self.scalar(*condition)?;
+                let then_value = self.scalar(*then_value)?;
+                let else_value = self.scalar(*else_value)?;
                 let value = builder.ins().select(condition, then_value, else_value);
-                self.set(*destination, Value::Direct(value), builder)?;
+                self.set(*destination, Value::Direct(value))?;
             }
             mir::Instruction::LocalGet { destination, local } => {
                 let ty = self.value_type(*destination)?;
                 let value_type = self.types.value(ty)?;
                 let value = self.load(self.locals[local].address, value_type, builder)?;
-                self.set(*destination, value, builder)?;
+                self.set(*destination, value)?;
             }
             mir::Instruction::LocalSet { local, value } => {
                 let ty = self.optimized.tree.get(*local).ty;
                 let value_type = self.types.value(ty)?;
-                let value = self.value(*value, builder)?;
+                let value = self.value(*value)?;
                 self.store(self.locals[local].address, value, value_type, builder)?;
             }
             mir::Instruction::LocalAddr {
                 destination, local, ..
             } => {
-                self.set(
-                    *destination,
-                    Value::Direct(self.locals[local].address),
-                    builder,
-                )?;
+                self.set(*destination, Value::Direct(self.locals[local].address))?;
             }
             mir::Instruction::GlobalAddr {
                 destination,
@@ -118,9 +114,9 @@ impl<'a> FunctionEmitter<'a> {
             mir::Instruction::FunctionEnvironment {
                 destination,
                 function,
-            } => self.emit_function_environment(*destination, *function, builder)?,
+            } => self.emit_function_environment(*destination, *function)?,
             mir::Instruction::FunctionEnvironmentCurrent { destination } => {
-                self.emit_function_environment_current(*destination, builder)?;
+                self.emit_function_environment_current(*destination)?;
             }
             mir::Instruction::ContextCurrent { destination } => {
                 self.emit_context_current(*destination, builder)?;
@@ -162,39 +158,6 @@ impl<'a> FunctionEmitter<'a> {
                 *result_type,
                 builder,
             )?,
-            mir::Instruction::ContinuationNew { .. } | mir::Instruction::TaskStart { .. } => {
-                let point = self.object.instruction_point(instruction_id);
-                self.emit_deopt(point, builder)?;
-
-                return Ok(false);
-            }
-            mir::Instruction::ContinuationDestroy { .. } => {
-                let point = self.object.instruction_point(instruction_id);
-                self.emit_deopt(point, builder)?;
-
-                return Ok(false);
-            }
-            mir::Instruction::WaiterQueue {
-                destination,
-                waiter,
-                value,
-            } => self.emit_waiter_queue(*destination, *waiter, *value, builder)?,
-            mir::Instruction::WaiterCancel {
-                destination,
-                waiter,
-            } => self.emit_waiter_cancel(*destination, *waiter, builder)?,
-            mir::Instruction::TaskResolve { destination, value } => {
-                self.emit_task_resolve(*destination, *value, builder)?
-            }
-            mir::Instruction::TaskPark { task, waiter } => {
-                self.emit_task_park(*task, *waiter, builder)?
-            }
-            mir::Instruction::TaskCancel { task } => {
-                self.emit_task(native::abi::Operation::TaskCancel, *task, builder)?
-            }
-            mir::Instruction::TaskDetach { task } => {
-                self.emit_task(native::abi::Operation::TaskDetach, *task, builder)?
-            }
             mir::Instruction::Load {
                 destination,
                 pointer,
@@ -281,7 +244,7 @@ impl<'a> FunctionEmitter<'a> {
                 builder,
             )?,
             mir::Instruction::SliceLength { destination, slice } => {
-                self.emit_slice_length(*destination, *slice, builder)?
+                self.emit_slice_length(*destination, *slice)?
             }
             mir::Instruction::DynamicBind {
                 destination,
@@ -292,11 +255,11 @@ impl<'a> FunctionEmitter<'a> {
                 destination,
                 dynamic,
                 ..
-            } => self.emit_dynamic_payload(*destination, *dynamic, builder)?,
+            } => self.emit_dynamic_payload(*destination, *dynamic)?,
             mir::Instruction::DynamicType {
                 destination,
                 dynamic,
-            } => self.emit_dynamic_type(*destination, *dynamic, builder)?,
+            } => self.emit_dynamic_type(*destination, *dynamic)?,
             mir::Instruction::DynamicRead { .. } => {
                 return Err(Self::internal(
                     self.module,
@@ -337,8 +300,8 @@ impl<'a> FunctionEmitter<'a> {
             mir::Instruction::NewComplete {
                 destination, value, ..
             } => {
-                let value = self.value(*value, builder)?;
-                self.set(*destination, value, builder)?;
+                let value = self.value(*value)?;
+                self.set(*destination, value)?;
             }
             mir::Instruction::NewSliceZeroed {
                 destination,
@@ -384,7 +347,7 @@ impl<'a> FunctionEmitter<'a> {
                 let call =
                     self.emit_runtime(native::abi::Operation::Pin, &[space, reference], builder)?;
                 let reference = builder.inst_results(call)[0];
-                self.set(*destination, Value::Direct(reference), builder)?;
+                self.set(*destination, Value::Direct(reference))?;
             }
             mir::Instruction::Unpin { value } => {
                 let ty = self.value_type(*value)?;
@@ -402,8 +365,8 @@ impl<'a> FunctionEmitter<'a> {
                 let space = self.heap_space(ty)?;
                 let space = builder.ins().iconst(cir::types::I32, space as i64);
                 let object = self.reference(*object, builder)?;
-                let offset = self.scalar(*offset, builder)?;
-                let byte_len = self.scalar(*byte_len, builder)?;
+                let offset = self.scalar(*offset)?;
+                let byte_len = self.scalar(*byte_len)?;
                 self.emit_runtime(
                     native::abi::Operation::WriteBarrier,
                     &[space, object, offset, byte_len],

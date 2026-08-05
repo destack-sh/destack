@@ -16,17 +16,17 @@ export function pick(counts: Counts, key: string): int32 | undefined {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type Counts = dynamic<{  }>;
+type Counts = dynamic<{  }, managed, mutable>;
 
-type destack.memory.unique.Unique = slice<uint8, unique, exclusive>;
+type destack.memory.unique.Unique<slice<uint8, managed, mutable>> = slice<uint8, unique, exclusive>;
 
 type destack.string.string.String {
-    bytes: destack.memory.unique.Unique;
+    bytes: destack.memory.unique.Unique<slice<uint8, managed, mutable>>;
 }
 
-function test.main.pick(v0: Counts, v1: ref<destack.string.string.String, managed, mutable>): variant<uint8, int32> { 0uint8 = int32; 1uint8 = void; } {
+function test.main.pick(v0: Counts, v1: ref<destack.string.string.String, managed, mutable>): variant<uint8> { 0uint8 = int32; 1uint8 = void; } {
 entry(v0: Counts, v1: ref<destack.string.string.String, managed, mutable>):
-    v2: variant<uint8, int32> { 0uint8 = int32; 1uint8 = void; } = dynamic.find v0, v1
+    v2: variant<uint8> { 0uint8 = int32; 1uint8 = void; } = dynamic.find v0, v1
     return v2
 }
 /// @layout.struct name=destack.string.string.String size=16 align=8

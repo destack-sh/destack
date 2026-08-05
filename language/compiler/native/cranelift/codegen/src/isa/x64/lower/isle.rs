@@ -2,7 +2,7 @@
 
 // Pull in the ISLE generated code.
 pub(crate) mod generated_code;
-use crate::{ir::AtomicRmwOp, ir::types};
+use crate::ir::{AtomicRmwOp, types};
 use generated_code::{AssemblerOutputs, Context, MInst, RegisterClass};
 
 // Types that the generated ISLE code uses via `use super::*`.
@@ -13,7 +13,8 @@ use crate::ir::immediates::*;
 use crate::ir::types::*;
 use crate::ir::{BlockCall, Inst, InstructionData, LibCall, Opcode, TrapCode, Value, ValueList};
 use crate::isa::x64::X64Backend;
-use crate::isa::x64::inst::{ReturnCallInfo, args::*, regs};
+use crate::isa::x64::inst::args::*;
+use crate::isa::x64::inst::{ReturnCallInfo, regs};
 use crate::isa::x64::lower::{InsnInput, emit_vm_call};
 use crate::machinst::isle::*;
 use crate::machinst::{

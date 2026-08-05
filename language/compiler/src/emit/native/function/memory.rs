@@ -24,7 +24,7 @@ impl<'a> FunctionEmitter<'a> {
                 };
                 let destination = self.materialize_pointer(*destination, builder)?;
                 let source = self.materialize_pointer(*source, builder)?;
-                let byte_len = self.scalar(*byte_len, builder)?;
+                let byte_len = self.scalar(*byte_len)?;
                 if intrinsic == mir::Intrinsic::Memcpy {
                     builder.call_memcpy(
                         self.types.frontend_config(),
@@ -46,8 +46,8 @@ impl<'a> FunctionEmitter<'a> {
                     return Err(self.invalid("native memory fill requires three arguments"));
                 };
                 let destination = self.materialize_pointer(*destination, builder)?;
-                let byte = self.scalar(*byte, builder)?;
-                let byte_len = self.scalar(*byte_len, builder)?;
+                let byte = self.scalar(*byte)?;
+                let byte_len = self.scalar(*byte_len)?;
                 builder.call_memset(self.types.frontend_config(), destination, byte, byte_len);
             }
             mir::Intrinsic::Memcmp => {
@@ -58,10 +58,10 @@ impl<'a> FunctionEmitter<'a> {
                     .ok_or_else(|| self.invalid("native memory comparison has no destination"))?;
                 let left = self.materialize_pointer(*left, builder)?;
                 let right = self.materialize_pointer(*right, builder)?;
-                let byte_len = self.scalar(*byte_len, builder)?;
+                let byte_len = self.scalar(*byte_len)?;
                 let value =
                     builder.call_memcmp(self.types.frontend_config(), left, right, byte_len);
-                self.set(destination, Value::Direct(value), builder)?;
+                self.set(destination, Value::Direct(value))?;
             }
             mir::Intrinsic::PrefetchRead | mir::Intrinsic::PrefetchWrite => {
                 let [_pointer] = arguments else {
@@ -77,7 +77,7 @@ impl<'a> FunctionEmitter<'a> {
                 let pointer = self.materialize_pointer(*pointer, builder)?;
                 let origin = self.materialize_pointer(*origin, builder)?;
                 let offset = builder.ins().isub(pointer, origin);
-                self.set(destination, Value::Direct(offset), builder)?;
+                self.set(destination, Value::Direct(offset))?;
             }
             mir::Intrinsic::VolatileLoad => {
                 let [pointer] = arguments else {
@@ -88,7 +88,7 @@ impl<'a> FunctionEmitter<'a> {
                 let pointer = self.materialize_pointer(*pointer, builder)?;
                 let value_type = self.types.value(self.value_type(destination)?)?;
                 let value = self.load_volatile(pointer, value_type, builder)?;
-                self.set(destination, value, builder)?;
+                self.set(destination, value)?;
             }
             mir::Intrinsic::VolatileStore => {
                 let [pointer, source] = arguments else {
@@ -96,7 +96,7 @@ impl<'a> FunctionEmitter<'a> {
                 };
                 let pointer = self.materialize_pointer(*pointer, builder)?;
                 let value_type = self.types.value(self.value_type(*source)?)?;
-                let source = self.value(*source, builder)?;
+                let source = self.value(*source)?;
                 self.store_volatile(pointer, source, value_type, builder)?;
             }
             mir::Intrinsic::RawEq => {
@@ -106,9 +106,9 @@ impl<'a> FunctionEmitter<'a> {
                 let destination = destination
                     .ok_or_else(|| self.invalid("native raw equality has no destination"))?;
                 let value_type = self.types.value(self.value_type(*left)?)?;
-                let left = self.value(*left, builder)?;
+                let left = self.value(*left)?;
                 let left = self.materialize(left, value_type, builder)?;
-                let right = self.value(*right, builder)?;
+                let right = self.value(*right)?;
                 let right = self.materialize(right, value_type, builder)?;
                 let alignment = value_type.alignment().min(u32::from(u8::MAX)) as u8;
                 let alignment = std::num::NonZeroU8::new(alignment)
@@ -123,7 +123,7 @@ impl<'a> FunctionEmitter<'a> {
                     alignment,
                     cir::MemFlagsData::trusted(),
                 );
-                self.set(destination, Value::Direct(value), builder)?;
+                self.set(destination, Value::Direct(value))?;
             }
             _ => return Err(self.invalid("native intrinsic is not a memory operation")),
         }
@@ -159,7 +159,7 @@ impl<'a> FunctionEmitter<'a> {
                 builder.ins().iadd(base, offset)
             }
         };
-        self.set(destination, Value::Direct(reference), builder)?;
+        self.set(destination, Value::Direct(reference))?;
 
         Ok(())
     }
@@ -175,7 +175,7 @@ impl<'a> FunctionEmitter<'a> {
         let pointer = self.materialize_pointer(reference, builder)?;
         let value_type = self.types.value(result_type)?;
         let value = self.load(pointer, value_type, builder)?;
-        self.set(destination, value, builder)?;
+        self.set(destination, value)?;
 
         Ok(())
     }
@@ -190,7 +190,7 @@ impl<'a> FunctionEmitter<'a> {
         let pointer = self.materialize_pointer(reference, builder)?;
         let value_type = self.types.value(self.value_type(value)?)?;
 
-        let value = self.value(value, builder)?;
+        let value = self.value(value)?;
 
         self.store(pointer, value, value_type, builder)
     }

@@ -1,7 +1,7 @@
+use cranelift_codegen::ir::types::I16;
 use cranelift_codegen::ir::*;
 use cranelift_codegen::isa::CallConv;
-use cranelift_codegen::settings;
-use cranelift_codegen::{Context, ir::types::I16};
+use cranelift_codegen::{Context, settings};
 use cranelift_entity::EntityRef;
 use cranelift_frontend::*;
 use cranelift_module::*;
@@ -321,8 +321,7 @@ mod eh_frame {
     use super::*;
     use cranelift_codegen::settings::Configurable as _;
     use gimli::UnwindSection as _;
-    use object::Object as _;
-    use object::ObjectSection as _;
+    use object::{Object as _, ObjectSection as _};
 
     /// Build an `ObjectModule` for `triple` with the unwind-info builder flag
     /// set to `unwind_info`. Frame pointers are forced on so cranelift emits

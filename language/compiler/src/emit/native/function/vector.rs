@@ -16,9 +16,9 @@ impl FunctionEmitter<'_> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         let ty = self.vector_type(destination)?;
-        let value = self.scalar(value, builder)?;
+        let value = self.scalar(value)?;
         let vector = builder.ins().splat(ty, value);
-        self.set(destination, Value::Direct(vector), builder)
+        self.set(destination, Value::Direct(vector))
     }
 
     /// Extract one dynamically selected vector lane.
@@ -30,10 +30,10 @@ impl FunctionEmitter<'_> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         let vector_type = self.vector_type(vector)?;
-        let vector = self.scalar(vector, builder)?;
-        let index = self.scalar(index, builder)?;
+        let vector = self.scalar(vector)?;
+        let index = self.scalar(index)?;
         let lane = self.dynamic_lane(vector, index, vector_type, None, builder)?;
-        self.set(destination, Value::Direct(lane), builder)
+        self.set(destination, Value::Direct(lane))
     }
 
     /// Replace one dynamically selected vector lane.
@@ -46,11 +46,11 @@ impl FunctionEmitter<'_> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         let vector_type = self.vector_type(vector)?;
-        let vector = self.scalar(vector, builder)?;
-        let index = self.scalar(index, builder)?;
-        let value = self.scalar(value, builder)?;
+        let vector = self.scalar(vector)?;
+        let index = self.scalar(index)?;
+        let value = self.scalar(value)?;
         let vector = self.dynamic_lane(vector, index, vector_type, Some(value), builder)?;
-        self.set(destination, Value::Direct(vector), builder)
+        self.set(destination, Value::Direct(vector))
     }
 
     /// Shuffle two vectors through one constant lane mask.
@@ -68,8 +68,8 @@ impl FunctionEmitter<'_> {
         if mask.len() != lane_count as usize {
             return Err(self.invalid("native vector shuffle mask has the wrong lane count"));
         }
-        let left = self.scalar(left, builder)?;
-        let right = self.scalar(right, builder)?;
+        let left = self.scalar(left)?;
+        let right = self.scalar(right)?;
 
         // use the canonical 128-bit byte shuffle whenever the vector fits it exactly
         if ty.bytes() == 16 {
@@ -95,7 +95,7 @@ impl FunctionEmitter<'_> {
             let shuffled = builder.ins().shuffle(left, right, mask);
             let result = builder.ins().bitcast(ty, flags, shuffled);
 
-            return self.set(destination, Value::Direct(result), builder);
+            return self.set(destination, Value::Direct(result));
         }
         let mut result = None;
 
@@ -116,7 +116,7 @@ impl FunctionEmitter<'_> {
             });
         }
         let result = result.ok_or_else(|| self.invalid("native vector shuffle is empty"))?;
-        self.set(destination, Value::Direct(result), builder)
+        self.set(destination, Value::Direct(result))
     }
 
     /// Select each vector lane through one boolean mask lane.
@@ -129,9 +129,9 @@ impl FunctionEmitter<'_> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         let ty = self.vector_type(then_value)?;
-        let mask = self.scalar(mask, builder)?;
-        let then_value = self.scalar(then_value, builder)?;
-        let else_value = self.scalar(else_value, builder)?;
+        let mask = self.scalar(mask)?;
+        let then_value = self.scalar(then_value)?;
+        let else_value = self.scalar(else_value)?;
         let lane_bits = u16::try_from(ty.lane_type().bits())
             .map_err(|_| self.invalid("native vector select lane width is unsupported"))?;
         let lane_type = cir::Type::int(lane_bits)
@@ -164,7 +164,7 @@ impl FunctionEmitter<'_> {
                 .bitcast(ty, cir::MemFlagsData::new(), expanded)
         };
         let result = builder.ins().bitselect(expanded, then_value, else_value);
-        self.set(destination, Value::Direct(result), builder)
+        self.set(destination, Value::Direct(result))
     }
 
     /// Reduce one vector into a scalar value.
@@ -177,13 +177,13 @@ impl FunctionEmitter<'_> {
     ) -> Result<(), EmitError> {
         let ty = self.vector_type(vector)?;
         let element = self.vector_element(vector)?;
-        let vector = self.scalar(vector, builder)?;
+        let vector = self.scalar(vector)?;
         let mut result = builder.ins().extractlane(vector, 0);
         for lane in 1..ty.lane_count() {
             let right = builder.ins().extractlane(vector, lane as u8);
             result = self.reduce(operator, element, result, right, builder)?;
         }
-        self.set(destination, Value::Direct(result), builder)
+        self.set(destination, Value::Direct(result))
     }
 
     /// Compare two vectors into byte-wide boolean lanes.
@@ -197,8 +197,8 @@ impl FunctionEmitter<'_> {
     ) -> Result<(), EmitError> {
         let source_type = self.vector_type(left)?;
         let target_type = self.vector_type(destination)?;
-        let left = self.scalar(left, builder)?;
-        let right = self.scalar(right, builder)?;
+        let left = self.scalar(left)?;
+        let right = self.scalar(right)?;
         let comparison = self.emit_binary(operator, left, right, builder);
         let one = builder.ins().iconst(source_type.lane_type(), 1);
         let one = builder.ins().splat(source_type, one);
@@ -219,7 +219,7 @@ impl FunctionEmitter<'_> {
             });
         }
         let result = result.ok_or_else(|| self.invalid("native vector comparison is empty"))?;
-        self.set(destination, Value::Direct(result), builder)
+        self.set(destination, Value::Direct(result))
     }
 
     /// Convert each vector lane into one target scalar representation.
@@ -237,11 +237,11 @@ impl FunctionEmitter<'_> {
         }
         let source_element = self.vector_element(vector)?;
         let target_element = self.vector_element(destination)?;
-        let vector = self.scalar(vector, builder)?;
+        let vector = self.scalar(vector)?;
 
         // preserve identity conversions as the original SIMD value
         if source_element == target_element {
-            return self.set(destination, Value::Direct(vector), builder);
+            return self.set(destination, Value::Direct(vector));
         }
         let mut result = None;
 
@@ -255,7 +255,7 @@ impl FunctionEmitter<'_> {
             });
         }
         let result = result.ok_or_else(|| self.invalid("native vector conversion is empty"))?;
-        self.set(destination, Value::Direct(result), builder)
+        self.set(destination, Value::Direct(result))
     }
 
     /// Access one dynamic vector lane through canonical stack storage.

@@ -613,8 +613,7 @@ impl<'a> fmt::Display for DisplayValues<'a> {
 #[cfg(test)]
 mod tests {
     use crate::cursor::{Cursor, CursorPosition, FuncCursor};
-    use crate::ir::types;
-    use crate::ir::{Function, InstBuilder, StackSlotData, StackSlotKind, UserFuncName};
+    use crate::ir::{Function, InstBuilder, StackSlotData, StackSlotKind, UserFuncName, types};
     use alloc::string::ToString;
 
     #[test]

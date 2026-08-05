@@ -117,7 +117,7 @@ impl FunctionEmitter<'_> {
                 let (address, value_type) = result
                     .ok_or_else(|| self.invalid("native binding did not retain its result"))?;
                 let result = self.load(address, value_type, builder)?;
-                self.set(destination, result, builder)?;
+                self.set(destination, result)?;
             }
 
             return Ok(call_instruction);
@@ -139,7 +139,7 @@ impl FunctionEmitter<'_> {
                     Value::Address(address)
                 }
             };
-            self.set(destination, value, builder)?;
+            self.set(destination, value)?;
         }
 
         Ok(call_instruction)
@@ -219,7 +219,7 @@ impl FunctionEmitter<'_> {
                 (Some(function), None, None)
             }
             // unpack function identities and closure environments directly from SSA
-            mir::Callee::Indirect { value } => match self.value(value, builder)? {
+            mir::Callee::Indirect { value } => match self.value(value)? {
                 Value::Direct(function) => (None, Some(function), None),
                 Value::ScalarPair([function, environment]) => {
                     (None, Some(function), Some(environment))
@@ -247,8 +247,7 @@ impl FunctionEmitter<'_> {
             arguments.push(environment);
         }
         for argument in self.optimized.tree.get_values(call.arguments) {
-            self.value(*argument, builder)?
-                .append_values(&mut arguments);
+            self.value(*argument)?.append_values(&mut arguments);
         }
 
         // issue direct calls without materializing one function address
@@ -365,7 +364,7 @@ impl FunctionEmitter<'_> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
         let [_, table] = self
-            .value(receiver, builder)?
+            .value(receiver)?
             .scalar_pair()
             .ok_or_else(|| self.invalid("native dynamic receiver is not a scalar pair"))?;
 

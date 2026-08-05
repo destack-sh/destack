@@ -9,7 +9,8 @@ use core::fmt;
 use core::hash::{Hash, Hasher};
 use core::ops::Index;
 use core::str::FromStr;
-use cranelift_entity::{entity_impl, packed_option::PackedOption};
+use cranelift_entity::entity_impl;
+use cranelift_entity::packed_option::PackedOption;
 
 #[cfg(feature = "enable-serde")]
 use serde_derive::{Deserialize, Serialize};

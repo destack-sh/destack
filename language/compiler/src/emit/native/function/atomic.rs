@@ -22,7 +22,7 @@ impl FunctionEmitter<'_> {
             .ins()
             .atomic_load(ty, cir::MemFlagsData::trusted(), pointer);
         let value = self.decode_atomic(value, result_type, builder)?;
-        self.set(destination, Value::Direct(value), builder)?;
+        self.set(destination, Value::Direct(value))?;
 
         Ok(())
     }
@@ -37,7 +37,7 @@ impl FunctionEmitter<'_> {
     ) -> Result<(), EmitError> {
         let pointer = self.materialize_pointer(pointer, builder)?;
         let ty = self.value_type(value)?;
-        let value = self.scalar(value, builder)?;
+        let value = self.scalar(value)?;
         let value = self.encode_atomic(value, ty, builder)?;
         builder
             .ins()
@@ -60,8 +60,8 @@ impl FunctionEmitter<'_> {
     ) -> Result<(), EmitError> {
         let pointer = self.materialize_pointer(pointer, builder)?;
         let ty = self.value_type(expected)?;
-        let expected = self.scalar(expected, builder)?;
-        let new_value = self.scalar(new_value, builder)?;
+        let expected = self.scalar(expected)?;
+        let new_value = self.scalar(new_value)?;
         let expected_bits = self.encode_atomic(expected, ty, builder)?;
         let new_bits = self.encode_atomic(new_value, ty, builder)?;
         let old_bits = builder.ins().atomic_cas(
@@ -75,7 +75,7 @@ impl FunctionEmitter<'_> {
                 .ins()
                 .icmp(cir::condcodes::IntCC::Equal, old_bits, expected_bits);
         let old = self.decode_atomic(old_bits, ty, builder)?;
-        self.set(destination, Value::ScalarPair([old, is_exchanged]), builder)?;
+        self.set(destination, Value::ScalarPair([old, is_exchanged]))?;
 
         Ok(())
     }
@@ -92,7 +92,7 @@ impl FunctionEmitter<'_> {
     ) -> Result<(), EmitError> {
         let pointer = self.materialize_pointer(pointer, builder)?;
         let ty = self.value_type(value)?;
-        let value = self.scalar(value, builder)?;
+        let value = self.scalar(value)?;
         let old = match Self::integer_atomic_operator(operator) {
             Some(operator) => {
                 let value = self.encode_atomic(value, ty, builder)?;
@@ -109,7 +109,7 @@ impl FunctionEmitter<'_> {
             }
             None => self.emit_float_atomic_rmw(operator, pointer, value, ty, builder)?,
         };
-        self.set(destination, Value::Direct(old), builder)?;
+        self.set(destination, Value::Direct(old))?;
 
         Ok(())
     }

@@ -841,64 +841,6 @@ fn update_terminator_arguments(
             target: extend_target(tree, target, block_params, value_stacks, substitutions),
             unwind: extend_target(tree, unwind, block_params, value_stacks, substitutions),
         },
-        mir::Terminator::Await {
-            park,
-            value,
-            resume,
-            cancel,
-            unwind,
-        } => mir::Terminator::Await {
-            park: *park,
-            value: remap_value_reference(*value, substitutions),
-            resume: extend_target(tree, resume, block_params, value_stacks, substitutions),
-            cancel: extend_target(tree, cancel, block_params, value_stacks, substitutions),
-            unwind: unwind.as_ref().map(|unwind| {
-                extend_target(tree, unwind, block_params, value_stacks, substitutions)
-            }),
-        },
-        mir::Terminator::Yield {
-            value,
-            resume,
-            complete,
-            unwind,
-        } => mir::Terminator::Yield {
-            value: remap_value_reference(*value, substitutions),
-            resume: extend_target(tree, resume, block_params, value_stacks, substitutions),
-            complete: extend_target(tree, complete, block_params, value_stacks, substitutions),
-            unwind: unwind.as_ref().map(|unwind| {
-                extend_target(tree, unwind, block_params, value_stacks, substitutions)
-            }),
-        },
-        mir::Terminator::ContinuationResume {
-            continuation,
-            value,
-            yielded,
-            returned,
-            unwind,
-        } => mir::Terminator::ContinuationResume {
-            continuation: remap_value_reference(*continuation, substitutions),
-            value: remap_value_reference(*value, substitutions),
-            yielded: extend_target(tree, yielded, block_params, value_stacks, substitutions),
-            returned: extend_target(tree, returned, block_params, value_stacks, substitutions),
-            unwind: unwind.as_ref().map(|unwind| {
-                extend_target(tree, unwind, block_params, value_stacks, substitutions)
-            }),
-        },
-        mir::Terminator::ContinuationComplete {
-            continuation,
-            value,
-            yielded,
-            returned,
-            unwind,
-        } => mir::Terminator::ContinuationComplete {
-            continuation: remap_value_reference(*continuation, substitutions),
-            value: remap_value_reference(*value, substitutions),
-            yielded: extend_target(tree, yielded, block_params, value_stacks, substitutions),
-            returned: extend_target(tree, returned, block_params, value_stacks, substitutions),
-            unwind: unwind.as_ref().map(|unwind| {
-                extend_target(tree, unwind, block_params, value_stacks, substitutions)
-            }),
-        },
         mir::Terminator::Return { value } => mir::Terminator::Return {
             value: value.map(|value| remap_value_reference(value, substitutions)),
         },

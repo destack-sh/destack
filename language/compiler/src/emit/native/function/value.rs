@@ -1,6 +1,6 @@
 use cranelift_codegen::ir as cir;
 use cranelift_codegen::ir::InstBuilder;
-use cranelift_frontend::{FunctionBuilder, Variable};
+use cranelift_frontend::FunctionBuilder;
 use destack_mir as mir;
 use destack_program as program;
 
@@ -18,26 +18,6 @@ pub(super) enum Value {
     ScalarPair([cir::Value; 2]),
     /// Canonical value bytes addressed in memory.
     Address(cir::Value),
-}
-
-/// Cranelift variables carrying one MIR value through the native CFG.
-#[derive(Debug, Clone, Copy)]
-pub(super) enum ValueVariable {
-    /// One direct variable.
-    Direct(Variable),
-    /// Two scalar variables.
-    ScalarPair([Variable; 2]),
-    /// One variable containing a canonical address.
-    Address(Variable),
-}
-
-/// Physical native values keyed by MIR SSA identity.
-#[derive(Debug)]
-pub(super) enum ValueTable {
-    /// Ordinary SSA values, each defined once under normal dominance.
-    Direct(Vec<Option<Value>>),
-    /// Coroutine values reconstructed by ordinary and resume predecessors.
-    Coroutine(Vec<Option<ValueVariable>>),
 }
 
 impl Value {
@@ -112,52 +92,6 @@ impl Value {
                 Self::ScalarPair(fields.map(|field| builder.append_block_param(block, field.ty)))
             }
             ValueType::Indirect { .. } => Self::Address(builder.append_block_param(block, pointer)),
-        }
-    }
-}
-
-impl ValueVariable {
-    /// Declare variables for one native value representation.
-    pub(super) fn declare(
-        value_type: ValueType,
-        pointer: cir::Type,
-        builder: &mut FunctionBuilder<'_>,
-    ) -> Self {
-        match value_type {
-            ValueType::Direct { ty, .. } => Self::Direct(builder.declare_var(ty)),
-            ValueType::ScalarPair { fields, .. } => {
-                Self::ScalarPair(fields.map(|field| builder.declare_var(field.ty)))
-            }
-            ValueType::Indirect { .. } => Self::Address(builder.declare_var(pointer)),
-        }
-    }
-
-    /// Define this MIR value at the current native program point.
-    pub(super) fn define(self, value: Value, builder: &mut FunctionBuilder<'_>) -> Option<()> {
-        match (self, value) {
-            (Self::Direct(variable), Value::Direct(value))
-            | (Self::Address(variable), Value::Address(value)) => {
-                builder.def_var(variable, value);
-            }
-            (Self::ScalarPair(variables), Value::ScalarPair(values)) => {
-                for (variable, value) in variables.into_iter().zip(values) {
-                    builder.def_var(variable, value);
-                }
-            }
-            _ => return None,
-        }
-
-        Some(())
-    }
-
-    /// Read this MIR value at the current native program point.
-    pub(super) fn read(self, builder: &mut FunctionBuilder<'_>) -> Value {
-        match self {
-            Self::Direct(variable) => Value::Direct(builder.use_var(variable)),
-            Self::ScalarPair(variables) => {
-                Value::ScalarPair(variables.map(|variable| builder.use_var(variable)))
-            }
-            Self::Address(variable) => Value::Address(builder.use_var(variable)),
         }
     }
 }
@@ -463,7 +397,7 @@ impl<'a> FunctionEmitter<'a> {
         value: mir::Value,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
-        match self.value(value, builder)? {
+        match self.value(value)? {
             Value::Direct(reference) => Ok(reference),
             Value::ScalarPair([reference, _]) => Ok(reference),
             Value::Address(address) => {
@@ -552,75 +486,37 @@ impl<'a> FunctionEmitter<'a> {
     }
 
     /// Return one emitted value.
-    pub(super) fn value(
-        &self,
-        value: mir::Value,
-        builder: &mut FunctionBuilder<'_>,
-    ) -> Result<Value, EmitError> {
-        let value = match &self.values {
-            ValueTable::Direct(values) => values.get(value.id() as usize).copied().flatten(),
-            ValueTable::Coroutine(variables) => variables
-                .get(value.id() as usize)
-                .copied()
-                .flatten()
-                .map(|variable| variable.read(builder)),
-        };
-
-        value.ok_or_else(|| self.invalid("native value has not been defined"))
+    pub(super) fn value(&self, value: mir::Value) -> Result<Value, EmitError> {
+        self.values
+            .get(value.id() as usize)
+            .copied()
+            .flatten()
+            .ok_or_else(|| self.invalid("native value has not been defined"))
     }
 
     /// Return one emitted scalar.
-    pub(super) fn scalar(
-        &self,
-        value: mir::Value,
-        builder: &mut FunctionBuilder<'_>,
-    ) -> Result<cir::Value, EmitError> {
-        self.value(value, builder)?
+    pub(super) fn scalar(&self, value: mir::Value) -> Result<cir::Value, EmitError> {
+        self.value(value)?
             .direct()
             .ok_or_else(|| self.invalid("native value is not scalar"))
     }
 
     /// Return one emitted canonical address.
-    pub(super) fn address(
-        &self,
-        value: mir::Value,
-        builder: &mut FunctionBuilder<'_>,
-    ) -> Result<cir::Value, EmitError> {
-        self.value(value, builder)?
+    pub(super) fn address(&self, value: mir::Value) -> Result<cir::Value, EmitError> {
+        self.value(value)?
             .address()
             .ok_or_else(|| self.invalid("native value is not indirect"))
     }
 
     /// Define one emitted MIR value.
-    pub(super) fn set(
-        &mut self,
-        destination: mir::Value,
-        value: Value,
-        builder: &mut FunctionBuilder<'_>,
-    ) -> Result<(), EmitError> {
+    pub(super) fn set(&mut self, destination: mir::Value, value: Value) -> Result<(), EmitError> {
         let index = destination.id() as usize;
-        let count = match &self.values {
-            ValueTable::Direct(values) => values.len(),
-            ValueTable::Coroutine(variables) => variables.len(),
-        };
-        if index >= count {
+        if index >= self.values.len() {
             return Err(self.invalid("native destination has no physical value"));
         }
-        let missing = self.invalid("native destination has no physical value");
+        self.values[index] = Some(value);
 
-        match &mut self.values {
-            ValueTable::Direct(values) => {
-                values[index] = Some(value);
-
-                Ok(())
-            }
-            ValueTable::Coroutine(variables) => {
-                let variable = variables[index].ok_or(missing)?;
-                variable
-                    .define(value, builder)
-                    .ok_or_else(|| self.invalid("native value does not match its variable"))
-            }
-        }
+        Ok(())
     }
 
     /// Return the hidden activation.

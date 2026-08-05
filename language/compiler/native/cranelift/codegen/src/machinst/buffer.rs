@@ -205,9 +205,7 @@ use crate::isa::unwind::UnwindInst;
 use crate::machinst::{
     BlockIndex, MachInstLabelUse, TextSectionBuilder, VCodeConstant, VCodeConstants, VCodeInst,
 };
-use crate::trace;
-use crate::{MachInstEmitState, ir};
-use crate::{VCodeConstantData, timing};
+use crate::{MachInstEmitState, VCodeConstantData, ir, timing, trace};
 use alloc::collections::BinaryHeap;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -2553,8 +2551,7 @@ mod test {
     use super::*;
     use crate::ir::UserExternalNameRef;
     use crate::isa::aarch64;
-    use crate::isa::aarch64::inst::{BranchTarget, CondBrKind, EmitInfo, Inst};
-    use crate::isa::aarch64::inst::{OperandSize, xreg};
+    use crate::isa::aarch64::inst::{BranchTarget, CondBrKind, EmitInfo, Inst, OperandSize, xreg};
     use crate::machinst::{MachInst, MachInstEmit, MachInstEmitState};
     use crate::settings;
 

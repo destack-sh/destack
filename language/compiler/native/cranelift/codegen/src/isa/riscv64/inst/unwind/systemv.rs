@@ -3,7 +3,8 @@
 use crate::isa::riscv64::inst::regs;
 use crate::isa::unwind::systemv::RegisterMappingError;
 use crate::machinst::Reg;
-use gimli::{Encoding, Format, Register, write::CommonInformationEntry};
+use gimli::write::CommonInformationEntry;
+use gimli::{Encoding, Format, Register};
 use regalloc2::RegClass;
 
 /// Creates a new riscv64 common information entry (CIE).

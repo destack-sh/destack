@@ -12,9 +12,8 @@ pub use crate::ir::{
     AtomicRmwOp, Block, BlockCall, Constant, DynamicStackSlot, FuncRef, GlobalValue, Immediate,
     InstructionData, JumpTable, MemFlagsData, Opcode, StackSlot, TrapCode, Type, Value,
 };
-use crate::isle_common_prelude_methods;
 use crate::machinst::isle::*;
-use crate::trace;
+use crate::{isle_common_prelude_methods, trace};
 use core::marker::PhantomData;
 use cranelift_entity::packed_option::ReservedValue;
 use smallvec::{SmallVec, smallvec};

@@ -39,7 +39,7 @@ impl FunctionEmitter<'_> {
                 .ins()
                 .iadd_imm_u(address, i64::from(selected.payload_offset));
             let payload_type = self.types.value(self.value_type(payload)?)?;
-            let payload = self.value(payload, builder)?;
+            let payload = self.value(payload)?;
             self.store(target, payload, payload_type, builder)?;
         }
 
@@ -49,7 +49,7 @@ impl FunctionEmitter<'_> {
         } else {
             self.load(address, value_type, builder)?
         };
-        self.set(destination, value, builder)?;
+        self.set(destination, value)?;
 
         Ok(())
     }
@@ -71,7 +71,7 @@ impl FunctionEmitter<'_> {
             return Err(self.invalid("native variant value has no variant layout"));
         };
         let value_type = self.types.value(variant_type)?;
-        let value = self.value(variant, builder)?;
+        let value = self.value(variant)?;
         let address = self.materialize(value, value_type, builder)?;
         let scalar = self.load_discriminant(address, layout.encoding.field(), builder)?;
         let destination_type = self
@@ -80,7 +80,7 @@ impl FunctionEmitter<'_> {
             .direct()
             .ok_or_else(|| self.invalid("native variant tag result is not scalar"))?;
         let tag = self.decode_variant(scalar, layout, destination_type, builder)?;
-        self.set(destination, Value::Direct(tag), builder)?;
+        self.set(destination, Value::Direct(tag))?;
 
         Ok(())
     }
@@ -109,7 +109,7 @@ impl FunctionEmitter<'_> {
             .direct()
             .ok_or_else(|| self.invalid("native variant tag result is not scalar"))?;
         let tag = self.decode_variant(scalar, layout, destination_type, builder)?;
-        self.set(destination, Value::Direct(tag), builder)?;
+        self.set(destination, Value::Direct(tag))?;
 
         Ok(())
     }
@@ -136,14 +136,14 @@ impl FunctionEmitter<'_> {
             .get(case as usize)
             .ok_or_else(|| self.invalid("native variant case is absent"))?;
         let variant_value_type = self.types.value(variant_type)?;
-        let variant = self.value(variant, builder)?;
+        let variant = self.value(variant)?;
         let address = self.materialize(variant, variant_value_type, builder)?;
         let address = builder
             .ins()
             .iadd_imm_u(address, i64::from(selected.payload_offset));
         let result_type = self.types.value(self.value_type(destination)?)?;
         let result = self.load(address, result_type, builder)?;
-        self.set(destination, result, builder)?;
+        self.set(destination, result)?;
 
         Ok(())
     }
@@ -173,7 +173,7 @@ impl FunctionEmitter<'_> {
         let reference = builder
             .ins()
             .iadd_imm_u(reference, i64::from(selected.payload_offset));
-        self.set(destination, Value::Direct(reference), builder)?;
+        self.set(destination, Value::Direct(reference))?;
 
         Ok(())
     }

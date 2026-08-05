@@ -23,8 +23,8 @@ impl FunctionEmitter<'_> {
             .dynamic_index(concrete, *constraint)
             .ok_or_else(|| self.invalid("native dynamic table is absent"))?;
         let table = self.index_u32(native::Index::Dynamic { table }, builder)?;
-        let payload = self.scalar(payload, builder)?;
-        self.set(destination, Value::ScalarPair([payload, table]), builder)?;
+        let payload = self.scalar(payload)?;
+        self.set(destination, Value::ScalarPair([payload, table]))?;
 
         Ok(())
     }
@@ -34,13 +34,12 @@ impl FunctionEmitter<'_> {
         &mut self,
         destination: mir::Value,
         dynamic: mir::Value,
-        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         let [payload, _] = self
-            .value(dynamic, builder)?
+            .value(dynamic)?
             .scalar_pair()
             .ok_or_else(|| self.invalid("native dynamic value is not a scalar pair"))?;
-        self.set(destination, Value::Direct(payload), builder)?;
+        self.set(destination, Value::Direct(payload))?;
 
         Ok(())
     }
@@ -50,13 +49,12 @@ impl FunctionEmitter<'_> {
         &mut self,
         destination: mir::Value,
         dynamic: mir::Value,
-        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         let [_, ty] = self
-            .value(dynamic, builder)?
+            .value(dynamic)?
             .scalar_pair()
             .ok_or_else(|| self.invalid("native dynamic value is not a scalar pair"))?;
-        self.set(destination, Value::Direct(ty), builder)?;
+        self.set(destination, Value::Direct(ty))?;
 
         Ok(())
     }

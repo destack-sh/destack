@@ -70,7 +70,6 @@ impl ObjectEmitter {
                 name: function.name,
                 symbol: function.symbol,
                 linkage: function.linkage,
-                coroutine: function.coroutine,
                 lifetimes: function.lifetimes.clone(),
                 parameters: function
                     .parameters
@@ -127,9 +126,7 @@ impl ObjectEmitter {
             .allocations(sites.allocations)
             .memory(sites.memory)
             .calls(sites.calls)
-            .continuations(sites.continuations)
             .edges(sites.edges)
-            .suspensions(sites.suspensions)
             .counters(sites.counters)
             .samples(sites.samples);
 

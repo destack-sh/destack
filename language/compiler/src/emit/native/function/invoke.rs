@@ -52,7 +52,7 @@ impl FunctionEmitter<'_> {
 
         // preserve explicit MIR edge arguments across the call
         for argument in self.optimized.tree.get_values(target.arguments) {
-            let value = self.value(*argument, builder)?;
+            let value = self.value(*argument)?;
             let mut values = Vec::new();
             value.append_values(&mut values);
             normal_types.extend(
@@ -80,7 +80,7 @@ impl FunctionEmitter<'_> {
             exception_arguments.push(cir::BlockArg::TryCallExn(index as u32));
         }
         for argument in self.optimized.tree.get_values(unwind.arguments) {
-            let value = self.value(*argument, builder)?;
+            let value = self.value(*argument)?;
             let mut values = Vec::new();
             value.append_values(&mut values);
             for value in values {

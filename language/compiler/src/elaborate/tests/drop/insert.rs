@@ -318,41 +318,6 @@ b2:
 }
 
 #[test]
-fn test_insert_drop_on_yield_unwind_path() {
-    let mut program = TestProgram::mir(
-        r#"
-function test(v0: ref<int32, unique, mutable>, v1: int32): int32 {
-entry(v0: ref<int32, unique, mutable>, v1: int32):
-    yield v1 => b1(v0) | b1(v0) | cleanup
-
-b1(v2: int32, v3: ref<int32, unique, mutable>):
-    return v2
-
-cleanup:
-    unwind.resume
-}
-"#,
-    );
-
-    program.assert_drop_mir(
-        r#"
-function test(v0: ref<int32, unique, mutable>, v1: int32): int32 {
-entry(v0: ref<int32, unique, mutable>, v1: int32):
-    yield v1 => b1(v0) | b1(v0) | b2
-
-b1(v2: int32, v3: ref<int32, unique, mutable>):
-    free v3
-    return v2
-
-b2:
-    free v0
-    unwind.resume
-}
-"#,
-    );
-}
-
-#[test]
 fn test_insert_drop_after_complete_struct_decomposition() {
     let mut program = TestProgram::mir(
         r#"

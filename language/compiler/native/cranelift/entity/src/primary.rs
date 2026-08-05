@@ -5,10 +5,9 @@ use crate::iter::{IntoIter, Iter, IterMut};
 use crate::keys::Keys;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use core::fmt;
 use core::marker::PhantomData;
 use core::ops::{Index, IndexMut};
-use core::slice;
+use core::{fmt, slice};
 #[cfg(feature = "enable-serde")]
 use serde_derive::{Deserialize, Serialize};
 use wasmtime_core::error::OutOfMemory;

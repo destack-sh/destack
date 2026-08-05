@@ -26,7 +26,8 @@ use crate::trace;
 use crate::traversals::Dfs;
 use alloc::borrow::Cow;
 use alloc::vec::Vec;
-use cranelift_entity::{SecondaryMap, packed_option::PackedOption};
+use cranelift_entity::SecondaryMap;
+use cranelift_entity::packed_option::PackedOption;
 use smallvec::SmallVec;
 
 type SmallValueVec = SmallVec<[ir::Value; 8]>;

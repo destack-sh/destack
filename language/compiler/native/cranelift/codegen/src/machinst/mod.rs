@@ -45,10 +45,8 @@
 //! ```
 
 use crate::binemit::{Addend, CodeInfo, CodeOffset, Reloc};
-use crate::ir::{
-    self, DynamicStackSlot, Endianness, RelSourceLoc, StackSlot, TrapCode, Type,
-    function::FunctionParameters,
-};
+use crate::ir::function::FunctionParameters;
+use crate::ir::{self, DynamicStackSlot, Endianness, RelSourceLoc, StackSlot, TrapCode, Type};
 use crate::isa::FunctionAlignment;
 use crate::result::CodegenResult;
 use crate::settings;

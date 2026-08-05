@@ -44,7 +44,7 @@ impl FunctionEmitter<'_> {
             },
             builder,
         )?;
-        let value = self.scalar(value, builder)?;
+        let value = self.scalar(value)?;
         let value = self.profile_word(value, builder)?;
         self.emit_runtime(
             native::abi::Operation::ProfileSample,

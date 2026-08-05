@@ -86,7 +86,7 @@ impl<'a> FunctionEmitter<'a> {
                     (local.slot, local.key)
                 }
                 FramePlace::Value(value) => {
-                    let value = self.value(value, builder)?;
+                    let value = self.value(value)?;
                     self.retain(value, value_type, builder)?
                 }
             };

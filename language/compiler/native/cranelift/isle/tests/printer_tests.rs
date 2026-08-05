@@ -1,8 +1,6 @@
 //! Auto-generated ISLE printer tests.
 
-use cranelift_isle::lexer;
-use cranelift_isle::parser;
-use cranelift_isle::printer;
+use cranelift_isle::{lexer, parser, printer};
 use std::io::BufWriter;
 use std::iter::zip;
 

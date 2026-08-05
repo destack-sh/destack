@@ -1,8 +1,7 @@
 use destack_artifact::MirOptimized;
 use destack_mir as mir;
 use destack_program::object::{
-    AllocationSite, CallMode, CallSite, ContinuationSite, CounterSite, EdgeSite, MemorySite, Point,
-    SampleSite, Suspension, SuspensionSite,
+    AllocationSite, CallMode, CallSite, CounterSite, EdgeSite, MemorySite, Point, SampleSite,
 };
 use destack_source::ModuleId;
 
@@ -20,12 +19,8 @@ pub(super) struct SiteEmitter {
     pub(super) memory: Vec<MemorySite>,
     /// Function call sites.
     pub(super) calls: Vec<CallSite>,
-    /// Continuation control sites.
-    pub(super) continuations: Vec<ContinuationSite>,
     /// Control flow edges.
     pub(super) edges: Vec<EdgeSite>,
-    /// Coroutine suspension sites.
-    pub(super) suspensions: Vec<SuspensionSite>,
     /// Explicit profile counter sites.
     pub(super) counters: Vec<CounterSite>,
     /// Explicit profile sample sites.
@@ -282,70 +277,6 @@ impl SiteEmitter {
             _ => {}
         }
 
-        // record continuation control metadata
-        match terminator {
-            mir::Terminator::ContinuationResume {
-                yielded,
-                returned,
-                unwind,
-                ..
-            }
-            | mir::Terminator::ContinuationComplete {
-                yielded,
-                returned,
-                unwind,
-                ..
-            } => self.continuations.push(ContinuationSite {
-                point,
-                yielded: points.block(yielded.block),
-                returned: points.block(returned.block),
-                unwind: unwind.as_ref().map(|target| points.block(target.block)),
-            }),
-            _ => {}
-        }
-
-        // record coroutine suspension metadata
-        match terminator {
-            mir::Terminator::Await {
-                value,
-                resume,
-                cancel,
-                unwind,
-                ..
-            } => self.suspensions.push(Self::suspension(
-                module,
-                optimized,
-                points,
-                function,
-                point,
-                Suspension::Await,
-                *value,
-                resume,
-                Some(cancel),
-                None,
-                unwind.as_ref(),
-            )?),
-            mir::Terminator::Yield {
-                value,
-                resume,
-                complete,
-                unwind,
-            } => self.suspensions.push(Self::suspension(
-                module,
-                optimized,
-                points,
-                function,
-                point,
-                Suspension::Yield,
-                *value,
-                resume,
-                None,
-                Some(complete),
-                unwind.as_ref(),
-            )?),
-            _ => {}
-        }
-
         // record every explicit control flow edge
         self.edges.extend(
             terminator
@@ -358,41 +289,6 @@ impl SiteEmitter {
         );
 
         Ok(())
-    }
-
-    /// Build one coroutine suspension site.
-    fn suspension(
-        module: ModuleId,
-        optimized: &MirOptimized,
-        points: &PointMap,
-        function: &mir::Function,
-        point: Point,
-        operation: Suspension,
-        value: mir::Value,
-        resume: &mir::BlockTarget,
-        cancel: Option<&mir::BlockTarget>,
-        complete: Option<&mir::BlockTarget>,
-        unwind: Option<&mir::BlockTarget>,
-    ) -> Result<SuspensionSite, EmitError> {
-        let value_type = function
-            .value_type(value)
-            .ok_or_else(|| ObjectEmitter::internal(module, "missing suspension value type"))?;
-        let resume_type = Self::success_type(module, optimized, resume)?;
-        let complete_type = complete
-            .map(|target| Self::success_type(module, optimized, target))
-            .transpose()?;
-
-        Ok(SuspensionSite {
-            point,
-            resume: points.block(resume.block),
-            cancel: cancel.map(|target| points.block(target.block)),
-            complete: complete.map(|target| points.block(target.block)),
-            unwind: unwind.map(|target| points.block(target.block)),
-            operation,
-            value_type,
-            resume_type,
-            complete_type,
-        })
     }
 
     /// Build one allocation site.

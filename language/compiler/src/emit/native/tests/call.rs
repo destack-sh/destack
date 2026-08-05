@@ -393,7 +393,7 @@ block0(v0: i64, v1: i32):
     v12 = iconst.i64 1
     v13 = iconst.i64 1
     v14 = load.i64 notrap aligned v0+8
-    v15 = load.i64 notrap aligned v14+200
+    v15 = load.i64 notrap aligned v14+120
     call_indirect sig0, v15(v0, v11, v4, v12, v8, v13), stack_map=[i8 @ ss0+0, i8 @ ss1+0]  ; v12 = 1, v13 = 1
     v16 = load.i32 notrap aligned v8
     return v16

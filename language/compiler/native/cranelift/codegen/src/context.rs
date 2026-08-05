@@ -22,10 +22,9 @@ use crate::nan_canonicalization::do_nan_canonicalization;
 use crate::remove_constant_phis::do_remove_constant_phis;
 use crate::result::{CodegenResult, CompileResult};
 use crate::settings::{FlagsOrIsa, OptLevel};
-use crate::trace;
 use crate::unreachable_code::eliminate_unreachable_code;
 use crate::verifier::{VerifierErrors, VerifierResult, verify_context};
-use crate::{CompileError, timing};
+use crate::{CompileError, timing, trace};
 #[cfg(feature = "souper-harvest")]
 use alloc::string::String;
 use alloc::vec::Vec;

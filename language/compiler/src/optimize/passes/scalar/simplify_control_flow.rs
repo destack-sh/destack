@@ -4354,48 +4354,6 @@ entry:
                     check_edge(target.block, target.arguments(tree), &mut mismatches);
                     check_edge(unwind.block, unwind.arguments(tree), &mut mismatches);
                 }
-                mir::Terminator::Await {
-                    resume,
-                    cancel,
-                    unwind,
-                    ..
-                } => {
-                    check_edge(resume.block, resume.arguments(tree), &mut mismatches);
-                    check_edge(cancel.block, cancel.arguments(tree), &mut mismatches);
-                    if let Some(unwind) = unwind {
-                        check_edge(unwind.block, unwind.arguments(tree), &mut mismatches);
-                    }
-                }
-                mir::Terminator::Yield {
-                    resume,
-                    complete,
-                    unwind,
-                    ..
-                } => {
-                    check_edge(resume.block, resume.arguments(tree), &mut mismatches);
-                    check_edge(complete.block, complete.arguments(tree), &mut mismatches);
-                    if let Some(unwind) = unwind {
-                        check_edge(unwind.block, unwind.arguments(tree), &mut mismatches);
-                    }
-                }
-                mir::Terminator::ContinuationResume {
-                    yielded,
-                    returned,
-                    unwind,
-                    ..
-                }
-                | mir::Terminator::ContinuationComplete {
-                    yielded,
-                    returned,
-                    unwind,
-                    ..
-                } => {
-                    check_edge(yielded.block, yielded.arguments(tree), &mut mismatches);
-                    check_edge(returned.block, returned.arguments(tree), &mut mismatches);
-                    if let Some(unwind) = unwind {
-                        check_edge(unwind.block, unwind.arguments(tree), &mut mismatches);
-                    }
-                }
                 mir::Terminator::NewZeroedTry {
                     success, failure, ..
                 }

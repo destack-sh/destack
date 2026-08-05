@@ -29,8 +29,8 @@ impl<'a> FunctionEmitter<'a> {
                 return Err(self.invalid("native direct aggregate does not have one value"));
             };
             self.aggregate_field(layout, 0)?;
-            let source = self.value(*source, builder)?;
-            self.set(destination, source, builder)?;
+            let source = self.value(*source)?;
+            self.set(destination, source)?;
 
             return Ok(());
         }
@@ -44,12 +44,12 @@ impl<'a> FunctionEmitter<'a> {
                     .iter()
                     .position(|field| field.offset == offset)
                     .ok_or_else(|| self.invalid("native scalar pair has no source field"))?;
-                values[field_index] = Some(self.scalar(*source, builder)?);
+                values[field_index] = Some(self.scalar(*source)?);
             }
             let [Some(first), Some(second)] = values else {
                 return Err(self.invalid("native scalar pair is missing a source value"));
             };
-            self.set(destination, Value::ScalarPair([first, second]), builder)?;
+            self.set(destination, Value::ScalarPair([first, second]))?;
 
             return Ok(());
         }
@@ -63,10 +63,10 @@ impl<'a> FunctionEmitter<'a> {
             let (ty, offset) = self.aggregate_field(layout, index as u32)?;
             let target = builder.ins().iadd_imm_u(address, i64::from(offset));
             let value_type = self.types.value(ty)?;
-            let value = self.value(*value, builder)?;
+            let value = self.value(*value)?;
             self.store(target, value, value_type, builder)?;
         }
-        self.set(destination, Value::Address(address), builder)?;
+        self.set(destination, Value::Address(address))?;
 
         Ok(())
     }
@@ -85,12 +85,12 @@ impl<'a> FunctionEmitter<'a> {
             .layouts
             .type_layout(aggregate_type)
             .ok_or_else(|| self.invalid("native aggregate has no layout"))?;
-        let aggregate_value = self.value(aggregate, builder)?;
+        let aggregate_value = self.value(aggregate)?;
 
         // project the sole field from one direct aggregate
         if let Value::Direct(value) = aggregate_value {
             self.aggregate_field(layout, index)?;
-            self.set(destination, Value::Direct(value), builder)?;
+            self.set(destination, Value::Direct(value))?;
 
             return Ok(());
         }
@@ -106,7 +106,7 @@ impl<'a> FunctionEmitter<'a> {
                 .iter()
                 .position(|field| field.offset == offset)
                 .ok_or_else(|| self.invalid("native scalar pair has no projected field"))?;
-            self.set(destination, Value::Direct(values[field]), builder)?;
+            self.set(destination, Value::Direct(values[field]))?;
 
             return Ok(());
         }
@@ -127,7 +127,7 @@ impl<'a> FunctionEmitter<'a> {
         );
         let value_type = self.types.value(self.value_type(destination)?)?;
         let value = self.load(address, value_type, builder)?;
-        self.set(destination, value, builder)?;
+        self.set(destination, value)?;
 
         Ok(())
     }
@@ -187,18 +187,18 @@ impl<'a> FunctionEmitter<'a> {
         let value_type = self.types.value(aggregate_type)?;
 
         // replace the sole field of one direct aggregate
-        if matches!(self.value(aggregate, builder)?, Value::Direct(_)) {
+        if matches!(self.value(aggregate)?, Value::Direct(_)) {
             if offset != 0 {
                 return Err(self.invalid("native direct aggregate field is not at byte zero"));
             }
-            let value = self.value(value, builder)?;
-            self.set(destination, value, builder)?;
+            let value = self.value(value)?;
+            self.set(destination, value)?;
 
             return Ok(());
         }
 
         // update two-scalar aggregates entirely in SSA
-        if let Value::ScalarPair(mut values) = self.value(aggregate, builder)? {
+        if let Value::ScalarPair(mut values) = self.value(aggregate)? {
             let fields = value_type
                 .scalar_pair()
                 .ok_or_else(|| self.invalid("native scalar pair has no field layout"))?;
@@ -206,21 +206,21 @@ impl<'a> FunctionEmitter<'a> {
                 .iter()
                 .position(|field| field.offset == offset)
                 .ok_or_else(|| self.invalid("native scalar pair has no inserted field"))?;
-            values[field] = self.scalar(value, builder)?;
-            self.set(destination, Value::ScalarPair(values), builder)?;
+            values[field] = self.scalar(value)?;
+            self.set(destination, Value::ScalarPair(values))?;
 
             return Ok(());
         }
 
         // copy indirect aggregates before replacing one field
         let address = self.allocate(value_type, builder);
-        let aggregate = self.value(aggregate, builder)?;
+        let aggregate = self.value(aggregate)?;
         self.store(address, aggregate, value_type, builder)?;
         let target = builder.ins().iadd_imm_u(address, i64::from(offset));
         let field_type = self.types.value(self.value_type(value)?)?;
-        let value = self.value(value, builder)?;
+        let value = self.value(value)?;
         self.store(target, value, field_type, builder)?;
-        self.set(destination, Value::Address(address), builder)?;
+        self.set(destination, Value::Address(address))?;
 
         Ok(())
     }
@@ -311,9 +311,9 @@ impl<'a> FunctionEmitter<'a> {
             .and_then(|layout| layout.source_field(field))
             .map(|field| field.offset)
             .ok_or_else(|| self.invalid("native field has no layout"))?;
-        let base = self.address(aggregate, builder)?;
+        let base = self.address(aggregate)?;
         let address = builder.ins().iadd_imm_u(base, i64::from(offset));
-        self.set(destination, Value::Direct(address), builder)?;
+        self.set(destination, Value::Direct(address))?;
 
         Ok(())
     }
@@ -339,7 +339,7 @@ impl<'a> FunctionEmitter<'a> {
                     .map(|element| element.stride)
                     .ok_or_else(|| self.invalid("native fixed array has no element layout"))?;
 
-                (self.address(base, builder)?, stride)
+                (self.address(base)?, stride)
             }
             // slices already carry one stable reference offset
             mir::Type::Slice { element, .. } => {
@@ -354,10 +354,10 @@ impl<'a> FunctionEmitter<'a> {
             }
             _ => return Err(self.invalid("native element address base is not indexed")),
         };
-        let index = self.pointer_integer(self.scalar(index, builder)?, builder)?;
+        let index = self.pointer_integer(self.scalar(index)?, builder)?;
         let offset = builder.ins().imul_imm_u(index, i64::from(stride));
         let address = builder.ins().iadd(base, offset);
-        self.set(destination, Value::Direct(address), builder)?;
+        self.set(destination, Value::Direct(address))?;
 
         Ok(())
     }

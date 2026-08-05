@@ -42,18 +42,11 @@ impl<'a> FrameEmitter<'a> {
         let points = self.frame_points();
 
         // emit functions in stable MIR identity order
-        for (function_id, function) in self.optimized.tree.iter_nodes::<mir::Function>() {
+        for (_, function) in self.optimized.tree.iter_nodes::<mir::Function>() {
             let Some(body) = &function.body else {
                 continue;
             };
             let liveness = mir::FunctionLiveness::build(function, &self.optimized.tree);
-
-            // retain the complete callable input before a coroutine starts
-            let entry = FramePoint::entry(function_id);
-            if points.binary_search(&entry).is_ok() {
-                let slots = self.entry_slots(function);
-                states.push(FrameState::new(entry, slots));
-            }
 
             // materialize exact liveness only at selected frame coordinates
             let mut blocks = body.blocks().to_vec();
@@ -112,28 +105,12 @@ impl<'a> FrameEmitter<'a> {
                 .iter()
                 .map(|site| FramePoint::operation(site.point)),
         );
-        points.extend(
-            self.sites
-                .continuations
-                .iter()
-                .map(|site| FramePoint::operation(site.point)),
-        );
-        points.extend(
-            self.sites
-                .suspensions
-                .iter()
-                .map(|site| FramePoint::operation(site.point)),
-        );
 
-        // retain coroutine entries and explicit engine transitions
-        for (function_id, function) in self.optimized.tree.iter_nodes::<mir::Function>() {
+        // retain explicit engine transitions
+        for (_, function) in self.optimized.tree.iter_nodes::<mir::Function>() {
             let Some(body) = &function.body else {
                 continue;
             };
-            if function.coroutine.is_some() {
-                points.push(FramePoint::entry(function_id));
-            }
-
             let mut blocks = body.blocks().to_vec();
             self.points.order_blocks(&mut blocks);
             for block_id in blocks {
@@ -159,11 +136,8 @@ impl<'a> FrameEmitter<'a> {
     /// Return the frame coordinate required by one MIR instruction.
     fn instruction_point(instruction: &mir::Instruction, point: Point) -> Option<FramePoint> {
         let point = match instruction {
-            // retain callers before explicit engine transitions or destruction
-            mir::Instruction::ContinuationNew { .. }
-            | mir::Instruction::ContinuationDestroy { .. }
-            | mir::Instruction::TaskStart { .. }
-            | mir::Instruction::Drop { .. } => point,
+            // retain callers before generated destruction
+            mir::Instruction::Drop { .. } => point,
 
             // runtime entry after the operation
             mir::Instruction::Poll | mir::Instruction::Breakpoint => point.next(),
@@ -173,26 +147,6 @@ impl<'a> FrameEmitter<'a> {
         };
 
         Some(FramePoint::operation(point))
-    }
-
-    /// Build one coroutine's initial logical slots.
-    fn entry_slots(&self, function: &mir::Function) -> Vec<FrameSlot> {
-        let mut slots = Vec::new();
-
-        // retain the hidden environment first
-        if let Some(environment) = function.environment {
-            slots.push(FrameSlot::new(FramePlace::Environment, environment));
-        }
-
-        // retain explicit parameters in calling order
-        for parameter in &function.parameters {
-            slots.push(FrameSlot::new(
-                FramePlace::Value(parameter.value),
-                parameter.ty,
-            ));
-        }
-
-        slots
     }
 
     /// Build one operation's logical slots in canonical acquisition order.

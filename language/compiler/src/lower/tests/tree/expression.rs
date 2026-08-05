@@ -55,11 +55,11 @@ entry:
     v0: int32 = 7
     v1: Badge = aggregate (v0)
     v2: (Badge) = aggregate (v1)
-    v3: Panel = call test.main.fragment(v2)
+    v3: Panel = call test.main.fragment<type (Badge)>(v2): ((Badge)) => Panel
     return v3
 }
 
-function test.main.fragment(v0: (Badge)): Panel {
+function test.main.fragment<type (Badge)>(v0: (Badge)): Panel {
 entry(v0: (Badge)):
     v1: int32 = 1
     v2: Panel = aggregate (v1)

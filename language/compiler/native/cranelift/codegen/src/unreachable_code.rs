@@ -4,8 +4,7 @@ use cranelift_entity::EntitySet;
 
 use crate::cursor::{Cursor, FuncCursor};
 use crate::flowgraph::ControlFlowGraph;
-use crate::timing;
-use crate::{ir, trace};
+use crate::{ir, timing, trace};
 
 /// Eliminate unreachable code.
 ///

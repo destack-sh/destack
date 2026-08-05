@@ -1,9 +1,7 @@
 //! Naming well-known routines in the runtime library.
 
-use crate::{
-    ir::{AbiParam, ExternalName, FuncRef, Function, Signature, Type, types},
-    isa::CallConv,
-};
+use crate::ir::{AbiParam, ExternalName, FuncRef, Function, Signature, Type, types};
+use crate::isa::CallConv;
 use core::fmt;
 use core::str::FromStr;
 #[cfg(feature = "enable-serde")]

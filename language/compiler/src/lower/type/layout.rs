@@ -201,9 +201,7 @@ impl<'tree> LayoutBuilder<'tree> {
             | mir::Type::Tensor { .. }
             | mir::Type::TensorView { .. }
             | mir::Type::Function { .. }
-            | mir::Type::FunctionPointer { .. }
-            | mir::Type::Continuation { .. }
-            | mir::Type::Waiter { .. } => {
+            | mir::Type::FunctionPointer { .. } => {
                 self.layout_type(ty)?;
 
                 Ok(())
@@ -300,18 +298,6 @@ impl<'tree> LayoutBuilder<'tree> {
                 4,
                 4,
             )),
-            mir::Type::Continuation { .. } | mir::Type::Waiter { .. } => {
-                let bytes = u64::BITS.div_ceil(8);
-                let scalar = mir::Scalar::new(mir::Primitive::Integer {
-                    width: u64::BITS as u16,
-                });
-
-                Ok(mir::Layout::scalar(
-                    scalar,
-                    bytes,
-                    self.natural_alignment(bytes),
-                ))
-            }
             mir::Type::Float(float) => {
                 let bytes = (float.width() as u32).div_ceil(8);
                 let scalar = mir::Scalar::new(mir::Primitive::Float(float));

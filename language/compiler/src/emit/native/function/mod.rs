@@ -18,7 +18,6 @@ mod profile;
 mod runtime;
 mod scalar;
 mod slice;
-mod suspension;
 mod tensor;
 mod terminator;
 mod value;

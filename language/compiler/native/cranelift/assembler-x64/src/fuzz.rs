@@ -13,7 +13,8 @@ use crate::{
     KnownOffset, NonRspGpr, Registers, TrapCode, Xmm,
 };
 use arbitrary::{Arbitrary, Result, Unstructured};
-use capstone::{Capstone, arch::BuildsCapstone, arch::BuildsCapstoneSyntax, arch::x86};
+use capstone::Capstone;
+use capstone::arch::{BuildsCapstone, BuildsCapstoneSyntax, x86};
 
 /// Take a random assembly instruction and check its encoding and
 /// pretty-printing against a known-good disassembler.
