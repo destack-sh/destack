@@ -1,7 +1,7 @@
 import { Promise, Task } from "destack:async";
-import { telemetry } from "./binding/telemetry.ds";
 import { Copy } from "destack:memory";
 
+import { telemetry } from "./binding/telemetry.ds";
 import { Fields } from "./field.ds";
 import {
     SpanContext,
@@ -46,7 +46,7 @@ export class Span {
         fields?: Fields,
         sink?: readonly TraceSink,
     ) {
-        this.name = name;
+        this.name = name.slice();
         this.context = context;
         this.kind = kind ?? SpanKind.Internal;
         this.sink = sink;

@@ -34,4 +34,4 @@ export interface GpuBinding {
 }
 
 /// Current GPU binding family.
-export const gpu = new Binding<GpuBinding>("gpu");
+export const gpu: Binding<GpuBinding> = new Binding<GpuBinding>("gpu");

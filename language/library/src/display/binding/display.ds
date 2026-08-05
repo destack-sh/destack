@@ -25,4 +25,4 @@ export interface DisplayBinding {
 }
 
 /// Current display binding family.
-export const display = new Binding<DisplayBinding>("display");
+export const display: Binding<DisplayBinding> = new Binding<DisplayBinding>("display");

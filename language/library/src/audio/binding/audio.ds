@@ -22,4 +22,4 @@ export interface AudioBinding {
 }
 
 /// Current audio binding family.
-export const audio = new Binding<AudioBinding>("audio");
+export const audio: Binding<AudioBinding> = new Binding<AudioBinding>("audio");

@@ -25,4 +25,4 @@ export interface DeviceBinding {
 }
 
 /// Current device binding family.
-export const device = new Binding<DeviceBinding>("device");
+export const device: Binding<DeviceBinding> = new Binding<DeviceBinding>("device");

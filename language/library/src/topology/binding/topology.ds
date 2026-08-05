@@ -13,4 +13,4 @@ export interface TopologyBinding {
 }
 
 /// Current topology binding family.
-export const topology = new Binding<TopologyBinding>("topology");
+export const topology: Binding<TopologyBinding> = new Binding<TopologyBinding>("topology");

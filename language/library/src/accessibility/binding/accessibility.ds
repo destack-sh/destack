@@ -19,4 +19,6 @@ export interface AccessibilityBinding {
 }
 
 /// Current accessibility binding family.
-export const accessibility = new Binding<AccessibilityBinding>("accessibility");
+export const accessibility: Binding<AccessibilityBinding> = new Binding<AccessibilityBinding>(
+    "accessibility",
+);

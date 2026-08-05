@@ -19,4 +19,4 @@ export interface OsBinding {
 }
 
 /// Current operating system binding family.
-export const os = new Binding<OsBinding>("os");
+export const os: Binding<OsBinding> = new Binding<OsBinding>("os");

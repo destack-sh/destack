@@ -31,4 +31,4 @@ export interface NetBinding {
 }
 
 /// Current network binding family.
-export const net = new Binding<NetBinding>("net");
+export const net: Binding<NetBinding> = new Binding<NetBinding>("net");

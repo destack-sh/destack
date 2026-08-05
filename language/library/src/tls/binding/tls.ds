@@ -13,4 +13,4 @@ export interface TlsBinding {
 }
 
 /// Current TLS binding family.
-export const tls = new Binding<TlsBinding>("tls");
+export const tls: Binding<TlsBinding> = new Binding<TlsBinding>("tls");

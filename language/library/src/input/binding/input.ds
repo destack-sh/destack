@@ -37,4 +37,4 @@ export interface InputBinding {
 }
 
 /// Current input binding family.
-export const input = new Binding<InputBinding>("input");
+export const input: Binding<InputBinding> = new Binding<InputBinding>("input");

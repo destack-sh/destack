@@ -31,4 +31,4 @@ export interface CryptoBinding {
 }
 
 /// Current cryptography binding family.
-export const crypto = new Binding<CryptoBinding>("crypto");
+export const crypto: Binding<CryptoBinding> = new Binding<CryptoBinding>("crypto");

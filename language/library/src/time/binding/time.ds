@@ -13,4 +13,4 @@ export interface TimeBinding {
 }
 
 /// Current time binding family.
-export const time = new Binding<TimeBinding>("time");
+export const time: Binding<TimeBinding> = new Binding<TimeBinding>("time");

@@ -16,4 +16,4 @@ export interface TtyBinding {
 }
 
 /// Current TTY binding family.
-export const tty = new Binding<TtyBinding>("tty");
+export const tty: Binding<TtyBinding> = new Binding<TtyBinding>("tty");

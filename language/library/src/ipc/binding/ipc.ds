@@ -28,4 +28,4 @@ export interface IpcBinding {
 }
 
 /// Current IPC binding family.
-export const ipc = new Binding<IpcBinding>("ipc");
+export const ipc: Binding<IpcBinding> = new Binding<IpcBinding>("ipc");

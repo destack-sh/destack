@@ -25,4 +25,4 @@ export interface ComputeBinding {
 }
 
 /// Current compute binding family.
-export const compute = new Binding<ComputeBinding>("compute");
+export const compute: Binding<ComputeBinding> = new Binding<ComputeBinding>("compute");

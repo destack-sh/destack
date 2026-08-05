@@ -10,4 +10,4 @@ export interface RandomBinding {
 }
 
 /// Current random binding family.
-export const random = new Binding<RandomBinding>("random");
+export const random: Binding<RandomBinding> = new Binding<RandomBinding>("random");

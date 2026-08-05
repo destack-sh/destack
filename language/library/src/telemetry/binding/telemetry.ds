@@ -47,4 +47,4 @@ export interface TelemetryBinding {
 }
 
 /// Current telemetry binding family.
-export const telemetry = new Binding<TelemetryBinding>("telemetry");
+export const telemetry: Binding<TelemetryBinding> = new Binding<TelemetryBinding>("telemetry");

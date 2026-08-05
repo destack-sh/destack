@@ -274,6 +274,8 @@ export type BindingOptions = {
     replay?: "forbidden";
     /// Required execution affinity, omitted means any affinity.
     affinity?: "worker" | "main";
+    /// Whether calls through this binding park the calling fiber.
+    park?: boolean;
 };
 
 /// Marks one declaration as a runtime binding.

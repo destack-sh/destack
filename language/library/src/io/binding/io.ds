@@ -19,4 +19,4 @@ export interface IoBinding {
 }
 
 /// Current IO binding family.
-export const io = new Binding<IoBinding>("io");
+export const io: Binding<IoBinding> = new Binding<IoBinding>("io");

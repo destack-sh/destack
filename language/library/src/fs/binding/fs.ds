@@ -34,4 +34,4 @@ export interface FsBinding {
 }
 
 /// Current filesystem binding family.
-export const fs = new Binding<FsBinding>("fs");
+export const fs: Binding<FsBinding> = new Binding<FsBinding>("fs");

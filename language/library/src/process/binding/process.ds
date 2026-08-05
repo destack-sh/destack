@@ -61,4 +61,4 @@ export interface ProcessBinding {
 }
 
 /// Current process binding family.
-export const process = new Binding<ProcessBinding>("process");
+export const process: Binding<ProcessBinding> = new Binding<ProcessBinding>("process");

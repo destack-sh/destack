@@ -22,4 +22,4 @@ export interface MemoryBinding {
 }
 
 /// Current memory binding family.
-export const memory = new Binding<MemoryBinding>("memory");
+export const memory: Binding<MemoryBinding> = new Binding<MemoryBinding>("memory");
