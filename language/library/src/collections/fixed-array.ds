@@ -10,9 +10,9 @@ import { Sequence } from "./sequence.ds";
 
 /// Fixed-size array alias.
 @languageItem("collections.FixedArray")
-export type FixedArray<T, comptime N: number> = [T; N];
+export type FixedArray<T, comptime N: usize> = [T; N];
 
-export extension<T: Copy, comptime N: number> of FixedArray<T, N> {
+export extension<T: Copy, comptime N: usize> of FixedArray<T, N> {
     /// Return the first element by value.
     first(&readonly this): T | undefined {
         todo("FixedArray.first")
@@ -24,7 +24,7 @@ export extension<T: Copy, comptime N: number> of FixedArray<T, N> {
     }
 }
 
-export extension<T, comptime N: number> of FixedArray<T, N>
+export extension<T, comptime N: usize> of FixedArray<T, N>
     implements
         Sequence,
         Index<usize>,
@@ -84,7 +84,7 @@ export extension<T, comptime N: number> of FixedArray<T, N>
     }
 }
 
-export extension<T, comptime N: number, 'a, comptime A: Access> of Borrowed<FixedArray<T, N>, 'a, A>
+export extension<T, comptime N: usize, 'a, comptime A: Access> of Borrowed<FixedArray<T, N>, 'a, A>
     implements
         Iterable<Borrowed<T, 'a, A>>,
         Sequence {
@@ -117,7 +117,7 @@ export extension<T, comptime N: number, 'a, comptime A: Access> of Borrowed<Fixe
     }
 }
 
-export extension<T, comptime N: number, comptime A: Access = "readonly"> of FixedArray<T, N>
+export extension<T, comptime N: usize, comptime A: Access = "readonly"> of FixedArray<T, N>
     implements
         As<[T], A>,
         Borrow<[T], A> {
@@ -132,7 +132,7 @@ export extension<T, comptime N: number, comptime A: Access = "readonly"> of Fixe
     }
 }
 
-export extension<T, comptime N: number, R: RangeBounds<usize>, comptime A: Access = "readonly"> of
+export extension<T, comptime N: usize, R: RangeBounds<usize>, comptime A: Access = "readonly"> of
     FixedArray<T, N>
     implements Index<R, A> {
     /// The indexed output type.
@@ -144,7 +144,7 @@ export extension<T, comptime N: number, R: RangeBounds<usize>, comptime A: Acces
     }
 }
 
-export extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N>
+export extension<T, comptime N: usize, R: RangeBounds<usize>> of FixedArray<T, N>
     implements
         IndexSet<R, [T]> where T: Copy {
     /// Copy `source` into the selected range.
@@ -153,7 +153,7 @@ export extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, 
     }
 }
 
-export extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N>
+export extension<T, comptime N: usize, R: RangeBounds<usize>> of FixedArray<T, N>
     implements
         IndexSet<R, &readonly [T]> where T: Copy {
     /// Copy `source` into the selected range.
