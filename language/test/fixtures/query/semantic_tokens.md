@@ -20,6 +20,217 @@ function identity(value: int32): int32 {
 @semantic_tokens.token range=main.ds#reference type=parameter
 ```
 
+### Update struct expression tokens after a rename
+
+Struct expression types remain classified after their declaration and reference are renamed.
+
+```ds main.ds
+struct Point {}
+       ^^^^^ declaration
+
+const point = Point {};
+      ^^^^^ binding
+              ^^^^^ reference
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#declaration type=struct modifiers=declaration
+@semantic_tokens.token range=main.ds#binding type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#reference type=struct
+```
+
+```diff main.ds
+@@ -1,2 +1,2 @@
+-struct Point {}
++struct Shape {}
+        ^^^^^ declaration
+@@ -4,3 +4,3 @@
+-const point = Point {};
++const point = Shape {};
+       ^^^^^ binding
+               ^^^^^ reference
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#declaration type=struct modifiers=declaration
+@semantic_tokens.token range=main.ds#binding type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#reference type=struct
+```
+
+### Update import tokens after an alias rename
+
+Imported declarations and local aliases remain distinct after the alias changes.
+
+```ds library.ds
+export function paint(): void {}
+```
+
+```ds main.ds
+import { paint as render } from "./library.ds";
+         ^^^^^ imported
+                  ^^^^^^ alias
+
+render();
+^^^^^^ reference
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#imported type=function
+@semantic_tokens.token range=main.ds#alias type=function modifiers=declaration
+@semantic_tokens.token range=main.ds#reference type=function
+```
+
+```diff main.ds
+@@ -1,3 +1,3 @@
+-import { paint as render } from "./library.ds";
++import { paint as finish } from "./library.ds";
+          ^^^^^ imported
+-                  ^^^^^^ alias
++                  ^^^^^^ alias
+@@ -5,2 +5,2 @@
+-render();
+-^^^^^^ reference
++finish();
++^^^^^^ reference
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#imported type=function
+@semantic_tokens.token range=main.ds#alias type=function modifiers=declaration
+@semantic_tokens.token range=main.ds#reference type=function
+```
+
+### Update object pattern tokens after a field edit
+
+Object patterns distinguish the selected field from the introduced binding after both names change.
+
+```ds main.ds
+struct Box {
+       ^^^ structure
+    value: int32;
+    ^^^^^ declaration
+}
+
+declare const box: Box;
+              ^^^ box
+                   ^^^ box_type
+const { value: item } = box;
+        ^^^^^ field
+               ^^^^ binding
+                        ^^^ box_reference
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#structure type=struct modifiers=declaration
+@semantic_tokens.token range=main.ds#declaration type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#box type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#box_type type=struct
+@semantic_tokens.token range=main.ds#field type=property
+@semantic_tokens.token range=main.ds#binding type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#box_reference type=variable modifiers=readonly
+```
+
+```diff main.ds
+@@ -1,5 +1,5 @@
+ struct Box {
+        ^^^ structure
+-    value: int32;
++    count: int32;
+     ^^^^^ declaration
+ }
+@@ -7,7 +7,7 @@
+ declare const box: Box;
+               ^^^ box
+                    ^^^ box_type
+-const { value: item } = box;
++const { count: size } = box;
+         ^^^^^ field
+                ^^^^ binding
+                         ^^^ box_reference
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#structure type=struct modifiers=declaration
+@semantic_tokens.token range=main.ds#declaration type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#box type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#box_type type=struct
+@semantic_tokens.token range=main.ds#field type=property
+@semantic_tokens.token range=main.ds#binding type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#box_reference type=variable modifiers=readonly
+```
+
+### Update interface member tokens after a signature edit
+
+Interface methods and their parameters remain distinct when the signature changes.
+
+```ds main.ds
+interface Reader {
+          ^^^^^^ interface
+    read(value: string): string;
+    ^^^^ method
+         ^^^^^ parameter
+}
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#interface type=interface modifiers=declaration
+@semantic_tokens.token range=main.ds#method type=method modifiers=declaration,abstract
+@semantic_tokens.token range=main.ds#parameter type=parameter modifiers=declaration
+```
+
+```diff main.ds
+@@ -1,6 +1,6 @@
+ interface Reader {
+           ^^^^^^ interface
+-    read(value: string): string;
+-    ^^^^ method
++    load(input: string): string;
++    ^^^^ method
+          ^^^^^ parameter
+ }
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#interface type=interface modifiers=declaration
+@semantic_tokens.token range=main.ds#method type=method modifiers=declaration,abstract
+@semantic_tokens.token range=main.ds#parameter type=parameter modifiers=declaration
+```
+
+### Update generic and enum tokens after renames
+
+Generic parameters and enum declarations remain classified when their names change.
+
+```ds main.ds
+extension<Element> of string {}
+          ^^^^^^^ parameter
+
+enum MemoryOrdering {}
+     ^^^^^^^^^^^^^^ enumeration
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#parameter type=type_parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#enumeration type=enum modifiers=declaration
+```
+
+```diff main.ds
+@@ -1,2 +1,2 @@
+-extension<Element> of string {}
+-          ^^^^^^^ parameter
++extension<Value> of string {}
++          ^^^^^ parameter
+@@ -4,2 +4,2 @@
+-enum MemoryOrdering {}
+-     ^^^^^^^^^^^^^^ enumeration
++enum Ordering {}
++     ^^^^^^^^ enumeration
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#parameter type=type_parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#enumeration type=enum modifiers=declaration
+```
+
 ### Classify nominal declarations and members
 
 Nominal declarations and their members use distinct token kinds.
@@ -308,6 +519,19 @@ function identity<Value, comptime size: usize>(value: Value): Value {
 @semantic_tokens.token range=main.ds#buffer type=variable modifiers=declaration,readonly
 @semantic_tokens.token range=main.ds#size_reference type=variable modifiers=readonly
 @semantic_tokens.token range=main.ds#value_reference type=parameter
+```
+
+### Classify extension type parameters
+
+Extension type parameters use the same declaration token as other generic type parameters.
+
+```ds main.ds
+extension<Element> of string {}
+          ^^^^^^^ parameter
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#parameter type=type_parameter modifiers=declaration
 ```
 
 ### Classify lifetime declarations and references
@@ -769,6 +993,55 @@ function start(): void {}
 @semantic_tokens.token range=main.ds#function type=function modifiers=declaration
 ```
 
+### Classify interface and parameter decorators
+
+Decorators are classified on both an interface method and its parameters.
+
+```ds main.ds
+newtype tracked = ();
+        ^^^^^^^ decorator_type
+
+interface Reader {
+          ^^^^^^ interface
+    @tracked
+     ^^^^^^^ method_decorator
+    read(
+    ^^^^ method
+        @tracked value: string,
+         ^^^^^^^ parameter_decorator
+                 ^^^^^ parameter
+    ): string;
+}
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#decorator_type type=type modifiers=declaration
+@semantic_tokens.token range=main.ds#interface type=interface modifiers=declaration
+@semantic_tokens.token range=main.ds#method_decorator type=decorator
+@semantic_tokens.token range=main.ds#method type=method modifiers=declaration,abstract
+@semantic_tokens.token range=main.ds#parameter_decorator type=decorator
+@semantic_tokens.token range=main.ds#parameter type=parameter modifiers=declaration
+```
+
+### Classify struct expression types
+
+Struct expression types identify their nominal constructor.
+
+```ds main.ds
+struct Point {}
+       ^^^^^ point_declaration
+
+const point = Point {};
+      ^^^^^ point_binding
+              ^^^^^ point_reference
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#point_declaration type=struct modifiers=declaration
+@semantic_tokens.token range=main.ds#point_binding type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#point_reference type=struct
+```
+
 ## Lexical Tokens
 
 ### Leave lexical tokens to the grammar
@@ -787,6 +1060,60 @@ true;
 ```
 
 ## Source changes
+
+### Classify declarations while editing class fields
+
+Class and field declarations remain classified through successive source edits.
+
+```ds main.ds
+class Player {}
+      ^^^^^^ player
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#player type=class modifiers=declaration
+```
+
+```diff main.ds
+@@ -1,2 +1,3 @@
+-class Player {}
++class Player {
+       ^^^^^^ player
++}
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#player type=class modifiers=declaration
+```
+
+```diff main.ds
+@@ -1,3 +1,5 @@
+ class Player {
+       ^^^^^^ player
++    x:
++    ^ field
+ }
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#player type=class modifiers=declaration
+@semantic_tokens.token range=main.ds#field type=property modifiers=declaration
+```
+
+```diff main.ds
+@@ -1,5 +1,5 @@
+ class Player {
+       ^^^^^^ player
+-    x:
++    x: number;
+     ^ field
+ }
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#player type=class modifiers=declaration
+@semantic_tokens.token range=main.ds#field type=property modifiers=declaration
+```
 
 ### Update tokens after symbols are renamed
 
