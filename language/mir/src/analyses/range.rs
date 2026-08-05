@@ -4,8 +4,8 @@ use crate as mir;
 use destack_core::{float_from_bits, float_to_bits};
 
 use crate::{
-    Analysis, AnalysisId, ControlFlowGraph, EdgeArguments, FunctionAnalysis, FunctionAnalysisCache,
-    NodeTable, RangeOptions, TargetLayout, fold_binary, fold_cast, fold_unary,
+    Analysis, ControlFlowGraph, EdgeArguments, FunctionAnalyses, NodeTable, RangeOptions,
+    TargetLayout, fold_binary, fold_cast, fold_unary,
 };
 
 use super::Lattice;
@@ -576,17 +576,15 @@ impl RangeAnalysis {
     }
 }
 
-impl Analysis for RangeAnalysis {
-    const ID: AnalysisId = AnalysisId("range");
-}
+impl Analysis for RangeAnalysis {}
 
-impl FunctionAnalysis for RangeAnalysis {
-    fn compute(
+impl RangeAnalysis {
+    pub(crate) fn compute(
         function: &mir::Function,
         tree: &mir::Tree,
-        analyses: &FunctionAnalysisCache,
+        analyses: &mut FunctionAnalyses,
     ) -> Self {
-        let cfg = analyses.get::<ControlFlowGraph>(function, tree);
+        let cfg = analyses.control_flow(function, tree);
         Self::build(
             function,
             tree,
@@ -2491,8 +2489,8 @@ entry(v0: int32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block0 = function.block(0);
         let block = test.tree.get(block0);
@@ -2538,8 +2536,8 @@ b3(v3: int32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let merge_block = function.block(3);
         let merge = test.tree.get(merge_block);
@@ -2581,8 +2579,8 @@ b2:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let success = function.block(1);
         let success_block = test.tree.get(success);
@@ -2624,8 +2622,8 @@ b3(v3: int32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let merge_block = function.block(3);
         let merge = test.tree.get(merge_block);
@@ -2662,8 +2660,8 @@ b3(v3: int32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block3 = function.block(3);
         let block = test.tree.get(block3);
@@ -2712,8 +2710,8 @@ b3(v3: int32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block3 = function.block(3);
         let block = test.tree.get(block3);
@@ -2748,8 +2746,8 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block0 = function.block(0);
         let block = test.tree.get(block0);
@@ -2798,8 +2796,8 @@ b3(v3: float32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block3 = function.block(3);
         let block = test.tree.get(block3);
@@ -2850,8 +2848,8 @@ b3(v5: float32, v6: float32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block3 = function.block(3);
         let block = test.tree.get(block3);
@@ -2891,8 +2889,8 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block0 = function.block(0);
         let block = test.tree.get(block0);
@@ -2943,8 +2941,8 @@ b3(v5: float32, v6: float32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block3 = function.block(3);
         let block = test.tree.get(block3);
@@ -2984,8 +2982,8 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block0 = function.block(0);
         let block = test.tree.get(block0);
@@ -3035,8 +3033,8 @@ b3(v3: float32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block3 = function.block(3);
         let block = test.tree.get(block3);
@@ -3075,8 +3073,8 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block0 = function.block(0);
         let block = test.tree.get(block0);
@@ -3125,8 +3123,8 @@ b6(v8: float32, v9: float32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block6 = function.block(6);
         let block = test.tree.get(block6);
@@ -3179,8 +3177,8 @@ b3(v3: float32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block3 = function.block(3);
         let block = test.tree.get(block3);
@@ -3233,8 +3231,8 @@ b3(v3: float32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block3 = function.block(3);
         let block = test.tree.get(block3);
@@ -3284,8 +3282,8 @@ b3(v3: float32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block3 = function.block(3);
         let block = test.tree.get(block3);
@@ -3336,8 +3334,8 @@ b3(v5: float32, v6: float32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block3 = function.block(3);
         let block = test.tree.get(block3);
@@ -3387,8 +3385,8 @@ b3(v3: float32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block3 = function.block(3);
         let block = test.tree.get(block3);
@@ -3439,8 +3437,8 @@ b3(v5: float32, v6: float32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block3 = function.block(3);
         let block = test.tree.get(block3);
@@ -3480,8 +3478,8 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block0 = function.block(0);
         let block = test.tree.get(block0);
@@ -3521,8 +3519,8 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block0 = function.block(0);
         let block = test.tree.get(block0);
@@ -3562,8 +3560,8 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block0 = function.block(0);
         let block = test.tree.get(block0);
@@ -3605,8 +3603,8 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block0 = function.block(0);
         let block = test.tree.get(block0);
@@ -3645,8 +3643,8 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block0 = function.block(0);
         let block = test.tree.get(block0);
@@ -3694,8 +3692,8 @@ b3(v3: float32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block3 = function.block(3);
         let block = test.tree.get(block3);
@@ -3743,8 +3741,8 @@ b3(v3: int32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block3 = function.block(3);
         let block = test.tree.get(block3);
@@ -3783,8 +3781,8 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block0 = function.block(0);
         let block = test.tree.get(block0);
@@ -3822,8 +3820,8 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block0 = function.block(0);
         let block = test.tree.get(block0);
@@ -3862,8 +3860,8 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block0 = function.block(0);
         let block = test.tree.get(block0);
@@ -3912,8 +3910,8 @@ b3(v4: float32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let merge_block = function.block(3);
         let merge = test.tree.get(merge_block);
@@ -3952,8 +3950,8 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block0 = function.block(0);
         let block = test.tree.get(block0);
@@ -3988,8 +3986,8 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block0 = function.block(0);
         let block = test.tree.get(block0);
@@ -4024,8 +4022,8 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block0 = function.block(0);
         let block = test.tree.get(block0);
@@ -4061,8 +4059,8 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block0 = function.block(0);
         let block = test.tree.get(block0);
@@ -4108,8 +4106,8 @@ b3(v4: float32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block3 = function.block(3);
         let block = test.tree.get(block3);
@@ -4146,8 +4144,8 @@ b3(v3: float32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let merge_block = function.block(3);
         let merge = test.tree.get(merge_block);
@@ -4194,8 +4192,8 @@ b3(v3: float32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block3 = function.block(3);
         let block = test.tree.get(block3);
@@ -4223,8 +4221,8 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block0 = function.block(0);
         let block = test.tree.get(block0);
@@ -4262,8 +4260,8 @@ b3(v3: float32):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block3 = function.block(3);
         let block = test.tree.get(block3);
@@ -4291,8 +4289,8 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block0 = function.block(0);
         let block = test.tree.get(block0);
@@ -4321,8 +4319,8 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let ranges = analyses.ranges(function, &test.tree);
 
         let block0 = function.block(0);
         let block = test.tree.get(block0);

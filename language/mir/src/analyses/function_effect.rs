@@ -2,7 +2,7 @@ use std::collections::{HashMap, VecDeque};
 
 use crate as mir;
 
-use super::{Analysis, AnalysisId, CallGraph, ModuleAnalysis, Mutation, TreeAnalysisCache};
+use super::{Analysis, ModuleAnalyses, Mutation};
 
 /// Module table of function effects.
 #[derive(Debug, Default)]
@@ -25,21 +25,21 @@ impl FunctionEffectAnalysis {
     }
 
     /// Build effects for all functions with bodies.
-    fn build(tree: &mir::Tree, analyses: &TreeAnalysisCache) -> Self {
-        let callgraph = analyses.get::<CallGraph>(tree);
+    fn build(
+        tree: &mir::Tree,
+        analyses: &mut ModuleAnalyses,
+        memory: &mir::MemoryTable,
+        effect_table: &mir::EffectTable,
+    ) -> Self {
+        let callgraph = analyses.call_graph(tree, effect_table);
         let function_ids = Self::function_body_ids(tree);
-        let mut effects = analyses.effects().functions.clone();
+        let mut effects = effect_table.functions.clone();
         let mut worklist: VecDeque<_> = function_ids.iter().copied().collect();
 
         // propagate direct-call effects to a fixpoint
         while let Some(function_id) = worklist.pop_front() {
-            let effect = FunctionEffectBuilder::compute(
-                tree,
-                function_id,
-                analyses.memory(),
-                analyses.effects(),
-                &effects,
-            );
+            let effect =
+                FunctionEffectBuilder::compute(tree, function_id, memory, effect_table, &effects);
             let changed = effects
                 .get(&function_id)
                 .map(|existing| existing != &effect)
@@ -68,14 +68,18 @@ impl FunctionEffectAnalysis {
 }
 
 impl Analysis for FunctionEffectAnalysis {
-    const ID: AnalysisId = AnalysisId("function-effects");
     const INVALIDATED_BY: Mutation = Mutation::VALUE;
 }
 
-impl ModuleAnalysis for FunctionEffectAnalysis {
+impl FunctionEffectAnalysis {
     /// Compute module function effects.
-    fn compute(tree: &mir::Tree, analyses: &TreeAnalysisCache) -> Self {
-        Self::build(tree, analyses)
+    pub(crate) fn compute(
+        tree: &mir::Tree,
+        analyses: &mut ModuleAnalyses,
+        memory: &mir::MemoryTable,
+        effects: &mir::EffectTable,
+    ) -> Self {
+        Self::build(tree, analyses, memory, effects)
     }
 }
 
@@ -498,7 +502,6 @@ impl BehaviorAccumulator {
 
 #[cfg(test)]
 mod tests {
-    use super::FunctionEffectAnalysis;
     use crate as mir;
     use crate::analyses::tests::TestProgram;
 
@@ -515,8 +518,8 @@ entry(v0: int32):
 "#,
         );
 
-        let analyses = program.tree_analysis_cache();
-        let effects = analyses.get::<FunctionEffectAnalysis>(&program.tree);
+        let mut analyses = program.module_analyses();
+        let effects = analyses.function_effects(&program.tree, &program.memory, &program.effects);
         let function = program.function_id_by_name("pure");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -538,8 +541,8 @@ entry:
 "#,
         );
 
-        let analyses = program.tree_analysis_cache();
-        let effects = analyses.get::<FunctionEffectAnalysis>(&program.tree);
+        let mut analyses = program.module_analyses();
+        let effects = analyses.function_effects(&program.tree, &program.memory, &program.effects);
         let function = program.function_id_by_name("allocate");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -560,8 +563,8 @@ entry:
 "#,
         );
 
-        let analyses = program.tree_analysis_cache();
-        let effects = analyses.get::<FunctionEffectAnalysis>(&program.tree);
+        let mut analyses = program.module_analyses();
+        let effects = analyses.function_effects(&program.tree, &program.memory, &program.effects);
         let function = program.function_id_by_name("backoff");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -581,8 +584,8 @@ entry(v0: int32):
 "#,
         );
 
-        let analyses = program.tree_analysis_cache();
-        let effects = analyses.get::<FunctionEffectAnalysis>(&program.tree);
+        let mut analyses = program.module_analyses();
+        let effects = analyses.function_effects(&program.tree, &program.memory, &program.effects);
         let function = program.function_id_by_name("conceal");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -602,8 +605,8 @@ entry:
 "#,
         );
 
-        let analyses = program.tree_analysis_cache();
-        let effects = analyses.get::<FunctionEffectAnalysis>(&program.tree);
+        let mut analyses = program.module_analyses();
+        let effects = analyses.function_effects(&program.tree, &program.memory, &program.effects);
         let function = program.function_id_by_name("inspect");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -629,8 +632,8 @@ entry:
 "#,
         );
 
-        let analyses = program.tree_analysis_cache();
-        let effects = analyses.get::<FunctionEffectAnalysis>(&program.tree);
+        let mut analyses = program.module_analyses();
+        let effects = analyses.function_effects(&program.tree, &program.memory, &program.effects);
         let function = program.function_id_by_name("root");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -660,8 +663,8 @@ entry:
             },
         );
 
-        let analyses = program.tree_analysis_cache();
-        let effects = analyses.get::<FunctionEffectAnalysis>(&program.tree);
+        let mut analyses = program.module_analyses();
+        let effects = analyses.function_effects(&program.tree, &program.memory, &program.effects);
         let root = program.function_id_by_name("root");
         let effect = effects.function(root).expect("missing function effect");
 
@@ -681,8 +684,8 @@ entry(v0: fn(int32) => int32, v1: int32):
 "#,
         );
 
-        let analyses = program.tree_analysis_cache();
-        let effects = analyses.get::<FunctionEffectAnalysis>(&program.tree);
+        let mut analyses = program.module_analyses();
+        let effects = analyses.function_effects(&program.tree, &program.memory, &program.effects);
         let function = program.function_id_by_name("test");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -702,8 +705,8 @@ entry(v0: ref<int32, managed, readonly>):
 "#,
         );
 
-        let analyses = program.tree_analysis_cache();
-        let effects = analyses.get::<FunctionEffectAnalysis>(&program.tree);
+        let mut analyses = program.module_analyses();
+        let effects = analyses.function_effects(&program.tree, &program.memory, &program.effects);
         let function = program.function_id_by_name("fail");
         let effect = effects.function(function).expect("missing function effect");
 

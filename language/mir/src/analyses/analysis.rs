@@ -1,12 +1,14 @@
-use std::any::Any;
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
 use std::sync::Arc;
 
 use crate as mir;
 
-use super::{CostWeights, Mutation};
+use super::{
+    AliasAnalysis, CallGraph, ConstantPropagation, ControlFlowGraph, CostModel, CostWeights,
+    DispatchAnalysis, DominatorTree, EscapeAnalysis, ExecutionFrequency, FunctionEffectAnalysis,
+    FunctionLiveness, LifetimeAnalysis, LinkGraph, LoopAnalysis, MemorySSA, Mutation,
+    RangeAnalysis, ScalarEvolution, ValueDefinitions, ValueTypes, ValueUses,
+};
 
 /// Largest loop scale for profile frequency analysis.
 const DEFAULT_MAX_LOOP_SCALE: f64 = 4096.0;
@@ -139,144 +141,140 @@ impl AnalysisOptions {
     }
 }
 
-/// Unique identifier for an analysis type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct AnalysisId(pub &'static str);
-
-impl std::fmt::Display for AnalysisId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 /// Base trait for all analyses.
-///
-/// Provides identity and invalidation information for caching. Concrete analyses
-/// implement `FunctionAnalysis`, `ModuleAnalysis`, or a consumer defined scope
-/// trait built on the same identity scheme.
-pub trait Analysis: 'static + Send + Sync + Sized {
-    /// Unique identifier for this analysis.
-    const ID: AnalysisId;
-
+pub(crate) trait Analysis: 'static + Send + Sync + Sized {
     /// The mutations that invalidate this analysis.
     const INVALIDATED_BY: Mutation = Mutation::ALL;
 }
 
-/// Function-scoped analysis.
-pub trait FunctionAnalysis: Analysis {
-    /// Compute this analysis for a function.
-    fn compute(
-        function: &mir::Function,
-        tree: &mir::Tree,
-        analyses: &FunctionAnalysisCache,
-    ) -> Self;
-}
+macro_rules! function_analysis {
+    (
+        $method:ident,
+        $field:ident,
+        $analysis:ty,
+        $description:literal
+        $(, $parameter:ident: $parameter_type:ty)*
+    ) => {
+        #[doc = $description]
+        pub fn $method(
+            &mut self,
+            function: &mir::Function,
+            tree: &mir::Tree,
+            $($parameter: $parameter_type,)*
+        ) -> Arc<$analysis> {
+            if let Some(result) = &self.$field {
+                return result.clone();
+            }
 
-/// Module-scoped analysis.
-pub trait ModuleAnalysis: Analysis {
-    /// Compute this analysis for the module.
-    fn compute(tree: &mir::Tree, analyses: &TreeAnalysisCache) -> Self;
-}
+            let result = Arc::new(<$analysis>::compute(
+                function,
+                tree,
+                self,
+                $($parameter,)*
+            ));
+            self.$field = Some(result.clone());
 
-/// Shared cache machinery for analyses of any scope.
-pub(crate) struct AnalysisCache {
-    cache: RefCell<HashMap<AnalysisId, (Arc<dyn Any + Send + Sync>, Mutation)>>,
-}
-
-impl AnalysisCache {
-    /// Create an empty cache.
-    pub(crate) fn new() -> Self {
-        Self {
-            cache: RefCell::new(HashMap::new()),
+            result
         }
-    }
+    };
+}
 
-    /// Return a cached analysis or compute it with `compute` and cache it.
-    pub(crate) fn get_or_compute<A: Analysis>(&self, compute: impl FnOnce() -> A) -> Arc<A> {
-        // return the cached result when present
-        if let Some((cached, _)) = self.cache.borrow().get(&A::ID) {
-            return match cached.clone().downcast::<A>() {
-                Ok(cached) => cached,
-                Err(_) => unreachable!("analysis cache type mismatch for {}", A::ID),
-            };
+macro_rules! module_analysis {
+    (
+        $method:ident,
+        $field:ident,
+        $analysis:ty,
+        $description:literal
+        $(, $parameter:ident: $parameter_type:ty)*
+    ) => {
+        #[doc = $description]
+        pub fn $method(
+            &mut self,
+            tree: &mir::Tree,
+            $($parameter: $parameter_type,)*
+        ) -> Arc<$analysis> {
+            if let Some(result) = &self.$field {
+                return result.clone();
+            }
+
+            let result = Arc::new(<$analysis>::compute(tree, self, $($parameter,)*));
+            self.$field = Some(result.clone());
+
+            result
         }
+    };
+}
 
-        // compute (may recursively query the cache for dependencies)
-        let result = Arc::new(compute());
+macro_rules! function_analysis_through_module {
+    (
+        $method:ident,
+        $analysis:ty,
+        $description:literal
+        $(, $parameter:ident: $parameter_type:ty)*
+    ) => {
+        #[doc = $description]
+        pub fn $method(
+            &mut self,
+            function_id: mir::FunctionId,
+            tree: &mir::Tree,
+            $($parameter: $parameter_type,)*
+        ) -> Arc<$analysis> {
+            let analyses = self.functions.entry(function_id).or_insert_with(|| {
+                FunctionAnalyses::with_options(self.options)
+            });
+            let function = tree.get(function_id);
 
-        // cache it next to the mutations that invalidate it
-        self.cache
-            .borrow_mut()
-            .insert(A::ID, (result.clone(), A::INVALIDATED_BY));
-        result
-    }
-
-    /// Check if an analysis is cached.
-    pub(crate) fn is_cached<A: Analysis>(&self) -> bool {
-        self.cache.borrow().contains_key(&A::ID)
-    }
-
-    /// Drop every cached analysis the given mutation invalidates.
-    pub(crate) fn apply(&self, mutation: Mutation) {
-        // nothing changed; every analysis stays valid
-        if mutation.is_none() {
-            return;
+            analyses.$method(function, tree, $($parameter,)*)
         }
-
-        // keep only analyses the mutation does not touch
-        self.cache
-            .borrow_mut()
-            .retain(|_, (_, invalidated_by)| !invalidated_by.intersects(mutation));
-    }
-
-    /// The number of analyses currently cached.
-    pub(crate) fn cached_count(&self) -> usize {
-        self.cache.borrow().len()
-    }
+    };
 }
 
-impl Default for AnalysisCache {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl std::fmt::Debug for AnalysisCache {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AnalysisCache")
-            .field("cached_count", &self.cached_count())
-            .finish()
-    }
-}
-
-/// Caches function-scoped analyses for one immutable table snapshot.
-///
-/// A pipeline creates a fresh cache from the current MIR tables before a pass runs.
+/// Function analyses across one MIR pass sequence.
 #[derive(Debug)]
-pub struct FunctionAnalysisCache {
-    cache: AnalysisCache,
+pub struct FunctionAnalyses {
+    alias: Option<Arc<AliasAnalysis>>,
+    constants: Option<Arc<ConstantPropagation>>,
+    control_flow: Option<Arc<ControlFlowGraph>>,
+    cost: Option<Arc<CostModel>>,
+    dominators: Option<Arc<DominatorTree>>,
+    escape: Option<Arc<EscapeAnalysis>>,
+    frequency: Option<Arc<ExecutionFrequency>>,
+    liveness: Option<Arc<FunctionLiveness>>,
+    loops: Option<Arc<LoopAnalysis>>,
+    memory_ssa: Option<Arc<MemorySSA>>,
+    ranges: Option<Arc<RangeAnalysis>>,
+    scalar_evolution: Option<Arc<ScalarEvolution>>,
+    value_definitions: Option<Arc<ValueDefinitions>>,
+    value_types: Option<Arc<ValueTypes>>,
+    value_uses: Option<Arc<ValueUses>>,
     options: AnalysisOptions,
-    memory: mir::MemoryTable,
-    effects: mir::EffectTable,
 }
 
-impl FunctionAnalysisCache {
-    /// Create a new function analysis cache.
-    pub fn new(memory: &mir::MemoryTable, effects: &mir::EffectTable) -> Self {
-        Self::with_options(AnalysisOptions::default(), memory, effects)
+impl FunctionAnalyses {
+    /// Create empty function analyses.
+    pub fn new() -> Self {
+        Self::with_options(AnalysisOptions::default())
     }
 
-    /// Create a new function analysis cache with the given options.
-    pub fn with_options(
-        options: AnalysisOptions,
-        memory: &mir::MemoryTable,
-        effects: &mir::EffectTable,
-    ) -> Self {
+    /// Create empty function analyses with the given options.
+    pub fn with_options(options: AnalysisOptions) -> Self {
         Self {
-            cache: AnalysisCache::new(),
+            alias: None,
+            constants: None,
+            control_flow: None,
+            cost: None,
+            dominators: None,
+            escape: None,
+            frequency: None,
+            liveness: None,
+            loops: None,
+            memory_ssa: None,
+            ranges: None,
+            scalar_evolution: None,
+            value_definitions: None,
+            value_types: None,
+            value_uses: None,
             options,
-            memory: memory.clone(),
-            effects: effects.clone(),
         }
     }
 
@@ -290,68 +288,148 @@ impl FunctionAnalysisCache {
         self.options.target_layout
     }
 
-    /// Get the explicit memory table.
-    pub fn memory(&self) -> &mir::MemoryTable {
-        &self.memory
-    }
-
-    /// Get the effect table.
-    pub fn effects(&self) -> &mir::EffectTable {
-        &self.effects
-    }
-
-    /// Get or compute a function analysis for the given function.
-    pub fn get<A: FunctionAnalysis>(&self, function: &mir::Function, tree: &mir::Tree) -> Arc<A> {
-        self.cache
-            .get_or_compute(|| A::compute(function, tree, self))
-    }
-
-    /// Check if an analysis is cached.
-    pub fn is_cached<A: FunctionAnalysis>(&self) -> bool {
-        self.cache.is_cached::<A>()
-    }
+    function_analysis!(alias, alias, AliasAnalysis, "Return alias analysis.");
+    function_analysis!(
+        constants,
+        constants,
+        ConstantPropagation,
+        "Return constant propagation."
+    );
+    function_analysis!(
+        control_flow,
+        control_flow,
+        ControlFlowGraph,
+        "Return the control-flow graph."
+    );
+    function_analysis!(cost, cost, CostModel, "Return the cost model.");
+    function_analysis!(
+        dominators,
+        dominators,
+        DominatorTree,
+        "Return the dominator tree."
+    );
+    function_analysis!(escape, escape, EscapeAnalysis, "Return escape analysis.");
+    function_analysis!(
+        frequency,
+        frequency,
+        ExecutionFrequency,
+        "Return execution frequencies."
+    );
+    function_analysis!(
+        liveness,
+        liveness,
+        FunctionLiveness,
+        "Return value liveness."
+    );
+    function_analysis!(loops, loops, LoopAnalysis, "Return loop analysis.");
+    function_analysis!(
+        memory_ssa,
+        memory_ssa,
+        MemorySSA,
+        "Return memory SSA.",
+        memory: &mir::MemoryTable,
+        effects: &mir::EffectTable
+    );
+    function_analysis!(ranges, ranges, RangeAnalysis, "Return value ranges.");
+    function_analysis!(
+        scalar_evolution,
+        scalar_evolution,
+        ScalarEvolution,
+        "Return scalar evolution."
+    );
+    function_analysis!(
+        value_definitions,
+        value_definitions,
+        ValueDefinitions,
+        "Return value definitions."
+    );
+    function_analysis!(value_types, value_types, ValueTypes, "Return value types.");
+    function_analysis!(value_uses, value_uses, ValueUses, "Return value uses.");
 
     /// Drop every analysis the given mutation invalidates.
-    pub fn apply(&self, mutation: Mutation) {
-        self.cache.apply(mutation);
+    pub fn invalidate(&mut self, mutation: Mutation) {
+        if AliasAnalysis::INVALIDATED_BY.intersects(mutation) {
+            self.alias = None;
+        }
+        if ConstantPropagation::INVALIDATED_BY.intersects(mutation) {
+            self.constants = None;
+        }
+        if ControlFlowGraph::INVALIDATED_BY.intersects(mutation) {
+            self.control_flow = None;
+        }
+        if CostModel::INVALIDATED_BY.intersects(mutation) {
+            self.cost = None;
+        }
+        if DominatorTree::INVALIDATED_BY.intersects(mutation) {
+            self.dominators = None;
+        }
+        if EscapeAnalysis::INVALIDATED_BY.intersects(mutation) {
+            self.escape = None;
+        }
+        if ExecutionFrequency::INVALIDATED_BY.intersects(mutation) {
+            self.frequency = None;
+        }
+        if FunctionLiveness::INVALIDATED_BY.intersects(mutation) {
+            self.liveness = None;
+        }
+        if LoopAnalysis::INVALIDATED_BY.intersects(mutation) {
+            self.loops = None;
+        }
+        if MemorySSA::INVALIDATED_BY.intersects(mutation) {
+            self.memory_ssa = None;
+        }
+        if RangeAnalysis::INVALIDATED_BY.intersects(mutation) {
+            self.ranges = None;
+        }
+        if ScalarEvolution::INVALIDATED_BY.intersects(mutation) {
+            self.scalar_evolution = None;
+        }
+        if ValueDefinitions::INVALIDATED_BY.intersects(mutation) {
+            self.value_definitions = None;
+        }
+        if ValueTypes::INVALIDATED_BY.intersects(mutation) {
+            self.value_types = None;
+        }
+        if ValueUses::INVALIDATED_BY.intersects(mutation) {
+            self.value_uses = None;
+        }
     }
 }
 
-/// Caches tree-scoped analyses across one MIR pass sequence.
+impl Default for FunctionAnalyses {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Module analyses across one MIR pass sequence.
 #[derive(Debug)]
-pub struct TreeAnalysisCache {
-    cache: AnalysisCache,
-    functions: RefCell<HashMap<mir::FunctionId, Rc<FunctionAnalysisCache>>>,
+pub struct ModuleAnalyses {
+    call_graph: Option<Arc<CallGraph>>,
+    dispatch: Option<Arc<DispatchAnalysis>>,
+    function_effects: Option<Arc<FunctionEffectAnalysis>>,
+    lifetimes: Option<Arc<LifetimeAnalysis>>,
+    link_graph: Option<Arc<LinkGraph>>,
+    functions: HashMap<mir::FunctionId, FunctionAnalyses>,
     options: AnalysisOptions,
-    dispatch: mir::DispatchTable,
-    memory: mir::MemoryTable,
-    effects: mir::EffectTable,
 }
 
-impl TreeAnalysisCache {
-    /// Create a new tree analysis cache.
-    pub fn new(
-        dispatch: &mir::DispatchTable,
-        memory: &mir::MemoryTable,
-        effects: &mir::EffectTable,
-    ) -> Self {
-        Self::with_options(AnalysisOptions::default(), dispatch, memory, effects)
+impl ModuleAnalyses {
+    /// Create empty module analyses.
+    pub fn new() -> Self {
+        Self::with_options(AnalysisOptions::default())
     }
 
-    /// Create a new tree analysis cache with the given options.
-    pub fn with_options(
-        options: AnalysisOptions,
-        dispatch: &mir::DispatchTable,
-        memory: &mir::MemoryTable,
-        effects: &mir::EffectTable,
-    ) -> Self {
+    /// Create empty module analyses with the given options.
+    pub fn with_options(options: AnalysisOptions) -> Self {
         Self {
-            cache: AnalysisCache::new(),
-            functions: RefCell::new(HashMap::new()),
+            call_graph: None,
+            dispatch: None,
+            function_effects: None,
+            lifetimes: None,
+            link_graph: None,
+            functions: HashMap::new(),
             options,
-            dispatch: dispatch.clone(),
-            memory: memory.clone(),
-            effects: effects.clone(),
         }
     }
 
@@ -360,59 +438,113 @@ impl TreeAnalysisCache {
         &self.options
     }
 
-    /// Get the dispatch table.
-    pub fn dispatch(&self) -> &mir::DispatchTable {
-        &self.dispatch
-    }
+    module_analysis!(
+        call_graph,
+        call_graph,
+        CallGraph,
+        "Return the call graph.",
+        effects: &mir::EffectTable
+    );
+    module_analysis!(
+        dispatch,
+        dispatch,
+        DispatchAnalysis,
+        "Return dispatch analysis.",
+        dispatch_table: &mir::DispatchTable
+    );
+    module_analysis!(
+        function_effects,
+        function_effects,
+        FunctionEffectAnalysis,
+        "Return function effects.",
+        memory: &mir::MemoryTable,
+        effects: &mir::EffectTable
+    );
+    module_analysis!(lifetimes, lifetimes, LifetimeAnalysis, "Return lifetimes.");
+    module_analysis!(
+        link_graph,
+        link_graph,
+        LinkGraph,
+        "Return the link graph.",
+        effects: &mir::EffectTable
+    );
 
-    /// Get the explicit memory table.
-    pub fn memory(&self) -> &mir::MemoryTable {
-        &self.memory
-    }
-
-    /// Get the effect table.
-    pub fn effects(&self) -> &mir::EffectTable {
-        &self.effects
-    }
-
-    /// Get or compute a tree analysis for the given tree.
-    pub fn get<A: ModuleAnalysis>(&self, tree: &mir::Tree) -> Arc<A> {
-        self.cache.get_or_compute(|| A::compute(tree, self))
-    }
-
-    /// Get or compute a function analysis through this module cache.
-    pub fn get_function<A: FunctionAnalysis>(
-        &self,
-        function_id: mir::FunctionId,
-        tree: &mir::Tree,
-    ) -> Arc<A> {
-        let analyses = self
-            .functions
-            .borrow_mut()
-            .entry(function_id)
-            .or_insert_with(|| {
-                Rc::new(FunctionAnalysisCache::with_options(
-                    self.options,
-                    &self.memory,
-                    &self.effects,
-                ))
-            })
-            .clone();
-        let function = tree.get(function_id);
-
-        analyses.get::<A>(function, tree)
-    }
-
-    /// Check if an analysis is cached.
-    pub fn is_cached<A: ModuleAnalysis>(&self) -> bool {
-        self.cache.is_cached::<A>()
-    }
+    function_analysis_through_module!(alias, AliasAnalysis, "Return function alias analysis.");
+    function_analysis_through_module!(
+        constants,
+        ConstantPropagation,
+        "Return function constant propagation."
+    );
+    function_analysis_through_module!(
+        control_flow,
+        ControlFlowGraph,
+        "Return the function control-flow graph."
+    );
+    function_analysis_through_module!(cost, CostModel, "Return the function cost model.");
+    function_analysis_through_module!(
+        dominators,
+        DominatorTree,
+        "Return the function dominator tree."
+    );
+    function_analysis_through_module!(escape, EscapeAnalysis, "Return function escape analysis.");
+    function_analysis_through_module!(
+        frequency,
+        ExecutionFrequency,
+        "Return function execution frequencies."
+    );
+    function_analysis_through_module!(
+        liveness,
+        FunctionLiveness,
+        "Return function value liveness."
+    );
+    function_analysis_through_module!(loops, LoopAnalysis, "Return function loop analysis.");
+    function_analysis_through_module!(
+        memory_ssa,
+        MemorySSA,
+        "Return function memory SSA.",
+        memory: &mir::MemoryTable,
+        effects: &mir::EffectTable
+    );
+    function_analysis_through_module!(ranges, RangeAnalysis, "Return function value ranges.");
+    function_analysis_through_module!(
+        scalar_evolution,
+        ScalarEvolution,
+        "Return function scalar evolution."
+    );
+    function_analysis_through_module!(
+        value_definitions,
+        ValueDefinitions,
+        "Return function value definitions."
+    );
+    function_analysis_through_module!(value_types, ValueTypes, "Return function value types.");
+    function_analysis_through_module!(value_uses, ValueUses, "Return function value uses.");
 
     /// Drop every analysis the given mutation invalidates.
-    pub fn apply(&self, mutation: Mutation) {
-        self.cache.apply(mutation);
-        for analyses in self.functions.borrow().values() {
-            analyses.apply(mutation);
+    pub fn invalidate(&mut self, mutation: Mutation) {
+        if CallGraph::INVALIDATED_BY.intersects(mutation) {
+            self.call_graph = None;
         }
+        if DispatchAnalysis::INVALIDATED_BY.intersects(mutation) {
+            self.dispatch = None;
+        }
+        if FunctionEffectAnalysis::INVALIDATED_BY.intersects(mutation) {
+            self.function_effects = None;
+        }
+        if LifetimeAnalysis::INVALIDATED_BY.intersects(mutation) {
+            self.lifetimes = None;
+        }
+        if LinkGraph::INVALIDATED_BY.intersects(mutation) {
+            self.link_graph = None;
+        }
+
+        for analyses in self.functions.values_mut() {
+            analyses.invalidate(mutation);
+        }
+    }
+}
+
+impl Default for ModuleAnalyses {
+    fn default() -> Self {
+        Self::new()
     }
 }

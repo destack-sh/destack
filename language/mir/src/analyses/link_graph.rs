@@ -4,10 +4,10 @@ use std::collections::HashMap;
 use destack_core::{BitSet, DenseGraph};
 use serde::{Deserialize, Serialize};
 
-use super::{Analysis, AnalysisId, CallGraph, ModuleAnalysis, TreeAnalysisCache};
+use super::{Analysis, ModuleAnalyses};
 use crate::{
-    Function, FunctionBehavior, Global, GlobalInitializer, Instruction, Linkage, MemoryEffect,
-    Symbol, Tree,
+    EffectTable, Function, FunctionBehavior, Global, GlobalInitializer, Instruction, Linkage,
+    MemoryEffect, Symbol, Tree,
 };
 
 /// How one symbol references another.
@@ -438,14 +438,16 @@ impl LinkSupergraph {
     }
 }
 
-impl Analysis for LinkGraph {
-    const ID: AnalysisId = AnalysisId("link-graph");
-}
+impl Analysis for LinkGraph {}
 
-impl ModuleAnalysis for LinkGraph {
+impl LinkGraph {
     /// Build the link graph for one module from its call graph and tree.
-    fn compute(tree: &Tree, analyses: &TreeAnalysisCache) -> Self {
-        let call_graph = analyses.get::<CallGraph>(tree);
+    pub(crate) fn compute(
+        tree: &Tree,
+        analyses: &mut ModuleAnalyses,
+        effects: &EffectTable,
+    ) -> Self {
+        let call_graph = analyses.call_graph(tree, effects);
         let mut graph = LinkGraph::new();
 
         // record each defined function with its attributes and outgoing references
@@ -456,7 +458,7 @@ impl ModuleAnalysis for LinkGraph {
             }
 
             let symbol = function.symbol;
-            let tables = analyses.effects().function(function_id);
+            let tables = effects.function(function_id);
             let memory = tables.map(|m| m.memory.clone()).unwrap_or_default();
             let behavior = tables.map(|m| m.behavior.clone()).unwrap_or_default();
             graph.insert(

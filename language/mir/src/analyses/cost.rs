@@ -1,6 +1,6 @@
 use crate as mir;
 
-use super::{Analysis, AnalysisId, FunctionAnalysis, FunctionAnalysisCache, Mutation};
+use super::{Analysis, FunctionAnalyses, Mutation};
 use crate::{Block, NodeTable};
 
 /// MIR operation inventory and weighted score for one function.
@@ -443,16 +443,15 @@ impl CostModel {
 }
 
 impl Analysis for CostModel {
-    const ID: AnalysisId = AnalysisId("cost");
     const INVALIDATED_BY: Mutation = Mutation::ALL;
 }
 
-impl FunctionAnalysis for CostModel {
+impl CostModel {
     /// Compute the MIR cost model for one function.
-    fn compute(
+    pub(crate) fn compute(
         function: &mir::Function,
         tree: &mir::Tree,
-        analyses: &FunctionAnalysisCache,
+        analyses: &mut FunctionAnalyses,
     ) -> Self {
         Self::build(function, tree, analyses.options().cost_weights)
     }
@@ -463,7 +462,7 @@ mod tests {
     use super::*;
 
     use crate::AnalysisOptions;
-    use crate::analyses::tests::{TestProgram, empty_function_analysis_cache_with_options};
+    use crate::analyses::tests::{TestProgram, empty_function_analyses_with_options};
 
     /// Cost model counts factual operations separately from weighted score.
     #[test]
@@ -481,8 +480,8 @@ entry(v0: ref<int32, borrowed, mutable>):
 
         let function_id = program.entry_function_id();
         let function = program.tree.get(function_id);
-        let analyses = program.function_analysis_cache();
-        let cost = analyses.get::<CostModel>(function, &program.tree);
+        let mut analyses = program.function_analyses();
+        let cost = analyses.cost(function, &program.tree);
         let weights = cost.weights();
 
         assert_eq!(cost.function().blocks, 1);
@@ -515,8 +514,8 @@ entry(v0: int32):
 
         let function_id = program.entry_function_id();
         let function = program.tree.get(function_id);
-        let analyses = program.function_analysis_cache();
-        let cost = analyses.get::<CostModel>(function, &program.tree);
+        let mut analyses = program.function_analyses();
+        let cost = analyses.cost(function, &program.tree);
         let weights = cost.weights();
 
         assert_eq!(cost.function().dynamic_call, 1);
@@ -548,8 +547,8 @@ entry(v0: ref<int32, borrowed, mutable>, v1: ref<atomic<int32>, borrowed, mutabl
 
         let function_id = program.entry_function_id();
         let function = program.tree.get(function_id);
-        let analyses = program.function_analysis_cache();
-        let cost = analyses.get::<CostModel>(function, &program.tree);
+        let mut analyses = program.function_analyses();
+        let cost = analyses.cost(function, &program.tree);
 
         assert_eq!(cost.function().load, 1);
         assert_eq!(cost.function().store, 1);
@@ -595,11 +594,11 @@ entry(v0: ref<int32, borrowed, mutable>):
             branch: 61,
         };
         let analysis_options = AnalysisOptions::default().with_cost_weights(weights);
-        let analyses = empty_function_analysis_cache_with_options(analysis_options);
+        let mut analyses = empty_function_analyses_with_options(analysis_options);
 
         let function_id = program.entry_function_id();
         let function = program.tree.get(function_id);
-        let cost = analyses.get::<CostModel>(function, &program.tree);
+        let cost = analyses.cost(function, &program.tree);
 
         assert_eq!(cost.weights(), weights);
         assert_eq!(

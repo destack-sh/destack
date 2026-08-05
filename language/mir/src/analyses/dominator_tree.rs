@@ -1,4 +1,4 @@
-use super::{Analysis, AnalysisId, FunctionAnalysis, FunctionAnalysisCache, Mutation};
+use super::{Analysis, FunctionAnalyses, Mutation};
 use crate::{Block, ControlFlowGraph, Function, LocalNodeId, NodeTable, Tree};
 
 /// Dense control flow graph used by dominance computation.
@@ -410,13 +410,16 @@ impl DominatorComputation {
 }
 
 impl Analysis for DominatorTree {
-    const ID: AnalysisId = AnalysisId("domtree");
     const INVALIDATED_BY: Mutation = Mutation::CONTROL;
 }
 
-impl FunctionAnalysis for DominatorTree {
-    fn compute(function: &Function, tree: &Tree, analyses: &FunctionAnalysisCache) -> Self {
-        let cfg = analyses.get::<ControlFlowGraph>(function, tree);
+impl DominatorTree {
+    pub(crate) fn compute(
+        function: &Function,
+        tree: &Tree,
+        analyses: &mut FunctionAnalyses,
+    ) -> Self {
+        let cfg = analyses.control_flow(function, tree);
 
         Self::build(function, tree, &cfg)
     }

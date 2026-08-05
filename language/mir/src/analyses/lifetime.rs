@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate as mir;
 
-use crate::{Analysis, AnalysisId, ModuleAnalysis, TreeAnalysisCache};
+use crate::{Analysis, ModuleAnalyses};
 
 /// Lifetime analysis results for a module.
 ///
@@ -45,12 +45,10 @@ impl LifetimeAnalysis {
     }
 }
 
-impl Analysis for LifetimeAnalysis {
-    const ID: AnalysisId = AnalysisId("lifetime");
-}
+impl Analysis for LifetimeAnalysis {}
 
-impl ModuleAnalysis for LifetimeAnalysis {
-    fn compute(tree: &mir::Tree, _analyses: &TreeAnalysisCache) -> Self {
+impl LifetimeAnalysis {
+    pub(crate) fn compute(tree: &mir::Tree, _analyses: &mut ModuleAnalyses) -> Self {
         Self::build(tree)
     }
 }
@@ -75,8 +73,8 @@ entry(v0: int32, v1: int32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let _function = program.tree.get(function_id);
-        let tree_analysis_cache = program.tree_analysis_cache();
-        let analysis = tree_analysis_cache.get::<LifetimeAnalysis>(&program.tree);
+        let mut module_analyses = program.module_analyses();
+        let analysis = module_analyses.lifetimes(&program.tree);
 
         assert!(analysis.get(function_id).is_empty());
     }
@@ -95,8 +93,8 @@ entry(v0: ref<int32, borrowed, mutable>):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let _function = program.tree.get(function_id);
-        let tree_analysis_cache = program.tree_analysis_cache();
-        let analysis = tree_analysis_cache.get::<LifetimeAnalysis>(&program.tree);
+        let mut module_analyses = program.module_analyses();
+        let analysis = module_analyses.lifetimes(&program.tree);
 
         let lifetime = analysis.get(function_id);
         assert!(lifetime.is_empty());
@@ -116,8 +114,8 @@ entry(v0: ref<int32, borrowed, 'L0, mutable>, v1: ref<int32, borrowed, 'L1, muta
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let _function = program.tree.get(function_id);
-        let tree_analysis_cache = program.tree_analysis_cache();
-        let analysis = tree_analysis_cache.get::<LifetimeAnalysis>(&program.tree);
+        let mut module_analyses = program.module_analyses();
+        let analysis = module_analyses.lifetimes(&program.tree);
 
         let lifetime = analysis.get(function_id);
         assert!(lifetime.includes_slot(0));
@@ -138,8 +136,8 @@ entry(v0: ref<int32, borrowed, mutable>):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let _function = program.tree.get(function_id);
-        let tree_analysis_cache = program.tree_analysis_cache();
-        let analysis = tree_analysis_cache.get::<LifetimeAnalysis>(&program.tree);
+        let mut module_analyses = program.module_analyses();
+        let analysis = module_analyses.lifetimes(&program.tree);
 
         // void return: no lifetime needed
         assert!(analysis.get(function_id).is_empty());
@@ -160,8 +158,8 @@ entry:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let _function = program.tree.get(function_id);
-        let tree_analysis_cache = program.tree_analysis_cache();
-        let analysis = tree_analysis_cache.get::<LifetimeAnalysis>(&program.tree);
+        let mut module_analyses = program.module_analyses();
+        let analysis = module_analyses.lifetimes(&program.tree);
 
         // unique return: not a borrowed ref, no lifetime
         assert!(analysis.get(function_id).is_empty());
@@ -181,8 +179,8 @@ entry(v0: int32, v1: ref<int32, borrowed, mutable>, v2: int32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let _function = program.tree.get(function_id);
-        let tree_analysis_cache = program.tree_analysis_cache();
-        let analysis = tree_analysis_cache.get::<LifetimeAnalysis>(&program.tree);
+        let mut module_analyses = program.module_analyses();
+        let analysis = module_analyses.lifetimes(&program.tree);
 
         let lifetime = analysis.get(function_id);
         assert!(lifetime.is_empty());
@@ -202,8 +200,8 @@ entry(v0: ref<int32, borrowed, mutable>):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let _function = program.tree.get(function_id);
-        let tree_analysis_cache = program.tree_analysis_cache();
-        let analysis = tree_analysis_cache.get::<LifetimeAnalysis>(&program.tree);
+        let mut module_analyses = program.module_analyses();
+        let analysis = module_analyses.lifetimes(&program.tree);
 
         let lifetime = analysis.get(function_id);
         assert!(lifetime.is_static());
@@ -224,8 +222,8 @@ entry(v0: ref<int32, borrowed, 'L0, mutable>, v1: ref<int32, borrowed, 'L1, muta
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let _function = program.tree.get(function_id);
-        let tree_analysis_cache = program.tree_analysis_cache();
-        let analysis = tree_analysis_cache.get::<LifetimeAnalysis>(&program.tree);
+        let mut module_analyses = program.module_analyses();
+        let analysis = module_analyses.lifetimes(&program.tree);
 
         let lifetime = analysis.get(function_id);
 
@@ -245,8 +243,8 @@ external function getStatic(int32): ref<int32, borrowed, mutable>
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let _function = program.tree.get(function_id);
-        let tree_analysis_cache = program.tree_analysis_cache();
-        let analysis = tree_analysis_cache.get::<LifetimeAnalysis>(&program.tree);
+        let mut module_analyses = program.module_analyses();
+        let analysis = module_analyses.lifetimes(&program.tree);
 
         let lifetime = analysis.get(function_id);
         assert!(lifetime.is_empty());

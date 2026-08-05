@@ -1,8 +1,8 @@
 use crate as mir;
 
 use crate::{
-    Analysis, AnalysisId, FunctionAnalysis, FunctionAnalysisCache, MemoryLocation, MemoryRegion,
-    MemoryRegionBuilder, StorageRoot, TargetLayout, ValueDefinitions, ValueTypes,
+    Analysis, FunctionAnalyses, MemoryLocation, MemoryRegion, MemoryRegionBuilder, StorageRoot,
+    TargetLayout, ValueDefinitions, ValueTypes,
 };
 
 /// Alias analysis for one MIR function.
@@ -127,18 +127,17 @@ impl AliasAnalysis {
 }
 
 impl Analysis for AliasAnalysis {
-    const ID: AnalysisId = AnalysisId("alias");
     const INVALIDATED_BY: mir::Mutation = mir::Mutation::VALUE.union(mir::Mutation::MEMORY);
 }
 
-impl FunctionAnalysis for AliasAnalysis {
-    fn compute(
+impl AliasAnalysis {
+    pub(crate) fn compute(
         function: &mir::Function,
         tree: &mir::Tree,
-        analyses: &FunctionAnalysisCache,
+        analyses: &mut FunctionAnalyses,
     ) -> Self {
-        let definitions = analyses.get::<ValueDefinitions>(function, tree);
-        let value_types = analyses.get::<ValueTypes>(function, tree);
+        let definitions = analyses.value_definitions(function, tree);
+        let value_types = analyses.value_types(function, tree);
 
         Self::build(
             function,
@@ -206,8 +205,8 @@ entry:
 
         let function_id = program.entry_function_id();
         let function = program.tree.get(function_id);
-        let analyses = program.function_analysis_cache();
-        let alias = analyses.get::<AliasAnalysis>(function, &program.tree);
+        let mut analyses = program.function_analyses();
+        let alias = analyses.alias(function, &program.tree);
         let addresses = program.local_address_destinations_in_entry(function_id);
 
         // compare two distinct storage roots

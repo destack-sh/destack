@@ -2,7 +2,7 @@ use destack_core::StringPool;
 use destack_source::DiagnosticSeverity;
 
 use crate as mir;
-use crate::analyses::{FunctionAnalysisCache, TreeAnalysisCache};
+use crate::analyses::{FunctionAnalyses, ModuleAnalyses};
 use crate::parse::{ParseOptions, Parser, test_file};
 use crate::{DispatchTable, EffectTable, Function, LocalNodeId, MemoryTable, Tree};
 
@@ -23,22 +23,16 @@ pub(crate) fn parse_test_function(source: &str) -> (Tree, LocalNodeId<Function>)
     (tree, function_id)
 }
 
-/// Create a function analysis cache with empty MIR tables.
-pub(crate) fn empty_function_analysis_cache() -> FunctionAnalysisCache {
-    let memory = MemoryTable::default();
-    let effects = EffectTable::default();
-
-    FunctionAnalysisCache::new(&memory, &effects)
+/// Create empty function analyses with empty MIR tables.
+pub(crate) fn empty_function_analyses() -> FunctionAnalyses {
+    FunctionAnalyses::new()
 }
 
-/// Create a function analysis cache with empty MIR tables and custom options.
-pub(crate) fn empty_function_analysis_cache_with_options(
+/// Create empty function analyses with empty MIR tables and custom options.
+pub(crate) fn empty_function_analyses_with_options(
     options: mir::AnalysisOptions,
-) -> FunctionAnalysisCache {
-    let memory = MemoryTable::default();
-    let effects = EffectTable::default();
-
-    FunctionAnalysisCache::with_options(options, &memory, &effects)
+) -> FunctionAnalyses {
+    FunctionAnalyses::with_options(options)
 }
 
 /// Test program for analysis tests.
@@ -91,14 +85,14 @@ impl TestProgram {
         }
     }
 
-    /// Create a function analysis cache for this program.
-    pub(crate) fn function_analysis_cache(&self) -> FunctionAnalysisCache {
-        FunctionAnalysisCache::new(&self.memory, &self.effects)
+    /// Create function analyses for this program.
+    pub(crate) fn function_analyses(&self) -> FunctionAnalyses {
+        FunctionAnalyses::new()
     }
 
-    /// Create a tree analysis cache for this program.
-    pub(crate) fn tree_analysis_cache(&self) -> TreeAnalysisCache {
-        TreeAnalysisCache::new(&self.dispatch, &self.memory, &self.effects)
+    /// Create module analyses for this program.
+    pub(crate) fn module_analyses(&self) -> ModuleAnalyses {
+        ModuleAnalyses::new()
     }
 
     /// Return the entry function id, preferring a function named `test`.

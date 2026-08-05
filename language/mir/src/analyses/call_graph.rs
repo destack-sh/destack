@@ -4,7 +4,7 @@ use destack_core::{BitSet, DenseGraph};
 
 use crate as mir;
 
-use super::{Analysis, AnalysisId, ModuleAnalysis, TreeAnalysisCache};
+use super::{Analysis, ModuleAnalyses};
 
 /// Directed edge in the call graph.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -259,14 +259,16 @@ impl CallGraph {
     }
 }
 
-impl Analysis for CallGraph {
-    const ID: AnalysisId = AnalysisId("callgraph");
-}
+impl Analysis for CallGraph {}
 
-impl ModuleAnalysis for CallGraph {
+impl CallGraph {
     /// Compute the module call graph.
-    fn compute(tree: &mir::Tree, analyses: &TreeAnalysisCache) -> Self {
-        Self::build(tree, analyses.effects())
+    pub(crate) fn compute(
+        tree: &mir::Tree,
+        _analyses: &mut ModuleAnalyses,
+        effects: &mir::EffectTable,
+    ) -> Self {
+        Self::build(tree, effects)
     }
 }
 
@@ -380,8 +382,8 @@ entry:
         let callee_id = test.function_id_by_name("callee");
         let test_id = test.function_id_by_name("test");
 
-        let analyses = test.tree_analysis_cache();
-        let callgraph = analyses.get::<CallGraph>(&test.tree);
+        let mut analyses = test.module_analyses();
+        let callgraph = analyses.call_graph(&test.tree, &test.effects);
 
         let outgoing = callgraph.outgoing(test_id);
         let incoming = callgraph.incoming(callee_id);
@@ -429,8 +431,8 @@ entry:
         let c_id = test.function_id_by_name("gamma");
         let d_id = test.function_id_by_name("delta");
 
-        let analyses = test.tree_analysis_cache();
-        let callgraph = analyses.get::<CallGraph>(&test.tree);
+        let mut analyses = test.module_analyses();
+        let callgraph = analyses.call_graph(&test.tree, &test.effects);
 
         assert!(callgraph.is_recursive_function(a_id));
         assert!(callgraph.is_recursive_function(b_id));
@@ -453,8 +455,8 @@ entry(v0: fn(int32) => int32, v1: int32):
 
         let test_id = test.function_id_by_name("test");
 
-        let analyses = test.tree_analysis_cache();
-        let callgraph = analyses.get::<CallGraph>(&test.tree);
+        let mut analyses = test.module_analyses();
+        let callgraph = analyses.call_graph(&test.tree, &test.effects);
 
         assert!(callgraph.outgoing(test_id).is_empty());
         assert_eq!(callgraph.open_callsites(test_id).len(), 1);
@@ -484,8 +486,8 @@ entry(v0: int32):
         let callee_id = test.function_id_by_name("callee");
         let test_id = test.function_id_by_name("test");
 
-        let analyses = test.tree_analysis_cache();
-        let callgraph = analyses.get::<CallGraph>(&test.tree);
+        let mut analyses = test.module_analyses();
+        let callgraph = analyses.call_graph(&test.tree, &test.effects);
 
         let outgoing = callgraph.outgoing(test_id);
         assert_eq!(outgoing.len(), 1);
@@ -507,8 +509,8 @@ entry(v0: fn(int32) => int32, v1: int32):
 
         let test_id = test.function_id_by_name("test");
 
-        let analyses = test.tree_analysis_cache();
-        let callgraph = analyses.get::<CallGraph>(&test.tree);
+        let mut analyses = test.module_analyses();
+        let callgraph = analyses.call_graph(&test.tree, &test.effects);
 
         let open_callsite = callgraph.open_callsites(test_id);
         assert_eq!(open_callsite.len(), 1);
@@ -539,8 +541,8 @@ entry(v0: fn(int32) => int32, v1: int32):
 
         let test_id = test.function_id_by_name("test");
 
-        let analyses = test.tree_analysis_cache();
-        let callgraph = analyses.get::<CallGraph>(&test.tree);
+        let mut analyses = test.module_analyses();
+        let callgraph = analyses.call_graph(&test.tree, &test.effects);
 
         let open_callsite = callgraph.open_callsites(test_id);
         assert_eq!(open_callsite.len(), 1);
@@ -573,8 +575,8 @@ b2:
         let callee_id = test.function_id_by_name("callee");
         let test_id = test.function_id_by_name("test");
 
-        let analyses = test.tree_analysis_cache();
-        let callgraph = analyses.get::<CallGraph>(&test.tree);
+        let mut analyses = test.module_analyses();
+        let callgraph = analyses.call_graph(&test.tree, &test.effects);
 
         let outgoing = callgraph.outgoing(test_id);
         assert_eq!(outgoing.len(), 1);
@@ -634,8 +636,8 @@ entry(v0: int32):
             .call_mut(mir::CallSite::Instruction(call_id))
             .target = Some(callee_id);
 
-        let analyses = test.tree_analysis_cache();
-        let callgraph = analyses.get::<CallGraph>(&test.tree);
+        let mut analyses = test.module_analyses();
+        let callgraph = analyses.call_graph(&test.tree, &test.effects);
 
         assert_eq!(callgraph.outgoing(test_id).len(), 1);
         assert_eq!(callgraph.outgoing(test_id)[0].callee, callee_id);
@@ -684,8 +686,8 @@ b2:
             .call_mut(mir::CallSite::Terminator(block_id))
             .target = Some(callee_id);
 
-        let analyses = test.tree_analysis_cache();
-        let callgraph = analyses.get::<CallGraph>(&test.tree);
+        let mut analyses = test.module_analyses();
+        let callgraph = analyses.call_graph(&test.tree, &test.effects);
 
         let outgoing = callgraph.outgoing(test_id);
         assert_eq!(outgoing.len(), 1);

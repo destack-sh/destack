@@ -2,9 +2,7 @@ use std::collections::HashMap;
 
 use crate as mir;
 
-use super::{
-    Analysis, AnalysisId, ModuleAnalysis, Mutation, OpenCallSite, TreeAnalysisCache, ValueTypes,
-};
+use super::{Analysis, ModuleAnalyses, Mutation, OpenCallSite, ValueTypes};
 
 /// Static dispatch target analysis for MIR callsites.
 #[derive(Debug, Default)]
@@ -27,16 +25,20 @@ impl DispatchAnalysis {
     }
 
     /// Build dispatch analysis for one MIR tree.
-    fn build(tree: &mir::Tree, analyses: &TreeAnalysisCache) -> Self {
+    fn build(
+        tree: &mir::Tree,
+        analyses: &mut ModuleAnalyses,
+        dispatch_table: &mir::DispatchTable,
+    ) -> Self {
         let mut analysis = Self::default();
 
         // scan each function body
         for (function_id, function) in tree.iter_nodes::<mir::Function>() {
             if function.entry().is_some() {
-                let value_types = analyses.get_function::<ValueTypes>(function_id, tree);
+                let value_types = analyses.value_types(function_id, tree);
                 let mut resolver = DispatchResolver {
                     tree,
-                    dispatch: analyses.dispatch(),
+                    dispatch: dispatch_table,
                     function,
                     value_types: &value_types,
                     analysis: &mut analysis,
@@ -61,14 +63,17 @@ impl DispatchAnalysis {
 }
 
 impl Analysis for DispatchAnalysis {
-    const ID: AnalysisId = AnalysisId("dispatch");
     const INVALIDATED_BY: Mutation = Mutation::VALUE;
 }
 
-impl ModuleAnalysis for DispatchAnalysis {
+impl DispatchAnalysis {
     /// Compute static dispatch targets for the module.
-    fn compute(tree: &mir::Tree, analyses: &TreeAnalysisCache) -> Self {
-        Self::build(tree, analyses)
+    pub(crate) fn compute(
+        tree: &mir::Tree,
+        analyses: &mut ModuleAnalyses,
+        dispatch_table: &mir::DispatchTable,
+    ) -> Self {
+        Self::build(tree, analyses, dispatch_table)
     }
 }
 
@@ -262,7 +267,6 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
 mod tests {
     use crate as mir;
 
-    use crate::DispatchAnalysis;
     use crate::analyses::tests::TestProgram;
 
     /// Virtual calls resolve when receiver type and virtual table are closed.
@@ -293,8 +297,8 @@ entry(v0: int32):
             methods: vec![callee],
         });
 
-        let analyses = program.tree_analysis_cache();
-        let dispatch = analyses.get::<DispatchAnalysis>(&program.tree);
+        let mut analyses = program.module_analyses();
+        let dispatch = analyses.dispatch(&program.tree, &program.dispatch);
 
         assert_eq!(dispatch.target(callsite), Some(callee));
         assert!(dispatch.open_callsites().is_empty());
@@ -328,8 +332,8 @@ entry(v0: int32):
             methods: vec![callee],
         });
 
-        let analyses = program.tree_analysis_cache();
-        let dispatch = analyses.get::<DispatchAnalysis>(&program.tree);
+        let mut analyses = program.module_analyses();
+        let dispatch = analyses.dispatch(&program.tree, &program.dispatch);
 
         assert_eq!(dispatch.target(callsite), None);
         assert_eq!(dispatch.open_callsites().len(), 1);
@@ -365,8 +369,8 @@ entry(v0: int32):
             names: Vec::new(),
         });
 
-        let analyses = program.tree_analysis_cache();
-        let dispatch = analyses.get::<DispatchAnalysis>(&program.tree);
+        let mut analyses = program.module_analyses();
+        let dispatch = analyses.dispatch(&program.tree, &program.dispatch);
 
         assert_eq!(dispatch.target(callsite), Some(callee));
         assert!(dispatch.open_callsites().is_empty());
@@ -396,8 +400,8 @@ entry(v0: int32):
             names: Vec::new(),
         });
 
-        let analyses = program.tree_analysis_cache();
-        let dispatch = analyses.get::<DispatchAnalysis>(&program.tree);
+        let mut analyses = program.module_analyses();
+        let dispatch = analyses.dispatch(&program.tree, &program.dispatch);
 
         assert_eq!(dispatch.target(callsite), None);
         assert_eq!(dispatch.open_callsites().len(), 1);
@@ -416,8 +420,8 @@ entry(v0: int32):
 "#,
         );
 
-        let analyses = program.tree_analysis_cache();
-        let dispatch = analyses.get::<DispatchAnalysis>(&program.tree);
+        let mut analyses = program.module_analyses();
+        let dispatch = analyses.dispatch(&program.tree, &program.dispatch);
 
         assert!(
             dispatch

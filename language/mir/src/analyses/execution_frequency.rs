@@ -1,9 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use super::{
-    Analysis, AnalysisId, ExecutionFrequencyOptions, FunctionAnalysis, FunctionAnalysisCache,
-    LoopAnalysis, Mutation,
-};
+use super::{Analysis, ExecutionFrequencyOptions, FunctionAnalyses, LoopAnalysis, Mutation};
 use crate::{
     Block, Edge, Function, FunctionProfile, LocalNodeId, NodeTable, Profile, Terminator, Tree,
 };
@@ -28,10 +25,10 @@ impl ExecutionFrequency {
     pub fn compute_profiled(
         function: &Function,
         tree: &Tree,
-        analyses: &FunctionAnalysisCache,
+        analyses: &mut FunctionAnalyses,
         profile: Option<&FunctionProfile>,
     ) -> Self {
-        let loops = analyses.get::<LoopAnalysis>(function, tree);
+        let loops = analyses.loops(function, tree);
 
         let options = analyses.options().execution_frequency;
 
@@ -119,7 +116,7 @@ impl ExecutionCounts {
         function: &Function,
         tree: &Tree,
         profile: Option<&Profile>,
-        analyses: &FunctionAnalysisCache,
+        analyses: &mut FunctionAnalyses,
     ) -> Self {
         let Some(profile) = profile else {
             return Self::default();
@@ -194,12 +191,15 @@ impl ExecutionCounts {
 }
 
 impl Analysis for ExecutionFrequency {
-    const ID: AnalysisId = AnalysisId("execution-frequency");
     const INVALIDATED_BY: Mutation = Mutation::CONTROL;
 }
 
-impl FunctionAnalysis for ExecutionFrequency {
-    fn compute(function: &Function, tree: &Tree, analyses: &FunctionAnalysisCache) -> Self {
+impl ExecutionFrequency {
+    pub(crate) fn compute(
+        function: &Function,
+        tree: &Tree,
+        analyses: &mut FunctionAnalyses,
+    ) -> Self {
         Self::compute_profiled(function, tree, analyses, None)
     }
 }
@@ -599,7 +599,7 @@ impl LevelTarget {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyses::tests::{empty_function_analysis_cache, parse_test_function};
+    use crate::analyses::tests::{empty_function_analyses, parse_test_function};
     use crate::{Count, FunctionHash, FunctionProfile, SamplerId, Successor, ValueProfile};
 
     /// Build a function profile with branch edge counts.
@@ -634,16 +634,16 @@ mod tests {
         }
     }
 
-    /// Compute block frequencies for a function with a fresh analysis cache.
+    /// Compute block frequencies for a function with fresh analyses.
     fn frequencies(
         tree: &Tree,
         function_id: LocalNodeId<Function>,
         profile: Option<&FunctionProfile>,
     ) -> ExecutionFrequency {
         let function = tree.get(function_id);
-        let analyses = empty_function_analysis_cache();
+        let mut analyses = empty_function_analyses();
 
-        ExecutionFrequency::compute_profiled(function, tree, &analyses, profile)
+        ExecutionFrequency::compute_profiled(function, tree, &mut analyses, profile)
     }
 
     #[test]
@@ -726,8 +726,8 @@ b3:
             functions: HashMap::from([(function.symbol, function_profile)]),
             globals: HashMap::new(),
         };
-        let analyses = empty_function_analysis_cache();
-        let counts = ExecutionCounts::new(function, &tree, Some(&profile), &analyses);
+        let mut analyses = empty_function_analyses();
+        let counts = ExecutionCounts::new(function, &tree, Some(&profile), &mut analyses);
 
         assert_eq!(counts.block(blocks[0]), 100);
         assert_eq!(counts.block(blocks[1]), 75);

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate as mir;
 
-use super::{Analysis, AnalysisId, FunctionAnalysis, FunctionAnalysisCache, Mutation};
+use super::{Analysis, FunctionAnalyses, Mutation};
 
 /// Definition site for one SSA value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -223,15 +223,14 @@ impl ValueDefinitions {
 }
 
 impl Analysis for ValueDefinitions {
-    const ID: AnalysisId = AnalysisId("value-definitions");
     const INVALIDATED_BY: Mutation = Mutation::VALUE;
 }
 
-impl FunctionAnalysis for ValueDefinitions {
-    fn compute(
+impl ValueDefinitions {
+    pub(crate) fn compute(
         function: &mir::Function,
         tree: &mir::Tree,
-        _analyses: &FunctionAnalysisCache,
+        _analyses: &mut FunctionAnalyses,
     ) -> Self {
         Self::build(function, tree)
     }
@@ -341,15 +340,14 @@ impl ValueUses {
 }
 
 impl Analysis for ValueUses {
-    const ID: AnalysisId = AnalysisId("value-uses");
     const INVALIDATED_BY: Mutation = Mutation::VALUE;
 }
 
-impl FunctionAnalysis for ValueUses {
-    fn compute(
+impl ValueUses {
+    pub(crate) fn compute(
         function: &mir::Function,
         tree: &mir::Tree,
-        _analyses: &FunctionAnalysisCache,
+        _analyses: &mut FunctionAnalyses,
     ) -> Self {
         Self::build(function, tree)
     }
@@ -488,15 +486,14 @@ impl ValueTypes {
 }
 
 impl Analysis for ValueTypes {
-    const ID: AnalysisId = AnalysisId("value-types");
     const INVALIDATED_BY: Mutation = Mutation::VALUE;
 }
 
-impl FunctionAnalysis for ValueTypes {
-    fn compute(
+impl ValueTypes {
+    pub(crate) fn compute(
         function: &mir::Function,
         tree: &mir::Tree,
-        _analyses: &FunctionAnalysisCache,
+        _analyses: &mut FunctionAnalyses,
     ) -> Self {
         Self::new(function, tree)
     }

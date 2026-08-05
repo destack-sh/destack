@@ -4,9 +4,9 @@ use crate as mir;
 use smallvec::SmallVec;
 
 use crate::{
-    AliasAnalysis, Analysis, AnalysisId, ControlFlowGraph, DominatorTree, FunctionAnalysis,
-    FunctionAnalysisCache, MemoryLocation, MemoryRegion, NodeTable, StorageRoot, TargetLayout,
-    ValueDefinitions, ValueTypes, collect_reachable_blocks, compute_dominance_frontiers,
+    AliasAnalysis, Analysis, ControlFlowGraph, DominatorTree, FunctionAnalyses, MemoryLocation,
+    MemoryRegion, NodeTable, StorageRoot, TargetLayout, ValueDefinitions, ValueTypes,
+    collect_reachable_blocks, compute_dominance_frontiers,
 };
 
 /// Identifier for a memory access in MemorySSA.
@@ -840,21 +840,21 @@ impl MemorySSA {
     }
 }
 
-impl Analysis for MemorySSA {
-    const ID: AnalysisId = AnalysisId("memory-ssa");
-}
+impl Analysis for MemorySSA {}
 
-impl FunctionAnalysis for MemorySSA {
-    fn compute(
+impl MemorySSA {
+    pub(crate) fn compute(
         function: &mir::Function,
         tree: &mir::Tree,
-        analyses: &FunctionAnalysisCache,
+        analyses: &mut FunctionAnalyses,
+        memory: &mir::MemoryTable,
+        effects: &mir::EffectTable,
     ) -> Self {
         // read dependencies
-        let cfg = analyses.get::<ControlFlowGraph>(function, tree);
-        let domtree = analyses.get::<DominatorTree>(function, tree);
-        let definitions = analyses.get::<ValueDefinitions>(function, tree);
-        let value_types = analyses.get::<ValueTypes>(function, tree);
+        let cfg = analyses.control_flow(function, tree);
+        let domtree = analyses.dominators(function, tree);
+        let definitions = analyses.value_definitions(function, tree);
+        let value_types = analyses.value_types(function, tree);
 
         Self::build(
             function,
@@ -863,8 +863,8 @@ impl FunctionAnalysis for MemorySSA {
             &domtree,
             &definitions,
             &value_types,
-            analyses.memory(),
-            analyses.effects(),
+            memory,
+            effects,
             analyses.target_layout(),
         )
     }
@@ -2101,8 +2101,8 @@ entry(v0: ref<int32, borrowed, mutable>):
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let memory_ssa = analyses.memory_ssa(function, &test.tree, &test.memory, &test.effects);
         let memory_ssa = memory_ssa.as_ref();
 
         // find memory accesses
@@ -2155,8 +2155,8 @@ b3:
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let memory_ssa = analyses.memory_ssa(function, &test.tree, &test.memory, &test.effects);
         let memory_ssa = memory_ssa.as_ref();
 
         // fetch join block phi
@@ -2204,9 +2204,9 @@ entry:
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
-        let alias = analyses.get::<AliasAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let memory_ssa = analyses.memory_ssa(function, &test.tree, &test.memory, &test.effects);
+        let alias = analyses.alias(function, &test.tree);
 
         // locate accesses
         let block = test.tree.get(function.block(0));
@@ -2264,9 +2264,9 @@ entry:
 
         // build analyses
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
-        let alias = analyses.get::<AliasAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let memory_ssa = analyses.memory_ssa(function, &test.tree, &test.memory, &test.effects);
+        let alias = analyses.alias(function, &test.tree);
 
         // locate memory accesses
         let load_access = memory_ssa
@@ -2300,8 +2300,8 @@ entry:
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let memory_ssa = analyses.memory_ssa(function, &test.tree, &test.memory, &test.effects);
 
         // locate local access
         let block = test.tree.get(function.block(0));
@@ -2339,9 +2339,9 @@ entry:
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
-        let alias = analyses.get::<AliasAnalysis>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let memory_ssa = analyses.memory_ssa(function, &test.tree, &test.memory, &test.effects);
+        let alias = analyses.alias(function, &test.tree);
 
         // locate the local write and local-address load
         let instructions = test.entry_instructions(function_id);
@@ -2374,8 +2374,8 @@ entry(v0: ref<int32, unique, mutable>):
         let free_inst = instructions[0];
 
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let memory_ssa = analyses.memory_ssa(function, &test.tree, &test.memory, &test.effects);
         let memory_ssa = memory_ssa.as_ref();
 
         let free_access = memory_ssa
@@ -2410,8 +2410,8 @@ entry:
         let alloc_inst = instructions[0];
 
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let memory_ssa = analyses.memory_ssa(function, &test.tree, &test.memory, &test.effects);
         let memory_ssa = memory_ssa.as_ref();
 
         let alloc_access = memory_ssa
@@ -2441,8 +2441,8 @@ entry(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>):
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let memory_ssa = analyses.memory_ssa(function, &test.tree, &test.memory, &test.effects);
         let memory_ssa = memory_ssa.as_ref();
 
         let memcpy_inst = test.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memcpy);
@@ -2490,8 +2490,8 @@ entry(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>):
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let memory_ssa = analyses.memory_ssa(function, &test.tree, &test.memory, &test.effects);
         let memory_ssa = memory_ssa.as_ref();
 
         let memcmp_inst = test.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memcmp);
@@ -2548,8 +2548,8 @@ entry(v0: ref<int32, borrowed, mutable>):
         );
 
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let memory_ssa = analyses.memory_ssa(function, &test.tree, &test.memory, &test.effects);
         let memory_ssa = memory_ssa.as_ref();
 
         // collect volatile effects
@@ -2583,8 +2583,8 @@ entry(v0: ref<atomic<int32>, borrowed, mutable>):
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let memory_ssa = analyses.memory_ssa(function, &test.tree, &test.memory, &test.effects);
         let memory_ssa = memory_ssa.as_ref();
 
         let block = test.tree.get(function.block(0));
@@ -2621,8 +2621,8 @@ entry:
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let memory_ssa = analyses.memory_ssa(function, &test.tree, &test.memory, &test.effects);
         let memory_ssa = memory_ssa.as_ref();
 
         // locate fence instruction
@@ -2661,8 +2661,8 @@ entry(v0: ref<int32, borrowed, mutable>):
             .expect("missing function")
             .0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let memory_ssa = analyses.memory_ssa(function, &test.tree, &test.memory, &test.effects);
         let memory_ssa = memory_ssa.as_ref();
 
         // locate call instruction
@@ -2701,8 +2701,8 @@ b2:
 
         let function_id = test.entry_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let memory_ssa = analyses.memory_ssa(function, &test.tree, &test.memory, &test.effects);
         let memory_ssa = memory_ssa.as_ref();
 
         // locate the invoke and continuation load
@@ -2745,8 +2745,8 @@ entry(v0: ref<int32, borrowed, mutable>):
         test.effects.call_mut(callsite).memory = mir::MemoryEffect::none();
 
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let memory_ssa = analyses.memory_ssa(function, &test.tree, &test.memory, &test.effects);
 
         assert!(
             memory_ssa.instruction_accesses(call_inst).is_none(),
@@ -2802,8 +2802,8 @@ entry(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>):
 
         // build analyses
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let memory_ssa = analyses.memory_ssa(function, &test.tree, &test.memory, &test.effects);
         let memory_ssa = memory_ssa.as_ref();
 
         // locate access effects for the call
@@ -2862,8 +2862,8 @@ b3:
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let memory_ssa = analyses.memory_ssa(function, &test.tree, &test.memory, &test.effects);
         let memory_ssa = memory_ssa.as_ref();
 
         // find phi for loop header
@@ -2906,8 +2906,8 @@ b1:
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
+        let mut analyses = test.function_analyses();
+        let memory_ssa = analyses.memory_ssa(function, &test.tree, &test.memory, &test.effects);
         let memory_ssa = memory_ssa.as_ref();
 
         // locate store in unreachable block
