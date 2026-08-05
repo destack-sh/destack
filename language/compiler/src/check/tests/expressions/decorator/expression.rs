@@ -1,6 +1,55 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_apply_decorator_to_interface_method() {
+    let session = TestSession::single(
+        r#"
+newtype mark = (string,);
+
+interface Reader {
+    @mark("checked")
+    read(): string;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_decorators(),
+        r#"
+=== annotated ===
+newtype mark = (string,);
+
+interface Reader {
+    @mark("checked")
+    read(): string;
+}
+
+=== checked ===
+newtype mark = (string,);
+/// @type.symbol symbol=mark source="newtype mark = (string,)" type=mark
+/// @definition.newtype symbol=mark source="newtype mark = (string,)" backing=(string,) constructors=[(string) => mark]
+
+interface Reader {
+/// @type.symbol symbol=Reader type=Reader
+/// @definition.interface symbol=Reader
+/// @definition.method symbol=Reader.read source="read(): string" slot=read type=(this: this) => string
+
+    @mark("checked")
+    /// @decorator.node source="@mark(\"checked\")" owner="read(): string" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("checked") as string) newtype=mark backing=(string,) value="mark(\"checked\")"
+    /// @type.node source=mark type=mark
+    /// @resolution.name source=mark target=mark
+    /// @type.node source="\"checked\"" type="checked"
+
+    read(): string;
+    /// @type.symbol symbol=Reader.read source="read(): string" type=(this: this) => string
+
+}
+"#,
+    );
+}
+
+#[test]
 fn test_decorator_resolves_outside_declaration_scope() {
     let session = TestSession::single(
         r#"

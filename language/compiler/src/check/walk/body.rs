@@ -123,8 +123,13 @@ impl WalkState<'_, '_> {
 
                 Ok(true)
             }
-            // interface members carry no bodies, heritage still checks
-            dir::Declaration::Interface(_) => {
+            // walk interface member decorators
+            dir::Declaration::Interface(declaration) => {
+                for member in &declaration.members {
+                    self.walk_decorators(member.into_any())?;
+                }
+
+                // queue interface obligations
                 let source = id.into_global_any(self.module);
                 self.queue_heritage_obligation(source, symbol)?;
                 self.queue_parameter_use_obligation(source, symbol)?;
