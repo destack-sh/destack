@@ -585,6 +585,58 @@ function double<T>(value: T): T {
 }
 
 #[test]
+fn test_scalar_domain_parameter_rejects_arithmetic() {
+    let session = TestSession::single(
+        r#"
+import { IntegerDomain } from "destack:math";
+
+function double<T: IntegerDomain>(value: T): T {
+    return value + value;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { IntegerDomain } from "destack:math";
+
+function double<T: IntegerDomain>(value: T): T {
+    return value + value;
+}
+
+=== checked ===
+import { IntegerDomain } from "destack:math";
+
+function double<T: IntegerDomain>(value: T): T {
+/// @generic.template symbol=double parameters=(T: math.integer.IntegerDomain)
+/// @type.symbol symbol=double type=<T: math.integer.IntegerDomain>(T) => T
+/// @type.symbol symbol=double.T source="T: IntegerDomain" type=T
+/// @resolution.name source=IntegerDomain target=math.integer.IntegerDomain
+/// @type.symbol symbol=double.value source="value: T" type=T
+/// @resolution.name source=T target=double.T
+/// @resolution.name source=T target=double.T
+
+    return value + value;
+    /// @resolution.name source=value target=double.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=double.value
+    /// @resolution.name source=value target=double.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=double.value
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=no-matching-operator message="operator '+' is not defined for 'T' and 'T'"
+/// @diagnostic.label line=5 column=18 span="+" line_source="return value + value;"
+"#,
+    );
+}
+
+#[test]
 fn test_errored_operand_does_not_cascade() {
     let session = TestSession::single(
         r#"

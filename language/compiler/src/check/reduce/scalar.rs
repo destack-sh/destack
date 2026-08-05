@@ -195,11 +195,13 @@ impl CheckState<'_> {
             return self.type_scalar_families(origin, instance.backing, use_, parameters);
         }
 
-        // scalar marker interfaces admit their complete domain
+        // scalar interfaces classify values or builtin representations
         if let dir::Type::Application(instance) = ty {
-            let domain = self
-                .language_item(instance.symbol)?
-                .and_then(|item| item.scalar_domain());
+            let item = self.language_item(instance.symbol)?;
+            let domain = match use_ {
+                ScalarUse::Value => item.and_then(|item| item.scalar_domain()),
+                ScalarUse::Builtin => item.and_then(|item| item.scalar_representation()),
+            };
             if let Some(domain) = domain {
                 return Ok(Answer::Ready(Some(
                     dir::ScalarFamily::Domain(domain).into(),

@@ -31,3 +31,42 @@ declare const count: Count;
 "#,
     );
 }
+
+#[test]
+fn test_interval_satisfies_integer_domain() {
+    let session = TestSession::single(
+        r#"
+import { IntegerDomain } from "destack:math";
+
+declare const value: 0..=255;
+
+value satisfies IntegerDomain;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { IntegerDomain } from "destack:math";
+
+declare const value: 0..=255;
+
+value satisfies IntegerDomain;
+
+=== checked ===
+import { IntegerDomain } from "destack:math";
+
+declare const value: 0..=255;
+/// @type.symbol symbol=value source=value type=0..=255
+/// @resolution.pattern source=value kind=binding target=value
+
+value satisfies IntegerDomain;
+/// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
+/// @resolution.name source=IntegerDomain target=math.integer.IntegerDomain
+"#,
+    );
+}

@@ -138,3 +138,105 @@ const value = { a: 1, b: 2 } satisfies Shape;
 "#,
     );
 }
+
+#[test]
+fn test_satisfies_accepts_scalar_domains_and_representations() {
+    let session = TestSession::single(
+        r#"
+import { Float, FloatDomain, Integer, IntegerDomain, NumericDomain } from "destack:math";
+
+1 satisfies IntegerDomain;
+1.5 satisfies FloatDomain;
+1 satisfies NumericDomain;
+1.5 satisfies NumericDomain;
+1 as int32 satisfies IntegerDomain;
+1.5 as float32 satisfies FloatDomain;
+1 as int32 satisfies Integer;
+1.5 as float32 satisfies Float;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Float, FloatDomain, Integer, IntegerDomain, NumericDomain } from "destack:math";
+
+1 satisfies IntegerDomain;
+1.5 satisfies FloatDomain;
+1 satisfies NumericDomain;
+1.5 satisfies NumericDomain;
+1 as int32 satisfies IntegerDomain;
+1.5 as float32 satisfies FloatDomain;
+1 as int32 satisfies Integer;
+1.5 as float32 satisfies Float;
+
+=== checked ===
+import { Float, FloatDomain, Integer, IntegerDomain, NumericDomain } from "destack:math";
+
+1 satisfies IntegerDomain;
+/// @resolution.name source=IntegerDomain target=math.integer.IntegerDomain
+
+1.5 satisfies FloatDomain;
+/// @resolution.name source=FloatDomain target=math.float.FloatDomain
+
+1 satisfies NumericDomain;
+/// @resolution.name source=NumericDomain target=math.numeric.NumericDomain
+
+1.5 satisfies NumericDomain;
+/// @resolution.name source=NumericDomain target=math.numeric.NumericDomain
+
+1 as int32 satisfies IntegerDomain;
+/// @resolution.name source=IntegerDomain target=math.integer.IntegerDomain
+
+1.5 as float32 satisfies FloatDomain;
+/// @resolution.name source=FloatDomain target=math.float.FloatDomain
+
+1 as int32 satisfies Integer;
+/// @resolution.name source=Integer target=math.integer.Integer
+
+1.5 as float32 satisfies Float;
+/// @resolution.name source=Float target=math.float.Float
+"#,
+    );
+}
+
+#[test]
+fn test_satisfies_rejects_scalar_literals_as_representations() {
+    let session = TestSession::single(
+        r#"
+import { Float, Integer } from "destack:math";
+
+1 satisfies Integer;
+1.5 satisfies Float;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Float, Integer } from "destack:math";
+
+1 satisfies Integer;
+1.5 satisfies Float;
+
+=== checked ===
+import { Float, Integer } from "destack:math";
+
+1 satisfies Integer;
+/// @resolution.name source=Integer target=math.integer.Integer
+
+1.5 satisfies Float;
+/// @resolution.name source=Float target=math.float.Float
+"#,
+        r#"
+/// @diagnostic.error id=constraint-not-satisfied message="type '1' does not satisfy 'Integer'"
+/// @diagnostic.label line=4 column=3 span="satisfies" line_source="1 satisfies Integer;"
+/// @diagnostic.error id=constraint-not-satisfied message="type '1.5' does not satisfy 'Float'"
+/// @diagnostic.label line=5 column=5 span="satisfies" line_source="1.5 satisfies Float;"
+"#,
+    );
+}

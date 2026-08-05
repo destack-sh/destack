@@ -83,12 +83,12 @@ const next: Digit = digit + 1;
 /// @resolution.pattern source=next kind=binding target=next
 /// @resolution.name source=Digit target=Digit
 /// @resolution.name source=digit target=digit
-/// @resolution.operator source="digit + 1" type=int32 operator="+" kind=builtin operands=[digit as int32 families=(integer), 1 as int32 families=(integer)]
+/// @resolution.operator source="digit + 1" type=int64 operator="+" kind=builtin operands=[digit as int64 families=(integer), 1 as int64 families=(integer)]
 /// @resolution.place source=digit placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=digit root=digit
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'int32' is not assignable to type 'Digit'"
+/// @diagnostic.error id=not-assignable message="type 'int64' is not assignable to type 'Digit'"
 /// @diagnostic.label line=5 column=21 span="digit + 1" line_source="const next: Digit = digit + 1;"
 /// @diagnostic.related line=5 column=13 span="Digit" line_source="const next: Digit = digit + 1;" message="expected due to this annotation"
 /// @diagnostic.note message="'Digit' reduces to '0..=9'"

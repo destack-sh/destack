@@ -2299,8 +2299,11 @@ impl CheckState<'_> {
                 let ty = self.format_type(ty);
                 Self::overwrite_stability_diagnostic(anchor, module, ty)
             }
-            dir::AutoInterface::Integer
+            dir::AutoInterface::AtomicSafe
+            | dir::AutoInterface::Integer
+            | dir::AutoInterface::IntegerDomain
             | dir::AutoInterface::Float
+            | dir::AutoInterface::FloatDomain
             | dir::AutoInterface::Concrete
             | dir::AutoInterface::Copy
             | dir::AutoInterface::Clone

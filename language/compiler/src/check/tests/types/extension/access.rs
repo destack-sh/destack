@@ -251,7 +251,7 @@ function write(grid: &exclusive Grid): int32 {
 fn test_access_generic_receiver_selects_fixed_array_sibling_method() {
     let session = TestSession::single(
         r#"
-export extension FixedArrayAccess<T, comptime N: number, comptime A: Access = "readonly"> of [T; N] {
+export extension FixedArrayAccess<T, comptime N: usize, comptime A: Access = "readonly"> of [T; N] {
     view(this: WithAccess<&[T; N], A>): int32 {
         1
     }
@@ -268,8 +268,7 @@ export extension FixedArrayAccess<T, comptime N: number, comptime A: Access = "r
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-export extension FixedArrayAccess<T, comptime N: number, comptime A: Access = "readonly"> of
-    [T; N] {
+export extension FixedArrayAccess<T, comptime N: usize, comptime A: Access = "readonly"> of [T; N] {
     view(this: WithAccess<&[T; N], A>): int32 {
         1
     }
@@ -280,13 +279,13 @@ export extension FixedArrayAccess<T, comptime N: number, comptime A: Access = "r
 }
 
 === checked ===
-export extension FixedArrayAccess<T, comptime N: number, comptime A: Access = "readonly"> of [T; N] {
-/// @generic.template symbol=FixedArrayAccess parameters=(T, comptime N: float64, comptime A: Access = "readonly")
+export extension FixedArrayAccess<T, comptime N: usize, comptime A: Access = "readonly"> of [T; N] {
+/// @generic.template symbol=FixedArrayAccess parameters=(T, comptime N: usize, comptime A: Access = "readonly")
 /// @definition.extension symbol=FixedArrayAccess form=exported target=FixedArray<T, N>
 /// @definition.method symbol=FixedArrayAccess.peek slot=peek type=<FixedArrayAccess.peek.'a>(this: WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A>) => int32
 /// @definition.method symbol=FixedArrayAccess.view slot=view type=<FixedArrayAccess.view.'a>(this: WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>) => int32
 /// @type.symbol symbol=FixedArrayAccess.T source=T type=T
-/// @type.symbol symbol=FixedArrayAccess.N source="comptime N: number" type=N
+/// @type.symbol symbol=FixedArrayAccess.N source="comptime N: usize" type=N
 /// @type.symbol symbol=FixedArrayAccess.A source="comptime A: Access = \"readonly\"" type=A
 /// @resolution.name source=Access target=memory.access.Access
 /// @type.node source="\"readonly\"" type="readonly"

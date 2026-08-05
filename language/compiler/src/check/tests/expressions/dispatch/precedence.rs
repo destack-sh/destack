@@ -192,8 +192,8 @@ newtype Port<comptime M: Mode = Mode.Read> = int32;
 /// @resolution.name source=Mode target=Mode
 
 export type ReadPort = Port<Mode.Write>;
-/// @type.symbol symbol=ReadPort source="export type ReadPort = Port<Mode.Write>" type=Port<Mode.Write> reduced=Port<1>
-/// @definition.type symbol=ReadPort source="export type ReadPort = Port<Mode.Write>" value=Port<Mode.Write> reduced=Port<1>
+/// @type.symbol symbol=ReadPort source="export type ReadPort = Port<Mode.Write>" type=Port<Mode.Write>
+/// @definition.type symbol=ReadPort source="export type ReadPort = Port<Mode.Write>" value=Port<Mode.Write>
 /// @resolution.name source=Port target=Port
 /// @resolution.name source=Mode.Write target=Mode
 /// @resolution.path source=Mode.Write index=1 target=Mode.Write

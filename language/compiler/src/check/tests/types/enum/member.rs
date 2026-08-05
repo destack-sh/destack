@@ -1,6 +1,55 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_enum_member_type_retains_variant_identity() {
+    let session = TestSession::single(
+        r#"
+enum Mode {
+    Read = 1,
+    Write = 2,
+}
+
+type Selected = Mode.Read;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+enum Mode {
+    Read = 1,
+    Write = 2,
+}
+
+type Selected = Mode.Read;
+
+=== checked ===
+enum Mode {
+/// @type.symbol symbol=Mode type=Mode
+/// @definition.enum symbol=Mode
+/// @definition.variant symbol=Mode.Read source="Read = 1" key=Read value=1
+/// @definition.variant symbol=Mode.Write source="Write = 2" key=Write value=2
+
+    Read = 1,
+    /// @type.symbol symbol=Mode.Read source="Read = 1" type=Mode.Read
+
+    Write = 2,
+    /// @type.symbol symbol=Mode.Write source="Write = 2" type=Mode.Write
+
+}
+
+type Selected = Mode.Read;
+/// @type.symbol symbol=Selected source="type Selected = Mode.Read" type=Mode.Read
+/// @definition.type symbol=Selected source="type Selected = Mode.Read" value=Mode.Read
+/// @resolution.name source=Mode.Read target=Mode
+/// @resolution.path source=Mode.Read index=1 target=Mode.Read
+"#,
+    );
+}
+
+#[test]
 fn test_enum_member_initializes_inferred_binding() {
     let session = TestSession::single(
         r#"

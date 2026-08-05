@@ -826,21 +826,8 @@ impl BodyState<'_, '_> {
         let dir::Type::Range(range) = self.ty(operand)? else {
             return Ok(operand);
         };
-        let base = match range.scalar_domain() {
-            Some(dir::ScalarDomain::Integer) => {
-                dir::Type::Primitive(dir::PrimitiveType::Integer(dir::IntegerType::Fixed {
-                    width: 32,
-                    is_signed: true,
-                }))
-            }
-            Some(dir::ScalarDomain::Float) => {
-                dir::Type::Primitive(dir::PrimitiveType::Float(dir::FloatType::Float64))
-            }
-            Some(dir::ScalarDomain::Bigint) => dir::Type::Primitive(dir::PrimitiveType::Bigint),
-            Some(dir::ScalarDomain::Character) => {
-                dir::Type::Primitive(dir::PrimitiveType::Character)
-            }
-            _ => return Ok(operand),
+        let Some(base) = range.widen() else {
+            return Ok(operand);
         };
 
         self.intern_type(base)

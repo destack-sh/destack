@@ -1418,7 +1418,7 @@ impl BodyState<'_, '_> {
                 dir::Type::Application(_) => self.project_selected_member(origin, member, base),
                 // project the lexical extension scope's own associated member
                 dir::Type::Reference(reference) => {
-                    self.project_scope_member(member, reference.symbol)
+                    self.project_scope_member(origin, member, reference.symbol)
                 }
                 _ => Ok(Answer::Ready(None)),
             };
@@ -1457,7 +1457,12 @@ impl BodyState<'_, '_> {
             let substitution =
                 self.qualified_instance_substitution(interface_module, &interface, owner)?;
 
-            return self.project_declared_associated_member(member, &members, &substitution);
+            return self.project_declared_associated_member(
+                origin,
+                member,
+                &members,
+                &substitution,
+            );
         }
 
         // enumerate candidate extensions by receiver family
@@ -1574,6 +1579,7 @@ impl BodyState<'_, '_> {
     /// Project one associated member declared by a lexical extension scope.
     fn project_scope_member(
         &mut self,
+        origin: Origin,
         member: &dir::MemberType,
         scope: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
@@ -1587,12 +1593,13 @@ impl BodyState<'_, '_> {
         let members = definition.members().to_vec();
         let substitution = TypeSubstitution::default().with_receiver(member.owner);
 
-        self.project_declared_associated_member(member, &members, &substitution)
+        self.project_declared_associated_member(origin, member, &members, &substitution)
     }
 
     /// Project one associated type declared by a selected scope.
     fn project_declared_associated_member(
         &mut self,
+        origin: Origin,
         member: &dir::MemberType,
         members: &[dir::DefinitionMember],
         substitution: &TypeSubstitution,
@@ -1645,6 +1652,12 @@ impl BodyState<'_, '_> {
             MemberLookup::Field(field) => field.read_type(self),
             MemberLookup::Found(candidates) => match candidates.as_slice() {
                 [candidate] => {
+                    // retain nominal singleton identity for variant values
+                    if candidate.role == MemberRole::VariantValue {
+                        return candidate.read_type(module, self);
+                    }
+
+                    // project associated values through their applied arguments
                     if candidate.value_type.is_some() {
                         let written = self.static_value(candidate.symbol).ok_or_else(|| {
                             CompilerError::Internal {
