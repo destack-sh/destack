@@ -89,8 +89,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     .instance_bindings(&function.generic_arguments, &self.type_substitution)?;
                 let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
 
-                self.type_lowerer()
-                    .generic_instance_key(function.symbol, &arguments)?
+                self.generic_instance_key(function.symbol, &arguments)?
             }
         };
         let id = self.function(&key)?;

@@ -64,6 +64,7 @@ pub(in crate::lower) struct NominalField {
 }
 
 /// The identity and types of one lowered nominal instance.
+#[derive(Clone)]
 pub(in crate::lower) struct NominalInstance {
     /// The concrete representation identity.
     pub(in crate::lower) key: GenericInstanceKey,

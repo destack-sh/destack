@@ -4,8 +4,8 @@ use destack_mir as mir;
 use destack_source::ModuleId;
 
 use crate::lower::{
-    LifetimeParameters, LowerModuleState, ModuleLowerer, NominalInstance, TypeLowerer,
-    TypeSubstitution,
+    GenericInstanceKey, LifetimeParameters, LowerModuleState, ModuleLowerer, NominalInstance,
+    TypeSubstitution, insert_local_reference,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -49,15 +49,13 @@ pub(in crate::lower) struct FunctionDefinition {
 /// Lowering state for one function body.
 pub(in crate::lower) struct FunctionLowerer<'lowerer, 'builder, 'module> {
     /// The module lowering state.
-    pub(in crate::lower) lowerer: &'lowerer mut ModuleLowerer<'module>,
+    pub(in crate::lower) lowerer: &'lowerer ModuleLowerer<'module>,
     /// The function builder.
     pub(in crate::lower) builder: mir::FunctionBuilder<'builder>,
     /// The module declaring this function.
     pub(in crate::lower) source: ModuleId,
     /// The concrete type substitutions of this function.
     pub(in crate::lower) type_substitution: TypeSubstitution,
-    /// The polymorphic lifetime parameters of this function.
-    pub(in crate::lower) lifetime_parameters: LifetimeParameters,
     /// The lowered binding for each symbol.
     pub(in crate::lower) values: FxIndexMap<dir::LocalSymbolId, Binding>,
     /// The receiver reference of the enclosing method, when one exists.
@@ -78,7 +76,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             has_this,
             parameters,
             type_substitution,
-            lifetime_parameters,
+            lifetime_parameters: _,
             source,
             expression,
         } = definition;
@@ -92,7 +90,6 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             builder,
             source,
             type_substitution,
-            lifetime_parameters,
             values: FxIndexMap::default(),
             this: None,
             controls: Vec::new(),
@@ -144,7 +141,6 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             builder,
             source,
             type_substitution: TypeSubstitution::default(),
-            lifetime_parameters: LifetimeParameters::default(),
             values: FxIndexMap::default(),
             this: None,
             controls: Vec::new(),
@@ -192,27 +188,64 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         Ok(self.builder.local(ty, mir::Mutability::Mutable))
     }
 
-    /// Lower one type.
+    /// Return the declared representation of one type.
     pub(in crate::lower) fn lower_type(
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        self.type_lowerer().lower(id)
+        let id = self.type_substitution.resolve(self.lowerer, id)?;
+
+        match self.lowerer.lowered_types.get(&id) {
+            Some(Ok(node)) => Ok(*node),
+            // cascade the declaration failure the pre-pass kept
+            Some(Err(diagnostic)) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
+            None => Err(CompilerError::Internal {
+                message: format!(
+                    "missing a declared representation behind the type {:?}",
+                    self.lowerer.ty(id)
+                ),
+            }),
+        }
     }
 
-    /// Return the type lowerer for this function.
-    pub(in crate::lower) fn type_lowerer(&mut self) -> TypeLowerer<'_, 'module> {
-        let pointer_bytes = (self.builder.pointer_bits() / 8) as u8;
+    /// Return the declared shape row of one dispatch constraint.
+    pub(in crate::lower) fn lower_constraint(
+        &mut self,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        let id = self.type_substitution.resolve(self.lowerer, id)?;
+        let reduced = self.lowerer.reduced_type(id)?;
 
-        self.lowerer.type_lowerer(
-            self.builder.tree_mut(),
-            pointer_bytes,
-            &self.type_substitution,
-            &self.lifetime_parameters,
-        )
+        match self.lowerer.lowered_constraints.get(&reduced) {
+            Some(Ok(row)) => Ok(*row),
+            // cascade the declaration failure the pre-pass kept
+            Some(Err(diagnostic)) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
+            None => Err(CompilerError::Internal {
+                message: format!("missing a declared shape row behind the constraint {reduced:?}"),
+            }),
+        }
     }
 
-    /// Lower the nominal representation beneath one value type.
+    /// Return the declared instance key of one instantiated callable.
+    pub(in crate::lower) fn generic_instance_key(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        types: &[dir::GlobalTypeId],
+    ) -> CompilerResult<GenericInstanceKey> {
+        let mut arguments = Vec::with_capacity(types.len());
+        for ty in types {
+            let node = self.lower_type(*ty)?;
+            let argument = self
+                .builder
+                .tree_mut()
+                .intern_static(mir::Static::Type(mir::TypeId::from(node)));
+            arguments.push(argument);
+        }
+
+        Ok(GenericInstanceKey { symbol, arguments })
+    }
+
+    /// Return the declared nominal instance beneath one value type.
     pub(in crate::lower) fn lower_nominal(
         &mut self,
         id: dir::GlobalTypeId,
@@ -221,17 +254,23 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             Some(reference) => reference.stored,
             None => self.lowerer.peel_owned(id, &self.type_substitution)?,
         };
-        let dir::Type::Application(instance) = self.lowerer.ty(stored)? else {
-            return Err(CompilerError::Internal {
-                message: "the value does not carry a nominal representation".to_string(),
-            });
-        };
-        let arguments = self
-            .lowerer
-            .types(stored.module_id)?
-            .type_ids(instance.arguments)
-            .to_vec();
-        self.type_lowerer()
-            .lower_nominal(instance.symbol, &arguments)
+        match self.lowerer.lowered_nominals.get(&stored) {
+            Some(Ok(nominal)) => Ok(nominal.clone()),
+            // cascade the declaration failure the pre-pass kept
+            Some(Err(diagnostic)) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
+            None => Err(CompilerError::Internal {
+                message: format!("missing a declared nominal behind the type {stored:?}"),
+            }),
+        }
+    }
+
+    /// Intern one local reference type over a lowered pointee.
+    pub(in crate::lower) fn insert_reference(
+        &mut self,
+        kind: mir::ReferenceKind,
+        access: mir::Access,
+        pointee: mir::LocalNodeId<mir::Type>,
+    ) -> mir::LocalNodeId<mir::Type> {
+        insert_local_reference(self.builder.tree_mut(), kind, access, pointee)
     }
 }

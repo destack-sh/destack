@@ -97,7 +97,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 .instance_bindings(&instantiation.generic_arguments, &self.type_substitution)?;
             let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
 
-            return self.type_lowerer().generic_instance_key(symbol, &arguments);
+            return self.generic_instance_key(symbol, &arguments);
         }
 
         // recover inferred instantiations from the converted concrete expectation
@@ -125,7 +125,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 .instance_bindings(&bindings, &self.type_substitution)?;
             let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
 
-            return self.type_lowerer().generic_instance_key(symbol, &arguments);
+            return self.generic_instance_key(symbol, &arguments);
         }
 
         Ok(GenericInstanceKey::non_generic(symbol))

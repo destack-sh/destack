@@ -235,9 +235,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .lowerer
             .instance_bindings(&function.generic_arguments, &self.type_substitution)?;
         let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
-        let key = self
-            .type_lowerer()
-            .generic_instance_key(function.symbol, &arguments)?;
+        let key = self.generic_instance_key(function.symbol, &arguments)?;
         let function = self.function(&key)?;
         let values = self.lower_provided_arguments(resolution)?;
 

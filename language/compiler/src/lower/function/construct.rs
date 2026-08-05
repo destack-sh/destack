@@ -76,7 +76,7 @@ impl FunctionLowerer<'_, '_, '_> {
             // construct owned destinations in place inside a local slot
             false => {
                 let slot = self.builder.local(pointee, mir::Mutability::Mutable);
-                let address = self.type_lowerer().insert_reference(
+                let address = self.insert_reference(
                     mir::ReferenceKind::Borrowed,
                     mir::Access::Exclusive,
                     pointee,
@@ -94,7 +94,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let function = self.function(&key)?;
 
                 // borrow heap references exclusively
-                let exclusive = self.type_lowerer().insert_reference(
+                let exclusive = self.insert_reference(
                     mir::ReferenceKind::Borrowed,
                     mir::Access::Exclusive,
                     pointee,

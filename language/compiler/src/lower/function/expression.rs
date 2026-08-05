@@ -753,14 +753,19 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Return the global behind one module constant, importing foreign ones.
+    /// Return the declared global behind one module constant.
     pub(in crate::lower) fn module_constant_global(
-        &mut self,
+        &self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<mir::LocalNodeId<mir::Global>>> {
-        // reuse the global this module already declared or imported
-        if let Some(global) = self.lowerer.globals.get(&symbol) {
-            return Ok(Some(*global));
+        // read the global this module declared or imported
+        match self.lowerer.globals.get(&symbol) {
+            Some(Ok(global)) => return Ok(Some(*global)),
+            // cascade the declaration failure the declare phase kept
+            Some(Err(diagnostic)) => {
+                return Err(CompilerError::Diagnostic(Box::new(diagnostic.clone())));
+            }
+            None => {}
         }
 
         // skip local constants and non-constant symbols
@@ -770,16 +775,10 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(None);
         }
 
-        // declare an import for one foreign module constant
-        let ty = self.lowerer.symbol_type(symbol)?;
-        let ty = self.lower_type(ty)?;
-        let name = self.lowerer.constant_name(symbol)?;
-        let name = self.lowerer.strings.intern(&name);
-        let global = self
-            .builder
-            .external_global(name, ty, mir::Mutability::Immutable);
-        self.lowerer.globals.insert(symbol, global);
+        let path = self.lowerer.symbol_path(symbol)?;
 
-        Ok(Some(global))
+        Err(CompilerError::Internal {
+            message: format!("missing a declared global behind the constant '{path}'"),
+        })
     }
 }

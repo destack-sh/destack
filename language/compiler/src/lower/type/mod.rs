@@ -21,6 +21,7 @@ mod variant;
 
 pub(in crate::lower) use alias::AliasForm;
 pub(in crate::lower) use dispatch::Implementer;
+pub(in crate::lower) use form::insert_local_reference;
 pub use layout::{LayoutBuilder, LayoutError};
 pub(in crate::lower) use lifetime::LifetimeParameters;
 pub(in crate::lower) use lower::TypeLowerer;

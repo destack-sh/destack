@@ -501,14 +501,7 @@ impl TypeLowerer<'_, '_> {
         access: mir::Access,
         pointee: mir::LocalNodeId<mir::Type>,
     ) -> mir::LocalNodeId<mir::Type> {
-        self.tree.intern_type(mir::Type::Reference {
-            kind,
-            lifetime: mir::Lifetime::empty(),
-            storage: mir::Storage::Heap(mir::Space::Local),
-            access,
-            pointee,
-            nullability: mir::Nullability::None,
-        })
+        insert_local_reference(self.tree, kind, access, pointee)
     }
 }
 
@@ -532,4 +525,21 @@ impl ModuleLowerer<'_> {
             dir::Access::Exclusive => mir::Access::Exclusive,
         })
     }
+}
+
+/// Intern one local heap reference type over a pointee.
+pub(in crate::lower) fn insert_local_reference(
+    tree: &mut mir::Tree,
+    kind: mir::ReferenceKind,
+    access: mir::Access,
+    pointee: mir::LocalNodeId<mir::Type>,
+) -> mir::LocalNodeId<mir::Type> {
+    tree.intern_type(mir::Type::Reference {
+        kind,
+        lifetime: mir::Lifetime::empty(),
+        storage: mir::Storage::Heap(mir::Space::Local),
+        access,
+        pointee,
+        nullability: mir::Nullability::None,
+    })
 }

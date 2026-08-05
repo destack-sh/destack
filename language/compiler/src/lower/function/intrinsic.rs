@@ -314,7 +314,7 @@ impl FunctionLowerer<'_, '_, '_> {
         index: mir::Value,
         element: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::Value> {
-        let pointer = self.type_lowerer().insert_reference(
+        let pointer = self.insert_reference(
             mir::ReferenceKind::Borrowed,
             mir::Access::Exclusive,
             element,

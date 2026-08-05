@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{FunctionLowerer, Implementer};
+use crate::lower::FunctionLowerer;
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -12,17 +12,17 @@ impl FunctionLowerer<'_, '_, '_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<mir::Value> {
-        // read the constraint from the erased target
+        // require the erased target's dynamic carrier
         let dynamic = self.lower_type(target)?;
-        let mir::Type::Dynamic { constraint, .. } = *self.builder.tree().get(dynamic) else {
+        let mir::Type::Dynamic { .. } = *self.builder.tree().get(dynamic) else {
             return Err(CompilerError::Internal {
                 message: "a value erased outside a dynamic target".to_string(),
             });
         };
 
-        // register the concrete class's constraint entries
+        // bind object rows behind their managed reference representation
         let source = self.lowerer.reduced_type(source)?;
-        if let dir::Type::Object(shape) = self.lowerer.ty(source)? {
+        if let dir::Type::Object(_) = self.lowerer.ty(source)? {
             let reference = self.lower_type(source)?;
             let concrete = match self.builder.tree().get(reference) {
                 mir::Type::Reference { pointee, .. } => *pointee,
@@ -32,46 +32,19 @@ impl FunctionLowerer<'_, '_, '_> {
                     });
                 }
             };
-            // record the written property names backing field slots
-            let written = self
-                .lowerer
-                .types(source.module_id)?
-                .properties(shape.properties)
-                .iter()
-                .filter_map(|property| match property.key {
-                    dir::StaticKey::Name(name) => Some(name),
-                    _ => None,
-                })
-                .collect::<Vec<_>>();
-            self.lowerer
-                .erasures
-                .entry((concrete, constraint))
-                .or_insert(Implementer::Object { written });
 
             return Ok(self.builder.dynamic_bind(dynamic, value, concrete));
         }
 
-        // register the declaring class's constraint entries
-        let dir::Type::Application(instance) = self.lowerer.ty(source)? else {
+        // bind classes at their declared nominal storage
+        let dir::Type::Application(_) = self.lowerer.ty(source)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "a structural existential source".to_string(),
             }
             .into());
         };
-        let arguments = self
-            .lowerer
-            .types(source.module_id)?
-            .type_ids(instance.arguments)
-            .to_vec();
-        let concrete = self
-            .type_lowerer()
-            .lower_nominal(instance.symbol, &arguments)?
-            .storage;
-        self.lowerer
-            .erasures
-            .entry((concrete, constraint))
-            .or_insert(Implementer::Class(instance.symbol));
+        let concrete = self.lower_nominal(source)?.storage;
 
         Ok(self.builder.dynamic_bind(dynamic, value, concrete))
     }
@@ -110,9 +83,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // select the constraint's declared slot and signature
         let receiver = self.lower_adjusted_receiver(receiver, &dispatch.receiver)?;
-        let constraint = self
-            .type_lowerer()
-            .lower_dynamic_constraint(dispatch.constraint)?;
+        let constraint = self.lower_constraint(dispatch.constraint)?;
         let Some(shape) = self.lowerer.dynamic_shapes.get(&constraint) else {
             return Err(CompilerError::Internal {
                 message: "a dynamic call reached an unregistered constraint shape".to_string(),
