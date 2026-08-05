@@ -236,6 +236,9 @@ impl TestProgram {
                 program::GlobalLocation::Constant => &mut constant_space,
                 program::GlobalLocation::SharedStatic => &mut shared_static_space,
                 program::GlobalLocation::LocalStatic => &mut local_static_space,
+                program::GlobalLocation::Immortal => {
+                    unreachable!("test globals use constant and static storage")
+                }
             };
             let (offset, byte_len) = allocator.allocate(Word::BYTE_LEN, &bytes);
             globals.push(program::Global::new(

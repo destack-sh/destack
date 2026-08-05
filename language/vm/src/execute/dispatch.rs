@@ -109,6 +109,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
                     // address construction
                     Opcode::GLOBAL_ADDRESS_CONSTANT
+                    | Opcode::GLOBAL_ADDRESS_IMMORTAL
                     | Opcode::GLOBAL_ADDRESS_LOCAL
                     | Opcode::GLOBAL_ADDRESS_SHARED => self.execute_global_address(instruction)?,
                     Opcode::FRAME_ADDRESS => self.execute_frame_address(instruction)?,

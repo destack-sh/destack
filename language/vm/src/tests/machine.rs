@@ -4,7 +4,7 @@ use destack_heap::{
     AllocationCache, AllocationPlan, Heap, HeapLimits, HeapOptions, Root, SharedHeap,
     SharedHeapLimits, SharedHeapOptions, SharedMarkWorker,
 };
-use destack_memory::MemoryMap;
+use destack_memory::{MemoryMap, MemoryRange};
 use destack_program as program;
 use destack_program::{FunctionId, Program, StopReason, StopSet, WatchSet, Word};
 
@@ -42,6 +42,7 @@ pub(crate) struct TestMachine {
     /// Shared collector worker state.
     shared_mark_worker: SharedMarkWorker,
     /// Worker-local static memory.
+    immortals: program::StaticSpace,
     local_statics: program::StaticSpace,
     /// Runtime-shared static memory.
     shared_statics: program::StaticSpace,
@@ -58,9 +59,9 @@ impl TestMachine {
         );
 
         // build the real runtime storage consumed by one activation
-        let local_heap = Heap::new(memory.clone(), HeapLimits::default(), HeapOptions::local())
+        let mut local_heap = Heap::new(memory.clone(), HeapLimits::default(), HeapOptions::local())
             .expect("test heap should build");
-        let shared_heap = SharedHeap::new(
+        let mut shared_heap = SharedHeap::new(
             memory.clone(),
             SharedHeapLimits::default(),
             SharedHeapOptions::default(),
@@ -68,6 +69,15 @@ impl TestMachine {
         .expect("test shared heap should build");
         let shared_cache = shared_heap.allocation_cache();
         let shared_mark_worker = shared_heap.register_mark_worker();
+        let immortals = program
+            .materialize_immortals(memory.clone())
+            .expect("test immortals should materialize");
+        let immortal_range = MemoryRange {
+            offset: immortals.offset(),
+            byte_len: immortals.byte_len(),
+        };
+        local_heap.set_immortal_range(immortal_range);
+        shared_heap.set_immortal_range(immortal_range);
         let local_statics = program
             .materialize_local_statics(memory.clone())
             .expect("test local statics should materialize");
@@ -96,6 +106,7 @@ impl TestMachine {
             shared_heap,
             shared_cache,
             shared_mark_worker,
+            immortals,
             local_statics,
             shared_statics,
         }
@@ -261,6 +272,7 @@ impl TestMachine {
                 shared_mark_worker: &self.shared_mark_worker,
                 local_statics: &mut self.local_statics,
                 shared_statics: &mut self.shared_statics,
+                immortals: &self.immortals,
                 constants: self.program.constants(),
             },
         };

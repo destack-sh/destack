@@ -15,6 +15,13 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let offset = usize::try_from(operands.u64()?).map_err(|_| self.invalid_instruction())?;
         let offset = match instruction.opcode() {
             Opcode::GLOBAL_ADDRESS_CONSTANT => offset,
+            Opcode::GLOBAL_ADDRESS_IMMORTAL => self
+                .activation
+                .memory
+                .immortals
+                .offset()
+                .checked_add(offset)
+                .ok_or_else(|| self.invalid_instruction())?,
             Opcode::GLOBAL_ADDRESS_LOCAL => self
                 .activation
                 .memory

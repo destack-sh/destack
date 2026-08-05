@@ -243,6 +243,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     ) -> Result<MemoryRange> {
         let location = match storage {
             GlobalStorage::Constant => GlobalLocation::Constant,
+            GlobalStorage::Immortal => GlobalLocation::Immortal,
             GlobalStorage::Local => GlobalLocation::LocalStatic,
             GlobalStorage::Shared => GlobalLocation::SharedStatic,
         };
@@ -251,6 +252,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         for (global_id, global) in self.machine.program.globals(location) {
             let global_address = match location {
                 GlobalLocation::Constant => self.machine.program.constants().reference(global),
+                GlobalLocation::Immortal => self.activation.memory.immortals.reference(global),
                 GlobalLocation::SharedStatic => {
                     self.activation.memory.shared_statics.reference(global)
                 }
@@ -263,6 +265,11 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     .machine
                     .program
                     .constant_address(global_address, global.byte_len()),
+                GlobalLocation::Immortal => self
+                    .activation
+                    .memory
+                    .immortals
+                    .address(global_address, global.byte_len()),
                 GlobalLocation::SharedStatic => self
                     .activation
                     .memory
