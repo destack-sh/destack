@@ -21,8 +21,14 @@ fn test_parse_borrow_with_named_lifetime() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::BorrowedOf { lifetime, mutability, target_type, .. } => {
                 assert_eq!(*mutability, Some(Mutability::Immutable));
-                assert_node!(parser.tree, lifetime.unwrap(), TypeExpression::Lifetime { name } => {
+                let lifetime = lifetime.expect("expected lifetime");
+                assert_node!(parser.tree, lifetime, TypeExpression::Lifetime { name } => {
                     assert_string!(parser, *name, "'a");
+                    let span = parser
+                        .tree
+                        .get_main_span(lifetime)
+                        .expect("expected lifetime main span");
+                    assert_eq!(parser.span_str(span), "'a");
                 });
                 assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, .. } => {
                     assert_path!(parser, *path, "Buffer");

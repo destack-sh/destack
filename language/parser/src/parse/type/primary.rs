@@ -260,7 +260,10 @@ impl Parser {
         let name = self.intern_range(range);
         self.bump();
 
-        self.insert_node(TypeExpression::Lifetime { name }, range)
+        let lifetime = self.insert_node(TypeExpression::Lifetime { name }, range);
+        self.tree.set_main_range(lifetime, range);
+
+        lifetime
     }
 
     /// Parse one primary type without prefix or postfix operations.
