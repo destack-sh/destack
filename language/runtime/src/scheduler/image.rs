@@ -1,11 +1,12 @@
+use std::sync::Arc;
+
 use destack_core::{Capture, CaptureMode};
 use destack_memory::MemoryMap;
 use destack_program as program;
 use serde::{Deserialize, Serialize};
 
-use super::task::TaskTable;
+use super::fiber::{FiberTable, FiberTableImage};
 use super::timer::TimerQueue;
-use super::waiter::WaiterTable;
 use super::{Callback, EventLoop, Runnable, ScheduledTimer, Wake, WakeKey};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 
@@ -31,10 +32,8 @@ pub struct EventLoopActiveImage {
     pub timers: Vec<ScheduledTimer>,
     /// Captured external wake waiters.
     pub wake_waiters: Vec<(WakeKey, Callback)>,
-    /// Captured language waiters.
-    pub(super) waiters: WaiterTable,
-    /// Captured eager asynchronous tasks.
-    pub(super) task_table: TaskTable,
+    /// Captured live fibers with their parked executions.
+    pub(super) fibers: FiberTableImage,
     /// Captured values awaiting generated destruction.
     pub(super) drops: Vec<program::Value>,
 }
@@ -62,23 +61,20 @@ impl EventLoopActiveImage {
                 .iter()
                 .map(|(key, callback)| (*key, callback.fork()))
                 .collect(),
-            waiters: self.waiters.inherit(),
-            task_table: self.task_table.fork(),
+            fibers: self.fibers.inherit(),
             drops: self.drops.iter().map(program::Value::fork).collect(),
         }
     }
 
-    /// Iterate over suspended language waiters and their continuations.
-    pub(crate) fn waiters(
-        &self,
-    ) -> impl Iterator<Item = (program::Waiter, &program::Continuation)> {
-        self.waiters.iter()
+    /// Return the captured fiber table.
+    pub(crate) fn fibers(&self) -> &FiberTableImage {
+        &self.fibers
     }
 }
 
 impl EventLoop {
-    /// Fork one event loop for one child worker.
-    pub(crate) fn fork(&self) -> RuntimeResult<Self> {
+    /// Fork one event loop for one child worker over already-forked memory.
+    pub(crate) fn fork(&self, memory: &Arc<MemoryMap>) -> RuntimeResult<Self> {
         let timers = self.timers.fork()?;
 
         Ok(Self {
@@ -91,8 +87,7 @@ impl EventLoop {
                 .iter()
                 .map(|(key, callback)| (*key, callback.fork()))
                 .collect(),
-            waiters: self.waiters.inherit(),
-            task_table: self.task_table.fork(),
+            fibers: self.fibers.fork(memory),
             drops: self.drops.iter().map(program::Value::fork).collect(),
             next_runnable_id: self.next_runnable_id,
         })
@@ -122,8 +117,7 @@ impl EventLoop {
             && self.wakes.is_empty()
             && timers.is_empty()
             && wake_waiters.is_empty()
-            && self.waiters.is_empty()
-            && self.task_table.is_empty()
+            && self.fibers.is_empty()
             && self.drops.is_empty()
         {
             return Ok(EventLoopImage {
@@ -140,8 +134,7 @@ impl EventLoop {
                 wakes: self.wakes.iter().cloned().collect(),
                 timers,
                 wake_waiters,
-                waiters: self.waiters.inherit(),
-                task_table: self.task_table.fork(),
+                fibers: self.fibers.image(),
                 drops: self.drops.iter().map(program::Value::fork).collect(),
             })),
         })
@@ -151,22 +144,23 @@ impl EventLoop {
     pub(crate) fn restore(
         &mut self,
         image: &EventLoopImage,
-        memory: &MemoryMap,
+        memory: &Arc<MemoryMap>,
     ) -> RuntimeResult<()> {
         let next_runnable_id = image.next_runnable_id;
         let Some(image) = image.active() else {
-            self.clear(memory)?;
+            self.clear();
             self.next_runnable_id = next_runnable_id;
 
             return Ok(());
         };
 
-        // rebuild fallible scheduler state before inheriting continuation ownership
+        // rebuild fallible scheduler state before replacing current ownership
         let mut timers = TimerQueue::default();
         timers.restore_image(&image.timers)?;
+        let fibers = FiberTable::restore(&image.fibers, memory)?;
 
         // release current ownership before rebuilding the image
-        self.clear(memory)?;
+        self.clear();
 
         // inherit queued invocations and callbacks
         let tasks = image.tasks.iter().map(Runnable::inherit);
@@ -183,8 +177,7 @@ impl EventLoop {
         self.wakes.extend(image.wakes.iter().cloned());
         self.timers = timers;
         self.wake_waiters.extend(wake_waiters);
-        self.waiters = image.waiters.inherit();
-        self.task_table = image.task_table.fork();
+        self.fibers = fibers;
         self.drops
             .extend(image.drops.iter().map(program::Value::fork));
 
@@ -196,7 +189,7 @@ impl Capture for EventLoop {
     type Image = EventLoopImage;
     type Error = Box<RuntimeError>;
     type CaptureContext<'a> = ();
-    type RestoreContext<'a> = &'a MemoryMap;
+    type RestoreContext<'a> = &'a Arc<MemoryMap>;
 
     /// Capture one event-loop image.
     fn capture_image(
@@ -238,10 +231,9 @@ impl EventLoopImage {
         self.active().map_or(0, |image| image.timers.len())
     }
 
-    /// Return the number of retained waiters.
+    /// Return the number of retained external wake waiters.
     pub fn waiter_count(&self) -> usize {
-        self.active()
-            .map_or(0, |image| image.wake_waiters.len() + image.waiters.len())
+        self.active().map_or(0, |image| image.wake_waiters.len())
     }
 
     /// Return whether one runnable item is already ready in this image.
@@ -262,8 +254,7 @@ impl EventLoopImage {
         self.has_ready_work()
             || !image.timers.is_empty()
             || !image.wake_waiters.is_empty()
-            || !image.waiters.is_empty()
-            || image.task_table.has_pending_execution()
+            || !image.fibers.is_empty()
             || !image.drops.is_empty()
     }
 }

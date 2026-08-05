@@ -6,11 +6,12 @@ use destack_core::CaptureMode;
 use destack_memory::MemoryImage;
 use destack_program as program;
 use destack_program::FrameStateId;
+use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
 use crate::runtime::RuntimeImage;
-use crate::scheduler::{Invocation, RunnableId};
+use crate::scheduler::RunnableId;
 use crate::worker::{WorkerId, WorkerImage};
 use crate::world::debug::Debugger;
 use crate::world::policy::Policy;
@@ -64,25 +65,10 @@ pub enum FrameSource {
         /// Retained runnable identifier.
         runnable_id: RunnableId,
     },
-    /// Continuation queued as one task.
-    Task {
-        /// Queued task identifier.
-        runnable_id: RunnableId,
-    },
-    /// Continuation queued as one microtask.
-    Microtask {
-        /// Queued microtask identifier.
-        runnable_id: RunnableId,
-    },
-    /// Continuation suspended on one language waiter.
-    Waiter {
-        /// Waiter that retains the continuation.
-        waiter: program::Waiter,
-    },
-    /// First-class continuation retained by the machine.
-    Continuation {
-        /// Runtime continuation identity.
-        continuation_id: program::ContinuationId,
+    /// Fiber parked or woken in the scheduler.
+    Fiber {
+        /// Scheduler fiber identity.
+        fiber: program::Fiber,
     },
 }
 
@@ -90,168 +76,59 @@ impl WorkerImage {
     /// Return all frames retained by one worker image.
     fn frames(
         &self,
-        program: &program::Program,
+        program: &Arc<program::Program>,
         memory: &MemoryImage,
     ) -> RuntimeResult<Vec<FrameView>> {
+        // fibers only execute through bytecode; native tiers deopt before inspection
+        if program.bytecode().is_none() {
+            return Ok(Vec::new());
+        }
+        let machine = vm::Machine::new(program.clone(), vm::MachineLimits::default())
+            .map_err(Box::<RuntimeError>::from)?;
         let mut frames = Vec::new();
 
-        // expose the retained canonical activation
-        self.append_machine_frames(program, memory, &mut frames)?;
-
-        // expose scheduler-owned continuations under their exact owners
-        if let Some(snapshot) = self.event_loop.active() {
-            for runnable in &snapshot.tasks {
-                let source = FrameSource::Task {
-                    runnable_id: runnable.id,
-                };
-                self.append_invocation_frames(
-                    program,
-                    memory,
-                    source,
-                    &runnable.invocation,
-                    &mut frames,
-                )?;
-            }
-            for runnable in &snapshot.microtasks {
-                let source = FrameSource::Microtask {
-                    runnable_id: runnable.id,
-                };
-                self.append_invocation_frames(
-                    program,
-                    memory,
-                    source,
-                    &runnable.invocation,
-                    &mut frames,
-                )?;
-            }
-            for (waiter, continuation) in snapshot.waiters() {
-                let source = FrameSource::Waiter { waiter };
-                self.append_continuation_frames(
-                    program,
-                    memory,
-                    source,
-                    continuation,
-                    &mut frames,
-                )?;
-            }
+        // expose the execution retained at one handshake or debugger stop
+        if let Some(image) = self.machine.stopped() {
+            let Some(retained) = self.retained.as_ref() else {
+                return Err(RuntimeError::inconsistent_image(format!(
+                    "worker {} retains frames without a stopped runnable",
+                    self.worker_id.0
+                ))
+                .boxed());
+            };
+            let source = FrameSource::Retained {
+                runnable_id: retained.id,
+            };
+            self.append_fiber_frames(&machine, memory, source, image, &mut frames)?;
         }
 
-        // expose first-class continuation handles retained by the machine
-        for (continuation_id, continuation) in self.machine.continuations() {
-            let source = FrameSource::Continuation { continuation_id };
-            self.append_continuation_frames(program, memory, source, continuation, &mut frames)?;
+        // expose every parked or woken scheduler fiber
+        if let Some(snapshot) = self.event_loop.active() {
+            for (fiber, image) in snapshot.fibers().executions() {
+                let source = FrameSource::Fiber { fiber };
+                self.append_fiber_frames(&machine, memory, source, image, &mut frames)?;
+            }
         }
 
         Ok(frames)
     }
 
-    /// Append the physical call stack retained at one debugger stop.
-    fn append_machine_frames(
+    /// Append one fiber image's frames through their canonical projections.
+    fn append_fiber_frames(
         &self,
-        program: &program::Program,
-        memory: &MemoryImage,
-        frames: &mut Vec<FrameView>,
-    ) -> RuntimeResult<()> {
-        let frame_count = self.machine.frame_count();
-        if frame_count == 0 {
-            return Ok(());
-        }
-        let Some(retained) = self.retained.as_ref() else {
-            return Err(RuntimeError::inconsistent_image(format!(
-                "worker {} retains frames without a stopped runnable",
-                self.worker_id.0
-            ))
-            .boxed());
-        };
-        let source = FrameSource::Retained {
-            runnable_id: retained.id,
-        };
-
-        // append each retained canonical frame
-        for index in 0..frame_count {
-            let Some(state) = self.machine.frame_state(index) else {
-                return Err(RuntimeError::inconsistent_image(format!(
-                    "worker {} frame {index} has no frame state",
-                    self.worker_id.0
-                ))
-                .boxed());
-            };
-            let bytes = self.machine.frame_bytes(program, memory, index)?;
-
-            frames.push(FrameView::new(self, source, state, bytes));
-        }
-
-        Ok(())
-    }
-
-    /// Append the continuation carried by one queued invocation when present.
-    fn append_invocation_frames(
-        &self,
-        program: &program::Program,
+        machine: &vm::Machine,
         memory: &MemoryImage,
         source: FrameSource,
-        invocation: &Invocation,
+        image: &vm::FiberImage,
         frames: &mut Vec<FrameView>,
     ) -> RuntimeResult<()> {
-        let Some(continuation) = invocation.continuation() else {
-            return Ok(());
-        };
-
-        self.append_continuation_frames(program, memory, source, continuation, frames)
-    }
-
-    /// Append one canonical continuation call chain.
-    fn append_continuation_frames(
-        &self,
-        program: &program::Program,
-        memory: &MemoryImage,
-        source: FrameSource,
-        continuation: &program::Continuation,
-        frames: &mut Vec<FrameView>,
-    ) -> RuntimeResult<()> {
-        let range = continuation.memory();
-        let bytes = memory
-            .read_bytes(range.offset, range.byte_len)
+        let mut read = |offset: usize, byte_len: usize| memory.read_bytes(offset, byte_len).ok();
+        let projected = machine
+            .project_frames(image, &mut read)
             .map_err(Box::<RuntimeError>::from)?;
-        let mut byte_offset = 0usize;
 
-        // split canonical bytes through each retained frame layout
-        for frame in continuation.frames() {
-            let state = frame.state();
-            let linked = program.frame_state(state).ok_or_else(|| {
-                RuntimeError::inconsistent_image(format!(
-                    "worker {} continuation references an undefined frame state",
-                    self.worker_id.0
-                ))
-                .boxed()
-            })?;
-            let layout = program.frame_layout(linked.layout).ok_or_else(|| {
-                RuntimeError::inconsistent_image(format!(
-                    "worker {} continuation references an undefined frame layout",
-                    self.worker_id.0
-                ))
-                .boxed()
-            })?;
-            byte_offset = byte_offset.next_multiple_of(layout.alignment() as usize);
-            let end = byte_offset + layout.byte_len() as usize;
-            let frame_bytes = bytes.get(byte_offset..end).ok_or_else(|| {
-                RuntimeError::inconsistent_image(format!(
-                    "worker {} continuation frame exceeds its canonical bytes",
-                    self.worker_id.0
-                ))
-                .boxed()
-            })?;
-            frames.push(FrameView::new(self, source, state, frame_bytes.to_vec()));
-            byte_offset = end;
-        }
-
-        // reject trailing bytes that do not belong to any retained frame
-        if byte_offset != bytes.len() {
-            return Err(RuntimeError::inconsistent_image(format!(
-                "worker {} continuation has unclaimed canonical bytes",
-                self.worker_id.0
-            ))
-            .boxed());
+        for (state, bytes) in projected {
+            frames.push(FrameView::new(self, source, state, bytes));
         }
 
         Ok(())
@@ -381,7 +258,7 @@ impl WorldView {
         // preserve worker order while resolving every referenced runtime loudly
         for worker in self.image.workers.values() {
             let runtime = self.runtime(worker.runtime_id)?;
-            frames.extend(worker.frames(runtime.program.as_ref(), self.image.memory())?);
+            frames.extend(worker.frames(&runtime.program, self.image.memory())?);
         }
 
         Ok(frames)
@@ -392,7 +269,7 @@ impl WorldView {
         let worker = self.worker(worker_id)?;
         let runtime = self.runtime(worker.runtime_id)?;
 
-        worker.frames(runtime.program.as_ref(), self.image.memory())
+        worker.frames(&runtime.program, self.image.memory())
     }
 
     /// Return the number of runtimes visible at this moment.

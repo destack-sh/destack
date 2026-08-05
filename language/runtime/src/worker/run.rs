@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use destack_heap as heap;
 use destack_program as program;
+use destack_vm as vm;
 use program::{Outcome, Value};
 
 use super::{Activation, Request, RunnableProgress, RunnableScope, Worker};
@@ -35,10 +36,12 @@ pub(crate) enum WorkerRunOutcome {
     },
 }
 
-/// Machine outcome and the task settled by its terminal state.
-struct InvocationOutcome {
-    /// Task settled by this execution when present.
-    task: Option<program::Task>,
+/// Machine outcome paired with the fiber that produced it.
+struct FiberOutcome {
+    /// Fiber identity in the scheduler table.
+    fiber: program::Fiber,
+    /// Physical execution owned while the fiber is mounted.
+    execution: vm::Fiber,
     /// Outcome produced by the worker machine.
     outcome: Outcome<Value>,
 }
@@ -79,7 +82,44 @@ impl Worker {
     ) -> RuntimeResult<program::Value> {
         self.refresh_debugger(world);
 
-        // execute the entrypoint
+        // execute the entrypoint on one fresh fiber
+        let fiber = self.event_loop.insert_fiber();
+        let mut execution = self.machine.reserve_fiber()?;
+        execution.mount(fiber);
+        let result = self.drive_entry(
+            world,
+            collection,
+            shared_static,
+            constant_space,
+            host,
+            host_queue,
+            fiber,
+            execution,
+            entry,
+            args,
+        );
+        let retired = self.event_loop.retire_fiber(fiber);
+        let value = result?;
+        retired?;
+
+        Ok(value)
+    }
+
+    /// Drive one entry fiber to completion, servicing runtime polls in place.
+    #[allow(clippy::too_many_arguments)]
+    fn drive_entry(
+        &mut self,
+        world: &mut WorldState,
+        collection: &Arc<SharedCollectionState>,
+        shared_static: &mut program::StaticSpace,
+        constant_space: &program::StaticImage,
+        host: &dyn Host,
+        host_queue: &HostQueue,
+        fiber: program::Fiber,
+        mut execution: vm::Fiber,
+        entry: &Entry,
+        args: &[program::Value],
+    ) -> RuntimeResult<program::Value> {
         let mut context = program::Context::empty();
         let mut activation = Activation::new(
             self.runtime_id,
@@ -94,6 +134,7 @@ impl Worker {
             host_queue,
             world,
             RunnableScope::empty(),
+            Some(fiber),
             &mut self.event_loop,
             self.handshake.as_ref(),
         );
@@ -111,14 +152,18 @@ impl Worker {
                 constants: constant_space,
             },
         };
-        let mut outcome = self.machine.run(
+        let outcome = self.machine.run(
+            &mut execution,
             activation,
             entry,
             args,
             Some(&self.stop_points),
             Some(&self.watch_points),
             self.profile.as_mut(),
-        )?;
+        );
+        let parked = self.park_detached(&mut execution);
+        let mut outcome = outcome?;
+        parked?;
 
         // service polls without interleaving another runnable
         loop {
@@ -130,7 +175,16 @@ impl Worker {
                     }
                     .boxed());
                 }
+                // TODO(#141): drive the event loop under a parked entry fiber
+                Outcome::Parked => {
+                    return Err(RuntimeError::Internal {
+                        message: "entry execution parked outside the event loop".to_string(),
+                    }
+                    .boxed());
+                }
                 Outcome::Stopped { .. } if self.handshake.is_pending() => {
+                    // root the stopped fiber while runtime work runs
+                    self.machine.retain_stopped(execution);
                     let reason = self.service_handshake(
                         world,
                         collection,
@@ -139,33 +193,62 @@ impl Worker {
                         host,
                         host_queue,
                     )?;
+                    execution = self.machine.take_stopped().ok_or_else(|| {
+                        RuntimeError::Internal {
+                            message: "runtime handshake lost the entry fiber".to_string(),
+                        }
+                        .boxed()
+                    })?;
                     if reason.is_some() {
-                        self.machine.clear()?;
-
                         return Err(RuntimeError::execution_stopped().boxed());
                     }
-                    outcome = self
-                        .continue_runnable(
-                            world,
-                            shared_static,
-                            constant_space,
-                            host,
-                            host_queue,
-                            RunnableScope::empty(),
-                            None,
-                            None,
-                        )?
-                        .outcome;
+
+                    let mut context = execution.context();
+                    let mut activation = Activation::new(
+                        self.runtime_id,
+                        self.id,
+                        self.environment.as_ref(),
+                        self.conditions.as_ref(),
+                        self.program.as_ref(),
+                        self.diagnostics.as_ref(),
+                        &self.binding_access,
+                        self.binding_table.as_ref(),
+                        host,
+                        host_queue,
+                        world,
+                        RunnableScope::empty(),
+                        Some(fiber),
+                        &mut self.event_loop,
+                        self.handshake.as_ref(),
+                    );
+                    let activation = program::Activation {
+                        runtime: &mut activation,
+                        context: &mut context,
+                        memory: program::Memory {
+                            allocation_plans: self.allocation_plans.as_ref(),
+                            local_heap: &mut self.heap,
+                            shared_heap: self.shared_heap.as_ref(),
+                            shared_cache: &mut self.shared_cache,
+                            shared_mark_worker: &self.shared_mark_worker,
+                            local_statics: &mut self.local_static,
+                            shared_statics: shared_static,
+                            constants: constant_space,
+                        },
+                    };
+                    let continued = self.machine.continue_execution(
+                        &mut execution,
+                        activation,
+                        Some(&self.stop_points),
+                        Some(&self.watch_points),
+                        self.profile.as_mut(),
+                        None,
+                    );
+                    let parked = self.park_detached(&mut execution);
+                    outcome = continued?;
+                    parked?;
                 }
                 Outcome::Stopped { .. } => {
-                    self.machine.clear()?;
-
                     return Err(RuntimeError::execution_stopped().boxed());
-                }
-                Outcome::Awaited { continuation, .. } | Outcome::Yielded { continuation, .. } => {
-                    self.machine.release_continuation(continuation)?;
-
-                    return Err(RuntimeError::suspension_escaped().boxed());
                 }
             }
         }
@@ -451,18 +534,10 @@ impl Worker {
     /// Terminate the retained runnable and release its machine state.
     fn terminate_execution(&mut self) -> RuntimeResult<()> {
         let retained = self.retained.take();
-        let machine = self.machine.clear();
-        let task = retained
-            .and_then(|retained| retained.task)
-            .map(|task| {
-                self.event_loop
-                    .finish_task(task, program::TaskOutcome::Cancelled)
-            })
-            .transpose()
-            .map_err(Box::<RuntimeError>::from);
-
-        machine?;
-        task?;
+        self.machine.clear();
+        if let Some(retained) = retained {
+            self.event_loop.retire_fiber(retained.fiber)?;
+        }
 
         Ok(())
     }
@@ -708,14 +783,16 @@ impl Worker {
         let event_loop = &mut self.event_loop;
         let local_static = &mut self.local_static;
         let machine = &mut self.machine;
-        let memory = machine.memory();
         let program = &self.program;
         let mut roots = |visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>| {
             program
                 .visit_static_root_slots(program::GlobalLocation::LocalStatic, local_static, visit)
                 .map_err(Box::<RuntimeError>::from)?;
-            event_loop.visit_root_slots(program, &memory, visit)?;
+            event_loop.visit_root_slots(program, visit)?;
             machine.visit_root_slots(visit)?;
+            for execution in event_loop.executions_mut() {
+                machine.visit_fiber_root_slots(execution, visit)?;
+            }
             Ok::<(), Box<RuntimeError>>(())
         };
         let progress =
@@ -756,6 +833,7 @@ impl Worker {
             host_queue,
             world,
             RunnableScope::empty(),
+            None,
             &mut self.event_loop,
             self.handshake.as_ref(),
         );
@@ -883,9 +961,9 @@ impl Worker {
         retained: RetainedRunnable,
         stop_reason: Option<program::StopReason>,
     ) -> RuntimeResult<WorkerRunOutcome> {
-        let scope = retained.scope;
-        let id = retained.id;
-        let task = retained.task;
+        let RetainedRunnable {
+            id, scope, fiber, ..
+        } = retained;
         let outcome = self.continue_runnable(
             world,
             shared_static,
@@ -893,7 +971,7 @@ impl Worker {
             host,
             host_queue,
             scope,
-            task,
+            fiber,
             stop_reason,
         )?;
 
@@ -905,52 +983,65 @@ impl Worker {
         &mut self,
         id: RunnableId,
         scope: RunnableScope,
-        invocation: InvocationOutcome,
+        outcome: FiberOutcome,
     ) -> RuntimeResult<WorkerRunOutcome> {
-        let InvocationOutcome { task, outcome } = invocation;
+        let FiberOutcome {
+            fiber,
+            execution,
+            outcome,
+        } = outcome;
 
         match outcome {
             Outcome::Completed { value } => {
-                if let Some(task) = task {
-                    self.event_loop
-                        .finish_task(task, program::TaskOutcome::Completed(value))?;
-                } else {
-                    self.event_loop.release(value);
-                }
-                let Some(progress) = scope.progress() else {
-                    return Err(RuntimeError::Internal {
-                        message: "runnable completed without an active runnable scope".to_string(),
-                    }
-                    .boxed());
-                };
+                self.event_loop.retire_fiber(fiber)?;
+                self.event_loop.release(value);
 
-                Ok(WorkerRunOutcome::Progressed { progress })
+                self.runnable_progress(scope)
             }
             Outcome::Cancelled => {
-                if let Some(task) = task {
-                    self.event_loop
-                        .finish_task(task, program::TaskOutcome::Cancelled)?;
-                }
-                let Some(progress) = scope.progress() else {
-                    return Err(RuntimeError::Internal {
-                        message: "runnable completed without an active runnable scope".to_string(),
-                    }
-                    .boxed());
-                };
+                self.event_loop.retire_fiber(fiber)?;
 
-                Ok(WorkerRunOutcome::Progressed { progress })
+                self.runnable_progress(scope)
+            }
+            Outcome::Parked => {
+                self.event_loop.park_fiber(fiber, execution)?;
+
+                self.runnable_progress(scope)
             }
             Outcome::Stopped { reason } => {
-                self.retained = Some(RetainedRunnable::new(id, scope, task, Some(reason)));
+                self.machine.retain_stopped(execution);
+                self.retained = Some(RetainedRunnable::new(id, scope, fiber, Some(reason)));
 
                 Ok(WorkerRunOutcome::Stopped { reason })
             }
-            Outcome::Awaited { continuation, .. } | Outcome::Yielded { continuation, .. } => {
-                self.machine.release_continuation(continuation)?;
+        }
+    }
 
-                Err(RuntimeError::suspension_escaped().boxed())
+    /// Park every execution split off at detach boundaries.
+    fn park_detached(&mut self, execution: &mut vm::Fiber) -> RuntimeResult<()> {
+        let mut failure = None;
+
+        // park every suffix before surfacing the first failure
+        for suffix in execution.take_detached() {
+            let fiber = suffix.current();
+            if let Err(error) = self.event_loop.park_fiber(fiber, suffix) {
+                failure.get_or_insert(error);
             }
         }
+
+        failure.map_or(Ok(()), Err)
+    }
+
+    /// Report progress for one settled runnable scope.
+    fn runnable_progress(&self, scope: RunnableScope) -> RuntimeResult<WorkerRunOutcome> {
+        let Some(progress) = scope.progress() else {
+            return Err(RuntimeError::Internal {
+                message: "runnable completed without an active runnable scope".to_string(),
+            }
+            .boxed());
+        };
+
+        Ok(WorkerRunOutcome::Progressed { progress })
     }
 
     /// Execute one queued program invocation.
@@ -963,25 +1054,41 @@ impl Worker {
         host_queue: &HostQueue,
         invocation: Invocation,
         scope: RunnableScope,
-    ) -> RuntimeResult<InvocationOutcome> {
+    ) -> RuntimeResult<FiberOutcome> {
         self.refresh_debugger(world);
 
-        // begin one queued task continuation before entering the machine
-        let task = invocation.task();
-        let mut context = invocation.context();
-        let is_cancelled = if let Some(task) = task {
-            match self.event_loop.begin_task(task) {
-                Ok(is_cancelled) => is_cancelled,
-                Err(error) => {
-                    let memory = self.machine.memory();
-                    invocation.release(&memory)?;
+        // mount one fiber and its physical execution for the invocation
+        let (fiber, mut execution) = match &invocation {
+            Invocation::Function { .. } => {
+                let fiber = self.event_loop.insert_fiber();
+                let mut execution = match self.machine.reserve_fiber() {
+                    Ok(execution) => execution,
+                    Err(error) => {
+                        self.event_loop.retire_fiber(fiber)?;
 
-                    return Err(Box::<RuntimeError>::from(error));
-                }
+                        return Err(error);
+                    }
+                };
+                execution.mount(fiber);
+
+                (fiber, execution)
             }
-        } else {
-            false
+            Invocation::Wake { fiber, .. } => {
+                let execution = match self.event_loop.resume_fiber(*fiber) {
+                    Ok(execution) => execution,
+                    Err(error) => {
+                        if let Invocation::Wake { value, .. } = invocation {
+                            self.event_loop.release(value);
+                        }
+
+                        return Err(error);
+                    }
+                };
+
+                (*fiber, execution)
+            }
         };
+        let mut context = invocation.context().unwrap_or_else(|| execution.context());
 
         let mut activation = Activation::new(
             self.runtime_id,
@@ -996,6 +1103,7 @@ impl Worker {
             host_queue,
             world,
             scope,
+            Some(fiber),
             &mut self.event_loop,
             self.handshake.as_ref(),
         );
@@ -1021,6 +1129,7 @@ impl Worker {
                 arguments,
                 ..
             } => self.machine.run_function(
+                &mut execution,
                 activation,
                 function,
                 environment.as_ref(),
@@ -1029,74 +1138,35 @@ impl Worker {
                 Some(&self.watch_points),
                 self.profile.as_mut(),
             ),
-            Invocation::Resume {
-                continuation,
-                value,
-                ..
-            } => {
-                if is_cancelled {
-                    self.machine.cancel(
-                        activation,
-                        continuation,
-                        Some(&self.stop_points),
-                        Some(&self.watch_points),
-                        self.profile.as_mut(),
-                    )
-                } else {
-                    self.machine.resume(
-                        activation,
-                        continuation,
-                        &value,
-                        Some(&self.stop_points),
-                        Some(&self.watch_points),
-                        self.profile.as_mut(),
-                    )
-                }
-            }
-            Invocation::Complete {
-                continuation,
-                value,
-            } => self.machine.complete(
+            Invocation::Wake { value, .. } => self.machine.resume(
+                &mut execution,
                 activation,
-                continuation,
                 &value,
                 Some(&self.stop_points),
                 Some(&self.watch_points),
                 self.profile.as_mut(),
             ),
-            Invocation::Cancel { continuation, .. } => self.machine.cancel(
-                activation,
-                continuation,
-                Some(&self.stop_points),
-                Some(&self.watch_points),
-                self.profile.as_mut(),
-            ),
-        }?;
-
-        // park asynchronous execution through its concrete Awaitable implementation
-        let Outcome::Awaited {
-            park,
-            awaitable,
-            continuation,
-        } = outcome
-        else {
-            return Ok(InvocationOutcome { task, outcome });
         };
-        self.park_awaitable(
-            world,
-            shared_static,
-            constant_space,
-            host,
-            host_queue,
-            scope,
-            task,
-            park,
-            awaitable,
-            continuation,
-        )
+        let parked = self.park_detached(&mut execution);
+        let outcome = match outcome {
+            Ok(outcome) => outcome,
+            Err(error) => {
+                self.event_loop.retire_fiber(fiber)?;
+
+                return Err(error);
+            }
+        };
+        parked?;
+
+        Ok(FiberOutcome {
+            fiber,
+            execution,
+            outcome,
+        })
     }
 
     /// Continue canonical execution retained by this worker machine.
+    #[allow(clippy::too_many_arguments)]
     fn continue_runnable(
         &mut self,
         world: &mut WorldState,
@@ -1105,11 +1175,17 @@ impl Worker {
         host: &dyn Host,
         host_queue: &HostQueue,
         scope: RunnableScope,
-        task: Option<program::Task>,
+        fiber: program::Fiber,
         stop_reason: Option<program::StopReason>,
-    ) -> RuntimeResult<InvocationOutcome> {
+    ) -> RuntimeResult<FiberOutcome> {
         self.refresh_debugger(world);
-        let mut context = program::Context::empty();
+        let mut execution = self.machine.take_stopped().ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "retained execution has no stopped fiber".to_string(),
+            }
+            .boxed()
+        })?;
+        let mut context = execution.context();
 
         let mut activation = Activation::new(
             self.runtime_id,
@@ -1124,6 +1200,7 @@ impl Worker {
             host_queue,
             world,
             scope,
+            Some(fiber),
             &mut self.event_loop,
             self.handshake.as_ref(),
         );
@@ -1143,146 +1220,30 @@ impl Worker {
         };
 
         let resume_skip = stop_reason.and_then(program::StopReason::resume_skip);
-
         let outcome = self.machine.continue_execution(
+            &mut execution,
             activation,
             Some(&self.stop_points),
             Some(&self.watch_points),
             self.profile.as_mut(),
             resume_skip,
-        )?;
-
-        let Outcome::Awaited {
-            park,
-            awaitable,
-            continuation,
-        } = outcome
-        else {
-            return Ok(InvocationOutcome { task, outcome });
-        };
-        self.park_awaitable(
-            world,
-            shared_static,
-            constant_space,
-            host,
-            host_queue,
-            scope,
-            task,
-            park,
-            awaitable,
-            continuation,
-        )
-    }
-
-    /// Park one suspended continuation through its concrete Awaitable implementation.
-    fn park_awaitable(
-        &mut self,
-        world: &mut WorldState,
-        shared_static: &mut program::StaticSpace,
-        constant_space: &program::StaticImage,
-        host: &dyn Host,
-        host_queue: &HostQueue,
-        scope: RunnableScope,
-        task: Option<program::Task>,
-        park: program::FunctionId,
-        awaitable: Value,
-        continuation: program::Continuation,
-    ) -> RuntimeResult<InvocationOutcome> {
-        let mut context = continuation.context();
-        let waiter = if let Some(task) = task {
-            match self.event_loop.suspend_task(task, continuation) {
-                Ok(waiter) => waiter,
-                Err((error, continuation)) => {
-                    continuation.release(&self.machine.memory())?;
-
-                    return Err(error.into());
-                }
-            }
-        } else {
-            self.event_loop.park(continuation)
-        };
-        let arguments = Self::park_arguments(self.machine.program(), park, awaitable, waiter)?;
-
-        let mut activation = Activation::new(
-            self.runtime_id,
-            self.id,
-            self.environment.as_ref(),
-            self.conditions.as_ref(),
-            self.program.as_ref(),
-            self.diagnostics.as_ref(),
-            &self.binding_access,
-            self.binding_table.as_ref(),
-            host,
-            host_queue,
-            world,
-            scope,
-            &mut self.event_loop,
-            self.handshake.as_ref(),
         );
-        let activation = program::Activation {
-            runtime: &mut activation,
-            context: &mut context,
-            memory: program::Memory {
-                allocation_plans: self.allocation_plans.as_ref(),
-                local_heap: &mut self.heap,
-                shared_heap: self.shared_heap.as_ref(),
-                shared_cache: &mut self.shared_cache,
-                shared_mark_worker: &self.shared_mark_worker,
-                local_statics: &mut self.local_static,
-                shared_statics: shared_static,
-                constants: constant_space,
-            },
+        let parked = self.park_detached(&mut execution);
+        let outcome = match outcome {
+            Ok(outcome) => outcome,
+            Err(error) => {
+                self.event_loop.retire_fiber(fiber)?;
+
+                return Err(error);
+            }
         };
-        let outcome = self.machine.run_function(
-            activation,
-            park,
-            None,
-            &arguments,
-            Some(&self.stop_points),
-            Some(&self.watch_points),
-            self.profile.as_mut(),
-        )?;
+        parked?;
 
-        // awaitable park is synchronous and never settles the suspended task
-        match outcome {
-            Outcome::Completed { .. } | Outcome::Stopped { .. } => Ok(InvocationOutcome {
-                task: None,
-                outcome,
-            }),
-            Outcome::Cancelled => Err(RuntimeError::Internal {
-                message: "awaitable park completed through cancellation".to_string(),
-            }
-            .boxed()),
-            Outcome::Awaited { continuation, .. } | Outcome::Yielded { continuation, .. } => {
-                self.machine.release_continuation(continuation)?;
-
-                Err(RuntimeError::suspension_escaped().boxed())
-            }
-        }
-    }
-
-    /// Build the exact arguments for one concrete Awaitable park call.
-    fn park_arguments(
-        program: &program::Program,
-        park: program::FunctionId,
-        awaitable: Value,
-        waiter: program::Waiter,
-    ) -> RuntimeResult<[Value; 2]> {
-        let waiter_type = program
-            .function_parameters(park)
-            .and_then(|parameters| parameters.get(1))
-            .copied()
-            .ok_or_else(|| {
-                RuntimeError::Internal {
-                    message: format!("awaitable park {} has no waiter parameter", park.index()),
-                }
-                .boxed()
-            })?;
-        let waiter = program
-            .value(waiter_type, [program::Word::from_bits(waiter.bits())])
-            .map_err(Box::<RuntimeError>::from)?;
-
-        Ok([awaitable, waiter])
+        Ok(FiberOutcome {
+            fiber,
+            execution,
+            outcome,
+        })
     }
 
     /// Publish root changes and donate GC work after one bounded run.
@@ -1371,6 +1332,7 @@ impl Worker {
             host_queue,
             world,
             RunnableScope::empty(),
+            None,
             &mut self.event_loop,
             self.handshake.as_ref(),
         );

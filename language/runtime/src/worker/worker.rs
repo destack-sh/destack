@@ -317,11 +317,11 @@ impl Worker {
             .map_err(Box::<RuntimeError>::from)?;
 
         // visit scheduler and machine roots in the shared world memory
-        let memory = self.machine.memory();
-
-        self.event_loop
-            .visit_root_slots(&self.program, &memory, visit)?;
+        self.event_loop.visit_root_slots(&self.program, visit)?;
         self.machine.visit_root_slots(visit)?;
+        for execution in self.event_loop.executions_mut() {
+            self.machine.visit_fiber_root_slots(execution, visit)?;
+        }
 
         Ok(())
     }
@@ -441,7 +441,7 @@ impl Worker {
         let shared_cache = shared_heap.allocation_cache();
         let machine = self.machine.fork(shared_heap.memory().clone());
         let handshake = Arc::new(Handshake::new());
-        let event_loop = self.event_loop.fork()?;
+        let event_loop = self.event_loop.fork(shared_heap.memory())?;
         let retained = self.retained.clone();
         let profile = self.profile.clone();
 
@@ -549,16 +549,5 @@ impl Worker {
             retained: image.retained.clone(),
             event_loop,
         })
-    }
-}
-
-impl Drop for Worker {
-    fn drop(&mut self) {
-        let memory = self.machine.memory();
-
-        // abort because dropping owned scheduler ranges must not corrupt world memory
-        if self.event_loop.clear(&memory).is_err() {
-            std::process::abort();
-        }
     }
 }

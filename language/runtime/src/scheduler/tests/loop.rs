@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use destack_memory::MemoryMap;
 use destack_program as program;
 
 use crate::host::poller::{
@@ -56,8 +59,11 @@ fn test_event_loop_fork_preserves_pending_state() {
         })
         .expect("schedule timer");
 
-    // fork the active scheduler directly
-    let mut forked = event_loop.fork().expect("active event loop should fork");
+    // fork the active scheduler directly over fresh world memory
+    let memory = Arc::new(MemoryMap::reserve(1 << 20, 1 << 16).expect("reserve fork memory"));
+    let mut forked = event_loop
+        .fork(&memory)
+        .expect("active event loop should fork");
 
     // ready timer stays ahead of queued resource wakes
     let first = forked

@@ -1,5 +1,4 @@
 use destack_heap as heap;
-use destack_memory::MemoryMap;
 use destack_program as program;
 use serde::{Deserialize, Serialize};
 
@@ -33,28 +32,12 @@ pub enum Invocation {
         /// Dynamically scoped context captured when this call was queued.
         context: program::Context,
     },
-    /// Resume one suspended continuation.
-    Resume {
-        /// Task resumed by this invocation when present.
-        task: Option<program::Task>,
-        /// Canonical continuation to resume.
-        continuation: program::Continuation,
-        /// Value delivered to the suspended expression.
+    /// Wake one parked fiber with a delivered value.
+    Wake {
+        /// Fiber to resume.
+        fiber: program::Fiber,
+        /// Value delivered to the parked call.
         value: program::Value,
-    },
-    /// Complete one suspended generator continuation.
-    Complete {
-        /// Canonical continuation to complete.
-        continuation: program::Continuation,
-        /// Value delivered to the suspended completion expression.
-        value: program::Value,
-    },
-    /// Cancel one suspended asynchronous continuation.
-    Cancel {
-        /// Task cancelled by this invocation when present.
-        task: Option<program::Task>,
-        /// Canonical continuation to cancel.
-        continuation: program::Continuation,
     },
 }
 
@@ -74,8 +57,8 @@ pub struct RetainedRunnable {
     pub id: RunnableId,
     /// Runnable scope active when execution stopped.
     pub scope: RunnableScope,
-    /// Task settled by this execution when present.
-    pub task: Option<program::Task>,
+    /// Fiber whose execution the worker machine retains.
+    pub fiber: program::Fiber,
     /// Debugger stop reason when execution is externally paused.
     pub reason: Option<program::StopReason>,
 }
@@ -99,30 +82,9 @@ impl Invocation {
         }
     }
 
-    /// Create one continuation resumption.
-    pub fn resume(
-        task: Option<program::Task>,
-        continuation: program::Continuation,
-        value: program::Value,
-    ) -> Self {
-        Self::Resume {
-            task,
-            continuation,
-            value,
-        }
-    }
-
-    /// Create one continuation completion.
-    pub fn complete(continuation: program::Continuation, value: program::Value) -> Self {
-        Self::Complete {
-            continuation,
-            value,
-        }
-    }
-
-    /// Create one continuation cancellation.
-    pub fn cancel(task: Option<program::Task>, continuation: program::Continuation) -> Self {
-        Self::Cancel { task, continuation }
+    /// Create one fiber wake delivery.
+    pub fn wake(fiber: program::Fiber, value: program::Value) -> Self {
+        Self::Wake { fiber, value }
     }
 
     /// Fork this invocation for one forked World.
@@ -139,79 +101,25 @@ impl Invocation {
                 arguments: arguments.iter().map(program::Value::fork).collect(),
                 context: *context,
             },
-            Self::Resume {
-                task,
-                continuation,
-                value,
-            } => Self::Resume {
-                task: *task,
-                continuation: continuation.inherit(),
+            Self::Wake { fiber, value } => Self::Wake {
+                fiber: *fiber,
                 value: value.fork(),
             },
-            Self::Complete {
-                continuation,
-                value,
-            } => Self::Complete {
-                continuation: continuation.inherit(),
-                value: value.fork(),
-            },
-            Self::Cancel { task, continuation } => Self::Cancel {
-                task: *task,
-                continuation: continuation.inherit(),
-            },
         }
     }
 
-    /// Return the task resumed or cancelled by this invocation.
-    pub const fn task(&self) -> Option<program::Task> {
+    /// Return the dynamically scoped context carried by fresh invocations.
+    pub const fn context(&self) -> Option<program::Context> {
         match self {
-            Self::Resume { task, .. } | Self::Cancel { task, .. } => *task,
-            Self::Function { .. } | Self::Complete { .. } => None,
+            Self::Function { context, .. } => Some(*context),
+            Self::Wake { .. } => None,
         }
-    }
-
-    /// Return the dynamically scoped context carried by this invocation.
-    pub const fn context(&self) -> program::Context {
-        match self {
-            Self::Function { context, .. } => *context,
-            Self::Resume { continuation, .. }
-            | Self::Complete { continuation, .. }
-            | Self::Cancel { continuation, .. } => continuation.context(),
-        }
-    }
-
-    /// Return the suspended continuation carried by this invocation when present.
-    pub(crate) const fn continuation(&self) -> Option<&program::Continuation> {
-        match self {
-            Self::Resume { continuation, .. }
-            | Self::Complete { continuation, .. }
-            | Self::Cancel { continuation, .. } => Some(continuation),
-            Self::Function { .. } => None,
-        }
-    }
-
-    /// Release the suspended continuation owned by this invocation when present.
-    pub(crate) fn release(self, memory: &MemoryMap) -> RuntimeResult<()> {
-        let continuation = match self {
-            Self::Resume { continuation, .. }
-            | Self::Complete { continuation, .. }
-            | Self::Cancel { continuation, .. } => Some(continuation),
-            Self::Function { .. } => None,
-        };
-
-        continuation
-            .map(|continuation| continuation.release(memory))
-            .transpose()
-            .map_err(Box::<RuntimeError>::from)?;
-
-        Ok(())
     }
 
     /// Visit mutable heap root slots retained by this runnable.
     pub(crate) fn visit_root_slots(
         &mut self,
         program: &program::Program,
-        memory: &MemoryMap,
         visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
     ) -> RuntimeResult<()> {
         match self {
@@ -236,27 +144,10 @@ impl Invocation {
                         .map_err(Box::<RuntimeError>::from)?;
                 }
             }
-            // suspended call chain and resume value
-            Self::Resume {
-                continuation,
-                value,
-                ..
-            }
-            | Self::Complete {
-                continuation,
-                value,
-            } => {
-                program
-                    .visit_continuation_root_slots(memory, continuation, visit)
-                    .map_err(Box::<RuntimeError>::from)?;
+            // wake value delivered to one parked fiber
+            Self::Wake { value, .. } => {
                 program
                     .visit_value_root_slots(value, visit)
-                    .map_err(Box::<RuntimeError>::from)?;
-            }
-            // suspended call chain
-            Self::Cancel { continuation, .. } => {
-                program
-                    .visit_continuation_root_slots(memory, continuation, visit)
                     .map_err(Box::<RuntimeError>::from)?;
             }
         }
@@ -342,15 +233,17 @@ impl Runnable {
     pub(crate) fn visit_root_slots(
         &mut self,
         program: &program::Program,
-        memory: &MemoryMap,
         visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
     ) -> RuntimeResult<()> {
-        self.invocation.visit_root_slots(program, memory, visit)
+        self.invocation.visit_root_slots(program, visit)
     }
 
-    /// Release the suspended continuation owned by this runnable when present.
-    pub(crate) fn release(self, memory: &MemoryMap) -> RuntimeResult<()> {
-        self.invocation.release(memory)
+    /// Release the values owned by this runnable.
+    pub(crate) fn release(self) -> Option<program::Value> {
+        match self.invocation {
+            Invocation::Wake { value, .. } => Some(value),
+            Invocation::Function { .. } => None,
+        }
     }
 }
 
@@ -359,13 +252,13 @@ impl RetainedRunnable {
     pub const fn new(
         id: RunnableId,
         scope: RunnableScope,
-        task: Option<program::Task>,
+        fiber: program::Fiber,
         reason: Option<program::StopReason>,
     ) -> Self {
         Self {
             id,
             scope,
-            task,
+            fiber,
             reason,
         }
     }

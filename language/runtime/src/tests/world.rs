@@ -198,13 +198,6 @@ impl TestWorld {
             .expect("world task run should succeed")
     }
 
-    /// Run one world microtask and fail loudly on runtime errors.
-    pub(crate) fn run_microtask(&mut self) -> RunOutcome {
-        self.world
-            .run(Run::Microtask)
-            .expect("world microtask run should succeed")
-    }
-
     /// Run one world task and require an execution stop.
     pub(crate) fn run_to_stop(&mut self) -> Stop {
         let outcome = self.run_task();

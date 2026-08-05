@@ -9,7 +9,7 @@ use crate::diagnostic::{DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::{
     Host, HostError, HostQueue, family_name, host_name, monotonic_now_ns, platform_name,
 };
-use crate::scheduler::{EventLoop, RunnableId};
+use crate::scheduler::{EventLoop, Invocation, RunnableId};
 use crate::world::random::RandomStreamId;
 use crate::world::time::ClockSource;
 use crate::world::trace::{EntropySubject, TraceLog};
@@ -44,7 +44,9 @@ pub struct Activation<'a> {
     world: &'a mut WorldState,
     /// Currently running task or microtask.
     scope: RunnableScope,
-    /// Worker event loop receiving language waiter operations.
+    /// Fiber mounted by the current invocation.
+    fiber: Option<program::Fiber>,
+    /// Worker event loop receiving fiber scheduling operations.
     event_loop: &'a mut EventLoop,
     /// Process-local worker execution handshake.
     handshake: &'a Handshake,
@@ -61,11 +63,7 @@ impl program::Runtime for Activation<'_> {
     }
 
     /// Retain execution so the worker can service pending runtime work.
-    fn poll(
-        &mut self,
-        _memory: program::Memory<'_>,
-        _roots: &mut dyn program::RootSet<Error = Self::Error>,
-    ) -> RuntimeResult<program::Poll> {
+    fn poll(&mut self, _memory: program::Memory<'_>) -> RuntimeResult<program::Poll> {
         if !self.handshake.is_pending() {
             return Ok(program::Poll::Continue);
         }
@@ -78,81 +76,32 @@ impl program::Runtime for Activation<'_> {
         &mut self,
         memory: program::Memory<'_>,
         context: program::Context,
+        fiber: program::Fiber,
         binding: &program::Binding,
         arguments: &[program::Word],
         result: &mut [program::Word],
     ) -> RuntimeResult<()> {
         let table = self.binding_table;
 
-        table.call(binding, self, memory, context, arguments, result)
+        table.call(binding, self, memory, context, fiber, arguments, result)
     }
 
-    /// Attempt to queue one suspended language waiter.
-    fn queue_waiter(
-        &mut self,
-        waiter: program::Waiter,
-        value: program::Value,
-    ) -> RuntimeResult<bool> {
-        self.event_loop
-            .queue_waiter(waiter, value)
-            .map_err(Into::into)
+    /// Park one logical fiber unless a wake already settled.
+    fn park(&mut self, fiber: program::Fiber) -> RuntimeResult<program::Park> {
+        match self.event_loop.take_pending_wake(fiber)? {
+            Some(value) => Ok(program::Park::Ready(value)),
+            None => Ok(program::Park::Parked),
+        }
     }
 
-    /// Attempt to cancel one suspended language waiter.
-    fn cancel_waiter(&mut self, waiter: program::Waiter) -> RuntimeResult<bool> {
-        self.event_loop.cancel_waiter(waiter).map_err(Into::into)
+    /// Allocate one detached fiber identity at a task boundary.
+    fn detach(&mut self) -> RuntimeResult<program::Fiber> {
+        Ok(self.event_loop.insert_fiber())
     }
 
-    /// Create one already completed task.
-    fn resolve_task(&mut self, value: program::Value) -> program::Task {
-        self.event_loop.resolve_task(value)
-    }
-
-    /// Start one running task.
-    fn start_task(&mut self) -> program::Task {
-        self.event_loop.start_task()
-    }
-
-    /// Suspend one running task or return its continuation unchanged.
-    fn suspend_task(
-        &mut self,
-        task: program::Task,
-        continuation: program::Continuation,
-    ) -> Result<program::Waiter, (Box<RuntimeError>, program::Continuation)> {
-        self.event_loop
-            .suspend_task(task, continuation)
-            .map_err(|(error, continuation)| (error.into(), continuation))
-    }
-
-    /// Park one waiter until a task completes or is cancelled.
-    fn park_task(&mut self, task: program::Task, waiter: program::Waiter) -> RuntimeResult<()> {
-        self.event_loop.park_task(task, waiter).map_err(Into::into)
-    }
-
-    /// Request cooperative cancellation of one task.
-    fn cancel_task(&mut self, task: program::Task) -> RuntimeResult<()> {
-        self.event_loop.cancel_task(task).map_err(Into::into)
-    }
-
-    /// Return whether cooperative cancellation was requested for one running task.
-    fn is_task_cancelled(&mut self, task: program::Task) -> RuntimeResult<bool> {
-        self.event_loop.is_task_cancelled(task).map_err(Into::into)
-    }
-
-    /// Detach one task result.
-    fn detach_task(&mut self, task: program::Task) -> RuntimeResult<()> {
-        self.event_loop.detach_task(task).map_err(Into::into)
-    }
-
-    /// Finish one running task.
-    fn finish_task(
-        &mut self,
-        task: program::Task,
-        outcome: program::TaskOutcome,
-    ) -> RuntimeResult<()> {
-        self.event_loop
-            .finish_task(task, outcome)
-            .map_err(Into::into)
+    /// Retire one detached fiber that completed without parking.
+    fn retire(&mut self, fiber: program::Fiber) -> RuntimeResult<()> {
+        self.event_loop.retire_fiber(fiber)
     }
 }
 
@@ -172,6 +121,7 @@ impl<'a> Activation<'a> {
         host_queue: &'a HostQueue,
         world: &'a mut WorldState,
         scope: RunnableScope,
+        fiber: Option<program::Fiber>,
         event_loop: &'a mut EventLoop,
         handshake: &'a Handshake,
     ) -> Self {
@@ -188,6 +138,7 @@ impl<'a> Activation<'a> {
             host_queue,
             world,
             scope,
+            fiber,
             event_loop,
             handshake,
             is_process_main: host.is_process_main_context(),
@@ -203,6 +154,12 @@ impl<'a> Activation<'a> {
     #[inline]
     pub fn diagnostics(&self) -> &DiagnosticStore {
         self.diagnostics
+    }
+
+    /// Borrow the durable program binding declarations.
+    #[inline]
+    pub fn program(&self) -> &program::Program {
+        self.program
     }
 
     /// Record one runtime diagnostic event.
@@ -260,6 +217,52 @@ impl<'a> Activation<'a> {
     /// Return the currently running task or microtask.
     pub const fn scope(&self) -> RunnableScope {
         self.scope
+    }
+
+    /// Return the fiber mounted by the current invocation.
+    pub const fn current_fiber(&self) -> Option<program::Fiber> {
+        self.fiber
+    }
+
+    /// Deliver one wake, buffering it until the target fiber parks.
+    pub fn wake_fiber(
+        &mut self,
+        fiber: program::Fiber,
+        value: program::Value,
+    ) -> RuntimeResult<()> {
+        self.event_loop.wake_fiber(fiber, value)
+    }
+
+    /// Queue one callback to run before the next task.
+    pub fn queue_microtask(
+        &mut self,
+        function: program::FunctionId,
+        environment: Option<program::Value>,
+        arguments: Vec<program::Value>,
+        context: program::Context,
+    ) -> RunnableId {
+        self.event_loop.enqueue_microtask(Invocation::Function {
+            function,
+            environment,
+            arguments,
+            context,
+        })
+    }
+
+    /// Queue one function to run on a fresh fiber.
+    pub fn spawn_fiber(
+        &mut self,
+        function: program::FunctionId,
+        environment: Option<program::Value>,
+        arguments: Vec<program::Value>,
+        context: program::Context,
+    ) -> RunnableId {
+        self.event_loop.enqueue_task(Invocation::Function {
+            function,
+            environment,
+            arguments,
+            context,
+        })
     }
 
     /// Return whether this call is running on the process main thread.

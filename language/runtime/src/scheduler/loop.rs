@@ -1,13 +1,12 @@
 use std::collections::{BTreeMap, VecDeque};
 
-use destack_memory::MemoryMap;
 use destack_program as program;
+use destack_vm as vm;
 
-use super::task::TaskTable;
+use super::fiber::FiberTable;
 use super::timer::TimerQueue;
-use super::waiter::WaiterTable;
 use super::{Callback, Invocation, Runnable, RunnableId, Wake, WakeKey};
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::RuntimeResult;
 
 /// Event loop for tasks, microtasks, timers, waiters, and wakes.
 #[derive(Debug, Default)]
@@ -22,10 +21,8 @@ pub(crate) struct EventLoop {
     pub(super) wakes: VecDeque<Wake>,
     /// Repeatable callbacks keyed by their external wake source.
     pub(super) wake_waiters: BTreeMap<WakeKey, Callback>,
-    /// Suspended language waiters.
-    pub(super) waiters: WaiterTable,
-    /// Eager asynchronous tasks.
-    pub(super) task_table: TaskTable,
+    /// Live fibers with their parked executions.
+    pub(super) fibers: FiberTable,
     /// Values released by scheduler transitions and awaiting destruction.
     pub(super) drops: Vec<program::Value>,
     /// Next runnable identifier to issue.
@@ -66,6 +63,65 @@ impl EventLoop {
         self.tasks.pop_front()
     }
 
+    /// Insert one running fiber and return its identity.
+    pub(crate) fn insert_fiber(&mut self) -> program::Fiber {
+        self.fibers.insert()
+    }
+
+    /// Park one running fiber with its retained execution.
+    pub(crate) fn park_fiber(
+        &mut self,
+        fiber: program::Fiber,
+        execution: vm::Fiber,
+    ) -> RuntimeResult<()> {
+        // a wake that raced the park settles the fiber immediately
+        if let Some(value) = self.fibers.park(fiber, execution)? {
+            self.enqueue_microtask(Invocation::wake(fiber, value));
+        }
+
+        Ok(())
+    }
+
+    /// Take one wake buffered before the running fiber parked.
+    pub(crate) fn take_pending_wake(
+        &mut self,
+        fiber: program::Fiber,
+    ) -> RuntimeResult<Option<program::Value>> {
+        self.fibers.take_pending(fiber)
+    }
+
+    /// Deliver one wake, buffering it until the target fiber parks.
+    pub(crate) fn wake_fiber(
+        &mut self,
+        fiber: program::Fiber,
+        value: program::Value,
+    ) -> RuntimeResult<()> {
+        if let Some(value) = self.fibers.wake(fiber, value)? {
+            self.enqueue_microtask(Invocation::wake(fiber, value));
+        }
+
+        Ok(())
+    }
+
+    /// Take one woken fiber's execution for resumption.
+    pub(crate) fn resume_fiber(&mut self, fiber: program::Fiber) -> RuntimeResult<vm::Fiber> {
+        self.fibers.resume(fiber)
+    }
+
+    /// Remove one completed fiber and release any undelivered wake.
+    pub(crate) fn retire_fiber(&mut self, fiber: program::Fiber) -> RuntimeResult<()> {
+        if let Some(pending) = self.fibers.remove(fiber)? {
+            self.release(pending);
+        }
+
+        Ok(())
+    }
+
+    /// Iterate every parked or ready fiber execution.
+    pub(crate) fn executions_mut(&mut self) -> impl Iterator<Item = &mut vm::Fiber> {
+        self.fibers.executions_mut()
+    }
+
     /// Pop one value awaiting generated destruction.
     pub(crate) fn pop_drop(&mut self) -> Option<program::Value> {
         self.drops.pop()
@@ -76,40 +132,28 @@ impl EventLoop {
         self.drops.push(value);
     }
 
-    /// Clear scheduler state and release every suspended continuation.
-    pub(crate) fn clear(&mut self, memory: &MemoryMap) -> RuntimeResult<()> {
+    /// Clear scheduler state and release every queued value.
+    pub(crate) fn clear(&mut self) -> Vec<program::Value> {
         let tasks = std::mem::take(&mut self.tasks);
         let microtasks = std::mem::take(&mut self.microtasks);
-        let waiters = std::mem::take(&mut self.waiters);
 
-        // clear scheduler state before releasing its continuation ranges
+        // clear scheduler state before draining its queued values
         self.timers = TimerQueue::default();
         self.wakes.clear();
         self.wake_waiters.clear();
-        self.task_table = TaskTable::default();
-        self.drops.clear();
+        self.fibers = FiberTable::default();
         self.next_runnable_id = 0;
 
-        // release every queued and parked continuation even when one release fails
-        let mut error = None;
-        for runnable in tasks.into_iter().chain(microtasks) {
-            if let Err(current) = runnable.release(memory)
-                && error.is_none()
-            {
-                error = Some(current);
-            }
-        }
-        if let Err(current) = waiters.release(memory).map_err(Box::<RuntimeError>::from)
-            && error.is_none()
-        {
-            error = Some(current);
-        }
+        // release queued wake values with any values already awaiting destruction
+        let mut released = std::mem::take(&mut self.drops);
+        released.extend(
+            tasks
+                .into_iter()
+                .chain(microtasks)
+                .filter_map(Runnable::release),
+        );
 
-        if let Some(error) = error {
-            return Err(error);
-        }
-
-        Ok(())
+        released
     }
 
     /// Identify one function invocation for queue execution.
