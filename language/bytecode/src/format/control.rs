@@ -5,8 +5,8 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::{
-    BytecodeFormatContext, CodeOffset, CodeRange, Comparison, Label, Opcode, RegisterSpan,
-    RelocationTag, Scalar, ScalarCheck, Trap,
+    BytecodeFormatContext, CodeOffset, CodeRange, Comparison, Label, Opcode, RegisterSpan, Scalar,
+    ScalarCheck, Trap,
 };
 
 use super::instruction::InstructionFormatter;
@@ -222,8 +222,6 @@ impl InstructionFormatter<'_, '_, '_> {
             Opcode::JUMP => self.format_jump(),
             Opcode::BRANCH => self.format_boolean_branch(),
             Opcode::SWITCH => self.format_switch(),
-            Opcode::AWAIT => self.format_await(),
-            Opcode::YIELD => self.format_yield(),
             Opcode::RETURN => self.format_return(),
             Opcode::TRAP => self.format_trap(),
             Opcode::UNREACHABLE => {
@@ -273,77 +271,6 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_label(success)?;
         write!(self.formatter, [space(), token("|"), space()])?;
         self.write_label(failure)
-    }
-
-    /// Format one asynchronous suspension.
-    fn format_await(&mut self) -> FormatResult<()> {
-        // decode the complete suspension operation
-        let (results, result_count) = self.register_span_id()?;
-        let results = RegisterSpan::new(results, result_count);
-        let (park, relocation) = self.relocation_with_text()?;
-        let (awaitable, awaitable_count) = self.register_span_id()?;
-        let awaitable = RegisterSpan::new(awaitable, awaitable_count);
-        let resume = self.branch()?;
-        let cancel = self.branch()?;
-        let unwind = self.branch()?;
-        if relocation.tag != RelocationTag::FUNCTION {
-            return Err(FormatError::SyntaxError {
-                message: "await does not reference a function",
-            });
-        }
-
-        // write the selected park function and awaitable value
-        self.write_token("await")?;
-        self.write_token(" ")?;
-        self.write_span(results)?;
-        self.write_comma()?;
-        self.write_text(&park)?;
-        self.write_comma()?;
-        self.write_span(awaitable)?;
-
-        self.write_await_targets(resume, cancel, unwind)
-    }
-
-    /// Format one generator suspension.
-    fn format_yield(&mut self) -> FormatResult<()> {
-        self.write_token("yield")?;
-        self.write_token(" ")?;
-        self.result_span()?;
-        self.write_comma()?;
-        self.result_span()?;
-        self.write_comma()?;
-        let (start, word_count) = self.register_span_id()?;
-        self.write_span(RegisterSpan::new(start, word_count))?;
-        self.format_yield_targets()
-    }
-
-    /// Write resume, cancellation, and unwind destinations for one await.
-    fn write_await_targets(
-        &mut self,
-        resume: Label,
-        cancel: Label,
-        unwind: Label,
-    ) -> FormatResult<()> {
-        write!(self.formatter, [space(), token("=>"), space()])?;
-        self.write_label(resume)?;
-        write!(self.formatter, [space(), token("|"), space()])?;
-        self.write_label(cancel)?;
-        write!(self.formatter, [space(), token("|"), space()])?;
-        self.write_label(unwind)
-    }
-
-    /// Format resume, completion, and unwind destinations for one yield.
-    fn format_yield_targets(&mut self) -> FormatResult<()> {
-        let resume = self.branch()?;
-        let complete = self.branch()?;
-        let unwind = self.branch()?;
-
-        write!(self.formatter, [space(), token("=>"), space()])?;
-        self.write_label(resume)?;
-        write!(self.formatter, [space(), token("|"), space()])?;
-        self.write_label(complete)?;
-        write!(self.formatter, [space(), token("|"), space()])?;
-        self.write_label(unwind)
     }
 
     /// Format one function return.

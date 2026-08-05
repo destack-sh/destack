@@ -1,5 +1,5 @@
 use crate::{
-    Comparison, InstructionBuilder, Label, Opcode, ParseError, ParseResult, Parser, RegisterId,
+    Comparison, InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterId,
     RegisterSpan, RelocationTag, Scalar, ScalarCheck, Token, TokenType, Trap,
 };
 
@@ -31,8 +31,6 @@ impl Parser<'_> {
             "jump" => Opcode::JUMP,
             "branch" => Opcode::BRANCH,
             "switch" => Opcode::SWITCH,
-            "await" => Opcode::AWAIT,
-            "yield" => Opcode::YIELD,
             "return" => Opcode::RETURN,
             "trap" => Opcode::TRAP,
             "unreachable" => Opcode::UNREACHABLE,
@@ -49,8 +47,6 @@ impl Parser<'_> {
             "jump" => self.parse_jump(&results, function),
             "branch" => self.parse_conditional_branch(&results, function),
             "switch" => self.parse_switch(token, &results, function),
-            "await" => self.parse_await(&results, function),
-            "yield" => self.parse_yield(&results, function),
             "return" => self.parse_return(&results, function),
             "trap" => self.parse_trap(&results, function),
             "unreachable" => self.parse_empty_control(Opcode::UNREACHABLE, &results, function),
@@ -134,69 +130,6 @@ impl Parser<'_> {
         instruction.branch(fallback);
 
         function.emit(instruction, results, self.empty_span())
-    }
-
-    /// Parse one asynchronous suspension.
-    fn parse_await(
-        &mut self,
-        results: &[RegisterSpan],
-        function: &mut FunctionParser,
-    ) -> ParseResult<()> {
-        let park = self.parse_function_id()?;
-        self.eat_token(TokenType::Comma)?;
-        let awaitable = self.parse_register_span()?;
-        let (resume, cancel, unwind) = self.parse_await_targets()?;
-
-        // encode the selected park implementation and consumed awaitable
-        let mut instruction = InstructionBuilder::new(Opcode::AWAIT);
-        instruction.relocation(RelocationTag::FUNCTION, park.0);
-        instruction.span(awaitable);
-        instruction.branch(resume);
-        instruction.branch(cancel);
-        instruction.branch(unwind);
-
-        function.emit(instruction, results, self.empty_span())
-    }
-
-    /// Parse one generator suspension.
-    fn parse_yield(
-        &mut self,
-        results: &[RegisterSpan],
-        function: &mut FunctionParser,
-    ) -> ParseResult<()> {
-        let value = self.parse_register_span()?;
-        let (resume, complete, unwind) = self.parse_yield_targets()?;
-        let mut instruction = InstructionBuilder::new(Opcode::YIELD);
-        instruction.span(value);
-        instruction.branch(resume);
-        instruction.branch(complete);
-        instruction.branch(unwind);
-
-        function.emit(instruction, results, self.empty_span())
-    }
-
-    /// Parse resume, cancellation, and unwind destinations for one await.
-    fn parse_await_targets(&mut self) -> ParseResult<(Label, Label, Label)> {
-        self.eat_token(TokenType::FatArrow)?;
-        let resume = self.parse_label()?;
-        self.eat_token(TokenType::Pipe)?;
-        let cancel = self.parse_label()?;
-        self.eat_token(TokenType::Pipe)?;
-        let unwind = self.parse_label()?;
-
-        Ok((resume, cancel, unwind))
-    }
-
-    /// Parse resume, completion, and unwind destinations for one yield.
-    fn parse_yield_targets(&mut self) -> ParseResult<(Label, Label, Label)> {
-        self.eat_token(TokenType::FatArrow)?;
-        let resume = self.parse_label()?;
-        self.eat_token(TokenType::Pipe)?;
-        let complete = self.parse_label()?;
-        self.eat_token(TokenType::Pipe)?;
-        let unwind = self.parse_label()?;
-
-        Ok((resume, complete, unwind))
     }
 
     /// Parse one function return.

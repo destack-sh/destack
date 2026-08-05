@@ -75,6 +75,9 @@ impl Parser<'_> {
         token: Token,
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
+        if name == "call.detach" {
+            return self.parse_detach_operation(function);
+        }
         let is_invoke = name.starts_with("invoke");
         let opcode = match name {
             "call" => Opcode::CALL,
@@ -112,6 +115,15 @@ impl Parser<'_> {
         }
 
         function.emit(instruction, &results, self.empty_span())
+    }
+
+    /// Parse one detach boundary call.
+    fn parse_detach_operation(&mut self, function: &mut FunctionParser) -> ParseResult<()> {
+        let thunk = self.parse_argument_span()?;
+        let mut instruction = InstructionBuilder::new(Opcode::CALL_DETACH);
+        instruction.span(thunk);
+
+        function.emit(instruction, &[], self.empty_span())
     }
 
     /// Parse one call target.

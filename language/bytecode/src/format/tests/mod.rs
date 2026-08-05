@@ -3,7 +3,6 @@ mod aggregate;
 mod atomic;
 mod call;
 mod context;
-mod continuation;
 mod control;
 mod fixture;
 mod function;
@@ -13,10 +12,8 @@ mod new;
 mod reference;
 mod scalar;
 mod slice;
-mod task;
 mod tensor;
 mod value;
 mod vector;
-mod waiter;
 
 pub(crate) use fixture::*;

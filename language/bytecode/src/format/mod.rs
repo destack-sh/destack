@@ -3,7 +3,6 @@ mod aggregate;
 mod atomic;
 mod call;
 mod context;
-mod continuation;
 mod control;
 mod dynamic;
 mod formatter;
@@ -18,12 +17,10 @@ mod reference;
 mod relocation;
 mod scalar;
 mod slice;
-mod task;
 mod tensor;
 mod r#type;
 mod value;
 mod vector;
-mod waiter;
 
 #[cfg(test)]
 mod tests;

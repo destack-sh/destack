@@ -464,31 +464,13 @@ opcodes! {
         signature: "(receiver: dynamic, slot: uint16, arguments: value[]) => never",
         operands: [RegisterSpan, Unsigned16, RegisterSpan],
     }
+    CALL_DETACH = 0x00ac {
+        text: "call.detach",
+        signature: "(thunk: function | functionPointer) => void",
+        operands: [RegisterSpan],
+    }
 
     // continuation values
-    CONTINUATION_NEW = 0x00ac {
-        text: "continuation.new",
-        signature: "(function: FunctionId, captures: value[]) => continuation",
-        operands: [Result, Function, RegisterSpan],
-    }
-    CONTINUATION_DESTROY = 0x00ad {
-        text: "continuation.destroy",
-        signature: "(continuation: continuation) => void",
-        operands: [Register],
-    }
-
-    // waiters
-    WAITER_QUEUE = 0x00ae {
-        text: "waiter.queue",
-        signature: "(waiter: waiter, value: T, type: TypeId) => boolean",
-        operands: [Result, Register, Type, RegisterSpan],
-    }
-    WAITER_CANCEL = 0x00af {
-        text: "waiter.cancel",
-        signature: "(waiter: waiter) => boolean",
-        operands: [Result, Register],
-    }
-
     // control flow
     JUMP = 0x00b0 {
         text: "jump",
@@ -504,26 +486,6 @@ opcodes! {
         text: "switch",
         signature: "(value: uint32, cases: (uint32, label)[], fallback: label) => never",
         operands: [Register, Switch, Branch],
-    }
-    AWAIT = 0x00b3 {
-        text: "await",
-        signature: "(park: function, awaitable: value, resume: label, cancel: label, unwind: label) => value",
-        operands: [ResultRange, Function, RegisterSpan, Branch, Branch, Branch],
-    }
-    YIELD = 0x00b4 {
-        text: "yield",
-        signature: "(value: value, resume: label, complete: label, unwind: label) => resumeValue | completeValue",
-        operands: [ResultRange, ResultRange, RegisterSpan, Branch, Branch, Branch],
-    }
-    CONTINUATION_RESUME = 0x00b5 {
-        text: "continuation.resume",
-        signature: "(continuation: continuation, value: value, yielded: label, returned: label, unwind: label) => (yield: value, continuation: continuation) | (return: value)",
-        operands: [ResultRange, Result, ResultRange, Register, RegisterSpan, Branch, Branch, Branch],
-    }
-    CONTINUATION_COMPLETE = 0x00b6 {
-        text: "continuation.complete",
-        signature: "(continuation: continuation, value: value, yielded: label, returned: label, unwind: label) => (yield: value, continuation: continuation) | (return: value)",
-        operands: [ResultRange, Result, ResultRange, Register, RegisterSpan, Branch, Branch, Branch],
     }
     RETURN = 0x00b7 {
         text: "return",
@@ -614,33 +576,6 @@ opcodes! {
         text: "profile.sample",
         signature: "(sampler: SamplerId, value: value) => void",
         operands: [Sampler, Register],
-    }
-
-    // tasks
-    TASK_RESOLVE = 0x00e8 {
-        text: "task.resolve",
-        signature: "(value: T, type: TypeId) => task<T>",
-        operands: [Result, Type, RegisterSpan],
-    }
-    TASK_START = 0x00e9 {
-        text: "task.start",
-        signature: "(continuation: continuation<void, never, T>) => task<T>",
-        operands: [Result, Register],
-    }
-    TASK_PARK = 0x00ea {
-        text: "task.park",
-        signature: "(task: task<T>, waiter: waiter<T>) => void",
-        operands: [Register, Register],
-    }
-    TASK_CANCEL = 0x00eb {
-        text: "task.cancel",
-        signature: "(task: task<T>) => void",
-        operands: [Register],
-    }
-    TASK_DETACH = 0x00ec {
-        text: "task.detach",
-        signature: "(task: task<T>) => void",
-        operands: [Register],
     }
 
     ;
@@ -1462,10 +1397,6 @@ impl Opcode {
             Self::JUMP
                 | Self::BRANCH
                 | Self::SWITCH
-                | Self::AWAIT
-                | Self::YIELD
-                | Self::CONTINUATION_RESUME
-                | Self::CONTINUATION_COMPLETE
                 | Self::INVOKE
                 | Self::INVOKE_INDIRECT
                 | Self::INVOKE_VIRTUAL
@@ -1485,33 +1416,10 @@ impl Opcode {
 
     /// Return the branch that receives one result operand.
     pub fn result_branch(self, result: usize) -> Option<usize> {
-        if matches!(
-            self,
-            Self::CONTINUATION_RESUME | Self::CONTINUATION_COMPLETE
-        ) {
-            return match result {
-                0 | 1 => Some(0),
-                2 => Some(1),
-                _ => None,
-            };
-        }
-
-        if self == Self::YIELD {
-            return match result {
-                0 => Some(0),
-                1 => Some(1),
-                _ => None,
-            };
-        }
-
         if result == 0
             && (matches!(
                 self,
-                Self::AWAIT
-                    | Self::INVOKE
-                    | Self::INVOKE_INDIRECT
-                    | Self::INVOKE_VIRTUAL
-                    | Self::INVOKE_DYNAMIC
+                Self::INVOKE | Self::INVOKE_INDIRECT | Self::INVOKE_VIRTUAL | Self::INVOKE_DYNAMIC
             ) || self
                 .new_operation()
                 .is_some_and(|operation| operation.is_fallible))

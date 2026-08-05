@@ -69,15 +69,6 @@ impl Parser<'_> {
             // calls
             "call" | "invoke" | "tail" => self.parse_call_operation(name, token, function),
 
-            // continuations
-            "continuation" => self.parse_continuation_operation(name, token, function),
-
-            // waiters
-            "waiter" => self.parse_waiter_operation(name, token, function),
-
-            // tasks
-            "task" => self.parse_task_operation(name, token, function),
-
             // control flow
             "branch" if name != "branch" => self.parse_branch(name, token, function),
             "jump" | "branch" | "switch" | "await" | "yield" | "return" | "trap"

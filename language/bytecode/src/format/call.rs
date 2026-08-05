@@ -98,6 +98,17 @@ impl InstructionFormatter<'_, '_, '_> {
         Ok(())
     }
 
+    /// Format one detach boundary call.
+    pub(super) fn format_detach(&mut self, opcode: Opcode) -> FormatResult<()> {
+        let (start, word_count) = self.register_span_id()?;
+        let thunk = RegisterSpan::new(start, word_count);
+        let name = self.opcode_name(opcode)?;
+        self.write_opcode(name)?;
+        self.write_span(thunk)?;
+
+        Ok(())
+    }
+
     /// Decode one call target.
     fn call_target(&mut self, opcode: Opcode) -> FormatResult<CallTarget> {
         // direct function

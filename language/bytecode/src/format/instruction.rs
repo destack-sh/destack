@@ -200,29 +200,12 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::TAIL_CALL_INDIRECT
             | Opcode::TAIL_CALL_VIRTUAL
             | Opcode::TAIL_CALL_DYNAMIC => self.format_call(opcode),
-
-            // continuations
-            Opcode::CONTINUATION_NEW
-            | Opcode::CONTINUATION_DESTROY
-            | Opcode::CONTINUATION_RESUME
-            | Opcode::CONTINUATION_COMPLETE => self.format_continuation(opcode),
-
-            // waiters
-            Opcode::WAITER_QUEUE | Opcode::WAITER_CANCEL => self.format_waiter(opcode),
-
-            // tasks
-            Opcode::TASK_RESOLVE
-            | Opcode::TASK_START
-            | Opcode::TASK_PARK
-            | Opcode::TASK_CANCEL
-            | Opcode::TASK_DETACH => self.format_task(opcode),
+            Opcode::CALL_DETACH => self.format_detach(opcode),
 
             // control flow
             Opcode::JUMP
             | Opcode::BRANCH
             | Opcode::SWITCH
-            | Opcode::AWAIT
-            | Opcode::YIELD
             | Opcode::RETURN
             | Opcode::TRAP
             | Opcode::UNREACHABLE
