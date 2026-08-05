@@ -23,6 +23,7 @@ export local struct RcInner<T> {
     value: MaybeUninit<T>;
 }
 
+@unsafe
 export extension<T> of Rc<T> implements Unpin {}
 
 /// Local reference-counted ownership.

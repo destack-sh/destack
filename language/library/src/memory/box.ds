@@ -115,6 +115,7 @@ export extension<T, comptime A: Access = "readonly"> of Box<T>
     }
 }
 
+@unsafe
 export extension<T> of Box<T> implements Unpin {}
 
 export extension<T> of Box<T> implements Clone where T: Clone {
