@@ -194,7 +194,7 @@ impl TestSession {
             profile,
             initializer: None,
         };
-        let module = MirModule::new(
+        let mut module = MirModule::new(
             ModuleId::new(PackageId::new(0), 0),
             Arc::new(lowered),
             Arc::new(strings),
@@ -202,7 +202,7 @@ impl TestSession {
         let LintCheck::MirModule(check) = lint.check else {
             panic!("lint '{}' is not a MIR module lint", lint.id);
         };
-        let output = check(&module, lint).expect("MIR lint should run");
+        let output = check(&mut module, lint).expect("MIR lint should run");
 
         // convert through the same diagnostic model as production lints
         let context = MirDiagnosticContext { file: file.clone() };

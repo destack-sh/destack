@@ -16,7 +16,7 @@ declare_lint_stub! {
 }
 
 /// Check must-use-candidate.
-fn check(_program: &MirProgram, lint: &Lint) -> LintResult {
+fn check(_program: &mut MirProgram, lint: &Lint) -> LintResult {
     Err(ProviderError::internal(format!(
         "lint {} is not implemented",
         lint.id

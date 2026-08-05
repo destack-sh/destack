@@ -314,12 +314,13 @@ impl Linter {
         // load verified MIR and whole-program analysis
         let revision = context.revision();
         let artifacts = self.artifact_reader(context);
-        let program = MirProgram::load(self.repository.as_ref(), revision, &artifacts, program)?;
-        let strings = &program.mir.strings;
+        let mut program =
+            MirProgram::load(self.repository.as_ref(), revision, &artifacts, program)?;
+        let strings = program.mir.strings.clone();
 
         // execute enabled MIR program lints
         for (lint, severity, check) in lints.mir_programs() {
-            let output = check(&program, lint)?;
+            let output = check(&mut program, lint)?;
             let (diagnostics, errors) = lint.apply_controls(
                 controls,
                 severity,

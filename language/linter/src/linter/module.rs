@@ -188,9 +188,9 @@ impl Linter {
         // load this module's verified MIR and analyses
         let artifacts = self.artifact_reader(context);
         let strings = self.repository.string_pool().clone();
-        let mir = Mir::load(&artifacts, profile, target, &[module], strings)?;
-        let module = mir.module(module)?;
-        let strings = &mir.strings;
+        let mut mir = Mir::load(&artifacts, profile, target, &[module], strings)?;
+        let strings = mir.strings.clone();
+        let module = mir.module_mut(module)?;
 
         // execute enabled MIR lints
         for (lint, severity, check) in lints.mir_modules() {

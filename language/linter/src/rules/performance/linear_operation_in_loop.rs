@@ -16,7 +16,7 @@ declare_lint_stub! {
 }
 
 /// Check linear-operation-in-loop.
-fn check(_module: &MirModule, lint: &Lint) -> LintResult {
+fn check(_module: &mut MirModule, lint: &Lint) -> LintResult {
     Err(ProviderError::internal(format!(
         "lint {} is not implemented",
         lint.id

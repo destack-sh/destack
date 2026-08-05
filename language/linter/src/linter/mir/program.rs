@@ -61,9 +61,19 @@ impl MirProgram {
         self.mir.module(module)
     }
 
+    /// Return verified MIR for one module for analysis.
+    pub fn module_mut(&mut self, module: ModuleId) -> Result<&mut MirModule, ProviderError> {
+        self.mir.module_mut(module)
+    }
+
     /// Iterate every loaded MIR module.
     pub fn modules(&self) -> impl Iterator<Item = &MirModule> {
         self.mir.modules()
+    }
+
+    /// Iterate every loaded MIR module for analysis.
+    pub fn modules_mut(&mut self) -> impl Iterator<Item = &mut MirModule> {
+        self.mir.modules_mut()
     }
 
     /// Iterate package-owned MIR modules.
@@ -71,5 +81,14 @@ impl MirProgram {
         self.mir
             .modules()
             .filter(|module| self.program.owns(module.id))
+    }
+
+    /// Iterate package-owned MIR modules for analysis.
+    pub fn owned_modules_mut(&mut self) -> impl Iterator<Item = &mut MirModule> {
+        let program = &self.program;
+
+        self.mir
+            .modules_mut()
+            .filter(move |module| program.owns(module.id))
     }
 }

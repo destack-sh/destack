@@ -29,9 +29,23 @@ impl Mir {
             })
     }
 
+    /// Return one loaded verified module for analysis.
+    pub fn module_mut(&mut self, module: ModuleId) -> Result<&mut MirModule, ProviderError> {
+        self.modules
+            .get_mut(&module)
+            .ok_or_else(|| ProviderError::Internal {
+                message: format!("MIR module {module:?} is not loaded"),
+            })
+    }
+
     /// Iterate the loaded verified modules.
     pub fn modules(&self) -> impl Iterator<Item = &MirModule> {
         self.modules.values()
+    }
+
+    /// Iterate the loaded verified modules for analysis.
+    pub fn modules_mut(&mut self) -> impl Iterator<Item = &mut MirModule> {
+        self.modules.values_mut()
     }
 
     /// Load verified MIR for selected modules.
