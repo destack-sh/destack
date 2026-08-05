@@ -224,7 +224,6 @@ function read(point: Point): void {
 @completion.item label=x kind=field replace=main.ds#cursor detail=int32
 @completion.item label=y kind=field replace=main.ds#cursor detail=int32
 @completion.item label=borrow kind=method replace=main.ds#cursor detail="() => WithAccess<&'a Point, A>" documentation="Borrow this value as itself." insert="borrow()"
-@completion.item label=clone kind=method replace=main.ds#cursor detail="() => ^Point" documentation="Clone this copyable value." insert="clone()"
 ```
 
 ### Complete a structural field
@@ -922,6 +921,25 @@ const rectangle: Rectangle = {
 @completion.item label=height kind=field replace=main.ds#prefix detail=int32 insert="height: ${1}" snippet=true preselect=true matches=0,1,2
 ```
 
+### Substitute a generic field type
+
+A generic object field uses the applied type argument.
+
+```ds main.ds
+struct Box<Value> {
+    value: Value;
+}
+
+const box: Box<string> = {
+    val
+    ^^^ prefix
+};
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=value kind=field replace=main.ds#prefix detail=string insert="value: ${1}" snippet=true preselect=true matches=0,1,2
+```
+
 ### Complete a nested field
 
 Nested object literals use the expected type at their own position.
@@ -1030,6 +1048,32 @@ const rectangle: Rectangle = {
 @completion.none
 ```
 
+### Omit a field supplied by a nominal spread
+
+A nominal spread supplies its selected instance fields.
+
+```ds main.ds
+struct PartialRectangle {
+    width: int32;
+}
+
+struct Rectangle {
+    width: int32;
+    height: int32;
+}
+
+const partial: PartialRectangle = { width: 10 };
+const rectangle: Rectangle = {
+    ...partial,
+    wid
+    ^^^ prefix
+};
+```
+
+```query completion main.ds#prefix@end
+@completion.none
+```
+
 ## Call Arguments
 
 ### Prefer the expected argument type
@@ -1049,21 +1093,6 @@ consume(candidate);
 ```query completion main.ds#prefix@end
 @completion.item label=candidateZulu kind=constant replace=main.ds#prefix detail=int32 preselect=true matches=0,1,2,3,4,5,6,7,8
 @completion.item label=candidateAlpha kind=constant replace=main.ds#prefix detail=string matches=0,1,2,3,4,5,6,7,8
-```
-
-### [ignored] Complete an unused named argument
-
-Named argument completion inserts the remaining parameter name.
-
-```ds main.ds
-function greet(name: string, greeting: string): void {}
-
-greet(name: "Ada", gre);
-                   ^^^ prefix
-```
-
-```query completion main.ds#prefix@end
-@completion.item label=greeting kind=field replace=main.ds#prefix detail=string insert="greeting: ${1}" snippet=true preselect=true matches=0,1,2
 ```
 
 ## Imports
@@ -1860,7 +1889,7 @@ function main(): void {
 @completion.item label=return kind=keyword replace=main.ds#prefix preselect=true matches=0,1,2
 ```
 
-### [ignored] Omit statement keywords from an expression
+### Omit statement keywords from an expression
 
 An expression position returns values rather than unrelated statement forms.
 
