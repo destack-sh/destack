@@ -136,6 +136,7 @@ impl<'a> ProgramLinker<'a> {
         let native = NativeLinker::new(&self, &frame_linker, &statics).link()?;
 
         // assemble the durable program image
+        let package = self.package;
         let mut program = ProgramBuilder::new(self.target_layout)
             .strings(self.strings, self.string_ids()?)
             .types(types)
@@ -157,7 +158,11 @@ impl<'a> ProgramLinker<'a> {
         if let Some(native) = native {
             program = program.native(native);
         }
-        let program = program.build();
+        let program = program.build().map_err(|error| LinkError::InvalidInput {
+            anchor: package.into(),
+            package,
+            context: error.to_string(),
+        })?;
 
         Ok(program)
     }

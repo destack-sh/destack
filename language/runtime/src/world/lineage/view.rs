@@ -79,10 +79,6 @@ impl WorkerImage {
         program: &Arc<program::Program>,
         memory: &MemoryImage,
     ) -> RuntimeResult<Vec<FrameView>> {
-        // fibers only execute through bytecode; native tiers deopt before inspection
-        if program.bytecode().is_none() {
-            return Ok(Vec::new());
-        }
         let machine = vm::Machine::new(program.clone(), vm::MachineLimits::default())
             .map_err(Box::<RuntimeError>::from)?;
         let mut frames = Vec::new();

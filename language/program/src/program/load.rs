@@ -40,6 +40,8 @@ pub enum ProgramLoadError {
     InvalidString,
     /// One static image violates its recorded alignment.
     InvalidAlignment,
+    /// The program carries no linked bytecode.
+    MissingBytecode,
 }
 
 impl fmt::Display for ProgramLoadError {
@@ -48,6 +50,7 @@ impl fmt::Display for ProgramLoadError {
         match self {
             Self::Image(error) => write!(formatter, "invalid program image: {error}"),
             Self::InvalidMagic => formatter.write_str("invalid program image magic"),
+            Self::MissingBytecode => formatter.write_str("program carries no bytecode"),
             Self::UnsupportedVersion(version) => {
                 write!(formatter, "unsupported program image version {version}")
             }
@@ -169,8 +172,8 @@ struct ProgramHeader {
     /// Initial local static storage.
     local_statics: StaticImage,
 
-    /// Optional linked bytecode.
-    bytecode: Optional<Code>,
+    /// Linked bytecode.
+    bytecode: Code,
     /// Optional native code.
     native: Optional<native::Code>,
     /// Optional WebAssembly code.
@@ -181,7 +184,7 @@ impl ProgramHeader {
     /// Stable Program image marker.
     const MAGIC: u32 = u32::from_le_bytes(*b"DSPG");
     /// Stable Program image format version.
-    const VERSION: u16 = 12;
+    const VERSION: u16 = 13;
 
     /// Create one empty Program header for a target layout.
     fn new(target_layout: TargetLayout) -> Self {
@@ -207,7 +210,7 @@ impl ProgramHeader {
             constants: StaticImage::default(),
             shared_statics: StaticImage::default(),
             local_statics: StaticImage::default(),
-            bytecode: Optional::none(),
+            bytecode: Code::default(),
             native: Optional::none(),
             wasm: Optional::none(),
         }
@@ -265,10 +268,7 @@ impl ProgramHeader {
             && self.dispatch.ranges_fit(sections)
             && self.traces.ranges_fit(sections)
             && self.info.get().is_none_or(|info| info.ranges_fit(sections))
-            && self
-                .bytecode
-                .get()
-                .is_none_or(|code| code.ranges_fit(sections))
+            && self.bytecode.ranges_fit(sections)
             && self
                 .native
                 .get()
@@ -479,7 +479,7 @@ impl ProgramBuilder {
     }
 
     /// Build one immutable Program image.
-    pub fn build(self) -> Program {
+    pub fn build(self) -> Result<Program, ProgramLoadError> {
         let mut sections = SectionBuilder::new();
         let mut header = ProgramHeader::new(self.target_layout);
         let header_section = sections.insert([header]);
@@ -506,9 +506,10 @@ impl ProgramBuilder {
         header.local_statics = StaticImage::pack(&mut sections, self.local_statics);
 
         // pack executable code in canonical order
-        if let Some(bytecode) = self.bytecode {
-            header.bytecode = Optional::some(bytecode.build(&mut sections));
-        }
+        let Some(bytecode) = self.bytecode else {
+            return Err(ProgramLoadError::MissingBytecode);
+        };
+        header.bytecode = bytecode.build(&mut sections);
         if let Some(native) = self.native {
             header.native = Optional::some(native.build(&mut sections));
         }
@@ -522,7 +523,7 @@ impl ProgramBuilder {
         sections.replace(header_section, [header]);
         let storage = sections.build();
 
-        Program::from_header(header, storage)
+        Ok(Program::from_header(header, storage))
     }
 }
 
@@ -577,7 +578,7 @@ impl Program {
             constants: header.constants,
             shared_statics: header.shared_statics,
             local_statics: header.local_statics,
-            bytecode: header.bytecode.get(),
+            bytecode: header.bytecode,
             native: header.native.get(),
             wasm: header.wasm.get(),
             storage,
@@ -603,7 +604,9 @@ mod tests {
         let (offset, _) = statics.allocate(64, &[1, 2, 3, 4]);
         let source = ProgramBuilder::new(Default::default())
             .local_statics(statics.build())
-            .build();
+            .bytecode(CodeBuilder::new())
+            .build()
+            .expect("program should build");
 
         // load copied Program bytes into a newly aligned owned image
         let storage = SectionStorage::from_bytes(source.bytes());

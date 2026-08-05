@@ -78,9 +78,7 @@ entry:
     let read_answer = program
         .function_id_by_name("readAnswer")
         .expect("global reader export should exist");
-    let code = program
-        .bytecode()
-        .expect("bytecode link should produce executable bytecode");
+    let code = program.bytecode();
     let sections = program.sections();
     assert!(code.function(sections, caller.index()).is_some());
     assert!(code.function(sections, callee.index()).is_some());

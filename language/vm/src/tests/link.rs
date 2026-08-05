@@ -107,7 +107,8 @@ impl TestProgram {
             .constants(constants)
             .shared_statics(shared_statics)
             .local_statics(local_statics)
-            .build();
+            .build()
+            .expect("test program should build");
 
         Arc::new(program)
     }

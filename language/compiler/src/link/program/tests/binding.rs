@@ -76,7 +76,6 @@ entry:
     assert!(
         program
             .bytecode()
-            .expect("bytecode link should produce executable bytecode")
             .function(program.sections(), function.index())
             .and_then(destack_bytecode::Function::code)
             .is_some()

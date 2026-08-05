@@ -65,7 +65,7 @@ pub struct Program {
     pub(crate) local_statics: StaticImage,
 
     /// Bytecode used for interpretation and deoptimization when included.
-    pub(crate) bytecode: Option<bytecode::Code>,
+    pub(crate) bytecode: bytecode::Code,
     /// Native code when generated for this program.
     pub(crate) native: Option<native::Code>,
     /// WebAssembly code when generated for this program.
@@ -286,9 +286,9 @@ impl Program {
         &self.constants
     }
 
-    /// Return linked bytecode when this program carries it.
-    pub fn bytecode(&self) -> Option<&bytecode::Code> {
-        self.bytecode.as_ref()
+    /// Return the linked bytecode.
+    pub fn bytecode(&self) -> &bytecode::Code {
+        &self.bytecode
     }
 
     /// Return native code when this program carries it.

@@ -57,14 +57,6 @@ impl Engine {
         self.entries.target(function)
     }
 
-    /// Return whether one function has executable bytecode.
-    pub(crate) fn has_bytecode(&self, function: program::FunctionId) -> bool {
-        self.program
-            .bytecode()
-            .and_then(|bytecode| bytecode.function(self.program.sections(), function.index()))
-            .and_then(|function| function.code())
-            .is_some()
-    }
 
     /// Return typed native body addresses keyed by Program function id.
     pub(crate) fn functions(&self) -> *const usize {
@@ -162,7 +154,7 @@ struct EntryTable {
 impl EntryTable {
     /// Build current targets from available execution forms.
     fn new(program: &program::Program, native: Option<&native::Code>) -> Self {
-        let bytecode = program.bytecode().copied();
+        let bytecode = *program.bytecode();
         let targets = program
             .functions()
             .entries(program.sections())
@@ -175,7 +167,7 @@ impl EntryTable {
                 if native.is_some_and(|native| native.function(function).is_some()) {
                     Some(Target::Native)
                 } else if bytecode
-                    .and_then(|bytecode| bytecode.function(program.sections(), index))
+                    .function(program.sections(), index)
                     .and_then(|function| function.code())
                     .is_some()
                 {

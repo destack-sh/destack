@@ -231,6 +231,7 @@ impl Runtime {
             .frames(FrameTableBuilder::new())
             .sites(sites)
             .build()
+            .expect("bench program should build")
     }
 
     /// Link one parsed bytecode object into Program code.

@@ -22,20 +22,14 @@ pub struct Machine {
     /// Idle fiber reused by synchronous destructor execution.
     scratch: Option<vm::Fiber>,
     /// Worker-local bytecode execution state when bytecode is available.
-    vm: Option<vm::Machine>,
+    vm: vm::Machine,
 }
 
 impl Machine {
     /// Create one worker-owned machine from a shared engine.
     pub(crate) fn new(engine: Engine, memory: Arc<MemoryMap>) -> RuntimeResult<Self> {
-        let vm = if engine.program().bytecode().is_some() {
-            let machine = vm::Machine::new(engine.program().clone(), engine.limits())
-                .map_err(Box::<RuntimeError>::from)?;
-
-            Some(machine)
-        } else {
-            None
-        };
+        let vm = vm::Machine::new(engine.program().clone(), engine.limits())
+            .map_err(Box::<RuntimeError>::from)?;
 
         Ok(Self {
             engine,
@@ -53,12 +47,7 @@ impl Machine {
 
     /// Reserve one idle fiber for a fresh invocation.
     pub(crate) fn reserve_fiber(&self) -> RuntimeResult<vm::Fiber> {
-        let machine = self
-            .vm
-            .as_ref()
-            .ok_or_else(|| Self::unsupported("fiber execution"))?;
-
-        machine
+        self.vm
             .reserve_fiber(self.memory.clone())
             .map_err(Box::<RuntimeError>::from)
     }
@@ -67,7 +56,7 @@ impl Machine {
     pub fn activation_point(&self) -> Option<program::ProgramPoint> {
         let fiber = self.stopped.as_ref()?;
 
-        self.vm.as_ref()?.fiber_point(fiber)
+        self.vm.fiber_point(fiber)
     }
 
     /// Retain one stopped fiber across a handshake or debugger stop.
@@ -143,7 +132,7 @@ impl Machine {
         watch_points: Option<&'run program::WatchSet>,
         profile: Option<&'run mut program::Profile>,
     ) -> RuntimeResult<Outcome<Value>> {
-        let machine = Self::require_vm(&mut self.vm, "fiber resumption")?;
+        let machine = &mut self.vm;
 
         machine.resume(fiber, activation, value, stop_points, watch_points, profile)
     }
@@ -158,7 +147,7 @@ impl Machine {
         profile: Option<&'run mut program::Profile>,
         resume_skip: Option<program::ResumeSkip>,
     ) -> RuntimeResult<Outcome<Value>> {
-        let machine = Self::require_vm(&mut self.vm, "retained execution")?;
+        let machine = &mut self.vm;
 
         machine.continue_execution(
             fiber,
@@ -218,7 +207,7 @@ impl Machine {
         value: program::Value,
     ) -> RuntimeResult<()> {
         let mut fiber = self.take_scratch()?;
-        let machine = Self::require_vm(&mut self.vm, "scheduler value destruction")?;
+        let machine = &mut self.vm;
         let result = machine.destroy_value(&mut fiber, activation, value);
         self.stash_scratch(fiber);
 
@@ -299,12 +288,11 @@ impl Machine {
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> RuntimeResult<()> {
         let Self { stopped, vm, .. } = self;
-        let (Some(fiber), Some(machine)) = (stopped.as_mut(), vm.as_ref()) else {
+        let Some(fiber) = stopped.as_mut() else {
             return Ok(());
         };
 
-        machine
-            .visit_root_slots(fiber, visit)
+        vm.visit_root_slots(fiber, visit)
             .map_err(Box::<RuntimeError>::from)
     }
 
@@ -314,12 +302,7 @@ impl Machine {
         fiber: &mut vm::Fiber,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> RuntimeResult<()> {
-        let machine = self
-            .vm
-            .as_ref()
-            .ok_or_else(|| Self::unsupported("fiber roots"))?;
-
-        machine
+        self.vm
             .visit_root_slots(fiber, visit)
             .map_err(Box::<RuntimeError>::from)
     }
@@ -333,7 +316,7 @@ impl Machine {
                 .as_ref()
                 .map(|fiber| fiber.fork(memory.clone())),
             scratch: None,
-            vm: self.vm.as_ref().map(vm::Machine::fork),
+            vm: self.vm.fork(),
             memory,
         }
     }
@@ -360,20 +343,12 @@ impl Machine {
 
         // execute observed native entries through their canonical bytecode form
         if target == Target::Native && is_observed {
-            if !self.engine.has_bytecode(function) {
-                return Err(Self::unsupported("native observation without bytecode"));
-            }
             target = Target::Bytecode;
         }
 
         match target {
             Target::Bytecode => {
-                let machine = self.vm.as_mut().ok_or_else(|| {
-                    RuntimeError::Internal {
-                        message: "bytecode entry has no worker machine".to_string(),
-                    }
-                    .boxed()
-                })?;
+                let machine = &mut self.vm;
 
                 machine.run(
                     fiber,
@@ -428,7 +403,7 @@ impl Machine {
                             .boxed()
                         })?;
                         self.adopt_capture(fiber, image)?;
-                        let machine = Self::require_vm(&mut self.vm, "native deoptimization")?;
+                        let machine = &mut self.vm;
 
                         machine.continue_execution(
                             fiber,
@@ -450,8 +425,8 @@ impl Machine {
         fiber: &mut vm::Fiber,
         image: program::ActivationImage,
     ) -> RuntimeResult<()> {
-        let machine = Self::require_vm(&mut self.vm, "native frame adoption")?;
-        let result = machine
+        let result = self
+            .vm
             .materialize(fiber, &image)
             .map_err(Box::<RuntimeError>::from);
         let release = image
@@ -462,25 +437,9 @@ impl Machine {
         release
     }
 
-    /// Return the worker-local bytecode machine required by one operation.
-    fn require_vm<'machine>(
-        vm: &'machine mut Option<vm::Machine>,
-        feature: &str,
-    ) -> RuntimeResult<&'machine mut vm::Machine> {
-        vm.as_mut().ok_or_else(|| Self::unsupported(feature))
-    }
-
     /// Return one unavailable entry error.
     fn entry_unavailable(entry: impl Into<String>) -> Box<RuntimeError> {
         RuntimeError::entry_unavailable(entry).boxed()
-    }
-
-    /// Return one unsupported machine feature error.
-    fn unsupported(feature: impl Into<String>) -> Box<RuntimeError> {
-        RuntimeError::machine(MachineError::Unsupported {
-            feature: feature.into(),
-        })
-        .boxed()
     }
 }
 

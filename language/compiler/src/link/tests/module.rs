@@ -55,9 +55,12 @@ impl TestModule {
     ) -> Self {
         let (optimized, strings) = Self::optimized(module, source);
 
-        // emit common metadata and relocatable native code
+        // emit common metadata with canonical bytecode beside native code
         let object =
             ObjectEmitter::new(module, &optimized, dependencies).expect("object emission failed");
+        let bytecode = BytecodeEmitter::new(module, &optimized, &object)
+            .emit()
+            .expect("MIR should emit bytecode");
         let native = NativeEmitter::new(
             module,
             &optimized,
@@ -70,7 +73,7 @@ impl TestModule {
 
         Self {
             module,
-            object: Arc::new(object.native(native).build()),
+            object: Arc::new(object.bytecode(bytecode).native(native).build()),
             strings,
         }
     }

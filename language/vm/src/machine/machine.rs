@@ -29,10 +29,7 @@ pub struct Machine {
 impl Machine {
     /// Create one bytecode machine.
     pub fn new(program: Arc<Program>, limits: MachineLimits) -> Result<Self> {
-        let bytecode = program
-            .bytecode()
-            .copied()
-            .ok_or_else(Error::bytecode_unavailable)?;
+        let bytecode = *program.bytecode();
         let host_pointer_bytes = size_of::<usize>() as u8;
         if program.pointer_bytes() != host_pointer_bytes {
             return Err(Error::incompatible_pointer_width(
