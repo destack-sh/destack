@@ -277,6 +277,18 @@ else {
 - Prefer re-defining variables if we're just transforming them
   (e.g., `let module = modules.get(); let module = module.read();` is fine)
 - Avoid nesting items inside of functions (like other functions, lambdas, types, etc.)
+- When cfg-gating imports, please group the relevant cfg-gated statements into their own blank-delimited sections, e.g.
+```rust
+mod foo;
+mod baz;
+
+pub use foo::*;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod websocket;
+#[cfg(not(target_arch = "wasm32"))]
+pub use websocket::{WebSocketServer, WebSocketServerError};
+```
 
 ## Working Style
 
