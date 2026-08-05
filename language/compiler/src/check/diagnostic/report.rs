@@ -19,7 +19,13 @@ impl CheckState<'_> {
         diagnostic: impl Into<DiagnosticBuilder<CheckError>>,
     ) {
         let diagnostic = diagnostic.into();
-        self.module_mut(module).diagnostics.push(diagnostic);
+        let diagnostics = &mut self.module_mut(module).diagnostics;
+
+        // collapse identical re-reports from repeated declaration passes
+        if diagnostics.contains(&diagnostic) {
+            return;
+        }
+        diagnostics.push(diagnostic);
     }
 
     /// Report one interval type with a missing bound.
