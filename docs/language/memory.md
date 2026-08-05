@@ -757,6 +757,7 @@ Destack encodes memory capabilities as trait-like interfaces, usable as ordinary
 | `SharedSafe` | Values of the type may be stored in [shared space](#shared-space). |
 | `OverwriteStable` | Place can be [overwritten](#stability) through a non-exclusive mutable access. |
 | `DynamicSafe` | Type can be erased behind a [`dynamic`](./types.md#representation) carrier. |
+| `AtomicSafe` | Value has a supported atomic storage representation. |
 | `Concrete` | Type has one complete storage representation. |
 | `Zeroable` | Type is valid when all bytes are zero. |
 | `Unpin` | Value may move out of pinned storage. |

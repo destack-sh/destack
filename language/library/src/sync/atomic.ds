@@ -1,5 +1,6 @@
 import { todo } from "destack:error";
 import { Integer } from "destack:math";
+import { Concrete, Copy, SharedSafe } from "destack:memory";
 
 /// Memory ordering for atomic operations.
 ///
@@ -86,33 +87,45 @@ export enum MemoryRegionSet {
 /// Result of waiting on an atomic value.
 export type AtomicWaitResult = "notEqual" | "timedOut" | "woken";
 
-/// Atomic storage for one value.
-export newtype Atomic<T> = intrinsic;
+/// Values supported by atomic storage.
+@languageItem("sync.AtomicSafe")
+export newtype interface AtomicSafe extends Concrete, Copy, SharedSafe {}
 
-export extension<T> of Atomic<T> {
+/// Atomic storage for one value.
+@languageItem("sync.Atomic")
+export newtype Atomic<T: AtomicSafe> = intrinsic;
+
+export extension<T: AtomicSafe> of Atomic<T> {
     /// Create atomic storage.
     static new(value: T): Atomic<T> {
         todo("Atomic.new")
     }
 
     /// Load the current value.
-    load(&readonly this, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
-        todo("Atomic.load")
-    }
+    @intrinsic("sync.atomic.load")
+    declare load(&readonly this, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T;
 
     /// Store a new value.
-    store(&this, value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): void {
+    store(
+        &readonly this,
+        value: T,
+        order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent,
+    ): void {
         todo("Atomic.store");
     }
 
     /// Replace the value and return the previous value.
-    exchange(&this, value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
+    exchange(
+        &readonly this,
+        value: T,
+        order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent,
+    ): T {
         todo("Atomic.exchange")
     }
 
     /// Compare with `expected` and replace with `desired` when equal.
     compareExchange(
-        &this,
+        &readonly this,
         expected: T,
         desired: T,
         order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent,
@@ -121,7 +134,7 @@ export extension<T> of Atomic<T> {
     }
 }
 
-export extension<T: Integer> of Atomic<T> {
+export extension<T: Integer> of Atomic<T> where T: AtomicSafe {
     /// Wait while the value is equal to `expected`.
     wait(
         &readonly this,
@@ -133,32 +146,52 @@ export extension<T: Integer> of Atomic<T> {
     }
 
     /// Wake workers waiting on this atomic value.
-    wake(&this, count?: usize): usize {
+    wake(&readonly this, count?: usize): usize {
         todo("Atomic.wake")
     }
 
     /// Add `value` and return the previous value.
-    fetchAdd(&this, value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
+    fetchAdd(
+        &readonly this,
+        value: T,
+        order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent,
+    ): T {
         todo("Atomic.fetchAdd")
     }
 
     /// Subtract `value` and return the previous value.
-    fetchSub(&this, value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
+    fetchSub(
+        &readonly this,
+        value: T,
+        order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent,
+    ): T {
         todo("Atomic.fetchSub")
     }
 
     /// Apply bitwise and and return the previous value.
-    fetchAnd(&this, value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
+    fetchAnd(
+        &readonly this,
+        value: T,
+        order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent,
+    ): T {
         todo("Atomic.fetchAnd")
     }
 
     /// Apply bitwise or and return the previous value.
-    fetchOr(&this, value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
+    fetchOr(
+        &readonly this,
+        value: T,
+        order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent,
+    ): T {
         todo("Atomic.fetchOr")
     }
 
     /// Apply bitwise xor and return the previous value.
-    fetchXor(&this, value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
+    fetchXor(
+        &readonly this,
+        value: T,
+        order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent,
+    ): T {
         todo("Atomic.fetchXor")
     }
 }

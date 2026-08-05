@@ -102,6 +102,9 @@
     "./fuzz": {
       "path": "./src/fuzz/index.ds"
     },
+    "./hint": {
+      "path": "./src/hint/index.ds"
+    },
     "./gpu": {
       "path": "./src/gpu/index.ds"
     },
