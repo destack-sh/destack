@@ -178,8 +178,8 @@ impl Lexer {
             .classify_comment(token_span.token.ty(), raw_comment);
 
         match decision {
-            CommentDecision::Keep { content, .. } => {
-                self.comments.add_line_comment(token_span, content);
+            CommentDecision::Keep { role, .. } => {
+                self.comments.add_line_comment(token_span, role);
             }
             CommentDecision::Skip => {
                 self.record_skipped_comment(has_line_terminator);
@@ -196,8 +196,8 @@ impl Lexer {
             .classify_comment(token_span.token.ty(), raw_comment);
 
         match decision {
-            CommentDecision::Keep { kind, content } => {
-                self.comments.add_block_comment(token_span, kind, content);
+            CommentDecision::Keep { kind, role } => {
+                self.comments.add_block_comment(token_span, kind, role);
             }
             CommentDecision::Skip => {
                 self.record_skipped_comment(has_line_terminator);

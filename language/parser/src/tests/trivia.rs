@@ -1,6 +1,6 @@
 use destack_dir::{
     Argument, Block, BlockContext, BlockForm, ClassDeclaration, Comment, CommentAnchor,
-    CommentContent, CommentKind, Declaration, Declarator, Decorator, DecoratorPosition, Expression,
+    CommentKind, CommentRole, Declaration, Declarator, Decorator, DecoratorPosition, Expression,
     FunctionDeclaration, LocalNodeId, Member, Parameter, Property, StructDeclaration, TokenType,
     TypeDeclaration, TypeExpression, normalize_comment_payload,
 };
@@ -198,10 +198,10 @@ fn test_parse_documentation_comment_retention_keeps_structured_comments() {
     // structured comments only
     assert_eq!(parser.comments().len(), 3);
     assert_eq!(comment_text(&parser, parser.comments()[0]), "docs");
-    assert_eq!(parser.comments()[0].content, CommentContent::Jsdoc);
-    assert_eq!(parser.comments()[1].content, CommentContent::Legal);
+    assert_eq!(parser.comments()[0].role, CommentRole::Documentation);
+    assert_eq!(parser.comments()[1].role, CommentRole::Legal);
     assert_eq!(comment_text(&parser, parser.comments()[2]), " block");
-    assert_eq!(parser.comments()[2].content, CommentContent::Jsdoc);
+    assert_eq!(parser.comments()[2].role, CommentRole::Documentation);
 }
 
 #[test]
@@ -397,7 +397,7 @@ fn test_classify_comment_payload_and_kind() {
 }
 
 #[test]
-fn test_classify_comment_content() {
+fn test_classify_comment_role() {
     let source = r#"
 /*! keep */
 /** docs */
@@ -413,16 +413,16 @@ value
     assert_eq!(comments(&parser).len(), 6);
 
     let expected = [
-        CommentContent::Legal,
-        CommentContent::Jsdoc,
-        CommentContent::JsdocLegal,
-        CommentContent::None,
-        CommentContent::None,
-        CommentContent::None,
+        CommentRole::Legal,
+        CommentRole::Documentation,
+        CommentRole::LegalDocumentation,
+        CommentRole::Ordinary,
+        CommentRole::Ordinary,
+        CommentRole::Ordinary,
     ];
 
-    for (comment, expected_content) in comments(&parser).iter().zip(expected) {
-        assert_eq!(comment.content, expected_content);
+    for (comment, expected_role) in comments(&parser).iter().zip(expected) {
+        assert_eq!(comment.role, expected_role);
         assert!(comment.is_leading());
     }
 }

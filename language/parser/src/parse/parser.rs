@@ -645,7 +645,7 @@ impl Parser {
         let mut following_start = token_start;
         while documentation_start > group_start {
             let comment = comments[documentation_start - 1];
-            if !comment.is_jsdoc()
+            if !comment.is_documentation()
                 || !self.documentation_is_adjacent(comment.span.end, following_start)
             {
                 break;
@@ -657,16 +657,19 @@ impl Parser {
         if documentation_start == group_end {
             return None;
         }
+        let first = comments[documentation_start];
+        let last = comments[group_end - 1];
+        let span = first.span.merge(last.span);
 
         // normalize one comment without an intermediate string
         if documentation_start + 1 == group_end {
-            let comment = comments[documentation_start];
+            let comment = first;
             let range = comment.span.range();
             let source = &self.file.text()[range.start as usize..range.end as usize];
             let text = normalize_comment_payload(source);
             let text = self.strings.intern(&text);
 
-            return Some(Documentation { text });
+            return Some(Documentation { span, text });
         }
 
         // normalize a multi-comment block into one interned string
@@ -685,7 +688,7 @@ impl Parser {
         }
         let text = self.strings.intern(&text);
 
-        Some(Documentation { text })
+        Some(Documentation { span, text })
     }
 
     /// Attach normalized documentation to one node.

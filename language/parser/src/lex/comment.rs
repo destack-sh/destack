@@ -2,7 +2,7 @@ use memchr::memchr_iter;
 use smallvec::SmallVec;
 
 use destack_dir::{
-    Comment, CommentAnchor, CommentContent, CommentKind, CommentNewlines, TokenSpan, TokenType,
+    Comment, CommentAnchor, CommentKind, CommentNewlines, CommentRole, TokenSpan, TokenType,
 };
 
 use super::CommentRetention;
@@ -16,8 +16,8 @@ struct PendingComment {
     kind: CommentKind,
     /// The newline shape around the comment.
     newlines: CommentNewlines,
-    /// The structured comment content classification.
-    content: CommentContent,
+    /// The authored role of the comment.
+    role: CommentRole,
 }
 
 impl PendingComment {
@@ -28,7 +28,7 @@ impl PendingComment {
             anchor,
             kind: self.kind,
             newlines: self.newlines,
-            content: self.content,
+            role: self.role,
         }
     }
 
@@ -77,8 +77,8 @@ impl LexerComments {
     }
 
     /// Record one line comment.
-    pub(super) fn add_line_comment(&mut self, token_span: TokenSpan, content: CommentContent) {
-        self.add_comment(token_span, CommentKind::Line, content);
+    pub(super) fn add_line_comment(&mut self, token_span: TokenSpan, role: CommentRole) {
+        self.add_comment(token_span, CommentKind::Line, role);
     }
 
     /// Record one block comment.
@@ -86,9 +86,9 @@ impl LexerComments {
         &mut self,
         token_span: TokenSpan,
         kind: CommentKind,
-        content: CommentContent,
+        role: CommentRole,
     ) {
-        self.add_comment(token_span, kind, content);
+        self.add_comment(token_span, kind, role);
     }
 
     /// Record one newline boundary after pending comments.
@@ -125,12 +125,12 @@ impl LexerComments {
     }
 
     /// Record one comment and classify its token-local attachment.
-    fn add_comment(&mut self, token_span: TokenSpan, kind: CommentKind, content: CommentContent) {
+    fn add_comment(&mut self, token_span: TokenSpan, kind: CommentKind, role: CommentRole) {
         let mut comment = PendingComment {
             span: token_span.span,
             kind,
             newlines: CommentNewlines::from_bools(self.has_newline_before_next_comment, false),
-            content,
+            role,
         };
 
         // line comments always end the current line
@@ -176,8 +176,8 @@ pub(super) enum CommentDecision {
     Keep {
         /// The line or block comment kind.
         kind: CommentKind,
-        /// The structured comment content classification.
-        content: CommentContent,
+        /// The authored role of the comment.
+        role: CommentRole,
     },
     /// Skip the comment payload.
     Skip,
@@ -198,9 +198,9 @@ impl CommentRetention {
         // retain every comment for formatting
         if self == Self::All {
             let kind = classify_comment_kind(token_type, raw_comment);
-            let content = decode_comment_content(token_type, raw_comment);
+            let role = classify_comment_role(token_type, raw_comment);
 
-            return CommentDecision::Keep { kind, content };
+            return CommentDecision::Keep { kind, role };
         }
 
         // documentation mode keeps documentation, legal, and preserve comments
@@ -214,12 +214,12 @@ impl CommentRetention {
         }
 
         let kind = classify_comment_kind(token_type, raw_comment);
-        let content = decode_comment_content(token_type, raw_comment);
-        if content == CommentContent::None {
+        let role = classify_comment_role(token_type, raw_comment);
+        if role == CommentRole::Ordinary {
             return CommentDecision::Skip;
         }
 
-        CommentDecision::Keep { kind, content }
+        CommentDecision::Keep { kind, role }
     }
 }
 
@@ -273,25 +273,25 @@ pub(super) fn classify_block_comment(raw_comment: &str) -> CommentKind {
     }
 }
 
-/// Return the structured content classification for one raw comment token.
-pub(super) fn decode_comment_content(token_type: TokenType, raw_comment: &str) -> CommentContent {
+/// Return the authored role of one raw comment token.
+pub(super) fn classify_comment_role(token_type: TokenType, raw_comment: &str) -> CommentRole {
     let content = trim_comment_delimiters(token_type, raw_comment);
     let bytes = content.as_bytes();
 
     if bytes.is_empty() {
-        return CommentContent::None;
+        return CommentRole::Ordinary;
     }
 
     if token_type == TokenType::DocLineComment {
         if contains_legal_marker(content) {
-            return CommentContent::JsdocLegal;
+            return CommentRole::LegalDocumentation;
         }
 
-        return CommentContent::Jsdoc;
+        return CommentRole::Documentation;
     }
 
     match bytes[0] {
-        b'!' => return CommentContent::Legal,
+        b'!' => return CommentRole::Legal,
         b'*' if matches!(
             token_type,
             TokenType::BlockComment | TokenType::DocBlockComment
@@ -299,13 +299,13 @@ pub(super) fn decode_comment_content(token_type: TokenType, raw_comment: &str) -
         {
             if bytes.iter().any(|byte| *byte != b'*') {
                 if contains_legal_marker(content) {
-                    return CommentContent::JsdocLegal;
+                    return CommentRole::LegalDocumentation;
                 }
 
-                return CommentContent::Jsdoc;
+                return CommentRole::Documentation;
             }
 
-            return CommentContent::None;
+            return CommentRole::Ordinary;
         }
         _ => {}
     }
@@ -316,7 +316,7 @@ pub(super) fn decode_comment_content(token_type: TokenType, raw_comment: &str) -
     }
 
     if start >= bytes.len() {
-        return CommentContent::None;
+        return CommentRole::Ordinary;
     }
 
     match bytes[start] {
@@ -324,28 +324,28 @@ pub(super) fn decode_comment_content(token_type: TokenType, raw_comment: &str) -
             start += 1;
 
             if start >= bytes.len() {
-                return CommentContent::None;
+                return CommentRole::Ordinary;
             }
 
             if bytes[start..].starts_with(b"license") || bytes[start..].starts_with(b"preserve") {
-                return CommentContent::Legal;
+                return CommentRole::Legal;
             }
         }
 
         _ => {
             if contains_legal_marker(content) {
-                return CommentContent::Legal;
+                return CommentRole::Legal;
             }
 
-            return CommentContent::None;
+            return CommentRole::Ordinary;
         }
     }
 
     if contains_legal_marker(content) {
-        return CommentContent::Legal;
+        return CommentRole::Legal;
     }
 
-    CommentContent::None
+    CommentRole::Ordinary
 }
 
 /// Return the annotation body used for comment classification.

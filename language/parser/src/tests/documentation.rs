@@ -30,6 +30,14 @@ function run(): string {}
         test.documentation(&parser, declaration),
         Some("Run work.\nReturn its result.")
     );
+    let documentation = parser
+        .tree
+        .get_documentation(declaration.id)
+        .expect("function declaration should have documentation");
+    assert_eq!(
+        parser.span_str(documentation.span),
+        "/// Run work.\n/// Return its result."
+    );
 
     let decorators = parser.tree.get_decorators(declaration.id);
     assert_eq!(decorators.len(), 1);

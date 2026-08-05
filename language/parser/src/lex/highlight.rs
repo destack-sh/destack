@@ -60,7 +60,7 @@ fn classify_token_color(file: &File, token: &TokenSpan, bright: bool) -> Option<
 /// Convert one canonical comment into its lexical token shape.
 fn tokenize_comment(comment: Comment, file_id: FileId) -> TokenSpan {
     // select the lexical comment kind
-    let token_type = match (comment.kind, comment.is_jsdoc()) {
+    let token_type = match (comment.kind, comment.is_documentation()) {
         (CommentKind::Line, false) => TokenType::LineComment,
         (CommentKind::Line, true) => TokenType::DocLineComment,
         (CommentKind::SingleLineBlock | CommentKind::MultiLineBlock, false) => {
