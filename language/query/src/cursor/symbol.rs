@@ -388,7 +388,7 @@ impl ModuleQueryContext<'_> {
     }
 
     /// Return the selected segment in one qualified type reference.
-    fn qualified_type_segment(
+    pub(crate) fn qualified_type_segment(
         &self,
         view: dir::View<'_>,
         node_id: dir::LocalNodeIdAny,

@@ -11,8 +11,8 @@ use crate::{
     SORT_LOCAL_SYMBOL, SymbolUse,
 };
 
-/// Candidate collector for one module position.
-pub(crate) struct CompletionBuilder<'owner, 'module, 'program> {
+/// Collects completion candidates at one module position.
+pub(crate) struct CompletionCollector<'owner, 'module, 'program> {
     /// The queried module.
     pub(super) module: &'owner ModuleQueryContext<'module>,
     /// The program query context.
@@ -21,8 +21,8 @@ pub(crate) struct CompletionBuilder<'owner, 'module, 'program> {
     pub(super) file_id: FileId,
 }
 
-impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
-    /// Build one completion builder.
+impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
+    /// Create one completion collector.
     pub(crate) fn new(
         module: &'owner ModuleQueryContext<'module>,
         program: &'owner ProgramQueryContext<'program>,
@@ -36,7 +36,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
     }
 
     /// Collect the raw completion candidates for one context.
-    pub(crate) fn build(
+    pub(crate) fn collect(
         &self,
         trigger: CompletionTrigger,
         context: &CompletionContext,
@@ -50,42 +50,42 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
             CompletionTrigger::Invoked | CompletionTrigger::Incomplete
         );
 
-        // dispatch the primary context-specific candidate builder
+        // collect candidates for the exact cursor context
         let mut items = match context {
             CompletionContext::MemberAccess {
-                receiver: CompletionReceiver::Access { source },
-            } => self.complete_members(*source)?,
+                receiver: CompletionReceiver::Access { site },
+            } => self.collect_members(*site)?,
             CompletionContext::MemberAccess {
                 receiver: CompletionReceiver::Namespace { module_id },
-            } => self.complete_namespace_members(*module_id)?,
-            CompletionContext::TypePosition { scope } => self.complete_types(*scope)?,
-            CompletionContext::ValuePosition { scope } => self.complete_values(*scope, false)?,
+            } => self.collect_namespace_members(*module_id)?,
+            CompletionContext::TypePosition { scope } => self.collect_types(*scope)?,
+            CompletionContext::ValuePosition { scope } => self.collect_values(*scope, false)?,
             CompletionContext::StatementPosition { scope } => {
-                self.complete_values(*scope, matches!(trigger, CompletionTrigger::Invoked))?
+                self.collect_values(*scope, matches!(trigger, CompletionTrigger::Invoked))?
             }
             CompletionContext::ObjectLiteralKey { literal, scope } => {
-                self.complete_object_literal(*literal, *scope)?
+                self.collect_object_literal(*literal, *scope)?
             }
             CompletionContext::ObjectLiteralValue { scope } => {
-                self.complete_values(*scope, false)?
+                self.collect_values(*scope, false)?
             }
-            CompletionContext::CallArgument { scope, .. } => self.complete_values(*scope, false)?,
-            CompletionContext::NewExpression { scope } => self.complete_new_expression(*scope)?,
+            CompletionContext::CallArgument { scope, .. } => self.collect_values(*scope, false)?,
+            CompletionContext::NewExpression { scope } => self.collect_new_expression(*scope)?,
             CompletionContext::ImportPath { partial_path } => {
-                self.complete_import_paths(partial_path)?
+                self.collect_import_paths(partial_path)?
             }
             CompletionContext::ImportClause {
                 target_module,
                 existing_names,
                 use_filter,
-            } => self.complete_imports(*target_module, existing_names, *use_filter)?,
+            } => self.collect_imports(*target_module, existing_names, *use_filter)?,
         };
 
         let mut is_incomplete = false;
 
         // layer in auto imports when this context supports them
         if include_auto_imports && let Some(auto_import) = context.auto_import_search() {
-            let auto_imports = self.complete_auto_imports_with_visibility(
+            let auto_imports = self.collect_auto_imports_with_visibility(
                 prefix,
                 Some(auto_import.symbol_use),
                 auto_import.scope,
@@ -107,8 +107,8 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
         })
     }
 
-    /// Complete types in type position.
-    fn complete_types(&self, scope: dir::LocalScope) -> QueryResult<Vec<CompletionCandidate>> {
+    /// Collect types in type position.
+    fn collect_types(&self, scope: dir::LocalScope) -> QueryResult<Vec<CompletionCandidate>> {
         let symbols = self.module.bindings()?;
 
         let mut results = Vec::new();
@@ -136,7 +136,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
                 local_id: visible.symbol_id,
             };
 
-            results.push(self.resolve_symbol(completion, symbol_id)?);
+            results.push(self.collect_symbol(completion, symbol_id)?);
         }
 
         // primitive types are always available
@@ -197,8 +197,8 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
         Ok(values)
     }
 
-    /// Complete values in expression position.
-    fn complete_values(
+    /// Collect values in expression position.
+    fn collect_values(
         &self,
         scope: dir::LocalScope,
         include_keywords: bool,
@@ -215,11 +215,11 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
 
             // expand declarations with specialized constructor forms
             if kind == CompletionItemKind::Struct {
-                results.push(self.complete_struct(&name, symbol)?);
+                results.push(self.collect_struct(&name, symbol)?);
                 continue;
             }
             if kind == CompletionItemKind::Newtype {
-                results.extend(self.complete_newtype(&name, symbol)?);
+                results.extend(self.collect_newtype(&name, symbol)?);
                 continue;
             }
 
@@ -231,7 +231,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
             } else {
                 completion
             };
-            results.push(self.resolve_symbol(completion, symbol)?);
+            results.push(self.collect_symbol(completion, symbol)?);
         }
 
         // statement contexts can opt into keyword completions as well
@@ -242,8 +242,8 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
         Ok(results)
     }
 
-    /// Complete constructable symbols for a new expression.
-    fn complete_new_expression(
+    /// Collect constructable symbols for a new expression.
+    fn collect_new_expression(
         &self,
         scope: dir::LocalScope,
     ) -> QueryResult<Vec<CompletionCandidate>> {
@@ -272,7 +272,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
                 local_id: visible.symbol_id,
             };
             if kind == CompletionItemKind::Class {
-                results.extend(self.complete_class(&name, symbol_id)?);
+                results.extend(self.collect_class(&name, symbol_id)?);
             } else {
                 let completion = CompletionCandidate::new(
                     name,
@@ -280,7 +280,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
                     CompletionOrigin::Local,
                     SORT_LOCAL_SYMBOL,
                 );
-                results.push(self.resolve_symbol(completion, symbol_id)?);
+                results.push(self.collect_symbol(completion, symbol_id)?);
             }
         }
 

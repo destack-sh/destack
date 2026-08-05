@@ -1,66 +1,84 @@
 use destack_dir as dir;
 
-use super::builder::CompletionBuilder;
+use super::CompletionCollector;
 use crate::{
     CompletionCandidate, CompletionOrigin, Formatter, QueryError, QueryResult, SORT_MEMBER,
 };
 
-impl CompletionBuilder<'_, '_, '_> {
-    /// Complete one member expression.
-    pub(super) fn complete_members(
+impl CompletionCollector<'_, '_, '_> {
+    /// Collect members for one exact lookup site.
+    pub(super) fn collect_members(
         &self,
-        source: dir::GlobalNodeIdAny,
+        site: dir::MemberSite,
     ) -> QueryResult<Vec<CompletionCandidate>> {
         let members = self.module.members()?;
-        let site = dir::MemberSite::Node(source);
         let subject = members
             .subject(site)
-            .ok_or(QueryError::missing(format!("member subject: {source:?}")))?;
+            .ok_or(QueryError::missing(format!("member subject: {site:?}")))?;
         let bindings = members.members(site).ok_or(QueryError::missing(format!(
-            "member bindings: source={source:?}, subject={subject:?}"
+            "member bindings: site={site:?}, subject={subject:?}"
         )))?;
-        let formatter = Formatter::new(self.module, self.program);
         let mut results = Vec::new();
 
-        // render members expressible after a dot in precedence order
+        // collect readable members in precedence order
         for member in bindings {
+            if !member.access.is_readable() {
+                continue;
+            }
             let dir::StaticKey::Name(name) = member.key else {
                 continue;
             };
+            let type_id = member
+                .access
+                .read()
+                .ok_or(QueryError::invalid("readable member has no read type"))?;
             let label = self.module.strings().get(name).to_string();
             let completion = CompletionCandidate::new(
                 label,
                 member.kind.into(),
                 CompletionOrigin::Member,
                 SORT_MEMBER,
-            );
-            results.push(self.describe_member(completion, member, &formatter)?);
+            )
+            .with_member(site, member.key)
+            .with_type_id(type_id);
+            let completion = match member.declarations.first() {
+                Some(declaration) => {
+                    let completion = self.collect_declaration(completion, declaration.symbol)?;
+                    if completion.kind.is_callable() {
+                        completion.with_call()
+                    } else {
+                        completion
+                    }
+                }
+                None => completion,
+            };
+            results.push(completion);
         }
 
         Ok(results)
     }
 
-    /// Build one completion from a selected member.
-    pub(super) fn describe_member(
+    /// Resolve one selected member.
+    pub(super) fn resolve_member(
         &self,
-        mut completion: CompletionCandidate,
-        member: &dir::MemberBinding,
-        formatter: &Formatter<'_, '_, '_>,
+        completion: CompletionCandidate,
+        site: dir::MemberSite,
+        key: dir::StaticKey,
     ) -> QueryResult<CompletionCandidate> {
+        let member = self
+            .module
+            .members()?
+            .binding(site, key)
+            .ok_or(QueryError::missing(format!(
+                "completion member binding: {site:?}, {key:?}"
+            )))?;
         let declaration = member.declarations.first();
-        if let Some(symbol) = declaration.map(|declaration| declaration.symbol) {
-            completion = self.resolve_declaration(completion, symbol)?;
-            if completion.kind.is_callable() {
-                completion = completion.with_call();
-            }
-        }
 
         // render the selected access type
         let type_id = member
             .access
             .read()
-            .or_else(|| member.access.write())
-            .ok_or(QueryError::invalid("member selection has no access type"))?;
+            .ok_or(QueryError::invalid("readable member has no read type"))?;
         let is_callable = matches!(
             member.kind,
             dir::MemberKind::Method
@@ -73,6 +91,7 @@ impl CompletionBuilder<'_, '_, '_> {
         } else {
             None
         };
+        let formatter = Formatter::new(self.module, self.program);
         let detail = match callable {
             Some(callable) => {
                 let names = declaration
@@ -85,6 +104,26 @@ impl CompletionBuilder<'_, '_, '_> {
             }
             None => formatter.global_type(type_id)?,
         };
+
+        Ok(completion.with_detail(detail).with_type_id(type_id))
+    }
+
+    /// Resolve one contextual object field.
+    pub(super) fn resolve_object_field(
+        &self,
+        completion: CompletionCandidate,
+        site: dir::MemberSite,
+        key: dir::StaticKey,
+    ) -> QueryResult<CompletionCandidate> {
+        let member = self
+            .module
+            .members()?
+            .binding(site, key)
+            .ok_or(QueryError::missing(format!(
+                "completion object field: {site:?}, {key:?}"
+            )))?;
+        let type_id = member.access.store();
+        let detail = Formatter::new(self.module, self.program).global_type(type_id)?;
 
         Ok(completion.with_detail(detail).with_type_id(type_id))
     }

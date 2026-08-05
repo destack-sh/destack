@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_source::{FileId, ModuleId};
+use destack_source::{FileId, ModuleId, Span};
 
 use crate::{ModuleQueryContext, QueryError, QueryResult};
 
@@ -68,7 +68,9 @@ impl ModuleQueryContext<'_> {
             let Some(dir_node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
                 continue;
             };
-            let Some(receiver) = CompletionReceiver::resolve_member(dir_node_id, self)? else {
+            let Some(receiver) =
+                CompletionReceiver::resolve_member(dir_node_id, Some(main_span), self)?
+            else {
                 continue;
             };
             let context = CompletionContext::MemberAccess { receiver };
@@ -94,7 +96,7 @@ impl ModuleQueryContext<'_> {
             let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
                 continue;
             };
-            let Some(receiver) = CompletionReceiver::resolve_member(node_id, self)? else {
+            let Some(receiver) = CompletionReceiver::resolve_member(node_id, None, self)? else {
                 continue;
             };
 
@@ -133,6 +135,7 @@ impl CompletionReceiver {
     /// Resolve one value or type member projection.
     fn resolve_member(
         source: dir::LocalNodeIdAny,
+        selected_span: Option<Span>,
         module: &ModuleQueryContext<'_>,
     ) -> QueryResult<Option<Self>> {
         let view = module.view()?;
@@ -166,9 +169,30 @@ impl CompletionReceiver {
                             Some(dir::Reference::Projected {
                                 base: dir::ImportTarget::Symbol(_),
                                 ..
-                            }) => Ok(Some(Self::Access {
-                                source: global_source,
-                            })),
+                            }) => {
+                                let Some(selected_span) = selected_span else {
+                                    return Ok(None);
+                                };
+                                let Some((segment, _)) = module.qualified_type_segment(
+                                    view,
+                                    source.into(),
+                                    selected_span,
+                                )?
+                                else {
+                                    return Ok(None);
+                                };
+                                let segment = u16::try_from(segment).map_err(|_| {
+                                    QueryError::invalid(format!(
+                                        "completion member path: {global_source:?}"
+                                    ))
+                                })?;
+                                let site = dir::MemberSite::Path {
+                                    node: global_source,
+                                    segment,
+                                };
+
+                                Ok(Some(Self::Access { site }))
+                            }
                             _ => Ok(None),
                         };
                     }
@@ -181,9 +205,9 @@ impl CompletionReceiver {
         let receiver = if let Some(module_id) = Self::namespace(receiver, module)? {
             Self::Namespace { module_id }
         } else {
-            Self::Access {
-                source: global_source,
-            }
+            let site = dir::MemberSite::Node(global_source);
+
+            Self::Access { site }
         };
 
         Ok(Some(receiver))

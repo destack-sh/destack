@@ -72,8 +72,8 @@ pub(crate) enum CompletionContext {
 pub(crate) enum CompletionReceiver {
     /// A source member access.
     Access {
-        /// The member expression source.
-        source: dir::GlobalNodeIdAny,
+        /// The exact DIR member lookup site.
+        site: dir::MemberSite,
     },
     /// An imported module namespace receiver.
     Namespace {
@@ -174,6 +174,23 @@ impl ModuleQueryContext<'_> {
             }));
         }
 
+        // classify statement heads before ordinary value references
+        if let Some(context) = self.classify_statement(file_id, offset)? {
+            return Ok(Some(CompletionCursor { context, token }));
+        }
+
+        // classify authored value references directly
+        if self.is_value_position(file_id, offset)? {
+            let Some(scope) = self.scope_at_offset(file_id, offset)? else {
+                return Ok(None);
+            };
+
+            return Ok(Some(CompletionCursor {
+                context: CompletionContext::ValuePosition { scope },
+                token,
+            }));
+        }
+
         // treat structurally classified missing expression slots as real completion positions
         if self.is_expression_slot_at_offset(file_id, offset)? {
             let Some(scope) = self.scope_at_offset(file_id, offset)? else {
@@ -187,24 +204,7 @@ impl ModuleQueryContext<'_> {
             }));
         }
 
-        // check for statement position
-        if let Some(context) = self.classify_statement(file_id, offset)? {
-            return Ok(Some(CompletionCursor { context, token }));
-        }
-
-        // suppress unclaimed expression holes
-        if self.is_suppressed_completion_position(file_id, &token, offset)? {
-            return Ok(None);
-        }
-
-        let Some(scope) = self.scope_at_offset(file_id, offset)? else {
-            return Ok(None);
-        };
-
-        Ok(Some(CompletionCursor {
-            context: CompletionContext::ValuePosition { scope },
-            token,
-        }))
+        Ok(None)
     }
 }
 
@@ -243,23 +243,6 @@ impl ModuleQueryContext<'_> {
             .is_some_and(|token| token.token.ty() == dir::TokenType::Literal);
 
         Ok(is_literal)
-    }
-
-    /// Detect whether completion should stay suppressed at the cursor.
-    fn is_suppressed_completion_position(
-        &self,
-        file_id: FileId,
-        token: &Option<CursorToken>,
-        offset: u32,
-    ) -> QueryResult<bool> {
-        if token.is_some() {
-            return Ok(false);
-        }
-
-        let has_expression_hole = self.expression_hole_at_offset(file_id, offset)?.is_some();
-        let is_expression_slot = self.is_expression_slot_at_offset(file_id, offset)?;
-
-        Ok(has_expression_hole && !is_expression_slot)
     }
 
     /// Return the partial identifier at the cursor position.
@@ -385,6 +368,28 @@ impl ModuleQueryContext<'_> {
         // check type declarations for their value expression spans
         if self.is_type_declaration_value_position(&enclosing, offset)? {
             return Ok(true);
+        }
+
+        Ok(false)
+    }
+
+    /// Return whether the cursor selects an authored value reference.
+    fn is_value_position(&self, file_id: FileId, offset: u32) -> QueryResult<bool> {
+        let view = self.view()?;
+
+        // accept only identifier expressions that own the cursor
+        for enclosing in self.enclosing_spans_at_cursor(file_id, offset)? {
+            let Some(node_id) = view.get_node_id_by_source_id(enclosing.source_id) else {
+                continue;
+            };
+            if node_id.ty != dir::NodeType::Expression {
+                continue;
+            }
+
+            let expression_id = dir::LocalNodeId::<dir::Expression>::new(node_id.id);
+            if matches!(view.get(expression_id), dir::Expression::Identifier { .. }) {
+                return Ok(true);
+            }
         }
 
         Ok(false)

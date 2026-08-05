@@ -2,8 +2,7 @@ use destack_dir as dir;
 use destack_source::FileId;
 use rustc_hash::FxHashSet;
 
-use super::CompletionContext;
-use super::builder::CompletionBuilder;
+use super::{CompletionCollector, CompletionContext};
 use crate::{
     CompletionCandidate, CompletionItemKind, CompletionOrigin, ModuleQueryContext, QueryError,
     QueryResult, SORT_CONTEXTUAL, SORT_LOCAL_SYMBOL,
@@ -170,9 +169,9 @@ impl ObjectLiteralSpans<'_> {
     }
 }
 
-impl CompletionBuilder<'_, '_, '_> {
-    /// Complete the keys of one object literal.
-    pub(super) fn complete_object_literal(
+impl CompletionCollector<'_, '_, '_> {
+    /// Collect keys for one object literal.
+    pub(super) fn collect_object_literal(
         &self,
         literal: dir::LocalNodeId<dir::Expression>,
         scope: dir::LocalScope,
@@ -223,7 +222,7 @@ impl CompletionBuilder<'_, '_, '_> {
                     continue;
                 };
 
-                // describe the selected field
+                // collect the missing contextual field
                 let label = self.module.strings().get(name).to_string();
                 let completion = CompletionCandidate::new(
                     &label,
@@ -231,10 +230,11 @@ impl CompletionBuilder<'_, '_, '_> {
                     CompletionOrigin::Contextual,
                     SORT_CONTEXTUAL,
                 )
+                .with_object_field(site, member.key)
                 .with_type_id(member.access.store());
                 let completion = match member.declarations.first() {
                     Some(declaration) => {
-                        self.resolve_declaration(completion, declaration.symbol)?
+                        self.collect_declaration(completion, declaration.symbol)?
                     }
                     None => completion,
                 };
@@ -260,7 +260,7 @@ impl CompletionBuilder<'_, '_, '_> {
                 CompletionOrigin::Local,
                 SORT_LOCAL_SYMBOL,
             );
-            results.push(self.resolve_symbol(completion, symbol)?);
+            results.push(self.collect_symbol(completion, symbol)?);
         }
 
         Ok(results)

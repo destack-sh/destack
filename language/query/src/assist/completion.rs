@@ -1,9 +1,12 @@
+use std::mem;
+
 use destack_dir as dir;
 use destack_serde::Reflect;
 use destack_source::{FileId, Patch, Span};
 use serde::{Deserialize, Serialize};
 
-use crate::complete::{CompletionBuilder, CompletionCursor, filter_completions};
+use crate::complete::{CompletionCollector, CompletionCursor, rank_completions};
+use crate::source::ImportBinding;
 use crate::{
     ImportOrder, ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult,
 };
@@ -141,7 +144,7 @@ impl From<dir::MemberKind> for CompletionItemKind {
 }
 
 impl From<&dir::Symbol> for CompletionItemKind {
-    /// Convert one checked symbol into its exact completion kind.
+    /// Convert one DIR symbol into its exact completion kind.
     fn from(symbol: &dir::Symbol) -> Self {
         if symbol.kind == dir::SymbolKind::Variable
             && symbol.binding_mutability == Some(dir::Mutability::Immutable)
@@ -189,8 +192,8 @@ pub struct CompletionItem {
     pub match_positions: Vec<usize>,
 }
 
-/// One completion candidate before ranking and source-edit construction.
-#[derive(Debug, Clone)]
+/// One completion candidate before ranking and source edit construction.
+#[derive(Debug)]
 pub(crate) struct CompletionCandidate {
     /// The label shown in the completion list.
     pub(crate) label: String,
@@ -218,18 +221,62 @@ pub(crate) struct CompletionCandidate {
     pub(crate) origin: CompletionOrigin,
     /// The structured import ordering key for ranking.
     pub(crate) import_order: Option<ImportOrder>,
-    /// The exact checked value type when this candidate denotes one.
+    /// The exact value type when this candidate denotes one.
     pub(crate) type_id: Option<dir::GlobalTypeId>,
-    /// The declaration used to describe this candidate.
-    pub(crate) symbol: Option<dir::GlobalSymbolId>,
+    /// The canonical declaration carried by this candidate.
+    symbol: Option<dir::GlobalSymbolId>,
+    /// The specialized resolution selected for this candidate.
+    resolution: CompletionResolution,
+}
+
+/// Specialized work deferred until one completion candidate survives ranking.
+#[derive(Debug)]
+pub(crate) enum CompletionResolution {
+    /// No specialized resolution.
+    None,
+    /// One struct expression.
+    Struct,
+    /// One class constructor overload.
+    ClassConstructor {
+        /// The selected constructor type.
+        type_id: dir::GlobalTypeId,
+        /// The selected constructor declaration when one exists.
+        call_symbol: Option<dir::GlobalSymbolId>,
+    },
+    /// One newtype constructor overload.
+    NewtypeConstructor {
+        /// The selected constructor type.
+        type_id: dir::GlobalTypeId,
+    },
+    /// One exact member binding.
+    Member {
+        /// The DIR member lookup site.
+        site: dir::MemberSite,
+        /// The selected member key.
+        key: dir::StaticKey,
+    },
+    /// One contextual object field.
+    ObjectField {
+        /// The object literal member lookup site.
+        site: dir::MemberSite,
+        /// The selected field key.
+        key: dir::StaticKey,
+    },
+    /// One declaration imported through an exact module specifier.
+    AutoImport {
+        /// The binding inserted into the current module.
+        binding: ImportBinding,
+        /// The module specifier inserted into the current module.
+        specifier: String,
+    },
 }
 
 /// The insertion produced by one completion candidate.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 enum CompletionInsertion {
     /// Insert the candidate label.
     Label,
-    /// Render a call after filtering.
+    /// Resolve a call after ranking.
     Call,
     /// Insert exact text.
     Text(String),
@@ -294,19 +341,21 @@ impl ModuleQueryContext<'_> {
                 is_incomplete: false,
             });
         };
-        let builder = CompletionBuilder::new(self, program, file_id);
-        let completions = builder.build(trigger, &context, token.as_ref(), include_auto_imports)?;
 
+        // collect and rank candidates for the selected context
+        let collector = CompletionCollector::new(self, program, file_id);
+        let completions =
+            collector.collect(trigger, &context, token.as_ref(), include_auto_imports)?;
+        let is_incomplete = completions.is_incomplete;
+        let completions = rank_completions(completions.items, &context, token.as_ref());
+
+        // resolve only candidates returned to the editor
         let replacement_start = token.as_ref().map_or(offset, |token| token.start);
         let replacement_end = token.as_ref().map_or(offset, |token| token.end);
         let replacement = Span::new(file_id, replacement_start, replacement_end);
-        let is_incomplete = completions.is_incomplete;
-        let completions = filter_completions(completions.items, &context, token.as_ref());
         let mut items = Vec::with_capacity(completions.len());
-
-        // render only candidates returned to the editor
         for completion in completions {
-            let completion = builder.describe(completion)?;
+            let completion = collector.resolve(completion)?;
             items.push(completion.into_item(replacement)?);
         }
 
@@ -341,10 +390,11 @@ impl CompletionCandidate {
             import_order: None,
             type_id: None,
             symbol: None,
+            resolution: CompletionResolution::None,
         }
     }
 
-    /// Build a call insertion after filtering.
+    /// Defer call insertion until after ranking.
     pub(crate) fn with_call(mut self) -> Self {
         self.insertion = CompletionInsertion::Call;
 
@@ -406,17 +456,84 @@ impl CompletionCandidate {
         self
     }
 
-    /// Set the exact checked value type.
+    /// Set the exact value type.
     pub(crate) fn with_type_id(mut self, type_id: dir::GlobalTypeId) -> Self {
         self.type_id = Some(type_id);
         self
     }
 
-    /// Set the declaration used to describe this candidate.
+    /// Set the canonical declaration.
     pub(crate) fn with_symbol(mut self, symbol: dir::GlobalSymbolId) -> Self {
         self.symbol = Some(symbol);
 
         self
+    }
+
+    /// Bind this candidate to one exact member lookup.
+    pub(crate) fn with_member(mut self, site: dir::MemberSite, key: dir::StaticKey) -> Self {
+        self.resolution = CompletionResolution::Member { site, key };
+
+        self
+    }
+
+    /// Bind this candidate to one contextual object field.
+    pub(crate) fn with_object_field(mut self, site: dir::MemberSite, key: dir::StaticKey) -> Self {
+        self.resolution = CompletionResolution::ObjectField { site, key };
+
+        self
+    }
+
+    /// Bind this candidate to one struct expression.
+    pub(crate) fn with_struct(mut self, symbol: dir::GlobalSymbolId) -> Self {
+        self.symbol = Some(symbol);
+        self.resolution = CompletionResolution::Struct;
+
+        self
+    }
+
+    /// Bind this candidate to one class constructor overload.
+    pub(crate) fn with_class_constructor(
+        mut self,
+        symbol: dir::GlobalSymbolId,
+        type_id: dir::GlobalTypeId,
+        call_symbol: Option<dir::GlobalSymbolId>,
+    ) -> Self {
+        self.symbol = Some(symbol);
+        self.resolution = CompletionResolution::ClassConstructor {
+            type_id,
+            call_symbol,
+        };
+
+        self
+    }
+
+    /// Bind this candidate to one newtype constructor overload.
+    pub(crate) fn with_newtype_constructor(
+        mut self,
+        symbol: dir::GlobalSymbolId,
+        type_id: dir::GlobalTypeId,
+    ) -> Self {
+        self.symbol = Some(symbol);
+        self.resolution = CompletionResolution::NewtypeConstructor { type_id };
+
+        self
+    }
+
+    /// Bind this candidate to one exact auto import.
+    pub(crate) fn with_auto_import(mut self, binding: ImportBinding, specifier: String) -> Self {
+        self.resolution = CompletionResolution::AutoImport { binding, specifier };
+
+        self
+    }
+
+    /// Take the specialized resolution selected for this candidate.
+    pub(crate) fn take_resolution(&mut self) -> CompletionResolution {
+        mem::replace(&mut self.resolution, CompletionResolution::None)
+    }
+
+    /// Return the canonical declaration carried by this candidate.
+    pub(crate) fn symbol(&self) -> Option<dir::GlobalSymbolId> {
+        self.symbol
     }
 
     /// Return the stable ordering text for one completion.

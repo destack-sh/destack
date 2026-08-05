@@ -7,14 +7,14 @@ use crate::{
 
 use super::{CompletionContext, CursorToken};
 
-/// The semantic and lexical relevance for one completion candidate.
+/// The contextual and lexical relevance for one completion candidate.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CompletionScore {
     /// The lexical match quality for the label.
     lexical: MatchQuality,
     /// The context-fit order bucket.
     context_order: u8,
-    /// The semantic origin order bucket.
+    /// The origin order bucket.
     origin_order: u8,
     /// The item-kind order bucket for the active context.
     kind_order: u8,
@@ -38,7 +38,7 @@ struct ScoredCompletion {
     stable_index: usize,
     /// The completion candidate.
     completion: CompletionCandidate,
-    /// The derived lexical and semantic relevance.
+    /// The derived lexical and contextual relevance.
     score: CompletionScore,
 }
 
@@ -394,8 +394,8 @@ impl CompletionItemKind {
     }
 }
 
-/// Filter completions using lexical and semantic relevance.
-pub(crate) fn filter_completions(
+/// Rank candidates by lexical and contextual relevance.
+pub(crate) fn rank_completions(
     completions: Vec<CompletionCandidate>,
     context: &CompletionContext,
     token: Option<&CursorToken>,

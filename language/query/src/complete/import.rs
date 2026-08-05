@@ -12,9 +12,8 @@ use crate::{
     SymbolUse, match_quality,
 };
 
-use super::CompletionContext;
-use super::builder::CompletionBuilder;
 use super::builtin::length_ordering_text;
+use super::{CompletionCollector, CompletionContext};
 
 // auto import completion thresholds
 const AUTO_IMPORT_MIN_PREFIX: usize = 2;
@@ -218,9 +217,9 @@ impl ModuleQueryContext<'_> {
     }
 }
 
-impl CompletionBuilder<'_, '_, '_> {
-    /// Complete the exports of one imported module namespace.
-    pub(super) fn complete_namespace_members(
+impl CompletionCollector<'_, '_, '_> {
+    /// Collect exports from one imported module namespace.
+    pub(super) fn collect_namespace_members(
         &self,
         module_id: ModuleId,
     ) -> QueryResult<Vec<CompletionCandidate>> {
@@ -236,7 +235,7 @@ impl CompletionBuilder<'_, '_, '_> {
                 if kind.is_callable() {
                     completion = completion.with_call();
                 }
-                completion = self.resolve_symbol(completion, symbol)?;
+                completion = self.collect_symbol(completion, symbol)?;
             }
 
             results.push(completion);
@@ -245,15 +244,15 @@ impl CompletionBuilder<'_, '_, '_> {
         Ok(results)
     }
 
-    /// Generate auto import completions for a prefix using indexed lookup.
-    pub(super) fn complete_auto_imports_with_visibility(
+    /// Collect auto imports for one prefix and scope.
+    pub(super) fn collect_auto_imports_with_visibility(
         &self,
         prefix: &str,
         use_filter: Option<SymbolUse>,
         scope: dir::LocalScope,
         allow_short_prefix: bool,
     ) -> QueryResult<CompletionCandidates> {
-        let mut completions = self.complete_auto_imports(prefix, use_filter, allow_short_prefix)?;
+        let mut completions = self.collect_auto_imports(prefix, use_filter, allow_short_prefix)?;
 
         let visible_names = self.collect_visible_names(scope, use_filter)?;
         completions.retain(|item| !visible_names.contains(item.label.as_str()));
@@ -267,8 +266,8 @@ impl CompletionBuilder<'_, '_, '_> {
         })
     }
 
-    /// Generate auto import completions for one prefix.
-    fn complete_auto_imports(
+    /// Collect auto imports for one prefix.
+    fn collect_auto_imports(
         &self,
         prefix: &str,
         use_filter: Option<SymbolUse>,
@@ -353,13 +352,6 @@ impl CompletionBuilder<'_, '_, '_> {
 
         // build one completion for each exact importable package export
         for import_specifier in import_specifiers {
-            let import_edits =
-                self.module
-                    .build_import_edits(self.file_id, binding, &import_specifier)?;
-            if import_edits.is_empty() {
-                continue;
-            }
-
             let candidate = ImportCandidate {
                 repository: self.module.repository(),
                 revision: self.module.revision(),
@@ -376,7 +368,7 @@ impl CompletionBuilder<'_, '_, '_> {
                 CompletionCandidate::new(name, kind, CompletionOrigin::AutoImport, SORT_DEFAULT)
                     .with_detail(detail)
                     .with_import_order(import_order)
-                    .with_additional_edits(import_edits);
+                    .with_auto_import(binding.clone(), import_specifier);
             let completion = match declaration {
                 ExportDeclaration::Symbol { symbol, .. } => {
                     let completion = if kind.is_callable() {
@@ -384,7 +376,7 @@ impl CompletionBuilder<'_, '_, '_> {
                     } else {
                         completion
                     };
-                    self.resolve_symbol(completion, symbol)?
+                    self.collect_symbol(completion, symbol)?
                 }
                 ExportDeclaration::Namespace { .. } => completion,
             };
@@ -395,8 +387,8 @@ impl CompletionBuilder<'_, '_, '_> {
         Ok(())
     }
 
-    /// Complete imports from one module.
-    pub(super) fn complete_imports(
+    /// Collect imports from one module.
+    pub(super) fn collect_imports(
         &self,
         target_module: Option<ModuleId>,
         existing_names: &[String],
@@ -427,7 +419,7 @@ impl CompletionBuilder<'_, '_, '_> {
             );
             let completion = match declaration {
                 ExportDeclaration::Symbol { symbol, .. } => {
-                    self.resolve_symbol(completion, symbol)?
+                    self.collect_symbol(completion, symbol)?
                 }
                 ExportDeclaration::Namespace { .. } => completion,
             };
@@ -438,15 +430,15 @@ impl CompletionBuilder<'_, '_, '_> {
         Ok(results)
     }
 
-    /// Complete import paths, relative paths, or package names.
-    pub(super) fn complete_import_paths(
+    /// Collect relative paths and package names.
+    pub(super) fn collect_import_paths(
         &self,
         partial: &str,
     ) -> QueryResult<Vec<CompletionCandidate>> {
         let mut results = Vec::new();
 
         if partial.starts_with("./") || partial.starts_with("../") {
-            results.extend(self.complete_relative_path(partial)?);
+            results.extend(self.collect_relative_path(partial)?);
         } else if partial.is_empty() {
             results.push(
                 CompletionCandidate::new(
@@ -466,16 +458,16 @@ impl CompletionBuilder<'_, '_, '_> {
                 )
                 .with_detail("parent"),
             );
-            results.extend(self.complete_package_names()?);
+            results.extend(self.collect_package_names()?);
         } else {
-            results.extend(self.complete_package_names()?);
+            results.extend(self.collect_package_names()?);
         }
 
         Ok(results)
     }
 
-    /// Complete package names from the active package graph.
-    fn complete_package_names(&self) -> QueryResult<Vec<CompletionCandidate>> {
+    /// Collect package names from the active package graph.
+    fn collect_package_names(&self) -> QueryResult<Vec<CompletionCandidate>> {
         let mut results = Vec::new();
 
         let repository = self.module.repository();
@@ -551,9 +543,9 @@ impl ShortPrefixImportOrder {
     }
 }
 
-impl CompletionBuilder<'_, '_, '_> {
-    /// Complete relative import paths from modules in the queried revision.
-    fn complete_relative_path(&self, partial: &str) -> QueryResult<Vec<CompletionCandidate>> {
+impl CompletionCollector<'_, '_, '_> {
+    /// Collect relative import paths from modules in the queried revision.
+    fn collect_relative_path(&self, partial: &str) -> QueryResult<Vec<CompletionCandidate>> {
         let split = partial.rfind('/').map_or(0, |index| index + 1);
         let directory = &partial[..split];
         let current_module = self.module.module_id();
