@@ -705,6 +705,11 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
+        // bind a polymorphic source against the required signature first
+        let Some(source) = answer!(self.instantiate_signature(origin, source, target)?) else {
+            return Ok(Answer::Ready(false));
+        };
+
         // collect directed comparison pairs
         let Some(pairs) =
             self.function_assignability_pairs(source, target, ThisParameterComparison::Compare)?
@@ -714,6 +719,53 @@ impl CheckState<'_> {
 
         // widen interior slots without coercions
         self.decide_each(origin, relation.interior(), &pairs)
+    }
+
+    /// Instantiate one polymorphic signature at its required signature.
+    ///
+    /// The signature's own generics bind by structurally matching the required signature, bound
+    /// arguments must satisfy their declared constraints, and the instantiation compares from
+    /// there on.
+    fn instantiate_signature(
+        &mut self,
+        origin: Origin,
+        signature: dir::GlobalTypeId,
+        required: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        // pass signatures without their own generics through unchanged
+        let Some(head) = self.signature_head(signature)? else {
+            return Ok(Answer::Ready(Some(signature)));
+        };
+        let Some(template) = head.template else {
+            return Ok(Answer::Ready(Some(signature)));
+        };
+        let parameters = self.generic_template_parameters(template)?;
+        if parameters.is_empty() {
+            return Ok(Answer::Ready(Some(signature)));
+        }
+
+        // reject shapes that expose no matchable pairs
+        let Some(pairs) = self.signature_match_pairs(signature, required)? else {
+            return Ok(Answer::Ready(None));
+        };
+
+        // match the declared pairs and require the declared constraints
+        let mut substitution = TypeSubstitution::default();
+        if !answer!(self.extend_generic_substitution(
+            origin,
+            &parameters,
+            &mut substitution,
+            &pairs,
+        )?) {
+            return Ok(Answer::Ready(None));
+        }
+        if !answer!(self.decide_substitution_constraints(origin, template, &substitution)?) {
+            return Ok(Answer::Ready(None));
+        }
+
+        Ok(Answer::Ready(Some(
+            self.substitute_type(signature, &substitution)?,
+        )))
     }
 
     /// Decide one relation between receiver-bound method signatures.
