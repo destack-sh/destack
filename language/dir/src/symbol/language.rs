@@ -247,22 +247,10 @@ define_language_items! {
             AsyncIterator => (NewtypeInterface, "async/iterator", "AsyncIterator"),
         }
 
-        /// `destack:async/continuation`.
-        continuation {
-            /// Continuation struct.
-            Continuation => (Struct, "async/continuation", "Continuation"),
-
-            /// Continuation result newtype.
-            ContinuationResult => (Newtype, "async/continuation", "ContinuationResult"),
-
-            /// Continuation return struct.
-            ContinuationReturn => (Struct, "async/continuation", "ContinuationReturn"),
-
-            /// Continuation yield struct.
-            ContinuationYield => (Struct, "async/continuation", "ContinuationYield"),
-
-            /// Asynchronous waiter struct.
-            Waiter => (Struct, "async/continuation", "Waiter"),
+        /// `destack:async/fiber`.
+        fiber {
+            /// Fiber identity struct.
+            Fiber => (Struct, "async/fiber", "Fiber"),
         }
 
         /// `destack:async/promise`.
@@ -285,11 +273,8 @@ define_language_items! {
 
         /// `destack:async/task`.
         task {
-            /// Task struct.
-            Task => (Struct, "async/task", "Task"),
-
-            /// Create one task from its first continuation.
-            TaskCreate => (Function, "async/task", "create", "async.Task.create"),
+            /// Task class.
+            Task => (Class, "async/task", "Task"),
 
             /// Queue one microtask.
             QueueMicrotask => (Function, "async/task", "queueMicrotask"),
