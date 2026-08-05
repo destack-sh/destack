@@ -4,6 +4,7 @@
   "description": "Destack standard library.",
   "targets": {
     "default": {
+      "output": "program",
       "include": [
         "src/**/*.ds"
       ]

@@ -261,7 +261,7 @@ impl DestackFile {
     }
 
     /// Build one configuration from an effective source value.
-    fn from_file(
+    pub(crate) fn from_file(
         file_id: FileId,
         file_ids: Vec<FileId>,
         path: PathBuf,

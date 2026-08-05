@@ -150,6 +150,13 @@ fn render_builtin_table(files: &[String], manifest: &PackageManifest) -> String 
     }
 
     output.push_str("];\n");
+    output.push_str("pub(crate) const BUILTIN_MANIFEST_FILE: BuiltinFile = BuiltinFile {\n");
+    output.push_str("    uri: \"destack://destack.json\",\n");
+    output.push_str("    path: \"destack.json\",\n");
+    output.push_str(
+        "    content: include_str!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/../library/destack.json\")),\n",
+    );
+    output.push_str("};\n");
     output.push_str("pub(crate) const BUILTIN_PACKAGE_NAME: &str = ");
     output.push_str(&rust_string(manifest.name.as_deref().unwrap_or("destack")));
     output.push_str(";\n");

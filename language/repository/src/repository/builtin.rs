@@ -3,10 +3,11 @@ use std::sync::Arc;
 
 use destack_source::{
     Content, ContentEntry, ContentId, File, FileId, FileMetadata, FileType, LanguageType, Loader,
-    ModuleId, PackageId, Uri,
+    ModuleId, PackageId, TargetId, Uri,
 };
 use indexmap::IndexMap;
 
+use crate::config::{DestackFile, parse_jsonc_file};
 use crate::{
     ExportKind, Module, Package, PackageExport, PackageKind, Repository, RepositoryError, Revision,
 };
@@ -63,8 +64,27 @@ impl EmbeddedBuiltinPackage {
             .iter()
             .map(|export| (export.specifier.to_string(), export.package_export()))
             .collect();
+        let id = PackageId::from_uri(&Uri::from_string(BUILTIN_PACKAGE_NAME));
+
+        // read declared build targets from the embedded manifest
+        let manifest = BUILTIN_MANIFEST_FILE.file();
+        let source =
+            parse_jsonc_file(&manifest).expect("embedded builtin manifest should parse");
+        let config = DestackFile::from_file(
+            BUILTIN_MANIFEST_FILE.file_id(),
+            vec![BUILTIN_MANIFEST_FILE.file_id()],
+            PathBuf::from(BUILTIN_MANIFEST_FILE.path),
+            source,
+        )
+        .expect("embedded builtin manifest should build");
+        let targets = config
+            .destack
+            .targets
+            .iter()
+            .map(|(name, target)| (TargetId::new(id, name), target.clone()))
+            .collect();
         let package = Package {
-            id: PackageId::from_uri(&Uri::from_string(BUILTIN_PACKAGE_NAME)),
+            id,
             kind: PackageKind::Builtin,
             uri: Uri::from_string(BUILTIN_PACKAGE_URI),
             path: None,
@@ -75,8 +95,8 @@ impl EmbeddedBuiltinPackage {
             vendor: Default::default(),
             exports,
             topology: Default::default(),
-            destack_file_id: None,
-            targets: IndexMap::new(),
+            destack_file_id: Some(BUILTIN_MANIFEST_FILE.file_id()),
+            targets,
         };
 
         let package = Arc::new(package);
@@ -87,18 +107,21 @@ impl EmbeddedBuiltinPackage {
         let builtin_file_by_id = BUILTINS
             .iter()
             .copied()
+            .chain([BUILTIN_MANIFEST_FILE])
             .map(|builtin| (builtin.file_id(), builtin))
             .collect();
         // key by canonical uri only so workspace files never shadow builtins
         let builtin_file_by_path = BUILTINS
             .iter()
             .copied()
+            .chain([BUILTIN_MANIFEST_FILE])
             .map(|builtin| (builtin.uri, builtin))
             .collect();
 
         let file_by_id = BUILTINS
             .iter()
             .copied()
+            .chain([BUILTIN_MANIFEST_FILE])
             .map(|builtin| (builtin.file_id(), Arc::new(builtin.file())))
             .collect();
 
@@ -486,12 +509,18 @@ impl BuiltinFile {
         let content = Arc::new(ContentEntry::new(content));
 
         // build virtual source file
+        let file_type = if self.path.ends_with(".json") {
+            FileType::Json
+        } else {
+            FileType::Destack
+        };
+
         File::from_content(
             self.file_id(),
             self.name(),
             Uri::from_string(format!("{BUILTIN_PACKAGE_URI}{}", self.path)),
             None,
-            FileType::Destack,
+            file_type,
             content,
         )
     }
