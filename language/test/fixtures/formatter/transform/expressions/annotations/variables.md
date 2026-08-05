@@ -26,7 +26,7 @@ const buffer: @addrspace("shared") &Buffer = value
 const buffer: @addrspace("shared") &Buffer = value;
 ```
 
-### decorator-prefixed variable type stays inline
+### decorator prefixed variable type stays inline under non-default options
 
 Decorator prefixed variable types stay inline after `:` under non-default formatter options.
 

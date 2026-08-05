@@ -229,30 +229,3 @@ css`color: ${color}; font-size: ${size}px;`
 ```ds expected
 css`color: ${color}; font-size: ${size}px;`;
 ```
-
-## Tagged Templates
-
-### tagged template literal
-
-Tagged templates apply a function to a template literal.
-
-```ds
-sql`SELECT * FROM users`
-```
-
-```ds expected
-sql`SELECT * FROM users`;
-```
-
-### tagged template with interpolation
-
-Tagged templates can include interpolated expressions.
-
-```ds
-html`<div>${content}</div>`
-```
-
-```ds expected
-html`<div>${content}</div>`;
-```
-

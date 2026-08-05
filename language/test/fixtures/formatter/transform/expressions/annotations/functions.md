@@ -30,7 +30,7 @@ function build(value: Buffer): @addrspace("shared") &Buffer {
 }
 ```
 
-### return type decorator annotation stays inline
+### return type decorator annotation stays inline under non-default options
 
 Decorator prefixed return types stay attached after `:` under non-default formatter options.
 
