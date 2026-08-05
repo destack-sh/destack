@@ -147,7 +147,8 @@ struct InstructionStorage<'a> {
     expansion: Option<&'a ExpansionEffects<'a>>,
 }
 
-const _: () = assert!(std::mem::size_of::<InstructionStorage<'_>>() == 24);
+const _: () =
+    assert!(std::mem::size_of::<InstructionStorage<'_>>() == 3 * std::mem::size_of::<usize>());
 
 /// One expansion scope active while writing an instruction tape.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -554,7 +555,8 @@ pub struct InstructionSlice<'a> {
     start: usize,
 }
 
-const _: () = assert!(std::mem::size_of::<InstructionSlice<'_>>() == 16);
+const _: () =
+    assert!(std::mem::size_of::<InstructionSlice<'_>>() == 2 * std::mem::size_of::<usize>());
 
 impl<'a> InstructionSlice<'a> {
     /// Create one complete instruction slice.

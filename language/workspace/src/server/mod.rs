@@ -12,11 +12,14 @@ mod root;
 mod server;
 mod source;
 mod watch;
-mod websocket;
 
 pub use error::ServerError;
 pub use lease::RootLease;
 pub use lifecycle::*;
 pub use options::ServerOptions;
 pub use server::Server;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod websocket;
+#[cfg(not(target_arch = "wasm32"))]
 pub use websocket::{WebSocketServer, WebSocketServerError};
