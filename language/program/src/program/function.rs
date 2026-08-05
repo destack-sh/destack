@@ -243,53 +243,14 @@ pub struct Function {
     pub environment: Optional<TypeId>,
     /// Function call signature.
     pub signature: SignatureId,
-    /// The function coroutine behavior.
-    pub coroutine: CoroutineKind,
     /// Reserved function bytes.
-    reserved: [u8; 3],
+    reserved: [u8; 4],
 }
 
 impl Function {
     /// Return the closure environment type when one exists.
     pub fn environment(&self) -> Option<TypeId> {
         self.environment.get()
-    }
-
-    /// Return the coroutine behavior when this function may suspend.
-    pub const fn coroutine(&self) -> Option<CoroutineKind> {
-        if self.coroutine.0 == CoroutineKind::NONE.0 {
-            None
-        } else {
-            Some(self.coroutine)
-        }
-    }
-}
-
-/// Durable function coroutine behavior.
-#[repr(transparent)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
-)]
-pub struct CoroutineKind(pub u8);
-
-impl CoroutineKind {
-    /// A synchronous function.
-    pub const NONE: Self = Self(0);
-    /// A function that awaits promises.
-    pub const ASYNC: Self = Self(1);
-    /// A function that yields values to its caller.
-    pub const GENERATOR: Self = Self(2);
-    /// A function that awaits promises and yields values to its caller.
-    pub const ASYNC_GENERATOR: Self = Self(3);
-
-    /// Return whether this coroutine may await promises.
-    pub const fn is_async(self) -> bool {
-        matches!(self, Self::ASYNC | Self::ASYNC_GENERATOR)
-    }
-
-    /// Return whether this coroutine may yield values.
-    pub const fn is_generator(self) -> bool {
-        matches!(self, Self::GENERATOR | Self::ASYNC_GENERATOR)
     }
 }
 
@@ -392,8 +353,7 @@ impl FunctionTableBuilder {
                 name: function.name,
                 environment: function.environment.into(),
                 signature: function.signature,
-                coroutine: function.coroutine,
-                reserved: [0; 3],
+                reserved: [0; 4],
             });
         }
 
@@ -410,7 +370,6 @@ impl FunctionTableBuilder {
 const _: () = assert!(size_of::<FunctionTable>() == 80);
 const _: () = assert!(size_of::<FunctionExport>() == 16);
 const _: () = assert!(size_of::<Function>() == 24);
-const _: () = assert!(size_of::<CoroutineKind>() == 1);
 const _: () = assert!(size_of::<SignatureId>() == 4);
 const _: () = assert!(size_of::<SignatureEntry>() == 16);
 
@@ -423,8 +382,6 @@ pub struct FunctionBuilder {
     signature: SignatureId,
     /// Captured closure environment type when one exists.
     environment: Option<TypeId>,
-    /// The function coroutine behavior.
-    coroutine: CoroutineKind,
 }
 
 impl FunctionBuilder {
@@ -434,20 +391,12 @@ impl FunctionBuilder {
             name,
             signature,
             environment: None,
-            coroutine: CoroutineKind::NONE,
         }
     }
 
     /// Set the captured closure environment type.
     pub fn environment(mut self, environment: TypeId) -> Self {
         self.environment = Some(environment);
-
-        self
-    }
-
-    /// Set the function coroutine behavior.
-    pub fn coroutine(mut self, coroutine: CoroutineKind) -> Self {
-        self.coroutine = coroutine;
 
         self
     }

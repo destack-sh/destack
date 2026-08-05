@@ -5,8 +5,8 @@ use destack_memory::MemoryError;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    FrameLayoutId, FrameStateId, FunctionId, GlobalId, LayoutId, Signature, SignatureId, Task,
-    TypeId, Waiter,
+    Fiber, FrameLayoutId, FrameStateId, FunctionId, GlobalId, LayoutId, Signature, SignatureId,
+    TypeId,
 };
 
 /// Result of one Program operation.
@@ -91,20 +91,15 @@ pub enum Error {
     },
     /// A retained call chain contains no frames.
     EmptyCallChain,
-    /// A waiter does not name a live suspended continuation.
-    UndefinedWaiter {
-        /// The undefined waiter.
-        waiter: Waiter,
+    /// A fiber handle does not name one live fiber.
+    UndefinedFiber {
+        /// The undefined fiber.
+        fiber: Fiber,
     },
-    /// A task does not name one live asynchronous execution.
-    UndefinedTask {
-        /// The undefined task.
-        task: Task,
-    },
-    /// A task operation is invalid for its current execution state.
-    InvalidTaskState {
-        /// The task in the invalid state.
-        task: Task,
+    /// A fiber operation is invalid for its current execution state.
+    InvalidFiberState {
+        /// The fiber in the invalid state.
+        fiber: Fiber,
     },
     /// A retained frame byte width differs from its frame layout.
     FrameByteLengthMismatch {
@@ -253,12 +248,11 @@ impl fmt::Display for Error {
                 write!(formatter, "undefined frame layout {frame_layout:?}")
             }
             Self::EmptyCallChain => formatter.write_str("retained call chain contains no frames"),
-            Self::UndefinedWaiter { waiter } => {
-                write!(formatter, "undefined waiter {waiter:?}")
+            Self::UndefinedFiber { fiber } => {
+                write!(formatter, "undefined fiber {fiber:?}")
             }
-            Self::UndefinedTask { task } => write!(formatter, "undefined task {task:?}"),
-            Self::InvalidTaskState { task } => {
-                write!(formatter, "invalid state for task {task:?}")
+            Self::InvalidFiberState { fiber } => {
+                write!(formatter, "invalid state for fiber {fiber:?}")
             }
             Self::FrameByteLengthMismatch {
                 frame_state,

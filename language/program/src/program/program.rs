@@ -14,16 +14,15 @@ use destack_webassembly as wasm;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ActivationImage, Binding, BindingId, BindingTable, CallSite, CallSiteId, Continuation,
-    ContinuationSite, ContinuationSiteId, DispatchTable, DropEntry, DropTable, DynamicEntry,
-    DynamicTable, DynamicTableId, Error, FrameLayout, FrameLayoutId, FramePoint, FrameSlot,
-    FrameState, FrameStateId, FrameTable, Function, FunctionId, FunctionTable, Global,
-    GlobalAddress, GlobalId, GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId,
-    LayoutShape, LayoutTable, ProgramInfo, ProgramPoint, Result, SampleKey, SampleSite,
-    SampleValue, ScalarFormat, Signature, SignatureEntry, SignatureId, SiteTable, StaticImage,
-    StaticSpace, StringTable, SuspensionSite, SuspensionSiteId, Symbol, TensorDimension,
-    TensorLayout, TensorViewLayout, TypeFingerprint, TypeId, TypeTable, Value, VariantCaseLayout,
-    VariantLayout, VirtualTable, VirtualTableId, Word, WordLayout,
+    ActivationImage, Binding, BindingId, BindingTable, CallSite, CallSiteId, DispatchTable,
+    DropEntry, DropTable, DynamicEntry, DynamicTable, DynamicTableId, Error, FrameLayout,
+    FrameLayoutId, FramePoint, FrameSlot, FrameState, FrameStateId, FrameTable, Function,
+    FunctionId, FunctionTable, Global, GlobalAddress, GlobalId, GlobalLocation, GlobalTable,
+    Layout, LayoutField, LayoutId, LayoutShape, LayoutTable, ProgramInfo, ProgramPoint, Result,
+    SampleKey, SampleSite, SampleValue, ScalarFormat, Signature, SignatureEntry, SignatureId,
+    SiteTable, StaticImage, StaticSpace, StringTable, Symbol, TensorDimension, TensorLayout,
+    TensorViewLayout, TypeFingerprint, TypeId, TypeTable, Value, VariantCaseLayout, VariantLayout,
+    VirtualTable, VirtualTableId, Word, WordLayout,
 };
 
 /// Linked program.
@@ -256,19 +255,6 @@ impl Program {
     /// Return the call site at one program point.
     pub fn call(&self, point: ProgramPoint) -> Option<(CallSiteId, &CallSite)> {
         self.sites.call(self.sections(), point)
-    }
-
-    /// Return the continuation control site at one program point.
-    pub fn continuation(
-        &self,
-        point: ProgramPoint,
-    ) -> Option<(ContinuationSiteId, &ContinuationSite)> {
-        self.sites.continuation(self.sections(), point)
-    }
-
-    /// Return the coroutine suspension site at one program point.
-    pub fn suspension(&self, point: ProgramPoint) -> Option<(SuspensionSiteId, &SuspensionSite)> {
-        self.sites.suspension(self.sections(), point)
     }
 
     /// Decode one profile sample key using its program site type.
@@ -657,21 +643,6 @@ impl Program {
         let trace_map = self.trace_map(layout.trace)?;
 
         visit_heap_root_slots(&trace_map, 0, bytes, ReferenceRange::All, visit).map_err(Error::from)
-    }
-
-    /// Visit mutable heap roots retained by one continuation.
-    pub fn visit_continuation_root_slots(
-        &self,
-        memory: &MemoryMap,
-        continuation: &mut Continuation,
-        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> Result<()> {
-        visit(RootSlot::HeapReference(
-            continuation.context_mut().reference_mut(),
-        ))?;
-        let states = continuation.frames().iter().map(|frame| frame.state());
-
-        self.visit_memory_frame_root_slots(memory, continuation.memory(), states, visit)
     }
 
     /// Visit mutable heap roots retained by one activation image.

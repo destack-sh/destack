@@ -1,23 +1,26 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-/// Runtime identity for one asynchronous waiter.
+/// Runtime identity for one fiber.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct Waiter(u64);
+pub struct Fiber(u64);
 
-impl Waiter {
-    /// Create one waiter from its slot and generation.
+impl Fiber {
+    /// Identity carried by an idle execution; issued generations start at one.
+    pub const NONE: Self = Self(0);
+
+    /// Create one fiber identity from its slot and generation.
     pub const fn new(index: u32, generation: u32) -> Self {
         Self(((generation as u64) << u32::BITS) | index as u64)
     }
 
-    /// Return the waiter table slot.
+    /// Return the fiber table slot.
     pub const fn index(self) -> u32 {
         self.0 as u32
     }
 
-    /// Return the waiter slot generation.
+    /// Return the fiber slot generation.
     pub const fn generation(self) -> u32 {
         (self.0 >> u32::BITS) as u32
     }

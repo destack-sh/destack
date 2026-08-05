@@ -3,9 +3,7 @@ use destack_mir::{Space, Storage};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::{
-    FrameStateId, FunctionId, LayoutId, ProgramPoint, SignatureId, TypeId, VirtualTableId,
-};
+use super::{FunctionId, LayoutId, ProgramPoint, SignatureId, TypeId, VirtualTableId};
 
 /// Program sites used by debugging, probes, and observations.
 #[repr(C)]
@@ -19,12 +17,8 @@ pub struct SiteTable {
     memory: SectionSlice<MemorySite>,
     /// Function call operation sites sorted by program point.
     calls: SectionSlice<CallSite>,
-    /// Continuation control sites sorted by program point.
-    continuations: SectionSlice<ContinuationSite>,
     /// Control-flow edge sites sorted by source and target point.
     edges: SectionSlice<EdgeSite>,
-    /// Coroutine suspension sites sorted by program point.
-    suspensions: SectionSlice<SuspensionSite>,
     /// Explicit counter sites sorted by program point.
     counters: SectionSlice<CounterSite>,
     /// Explicit sample sites sorted by program point.
@@ -102,30 +96,6 @@ impl SiteTable {
         self.calls(sections).len()
     }
 
-    /// Return the continuation control site at one program point.
-    pub fn continuation<'a>(
-        &self,
-        sections: SectionImage<'a>,
-        point: ProgramPoint,
-    ) -> Option<(ContinuationSiteId, &'a ContinuationSite)> {
-        let continuations = self.continuations(sections);
-        let index = continuations
-            .binary_search_by_key(&point, |site| site.point)
-            .ok()?;
-
-        Some((ContinuationSiteId(index as u32), &continuations[index]))
-    }
-
-    /// Return all continuation control sites.
-    pub fn continuations<'a>(&self, sections: SectionImage<'a>) -> &'a [ContinuationSite] {
-        sections.entries(self.continuations)
-    }
-
-    /// Return the number of continuation control sites.
-    pub fn continuation_count(&self, sections: SectionImage<'_>) -> usize {
-        self.continuations(sections).len()
-    }
-
     /// Return the edge site for one observed transfer.
     pub fn edge<'a>(
         &self,
@@ -149,30 +119,6 @@ impl SiteTable {
     /// Return the number of control-flow edge sites.
     pub fn edge_count(&self, sections: SectionImage<'_>) -> usize {
         self.edges(sections).len()
-    }
-
-    /// Return the coroutine suspension site at one program point.
-    pub fn suspension<'a>(
-        &self,
-        sections: SectionImage<'a>,
-        point: ProgramPoint,
-    ) -> Option<(SuspensionSiteId, &'a SuspensionSite)> {
-        let suspensions = self.suspensions(sections);
-        let index = suspensions
-            .binary_search_by_key(&point, |site| site.point)
-            .ok()?;
-
-        Some((SuspensionSiteId(index as u32), &suspensions[index]))
-    }
-
-    /// Return all coroutine suspension sites.
-    pub fn suspensions<'a>(&self, sections: SectionImage<'a>) -> &'a [SuspensionSite] {
-        sections.entries(self.suspensions)
-    }
-
-    /// Return the number of coroutine suspension sites.
-    pub fn suspension_count(&self, sections: SectionImage<'_>) -> usize {
-        self.suspensions(sections).len()
     }
 
     /// Return the counter site at one program point.
@@ -239,12 +185,8 @@ pub struct SiteTableBuilder {
     memory: Vec<MemorySite>,
     /// Function call operation sites.
     calls: Vec<CallSite>,
-    /// Continuation control sites.
-    continuations: Vec<ContinuationSite>,
     /// Control-flow edge sites.
     edges: Vec<EdgeSite>,
-    /// Coroutine suspension sites.
-    suspensions: Vec<SuspensionSite>,
     /// Explicit counter sites.
     counters: Vec<CounterSite>,
     /// Explicit sample sites.
@@ -278,26 +220,9 @@ impl SiteTableBuilder {
         self
     }
 
-    /// Set continuation control sites.
-    pub fn continuations(
-        mut self,
-        continuations: impl IntoIterator<Item = ContinuationSite>,
-    ) -> Self {
-        self.continuations = continuations.into_iter().collect();
-
-        self
-    }
-
-    /// Set control flow edge sites.
+    /// Set control-flow edge sites.
     pub fn edges(mut self, edges: impl IntoIterator<Item = EdgeSite>) -> Self {
         self.edges = edges.into_iter().collect();
-
-        self
-    }
-
-    /// Set coroutine suspension sites.
-    pub fn suspensions(mut self, suspensions: impl IntoIterator<Item = SuspensionSite>) -> Self {
-        self.suspensions = suspensions.into_iter().collect();
 
         self
     }
@@ -322,11 +247,9 @@ impl SiteTableBuilder {
         self.allocations.sort_unstable_by_key(|site| site.point);
         self.memory.sort_unstable_by_key(|site| site.point);
         self.calls.sort_unstable_by_key(|site| site.point);
-        self.continuations.sort_unstable_by_key(|site| site.point);
         self.edges
             .sort_unstable_by_key(|site| (site.source, site.target));
         self.edges.dedup_by_key(|site| (site.source, site.target));
-        self.suspensions.sort_unstable_by_key(|site| site.point);
         self.counters.sort_unstable_by_key(|site| site.point);
         self.samples.sort_unstable_by_key(|site| site.point);
 
@@ -335,9 +258,7 @@ impl SiteTableBuilder {
             allocations: sections.insert(self.allocations),
             memory: sections.insert(self.memory),
             calls: sections.insert(self.calls),
-            continuations: sections.insert(self.continuations),
             edges: sections.insert(self.edges),
-            suspensions: sections.insert(self.suspensions),
             counters: sections.insert(self.counters),
             samples: sections.insert(self.samples),
         }
@@ -380,24 +301,6 @@ pub struct AllocationSiteId(pub u32);
 )]
 pub struct CallSiteId(pub u32);
 
-/// Dense continuation site identifier within one program.
-#[repr(transparent)]
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Serialize,
-    Deserialize,
-    Reflect,
-    SectionEntry,
-)]
-pub struct ContinuationSiteId(pub u32);
-
 /// Dense control-flow edge site identifier within one program.
 #[repr(transparent)]
 #[derive(
@@ -415,24 +318,6 @@ pub struct ContinuationSiteId(pub u32);
     SectionEntry,
 )]
 pub struct EdgeSiteId(pub u32);
-
-/// Dense coroutine suspension site identifier within one program.
-#[repr(transparent)]
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Serialize,
-    Deserialize,
-    Reflect,
-    SectionEntry,
-)]
-pub struct SuspensionSiteId(pub u32);
 
 /// Dense program profile counter identifier within one program.
 #[repr(transparent)]
@@ -522,20 +407,6 @@ pub struct CallSite {
     pub slot: Optional<u32>,
 }
 
-/// Continuation control operation at one program point.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct ContinuationSite {
-    /// The program point that drives the continuation.
-    pub point: ProgramPoint,
-    /// The program point entered when the continuation yields.
-    pub yielded: ProgramPoint,
-    /// The program point entered when the continuation returns.
-    pub returned: ProgramPoint,
-    /// The program point entered during panic unwinding.
-    pub unwind: Optional<ProgramPoint>,
-}
-
 /// Control-flow edge between program points.
 #[repr(C)]
 #[derive(
@@ -546,44 +417,6 @@ pub struct EdgeSite {
     pub source: ProgramPoint,
     /// The program point entered after the transfer.
     pub target: ProgramPoint,
-}
-
-/// Coroutine suspension operation at one program point.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct SuspensionSite {
-    /// The program point that suspends the coroutine.
-    pub point: ProgramPoint,
-    /// The program point entered by normal resumption.
-    pub resume: ProgramPoint,
-    /// The program point entered during cancellation when present.
-    pub cancel: Optional<ProgramPoint>,
-    /// The program point entered during explicit completion when present.
-    pub complete: Optional<ProgramPoint>,
-    /// The program point entered during panic unwinding.
-    pub unwind: Optional<ProgramPoint>,
-    /// The canonical frame state captured at this site.
-    pub frame_state: FrameStateId,
-    /// The suspension operation.
-    pub operation: Suspension,
-    /// The value passed to the coroutine owner.
-    pub value_type: TypeId,
-    /// The value received when execution resumes.
-    pub resume_type: TypeId,
-    /// The value received during explicit completion when present.
-    pub complete_type: Optional<TypeId>,
-}
-
-/// Coroutine suspension operation.
-#[repr(u32)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
-)]
-pub enum Suspension {
-    /// Wait for an asynchronous value to fulfill.
-    Await,
-    /// Yield one value to a generator owner.
-    Yield,
 }
 
 /// Explicit counter operation at one program point.
@@ -666,21 +499,7 @@ impl CallSiteId {
     }
 }
 
-impl ContinuationSiteId {
-    /// Return this site id as a dense array index.
-    pub const fn index(self) -> usize {
-        self.0 as usize
-    }
-}
-
 impl EdgeSiteId {
-    /// Return this site id as a dense array index.
-    pub const fn index(self) -> usize {
-        self.0 as usize
-    }
-}
-
-impl SuspensionSiteId {
     /// Return this site id as a dense array index.
     pub const fn index(self) -> usize {
         self.0 as usize

@@ -53,19 +53,6 @@ pub struct CallSite {
     pub signature: mir::TypeId,
 }
 
-/// One continuation control operation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct ContinuationSite {
-    /// The operation driving the continuation.
-    pub point: Point,
-    /// The operation entered when the continuation yields.
-    pub yielded: Point,
-    /// The operation entered when the continuation returns.
-    pub returned: Point,
-    /// The operation entered during panic unwinding when present.
-    pub unwind: Option<Point>,
-}
-
 /// One control flow edge.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct EdgeSite {
@@ -73,29 +60,6 @@ pub struct EdgeSite {
     pub source: Point,
     /// The operation entered after the transfer.
     pub target: Point,
-}
-
-/// One coroutine suspension operation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct SuspensionSite {
-    /// The operation suspending the coroutine.
-    pub point: Point,
-    /// The operation entered by normal resumption.
-    pub resume: Point,
-    /// The operation entered during cancellation when present.
-    pub cancel: Option<Point>,
-    /// The operation entered during explicit completion when present.
-    pub complete: Option<Point>,
-    /// The operation entered during panic unwinding when present.
-    pub unwind: Option<Point>,
-    /// The suspension operation.
-    pub operation: Suspension,
-    /// The value passed to the coroutine owner.
-    pub value_type: mir::TypeId,
-    /// The value received when execution resumes.
-    pub resume_type: mir::TypeId,
-    /// The value received during explicit completion when present.
-    pub complete_type: Option<mir::TypeId>,
 }
 
 /// One explicit profile counter operation.
@@ -116,15 +80,6 @@ pub struct SampleSite {
     pub sampler: mir::SamplerId,
     /// The sampled value type.
     pub value_type: mir::TypeId,
-}
-
-/// Coroutine suspension operation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum Suspension {
-    /// Wait for one asynchronous value.
-    Await,
-    /// Yield one value to a generator owner.
-    Yield,
 }
 
 /// Call return mode.

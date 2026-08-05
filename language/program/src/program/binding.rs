@@ -39,7 +39,8 @@ impl BindingTable {
                 name: binding.name,
                 function: binding.function,
                 is_imported: u8::from(binding.is_imported),
-                reserved: [0; 3],
+                is_park: u8::from(binding.is_park),
+                reserved: [0; 2],
                 effect: binding.effect,
                 provider: binding.provider,
                 replay: binding.replay,
@@ -159,6 +160,8 @@ pub struct BindingBuilder {
     function: FunctionId,
     /// Whether the binding implementation remains imported.
     is_imported: bool,
+    /// Whether calls through this binding may park the calling fiber.
+    is_park: bool,
     /// Observable effect class.
     effect: BindingEffect,
     /// Binding implementation owner.
@@ -193,6 +196,7 @@ impl BindingBuilder {
             name,
             function,
             is_imported: false,
+            is_park: false,
             effect,
             provider,
             replay,
@@ -207,6 +211,13 @@ impl BindingBuilder {
     /// Mark this binding implementation as imported.
     pub fn imported(mut self) -> Self {
         self.is_imported = true;
+
+        self
+    }
+
+    /// Mark calls through this binding as fiber park points.
+    pub fn park(mut self) -> Self {
+        self.is_park = true;
 
         self
     }
@@ -252,8 +263,10 @@ pub struct Binding {
     pub function: FunctionId,
     /// Whether the binding implementation remains imported.
     is_imported: u8,
+    /// Whether calls through this binding may park the calling fiber.
+    is_park: u8,
     /// Reserved binding bytes.
-    reserved: [u8; 3],
+    reserved: [u8; 2],
     /// Observable effect class.
     pub effect: BindingEffect,
     /// Binding implementation owner.
@@ -276,6 +289,11 @@ impl Binding {
     /// Return whether the binding implementation remains imported.
     pub const fn is_imported(self) -> bool {
         self.is_imported != 0
+    }
+
+    /// Return whether calls through this binding may park the calling fiber.
+    pub const fn is_park(self) -> bool {
+        self.is_park != 0
     }
 }
 

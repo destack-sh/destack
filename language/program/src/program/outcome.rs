@@ -1,9 +1,9 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::{Continuation, FunctionId, ProgramPoint, WatchpointId};
+use super::{ProgramPoint, WatchpointId};
 
-/// Result of running program code.
+/// Result of running program code on one fiber.
 #[derive(Debug)]
 pub enum Outcome<T> {
     /// Execution completed with a result.
@@ -13,22 +13,8 @@ pub enum Outcome<T> {
     },
     /// Execution completed through cancellation cleanup.
     Cancelled,
-    /// Execution awaited one asynchronous value.
-    Awaited {
-        /// The concrete park implementation selected by the awaitable type.
-        park: FunctionId,
-        /// The asynchronous value passed to the park implementation.
-        awaitable: T,
-        /// The continuation resumed when the asynchronous value settles.
-        continuation: Continuation,
-    },
-    /// Execution yielded one generator value.
-    Yielded {
-        /// The value yielded to the generator owner.
-        value: T,
-        /// The continuation resumed by the next generator command.
-        continuation: Continuation,
-    },
+    /// Execution parked the fiber; its frames stay in place until woken.
+    Parked,
     /// Execution stopped for host inspection.
     Stopped {
         /// The reason execution stopped.

@@ -14,8 +14,6 @@ pub struct Function {
     pub symbol: mir::Symbol,
     /// The function linkage.
     pub linkage: mir::Linkage,
-    /// The coroutine behavior when this function may suspend.
-    pub coroutine: Option<mir::CoroutineKind>,
     /// The function lifetime parameters in declaration order.
     pub lifetimes: Vec<mir::LifetimeParameter>,
     /// The function parameter types in declaration order.

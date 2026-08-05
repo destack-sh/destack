@@ -5,8 +5,8 @@ use destack_source::ModuleId;
 use destack_webassembly as wasm;
 
 use super::{
-    AllocationSite, CallSite, ContinuationSite, CounterSite, EdgeSite, FrameState, Function,
-    Global, MemorySite, Object, SampleSite, SuspensionSite, Type,
+    AllocationSite, CallSite, CounterSite, EdgeSite, FrameState, Function, Global, MemorySite,
+    Object, SampleSite, Type,
 };
 
 /// One emitted object under construction.
@@ -39,12 +39,8 @@ pub struct ObjectBuilder {
     memory: Vec<MemorySite>,
     /// Function call sites.
     calls: Vec<CallSite>,
-    /// Continuation control sites.
-    continuations: Vec<ContinuationSite>,
     /// Control flow edges.
     edges: Vec<EdgeSite>,
-    /// Coroutine suspension sites.
-    suspensions: Vec<SuspensionSite>,
     /// Explicit profile counter sites.
     counters: Vec<CounterSite>,
     /// Explicit profile sample sites.
@@ -74,9 +70,7 @@ impl ObjectBuilder {
             allocations: Vec::new(),
             memory: Vec::new(),
             calls: Vec::new(),
-            continuations: Vec::new(),
             edges: Vec::new(),
-            suspensions: Vec::new(),
             counters: Vec::new(),
             samples: Vec::new(),
             bytecode: None,
@@ -164,23 +158,9 @@ impl ObjectBuilder {
         self
     }
 
-    /// Set continuation control sites.
-    pub fn continuations(mut self, sites: impl IntoIterator<Item = ContinuationSite>) -> Self {
-        self.continuations = sites.into_iter().collect();
-
-        self
-    }
-
     /// Set control flow edge sites.
     pub fn edges(mut self, sites: impl IntoIterator<Item = EdgeSite>) -> Self {
         self.edges = sites.into_iter().collect();
-
-        self
-    }
-
-    /// Set coroutine suspension sites.
-    pub fn suspensions(mut self, sites: impl IntoIterator<Item = SuspensionSite>) -> Self {
-        self.suspensions = sites.into_iter().collect();
 
         self
     }
@@ -235,9 +215,7 @@ impl ObjectBuilder {
             allocations: self.allocations,
             memory: self.memory,
             calls: self.calls,
-            continuations: self.continuations,
             edges: self.edges,
-            suspensions: self.suspensions,
             counters: self.counters,
             samples: self.samples,
             bytecode: self.bytecode,

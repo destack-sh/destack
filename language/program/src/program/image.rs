@@ -32,6 +32,10 @@ pub enum Completion {
 }
 
 impl ActivationImage {
+    /// Bias added to canonical frame addresses so live offsets never collide
+    /// with the nullish words.
+    pub const FRAME_ADDRESS_BIAS: u64 = 2;
+
     /// Create one retained activation image.
     pub fn new(
         completion: Completion,
@@ -139,10 +143,6 @@ pub enum FrameReturn {
     Root,
     /// Return from one ordinary call.
     Call,
-    /// Return from one continuation transfer.
-    Continuation,
-    /// Return from one eager task execution.
-    Task,
     /// Return from one destructor invocation.
     Drop {
         /// Retained continuation frames released after this destructor returns.

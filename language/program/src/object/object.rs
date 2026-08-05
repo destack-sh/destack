@@ -7,8 +7,8 @@ use destack_webassembly as wasm;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    AllocationSite, CallSite, ContinuationSite, CounterSite, EdgeSite, FrameState, Function,
-    Global, MemorySite, SampleSite, SuspensionSite, Type,
+    AllocationSite, CallSite, CounterSite, EdgeSite, FrameState, Function, Global, MemorySite,
+    SampleSite, Type,
 };
 
 /// One relocatable module linked into a Program.
@@ -41,12 +41,8 @@ pub struct Object {
     pub(super) memory: Vec<MemorySite>,
     /// Function call sites.
     pub(super) calls: Vec<CallSite>,
-    /// Continuation control sites.
-    pub(super) continuations: Vec<ContinuationSite>,
     /// Control flow edges.
     pub(super) edges: Vec<EdgeSite>,
-    /// Coroutine suspension sites.
-    pub(super) suspensions: Vec<SuspensionSite>,
     /// Explicit profile counter sites.
     pub(super) counters: Vec<CounterSite>,
     /// Explicit profile sample sites.
@@ -163,19 +159,9 @@ impl Object {
         &self.calls
     }
 
-    /// Return continuation control sites.
-    pub fn continuations(&self) -> &[ContinuationSite] {
-        &self.continuations
-    }
-
     /// Return control flow edges.
     pub fn edges(&self) -> &[EdgeSite] {
         &self.edges
-    }
-
-    /// Return coroutine suspension sites.
-    pub fn suspensions(&self) -> &[SuspensionSite] {
-        &self.suspensions
     }
 
     /// Return explicit profile counter sites.
