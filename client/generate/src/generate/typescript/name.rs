@@ -92,19 +92,6 @@ pub(super) fn identifier(name: &str) -> String {
     }
 }
 
-/// Return one safe TypeScript namespace identifier.
-pub(super) fn namespace(name: &str) -> String {
-    if name.chars().all(|character| character.is_ascii_digit()) {
-        format!("field{name}")
-    } else if !is_identifier(name) {
-        format!("field{}", upper_camel(name))
-    } else if KEYWORDS.contains(&name) {
-        format!("{name}_")
-    } else {
-        name.to_string()
-    }
-}
-
 /// Return one safe TypeScript object member name.
 pub(super) fn member(name: &str) -> String {
     if KEYWORDS.contains(&name) {

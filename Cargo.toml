@@ -60,8 +60,6 @@ members = [
 	# client
 	"client/generate",
 	"client/napi",
-	"client/python/rust",
-	"client/rust",
 	"client/wasm",
 	"bridge/zed",
 ]
@@ -118,8 +116,6 @@ destack_cli = { path = "app/cli" }
 destack_client_generate = { path = "client/generate" }
 destack_napi = { path = "client/napi" }
 destack_wasm = { path = "client/wasm" }
-destack = { path = "client/rust", default-features = false }
-destack_python = { path = "client/python/rust" }
 destack_zed = { path = "bridge/zed" }
 
 # codegen

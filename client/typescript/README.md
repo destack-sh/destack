@@ -21,6 +21,17 @@ const workspace = await openWorkspace({
 console.log(await workspace.revision());
 ```
 
+Open a daemon workspace explicitly through its WebSocket endpoint.
+
+```ts
+import { openRemoteWorkspace } from "@destack/language";
+
+const workspace = await openRemoteWorkspace({
+    url: "ws://127.0.0.1:9000",
+    workspace: "/workspace",
+});
+```
+
 ## Explicit Backends
 
 ```ts

@@ -1,8 +1,8 @@
 import { EmbeddedTransport, Connection } from "./protocol/connection/index.js";
 import {
   RemoteWorkspace,
-  openRemoteWorkspace,
-  type RemoteWorkspaceOptions,
+  type Workspace,
+  type WorkspaceLocation,
 } from "./protocol/workspace.js";
 import {
   isMemoryWorkspaceOptions,
@@ -12,7 +12,7 @@ import {
 } from "./workspace/memory.js";
 
 /** Options for opening a local NAPI workspace. */
-export type PathWorkspaceOptions = Omit<RemoteWorkspaceOptions, "connection" | "url">;
+export type PathWorkspaceOptions = WorkspaceLocation;
 
 /** Options for opening a local NAPI workspace. */
 export type NapiWorkspaceOptions = PathWorkspaceOptions | MemoryWorkspaceOptions;
@@ -46,7 +46,7 @@ type LocalWorkspaceServer = {
 /** Open a workspace backed by the native Node backend. */
 export async function openNapiWorkspace(
   options: NapiWorkspaceOptions,
-): Promise<RemoteWorkspace> {
+): Promise<Workspace> {
   const napi =
     (await import("@destack/language-napi")) as unknown as NapiModule;
 
@@ -57,7 +57,7 @@ export async function openNapiWorkspace(
   const connection = new Connection(transport);
   const workspace = isMemoryWorkspaceOptions(options) ? memoryRoot(options) : options.workspace;
 
-  return openRemoteWorkspace({ ...options, workspace, connection });
+  return RemoteWorkspace.open({ ...options, workspace, connection });
 }
 
 /** Embedded server adapter for NAPI native objects. */

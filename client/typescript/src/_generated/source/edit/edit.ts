@@ -71,6 +71,67 @@ export function fromJsonPatch(value: Json): Patch {
     };
 }
 
+/** Patches across multiple files. */
+export type PatchSet = {
+    /** Per-file patches. */
+    readonly files: ReadonlyArray<FilePatch>;
+};
+
+export const PatchSet = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: PatchSet): void {
+        encodePatchSet(writer, value);
+    },
+
+    /** Decode one PatchSet. */
+    decode(reader: BinaryReader): PatchSet {
+        return decodePatchSet(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: PatchSet): Json {
+        return toJsonPatchSet(value);
+    },
+
+    /** Return one PatchSet from one JSON value. */
+    fromJson(value: Json): PatchSet {
+        return fromJsonPatchSet(value);
+    },
+};
+
+/** Encode one PatchSet. */
+export function encodePatchSet(writer: BinaryWriter, value: PatchSet): void {
+    writer.writeUnsigned(value.files.length);
+    for (const item0 of value.files) {
+        encodeFilePatch(writer, item0);
+    }
+}
+
+/** Decode one PatchSet. */
+export function decodePatchSet(reader: BinaryReader): PatchSet {
+    const files = (() => { const length0 = reader.readNumber(); const items0: Array<FilePatch> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeFilePatch(reader)); } return items0; })();
+
+    return {
+        files,
+    };
+}
+
+/** Return one JSON value for one PatchSet. */
+export function toJsonPatchSet(value: PatchSet): Json {
+    return {
+        files: value.files.map((item0) => toJsonFilePatch(item0)),
+    };
+}
+
+/** Return one PatchSet from one JSON value. */
+export function fromJsonPatchSet(value: Json): PatchSet {
+    const object = jsonObject(value);
+
+    return {
+        files: jsonArray(jsonField(object, "files")).map((item0) => fromJsonFilePatch(item0)),
+    };
+}
+
 /** Patches for a single file. */
 export type FilePatch = {
     /** The file to patch. */
@@ -136,66 +197,5 @@ export function fromJsonFilePatch(value: Json): FilePatch {
     return {
         file: fromJsonFileId(jsonField(object, "file")),
         patches: jsonArray(jsonField(object, "patches")).map((item0) => fromJsonPatch(item0)),
-    };
-}
-
-/** Patches across multiple files. */
-export type PatchSet = {
-    /** Per-file patches. */
-    readonly files: ReadonlyArray<FilePatch>;
-};
-
-export const PatchSet = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: PatchSet): void {
-        encodePatchSet(writer, value);
-    },
-
-    /** Decode one PatchSet. */
-    decode(reader: BinaryReader): PatchSet {
-        return decodePatchSet(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: PatchSet): Json {
-        return toJsonPatchSet(value);
-    },
-
-    /** Return one PatchSet from one JSON value. */
-    fromJson(value: Json): PatchSet {
-        return fromJsonPatchSet(value);
-    },
-};
-
-/** Encode one PatchSet. */
-export function encodePatchSet(writer: BinaryWriter, value: PatchSet): void {
-    writer.writeUnsigned(value.files.length);
-    for (const item0 of value.files) {
-        encodeFilePatch(writer, item0);
-    }
-}
-
-/** Decode one PatchSet. */
-export function decodePatchSet(reader: BinaryReader): PatchSet {
-    const files = (() => { const length0 = reader.readNumber(); const items0: Array<FilePatch> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeFilePatch(reader)); } return items0; })();
-
-    return {
-        files,
-    };
-}
-
-/** Return one JSON value for one PatchSet. */
-export function toJsonPatchSet(value: PatchSet): Json {
-    return {
-        files: value.files.map((item0) => toJsonFilePatch(item0)),
-    };
-}
-
-/** Return one PatchSet from one JSON value. */
-export function fromJsonPatchSet(value: Json): PatchSet {
-    const object = jsonObject(value);
-
-    return {
-        files: jsonArray(jsonField(object, "files")).map((item0) => fromJsonFilePatch(item0)),
     };
 }

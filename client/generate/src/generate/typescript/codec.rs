@@ -620,6 +620,7 @@ fn render_encode_type(
     depth: usize,
 ) {
     match ty {
+        Type::Unit => {}
         Type::String => text.line(format!("{indent}writer.writeString({value});")),
         Type::Bool => text.line(format!("{indent}writer.writeBool({value});")),
         Type::Char => text.line(format!("{indent}writer.writeChar({value});")),
@@ -820,6 +821,7 @@ fn render_decode_type(
     depth: usize,
 ) -> String {
     match ty {
+        Type::Unit => "null".to_string(),
         Type::String => format!("{reader}.readString()"),
         Type::Bool => format!("{reader}.readBool()"),
         Type::Char => format!("{reader}.readChar()"),
@@ -949,6 +951,7 @@ fn render_to_json_type(
     depth: usize,
 ) -> String {
     match ty {
+        Type::Unit => "null".to_string(),
         Type::String
         | Type::Bool
         | Type::U8
@@ -992,6 +995,7 @@ fn render_from_json_type(
     depth: usize,
 ) -> String {
     match ty {
+        Type::Unit => format!("jsonNull({value})"),
         Type::String | Type::Char => format!("jsonString({value})"),
         Type::Bool => format!("jsonBool({value})"),
         Type::U8 | Type::U32 | Type::Usize | Type::Signed(8 | 16 | 32) => {

@@ -55,7 +55,6 @@ Use `just publish --dry-run` for a broad packaging and registry preflight withou
 
 The publishing commands load credentials from `.env.local` via `just` when run locally, and GitHub Actions uses the `release` environment for the CI path.
 The required release credentials are:
-- `CARGO_TOKEN`
 - `RELEASE_GPG_PRIVATE_KEY`
 - `RELEASE_GPG_PASSPHRASE`
 - `RELEASE_GPG_KEY_ID`
@@ -64,5 +63,5 @@ The required release credentials are:
 - `ZED_GITHUB_TOKEN`
 - `ZED_REGISTRY_PUSH_TO`
 
-For local live publishing outside CI, token-based variables such as `NPM_TOKEN`, `CARGO_TOKEN`, `PYPI_TOKEN`, and `VSCE_PAT` also work.
+For local live publishing outside CI, token-based variables such as `NPM_TOKEN` and `VSCE_PAT` also work.
 (The CI release path uses trusted publishing or OIDC where the registry supports it.)

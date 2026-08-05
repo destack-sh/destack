@@ -2,7 +2,6 @@
 
 import { BinaryReader, BinaryWriter, Json, jsonArray, jsonBool, jsonField, jsonObject, jsonOptional, jsonString } from "../../../../protocol/serde.js";
 import type { ArtifactReference } from "../../../artifact/reference.js";
-import type { TraceSnapshot } from "../../../repository/provider/trace.js";
 import type { TraceView } from "../../../repository/provider/trace.js";
 import type { CommandEnvVar } from "./common.js";
 import type { CommandInput } from "./common.js";
@@ -10,7 +9,6 @@ import type { CommandRevision } from "./common.js";
 import type { CommandTargetOverrides } from "./common.js";
 import type { ManifestOverride } from "./common.js";
 import { decodeArtifactReference, encodeArtifactReference, fromJsonArtifactReference, toJsonArtifactReference } from "../../../artifact/reference.js";
-import { decodeTraceSnapshot, encodeTraceSnapshot, fromJsonTraceSnapshot, toJsonTraceSnapshot } from "../../../repository/provider/trace.js";
 import { decodeTraceView, encodeTraceView, fromJsonTraceView, toJsonTraceView } from "../../../repository/provider/trace.js";
 import { decodeCommandEnvVar, encodeCommandEnvVar, fromJsonCommandEnvVar, toJsonCommandEnvVar } from "./common.js";
 import { decodeCommandInput, encodeCommandInput, fromJsonCommandInput, toJsonCommandInput } from "./common.js";
@@ -44,8 +42,8 @@ export type BuildInput = {
     readonly watch: boolean;
     /** Whether the command should skip writes. */
     readonly dryRun: boolean;
-    /** Trace detail returned in the response. */
-    readonly trace: TraceView;
+    /** Trace detail returned for this command. */
+    readonly trace?: TraceView;
     /** Product name selected for this build. */
     readonly product?: string;
     /** Build outputs requested by the caller. */
@@ -107,7 +105,9 @@ export function encodeBuildInput(writer: BinaryWriter, value: BuildInput): void 
     }
     writer.writeBool(value.watch);
     writer.writeBool(value.dryRun);
-    encodeTraceView(writer, value.trace);
+    writer.writeOption(value.trace, (value12) => {
+        encodeTraceView(writer, value12);
+    });
     writer.writeOption(value.product, (value13) => {
         writer.writeString(value13);
     });
@@ -128,7 +128,7 @@ export function decodeBuildInput(reader: BinaryReader): BuildInput {
     const overrides = (() => { const length9 = reader.readNumber(); const items9: Array<ManifestOverride> = []; for (let index = 0; index < length9; index += 1) { items9.push(decodeManifestOverride(reader)); } return items9; })();
     const watch = reader.readBool();
     const dryRun = reader.readBool();
-    const trace = decodeTraceView(reader);
+    const trace = reader.readOption(() => decodeTraceView(reader));
     const product = reader.readOption(() => reader.readString());
     const outputs = decodeBuildOutputs(reader);
 
@@ -145,7 +145,7 @@ export function decodeBuildInput(reader: BinaryReader): BuildInput {
         overrides,
         watch,
         dryRun,
-        trace,
+        ...(trace === undefined ? {} : { trace }),
         ...(product === undefined ? {} : { product }),
         outputs,
     };
@@ -166,7 +166,7 @@ export function toJsonBuildInput(value: BuildInput): Json {
         overrides: value.overrides.map((item0) => toJsonManifestOverride(item0)),
         watch: value.watch,
         dryRun: value.dryRun,
-        trace: toJsonTraceView(value.trace),
+        ...(value.trace === undefined ? {} : { trace: toJsonTraceView(value.trace) }),
         ...(value.product === undefined ? {} : { product: value.product }),
         outputs: toJsonBuildOutputs(value.outputs),
     };
@@ -189,7 +189,7 @@ export function fromJsonBuildInput(value: Json): BuildInput {
         overrides: jsonArray(jsonField(object, "overrides")).map((item0) => fromJsonManifestOverride(item0)),
         watch: jsonBool(jsonField(object, "watch")),
         dryRun: jsonBool(jsonField(object, "dryRun")),
-        trace: fromJsonTraceView(jsonField(object, "trace")),
+        trace: jsonOptional(object, "trace", (value) => fromJsonTraceView(value)),
         product: jsonOptional(object, "product", (value) => jsonString(value)),
         outputs: fromJsonBuildOutputs(jsonField(object, "outputs")),
     };
@@ -284,8 +284,6 @@ export type BuildPayload = {
     readonly programs: ReadonlyArray<ArtifactReference>;
     /** Per-module asset artifacts produced by this build. */
     readonly assets: ReadonlyArray<ArtifactReference>;
-    /** Trace payload for this build. */
-    readonly trace: TraceSnapshot;
 };
 
 export const BuildPayload = {
@@ -328,7 +326,6 @@ export function encodeBuildPayload(writer: BinaryWriter, value: BuildPayload): v
     for (const item3 of value.assets) {
         encodeArtifactReference(writer, item3);
     }
-    encodeTraceSnapshot(writer, value.trace);
 }
 
 /** Decode one BuildPayload. */
@@ -337,14 +334,12 @@ export function decodeBuildPayload(reader: BinaryReader): BuildPayload {
     const bundles = (() => { const length1 = reader.readNumber(); const items1: Array<ArtifactReference> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeArtifactReference(reader)); } return items1; })();
     const programs = (() => { const length2 = reader.readNumber(); const items2: Array<ArtifactReference> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeArtifactReference(reader)); } return items2; })();
     const assets = (() => { const length3 = reader.readNumber(); const items3: Array<ArtifactReference> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeArtifactReference(reader)); } return items3; })();
-    const trace = decodeTraceSnapshot(reader);
 
     return {
         products,
         bundles,
         programs,
         assets,
-        trace,
     };
 }
 
@@ -355,7 +350,6 @@ export function toJsonBuildPayload(value: BuildPayload): Json {
         bundles: value.bundles.map((item0) => toJsonArtifactReference(item0)),
         programs: value.programs.map((item0) => toJsonArtifactReference(item0)),
         assets: value.assets.map((item0) => toJsonArtifactReference(item0)),
-        trace: toJsonTraceSnapshot(value.trace),
     };
 }
 
@@ -368,6 +362,5 @@ export function fromJsonBuildPayload(value: Json): BuildPayload {
         bundles: jsonArray(jsonField(object, "bundles")).map((item0) => fromJsonArtifactReference(item0)),
         programs: jsonArray(jsonField(object, "programs")).map((item0) => fromJsonArtifactReference(item0)),
         assets: jsonArray(jsonField(object, "assets")).map((item0) => fromJsonArtifactReference(item0)),
-        trace: fromJsonTraceSnapshot(jsonField(object, "trace")),
     };
 }

@@ -405,6 +405,15 @@ export function jsonOptional<T>(
     return undefined;
 }
 
+/** Return one JSON null value. */
+export function jsonNull(value: Json): null {
+    if (value === null) {
+        return null;
+    }
+
+    throw new SerdeError("expected JSON null");
+}
+
 /** Return one JSON string value. */
 export function jsonString(value: Json): string {
     if (typeof value === "string") {

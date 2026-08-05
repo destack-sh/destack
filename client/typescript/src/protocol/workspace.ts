@@ -1,7 +1,5 @@
-import type { DiagnosticBatch } from "../_generated/protocol/notification.js";
+import type { FileDiagnosticsPayload } from "../_generated/protocol/diagnostic.js";
 import type { ProtocolError } from "../_generated/protocol/error.js";
-import { ArtifactPayload } from "../_generated/artifact/payload.js";
-import type { ArtifactReference } from "../_generated/artifact/reference.js";
 import type {
     FileOperation,
     FileImage,
@@ -9,21 +7,12 @@ import type {
 import {
     Content,
     type ContentId,
+    type FileId,
 } from "../_generated/source/file/model/file.js";
 import type { FileType } from "../_generated/source/file/model/type.js";
 import type { SourceUpdate } from "../_generated/protocol/workspace/file/update.js";
 import type { RootId, SourceUpdateResponse } from "../_generated/protocol/root.js";
-import type { ArtifactBlob } from "../_generated/protocol/response.js";
 import type { Revision } from "../_generated/repository/revision.js";
-import type {
-    DiagnosticSnapshot,
-    FileImagesRequest,
-    FileSnapshot,
-    FileSnapshotRequest,
-    RootSnapshot,
-    WorkspaceQuery,
-    WorkspaceQueryResponse,
-} from "../_generated/protocol/query.js";
 import { WorkspaceRequest } from "../_generated/protocol/request.js";
 import type { WorkspaceResponse } from "../_generated/protocol/response.js";
 import type { UpdateBatch } from "../_generated/protocol/workspace/message.js";
@@ -38,7 +27,7 @@ import type {
 import type { BenchInput } from "../_generated/protocol/workspace/command/bench.js";
 import type { BuildInput, BuildOutputs } from "../_generated/protocol/workspace/command/build.js";
 import type { CacheInput } from "../_generated/protocol/workspace/command/cache.js";
-import type { CheckInput, LintInput } from "../_generated/protocol/workspace/command/check.js";
+import type { CheckInput } from "../_generated/protocol/workspace/command/check.js";
 import type { CleanInput } from "../_generated/protocol/workspace/command/clean.js";
 import type { DocInput } from "../_generated/protocol/workspace/command/doc.js";
 import type { DoctorInput } from "../_generated/protocol/workspace/command/doctor.js";
@@ -57,7 +46,6 @@ import type {
     DoctorOutput,
     FormatOutput,
     InfoOutput,
-    LintOutput,
     RunOutput,
     SettingsOutput,
     TargetsOutput,
@@ -81,33 +69,37 @@ import type {
     ExportResult,
 } from "../_generated/protocol/workspace/artifact/export.js";
 import { Connection, connectEndpoint } from "./connection/index.js";
-import { BinaryReader } from "./serde.js";
 
 const DEFAULT_WATCH_COALESCE_WINDOW_MS = 50n;
 const DEFAULT_WATCH_BATCH_SIZE = 1024;
 
 /** Options for opening a remote workspace root. */
-export type RemoteWorkspaceOptions = {
-    /** Connected workspace protocol client. */
-    readonly connection?: Connection;
+export type RemoteWorkspaceOptions = WorkspaceLocation & {
     /** WebSocket workspace endpoint URL. */
-    readonly url?: string | URL;
+    readonly url: string | URL;
+};
+
+/** One workspace and optional root path. */
+export type WorkspaceLocation = {
     /** Workspace root used by the server to identify the workspace. */
     readonly workspace: string;
     /** Root path to open inside the workspace. */
     readonly root?: string;
-    /** Whether opening should preload root diagnostics. */
-    readonly loadIndex?: boolean;
 };
 
-/** One artifact payload kind. */
-type ArtifactPayloadKind = ArtifactPayload["kind"];
+/** Internal options for an embedded workspace connection. */
+type ConnectedWorkspaceOptions = WorkspaceLocation & {
+    /** Connected workspace protocol client. */
+    readonly connection: Connection;
+};
 
-/** One artifact payload narrowed by kind. */
-type ArtifactPayloadOf<K extends ArtifactPayloadKind> = Extract<
-    ArtifactPayload,
-    { readonly kind: K }
->;
+/** Source file images selected from one exact revision. */
+export type FileImagesRequest = {
+    /** Exact semantic revision. */
+    readonly revision: Revision;
+    /** Source file identifiers. */
+    readonly fileIds: ReadonlyArray<FileId>;
+};
 
 /** Shared command input fields accepted by remote workspace commands. */
 type CommandInputFields = {
@@ -142,9 +134,6 @@ export type CommandInputInit = Partial<CommandInputFields>;
 
 /** Sparse check input accepted by `RemoteWorkspace.check`. */
 export type CheckInputInit = CommandInputInit & Partial<Omit<CheckInput, keyof CommandInputFields>>;
-
-/** Sparse lint input accepted by `RemoteWorkspace.lint`. */
-export type LintInputInit = CommandInputInit & Partial<Omit<LintInput, keyof CommandInputFields>>;
 
 /** Sparse format input accepted by `RemoteWorkspace.format`. */
 export type FormatInputInit = CommandInputInit &
@@ -216,24 +205,14 @@ export type WatchOptionsInit = Partial<WatchStartOptions>;
 
 /** Workspace command and query interface. */
 export interface Workspace {
-    /** Return the protocol connection backing this workspace. */
-    connection(): Connection;
     /** Return the workspace path registered with the server. */
     workspace(): string;
     /** Return the opened root path. */
     root(): string;
-    /** Return the opened protocol root handle. */
-    handle(): RootId;
     /** Return the current root revision. */
     revision(): Promise<Revision>;
-    /** Return plain diagnostic batches for this root. */
-    diagnostics(): Promise<readonly DiagnosticBatch[]>;
-    /** Return diagnostic snapshots with source file images for this root. */
-    diagnosticSnapshots(): Promise<readonly DiagnosticSnapshot[]>;
-    /** Return query context for this root. */
-    snapshot(target?: string): Promise<RootSnapshot>;
-    /** Return one source file snapshot. */
-    fileSnapshot(request: FileSnapshotRequest): Promise<FileSnapshot | undefined>;
+    /** Return diagnostics and source images for this root. */
+    diagnostics(): Promise<readonly FileDiagnosticsPayload[]>;
     /** Return source file images for one revision. */
     fileImages(request: FileImagesRequest): Promise<readonly FileImage[]>;
     /** Apply one file operation through the workspace protocol. */
@@ -244,8 +223,6 @@ export interface Workspace {
     reload(reason?: ReloadReason): Promise<UpdateBatch>;
     /** Check source state. */
     check(request?: CheckInputInit): Promise<CheckOutput>;
-    /** Lint source state. */
-    lint(request?: LintInputInit): Promise<LintOutput>;
     /** Format source files or content. */
     format(request?: FormatInputInit): Promise<FormatOutput>;
     /** Build target artifacts. */
@@ -272,21 +249,12 @@ export interface Workspace {
     task(request?: TaskInputInit): Promise<TaskOutput>;
     /** Clean generated state. */
     clean(request?: CleanInputInit): Promise<CleanOutput>;
-    /** Return one artifact payload. */
-    artifact(artifact: ArtifactReference): Promise<ArtifactPayload>;
-    /** Return one artifact payload and require its kind. */
-    artifact<K extends ArtifactPayloadKind>(
-        artifact: ArtifactReference,
-        kind: K,
-    ): Promise<ArtifactPayloadOf<K>>;
     /** Store one content payload. */
     store(content: Content | string | Uint8Array | readonly number[]): Promise<ContentId>;
     /** Load one content payload. */
     load(content: ContentId): Promise<Content>;
     /** Materialize derived outputs on the workspace host. */
     export(request: ExportRequest): Promise<ExportResult>;
-    /** Run one workspace query against this root. */
-    query(query: WorkspaceQuery): Promise<WorkspaceQueryResponse>;
     /** Watch roots through this workspace handle. */
     watch(roots?: readonly string[], options?: WatchOptionsInit): Promise<WatchStartedResponse>;
     /** Receive and apply the next watch batch. */
@@ -300,6 +268,7 @@ export interface Workspace {
 /** Workspace backed by the workspace protocol. */
 export class RemoteWorkspace implements Workspace {
     readonly #client: WorkspaceClient;
+    readonly #connection: Connection;
     readonly #workspace: string;
     readonly #root: string;
 
@@ -310,30 +279,25 @@ export class RemoteWorkspace implements Workspace {
         handle: RootId,
     ) {
         this.#client = new WorkspaceClient(connection, handle);
+        this.#connection = connection;
         this.#workspace = workspace;
         this.#root = root;
     }
 
     /** Open one remote workspace root. */
-    static async open(options: RemoteWorkspaceOptions): Promise<RemoteWorkspace> {
+    static async open(
+        options: RemoteWorkspaceOptions | ConnectedWorkspaceOptions,
+    ): Promise<RemoteWorkspace> {
         const connection = await remoteConnection(options);
         await connection.handshake();
 
         const root = options.root ?? options.workspace;
         const response = await connection.request(WorkspaceRequest.openRoot({
             root,
-            options: {
-                loadIndex: options.loadIndex ?? false,
-            },
         }));
         const opened = expectResponse(response, "rootOpened").root_opened;
 
         return new RemoteWorkspace(connection, options.workspace, opened.root, opened.handle);
-    }
-
-    /** Return the protocol connection backing this workspace. */
-    connection(): Connection {
-        return this.#client.connection();
     }
 
     /** Return the workspace path registered with the server. */
@@ -346,39 +310,19 @@ export class RemoteWorkspace implements Workspace {
         return this.#root;
     }
 
-    /** Return the opened protocol root handle. */
-    handle(): RootId {
-        return this.#client.handle();
-    }
-
     /** Return the current root revision. */
     async revision(): Promise<Revision> {
-        return this.#client.currentRevision();
+        return this.#client.readRevision();
     }
 
-    /** Return plain diagnostic batches for this root. */
-    async diagnostics(): Promise<readonly DiagnosticBatch[]> {
-        return this.#client.diagnostics();
-    }
-
-    /** Return diagnostic snapshots with source file images for this root. */
-    async diagnosticSnapshots(): Promise<readonly DiagnosticSnapshot[]> {
-        return this.#client.diagnosticSnapshots();
-    }
-
-    /** Return query context for this root. */
-    async snapshot(target?: string): Promise<RootSnapshot> {
-        return this.#client.rootSnapshot(target);
-    }
-
-    /** Return one source file snapshot. */
-    async fileSnapshot(request: FileSnapshotRequest): Promise<FileSnapshot | undefined> {
-        return this.#client.fileSnapshot(request);
+    /** Return diagnostics and source images for this root. */
+    async diagnostics(): Promise<readonly FileDiagnosticsPayload[]> {
+        return this.#client.diagnose();
     }
 
     /** Return source file images for one revision. */
     async fileImages(request: FileImagesRequest): Promise<readonly FileImage[]> {
-        return this.#client.fileImages(request);
+        return this.#client.readFiles(request.revision, request.fileIds);
     }
 
     /** Apply one file operation through the workspace protocol. */
@@ -403,11 +347,6 @@ export class RemoteWorkspace implements Workspace {
     /** Check source state. */
     async check(request: CheckInputInit = {}): Promise<CheckOutput> {
         return this.#client.check(checkInput(request));
-    }
-
-    /** Lint source state. */
-    async lint(request: LintInputInit = {}): Promise<LintOutput> {
-        return this.#client.lint(lintInput(request));
     }
 
     /** Format source files or content. */
@@ -475,22 +414,6 @@ export class RemoteWorkspace implements Workspace {
         return this.#client.clean(cleanInput(request));
     }
 
-    /** Return one artifact payload. */
-    async artifact(artifact: ArtifactReference): Promise<ArtifactPayload>;
-    /** Return one artifact payload and require its kind. */
-    async artifact<K extends ArtifactPayloadKind>(
-        artifact: ArtifactReference,
-        kind: K,
-    ): Promise<ArtifactPayloadOf<K>>;
-    async artifact(
-        artifact: ArtifactReference,
-        kind?: ArtifactPayloadKind,
-    ): Promise<ArtifactPayload> {
-        const blob = await this.#client.artifact(artifact);
-
-        return decodeArtifactBlob(blob, kind);
-    }
-
     /** Store one content payload. */
     async store(content: Content | string | Uint8Array | readonly number[]): Promise<ContentId> {
         return this.#client.store(contentPayload(content));
@@ -504,11 +427,6 @@ export class RemoteWorkspace implements Workspace {
     /** Materialize derived outputs on the workspace host. */
     async export(request: ExportRequest): Promise<ExportResult> {
         return this.#client.export(request);
-    }
-
-    /** Run one workspace query against this root. */
-    async query(query: WorkspaceQuery): Promise<WorkspaceQueryResponse> {
-        return this.#client.query(query);
     }
 
     /** Watch roots through this workspace handle. */
@@ -531,26 +449,28 @@ export class RemoteWorkspace implements Workspace {
 
     /** Close this root handle on the workspace server. */
     async close(): Promise<void> {
-        await this.#client.closeRoot();
+        try {
+            await this.#client.closeRoot();
+        } finally {
+            this.#connection.close();
+        }
     }
 }
 
 /** Open one remote workspace through a workspace protocol endpoint. */
-export function openRemoteWorkspace(options: RemoteWorkspaceOptions): Promise<RemoteWorkspace> {
+export function openRemoteWorkspace(options: RemoteWorkspaceOptions): Promise<Workspace> {
     return RemoteWorkspace.open(options);
 }
 
 /** Connect to the provided endpoint or reuse an existing connection. */
-async function remoteConnection(options: RemoteWorkspaceOptions): Promise<Connection> {
-    if (options.connection !== undefined) {
+async function remoteConnection(
+    options: RemoteWorkspaceOptions | ConnectedWorkspaceOptions,
+): Promise<Connection> {
+    if ("connection" in options) {
         return options.connection;
     }
 
-    if (options.url !== undefined) {
-        return connectEndpoint(options.url);
-    }
-
-    throw new Error("remote workspace requires either connection or url");
+    return connectEndpoint(options.url);
 }
 
 /** Return exact shared command fields from a sparse command input. */
@@ -580,16 +500,6 @@ function checkInput(input: CheckInputInit): CheckInput {
         unsafeFixes: input.unsafeFixes ?? false,
         diff: input.diff ?? false,
         trace: input.trace ?? "summary",
-    };
-}
-
-/** Return an exact lint input from a sparse lint input. */
-function lintInput(input: LintInputInit): LintInput {
-    return {
-        ...commandInput(input),
-        fix: input.fix ?? false,
-        unsafeFixes: input.unsafeFixes ?? false,
-        diff: input.diff ?? false,
     };
 }
 
@@ -747,22 +657,6 @@ function contentPayload(content: Content | string | Uint8Array | readonly number
     }
 
     return Content.binary(content);
-}
-
-/** Decode one fetched artifact blob. */
-function decodeArtifactBlob(
-    blob: ArtifactBlob,
-    kind?: ArtifactPayloadKind,
-): ArtifactPayload {
-    const reader = new BinaryReader(blob.bytes);
-    const payload = ArtifactPayload.decode(reader);
-    reader.finish();
-
-    if (kind !== undefined && payload.kind !== kind) {
-        throw new Error(`expected ${kind} artifact, got ${payload.kind}`);
-    }
-
-    return payload;
 }
 
 /** Return whether one value is already an exact content payload. */

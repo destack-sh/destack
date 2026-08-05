@@ -29,17 +29,6 @@ impl Text {
         self.source.push('\n');
     }
 
-    /// Write one export declaration.
-    pub(super) fn export(&mut self, path: &str, names: &[&str]) {
-        self.line("export {");
-
-        for name in names {
-            self.line(format!("    {name},"));
-        }
-
-        self.line(format!("}} from {path:?};"));
-    }
-
     /// Write one documentation line.
     pub(super) fn doc(&mut self, doc: &str, indent: &str) {
         if !doc.is_empty() {

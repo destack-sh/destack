@@ -6,11 +6,11 @@ import type { ArtifactKey } from "./key.js";
 import { decodeArtifactFingerprint, encodeArtifactFingerprint, fromJsonArtifactFingerprint, toJsonArtifactFingerprint } from "./fingerprint.js";
 import { decodeArtifactKey, encodeArtifactKey, fromJsonArtifactKey, toJsonArtifactKey } from "./key.js";
 
-/** One exact live artifact version. */
+/** Reusable identity of one artifact result. */
 export type ArtifactVersion = {
-    /** The semantic artifact slot. */
+    /** The artifact key. */
     readonly key: ArtifactKey;
-    /** The exact semantic fingerprint. */
+    /** The observed input fingerprint. */
     readonly fingerprint: ArtifactFingerprint;
 };
 

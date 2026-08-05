@@ -1,5 +1,4 @@
 import type { BinaryPayload, PayloadChunkNotification } from "../../../_generated/protocol/payload.js";
-import type { WorkspaceQueryResponse } from "../../../_generated/protocol/query.js";
 import type { WorkspaceResponse } from "../../../_generated/protocol/response.js";
 import { checkedNumber } from "../integer.js";
 
@@ -36,52 +35,19 @@ export class PayloadReceiver {
 
     /** Resolve deferred payloads referenced by one response. */
     resolve(response: WorkspaceResponse): WorkspaceResponse | undefined {
-        if (response.kind !== "queryResult") {
+        if (response.kind !== "runQuery") {
             return response;
         }
 
-        const query = this.#resolveQueryResponse(response.query_result);
-        if (query === undefined) {
+        const payload = this.#resolvePayload(response.run_query.payload);
+        if (payload === undefined) {
             return undefined;
         }
 
         return {
             ...response,
-            query_result: query,
+            run_query: { payload },
         };
-    }
-
-    #resolveQueryResponse(response: WorkspaceQueryResponse): WorkspaceQueryResponse | undefined {
-        if (response.kind === "query") {
-            const payload = this.#resolvePayload(response.query.payload);
-            if (payload === undefined) {
-                return undefined;
-            }
-
-            return {
-                ...response,
-                query: { payload },
-            };
-        }
-
-        if (response.kind === "queryBatch") {
-            const query_batch = [];
-            for (const item of response.query_batch) {
-                const payload = this.#resolvePayload(item.payload);
-                if (payload === undefined) {
-                    return undefined;
-                }
-
-                query_batch.push({ payload });
-            }
-
-            return {
-                ...response,
-                query_batch,
-            };
-        }
-
-        return response;
     }
 
     #resolvePayload(payload: BinaryPayload): BinaryPayload | undefined {

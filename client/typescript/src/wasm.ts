@@ -1,8 +1,8 @@
 import { EmbeddedTransport, Connection } from "./protocol/connection/index.js";
 import {
   RemoteWorkspace,
-  openRemoteWorkspace,
-  type RemoteWorkspaceOptions,
+  type Workspace,
+  type WorkspaceLocation,
 } from "./protocol/workspace.js";
 import {
   isMemoryWorkspaceOptions,
@@ -13,7 +13,7 @@ import {
 } from "./workspace/memory.js";
 
 /** Options for opening a local WASM workspace. */
-export type PathWorkspaceOptions = Omit<RemoteWorkspaceOptions, "connection" | "url">;
+export type PathWorkspaceOptions = WorkspaceLocation;
 
 /** Options for opening a local WASM workspace. */
 export type WasmWorkspaceOptions = PathWorkspaceOptions | MemoryWorkspaceOptions;
@@ -38,7 +38,7 @@ type LocalWorkspaceServer = {
 /** Open a workspace backed by the WebAssembly backend. */
 export async function openWasmWorkspace(
   options: WasmWorkspaceOptions,
-): Promise<RemoteWorkspace> {
+): Promise<Workspace> {
   const wasm =
     (await import("@destack/language-wasm")) as unknown as WasmModule;
   await wasm.default();
@@ -50,7 +50,7 @@ export async function openWasmWorkspace(
   const connection = new Connection(transport);
   const workspace = isMemoryWorkspaceOptions(options) ? memoryRoot(options) : options.workspace;
 
-  return openRemoteWorkspace({ ...options, workspace, connection });
+  return RemoteWorkspace.open({ ...options, workspace, connection });
 }
 
 /** Embedded server adapter for WASM native objects. */

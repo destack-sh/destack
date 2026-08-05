@@ -5,14 +5,14 @@ import type { ProtocolRange, ProtocolVersion } from "./version.js";
 
 /** Current workspace protocol version. */
 export const protocolVersion: ProtocolVersion = {
-    major: 1,
+    major: 2,
     minor: 0,
     patch: 0,
 };
 
 /** Minimum compatible workspace protocol version. */
 export const minProtocolVersion: ProtocolVersion = {
-    major: 1,
+    major: 2,
     minor: 0,
     patch: 0,
 };

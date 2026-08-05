@@ -195,10 +195,9 @@ async function openRemoteWorkspace(project: Project): Promise<OpenedWorkspace> {
         try {
           await workspace.close();
         } finally {
-          workspace.connection().close();
+          server.close();
+          rmSync(root, { recursive: true, force: true });
         }
-        server.close();
-        rmSync(root, { recursive: true, force: true });
       },
     };
   } catch (error) {

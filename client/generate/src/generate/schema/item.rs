@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use super::ty::Type;
 use crate::generate::core::{lower_camel, to_snake};
@@ -71,7 +71,9 @@ impl Item {
             .attributes
             .iter()
             .any(|attribute| attribute == TUPLE_NEWTYPE_ATTRIBUTE);
-        let shape = Shape::from_schema(item.shape, names)?;
+        let item_name = item.name.name.clone();
+        let shape = Shape::from_schema(item.shape, names)
+            .with_context(|| format!("failed to convert schema item {item_name}"))?;
         let name = item.name.name;
 
         Ok(Self {
@@ -118,19 +120,6 @@ impl Item {
         }
 
         Ok(())
-    }
-
-    /// Return whether this item is an enum.
-    pub(crate) fn is_enum(&self) -> bool {
-        matches!(self.shape, Shape::Enum(_))
-    }
-
-    /// Return whether this item contains a map field.
-    pub(crate) fn has_map(&self) -> bool {
-        match &self.shape {
-            Shape::Struct(fields) => fields.iter().any(Field::has_map),
-            Shape::Enum(variants) => variants.iter().any(Variant::has_map),
-        }
     }
 
     /// Return this item's scalar tuple newtype field type.
@@ -182,10 +171,14 @@ impl Field {
         field: destack_serde::SchemaField,
         names: &BTreeMap<destack_serde::SchemaName, String>,
     ) -> Result<Self> {
+        let name = field.name;
+        let ty = Type::from_schema(field.ty, names)
+            .with_context(|| format!("failed to convert field {name}"))?;
+
         Ok(Self {
-            name: field.name,
+            name,
             docs: field.docs,
-            ty: Type::from_schema(field.ty, names)?,
+            ty,
         })
     }
 
@@ -198,11 +191,6 @@ impl Field {
     pub(crate) fn label(&self) -> String {
         lower_camel(&self.name)
     }
-
-    /// Return whether this field contains a map.
-    fn has_map(&self) -> bool {
-        self.ty.has_map()
-    }
 }
 
 impl Variant {
@@ -211,10 +199,14 @@ impl Variant {
         variant: destack_serde::SchemaVariant,
         names: &BTreeMap<destack_serde::SchemaName, String>,
     ) -> Result<Self> {
+        let name = variant.name;
+        let payload = Payload::from_schema(variant.payload, names)
+            .with_context(|| format!("failed to convert variant {name}"))?;
+
         Ok(Self {
-            name: variant.name,
+            name,
             docs: variant.docs,
-            payload: Payload::from_schema(variant.payload, names)?,
+            payload,
         })
     }
 
@@ -235,11 +227,6 @@ impl Variant {
         } else {
             to_snake(&self.name)
         }
-    }
-
-    /// Return whether this variant contains a map payload.
-    fn has_map(&self) -> bool {
-        self.payload.has_map()
     }
 }
 
@@ -278,14 +265,5 @@ impl Payload {
         }
 
         Ok(())
-    }
-
-    /// Return whether this payload contains a map.
-    fn has_map(&self) -> bool {
-        match self {
-            Self::Unit => false,
-            Self::Tuple(ty) => ty.has_map(),
-            Self::Struct(fields) => fields.iter().any(Field::has_map),
-        }
     }
 }

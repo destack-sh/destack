@@ -1,5 +1,4 @@
-use crate::generate::implementation::{ImplementationOwner, implementation_owners};
-use crate::generate::schema::{Field, Item, Payload, Schema, SchemaModule, Shape, Type, Variant};
+use crate::generate::schema::{Field, Item, Payload, Schema, Shape, Type, Variant};
 
 use super::codec::{
     decode_name, encode_name, from_json_name, payload_property_name, property_key, to_json_name,
@@ -9,22 +8,11 @@ use super::path::TypeNames;
 use super::text::Text;
 
 /// Render one client item as a TypeScript type.
-pub(super) fn render_item(
-    schema: &Schema,
-    module: &SchemaModule,
-    item: &Item,
-    type_names: &TypeNames,
-    text: &mut Text,
-) {
-    let owner = implementation_owners(module)
-        .into_iter()
-        .find(|owner| owner.matches(item));
-
+pub(super) fn render_item(schema: &Schema, item: &Item, type_names: &TypeNames, text: &mut Text) {
     ItemRenderer {
         schema,
         item,
         type_names,
-        owner,
     }
     .render(text);
 }
@@ -37,8 +25,6 @@ struct ItemRenderer<'schema> {
     item: &'schema Item,
     /// Visible TypeScript type names.
     type_names: &'schema TypeNames,
-    /// Handwritten implementation owner.
-    owner: Option<&'static ImplementationOwner>,
 }
 
 impl<'schema> ItemRenderer<'schema> {
@@ -54,7 +40,7 @@ impl<'schema> ItemRenderer<'schema> {
                 render_type(self.schema, self.type_names, ty)
             ));
             text.blank();
-            render_struct_companion(text, item, self.owner);
+            render_struct_companion(text, item);
 
             return;
         }
@@ -67,7 +53,7 @@ impl<'schema> ItemRenderer<'schema> {
                 }
                 text.line("};");
                 text.blank();
-                render_struct_companion(text, item, self.owner);
+                render_struct_companion(text, item);
             }
             Shape::Enum(variants) if self.schema.is_unit_enum(&item.key) => {
                 text.line(format!(
@@ -83,26 +69,15 @@ impl<'schema> ItemRenderer<'schema> {
                 render_payload_enum(self.schema, self.type_names, text, variants);
                 text.line(";");
                 text.blank();
-                render_payload_constructors(
-                    self.schema,
-                    self.type_names,
-                    text,
-                    item,
-                    variants,
-                    self.owner,
-                );
+                render_payload_constructors(self.schema, self.type_names, text, item, variants);
             }
         }
     }
 }
 
 /// Render a TypeScript companion object for one struct.
-fn render_struct_companion(text: &mut Text, item: &Item, owner: Option<&ImplementationOwner>) {
+fn render_struct_companion(text: &mut Text, item: &Item) {
     text.line(format!("export const {} = {{", item.name));
-    if let Some(owner) = owner {
-        text.line(format!("    ...{},", owner.typescript_impl()));
-        text.blank();
-    }
     render_companion_codecs(text, item, "    ");
     text.line("};");
     text.blank();
@@ -180,13 +155,8 @@ fn render_payload_constructors(
     text: &mut Text,
     item: &Item,
     variants: &[Variant],
-    owner: Option<&ImplementationOwner>,
 ) {
     text.line(format!("export const {} = {{", item.name));
-    if let Some(owner) = owner {
-        text.line(format!("    ...{},", owner.typescript_impl()));
-        text.blank();
-    }
 
     for variant in variants {
         let method = member(&variant.label());
@@ -331,6 +301,7 @@ fn render_field_type(schema: &Schema, type_names: &TypeNames, ty: &Type) -> Stri
 /// Render one TypeScript type.
 pub(super) fn render_type(schema: &Schema, type_names: &TypeNames, ty: &Type) -> String {
     match ty {
+        Type::Unit => "null".to_string(),
         Type::String => "string".to_string(),
         Type::Bool => "boolean".to_string(),
         Type::Char => "string".to_string(),

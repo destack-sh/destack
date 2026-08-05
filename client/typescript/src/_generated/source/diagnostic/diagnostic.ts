@@ -16,9 +16,9 @@ import { decodeDiagnosticSuggestion, encodeDiagnosticSuggestion, fromJsonDiagnos
 
 /** A final renderable diagnostic. */
 export type Diagnostic = {
-    /** The stable identifier of the diagnostic (like `E001` or `W017`). */
-    readonly code: string;
-    /** The DiagnosticSeverity of the diagnostic. */
+    /** The canonical diagnostic id. */
+    readonly id: string;
+    /** The diagnostic severity. */
     readonly severity: DiagnosticSeverity;
     /** The message of the diagnostic. */
     readonly message: string;
@@ -32,7 +32,7 @@ export type Diagnostic = {
     readonly helps: ReadonlyArray<DiagnosticHelp>;
     /** The suggestions for the diagnostic. */
     readonly suggestions: ReadonlyArray<DiagnosticSuggestion>;
-    /** Extra semantic tags. */
+    /** Extra diagnostic tags. */
     readonly tags: ReadonlyArray<DiagnosticTag>;
 };
 
@@ -60,7 +60,7 @@ export const Diagnostic = {
 
 /** Encode one Diagnostic. */
 export function encodeDiagnostic(writer: BinaryWriter, value: Diagnostic): void {
-    writer.writeString(value.code);
+    writer.writeString(value.id);
     encodeDiagnosticSeverity(writer, value.severity);
     writer.writeString(value.message);
     encodeDiagnosticLabel(writer, value.primary);
@@ -88,7 +88,7 @@ export function encodeDiagnostic(writer: BinaryWriter, value: Diagnostic): void 
 
 /** Decode one Diagnostic. */
 export function decodeDiagnostic(reader: BinaryReader): Diagnostic {
-    const code = reader.readString();
+    const id = reader.readString();
     const severity = decodeDiagnosticSeverity(reader);
     const message = reader.readString();
     const primary = decodeDiagnosticLabel(reader);
@@ -99,7 +99,7 @@ export function decodeDiagnostic(reader: BinaryReader): Diagnostic {
     const tags = (() => { const length8 = reader.readNumber(); const items8: Array<DiagnosticTag> = []; for (let index = 0; index < length8; index += 1) { items8.push(decodeDiagnosticTag(reader)); } return items8; })();
 
     return {
-        code,
+        id,
         severity,
         message,
         primary,
@@ -114,7 +114,7 @@ export function decodeDiagnostic(reader: BinaryReader): Diagnostic {
 /** Return one JSON value for one Diagnostic. */
 export function toJsonDiagnostic(value: Diagnostic): Json {
     return {
-        code: value.code,
+        id: value.id,
         severity: toJsonDiagnosticSeverity(value.severity),
         message: value.message,
         primary: toJsonDiagnosticLabel(value.primary),
@@ -131,7 +131,7 @@ export function fromJsonDiagnostic(value: Json): Diagnostic {
     const object = jsonObject(value);
 
     return {
-        code: jsonString(jsonField(object, "code")),
+        id: jsonString(jsonField(object, "id")),
         severity: fromJsonDiagnosticSeverity(jsonField(object, "severity")),
         message: jsonString(jsonField(object, "message")),
         primary: fromJsonDiagnosticLabel(jsonField(object, "primary")),
@@ -140,5 +140,70 @@ export function fromJsonDiagnostic(value: Json): Diagnostic {
         helps: jsonArray(jsonField(object, "helps")).map((item0) => fromJsonDiagnosticHelp(item0)),
         suggestions: jsonArray(jsonField(object, "suggestions")).map((item0) => fromJsonDiagnosticSuggestion(item0)),
         tags: jsonArray(jsonField(object, "tags")).map((item0) => fromJsonDiagnosticTag(item0)),
+    };
+}
+
+/** One diagnostic occurrence in exact source content. */
+export type DiagnosticReference = {
+    /** The canonical diagnostic id. */
+    readonly id: string;
+    /** The primary diagnostic label. */
+    readonly primary: DiagnosticLabel;
+};
+
+export const DiagnosticReference = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: DiagnosticReference): void {
+        encodeDiagnosticReference(writer, value);
+    },
+
+    /** Decode one DiagnosticReference. */
+    decode(reader: BinaryReader): DiagnosticReference {
+        return decodeDiagnosticReference(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: DiagnosticReference): Json {
+        return toJsonDiagnosticReference(value);
+    },
+
+    /** Return one DiagnosticReference from one JSON value. */
+    fromJson(value: Json): DiagnosticReference {
+        return fromJsonDiagnosticReference(value);
+    },
+};
+
+/** Encode one DiagnosticReference. */
+export function encodeDiagnosticReference(writer: BinaryWriter, value: DiagnosticReference): void {
+    writer.writeString(value.id);
+    encodeDiagnosticLabel(writer, value.primary);
+}
+
+/** Decode one DiagnosticReference. */
+export function decodeDiagnosticReference(reader: BinaryReader): DiagnosticReference {
+    const id = reader.readString();
+    const primary = decodeDiagnosticLabel(reader);
+
+    return {
+        id,
+        primary,
+    };
+}
+
+/** Return one JSON value for one DiagnosticReference. */
+export function toJsonDiagnosticReference(value: DiagnosticReference): Json {
+    return {
+        id: value.id,
+        primary: toJsonDiagnosticLabel(value.primary),
+    };
+}
+
+/** Return one DiagnosticReference from one JSON value. */
+export function fromJsonDiagnosticReference(value: Json): DiagnosticReference {
+    const object = jsonObject(value);
+
+    return {
+        id: jsonString(jsonField(object, "id")),
+        primary: fromJsonDiagnosticLabel(jsonField(object, "primary")),
     };
 }

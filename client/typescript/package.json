@@ -46,36 +46,6 @@
             "types": "./dist/workspace/workspace.d.ts",
             "import": "./dist/workspace/workspace.js",
             "default": "./dist/workspace/workspace.js"
-        },
-        "./protocol/codec": {
-            "types": "./dist/protocol/codec.d.ts",
-            "import": "./dist/protocol/codec.js",
-            "default": "./dist/protocol/codec.js"
-        },
-        "./protocol/defaults": {
-            "types": "./dist/_generated/protocol/defaults.d.ts",
-            "import": "./dist/_generated/protocol/defaults.js",
-            "default": "./dist/_generated/protocol/defaults.js"
-        },
-        "./protocol/serde": {
-            "types": "./dist/protocol/serde.d.ts",
-            "import": "./dist/protocol/serde.js",
-            "default": "./dist/protocol/serde.js"
-        },
-        "./protocol/connection": {
-            "types": "./dist/protocol/connection/index.d.ts",
-            "import": "./dist/protocol/connection/index.js",
-            "default": "./dist/protocol/connection/index.js"
-        },
-        "./protocol/workspace": {
-            "types": "./dist/protocol/workspace.d.ts",
-            "import": "./dist/protocol/workspace.js",
-            "default": "./dist/protocol/workspace.js"
-        },
-        "./_generated/*": {
-            "types": "./dist/_generated/*.d.ts",
-            "import": "./dist/_generated/*.js",
-            "default": "./dist/_generated/*.js"
         }
     },
     "sideEffects": false,

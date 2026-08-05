@@ -2,7 +2,7 @@
 
 import { BinaryReader, BinaryWriter, Json, jsonBigint, jsonField, jsonObject } from "../../../protocol/serde.js";
 
-/** Deterministic identity of one artifact's complete semantic dependencies. */
+/** Deterministic fingerprint of one artifact's observed inputs. */
 export type ArtifactFingerprint = bigint;
 
 export const ArtifactFingerprint = {

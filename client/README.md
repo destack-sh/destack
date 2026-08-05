@@ -1,17 +1,15 @@
-# Clients
+# Client
 
-Destack language clients for host languages and package ecosystems.
+The TypeScript and JavaScript workspace client for Destack tools and applications.
 
 ## Projects
 
 | Project | Status | Summary |
 |---------|--------|---------|
-| [`typescript`](typescript/README.md) | Alpha | Primary language client package published as `@destack/language` |
-| [`rust`](rust/README.md) | Experimental | Rust language client crate published as `destack` |
-| [`python`](python/README.md) | Experimental | Python language client package published as `destack` |
+| [`typescript`](typescript/README.md) | Alpha | Workspace client published as `@destack/language` |
 
-The `napi` and `wasm` packages are TypeScript client backends.
-They are maintained as implementation packages for `typescript`, not first-class client products.
+The `napi` and `wasm` packages implement local TypeScript workspace transports.
+They are not independent client products.
 
 ## Commands
 

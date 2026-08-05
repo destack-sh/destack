@@ -4,51 +4,6 @@ import { BinaryReader, BinaryWriter, Json, jsonBigint, jsonField, jsonObject } f
 import type { PackageId } from "./package.js";
 import { decodePackageId, encodePackageId, fromJsonPackageId, toJsonPackageId } from "./package.js";
 
-/** Stable key for one product within a package. */
-export type ProductKey = bigint;
-
-export const ProductKey = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: ProductKey): void {
-        encodeProductKey(writer, value);
-    },
-
-    /** Decode one ProductKey. */
-    decode(reader: BinaryReader): ProductKey {
-        return decodeProductKey(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: ProductKey): Json {
-        return toJsonProductKey(value);
-    },
-
-    /** Return one ProductKey from one JSON value. */
-    fromJson(value: Json): ProductKey {
-        return fromJsonProductKey(value);
-    },
-};
-
-/** Encode one ProductKey. */
-export function encodeProductKey(writer: BinaryWriter, value: ProductKey): void {
-    writer.writeUnsigned(value);
-}
-
-/** Decode one ProductKey. */
-export function decodeProductKey(reader: BinaryReader): ProductKey {
-    return reader.readUnsigned();
-}
-
-/** Return one JSON value for one ProductKey. */
-export function toJsonProductKey(value: ProductKey): Json {
-    return value.toString();
-}
-
-/** Return one ProductKey from one JSON value. */
-export function fromJsonProductKey(value: Json): ProductKey {
-    return jsonBigint(value);
-}
-
 /** Unique identifier for one product within a package. */
 export type ProductId = {
     /** The owning package id. */
@@ -112,4 +67,49 @@ export function fromJsonProductId(value: Json): ProductId {
         packageId: fromJsonPackageId(jsonField(object, "packageId")),
         productKey: fromJsonProductKey(jsonField(object, "productKey")),
     };
+}
+
+/** Stable key for one product within a package. */
+export type ProductKey = bigint;
+
+export const ProductKey = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: ProductKey): void {
+        encodeProductKey(writer, value);
+    },
+
+    /** Decode one ProductKey. */
+    decode(reader: BinaryReader): ProductKey {
+        return decodeProductKey(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: ProductKey): Json {
+        return toJsonProductKey(value);
+    },
+
+    /** Return one ProductKey from one JSON value. */
+    fromJson(value: Json): ProductKey {
+        return fromJsonProductKey(value);
+    },
+};
+
+/** Encode one ProductKey. */
+export function encodeProductKey(writer: BinaryWriter, value: ProductKey): void {
+    writer.writeUnsigned(value);
+}
+
+/** Decode one ProductKey. */
+export function decodeProductKey(reader: BinaryReader): ProductKey {
+    return reader.readUnsigned();
+}
+
+/** Return one JSON value for one ProductKey. */
+export function toJsonProductKey(value: ProductKey): Json {
+    return value.toString();
+}
+
+/** Return one ProductKey from one JSON value. */
+export function fromJsonProductKey(value: Json): ProductKey {
+    return jsonBigint(value);
 }

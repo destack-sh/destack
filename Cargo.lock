@@ -842,24 +842,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "destack"
-version = "0.55.4"
-dependencies = [
- "destack_artifact",
- "destack_core",
- "destack_dir",
- "destack_heap",
- "destack_js",
- "destack_mir",
- "destack_program",
- "destack_query",
- "destack_repository",
- "destack_source",
- "destack_workspace",
- "parking_lot",
-]
-
-[[package]]
 name = "destack_artifact"
 version = "0.55.4"
 dependencies = [
@@ -919,14 +901,7 @@ name = "destack_client_generate"
 version = "0.55.4"
 dependencies = [
  "anyhow",
- "destack_artifact",
- "destack_dir",
- "destack_mir",
- "destack_program",
- "destack_query",
- "destack_repository",
  "destack_serde",
- "destack_source",
  "destack_workspace",
 ]
 
@@ -1228,7 +1203,8 @@ dependencies = [
 name = "destack_napi"
 version = "0.55.4"
 dependencies = [
- "destack",
+ "destack_source",
+ "destack_workspace",
  "napi",
  "napi-derive",
 ]
@@ -1290,14 +1266,6 @@ dependencies = [
  "destack_source",
  "destack_webassembly",
  "serde",
-]
-
-[[package]]
-name = "destack_python"
-version = "0.55.4"
-dependencies = [
- "destack",
- "pyo3",
 ]
 
 [[package]]
@@ -1493,7 +1461,8 @@ dependencies = [
 name = "destack_wasm"
 version = "0.55.4"
 dependencies = [
- "destack",
+ "destack_source",
+ "destack_workspace",
  "js-sys",
  "wasm-bindgen",
 ]
@@ -2898,64 +2867,6 @@ name = "pulley-macros"
 version = "47.0.3"
 dependencies = [
  "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "pyo3"
-version = "0.28.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91fd8e38a3b50ed1167fb981cd6fd60147e091784c427b8f7183a7ee32c31c12"
-dependencies = [
- "libc",
- "once_cell",
- "portable-atomic",
- "pyo3-build-config",
- "pyo3-ffi",
- "pyo3-macros",
-]
-
-[[package]]
-name = "pyo3-build-config"
-version = "0.28.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e368e7ddfdeb98c9bca7f8383be1648fd84ab466bf2bc015e94008db6d35611e"
-dependencies = [
- "target-lexicon",
-]
-
-[[package]]
-name = "pyo3-ffi"
-version = "0.28.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f29e10af80b1f7ccaf7f69eace800a03ecd13e883acfacc1e5d0988605f651e"
-dependencies = [
- "libc",
- "pyo3-build-config",
-]
-
-[[package]]
-name = "pyo3-macros"
-version = "0.28.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df6e520eff47c45997d2fc7dd8214b25dd1310918bbb2642156ef66a67f29813"
-dependencies = [
- "proc-macro2",
- "pyo3-macros-backend",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "pyo3-macros-backend"
-version = "0.28.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4cdc218d835738f81c2338f822078af45b4afdf8b2e33cbb5916f108b813acb"
-dependencies = [
- "heck",
- "proc-macro2",
- "pyo3-build-config",
  "quote",
  "syn",
 ]

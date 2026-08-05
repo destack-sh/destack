@@ -1,12 +1,10 @@
 import { hasNodeProcess } from "../runtime.js";
 import {
-  RemoteWorkspace,
   openRemoteWorkspace,
   type RemoteWorkspaceOptions,
   type WatchOptionsInit,
   type Workspace,
 } from "../protocol/workspace.js";
-import { EmbeddedTransport } from "../protocol/connection/index.js";
 import type { NapiWorkspaceOptions } from "../napi.js";
 import type { WasmWorkspaceOptions } from "../wasm.js";
 import type {
@@ -23,8 +21,6 @@ export type LocalWorkspaceOptions = NapiWorkspaceOptions | WasmWorkspaceOptions;
 export type WorkspaceOptions = LocalWorkspaceOptions | RemoteWorkspaceOptions;
 
 export {
-  EmbeddedTransport,
-  RemoteWorkspace,
   openRemoteWorkspace,
   type WatchOptionsInit,
   type MemoryContent,
@@ -64,5 +60,5 @@ export async function openLocalWorkspace(
 function isRemoteWorkspaceOptions(
   options: WorkspaceOptions,
 ): options is RemoteWorkspaceOptions {
-  return "connection" in options || "url" in options;
+  return "url" in options;
 }

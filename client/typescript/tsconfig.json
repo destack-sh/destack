@@ -9,5 +9,5 @@
         "outDir": "dist",
         "skipLibCheck": true
     },
-    "include": ["src/**/*.ts"]
+    "include": ["src/index.ts", "src/napi.ts", "src/wasm.ts"]
 }

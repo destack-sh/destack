@@ -14,74 +14,6 @@ import { decodeMessage, encodeMessage, fromJsonMessage, toJsonMessage } from "./
 import { decodePayloadChunkNotification, encodePayloadChunkNotification, fromJsonPayloadChunkNotification, toJsonPayloadChunkNotification } from "./payload.js";
 import { decodeRootId, encodeRootId, fromJsonRootId, toJsonRootId } from "./root.js";
 
-/** Diagnostic batch for notifications. */
-export type DiagnosticBatch = {
-    /** The file id for these diagnostics. */
-    readonly fileId: FileId;
-    /** Diagnostics for the file. */
-    readonly diagnostics: ReadonlyArray<Diagnostic>;
-};
-
-export const DiagnosticBatch = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: DiagnosticBatch): void {
-        encodeDiagnosticBatch(writer, value);
-    },
-
-    /** Decode one DiagnosticBatch. */
-    decode(reader: BinaryReader): DiagnosticBatch {
-        return decodeDiagnosticBatch(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: DiagnosticBatch): Json {
-        return toJsonDiagnosticBatch(value);
-    },
-
-    /** Return one DiagnosticBatch from one JSON value. */
-    fromJson(value: Json): DiagnosticBatch {
-        return fromJsonDiagnosticBatch(value);
-    },
-};
-
-/** Encode one DiagnosticBatch. */
-export function encodeDiagnosticBatch(writer: BinaryWriter, value: DiagnosticBatch): void {
-    encodeFileId(writer, value.fileId);
-    writer.writeUnsigned(value.diagnostics.length);
-    for (const item1 of value.diagnostics) {
-        encodeDiagnostic(writer, item1);
-    }
-}
-
-/** Decode one DiagnosticBatch. */
-export function decodeDiagnosticBatch(reader: BinaryReader): DiagnosticBatch {
-    const fileId = decodeFileId(reader);
-    const diagnostics = (() => { const length1 = reader.readNumber(); const items1: Array<Diagnostic> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeDiagnostic(reader)); } return items1; })();
-
-    return {
-        fileId,
-        diagnostics,
-    };
-}
-
-/** Return one JSON value for one DiagnosticBatch. */
-export function toJsonDiagnosticBatch(value: DiagnosticBatch): Json {
-    return {
-        fileId: toJsonFileId(value.fileId),
-        diagnostics: value.diagnostics.map((item0) => toJsonDiagnostic(item0)),
-    };
-}
-
-/** Return one DiagnosticBatch from one JSON value. */
-export function fromJsonDiagnosticBatch(value: Json): DiagnosticBatch {
-    const object = jsonObject(value);
-
-    return {
-        fileId: fromJsonFileId(jsonField(object, "fileId")),
-        diagnostics: jsonArray(jsonField(object, "diagnostics")).map((item0) => fromJsonDiagnostic(item0)),
-    };
-}
-
 /** Notifications emitted by the workspace protocol. */
 export type WorkspaceNotification =
     /** Publish diagnostics for a root. */
@@ -326,6 +258,74 @@ export function fromJsonDiagnosticsNotification(value: Json): DiagnosticsNotific
     return {
         handle: fromJsonRootId(jsonField(object, "handle")),
         diagnostics: jsonArray(jsonField(object, "diagnostics")).map((item0) => fromJsonDiagnosticBatch(item0)),
+    };
+}
+
+/** Diagnostic batch for notifications. */
+export type DiagnosticBatch = {
+    /** The file id for these diagnostics. */
+    readonly fileId: FileId;
+    /** Diagnostics for the file. */
+    readonly diagnostics: ReadonlyArray<Diagnostic>;
+};
+
+export const DiagnosticBatch = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: DiagnosticBatch): void {
+        encodeDiagnosticBatch(writer, value);
+    },
+
+    /** Decode one DiagnosticBatch. */
+    decode(reader: BinaryReader): DiagnosticBatch {
+        return decodeDiagnosticBatch(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: DiagnosticBatch): Json {
+        return toJsonDiagnosticBatch(value);
+    },
+
+    /** Return one DiagnosticBatch from one JSON value. */
+    fromJson(value: Json): DiagnosticBatch {
+        return fromJsonDiagnosticBatch(value);
+    },
+};
+
+/** Encode one DiagnosticBatch. */
+export function encodeDiagnosticBatch(writer: BinaryWriter, value: DiagnosticBatch): void {
+    encodeFileId(writer, value.fileId);
+    writer.writeUnsigned(value.diagnostics.length);
+    for (const item1 of value.diagnostics) {
+        encodeDiagnostic(writer, item1);
+    }
+}
+
+/** Decode one DiagnosticBatch. */
+export function decodeDiagnosticBatch(reader: BinaryReader): DiagnosticBatch {
+    const fileId = decodeFileId(reader);
+    const diagnostics = (() => { const length1 = reader.readNumber(); const items1: Array<Diagnostic> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeDiagnostic(reader)); } return items1; })();
+
+    return {
+        fileId,
+        diagnostics,
+    };
+}
+
+/** Return one JSON value for one DiagnosticBatch. */
+export function toJsonDiagnosticBatch(value: DiagnosticBatch): Json {
+    return {
+        fileId: toJsonFileId(value.fileId),
+        diagnostics: value.diagnostics.map((item0) => toJsonDiagnostic(item0)),
+    };
+}
+
+/** Return one DiagnosticBatch from one JSON value. */
+export function fromJsonDiagnosticBatch(value: Json): DiagnosticBatch {
+    const object = jsonObject(value);
+
+    return {
+        fileId: fromJsonFileId(jsonField(object, "fileId")),
+        diagnostics: jsonArray(jsonField(object, "diagnostics")).map((item0) => fromJsonDiagnostic(item0)),
     };
 }
 

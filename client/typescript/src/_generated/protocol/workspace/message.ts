@@ -4,6 +4,77 @@ import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonField, jso
 import type { FileUpdate } from "./file/image.js";
 import { decodeFileUpdate, encodeFileUpdate, fromJsonFileUpdate, toJsonFileUpdate } from "./file/image.js";
 
+/** Result of applying local workspace updates. */
+export type UpdateBatch = {
+    /** Update records produced by the operation. */
+    readonly updates: ReadonlyArray<FileUpdate>;
+    /** Message records produced by the operation. */
+    readonly messages: ReadonlyArray<Message>;
+};
+
+export const UpdateBatch = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: UpdateBatch): void {
+        encodeUpdateBatch(writer, value);
+    },
+
+    /** Decode one UpdateBatch. */
+    decode(reader: BinaryReader): UpdateBatch {
+        return decodeUpdateBatch(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: UpdateBatch): Json {
+        return toJsonUpdateBatch(value);
+    },
+
+    /** Return one UpdateBatch from one JSON value. */
+    fromJson(value: Json): UpdateBatch {
+        return fromJsonUpdateBatch(value);
+    },
+};
+
+/** Encode one UpdateBatch. */
+export function encodeUpdateBatch(writer: BinaryWriter, value: UpdateBatch): void {
+    writer.writeUnsigned(value.updates.length);
+    for (const item0 of value.updates) {
+        encodeFileUpdate(writer, item0);
+    }
+    writer.writeUnsigned(value.messages.length);
+    for (const item1 of value.messages) {
+        encodeMessage(writer, item1);
+    }
+}
+
+/** Decode one UpdateBatch. */
+export function decodeUpdateBatch(reader: BinaryReader): UpdateBatch {
+    const updates = (() => { const length0 = reader.readNumber(); const items0: Array<FileUpdate> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeFileUpdate(reader)); } return items0; })();
+    const messages = (() => { const length1 = reader.readNumber(); const items1: Array<Message> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeMessage(reader)); } return items1; })();
+
+    return {
+        updates,
+        messages,
+    };
+}
+
+/** Return one JSON value for one UpdateBatch. */
+export function toJsonUpdateBatch(value: UpdateBatch): Json {
+    return {
+        updates: value.updates.map((item0) => toJsonFileUpdate(item0)),
+        messages: value.messages.map((item0) => toJsonMessage(item0)),
+    };
+}
+
+/** Return one UpdateBatch from one JSON value. */
+export function fromJsonUpdateBatch(value: Json): UpdateBatch {
+    const object = jsonObject(value);
+
+    return {
+        updates: jsonArray(jsonField(object, "updates")).map((item0) => fromJsonFileUpdate(item0)),
+        messages: jsonArray(jsonField(object, "messages")).map((item0) => fromJsonMessage(item0)),
+    };
+}
+
 /** Message payload emitted by one workspace operation. */
 export type Message = {
     /** Message severity. */
@@ -153,75 +224,4 @@ export function fromJsonMessageKind(value: Json): MessageKind {
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);
-}
-
-/** Result of applying local workspace updates. */
-export type UpdateBatch = {
-    /** Update records produced by the operation. */
-    readonly updates: ReadonlyArray<FileUpdate>;
-    /** Message records produced by the operation. */
-    readonly messages: ReadonlyArray<Message>;
-};
-
-export const UpdateBatch = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: UpdateBatch): void {
-        encodeUpdateBatch(writer, value);
-    },
-
-    /** Decode one UpdateBatch. */
-    decode(reader: BinaryReader): UpdateBatch {
-        return decodeUpdateBatch(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: UpdateBatch): Json {
-        return toJsonUpdateBatch(value);
-    },
-
-    /** Return one UpdateBatch from one JSON value. */
-    fromJson(value: Json): UpdateBatch {
-        return fromJsonUpdateBatch(value);
-    },
-};
-
-/** Encode one UpdateBatch. */
-export function encodeUpdateBatch(writer: BinaryWriter, value: UpdateBatch): void {
-    writer.writeUnsigned(value.updates.length);
-    for (const item0 of value.updates) {
-        encodeFileUpdate(writer, item0);
-    }
-    writer.writeUnsigned(value.messages.length);
-    for (const item1 of value.messages) {
-        encodeMessage(writer, item1);
-    }
-}
-
-/** Decode one UpdateBatch. */
-export function decodeUpdateBatch(reader: BinaryReader): UpdateBatch {
-    const updates = (() => { const length0 = reader.readNumber(); const items0: Array<FileUpdate> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeFileUpdate(reader)); } return items0; })();
-    const messages = (() => { const length1 = reader.readNumber(); const items1: Array<Message> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeMessage(reader)); } return items1; })();
-
-    return {
-        updates,
-        messages,
-    };
-}
-
-/** Return one JSON value for one UpdateBatch. */
-export function toJsonUpdateBatch(value: UpdateBatch): Json {
-    return {
-        updates: value.updates.map((item0) => toJsonFileUpdate(item0)),
-        messages: value.messages.map((item0) => toJsonMessage(item0)),
-    };
-}
-
-/** Return one UpdateBatch from one JSON value. */
-export function fromJsonUpdateBatch(value: Json): UpdateBatch {
-    const object = jsonObject(value);
-
-    return {
-        updates: jsonArray(jsonField(object, "updates")).map((item0) => fromJsonFileUpdate(item0)),
-        messages: jsonArray(jsonField(object, "messages")).map((item0) => fromJsonMessage(item0)),
-    };
 }

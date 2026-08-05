@@ -1,4 +1,3 @@
-use crate::generate::implementation::implementation_owners;
 use crate::generate::schema::{Schema, SchemaModule};
 
 use super::codec::render_codec_item;
@@ -13,69 +12,16 @@ pub(super) fn render_module(schema: &Schema, module: &SchemaModule, names: &[Str
     text.blank();
 
     let imports = render_imports(schema, module, names, &type_names);
-    let implementation_imports = render_implementation_imports(schema, module, names);
-
     if !imports.is_empty() {
         text.raw(imports);
         text.blank();
     }
 
-    if !implementation_imports.is_empty() {
-        text.raw(implementation_imports);
-        text.blank();
-    }
-
     for name in names {
         let item = schema.item(name);
-        render_item(schema, module, item, &type_names, &mut text);
+        render_item(schema, item, &type_names, &mut text);
         render_codec_item(schema, item, &type_names, &mut text);
     }
 
     text.finish()
-}
-
-/// Render TypeScript implementation imports for one generated module.
-fn render_implementation_imports(
-    schema: &Schema,
-    module: &SchemaModule,
-    names: &[String],
-) -> String {
-    let mut text = Text::new();
-
-    for owner in implementation_owners(module) {
-        let has_matching_item = names
-            .iter()
-            .map(|name| schema.item(name))
-            .any(|item| owner.matches(item));
-        if !has_matching_item {
-            continue;
-        }
-
-        let import = typescript_implementation_import(module, owner.module());
-        text.line(format!(
-            "import {{ {} }} from {:?};",
-            owner.typescript_impl(),
-            import
-        ));
-    }
-
-    text.finish()
-}
-
-/// Return one implementation import path relative to one generated TypeScript module.
-fn typescript_implementation_import(
-    module: &SchemaModule,
-    implementation_module: &[&str],
-) -> String {
-    let mut segments = vec![".."; module.path.segments().len()];
-    segments.push("_impl");
-
-    let mut segments = segments.into_iter().map(str::to_string).collect::<Vec<_>>();
-    segments.extend(
-        implementation_module
-            .iter()
-            .map(|segment| segment.to_string()),
-    );
-
-    format!("{}.js", segments.join("/"))
 }

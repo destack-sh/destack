@@ -1,4 +1,5 @@
-use destack::{source, workspace};
+use destack_source::Edit;
+use destack_workspace::{Server, WebSocketServer};
 use napi::Result;
 use napi_derive::napi;
 
@@ -21,7 +22,7 @@ pub struct MemoryFile {
 #[napi]
 pub struct LocalWorkspaceServer {
     /// Local Rust server.
-    server: workspace::Server,
+    server: Server,
 }
 
 /// Remote workspace protocol server exposed to Node.
@@ -29,7 +30,7 @@ pub struct LocalWorkspaceServer {
 #[napi]
 pub struct RemoteWorkspaceServer {
     /// Workspace WebSocket server.
-    server: workspace::WebSocketServer,
+    server: WebSocketServer,
 }
 
 #[napi]
@@ -37,7 +38,7 @@ impl LocalWorkspaceServer {
     /// Open an in-process workspace protocol server.
     #[napi(factory)]
     pub fn open(home: String) -> Result<Self> {
-        let server = workspace::Server::open(home).map_err(to_error)?;
+        let server = Server::open(home).map_err(to_error)?;
 
         Ok(Self { server })
     }
@@ -49,7 +50,7 @@ impl LocalWorkspaceServer {
             .into_iter()
             .map(memory_file)
             .collect::<Result<Vec<_>>>()?;
-        let server = workspace::Server::memory(root, files).map_err(to_error)?;
+        let server = Server::memory(root, files).map_err(to_error)?;
 
         Ok(Self { server })
     }
@@ -66,7 +67,7 @@ impl RemoteWorkspaceServer {
     /// Open a remote workspace protocol server over WebSocket.
     #[napi(factory)]
     pub fn open(root: String) -> Result<Self> {
-        let server = workspace::WebSocketServer::open(root).map_err(to_error)?;
+        let server = WebSocketServer::open(root).map_err(to_error)?;
 
         Ok(Self { server })
     }
@@ -87,13 +88,13 @@ impl RemoteWorkspaceServer {
 }
 
 /// Convert one Node memory file into one Rust memory file.
-fn memory_file(file: MemoryFile) -> Result<source::Edit> {
+fn memory_file(file: MemoryFile) -> Result<Edit> {
     match (file.text, file.bytes) {
-        (Some(text), None) => Ok(source::Edit::SetText {
+        (Some(text), None) => Ok(Edit::SetText {
             path: file.path.into(),
             text,
         }),
-        (None, Some(bytes)) => Ok(source::Edit::SetBytes {
+        (None, Some(bytes)) => Ok(Edit::SetBytes {
             path: file.path.into(),
             bytes,
         }),

@@ -4,51 +4,6 @@ import { BinaryReader, BinaryWriter, Json, jsonBigint, jsonField, jsonObject } f
 import type { PackageId } from "./package.js";
 import { decodePackageId, encodePackageId, fromJsonPackageId, toJsonPackageId } from "./package.js";
 
-/** Stable key for one module within a package. */
-export type ModuleKey = bigint;
-
-export const ModuleKey = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: ModuleKey): void {
-        encodeModuleKey(writer, value);
-    },
-
-    /** Decode one ModuleKey. */
-    decode(reader: BinaryReader): ModuleKey {
-        return decodeModuleKey(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: ModuleKey): Json {
-        return toJsonModuleKey(value);
-    },
-
-    /** Return one ModuleKey from one JSON value. */
-    fromJson(value: Json): ModuleKey {
-        return fromJsonModuleKey(value);
-    },
-};
-
-/** Encode one ModuleKey. */
-export function encodeModuleKey(writer: BinaryWriter, value: ModuleKey): void {
-    writer.writeUnsigned(value);
-}
-
-/** Decode one ModuleKey. */
-export function decodeModuleKey(reader: BinaryReader): ModuleKey {
-    return reader.readUnsigned();
-}
-
-/** Return one JSON value for one ModuleKey. */
-export function toJsonModuleKey(value: ModuleKey): Json {
-    return value.toString();
-}
-
-/** Return one ModuleKey from one JSON value. */
-export function fromJsonModuleKey(value: Json): ModuleKey {
-    return jsonBigint(value);
-}
-
 /** Unique identifier for Modules. */
 export type ModuleId = {
     /** The package this module belongs to. */
@@ -112,4 +67,49 @@ export function fromJsonModuleId(value: Json): ModuleId {
         packageId: fromJsonPackageId(jsonField(object, "packageId")),
         moduleKey: fromJsonModuleKey(jsonField(object, "moduleKey")),
     };
+}
+
+/** Stable key for one module within a package. */
+export type ModuleKey = bigint;
+
+export const ModuleKey = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: ModuleKey): void {
+        encodeModuleKey(writer, value);
+    },
+
+    /** Decode one ModuleKey. */
+    decode(reader: BinaryReader): ModuleKey {
+        return decodeModuleKey(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: ModuleKey): Json {
+        return toJsonModuleKey(value);
+    },
+
+    /** Return one ModuleKey from one JSON value. */
+    fromJson(value: Json): ModuleKey {
+        return fromJsonModuleKey(value);
+    },
+};
+
+/** Encode one ModuleKey. */
+export function encodeModuleKey(writer: BinaryWriter, value: ModuleKey): void {
+    writer.writeUnsigned(value);
+}
+
+/** Decode one ModuleKey. */
+export function decodeModuleKey(reader: BinaryReader): ModuleKey {
+    return reader.readUnsigned();
+}
+
+/** Return one JSON value for one ModuleKey. */
+export function toJsonModuleKey(value: ModuleKey): Json {
+    return value.toString();
+}
+
+/** Return one ModuleKey from one JSON value. */
+export function fromJsonModuleKey(value: Json): ModuleKey {
+    return jsonBigint(value);
 }

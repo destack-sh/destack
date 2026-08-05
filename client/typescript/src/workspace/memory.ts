@@ -29,8 +29,6 @@ export type MemoryWorkspace = {
 export type MemoryWorkspaceOptions = {
   /** Memory workspace source. */
   readonly memory: MemoryWorkspace;
-  /** Whether opening should preload root diagnostics. */
-  readonly loadIndex?: boolean;
 };
 
 /** Normalized memory file passed to native local workspace servers. */

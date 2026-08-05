@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{Result, bail};
 use destack_serde::SchemaRegistry;
@@ -25,15 +25,8 @@ pub(crate) struct SchemaModule {
 }
 
 impl Schema {
-    /// Load the public language client schema.
+    /// Load types reachable from the workspace protocol.
     pub(crate) fn load() -> Result<Self> {
-        let registry = public_schema();
-
-        Self::from_registry(SchemaRoot::Public, registry)
-    }
-
-    /// Load the workspace protocol schema from the workspace protocol registry.
-    pub(crate) fn load_protocol() -> Result<Self> {
         let registry = destack_workspace::protocol::schema();
 
         Self::from_registry(SchemaRoot::Protocol, registry)
@@ -42,17 +35,24 @@ impl Schema {
     /// Convert one Destack serde schema registry into generator schema.
     fn from_registry(root: SchemaRoot, registry: SchemaRegistry) -> Result<Self> {
         let type_keys = schema_type_keys(&registry);
+        let root_names = registry
+            .modules
+            .iter()
+            .filter(|(module, _)| root.owns_module(module))
+            .flat_map(|(_, names)| names.iter().cloned());
+        let reachable_names = reachable_schema_items(&registry.items, root_names)?;
+        let reachable_keys = reachable_names
+            .iter()
+            .map(|name| schema_type_key(root, name, &type_keys))
+            .collect::<BTreeSet<_>>();
         let mut items = BTreeMap::new();
         let mut item_sources = BTreeMap::new();
         let mut modules = Vec::new();
         let mut item_modules = BTreeMap::new();
 
         for (module, module_names) in &registry.modules {
-            let path_root = if root.owns_module(module) {
-                root
-            } else {
-                SchemaRoot::Public
-            };
+            let is_root = root.owns_module(module);
+            let path_root = if is_root { root } else { SchemaRoot::Public };
             let path = ModulePath::from_segments(path_root, module)?;
             let keys = module_names
                 .iter()
@@ -64,12 +64,14 @@ impl Schema {
                 })
                 .collect::<Vec<_>>();
 
-            if root.owns_module(module) {
-                modules.push(SchemaModule { path, keys });
-            }
+            modules.push((is_root, SchemaModule { path, keys }));
         }
 
-        for item in registry.items.into_values() {
+        for item in registry
+            .items
+            .into_values()
+            .filter(|item| reachable_names.contains(&item.name))
+        {
             let key = schema_type_key(root, &item.name, &type_keys);
             let source = format!("{}::{}", item.name.module.join("::"), item.name.name);
             let item = Item::from_schema(key.clone(), item, &type_keys)?;
@@ -83,6 +85,16 @@ impl Schema {
             }
             item_sources.insert(key, source);
         }
+
+        // retain protocol roots and their complete dependency closure
+        let modules = modules
+            .into_iter()
+            .filter_map(|(_, mut module)| {
+                module.keys.retain(|key| reachable_keys.contains(key));
+
+                (!module.keys.is_empty()).then_some(module)
+            })
+            .collect();
 
         Ok(Self {
             items,
@@ -171,17 +183,84 @@ impl Schema {
     }
 }
 
-/// Build the public language client schema.
-fn public_schema() -> SchemaRegistry {
-    let mut schema = SchemaRegistry::default();
+/// Return every raw schema item reachable from explicit protocol roots.
+fn reachable_schema_items(
+    items: &BTreeMap<destack_serde::SchemaName, destack_serde::SchemaItem>,
+    roots: impl IntoIterator<Item = destack_serde::SchemaName>,
+) -> Result<BTreeSet<destack_serde::SchemaName>> {
+    let mut reachable = BTreeSet::new();
+    let mut pending = roots.into_iter().collect::<Vec<_>>();
 
-    destack_source::schema(&mut schema);
-    destack_dir::schema(&mut schema);
-    destack_mir::schema(&mut schema);
-    destack_program::schema(&mut schema);
-    destack_artifact::schema(&mut schema);
-    destack_repository::schema(&mut schema);
-    destack_query::schema(&mut schema);
+    // walk named fields until every protocol dependency is retained
+    while let Some(name) = pending.pop() {
+        if !reachable.insert(name.clone()) {
+            continue;
+        }
+        let Some(item) = items.get(&name) else {
+            bail!(
+                "schema type {} is missing from the protocol registry",
+                name.name
+            );
+        };
 
-    schema
+        visit_schema_shape(&item.shape, &mut |reference| {
+            pending.push(reference.clone())
+        });
+    }
+
+    Ok(reachable)
+}
+
+/// Visit every named type referenced by one raw schema shape.
+fn visit_schema_shape(
+    shape: &destack_serde::SchemaShape,
+    visit: &mut impl FnMut(&destack_serde::SchemaName),
+) {
+    match shape {
+        destack_serde::SchemaShape::Struct(fields) => visit_schema_fields(fields, visit),
+        destack_serde::SchemaShape::Enum(variants) => {
+            for variant in variants {
+                match &variant.payload {
+                    destack_serde::SchemaPayload::Unit => {}
+                    destack_serde::SchemaPayload::Tuple(ty) => visit_schema_type(ty, visit),
+                    destack_serde::SchemaPayload::Struct(fields) => {
+                        visit_schema_fields(fields, visit);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Visit every named type referenced by raw schema fields.
+fn visit_schema_fields(
+    fields: &[destack_serde::SchemaField],
+    visit: &mut impl FnMut(&destack_serde::SchemaName),
+) {
+    for field in fields {
+        visit_schema_type(&field.ty, visit);
+    }
+}
+
+/// Visit every named type nested within one raw schema reference.
+fn visit_schema_type(
+    ty: &destack_serde::SchemaRef,
+    visit: &mut impl FnMut(&destack_serde::SchemaName),
+) {
+    match ty {
+        destack_serde::SchemaRef::Option(ty)
+        | destack_serde::SchemaRef::Sequence(ty)
+        | destack_serde::SchemaRef::Array { item: ty, .. } => visit_schema_type(ty, visit),
+        destack_serde::SchemaRef::Tuple(types) => {
+            for ty in types {
+                visit_schema_type(ty, visit);
+            }
+        }
+        destack_serde::SchemaRef::Map { key, value } => {
+            visit_schema_type(key, visit);
+            visit_schema_type(value, visit);
+        }
+        destack_serde::SchemaRef::Named(name) => visit(name),
+        _ => {}
+    }
 }

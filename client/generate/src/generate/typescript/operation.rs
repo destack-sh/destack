@@ -1,3 +1,5 @@
+use anyhow::{Context, Result, bail};
+
 use crate::generate::schema::{Field, Item, Payload, Schema, Shape, Type, Variant};
 
 use super::codec::type_property_key;
@@ -20,24 +22,6 @@ pub(super) struct WorkspaceRequestOperation {
     pub(super) output: String,
 }
 
-/// Exact workspace query operation.
-pub(super) struct WorkspaceQueryOperation {
-    /// Method name.
-    pub(super) method: String,
-    /// Method documentation.
-    pub(super) doc: String,
-    /// Query constructor name.
-    pub(super) constructor: String,
-    /// Query response variant kind.
-    pub(super) response_kind: String,
-    /// Query response payload field.
-    pub(super) response_field: String,
-    /// Method parameters after the root handle.
-    pub(super) parameters: Vec<WorkspaceParameter>,
-    /// Method return type.
-    pub(super) output: String,
-}
-
 /// One exact workspace client method parameter.
 pub(super) struct WorkspaceParameter {
     /// Parameter name.
@@ -48,86 +32,78 @@ pub(super) struct WorkspaceParameter {
 
 impl WorkspaceRequestOperation {
     /// Return exact request operations for one workspace client.
-    pub(super) fn all(schema: &Schema) -> Vec<Self> {
+    pub(super) fn all(schema: &Schema) -> Result<Vec<Self>> {
         let request = schema.named_item("WorkspaceRequest");
         let Shape::Enum(variants) = &request.shape else {
-            return Vec::new();
+            bail!("WorkspaceRequest must be an enum");
         };
 
-        variants
-            .iter()
-            .filter_map(|variant| Self::from_variant(schema, variant))
-            .collect()
+        let mut operations = Vec::new();
+        for variant in variants {
+            if let Some(operation) = Self::from_variant(schema, variant)? {
+                operations.push(operation);
+            }
+        }
+
+        Ok(operations)
     }
 
     /// Return one exact request operation when the variant is root scoped.
-    fn from_variant(schema: &Schema, variant: &Variant) -> Option<Self> {
-        let response = workspace_response_kind(&variant.label())?;
-        let parameters = workspace_request_parameters(schema, variant)?;
-        let request = workspace_request_expression(schema, variant)?;
+    fn from_variant(schema: &Schema, variant: &Variant) -> Result<Option<Self>> {
+        let kind = variant.label();
+        if !workspace_request_is_root_scoped(schema, variant) {
+            return Ok(None);
+        }
+
+        // require every root request to have an exact generated operation
+        let parameters = workspace_request_parameters(schema, variant)
+            .with_context(|| format!("failed to render {kind} request parameters"))?;
+        let request = workspace_request_expression(schema, variant)
+            .with_context(|| format!("failed to render {kind} request expression"))?;
+        let response = workspace_response_kind(&kind)
+            .with_context(|| format!("workspace request {kind} has no response mapping"))?;
         let response_field =
-            enum_variant_payload_field(schema.named_item("WorkspaceResponse"), &response)?;
+            enum_variant_payload_field(schema.named_item("WorkspaceResponse"), &response)
+                .with_context(|| format!("workspace response {response} has no payload field"))?;
         let output = format!(
             "Response<{:?}>[{}]",
             response,
             type_property_key(&response_field)
         );
 
-        Some(WorkspaceRequestOperation {
-            method: variant.label(),
+        Ok(Some(WorkspaceRequestOperation {
+            method: kind,
             doc: variant.doc().to_string(),
             request,
             response_kind: response,
             response_field,
             parameters,
             output,
-        })
+        }))
     }
 }
 
-impl WorkspaceQueryOperation {
-    /// Return exact query operations for one workspace client.
-    pub(super) fn all(schema: &Schema) -> Vec<Self> {
-        let query = schema.named_item("WorkspaceQuery");
-        let Shape::Enum(variants) = &query.shape else {
-            return Vec::new();
-        };
+/// Return whether one workspace request carries a root handle.
+fn workspace_request_is_root_scoped(schema: &Schema, variant: &Variant) -> bool {
+    workspace_request_fields(schema, variant)
+        .is_some_and(|fields| fields.iter().any(|field| field.name == "handle"))
+}
 
-        variants
-            .iter()
-            .filter_map(|variant| Self::from_variant(schema, variant))
-            .collect()
-    }
+/// Return the fields carried by one workspace request variant.
+fn workspace_request_fields<'schema>(
+    schema: &'schema Schema,
+    variant: &'schema Variant,
+) -> Option<&'schema [Field]> {
+    match &variant.payload {
+        Payload::Struct(fields) => Some(fields),
+        Payload::Tuple(Type::Named { key, .. }) => {
+            let Shape::Struct(fields) = &schema.item(key).shape else {
+                return None;
+            };
 
-    /// Return one exact query operation when the variant is root scoped.
-    fn from_variant(schema: &Schema, variant: &Variant) -> Option<Self> {
-        match &variant.payload {
-            Payload::Struct(fields) => Self::from_fields(schema, variant, fields),
-            Payload::Unit | Payload::Tuple(_) => None,
+            Some(fields)
         }
-    }
-
-    /// Return one exact query operation from root scoped query fields.
-    fn from_fields(schema: &Schema, variant: &Variant, fields: &[Field]) -> Option<Self> {
-        let parameters = workspace_root_parameters("Query", &variant.label(), None, fields)?;
-        let response = workspace_query_response_kind(&variant.label());
-        let response_field =
-            enum_variant_payload_field(schema.named_item("WorkspaceQueryResponse"), &response)?;
-        let output = format!(
-            "QueryResponse<{:?}>[{}]",
-            response,
-            type_property_key(&response_field)
-        );
-
-        Some(Self {
-            method: variant.label(),
-            doc: variant.doc().to_string(),
-            constructor: variant.label(),
-            response_kind: response,
-            response_field,
-            parameters,
-            output,
-        })
+        Payload::Unit | Payload::Tuple(_) => None,
     }
 }
 
@@ -142,10 +118,8 @@ fn workspace_request_expression(schema: &Schema, variant: &Variant) -> Option<St
 
             Some(format!("WorkspaceRequest.{constructor}({arguments})"))
         }
-        Payload::Tuple(Type::Named { key, .. }) => {
-            let Shape::Struct(fields) = &schema.item(key).shape else {
-                return None;
-            };
+        Payload::Tuple(Type::Named { .. }) => {
+            let fields = workspace_request_fields(schema, variant)?;
             let fields = workspace_root_field_names(fields)?;
             let fields = workspace_object_fields(fields);
 
@@ -163,10 +137,8 @@ fn workspace_request_parameters(
     let kind = variant.label();
     match &variant.payload {
         Payload::Struct(fields) => workspace_root_parameters("Request", &kind, None, fields),
-        Payload::Tuple(Type::Named { key, .. }) => {
-            let Shape::Struct(fields) = &schema.item(key).shape else {
-                return None;
-            };
+        Payload::Tuple(Type::Named { .. }) => {
+            let fields = workspace_request_fields(schema, variant)?;
             let payload = variant.payload_field_name();
 
             workspace_root_parameters("Request", &kind, Some(&payload), fields)
@@ -244,8 +216,12 @@ fn workspace_response_kind(request: &str) -> Option<String> {
     let response = match request {
         "closeRoot" => "rootClosed",
         "reloadRoot" => "rootReloaded",
+        "readRevision" => "readRevision",
         "applyFileOperation" => "fileOperationApplied",
         "applySourceUpdate" => "sourceUpdated",
+        "isFileOpen" => "isFileOpen",
+        "formatFile" => "formatFile",
+        "readFiles" => "readFiles",
         "startWatch" => "watchStarted",
         "nextWatchBatch" => "watchBatchReady",
         "stopWatch" => "watchStopped",
@@ -253,22 +229,13 @@ fn workspace_response_kind(request: &str) -> Option<String> {
         "store" => "storeResult",
         "load" => "loadResult",
         "export" => "exportResult",
-        "check" | "lint" | "format" | "build" | "run" | "test" | "doc" | "bench" | "info"
-        | "inspect" | "manifest" | "targets" | "cache" | "settings" | "doctor" | "task"
-        | "clean" => request,
+        "check" | "format" | "query" | "rewrite" | "build" | "run" | "test" | "doc" | "bench"
+        | "info" | "targets" | "cache" | "settings" | "doctor" | "task" | "clean" | "diagnose"
+        | "diagnoseFile" | "resolveQueryFile" | "runQuery" => request,
         _ => return None,
     };
 
     Some(response.to_string())
-}
-
-/// Return the query response kind for one query kind.
-fn workspace_query_response_kind(query: &str) -> String {
-    match query {
-        "execute" => "query".to_string(),
-        "executeBatch" => "queryBatch".to_string(),
-        _ => query.to_string(),
-    }
 }
 
 /// Return one enum variant payload field by variant kind.

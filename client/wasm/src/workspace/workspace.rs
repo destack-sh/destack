@@ -1,3 +1,5 @@
+use destack_source::Edit;
+use destack_workspace::Server;
 use js_sys::{Array, Reflect, Uint8Array};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
@@ -10,7 +12,7 @@ use crate::panic::install_panic_hook;
 #[wasm_bindgen]
 pub struct LocalWorkspaceServer {
     /// Local Rust server.
-    server: destack::workspace::Server,
+    server: Server,
 }
 
 #[wasm_bindgen]
@@ -20,7 +22,7 @@ impl LocalWorkspaceServer {
     pub fn open(home: String) -> Result<LocalWorkspaceServer, JsValue> {
         install_panic_hook();
 
-        let server = destack::workspace::Server::open(home).map_err(js_error)?;
+        let server = Server::open(home).map_err(js_error)?;
 
         Ok(Self { server })
     }
@@ -31,7 +33,7 @@ impl LocalWorkspaceServer {
         install_panic_hook();
 
         let files = memory_files(files)?;
-        let server = destack::workspace::Server::memory(root, files).map_err(js_error)?;
+        let server = Server::memory(root, files).map_err(js_error)?;
 
         Ok(Self { server })
     }
@@ -50,7 +52,7 @@ impl LocalWorkspaceServer {
 }
 
 /// Convert JavaScript memory files into Rust memory files.
-fn memory_files(files: Array) -> Result<Vec<destack::source::Edit>, JsValue> {
+fn memory_files(files: Array) -> Result<Vec<Edit>, JsValue> {
     let mut output = Vec::with_capacity(files.length() as usize);
 
     for file in files {
@@ -61,7 +63,7 @@ fn memory_files(files: Array) -> Result<Vec<destack::source::Edit>, JsValue> {
 }
 
 /// Convert one JavaScript memory file into one Rust memory file.
-fn memory_file(file: JsValue) -> Result<destack::source::Edit, JsValue> {
+fn memory_file(file: JsValue) -> Result<Edit, JsValue> {
     let path = Reflect::get(&file, &JsValue::from_str("path"))?
         .as_string()
         .ok_or_else(|| JsValue::from_str("memory file path must be a string"))?;
@@ -75,7 +77,7 @@ fn memory_file(file: JsValue) -> Result<destack::source::Edit, JsValue> {
             ));
         }
 
-        return Ok(destack::source::Edit::SetText {
+        return Ok(Edit::SetText {
             path: path.into(),
             text,
         });
@@ -86,7 +88,7 @@ fn memory_file(file: JsValue) -> Result<destack::source::Edit, JsValue> {
             .dyn_into::<Uint8Array>()
             .map_err(|_| JsValue::from_str("memory file bytes must be a Uint8Array"))?;
 
-        return Ok(destack::source::Edit::SetBytes {
+        return Ok(Edit::SetBytes {
             path: path.into(),
             bytes: bytes.to_vec(),
         });

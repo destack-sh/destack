@@ -20,6 +20,7 @@ const SERDE_IMPORT_ORDER: &[&str] = &[
     "jsonBool",
     "jsonField",
     "jsonInteger",
+    "jsonNull",
     "jsonNumber",
     "jsonObject",
     "jsonOptional",
@@ -320,6 +321,9 @@ fn collect_payload_imports(imports: &mut BTreeSet<&'static str>, payload: &Paylo
 /// Collect serde runtime imports for one type reference.
 fn collect_type_imports(imports: &mut BTreeSet<&'static str>, ty: &Type) {
     match ty {
+        Type::Unit => {
+            imports.insert("jsonNull");
+        }
         Type::String | Type::Char => {
             imports.insert("jsonString");
         }

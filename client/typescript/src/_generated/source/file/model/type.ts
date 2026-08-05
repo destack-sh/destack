@@ -3,7 +3,7 @@
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonString } from "../../../../protocol/serde.js";
 
 /** The format of a source file. */
-export type FileType = "destack" | "destackDeclaration" | "javaScript" | "javaScriptXml" | "typeScript" | "typeScriptXml" | "typeScriptDeclaration" | "text" | "toml" | "yaml" | "json" | "env" | "html" | "markdown" | "css" | "svg" | "wasm" | "node" | "sourceMap" | "object" | "image" | "font" | "audio" | "video" | "model" | "neural" | "document" | "binary" | "unknown";
+export type FileType = "destack" | "destackDeclaration" | "script" | "text" | "toml" | "yaml" | "json" | "env" | "html" | "markdown" | "css" | "svg" | "wasm" | "node" | "sourceMap" | "object" | "image" | "font" | "audio" | "video" | "model" | "neural" | "document" | "binary" | "unknown";
 
 export const FileType = {
     /** Encode this value. */
@@ -36,86 +36,74 @@ export function encodeFileType(writer: BinaryWriter, value: FileType): void {
         case "destackDeclaration":
             writer.writeUnsigned(1);
             return;
-        case "javaScript":
+        case "script":
             writer.writeUnsigned(2);
             return;
-        case "javaScriptXml":
+        case "text":
             writer.writeUnsigned(3);
             return;
-        case "typeScript":
+        case "toml":
             writer.writeUnsigned(4);
             return;
-        case "typeScriptXml":
+        case "yaml":
             writer.writeUnsigned(5);
             return;
-        case "typeScriptDeclaration":
+        case "json":
             writer.writeUnsigned(6);
             return;
-        case "text":
+        case "env":
             writer.writeUnsigned(7);
             return;
-        case "toml":
+        case "html":
             writer.writeUnsigned(8);
             return;
-        case "yaml":
+        case "markdown":
             writer.writeUnsigned(9);
             return;
-        case "json":
+        case "css":
             writer.writeUnsigned(10);
             return;
-        case "env":
+        case "svg":
             writer.writeUnsigned(11);
             return;
-        case "html":
+        case "wasm":
             writer.writeUnsigned(12);
             return;
-        case "markdown":
+        case "node":
             writer.writeUnsigned(13);
             return;
-        case "css":
+        case "sourceMap":
             writer.writeUnsigned(14);
             return;
-        case "svg":
+        case "object":
             writer.writeUnsigned(15);
             return;
-        case "wasm":
+        case "image":
             writer.writeUnsigned(16);
             return;
-        case "node":
+        case "font":
             writer.writeUnsigned(17);
             return;
-        case "sourceMap":
+        case "audio":
             writer.writeUnsigned(18);
             return;
-        case "object":
+        case "video":
             writer.writeUnsigned(19);
             return;
-        case "image":
+        case "model":
             writer.writeUnsigned(20);
             return;
-        case "font":
+        case "neural":
             writer.writeUnsigned(21);
             return;
-        case "audio":
+        case "document":
             writer.writeUnsigned(22);
             return;
-        case "video":
+        case "binary":
             writer.writeUnsigned(23);
             return;
-        case "model":
-            writer.writeUnsigned(24);
-            return;
-        case "neural":
-            writer.writeUnsigned(25);
-            return;
-        case "document":
-            writer.writeUnsigned(26);
-            return;
-        case "binary":
-            writer.writeUnsigned(27);
-            return;
         case "unknown":
-            writer.writeUnsigned(28);
+            writer.writeUnsigned(24);
             return;
     }
 
@@ -132,58 +120,50 @@ export function decodeFileType(reader: BinaryReader): FileType {
         case 1:
             return "destackDeclaration";
         case 2:
-            return "javaScript";
+            return "script";
         case 3:
-            return "javaScriptXml";
-        case 4:
-            return "typeScript";
-        case 5:
-            return "typeScriptXml";
-        case 6:
-            return "typeScriptDeclaration";
-        case 7:
             return "text";
-        case 8:
+        case 4:
             return "toml";
-        case 9:
+        case 5:
             return "yaml";
-        case 10:
+        case 6:
             return "json";
-        case 11:
+        case 7:
             return "env";
-        case 12:
+        case 8:
             return "html";
-        case 13:
+        case 9:
             return "markdown";
-        case 14:
+        case 10:
             return "css";
-        case 15:
+        case 11:
             return "svg";
-        case 16:
+        case 12:
             return "wasm";
-        case 17:
+        case 13:
             return "node";
-        case 18:
+        case 14:
             return "sourceMap";
-        case 19:
+        case 15:
             return "object";
-        case 20:
+        case 16:
             return "image";
-        case 21:
+        case 17:
             return "font";
-        case 22:
+        case 18:
             return "audio";
-        case 23:
+        case 19:
             return "video";
-        case 24:
+        case 20:
             return "model";
-        case 25:
+        case 21:
             return "neural";
-        case 26:
+        case 22:
             return "document";
-        case 27:
+        case 23:
             return "binary";
-        case 28:
+        case 24:
             return "unknown";
     }
 
@@ -204,16 +184,8 @@ export function fromJsonFileType(value: Json): FileType {
             return "destack";
         case "destackDeclaration":
             return "destackDeclaration";
-        case "javaScript":
-            return "javaScript";
-        case "javaScriptXml":
-            return "javaScriptXml";
-        case "typeScript":
-            return "typeScript";
-        case "typeScriptXml":
-            return "typeScriptXml";
-        case "typeScriptDeclaration":
-            return "typeScriptDeclaration";
+        case "script":
+            return "script";
         case "text":
             return "text";
         case "toml":

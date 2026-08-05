@@ -4,51 +4,6 @@ import { BinaryReader, BinaryWriter, Json, jsonBigint, jsonField, jsonObject } f
 import type { PackageId } from "./package.js";
 import { decodePackageId, encodePackageId, fromJsonPackageId, toJsonPackageId } from "./package.js";
 
-/** Stable key for one target within a package. */
-export type TargetKey = bigint;
-
-export const TargetKey = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: TargetKey): void {
-        encodeTargetKey(writer, value);
-    },
-
-    /** Decode one TargetKey. */
-    decode(reader: BinaryReader): TargetKey {
-        return decodeTargetKey(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: TargetKey): Json {
-        return toJsonTargetKey(value);
-    },
-
-    /** Return one TargetKey from one JSON value. */
-    fromJson(value: Json): TargetKey {
-        return fromJsonTargetKey(value);
-    },
-};
-
-/** Encode one TargetKey. */
-export function encodeTargetKey(writer: BinaryWriter, value: TargetKey): void {
-    writer.writeUnsigned(value);
-}
-
-/** Decode one TargetKey. */
-export function decodeTargetKey(reader: BinaryReader): TargetKey {
-    return reader.readUnsigned();
-}
-
-/** Return one JSON value for one TargetKey. */
-export function toJsonTargetKey(value: TargetKey): Json {
-    return value.toString();
-}
-
-/** Return one TargetKey from one JSON value. */
-export function fromJsonTargetKey(value: Json): TargetKey {
-    return jsonBigint(value);
-}
-
 /** Unique identifier for a build target within a package. */
 export type TargetId = {
     /** The owning package id. */
@@ -112,4 +67,49 @@ export function fromJsonTargetId(value: Json): TargetId {
         packageId: fromJsonPackageId(jsonField(object, "packageId")),
         targetKey: fromJsonTargetKey(jsonField(object, "targetKey")),
     };
+}
+
+/** Stable key for one target within a package. */
+export type TargetKey = bigint;
+
+export const TargetKey = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: TargetKey): void {
+        encodeTargetKey(writer, value);
+    },
+
+    /** Decode one TargetKey. */
+    decode(reader: BinaryReader): TargetKey {
+        return decodeTargetKey(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: TargetKey): Json {
+        return toJsonTargetKey(value);
+    },
+
+    /** Return one TargetKey from one JSON value. */
+    fromJson(value: Json): TargetKey {
+        return fromJsonTargetKey(value);
+    },
+};
+
+/** Encode one TargetKey. */
+export function encodeTargetKey(writer: BinaryWriter, value: TargetKey): void {
+    writer.writeUnsigned(value);
+}
+
+/** Decode one TargetKey. */
+export function decodeTargetKey(reader: BinaryReader): TargetKey {
+    return reader.readUnsigned();
+}
+
+/** Return one JSON value for one TargetKey. */
+export function toJsonTargetKey(value: TargetKey): Json {
+    return value.toString();
+}
+
+/** Return one TargetKey from one JSON value. */
+export function fromJsonTargetKey(value: Json): TargetKey {
+    return jsonBigint(value);
 }

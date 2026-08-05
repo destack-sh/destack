@@ -19,7 +19,8 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-destack = { workspace = true, default-features = false }
+destack_source.workspace = true
+destack_workspace.workspace = true
 js-sys = "0.3.81"
 wasm-bindgen = { workspace = true }
 

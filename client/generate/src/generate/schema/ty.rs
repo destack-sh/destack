@@ -5,6 +5,8 @@ use anyhow::{Result, bail};
 /// One supported client type reference.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum Type {
+    /// Unit value.
+    Unit,
     /// `String`.
     String,
     /// `bool`.
@@ -48,6 +50,7 @@ impl Type {
         names: &BTreeMap<destack_serde::SchemaName, String>,
     ) -> Result<Self> {
         match ty {
+            destack_serde::SchemaRef::Unit => Ok(Self::Unit),
             destack_serde::SchemaRef::String => Ok(Self::String),
             destack_serde::SchemaRef::Bool => Ok(Self::Bool),
             destack_serde::SchemaRef::Char => Ok(Self::Char),
@@ -121,16 +124,6 @@ impl Type {
             }
             Self::Named { key, .. } => visit(key),
             _ => Ok(()),
-        }
-    }
-
-    /// Return whether this type contains a map.
-    pub(crate) fn has_map(&self) -> bool {
-        match self {
-            Self::Vec(ty) | Self::Option(ty) | Self::Array(ty, _) => ty.has_map(),
-            Self::Tuple(types) => types.iter().any(Self::has_map),
-            Self::Map(_, _) => true,
-            _ => false,
         }
     }
 
