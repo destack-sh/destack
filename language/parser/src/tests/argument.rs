@@ -1,9 +1,9 @@
 use destack_dir::{
     Argument, Asynchrony, BinaryOperator, ClassDeclaration, CommentKind, Declaration, Decorator,
     DecoratorPosition, Expression, FunctionDeclaration, FunctionRole, GenericArgument,
-    GenericParameter, IfForm, IntegerType, Key, Keyword, Member, Name, NodeType, Parameter,
-    Pattern, PatternField, ScalarLiteral, TokenType, TreeAttribute, TreeAttributeValue,
-    TupleElement, TypeExpression, TypeLiteral, TypeMember,
+    GenericParameter, IfForm, IntegerType, InterfaceDeclaration, Key, Keyword, Member, Name,
+    NodeType, Parameter, Pattern, PatternField, ScalarLiteral, TokenType, TreeAttribute,
+    TreeAttributeValue, TupleElement, TypeExpression, TypeLiteral, TypeMember,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanType};
 
@@ -789,7 +789,7 @@ fn test_parse_comptime_modifier_allows_block_line_break() {
     assert!(parser.peek_is(TokenType::OpenBrace));
 }
 
-/// Parse parameter decorators in constructors and methods.
+/// Parse parameter decorators across callable declarations.
 #[test]
 fn test_parse_parameter_decorators() {
     let input = r#"
@@ -798,12 +798,16 @@ class Test {
 
     method(@p1 t1, @p1 @p2 ...t2) {}
 }
+
+interface Reader {
+    read(@tracked value: string): string;
+}
 "#;
     let test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    assert_eq!(expressions.len(), 1);
+    assert_eq!(expressions.len(), 2);
     test.assert_no_errors(&parser);
 
     // class Test { ... }
@@ -880,6 +884,28 @@ class Test {
                 assert_node!(parser.tree, method_t2_annotations[1], Decorator { expression, position } => {
                     assert_eq!(*position, DecoratorPosition::BlockPrefix);
                     assert_expression_path!(parser, parser.tree.get(*expression), "p2");
+                });
+            });
+        });
+    });
+
+    // interface Reader { read(@tracked value: string): string; }
+    let expression = parser.unwrap_label_expression(expressions[1]);
+    assert_node!(parser.tree, expression, Expression::Declaration(declaration) => {
+        assert_node!(parser.tree, *declaration, Declaration::Interface(InterfaceDeclaration { members, .. }) => {
+            assert_node!(parser.tree, members[0], TypeMember::Method { signature, .. } => {
+                let parameter = signature.parameters[0];
+                let name = parser
+                    .tree
+                    .get_main_span(parameter)
+                    .expect("missing parameter name span");
+
+                assert_eq!(parser.span_str(name), "value");
+                let decorators = parser.tree.get_decorators(parameter.id);
+                assert_eq!(decorators.len(), 1);
+                assert_node!(parser.tree, decorators[0], Decorator { expression, position } => {
+                    assert_eq!(*position, DecoratorPosition::BlockPrefix);
+                    assert_expression_path!(parser, parser.tree.get(*expression), "tracked");
                 });
             });
         });

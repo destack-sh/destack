@@ -7,8 +7,8 @@ use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 use crate::parse::BindingModifierGrammar;
 use crate::parse::context::{
-    AwaitContext, ExpressionContext, ExpressionStops, ParameterContext, ParameterSpace,
-    PatternContext, StatementPosition, TypeContext, TypeStops,
+    AwaitContext, ExpressionContext, ExpressionStops, ParameterContext, PatternContext,
+    StatementPosition, TypeContext, TypeStops,
 };
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
@@ -160,15 +160,9 @@ impl Parser {
         &mut self,
         context: ParameterContext,
     ) -> ParserResult<LocalNodeId<Parameter>> {
+        // parse parameter prefixes
         let documentation = self.parse_documentation();
-
-        // collect runtime decorators so validation can check placement
-        let decorators = if context.space == ParameterSpace::Value {
-            self.parse_decorators(context.function)
-        } else {
-            smallvec::SmallVec::new()
-        };
-
+        let decorators = self.parse_decorators(context.function);
         let start = self.mark_parse_start();
 
         // receiver shorthand
