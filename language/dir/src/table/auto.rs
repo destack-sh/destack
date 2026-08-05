@@ -9,6 +9,8 @@ use crate::{GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LanguageItem, Segment
 /// Interface whose implementation can be provided by compiler rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum AutoInterface {
+    /// Values supported by atomic storage.
+    AtomicSafe,
     /// Ordered comparison interface.
     Compare,
     /// Complete by-value storage representation.
@@ -63,6 +65,7 @@ impl AutoInterface {
     /// Return the auto interface named by one language item.
     pub fn from_language_item(item: LanguageItem) -> Option<Self> {
         match item {
+            LanguageItem::AtomicSafe => Some(Self::AtomicSafe),
             LanguageItem::Compare => Some(Self::Compare),
             LanguageItem::Concrete => Some(Self::Concrete),
             LanguageItem::Copy => Some(Self::Copy),
@@ -89,6 +92,7 @@ impl AutoInterface {
     /// Return the source-facing interface name.
     pub fn name(self) -> &'static str {
         match self {
+            Self::AtomicSafe => "AtomicSafe",
             Self::Compare => "Compare",
             Self::Concrete => "Concrete",
             Self::Copy => "Copy",
@@ -114,7 +118,8 @@ impl AutoInterface {
     /// Return whether this interface is memberless.
     pub fn is_marker(self) -> bool {
         match self {
-            Self::Concrete
+            Self::AtomicSafe
+            | Self::Concrete
             | Self::Copy
             | Self::DynamicSafe
             | Self::OverwriteStable
@@ -154,7 +159,8 @@ impl AutoInterface {
             | Self::PartialCompare
             | Self::PartialEqual
             | Self::Serialize => true,
-            Self::Copy
+            Self::AtomicSafe
+            | Self::Copy
             | Self::DynamicSafe
             | Self::OverwriteStable
             | Self::SharedSafe

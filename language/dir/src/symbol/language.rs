@@ -1414,6 +1414,18 @@ define_language_items! {
         }
     }
 
+    /// Synchronization types.
+    sync {
+        /// `destack:sync/atomic`.
+        atomic {
+            /// Atomic storage.
+            Atomic => (Newtype, "sync/atomic", "Atomic"),
+
+            /// Atomic storage safety marker.
+            AtomicSafe => (NewtypeInterface, "sync/atomic", "AtomicSafe"),
+        }
+    }
+
     /// Tensor types.
     tensor {
         /// `destack:tensor/layout`.
