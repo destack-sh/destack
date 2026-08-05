@@ -127,7 +127,7 @@ impl<'a> ProgramLinker<'a> {
         let layouts = LayoutLinker::new(&self).link()?;
         let functions = FunctionLinker::new(&self).link()?;
         let bindings = BindingLinker::new(&self).link()?;
-        let sites = SiteLinker::new(&self, &frame_linker).link()?;
+        let sites = SiteLinker::new(&self).link()?;
         let types = TypeLinker::new(&self).link()?;
         let dispatch = DispatchLinker::new(&self).link()?;
 

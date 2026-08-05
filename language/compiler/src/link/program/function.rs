@@ -4,8 +4,8 @@ use std::sync::Arc;
 use destack_core::StringPool;
 use destack_mir as mir;
 use destack_program::{
-    CoroutineKind, FunctionBuilder, FunctionExport, FunctionId, FunctionTableBuilder, Object,
-    Signature, SignatureId, Symbol, TypeId, object,
+    FunctionBuilder, FunctionExport, FunctionId, FunctionTableBuilder, Object, Signature,
+    SignatureId, Symbol, TypeId, object,
 };
 
 use destack_source::{ModuleId, PackageId};
@@ -46,9 +46,6 @@ impl<'a> FunctionLinker<'a> {
             let name = function.name;
             let signature = self.program.function_signature_id(*module, *function_id);
             let mut entry = FunctionBuilder::new(name, signature);
-            if let Some(coroutine) = function.coroutine {
-                entry = entry.coroutine(Self::coroutine(coroutine));
-            }
             if let Some(environment) = function.environment {
                 entry = entry.environment(self.program.type_id(*module, environment));
             }
@@ -62,15 +59,6 @@ impl<'a> FunctionLinker<'a> {
             .signatures(self.program.signatures().iter().cloned())
             .functions(functions)
             .exports(exports))
-    }
-
-    /// Project MIR coroutine behavior into its durable Program tag.
-    fn coroutine(coroutine: mir::CoroutineKind) -> CoroutineKind {
-        match coroutine {
-            mir::CoroutineKind::Async => CoroutineKind::ASYNC,
-            mir::CoroutineKind::Generator => CoroutineKind::GENERATOR,
-            mir::CoroutineKind::AsyncGenerator => CoroutineKind::ASYNC_GENERATOR,
-        }
     }
 }
 

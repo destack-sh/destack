@@ -12,7 +12,6 @@ mod memory;
 mod profile;
 mod scalar;
 mod slice;
-mod suspension;
 mod tensor;
 mod variant;
 mod vector;

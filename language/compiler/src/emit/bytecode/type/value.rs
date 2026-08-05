@@ -20,9 +20,6 @@ impl TypeEmitter<'_> {
             mir::Type::Usize | mir::Type::TypeDescriptor => {
                 bytecode::ValueType::scalar(self.scalar(representation)?)
             }
-            mir::Type::Continuation { .. } | mir::Type::Waiter { .. } => {
-                bytecode::ValueType::scalar(bytecode::Scalar::Uint64)
-            }
             mir::Type::Float(format) => bytecode::ValueType::scalar(self.float(*format)),
             mir::Type::TypeId => bytecode::ValueType::type_id(),
             mir::Type::Reference { kind, storage, .. } => {

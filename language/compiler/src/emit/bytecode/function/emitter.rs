@@ -67,11 +67,6 @@ pub(super) enum Stub {
         /// Target parameters receiving the explicit edge arguments.
         parameters: Vec<mir::Value>,
     },
-    /// One propagated panic unwind.
-    Unwind {
-        /// Branch label entering this propagation block.
-        label: bytecode::Label,
-    },
     /// One unreachable fallback for an exhaustive transfer.
     Unreachable {
         /// Branch label entering this fallback.
@@ -177,7 +172,7 @@ impl<'a> FunctionEmitter<'a> {
             self.emit_terminator(block_id, self.optimized.tree.get(block.terminator))?;
         }
 
-        // emit deferred transfer and unwind blocks in label order
+        // emit deferred transfer and fallback blocks in label order
         for stub in std::mem::take(&mut self.stubs) {
             match stub {
                 Stub::Transfer {
@@ -187,10 +182,6 @@ impl<'a> FunctionEmitter<'a> {
                 } => {
                     self.define(label)?;
                     self.emit_transfer(&target, &parameters)?;
-                }
-                Stub::Unwind { label } => {
-                    self.define(label)?;
-                    self.emit_empty(bytecode::Opcode::UNWIND_RESUME)?;
                 }
                 Stub::Unreachable { label } => {
                     self.define(label)?;

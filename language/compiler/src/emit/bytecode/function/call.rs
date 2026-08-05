@@ -23,6 +23,17 @@ impl<'a> FunctionEmitter<'a> {
         self.emit_call_operation(call, opcode, &destinations, None)
     }
 
+    /// Emit one detach boundary call.
+    pub(super) fn emit_call_detach(&mut self, thunk: mir::Value) -> Result<(), EmitError> {
+        self.builder
+            .anchor_operation()
+            .map_err(|error| self.bytecode_error(error))?;
+        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::CALL_DETACH);
+        instruction.span(self.register(thunk)?);
+
+        self.encode(instruction, &[])
+    }
+
     /// Emit one invoked call with normal and unwind continuations.
     pub(super) fn emit_invoke(
         &mut self,

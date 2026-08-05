@@ -4,13 +4,13 @@ use std::sync::Arc;
 use destack_core::Optional;
 use destack_mir as mir;
 use destack_program::{
-    AllocationSite, AllocationSiteId, CallDispatch, CallMode, CallSite, ContinuationSite,
-    CounterId, CounterSite, EdgeSite, MemoryAccess, MemorySite, Object, ProgramPoint, SampleSite,
-    SamplerId, SiteTableBuilder, Suspension, SuspensionSite, object,
+    AllocationSite, AllocationSiteId, CallDispatch, CallMode, CallSite, CounterId, CounterSite,
+    EdgeSite, MemoryAccess, MemorySite, Object, ProgramPoint, SampleSite, SamplerId,
+    SiteTableBuilder, object,
 };
 use destack_source::{ModuleId, PackageId};
 
-use super::{FrameLinker, ProgramLinker};
+use super::ProgramLinker;
 use crate::{LinkError, LinkResult};
 
 /// Link object-local sites into one Program site table.
@@ -18,14 +18,12 @@ use crate::{LinkError, LinkResult};
 pub(crate) struct SiteLinker<'a> {
     /// Dense Program identity projection.
     program: &'a ProgramLinker<'a>,
-    /// Canonical frame state projection.
-    frames: &'a FrameLinker<'a>,
 }
 
 impl<'a> SiteLinker<'a> {
     /// Create one site linker.
-    pub(crate) fn new(program: &'a ProgramLinker<'a>, frames: &'a FrameLinker<'a>) -> Self {
-        Self { program, frames }
+    pub(crate) fn new(program: &'a ProgramLinker<'a>) -> Self {
+        Self { program }
     }
 
     /// Link every emitted site row.
@@ -33,9 +31,7 @@ impl<'a> SiteLinker<'a> {
         let mut allocations = Vec::new();
         let mut memory = Vec::new();
         let mut calls = Vec::new();
-        let mut continuations = Vec::new();
         let mut edges = Vec::new();
-        let mut suspensions = Vec::new();
         let mut counters = Vec::new();
         let mut samples = Vec::new();
 
@@ -56,7 +52,7 @@ impl<'a> SiteLinker<'a> {
                     .map(|site| self.memory(*module, site)),
             );
 
-            // link calls and continuation transfers
+            // link calls and control-flow edges
             calls.extend(
                 object
                     .calls()
@@ -64,22 +60,7 @@ impl<'a> SiteLinker<'a> {
                     .map(|site| self.call(*module, site))
                     .collect::<LinkResult<Vec<_>>>()?,
             );
-            continuations.extend(
-                object
-                    .continuations()
-                    .iter()
-                    .map(|site| self.continuation(*module, site)),
-            );
-
-            // link edges and coroutine suspensions
             edges.extend(object.edges().iter().map(|site| self.edge(*module, site)));
-            suspensions.extend(
-                object
-                    .suspensions()
-                    .iter()
-                    .map(|site| self.suspension(*module, site))
-                    .collect::<LinkResult<Vec<_>>>()?,
-            );
 
             // link profile counters and samples
             counters.extend(
@@ -100,9 +81,7 @@ impl<'a> SiteLinker<'a> {
             .allocations(allocations)
             .memory(memory)
             .calls(calls)
-            .continuations(continuations)
             .edges(edges)
-            .suspensions(suspensions)
             .counters(counters)
             .samples(samples))
     }
@@ -183,53 +162,12 @@ impl<'a> SiteLinker<'a> {
         })
     }
 
-    /// Link one continuation control site.
-    fn continuation(&self, module: ModuleId, site: &object::ContinuationSite) -> ContinuationSite {
-        ContinuationSite {
-            point: self.point(module, site.point),
-            yielded: self.point(module, site.yielded),
-            returned: self.point(module, site.returned),
-            unwind: Optional::from(site.unwind.map(|point| self.point(module, point))),
-        }
-    }
-
     /// Link one control-flow edge.
     fn edge(&self, module: ModuleId, site: &object::EdgeSite) -> EdgeSite {
         EdgeSite {
             source: self.point(module, site.source),
             target: self.point(module, site.target),
         }
-    }
-
-    /// Link one coroutine suspension site.
-    fn suspension(
-        &self,
-        module: ModuleId,
-        site: &object::SuspensionSite,
-    ) -> LinkResult<SuspensionSite> {
-        let frame_state = self
-            .frames
-            .state(module, object::FramePoint::operation(site.point))
-            .ok_or_else(|| self.program.invalid_input("missing suspension frame state"))?;
-
-        Ok(SuspensionSite {
-            point: self.point(module, site.point),
-            resume: self.point(module, site.resume),
-            cancel: Optional::from(site.cancel.map(|point| self.point(module, point))),
-            complete: Optional::from(site.complete.map(|point| self.point(module, point))),
-            unwind: Optional::from(site.unwind.map(|point| self.point(module, point))),
-            frame_state,
-            operation: match site.operation {
-                object::Suspension::Await => Suspension::Await,
-                object::Suspension::Yield => Suspension::Yield,
-            },
-            value_type: self.program.type_id(module, site.value_type),
-            resume_type: self.program.type_id(module, site.resume_type),
-            complete_type: Optional::from(
-                site.complete_type
-                    .map(|ty| self.program.type_id(module, ty)),
-            ),
-        })
     }
 
     /// Link one explicit counter site.

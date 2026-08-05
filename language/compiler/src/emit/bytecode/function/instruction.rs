@@ -155,37 +155,7 @@ impl<'a> FunctionEmitter<'a> {
                 ..
             } => self.emit_context_get(*destination, *context, *variable, *default, *node_type),
             mir::Instruction::Call { destination, call } => self.emit_call(*destination, call),
-            mir::Instruction::ContinuationNew {
-                destination,
-                function,
-                arguments,
-            } => self.emit_continuation_new(*destination, *function, *arguments),
-            mir::Instruction::ContinuationDestroy { continuation } => {
-                self.emit_continuation_destroy(*continuation)
-            }
-            mir::Instruction::WaiterQueue {
-                destination,
-                waiter,
-                value,
-            } => self.emit_waiter_queue(*destination, *waiter, *value),
-            mir::Instruction::WaiterCancel {
-                destination,
-                waiter,
-            } => self.emit_waiter_cancel(*destination, *waiter),
-            mir::Instruction::TaskResolve { destination, value } => {
-                self.emit_task_resolve(*destination, *value)
-            }
-            mir::Instruction::TaskStart {
-                destination,
-                continuation,
-            } => self.emit_task_start(*destination, *continuation),
-            mir::Instruction::TaskPark { task, waiter } => self.emit_task_park(*task, *waiter),
-            mir::Instruction::TaskCancel { task } => {
-                self.emit_task(bytecode::Opcode::TASK_CANCEL, *task)
-            }
-            mir::Instruction::TaskDetach { task } => {
-                self.emit_task(bytecode::Opcode::TASK_DETACH, *task)
-            }
+            mir::Instruction::CallDetach { thunk } => self.emit_call_detach(*thunk),
             mir::Instruction::Drop { value } => self.emit_drop(*value),
             mir::Instruction::NewZeroed {
                 destination,

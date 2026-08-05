@@ -41,17 +41,6 @@ entry:
     v1: int32 = load v0
     return v1
 }
-
-export function* generate(v0: int32): int32 {
-entry(v0: int32):
-    yield v0 => resumed | completed
-
-resumed(v1: int32):
-    return v1
-
-completed(v2: int32):
-    return v2
-}
 "#,
         [provider_module],
     );
@@ -89,9 +78,6 @@ completed(v2: int32):
     let read_answer = program
         .function_id_by_name("readAnswer")
         .expect("global reader export should exist");
-    let generate = program
-        .function_id_by_name("generate")
-        .expect("generator export should exist");
     let code = program
         .bytecode()
         .expect("bytecode link should produce executable bytecode");
@@ -103,28 +89,6 @@ completed(v2: int32):
         program.function_symbol(caller),
         program.function_symbol(callee)
     );
-
-    // match the generator entry layout to its physical registers
-    let state = program
-        .frame_state_at(FramePoint::entry(generate))
-        .expect("generator entry state should exist");
-    let frame = program
-        .frame_state(state)
-        .expect("generator entry frame should exist");
-    let layout = program
-        .frame_layout(frame.layout)
-        .expect("generator entry layout should exist");
-    let map = code
-        .frame(sections, state.index())
-        .expect("generator entry map should exist");
-    let parameters = program
-        .function_parameters(generate)
-        .expect("generator parameters should exist");
-    let slots = program.frame_slots(layout);
-    let registers = map.registers(code.registers(sections));
-    assert_eq!(slots.len(), 1);
-    assert_eq!(slots[0].ty, parameters[0]);
-    assert_eq!(registers, &[RegisterSpan::new(RegisterId(0), 1)]);
 
     // preserve the logical call point through object emission and program linking
     let call_site = program
@@ -139,6 +103,29 @@ completed(v2: int32):
         .expect("call point should name an instruction");
     assert_eq!(instruction.opcode(), Opcode::CALL);
     assert_eq!(call_site.target.get(), Some(callee));
+
+    // match the caller's call-site state to its linked physical frame map
+    let state = program
+        .frame_state_at(FramePoint::operation(call_site.point))
+        .expect("caller call state should exist");
+    let frame = program
+        .frame_state(state)
+        .expect("caller call frame should exist");
+    let layout = program
+        .frame_layout(frame.layout)
+        .expect("caller call layout should exist");
+    let map = code
+        .frame(sections, state.index())
+        .expect("caller call map should exist");
+    // the caller argument stays live across the call in one canonical slot
+    let parameters = program
+        .function_parameters(caller)
+        .expect("caller parameters should exist");
+    let slots = program.frame_slots(layout);
+    let registers = map.registers(code.registers(sections));
+    assert_eq!(slots.len(), 1);
+    assert_eq!(slots[0].ty, parameters[0]);
+    assert_eq!(registers, &[RegisterSpan::new(RegisterId(0), 1)]);
 
     // omit repository strings that no linked table references
     assert_eq!(program.string(unused), None);

@@ -322,9 +322,6 @@ impl<'a> ObjectTypes<'a> {
                 false,
             )),
             mir::Type::TypeId => Some(ScalarFormat::int(u32::BITS as u16, false)),
-            mir::Type::Continuation { .. } | mir::Type::Waiter { .. } => {
-                Some(ScalarFormat::int(u64::BITS as u16, false))
-            }
             mir::Type::Float(float_type) => Some(ScalarFormat::Float {
                 format: *float_type,
             }),

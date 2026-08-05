@@ -15,7 +15,6 @@ mod profile;
 mod register;
 mod scalar;
 mod slice;
-mod suspension;
 mod tensor;
 mod terminator;
 mod variant;

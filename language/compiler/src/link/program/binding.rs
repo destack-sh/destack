@@ -37,27 +37,30 @@ impl<'a> BindingLinker<'a> {
                 })?;
 
             // skip ordinary callable functions
-            let Some(binding) = &declaration.binding else {
+            let Some(binding_declaration) = &declaration.binding else {
                 continue;
             };
 
             // project the complete binding declaration into Program identity
-            let name = self.program.string(binding.name);
+            let name = self.program.string(binding_declaration.name);
             let id = BindingId::from_name(name);
             let function = self.program.function_id(*module, *function_id);
             let mut binding = BindingBuilder::new(
                 id,
-                binding.name,
+                binding_declaration.name,
                 function,
-                Self::effect(binding.effect),
-                Self::provider(binding.provider),
-                Self::replay(binding.replay),
-                Self::affinity(binding.affinity),
+                Self::effect(binding_declaration.effect),
+                Self::provider(binding_declaration.provider),
+                Self::replay(binding_declaration.replay),
+                Self::affinity(binding_declaration.affinity),
             )
-            .requires(binding.requires.iter().copied())
-            .platforms(binding.platforms.iter().copied())
-            .families(binding.families.iter().copied())
-            .hosts(binding.hosts.iter().copied());
+            .requires(binding_declaration.requires.iter().copied())
+            .platforms(binding_declaration.platforms.iter().copied())
+            .families(binding_declaration.families.iter().copied())
+            .hosts(binding_declaration.hosts.iter().copied());
+            if binding_declaration.is_park {
+                binding = binding.park();
+            }
             if declaration.is_import() {
                 binding = binding.imported();
             }

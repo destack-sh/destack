@@ -290,31 +290,6 @@ impl<'a> FunctionEmitter<'a> {
             .collect()
     }
 
-    /// Return an explicit unwind edge or one shared propagation block.
-    pub(super) fn unwind_label(
-        &mut self,
-        terminator: &mir::Terminator,
-        unwind: Option<&mir::BlockTarget>,
-    ) -> Result<bytecode::Label, EmitError> {
-        if let Some(unwind) = unwind {
-            return self.edge_label(terminator, unwind);
-        }
-
-        // reuse the function's one propagated unwind block
-        if let Some(label) = self.stubs.iter().find_map(|stub| match stub {
-            Stub::Unwind { label } => Some(*label),
-            Stub::Transfer { .. } | Stub::Unreachable { .. } => None,
-        }) {
-            return Ok(label);
-        }
-
-        let label = bytecode::Label(self.next_label);
-        self.next_label += 1;
-        self.stubs.push(Stub::Unwind { label });
-
-        Ok(label)
-    }
-
     /// Emit one deferred block argument transfer.
     pub(super) fn emit_transfer(
         &mut self,
