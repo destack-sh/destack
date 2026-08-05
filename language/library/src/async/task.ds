@@ -1,164 +1,144 @@
-import { todo } from "destack:error";
-import { AsyncDispose, Drop } from "destack:memory";
+import { todo, trap } from "destack:error";
+import { AsyncDispose, Cell, Copy, Drop } from "destack:memory";
 
 import { Awaitable } from "./awaitable.ds";
-import { Continuation, Waiter } from "./continuation.ds";
+import { Fiber } from "./fiber.ds";
 import { Promise } from "./promise.ds";
 
-/// Single-consumer asynchronous result.
+/// Single-consumer asynchronous result on its own fiber.
 ///
-/// Awaiting consumes the task and transfers its result.
-/// Dropping the task detaches its result without cancelling its execution.
-/// Cancellation enters its continuation's cancellation path at the next suspension.
+/// Awaiting a task blocks the current fiber and moves the result out.
+/// Cancellation requests are delivered cooperatively at cancellable operations.
 @languageItem("async.Task")
-export local struct Task<T> implements Awaitable<T>, Drop {
-    /// Opaque task identity.
-    private handle: uint64;
+export local class Task<T> implements Awaitable<T> {
+    /// The single-consumer settlement state.
+    private state: Cell<TaskState<T>>;
+
+    /// Create one pending task.
+    private constructor() {
+        this.state = Cell.new(TaskPending { kind: "pending", waiter: undefined });
+    }
 
     /// Create an already completed task.
     static resolve<T>(value: T): Task<T> {
-        return resolveTask(value);
+        let task = new Task<T>();
+        task.complete(value);
+
+        return task;
     }
 
-    /// Start one coroutine as a task.
-    @languageItem("async.Task.create")
-    private static create<T>(continuation: Continuation<void, never, T>): Task<T> {
-        return startTask(continuation);
+    /// Run one body on a fresh fiber and expose its result.
+    static spawn<T>(body: () => T): Task<T> {
+        let task = new Task<T>();
+        Fiber.spawn(() => {
+            task.complete(body());
+        });
+
+        return task;
     }
 
-    /// Park one waiter until a task completes.
-    static park<T>(task: Task<T>, waiter: Waiter<T>): void {
-        parkTask(task, waiter);
+    /// Block the current fiber until a task completes, moving the result out.
+    static block<T>(task: Task<T>): T {
+        match (task.state.replace(TaskTaken { kind: "taken" })) {
+            TaskPending { waiter: undefined } => {
+                let pending = TaskPending { kind: "pending", waiter: Fiber.current() };
+                task.state.set(pending);
+
+                Fiber.park<T>()
+            }
+            TaskPending => trap("task already has a consumer")
+            TaskDone { value } => value
+            TaskTaken => trap("task result was already consumed")
+        }
     }
 
     /// Request cancellation at the next suspension.
     cancel(&readonly this): void {
-        cancelTask(&readonly this);
+        todo("Task.cancel");
     }
 
-    /// Detach this task result.
-    drop(): void {
-        detachTask(this);
+    /// Settle this task, waking a blocked consumer.
+    private complete(value: T): void {
+        match (this.state.replace(TaskTaken { kind: "taken" })) {
+            TaskPending { waiter: undefined } => {
+                this.state.set(TaskDone { kind: "done", value });
+            }
+            TaskPending { waiter } => {
+                waiter!.wake(value);
+            }
+            _ => trap("task completed twice")
+        }
     }
+}
+
+/// One task's settlement state.
+local type TaskState<T> = TaskPending | TaskDone<T> | TaskTaken;
+
+/// Task awaiting its body.
+local struct TaskPending {
+    /// The state tag.
+    kind: "pending";
+
+    /// The blocked consumer when one arrived before completion.
+    waiter: Fiber | undefined;
+}
+
+/// Task holding an unconsumed result.
+local struct TaskDone<T> {
+    /// The state tag.
+    kind: "done";
+
+    /// The moved-in result.
+    value: T;
+}
+
+/// Task whose result was consumed or is being settled.
+local struct TaskTaken {
+    /// The state tag.
+    kind: "taken";
 }
 
 /// Structured owner of spawned tasks.
 ///
 /// Asynchronous disposal waits for every child before it completes.
 /// Cancellation requests are delivered cooperatively at cancellable asynchronous operations.
-export local struct TaskScope implements Awaitable<void>, AsyncDispose, Drop {
+export local struct TaskScope implements AsyncDispose, Drop {
     /// Opaque task scope identity.
     private handle: uint64;
 
     /// Open a new task scope.
     static open(): TaskScope {
-        return openScope();
+        todo("TaskScope.open")
     }
 
     /// Spawn one task owned by this scope.
-    spawn<T>(&exclusive this, body: () => Task<T>): Task<T> {
-        let task = body();
-        attachTask(&readonly this, &readonly task);
-
-        return task;
+    spawn<T: Copy>(&exclusive this, body: () => Task<T>): Task<T> {
+        todo("TaskScope.spawn")
     }
 
     /// Request cancellation of every pending child.
     cancel(&readonly this): void {
-        cancelScope(&readonly this);
-    }
-
-    /// Park one waiter until every child completes.
-    static park(scope: TaskScope, waiter: Waiter<void>): void {
-        parkScope(scope, waiter);
-    }
-
-    /// Consume this scope after every child completes.
-    async join(this): Promise<void> {
-        await this;
+        todo("TaskScope.cancel");
     }
 
     /// Cancel pending children and wait for their cleanup.
     async asyncDispose(): Promise<void> {
-        this.cancel();
-        await this;
+        todo("TaskScope.asyncDispose")
     }
 
     /// Cancel pending children and detach their cleanup.
     drop(): void {
-        this.cancel();
-        detachScope(this);
+        todo("TaskScope.drop");
     }
 }
 
-/// Create an already completed task.
-@intrinsic("async.task.resolve")
-export declare function resolveTask<T>(value: T): Task<T>;
-
-/// Start one coroutine as a task.
-@intrinsic("async.task.start")
-export declare function startTask<T>(continuation: Continuation<void, never, T>): Task<T>;
-
-/// Request task cancellation at the next suspension.
-@intrinsic("async.task.cancel")
-export declare function cancelTask<T>(task: &readonly Task<T>): void;
-
-/// Park one waiter until a task completes.
-@intrinsic("async.task.park")
-export declare function parkTask<T>(task: Task<T>, waiter: Waiter<T>): void;
-
-/// Detach one task result.
-@intrinsic("async.task.detach")
-export declare function detachTask<T>(task: Task<T>): void;
-
-/// Open one structured task scope.
-@binding("destack.async.taskScope.open", {
-    provider: "runtime",
-    effect: "deterministic",
-    requires: [],
-    affinity: "worker",
-})
-export declare function openScope(): TaskScope;
-
-/// Attach one task execution to one scope.
-@binding("destack.async.taskScope.attach", {
-    provider: "runtime",
-    effect: "deterministic",
-    requires: [],
-    affinity: "worker",
-})
-export declare function attachTask<T>(scope: &readonly TaskScope, task: &readonly Task<T>): void;
-
-/// Request cancellation of every pending task in one scope.
-@binding("destack.async.taskScope.cancel", {
-    provider: "runtime",
-    effect: "deterministic",
-    requires: [],
-    affinity: "worker",
-})
-export declare function cancelScope(scope: &readonly TaskScope): void;
-
-/// Park one waiter until every task in one scope completes.
-@binding("destack.async.taskScope.park", {
-    provider: "runtime",
-    effect: "deterministic",
-    requires: [],
-    affinity: "worker",
-})
-export declare function parkScope(scope: TaskScope, waiter: Waiter<void>): void;
-
-/// Detach one scope while retaining pending task cleanup.
-@binding("destack.async.taskScope.detach", {
-    provider: "runtime",
-    effect: "deterministic",
-    requires: [],
-    affinity: "worker",
-})
-export declare function detachScope(scope: TaskScope): void;
-
-/// Yield back to the current Worker scheduler.
-export function yieldNow(): Promise<void> {
-    todo("async.yieldNow")
+/// Yield the current fiber back to the Worker scheduler.
+export function yieldNow(): void {
+    let me = Fiber.current();
+    queueMicrotask(() => {
+        me.wake(undefined);
+    });
+    Fiber.park<void>();
 }
 
 /// Queue one function after the active task finishes.

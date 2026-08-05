@@ -1,8 +1,6 @@
-import { Waiter } from "./continuation.ds";
-
-/// Value whose result can resume asynchronous execution.
+/// Value whose result can suspend the current fiber.
 @languageItem("async.Awaitable")
 export local newtype interface Awaitable<T> {
-    /// Park one waiter until `value` produces its result.
-    static park(value: this, waiter: Waiter<T>): void;
+    /// Block the current fiber until `value` produces its result.
+    static block(value: this): T;
 }

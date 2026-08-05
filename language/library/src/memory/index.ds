@@ -1,4 +1,4 @@
-export { memory, MemoryBinding } from "./binding/memory.ds";
+export { MemoryBinding, memory } from "./binding/memory.ds";
 export { Lifetime, StaticLifetime } from "./lifetime.ds";
 export { Access } from "./access.ds";
 export { Place, Placed, Space } from "./place.ds";
@@ -73,12 +73,14 @@ export { Cow, CowBorrowed, CowOwned, MaybeOwned } from "./cow/cow.ds";
 export * as arena from "./arena";
 export * as arc from "./arc";
 export * as cell from "./cell";
+export { Cell, UnsafeCell } from "./cell";
 export * as cow from "./cow";
 export * as rc from "./rc";
 export {
     asExclusive,
     asReadonlyReference,
     asReference,
+    byteOffsetFrom,
     compareBytes,
     copy,
     copyBytes,
@@ -90,7 +92,6 @@ export {
     offsetFrom,
     prefetchRead,
     prefetchWrite,
-    byteOffsetFrom,
     Raw,
     rawEq,
     read,

@@ -25,11 +25,6 @@ export extension<T, E> of AsyncResult<T, E> {
         AsyncResult(Task.resolve(result))
     }
 
-    /// Lift an infallible promise into an async result task.
-    static async fromPromise(promise: Promise<T>): AsyncResult<T, E> where T: Copy {
-        Result.ok(await promise)
-    }
-
     /// Map the success value.
     async map<U>(this, f: (value: T) => U): AsyncResult<U, E> {
         const result = await this;
@@ -129,5 +124,12 @@ export extension<T, E> of AsyncResult<T, E> implements FromResidual<E> {
     /// Create an async result from a propagated residual.
     static fromResidual(residual: E): AsyncResult<T, E> {
         AsyncResult.err(residual)
+    }
+}
+
+export extension<T: Copy, E> of AsyncResult<T, E> {
+    /// Lift an infallible promise into an async result task.
+    static async fromPromise(promise: Promise<T>): AsyncResult<T, E> {
+        Result.ok(await promise)
     }
 }

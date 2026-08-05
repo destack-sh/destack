@@ -3,7 +3,7 @@ import { Iterable } from "destack:iter";
 import { Copy } from "destack:memory";
 
 import { Awaitable } from "./awaitable.ds";
-import { Waiter } from "./continuation.ds";
+import { Fiber } from "./fiber.ds";
 import { queueMicrotask } from "./task.ds";
 
 /// Value produced by asynchronous execution.
@@ -158,9 +158,11 @@ export local class Promise<T: Copy> implements Awaitable<T> {
         return Promise.pending<T>();
     }
 
-    /// Park one waiter until a promise fulfills.
-    static park<T: Copy>(promise: Promise<T>, waiter: Waiter<T>): void {
-        promise.addWaiter(new PromiseAwaiter(waiter));
+    /// Block the current fiber until a promise fulfills.
+    static block<T: Copy>(promise: Promise<T>): T {
+        promise.addWaiter(new PromiseAwaiter(Fiber.current()));
+
+        return Fiber.park<T>();
     }
 
     /// Fulfill one promise with a final value.
@@ -275,7 +277,7 @@ export local class Promise<T: Copy> implements Awaitable<T> {
     private queueWaiter(waiter: PromiseWaiter<T>, source: Promise<T>): void {
         // resume compiler-lowered await directly
         if (waiter.kind == "await") {
-            waiter.waiter.queue(source.observe());
+            waiter.fiber.wake(source.observe());
         }
         // schedule user reactions as callbacks
         else {
@@ -289,7 +291,7 @@ export local class Promise<T: Copy> implements Awaitable<T> {
     private cancelWaiter(waiter: PromiseWaiter<T>): void {
         // cancel compiler-lowered await directly
         if (waiter.kind == "await") {
-            waiter.waiter.cancel();
+            todo("producer cancellation reaching a parked await");
         }
         // propagate cancellation through user reactions
         else {
@@ -366,16 +368,16 @@ local class PromiseAwaiter<T: Copy> {
     /// The waiter tag.
     kind: "await";
 
-    /// The parked execution.
-    waiter: Waiter<T>;
+    /// The parked fiber.
+    fiber: Fiber;
 
     /// Next waiter in fulfillment order.
     next: PromiseWaiter<T> | undefined;
 
     /// Create one promise awaiter.
-    constructor(waiter: Waiter<T>) {
+    constructor(fiber: Fiber) {
         this.kind = "await";
-        this.waiter = waiter;
+        this.fiber = fiber;
         this.next = undefined;
     }
 }

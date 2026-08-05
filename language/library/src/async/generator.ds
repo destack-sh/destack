@@ -1,11 +1,9 @@
-import { trap } from "destack:error";
-import { Iterator, IteratorResult, IteratorReturn, IteratorYield } from "destack:iter";
+import { todo } from "destack:error";
+import { Iterator, IteratorResult } from "destack:iter";
 import { Copy } from "destack:memory";
 
-import { Continuation, ContinuationResult } from "./continuation.ds";
 import { AsyncIterator } from "./iterator.ds";
-import { Promise, PromiseResolvers } from "./promise.ds";
-import { Task } from "./task.ds";
+import { Promise } from "./promise.ds";
 
 /// The union of generator yield and return results.
 @languageItem("async.GeneratorResult")
@@ -13,86 +11,34 @@ export type GeneratorResult<Y, R = void> = IteratorResult<Y, R>;
 
 /// Generator object.
 ///
-/// Each step consumes the previous continuation and stores the next one.
+/// A generator body runs on its own fiber; each step wakes the body with the
+/// consumer request and blocks the consumer until the body yields or returns.
 @languageItem("async.Generator")
 export local class Generator<Y, R = void, N = void> {
     /// The generator state.
-    private state: GeneratorState<Y, R, N>;
+    private state: GeneratorState;
 
-    /// Create a generator from its first continuation.
-    private constructor(continuation: Continuation<N | undefined, Y, R>) {
-        this.state = GeneratorSuspended {
-            kind: "suspended",
-            continuation,
-        };
+    /// Create an idle generator awaiting its first step.
+    private constructor() {
+        this.state = GeneratorIdle { kind: "idle" };
     }
 
-    /// Create a generator from its first continuation.
+    /// Create a generator from its lowered body.
     @languageItem("async.Generator.create")
     private static create<Y, R, N>(
-        continuation: Continuation<N | undefined, Y, R>,
+        body: (channel: GeneratorChannel<Y, R, N>) => R,
     ): Generator<Y, R, N> {
-        new Generator(continuation)
+        todo("Generator.create")
     }
 
     /// Advance the generator with one value.
     next(value: N | undefined): GeneratorResult<Y, R> {
-        // run a suspended generator
-        if (this.state.kind == "suspended") {
-            let continuation = this.state.continuation;
-            this.state = GeneratorRunning { kind: "running" };
-
-            return this.finish(continuation.resume(value));
-        }
-        // return completed result
-        else if (this.state.kind == "completed") {
-            return IteratorResult(IteratorReturn {
-                kind: "return",
-                value: undefined,
-            });
-        }
-        // reject reentrant execution
-        else {
-            trap("generator is already running")
-        }
+        todo("Generator.next")
     }
 
     /// Finalize the generator and return the completion value.
     return(value: R): GeneratorResult<Y, R> {
-        // complete a suspended generator
-        if (this.state.kind == "suspended") {
-            let continuation = this.state.continuation;
-            this.state = GeneratorRunning { kind: "running" };
-
-            return this.finish(continuation.complete(value));
-        }
-        // return completed result
-        else if (this.state.kind == "completed") {
-            return IteratorResult(IteratorReturn { kind: "return", value });
-        }
-        // reject reentrant completion
-        else {
-            trap("generator is already running")
-        }
-    }
-
-    /// Finish one generator step.
-    private finish(result: ContinuationResult<N | undefined, Y, R>): GeneratorResult<Y, R> {
-        // store the yielded continuation
-        if (result.kind == "yield") {
-            this.state = GeneratorSuspended {
-                kind: "suspended",
-                continuation: result.continuation,
-            };
-
-            return IteratorResult(IteratorYield { kind: "yield", value: result.value });
-        }
-        // store final completion
-        else {
-            this.state = GeneratorCompleted { kind: "completed" };
-
-            return IteratorResult(IteratorReturn { kind: "return", value: result.value });
-        }
+        todo("Generator.return")
     }
 }
 
@@ -104,176 +50,64 @@ export extension<Y, R, N> of Generator<Y, R, N> implements Iterator<Y, R> {
     }
 }
 
+/// Step surface passed to one lowered generator body.
+export local struct GeneratorChannel<Y, R, N> {
+    /// Deliver one yielded value and block until the next request.
+    yield(&exclusive this, value: Y): GeneratorResume<R, N> {
+        todo("GeneratorChannel.yield")
+    }
+}
+
+/// One consumer request delivered back into a generator body.
+export type GeneratorResume<R, N> = GeneratorResumeNext<N> | GeneratorResumeFinish<R>;
+
+/// Continue the body with one sent value.
+export local struct GeneratorResumeNext<N> {
+    /// The request tag.
+    kind: "next";
+
+    /// Value sent into the body.
+    value: N | undefined;
+}
+
+/// Run the body's return path with one completion value.
+export local struct GeneratorResumeFinish<R> {
+    /// The request tag.
+    kind: "finish";
+
+    /// Value carried to the body return.
+    value: R;
+}
+
 /// Async generator object.
 ///
 /// Async generators serialize consumer requests and resolve one request promise per step.
 @languageItem("async.AsyncGenerator")
 export local class AsyncGenerator<Y: Copy, R: Copy = void, N = void> {
     /// The async generator state.
-    private state: AsyncGeneratorState<Y, R, N>;
+    private state: GeneratorState;
 
-    /// Latest request advancement.
-    private execution: Task<void> | undefined;
-
-    /// First pending consumer request.
-    private head: AsyncGeneratorRequest<Y, R, N> | undefined;
-
-    /// Last pending consumer request.
-    private tail: AsyncGeneratorRequest<Y, R, N> | undefined;
-
-    /// Create an async generator from its first continuation.
-    private constructor(continuation: Continuation<N | undefined, Y, R>) {
-        this.state = AsyncGeneratorSuspended {
-            kind: "suspended",
-            continuation,
-        };
-        this.execution = undefined;
-        this.head = undefined;
-        this.tail = undefined;
+    /// Create an idle async generator awaiting its first step.
+    private constructor() {
+        this.state = GeneratorIdle { kind: "idle" };
     }
 
-    /// Create an async generator from its first continuation.
+    /// Create an async generator from its lowered body.
     @languageItem("async.AsyncGenerator.create")
     private static create<Y: Copy, R: Copy, N>(
-        continuation: Continuation<N | undefined, Y, R>,
+        body: (channel: GeneratorChannel<Y, R, N>) => R,
     ): AsyncGenerator<Y, R, N> {
-        new AsyncGenerator(continuation)
+        todo("AsyncGenerator.create")
     }
 
     /// Queue one generator step with an explicit value.
     next(value: N | undefined): Promise<GeneratorResult<Y, R>> {
-        // resolve already completed generators
-        if (this.state.kind == "completed") {
-            return Promise.resolve(
-                IteratorResult(IteratorReturn {
-                    kind: "return",
-                    value: undefined,
-                }),
-            );
-        }
-
-        // enqueue the next request
-        let resolvers = Promise.withResolvers<GeneratorResult<Y, R>>();
-        this.enqueue(new AsyncGeneratorNext(value, resolvers));
-        if (this.state.kind == "suspended") {
-            this.execution = this.advance();
-        }
-
-        return resolvers.promise;
+        todo("AsyncGenerator.next")
     }
 
     /// Finalize the async generator and return the completion result promise.
     return(value: R): Promise<GeneratorResult<Y, R>> {
-        // resolve already completed generators
-        if (this.state.kind == "completed") {
-            return Promise.resolve(IteratorResult(IteratorReturn { kind: "return", value }));
-        }
-
-        // enqueue the return request
-        let resolvers = Promise.withResolvers<GeneratorResult<Y, R>>();
-        this.enqueue(new AsyncGeneratorReturn(value, resolvers));
-        if (this.state.kind == "suspended") {
-            this.execution = this.advance();
-        }
-
-        return resolvers.promise;
-    }
-
-    /// Append one consumer request.
-    private enqueue(request: AsyncGeneratorRequest<Y, R, N>): void {
-        // initialize the queue
-        if (this.tail == undefined) {
-            this.head = request;
-            this.tail = request;
-        }
-        // append to the tail
-        else {
-            this.tail.next = request;
-            this.tail = request;
-        }
-    }
-
-    /// Remove the first consumer request.
-    private dequeue(): AsyncGeneratorRequest<Y, R, N> | undefined {
-        let request = this.head;
-        if (request == undefined) {
-            return undefined;
-        }
-
-        // detach the current head
-        this.head = request.next;
-        request.next = undefined;
-
-        // clear the tail when the queue drains
-        if (this.head == undefined) {
-            this.tail = undefined;
-        }
-
-        return request;
-    }
-
-    /// Advance queued requests while the body remains suspended.
-    private async advance(): Task<void> {
-        // drain queued requests until completion
-        while (this.state.kind == "suspended") {
-            let request = this.dequeue();
-            if (request == undefined) {
-                return;
-            }
-
-            // run one request while rejecting reentrant execution
-            let continuation = this.state.continuation;
-            this.state = AsyncGeneratorRunning { kind: "running" };
-
-            let result =
-                request.kind == "next"
-                    ? continuation.resume(request.value)
-                    : continuation.complete(request.value);
-            this.finish(request, result);
-        }
-    }
-
-    /// Finish one active request.
-    private finish(
-        request: AsyncGeneratorRequest<Y, R, N>,
-        result: ContinuationResult<N | undefined, Y, R>,
-    ): void {
-        // resolve one yielded value
-        if (result.kind == "yield") {
-            request.resolvers.resolve(
-                IteratorResult(IteratorYield {
-                    kind: "yield",
-                    value: result.value,
-                }),
-            );
-            this.state = AsyncGeneratorSuspended {
-                kind: "suspended",
-                continuation: result.continuation,
-            };
-        }
-        // resolve final completion
-        else {
-            request.resolvers.resolve(
-                IteratorResult(IteratorReturn {
-                    kind: "return",
-                    value: result.value,
-                }),
-            );
-            this.state = AsyncGeneratorCompleted { kind: "completed" };
-            this.finishQueuedRequests();
-        }
-    }
-
-    /// Complete queued requests after generator exhaustion.
-    private finishQueuedRequests(): void {
-        let request = this.dequeue();
-
-        // resolve every pending request as complete
-        while (request != undefined) {
-            let value: R | undefined = request.kind == "return" ? request.value : undefined;
-            request.resolvers.resolve(IteratorResult(IteratorReturn { kind: "return", value }));
-            request = this.dequeue();
-        }
+        todo("AsyncGenerator.return")
     }
 }
 
@@ -285,104 +119,12 @@ export extension<Y: Copy, R: Copy, N> of AsyncGenerator<Y, R, N> implements Asyn
     }
 }
 
-/// State of a generator object.
-type GeneratorState<Y, R, N> = GeneratorSuspended<Y, R, N> | GeneratorRunning | GeneratorCompleted;
+/// Lifecycle of one generator body fiber.
+// TODO(#138): add the suspended, running, and completed states with the generator lowering
+local type GeneratorState = GeneratorIdle;
 
-/// Suspended generator state.
-local struct GeneratorSuspended<Y, R, N> {
+/// Body not yet started.
+local struct GeneratorIdle {
     /// The state tag.
-    kind: "suspended";
-
-    /// Continuation to resume for the next generator step.
-    continuation: Continuation<N | undefined, Y, R>;
-}
-
-/// Running generator state.
-local struct GeneratorRunning {
-    /// The state tag.
-    kind: "running";
-}
-
-/// Completed generator state.
-local struct GeneratorCompleted {
-    /// The state tag.
-    kind: "completed";
-}
-
-/// State of an async generator object.
-type AsyncGeneratorState<Y: Copy, R: Copy, N> =
-    | AsyncGeneratorSuspended<Y, R, N>
-    | AsyncGeneratorRunning
-    | AsyncGeneratorCompleted;
-
-/// Suspended async generator state.
-local struct AsyncGeneratorSuspended<Y: Copy, R: Copy, N> {
-    /// The state tag.
-    kind: "suspended";
-
-    /// Continuation to resume for the next consumer request.
-    continuation: Continuation<N | undefined, Y, R>;
-}
-
-/// Running async generator state.
-local struct AsyncGeneratorRunning {
-    /// The state tag.
-    kind: "running";
-}
-
-/// Completed async generator state.
-local struct AsyncGeneratorCompleted {
-    /// The state tag.
-    kind: "completed";
-}
-
-/// One async generator consumer request.
-type AsyncGeneratorRequest<Y: Copy, R: Copy, N> =
-    | AsyncGeneratorNext<Y, R, N>
-    | AsyncGeneratorReturn<Y, R, N>;
-
-/// Request one yielded value.
-local class AsyncGeneratorNext<Y: Copy, R: Copy, N> {
-    /// The request tag.
-    kind: "next";
-
-    /// Value sent into the body.
-    value: N | undefined;
-
-    /// Promise resolvers for this request.
-    resolvers: PromiseResolvers<GeneratorResult<Y, R>>;
-
-    /// Next queued request.
-    next: AsyncGeneratorRequest<Y, R, N> | undefined;
-
-    /// Create one next request.
-    constructor(value: N | undefined, resolvers: PromiseResolvers<GeneratorResult<Y, R>>) {
-        this.kind = "next";
-        this.value = value;
-        this.resolvers = resolvers;
-        this.next = undefined;
-    }
-}
-
-/// Request generator completion.
-local class AsyncGeneratorReturn<Y: Copy, R: Copy, N> {
-    /// The request tag.
-    kind: "return";
-
-    /// Value sent into the body return path.
-    value: R;
-
-    /// Promise resolvers for this request.
-    resolvers: PromiseResolvers<GeneratorResult<Y, R>>;
-
-    /// Next queued request.
-    next: AsyncGeneratorRequest<Y, R, N> | undefined;
-
-    /// Create one return request.
-    constructor(value: R, resolvers: PromiseResolvers<GeneratorResult<Y, R>>) {
-        this.kind = "return";
-        this.value = value;
-        this.resolvers = resolvers;
-        this.next = undefined;
-    }
+    kind: "idle";
 }

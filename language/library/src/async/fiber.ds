@@ -1,0 +1,70 @@
+import { Copy } from "destack:memory";
+
+/// Cooperative execution on the current Worker.
+///
+/// A fiber handle names one parked or running execution for wake delivery.
+/// Handles are plain identities: copying one never copies the execution.
+@languageItem("async.Fiber")
+export local struct Fiber implements Copy {
+    /// Opaque fiber identity.
+    private handle: uint64;
+
+    /// Return the currently executing fiber.
+    static current(): Fiber {
+        return currentFiber();
+    }
+
+    /// Park the current fiber until one wake delivers a value.
+    static park<T>(): T {
+        return parkFiber<T>();
+    }
+
+    /// Deliver one wake value to this fiber.
+    ///
+    /// A wake sent before the target parks is buffered for its next park.
+    wake<T>(this, value: T): void {
+        wakeFiber(this, value);
+    }
+
+    /// Queue one thunk to run on a fresh fiber.
+    static spawn(body: () => void): void {
+        spawnFiber(body);
+    }
+}
+
+/// Return the currently executing fiber.
+@binding("destack.fiber.current", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+    affinity: "worker",
+})
+declare function currentFiber(): Fiber;
+
+/// Park the current fiber until one wake delivers a value.
+@binding("destack.fiber.park", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+    affinity: "worker",
+    park: true,
+})
+declare function parkFiber<T>(): T;
+
+/// Deliver one wake value to one fiber.
+@binding("destack.fiber.wake", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+    affinity: "worker",
+})
+declare function wakeFiber<T>(fiber: Fiber, value: T): void;
+
+/// Queue one thunk to run on a fresh fiber.
+@binding("destack.fiber.spawn", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+    affinity: "worker",
+})
+declare function spawnFiber(body: () => void): void;

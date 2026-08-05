@@ -1,4 +1,4 @@
-export * from "./continuation.ds";
+export * from "./fiber.ds";
 export * from "./generator.ds";
 export * from "./iterator.ds";
 export * from "./mutex.ds";
