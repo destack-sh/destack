@@ -495,7 +495,7 @@ pub enum Expression {
     /// ```
     /// (1, 2, 3)
     /// (1.0, 2.0, 3.0)
-    /// (x: int32, y: boolean)
+    /// ("point", true)
     /// ```
     TupleExpression {
         elements: Vec<LocalNodeId<Argument>>,

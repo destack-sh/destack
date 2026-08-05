@@ -2,8 +2,8 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Expression, LocalNodeId, Name, Node, NodeType, Pattern, StaticKey, StringId, SymbolKind,
-    SymbolSpace, TypeExpression, VarianceModifier,
+    Expression, LocalNodeId, Node, NodeType, Pattern, StaticKey, StringId, SymbolKind, SymbolSpace,
+    TypeExpression, VarianceModifier,
 };
 
 /// A declared generic parameter in source.
@@ -220,26 +220,13 @@ impl Node for TupleElement {
     const TYPE: NodeType = NodeType::TupleElement;
 }
 
-/// An argument to a runtime call or tree construct.
+/// An argument to a call, sequence literal, or template interpolation.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Argument {
-    /// Named argument.
-    Named {
-        name: Name,
-        value: LocalNodeId<Expression>,
-    },
-    /// Labeled argument.
-    Labeled {
-        label: StringId,
-        value: LocalNodeId<Expression>,
-    },
     /// Positional argument.
     Positional { value: LocalNodeId<Expression> },
     /// Spread argument.
-    Spread {
-        label: Option<StringId>,
-        value: LocalNodeId<Expression>,
-    },
+    Spread { value: LocalNodeId<Expression> },
     /// Elided array element.
     Elision,
     /// Malformed argument slot.
@@ -255,10 +242,7 @@ impl Argument {
     #[inline]
     pub fn value(&self) -> Option<LocalNodeId<Expression>> {
         match self {
-            Argument::Named { value, .. }
-            | Argument::Labeled { value, .. }
-            | Argument::Positional { value }
-            | Argument::Spread { value, .. } => Some(*value),
+            Argument::Positional { value } | Argument::Spread { value } => Some(*value),
             Argument::Elision | Argument::Error => None,
         }
     }
