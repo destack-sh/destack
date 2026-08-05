@@ -150,6 +150,7 @@ impl<'a> ProgramLinker<'a> {
             .traces(layouts.traces)
             .globals(statics.globals)
             .constants(statics.constants)
+            .immortals(statics.immortals)
             .shared_statics(statics.shared)
             .local_statics(statics.local);
         if let Some(bytecode) = bytecode {

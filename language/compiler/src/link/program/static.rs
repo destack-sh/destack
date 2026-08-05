@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use destack_core::{float_from_bits, float_to_bits};
 use destack_mir as mir;
+use destack_program as program;
 use destack_program::{
     Global, GlobalAllocator, GlobalId, GlobalLocation, GlobalTableBuilder, Object, StaticBytes,
     Symbol, TypeId,
@@ -20,6 +21,8 @@ pub(crate) struct ProgramStatics {
     pub(crate) globals: GlobalTableBuilder,
     /// Immutable program constants.
     pub(crate) constants: StaticBytes,
+    /// Immortal pre-built program objects.
+    pub(crate) immortals: StaticBytes,
     /// Shared mutable program statics.
     pub(crate) shared: StaticBytes,
     /// Local mutable program statics.
@@ -48,6 +51,27 @@ struct GlobalLinker<'a> {
     layouts: &'a mir::LayoutTable,
 }
 
+/// Rendering state threaded through one global's initializer encoding.
+struct GlobalRender<'a, 'b> {
+    /// The storage of the global being rendered.
+    storage: mir::GlobalStorage,
+    /// Every placed program global in dense id order.
+    placements: &'a [(Symbol, Global)],
+    /// Region-relative address word offsets rebased at materialization.
+    relocations: &'b mut Vec<usize>,
+}
+
+impl GlobalRender<'_, '_> {
+    /// Reborrow this render state for one nested range.
+    fn reborrow(&mut self) -> GlobalRender<'_, '_> {
+        GlobalRender {
+            storage: self.storage,
+            placements: self.placements,
+            relocations: self.relocations,
+        }
+    }
+}
+
 /// One initialized byte range inside a global payload.
 #[derive(Clone, Copy, Debug)]
 struct InitializerRange {
@@ -65,14 +89,15 @@ impl<'a> StaticLinker<'a> {
         Self { program }
     }
 
-    /// Link constant, shared static, and local static spaces.
+    /// Link constant, immortal, shared static, and local static spaces.
     pub(crate) fn link(&self) -> LinkResult<ProgramStatics> {
         let mut constants = GlobalAllocator::new();
+        let mut immortals = GlobalAllocator::new();
         let mut shared = GlobalAllocator::new();
         let mut local = GlobalAllocator::new();
         let mut globals = Vec::new();
 
-        // split canonical global definitions by placement
+        // place every canonical global definition in its selected static region
         for &(module, global_id) in self.program.globals_by_id() {
             let object = self.program.object(module);
             let global = object.global(global_id).ok_or_else(|| {
@@ -81,7 +106,6 @@ impl<'a> StaticLinker<'a> {
             })?;
             let symbol = Symbol::from_raw(global.symbol.raw());
 
-            // materialize the global in its selected static region
             let linker = GlobalLinker::new(
                 module,
                 object,
@@ -89,13 +113,46 @@ impl<'a> StaticLinker<'a> {
                 self.program,
                 object.layouts(),
             );
-            let global = linker.link_global(global_id, &mut constants, &mut shared, &mut local)?;
+            let global = linker.place_global(
+                global,
+                &mut constants,
+                &mut immortals,
+                &mut shared,
+                &mut local,
+            )?;
             globals.push((symbol, global));
+        }
+
+        // render initializer bytes into the placed ranges with cross-global addresses
+        for (index, &(module, global_id)) in self.program.globals_by_id().iter().enumerate() {
+            let object = self.program.object(module);
+            let global = object.global(global_id).ok_or_else(|| {
+                self.program
+                    .invalid_input(format!("missing global {global_id:?}"))
+            })?;
+
+            let linker = GlobalLinker::new(
+                module,
+                object,
+                object.target(),
+                self.program,
+                object.layouts(),
+            );
+            linker.render_global(
+                global,
+                &globals[index].1,
+                &globals,
+                &mut constants,
+                &mut immortals,
+                &mut shared,
+                &mut local,
+            )?;
         }
 
         Ok(ProgramStatics {
             globals: GlobalTableBuilder::new().globals(globals),
             constants: constants.build(),
+            immortals: immortals.build(),
             shared: shared.build(),
             local: local.build(),
         })
@@ -127,54 +184,81 @@ impl<'a> GlobalLinker<'a> {
         }
     }
 
-    /// Link one defined MIR global into its program static space.
-    fn link_global(
+    /// Place one defined MIR global into its program static region.
+    fn place_global(
         &self,
-        global_id: mir::GlobalId,
+        global: &program::object::Global,
         constants: &mut GlobalAllocator,
+        immortals: &mut GlobalAllocator,
         shared: &mut GlobalAllocator,
         local: &mut GlobalAllocator,
     ) -> LinkResult<Global> {
-        let global = self.object.global(global_id).ok_or_else(|| {
-            self.program
-                .invalid_input(format!("missing global {global_id:?}"))
-        })?;
-
         let ty = global.ty;
         let layout = self.layout(ty)?;
-        let bytes = match global.initializer.as_ref() {
-            Some(initializer) => self.initializer_bytes(initializer, ty)?,
-            None => vec![0; layout.byte_len()],
+        let alignment = layout.alignment as usize;
+        let byte_len = layout.byte_len();
+
+        // reserve a zeroed range in the selected region
+        let (allocator, location, is_mutable) = match global.storage {
+            mir::GlobalStorage::Constant => (constants, GlobalLocation::Constant, false),
+            mir::GlobalStorage::Immortal => (immortals, GlobalLocation::Immortal, false),
+            mir::GlobalStorage::Shared => {
+                (shared, GlobalLocation::SharedStatic, global.is_mutable())
+            }
+            mir::GlobalStorage::Local => (local, GlobalLocation::LocalStatic, global.is_mutable()),
+        };
+        let offset = allocator.reserve(alignment, byte_len);
+
+        Ok(Global::new(
+            location,
+            offset,
+            byte_len,
+            self.program.type_id(self.module, ty),
+            is_mutable,
+        ))
+    }
+
+    /// Render one placed global's initializer bytes into its region.
+    #[allow(clippy::too_many_arguments)]
+    fn render_global(
+        &self,
+        global: &program::object::Global,
+        placed: &Global,
+        placements: &[(Symbol, Global)],
+        constants: &mut GlobalAllocator,
+        immortals: &mut GlobalAllocator,
+        shared: &mut GlobalAllocator,
+        local: &mut GlobalAllocator,
+    ) -> LinkResult<()> {
+        // reserved ranges stay zeroed without an initializer
+        let Some(initializer) = global.initializer.as_ref() else {
+            return Ok(());
         };
 
-        let global = match global.storage {
-            mir::GlobalStorage::Constant => self.define_global_bytes(
-                constants,
-                GlobalLocation::Constant,
-                ty,
-                layout.alignment as usize,
-                false,
-                &bytes,
-            ),
-            mir::GlobalStorage::Shared => self.define_global_bytes(
-                shared,
-                GlobalLocation::SharedStatic,
-                ty,
-                layout.alignment as usize,
-                global.is_mutable(),
-                &bytes,
-            ),
-            mir::GlobalStorage::Local => self.define_global_bytes(
-                local,
-                GlobalLocation::LocalStatic,
-                ty,
-                layout.alignment as usize,
-                global.is_mutable(),
-                &bytes,
-            ),
+        // render the payload with region-relative address words
+        let mut relocations = Vec::new();
+        let render = GlobalRender {
+            storage: global.storage,
+            placements,
+            relocations: &mut relocations,
         };
+        let bytes = self.initializer_bytes(initializer, global.ty, placed.offset(), render)?;
 
-        Ok(global)
+        // write the payload into its placed range
+        let allocator = match global.storage {
+            mir::GlobalStorage::Constant => constants,
+            mir::GlobalStorage::Immortal => &mut *immortals,
+            mir::GlobalStorage::Shared => shared,
+            mir::GlobalStorage::Local => local,
+        };
+        allocator.write(placed.offset(), &bytes);
+
+        // record rebased address words, which only immortal storage carries
+        for word_offset in relocations {
+            immortals.relocate(word_offset);
+        }
+
+        Ok(())
     }
 
     /// Encode one static initializer into bytes.
@@ -182,11 +266,18 @@ impl<'a> GlobalLinker<'a> {
         &self,
         initializer: &mir::GlobalInitializer,
         ty: mir::TypeId,
+        offset: usize,
+        render: GlobalRender<'_, '_>,
     ) -> LinkResult<Vec<u8>> {
         let layout = self.layout(ty)?;
 
         if self.is_scalar(ty) {
-            return self.scalar_initializer_bytes(initializer, ty, layout.byte_len());
+            return self.scalar_initializer_bytes(initializer, ty, offset, render);
+        }
+
+        // slice headers render as one address word and one length word
+        if matches!(layout.shape, mir::LayoutShape::Slice) {
+            return self.slice_initializer_bytes(initializer, offset, render, layout.byte_len());
         }
 
         match initializer {
@@ -206,13 +297,13 @@ impl<'a> GlobalLinker<'a> {
                 Ok(bytes.clone())
             }
             mir::GlobalInitializer::Aggregate(elements) => {
-                self.payload_initializer_bytes(elements, ty)
+                self.payload_initializer_bytes(elements, ty, offset, render)
             }
-            mir::GlobalInitializer::Scalar(_) | mir::GlobalInitializer::FunctionAddress(_) => {
-                Err(self
-                    .program
-                    .type_mismatch("payload initializer", "scalar initializer"))
-            }
+            mir::GlobalInitializer::Scalar(_)
+            | mir::GlobalInitializer::FunctionAddress(_)
+            | mir::GlobalInitializer::GlobalAddress(_) => Err(self
+                .program
+                .type_mismatch("payload initializer", "scalar initializer")),
         }
     }
 
@@ -221,8 +312,11 @@ impl<'a> GlobalLinker<'a> {
         &self,
         initializer: &mir::GlobalInitializer,
         ty: mir::TypeId,
-        byte_len: usize,
+        offset: usize,
+        render: GlobalRender<'_, '_>,
     ) -> LinkResult<Vec<u8>> {
+        let byte_len = self.layout(ty)?.byte_len();
+
         match initializer {
             mir::GlobalInitializer::Zero => {
                 self.validate_zero_scalar_type(ty)?;
@@ -249,10 +343,104 @@ impl<'a> GlobalLinker<'a> {
 
                 Ok(bytes)
             }
+            mir::GlobalInitializer::GlobalAddress(target) => {
+                let ty_node = self.storage_type(ty)?;
+                if !matches!(
+                    ty_node,
+                    mir::Type::Reference { .. } | mir::Type::Pointer { .. }
+                ) {
+                    return Err(self
+                        .program
+                        .type_mismatch("reference initializer type", format!("{ty_node:?}")));
+                }
+
+                self.global_address_bytes(*target, offset, render, byte_len)
+            }
             mir::GlobalInitializer::Aggregate(_) => Err(self
                 .program
                 .type_mismatch("scalar initializer", format!("{ty:?}"))),
         }
+    }
+
+    /// Encode one slice header initializer as an address word and a length word.
+    fn slice_initializer_bytes(
+        &self,
+        initializer: &mir::GlobalInitializer,
+        offset: usize,
+        mut render: GlobalRender<'_, '_>,
+        byte_len: usize,
+    ) -> LinkResult<Vec<u8>> {
+        let mir::GlobalInitializer::Aggregate(elements) = initializer else {
+            return Err(self
+                .program
+                .type_mismatch("slice header initializer", format!("{initializer:?}")));
+        };
+        let [address, length] = elements.as_slice() else {
+            return Err(self.program.type_mismatch(
+                "2 slice header elements",
+                format!("{} elements", elements.len()),
+            ));
+        };
+        let word_len = usize::from(self.target_layout.pointer_bytes());
+        if byte_len != 2 * word_len {
+            return Err(self.program.type_mismatch(
+                format!("{} slice header bytes", 2 * word_len),
+                format!("{byte_len} bytes"),
+            ));
+        }
+
+        // render the data address word
+        let mir::GlobalInitializer::GlobalAddress(target) = address else {
+            return Err(self
+                .program
+                .type_mismatch("global address slice data", format!("{address:?}")));
+        };
+        let mut bytes = self.global_address_bytes(*target, offset, render.reborrow(), word_len)?;
+
+        // render the element length word
+        let mir::GlobalInitializer::Scalar(constant) = length else {
+            return Err(self
+                .program
+                .type_mismatch("scalar slice length", format!("{length:?}")));
+        };
+        let length = self.unsigned_constant_value(constant, self.target_layout.pointer_bits())?;
+        bytes.extend_from_slice(&self.unsigned_bytes(length, word_len));
+
+        Ok(bytes)
+    }
+
+    /// Encode one immortal global address as a region-relative rebased word.
+    fn global_address_bytes(
+        &self,
+        target: mir::GlobalId,
+        offset: usize,
+        render: GlobalRender<'_, '_>,
+        byte_len: usize,
+    ) -> LinkResult<Vec<u8>> {
+        // address words survive only inside immortal storage
+        if render.storage != mir::GlobalStorage::Immortal {
+            return Err(self.program.invalid_input(
+                "a global address initializer requires immortal storage".to_string(),
+            ));
+        }
+
+        // resolve the placed target, which must be immortal itself
+        let target_id = self.program.global_id(self.module, target);
+        let Some((_, placed)) = render.placements.get(target_id.index()) else {
+            return Err(self
+                .program
+                .invalid_input(format!("missing placed global {target_id:?}")));
+        };
+        if placed.location != GlobalLocation::Immortal {
+            return Err(self.program.invalid_input(
+                "a global address initializer must target immortal storage".to_string(),
+            ));
+        }
+
+        // record the word for rebasing and write the region-relative target offset
+        render.relocations.push(offset);
+
+        Ok(self.unsigned_bytes(placed.offset() as u128, byte_len))
     }
 
     /// Encode one function address initializer as bytes.
@@ -657,6 +845,8 @@ impl<'a> GlobalLinker<'a> {
         &self,
         elements: &[mir::GlobalInitializer],
         ty: mir::TypeId,
+        offset: usize,
+        mut render: GlobalRender<'_, '_>,
     ) -> LinkResult<Vec<u8>> {
         let layout = self.layout(ty)?;
         let ranges = self.initializer_ranges(ty)?;
@@ -669,7 +859,12 @@ impl<'a> GlobalLinker<'a> {
 
         let mut bytes = vec![0u8; layout.byte_len()];
         for (element, range) in elements.iter().zip(ranges) {
-            let value_bytes = self.initializer_bytes(element, range.ty)?;
+            let value_bytes = self.initializer_bytes(
+                element,
+                range.ty,
+                offset + range.offset,
+                render.reborrow(),
+            )?;
             if value_bytes.len() != range.byte_len {
                 return Err(self.program.type_mismatch(
                     format!("{} initializer bytes", range.byte_len),
@@ -791,26 +986,6 @@ impl<'a> GlobalLinker<'a> {
             .ok_or_else(|| self.program.invalid_input(format!("missing type {ty:?}")))?;
 
         Ok(&ty.definition)
-    }
-
-    /// Define one global byte region in program static memory.
-    fn define_global_bytes(
-        &self,
-        allocator: &mut GlobalAllocator,
-        location: GlobalLocation,
-        ty: mir::TypeId,
-        alignment: usize,
-        is_mutable: bool,
-        bytes: &[u8],
-    ) -> Global {
-        let (offset, byte_len) = allocator.allocate(alignment, bytes);
-        Global::new(
-            location,
-            offset,
-            byte_len,
-            self.program.type_id(self.module, ty),
-            is_mutable,
-        )
     }
 }
 

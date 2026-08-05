@@ -43,7 +43,6 @@ entry(v0: int32):
         .function(sections, function.index())
         .expect("native function should retain linked entries");
 
-
     // place the typed body and runtime entry directly in the linked load image
     assert_eq!(function.body.bytes.byte_len, source_body.byte_len());
     assert_eq!(function.entry.bytes.byte_len, source_entry.byte_len());
