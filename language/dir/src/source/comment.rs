@@ -19,18 +19,18 @@ pub enum CommentKind {
     MultiLineBlock,
 }
 
-/// Structured content classification for one comment.
+/// The authored intent of one comment.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default, Reflect)]
-pub enum CommentContent {
-    /// No structured content classification.
+pub enum CommentRole {
+    /// An ordinary source comment.
     #[default]
-    None,
+    Ordinary,
+    /// An authored documentation comment.
+    Documentation,
     /// A legal or preserved comment.
     Legal,
-    /// A jsdoc-style comment.
-    Jsdoc,
-    /// A jsdoc comment with legal or preserve semantics.
-    JsdocLegal,
+    /// Authored documentation with legal or preserve semantics.
+    LegalDocumentation,
 }
 
 /// A comment's attachment to the semantic token stream.
@@ -100,8 +100,8 @@ pub struct Comment {
     pub kind: CommentKind,
     /// The newline shape around the comment.
     pub newlines: CommentNewlines,
-    /// The structured comment content classification.
-    pub content: CommentContent,
+    /// The authored role of the comment.
+    pub role: CommentRole,
 }
 
 impl Comment {
@@ -158,33 +158,21 @@ impl Comment {
         }
     }
 
-    /// Return whether this comment is classified as jsdoc.
+    /// Return whether this comment contains documentation.
     #[inline]
-    pub fn is_jsdoc(self) -> bool {
+    pub fn is_documentation(self) -> bool {
         matches!(
-            self.content,
-            CommentContent::Jsdoc | CommentContent::JsdocLegal
+            self.role,
+            CommentRole::Documentation | CommentRole::LegalDocumentation
         )
-    }
-
-    /// Return whether this comment has no special meaning.
-    #[inline]
-    pub fn is_normal(self) -> bool {
-        self.content == CommentContent::None
-    }
-
-    /// Return whether this comment carries an annotation.
-    #[inline]
-    pub fn is_annotation(self) -> bool {
-        !self.is_normal()
     }
 
     /// Return whether this comment is classified as legal.
     #[inline]
     pub fn is_legal(self) -> bool {
         matches!(
-            self.content,
-            CommentContent::Legal | CommentContent::JsdocLegal
+            self.role,
+            CommentRole::Legal | CommentRole::LegalDocumentation
         )
     }
 
@@ -224,6 +212,8 @@ impl Comment {
 /// Normalized documentation attached to one DIR node.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Documentation {
+    /// The complete authored documentation span.
+    pub span: Span,
     /// The normalized documentation text.
     pub text: StringId,
 }
