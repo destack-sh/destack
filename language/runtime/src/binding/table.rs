@@ -26,6 +26,8 @@ pub type BindingFn = fn(
     activation: &mut Activation<'_>,
     memory: Memory<'_>,
     context: program::Context,
+    fiber: program::Fiber,
+    declaration: &program::Binding,
     arguments: &[Word],
     result: &mut [Word],
 ) -> RuntimeResult<()>;
@@ -73,18 +75,28 @@ impl Binding {
     }
 
     /// Invoke this binding through one worker activation.
+    #[allow(clippy::too_many_arguments)]
     fn call(
         self,
         declaration: &program::Binding,
         activation: &mut Activation<'_>,
         memory: Memory<'_>,
         context: program::Context,
+        fiber: program::Fiber,
         arguments: &[Word],
         result: &mut [Word],
     ) -> RuntimeResult<()> {
         activation.on_before_binding(declaration)?;
 
-        (self.invoke)(activation, memory, context, arguments, result)
+        (self.invoke)(
+            activation,
+            memory,
+            context,
+            fiber,
+            declaration,
+            arguments,
+            result,
+        )
     }
 }
 
@@ -98,12 +110,14 @@ impl BindingTable {
     }
 
     /// Call one registered binding.
+    #[allow(clippy::too_many_arguments)]
     pub fn call(
         &self,
         declaration: &program::Binding,
         activation: &mut Activation<'_>,
         memory: Memory<'_>,
         context: program::Context,
+        fiber: program::Fiber,
         arguments: &[Word],
         result: &mut [Word],
     ) -> RuntimeResult<()> {
@@ -113,7 +127,15 @@ impl BindingTable {
         };
         let binding = self.bindings[index];
 
-        binding.call(declaration, activation, memory, context, arguments, result)
+        binding.call(
+            declaration,
+            activation,
+            memory,
+            context,
+            fiber,
+            arguments,
+            result,
+        )
     }
 
     /// Ensure every binding required by one program is registered.
