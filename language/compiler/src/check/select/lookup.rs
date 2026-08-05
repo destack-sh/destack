@@ -102,6 +102,16 @@ impl BodyState<'_, '_> {
         subject: dir::MemberSubject,
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<MemberLookup>> {
+        // select compiler-defined fields before declaration lookup
+        if subject.space == dir::MemberSpace::Instance
+            && let Some(projection) =
+                self.tagged_discriminator_projection(module, subject.receiver, key)?
+        {
+            return Ok(Answer::Ready(MemberLookup::Field(FieldLookup::Projection(
+                projection,
+            ))));
+        }
+
         let mut active_queries = FxIndexSet::default();
 
         self.lookup_subject_member(
@@ -209,12 +219,14 @@ impl BodyState<'_, '_> {
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(subject.module_id, refined)?;
                 if refined.key == key {
-                    return Ok(Answer::Ready(MemberLookup::Field(FieldLookup {
-                        receiver: dir::MemberReceiver::direct(receiver),
-                        owner: subject,
-                        access: dir::PropertyAccess::Read(refined.value),
-                        is_optional: false,
-                    })));
+                    return Ok(Answer::Ready(MemberLookup::Field(
+                        FieldLookup::Structural {
+                            receiver: dir::MemberReceiver::direct(receiver),
+                            owner: subject,
+                            access: dir::PropertyAccess::Read(refined.value),
+                            is_optional: false,
+                        },
+                    )));
                 }
 
                 self.lookup_subject_member(
@@ -254,7 +266,7 @@ impl BodyState<'_, '_> {
                 };
 
                 // preserve the selected case before any deeper receiver projection
-                lookup.prepend_adjustment(adjustment);
+                lookup.prepend_adjustment(adjustment)?;
 
                 Ok(Answer::Ready(lookup))
             }
@@ -308,7 +320,7 @@ impl BodyState<'_, '_> {
                     )?);
 
                     // record the payload adjustment before deeper receiver steps
-                    lookup.prepend_adjustment(adjustment);
+                    lookup.prepend_adjustment(adjustment)?;
 
                     return Ok(Answer::Ready(lookup));
                 }
@@ -344,7 +356,7 @@ impl BodyState<'_, '_> {
                     ExtensionFilter::Inherent,
                     active,
                 )?);
-                lookup.select_dynamic(dispatch);
+                lookup.select_dynamic(dispatch)?;
 
                 // extensions remain direct calls over the erased receiver
                 if matches!(lookup, MemberLookup::Missing)
@@ -424,12 +436,14 @@ impl BodyState<'_, '_> {
                     }
                 };
 
-                Ok(Answer::Ready(MemberLookup::Field(FieldLookup {
-                    receiver: dir::MemberReceiver::direct(receiver),
-                    owner: subject,
-                    access,
-                    is_optional,
-                })))
+                Ok(Answer::Ready(MemberLookup::Field(
+                    FieldLookup::Structural {
+                        receiver: dir::MemberReceiver::direct(receiver),
+                        owner: subject,
+                        access,
+                        is_optional,
+                    },
+                )))
             }
             // tuples expose their labeled elements
             dir::Type::Tuple(tuple) => {
@@ -450,8 +464,8 @@ impl BodyState<'_, '_> {
                         MemberRole::Field,
                         element.ty,
                     )? {
-                        Answer::Ready(access_type) => {
-                            Ok(Answer::Ready(MemberLookup::Field(FieldLookup {
+                        Answer::Ready(access_type) => Ok(Answer::Ready(MemberLookup::Field(
+                            FieldLookup::Structural {
                                 receiver: dir::MemberReceiver::direct(receiver),
                                 owner: subject,
                                 access: if element.is_readonly {
@@ -463,8 +477,8 @@ impl BodyState<'_, '_> {
                                     }
                                 },
                                 is_optional: element.is_optional,
-                            })))
-                        }
+                            },
+                        ))),
                         Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
                     },
                     None => Ok(Answer::Ready(MemberLookup::Missing)),
@@ -960,7 +974,7 @@ impl BodyState<'_, '_> {
         self.collect_subject_keys(
             origin,
             module,
-            subject.target,
+            subject.key_type,
             subject.space,
             &mut keys,
             &mut visited,
@@ -979,19 +993,78 @@ impl BodyState<'_, '_> {
         keys: &mut FxIndexSet<dir::StaticKey>,
         visited: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<()> {
-        // stop cyclic paths through bounds, unions, and heritage
+        // preserve static declaration references before reducing other heads
         let subject = self.settled_root(subject)?;
+        let subject = match (space, self.ty(subject)?) {
+            (dir::MemberSpace::Static, dir::Type::Reference(_)) => subject,
+            _ => match self.reduce_type_head(origin, subject)? {
+                Answer::Ready(subject) => subject,
+                Answer::Pending(blockers) => {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "member keys remained blocked after solving: {blockers:?}"
+                        ),
+                    });
+                }
+            },
+        };
+
+        // stop cyclic paths through bounds, unions, and heritage
         if !visited.insert(subject) {
             return Ok(());
         }
 
         match self.ty(subject)? {
-            // declarations expose their own, inherited, and extension keys
+            // solved member subjects cannot retain inference variables
+            dir::Type::Variable(variable) => {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "member keys contain unresolved variable {variable:?} after solving"
+                    ),
+                });
+            }
+            // declarations expose the same keys as keyed lookup
             dir::Type::Reference(reference) => {
-                self.collect_symbol_keys(module, reference.symbol, space, keys, visited)?;
+                self.collect_reference_keys(origin, module, reference, space, keys, visited)?;
             }
             dir::Type::Application(instance) => {
                 self.collect_symbol_keys(module, instance.symbol, space, keys, visited)?;
+
+                // include keys selected through a newtype payload
+                if space == dir::MemberSpace::Instance
+                    && let Some(instance) = self.newtype_payload(origin, subject)?
+                {
+                    self.collect_subject_keys(
+                        origin,
+                        module,
+                        instance.backing,
+                        space,
+                        keys,
+                        visited,
+                    )?;
+                }
+            }
+            // refinements expose their refined key and base members
+            dir::Type::Refined(refined) => {
+                let refined = self.type_refined(subject.module_id, refined)?;
+                keys.insert(refined.key);
+                self.collect_subject_keys(origin, module, refined.base, space, keys, visited)?;
+            }
+            // precise variants expose their selected backing fields
+            dir::Type::Variant(variant) => {
+                if let Some(backing) = self.tagged_variant_backing(module, &variant)? {
+                    self.collect_subject_keys(origin, module, backing, space, keys, visited)?;
+                } else {
+                    let dir::Type::Application(owner) = self.ty(variant.owner)? else {
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "variant {:?} has non-application owner {:?}",
+                                variant.variant, variant.owner
+                            ),
+                        });
+                    };
+                    self.collect_symbol_keys(module, owner.symbol, space, keys, visited)?;
+                }
             }
             // structural subjects expose their property keys
             dir::Type::Shape(shape) | dir::Type::Object(shape) => {
@@ -999,10 +1072,38 @@ impl BodyState<'_, '_> {
                     keys.insert(property.key);
                 }
             }
-            // scalar families expose their blanket extension keys
-            dir::Type::Primitive(_) | dir::Type::Literal(_) => {
-                for extension in self.visible_blanket_extensions(module)? {
+            // primitives expose their apparent declaration and exact extensions
+            dir::Type::Primitive(primitive) => {
+                if let Some(instance) = self.apparent_instance(subject)? {
+                    self.collect_symbol_keys(module, instance.symbol, space, keys, visited)?;
+                }
+                for extension in self.primitive_extensions(primitive)? {
                     self.collect_definition_keys(extension, space, keys)?;
+                }
+            }
+            // literals expose their apparent declaration and exact extensions
+            dir::Type::Literal(literal) => {
+                if let Some(instance) = self.apparent_instance(subject)? {
+                    self.collect_symbol_keys(module, instance.symbol, space, keys, visited)?;
+                }
+                if let dir::Type::Primitive(primitive) = literal.widen() {
+                    for extension in self.primitive_extensions(primitive)? {
+                        self.collect_definition_keys(extension, space, keys)?;
+                    }
+                }
+            }
+            // built-in collections expose their apparent declaration
+            dir::Type::Array(_) | dir::Type::Slice(_) | dir::Type::FixedArray(_) => {
+                if let Some(instance) = self.apparent_instance(subject)? {
+                    self.collect_symbol_keys(module, instance.symbol, space, keys, visited)?;
+                }
+            }
+            // tuples expose their labeled elements
+            dir::Type::Tuple(tuple) => {
+                for element in self.tuple_elements(subject.module_id, tuple.elements)? {
+                    if let Some(label) = element.label {
+                        keys.insert(dir::StaticKey::Name(label));
+                    }
                 }
             }
             // memory forms expose their pointee keys
@@ -1034,10 +1135,66 @@ impl BodyState<'_, '_> {
                     self.collect_subject_keys(origin, module, element, space, keys, visited)?;
                 }
             }
-            _ => {}
+            // remaining types expose no keyed members
+            dir::Type::Error
+            | dir::Type::Never
+            | dir::Type::Any
+            | dir::Type::Unknown
+            | dir::Type::Void
+            | dir::Type::Null
+            | dir::Type::Undefined
+            | dir::Type::Key(_)
+            | dir::Type::Memory(_)
+            | dir::Type::Static(_)
+            | dir::Type::Intrinsic
+            | dir::Type::Erased(_)
+            | dir::Type::This
+            | dir::Type::Member(_)
+            | dir::Type::Operation(_)
+            | dir::Type::Range(_)
+            | dir::Type::FunctionSignature(_)
+            | dir::Type::Function(_)
+            | dir::Type::FunctionPointer(_) => {}
         }
 
         Ok(())
+    }
+
+    /// Collect the keys selected through one declaration reference.
+    fn collect_reference_keys(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        reference: dir::TypeReference,
+        space: dir::MemberSpace,
+        keys: &mut FxIndexSet<dir::StaticKey>,
+        visited: &mut FxIndexSet<dir::GlobalTypeId>,
+    ) -> CompilerResult<()> {
+        let symbol = self.resolve_symbol_alias(reference.symbol)?;
+        let alias = match self.definition(symbol)? {
+            Some(dir::Definition::TypeAlias(alias)) => Some(alias.value),
+            _ => None,
+        };
+
+        // static aliases expose the keys of their reduced body
+        if space == dir::MemberSpace::Static
+            && let Some(alias) = alias
+        {
+            let body = match self.reduce_type_head(origin, alias)? {
+                Answer::Ready(body) => body,
+                Answer::Pending(blockers) => {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "type alias member keys remained blocked after solving: {blockers:?}"
+                        ),
+                    });
+                }
+            };
+
+            return self.collect_subject_keys(origin, module, body, space, keys, visited);
+        }
+
+        self.collect_symbol_keys(module, symbol, space, keys, visited)
     }
 
     /// Collect declared member keys from one nominal declaration.
@@ -1052,6 +1209,14 @@ impl BodyState<'_, '_> {
         // collect the declaration's own member keys
         let symbol = self.resolve_symbol_alias(symbol)?;
         self.collect_definition_keys(symbol, space, keys)?;
+
+        // collect the tagged discriminator
+        if space == dir::MemberSpace::Instance
+            && let Some(dir::Definition::Newtype(definition)) = self.definition(symbol)?
+            && let Some(discriminator) = definition.discriminator
+        {
+            keys.insert(discriminator);
+        }
 
         // collect inherited keys through the heritage clauses
         let heritages = match self.definition(symbol)? {
@@ -1089,8 +1254,11 @@ impl BodyState<'_, '_> {
         keys: &mut FxIndexSet<dir::StaticKey>,
     ) -> CompilerResult<()> {
         let Some(definition) = self.definition(symbol)? else {
-            return Ok(());
+            return Err(CompilerError::Internal {
+                message: format!("member key declaration is missing: {symbol:?}"),
+            });
         };
+
         for member in definition.members() {
             if member.space() == space
                 && let Some(key) = member.key()

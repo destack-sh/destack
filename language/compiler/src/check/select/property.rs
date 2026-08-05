@@ -20,6 +20,8 @@ enum MergeEntry {
     },
     /// One spread source.
     Spread {
+        /// The spread property node.
+        property: dir::GlobalNodeIdAny,
         /// The spread value node.
         source: dir::GlobalNodeIdAny,
     },
@@ -65,6 +67,7 @@ impl BodyState<'_, '_> {
                     });
                 }
                 dir::Property::Spread { value } => entries.push(MergeEntry::Spread {
+                    property: property.into_global_any(module),
                     source: value.into_global_any(module),
                 }),
                 dir::Property::Error => {}
@@ -76,6 +79,17 @@ impl BodyState<'_, '_> {
             Some(target) => answer!(self.struct_constructor_fields(origin, target)?),
             None => SmallVec::new(),
         };
+
+        // record the fields accepted by this literal
+        if let Some(target) = target {
+            let key_type = self.intern_shape(module, &target_fields)?;
+            let subject = dir::MemberSubject::new(target, target, dir::MemberSpace::Instance)
+                .with_scope(site.scope)
+                .with_key_type(key_type);
+            self.module_mut(module)
+                .members
+                .record_subject(dir::MemberSite::Node(node.into_any()), subject);
+        }
 
         // the construct's write obligation owns every field check
         let write_cause = target.map(|_| {
@@ -135,9 +149,10 @@ impl BodyState<'_, '_> {
                     );
                 }
                 // spread sources contribute every visible field
-                MergeEntry::Spread { source } => {
+                MergeEntry::Spread { property, source } => {
                     let source_site = self.node_site(source)?;
                     let spread = answer!(self.infer_node_type(source_site, PlaceUse::Read)?);
+
                     let Some(spread_fields) = answer!(self.spread_fields(origin, module, spread)?)
                     else {
                         let anchored = self.origin_at(origin, source)?;
@@ -151,6 +166,17 @@ impl BodyState<'_, '_> {
                             target,
                         }));
                     };
+
+                    // record the fields contributed by this spread
+                    let key_type = self.intern_shape(module, &spread_fields)?;
+                    let subject =
+                        dir::MemberSubject::new(spread, spread, dir::MemberSpace::Instance)
+                            .with_scope(site.scope)
+                            .with_key_type(key_type);
+                    self.module_mut(module)
+                        .members
+                        .record_subject(dir::MemberSite::Node(property), subject);
+
                     for field in spread_fields {
                         fields.insert(field.key, field);
                     }

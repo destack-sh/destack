@@ -4,7 +4,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::check::{Answer, CheckError, CheckState, Decision, MemberLookup, Origin, VarianceState};
+use crate::check::{Answer, CheckError, CheckState, Decision, Origin, VarianceState};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -118,12 +118,12 @@ impl CheckState<'_> {
         // record marker conformances
         self.write_auto_conformances(module)?;
 
-        // record checked member bindings for every authored lookup subject
-        self.write_member_bindings(module)?;
-
-        // record solved symbols for authored path segments and member types
-        self.write_path_segment_resolutions(module)?;
-        self.write_member_type_resolutions(module)?;
+        // record member bindings and source resolutions
+        if !self.is_declaration() {
+            self.write_member_bindings(module)?;
+            self.write_path_segment_resolutions(module)?;
+            self.write_member_type_resolutions(module)?;
+        }
 
         // seal every embedded type id
         self.close_output_segments(module, failed_applications, &mut sealed)?;
@@ -302,7 +302,7 @@ impl CheckState<'_> {
         });
         self.module_mut(module).resolutions = resolutions;
 
-        // seal checked member bindings
+        // seal member bindings
         let empty = dir::MemberSegment::new(module);
         let mut members = replace(&mut self.module_mut(module).members, empty);
         members.map_type_ids(&mut |id| {
@@ -380,7 +380,7 @@ impl CheckState<'_> {
         Ok(resolved)
     }
 
-    /// Record the checked member bindings behind every authored lookup subject.
+    /// Record member bindings for every source lookup subject.
     fn write_member_bindings(&mut self, module: ModuleId) -> CompilerResult<()> {
         // walk each recorded subject once
         let subjects = self
@@ -390,215 +390,119 @@ impl CheckState<'_> {
             .collect::<Vec<_>>();
         let mut done = FxIndexSet::default();
 
-        for (source, subject) in subjects {
+        for (site, subject) in subjects {
             // subjects recorded at many sites bind once
             if !done.insert(subject) {
                 continue;
             }
 
-            let bindings = self.subject_bindings(module, source, subject)?;
+            // resolve every key on the final subject
+            let source = site.node();
+            let origin = Origin::Node(source, subject.scope);
+            let lookup_subject = self.declared_member_subject(subject)?;
+            let bindings = self
+                .body()
+                .resolve_member_bindings(origin, module, lookup_subject)?;
             self.module_mut(module)
                 .members
-                .replace_bindings(subject, bindings);
+                .set_bindings(subject, bindings);
         }
 
         Ok(())
     }
 
-    /// Resolve one subject's member bindings over the solved keyed lookups.
-    fn subject_bindings(
-        &mut self,
-        module: ModuleId,
-        source: dir::GlobalNodeIdAny,
-        subject: dir::MemberSubject,
-    ) -> CompilerResult<Vec<dir::MemberBinding>> {
-        // resolve each declared key through the solved lookup
-        let origin = Origin::Node(source, subject.scope);
-        let lookup_subject = self.declared_member_subject(subject)?;
-        let keys = self
-            .body()
-            .subject_member_keys(origin, module, &lookup_subject)?;
-        let captured = self
-            .module(module)
-            .members
-            .members(subject)
-            .map(<[dir::MemberBinding]>::to_vec)
-            .unwrap_or_default();
-        let mut bindings = Vec::with_capacity(keys.len());
-        for key in keys {
-            // keep the bindings the solve already captured in domain order
-            if let Some(binding) = captured.iter().find(|binding| binding.key == key) {
-                bindings.push(binding.clone());
-
-                continue;
-            }
-
-            let lookup = match self
-                .body()
-                .lookup_member(origin, module, lookup_subject, key)?
-            {
-                Answer::Ready(lookup) => lookup,
-                Answer::Pending(blockers) => {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "member binding lookup suspended after solving: {blockers:?}"
-                        ),
-                    });
-                }
-            };
-            if let Some(binding) = self.body().member_binding(origin, key, &lookup)? {
-                bindings.push(binding);
-            }
-        }
-
-        // retain captured bindings outside the declared key domain
-        for binding in captured {
-            if !bindings.iter().any(|kept| kept.key == binding.key) {
-                bindings.push(binding);
-            }
-        }
-
-        // order bindings by selection precedence within the domain order
-        bindings.sort_by_key(|binding| {
-            // bindings without declarations sort last
-            binding
-                .declarations
-                .first()
-                .map_or(3u8, |declaration| match declaration.origin {
-                    dir::MemberOrigin::Declaration => 0,
-                    dir::MemberOrigin::RootedExtension => 1,
-                    dir::MemberOrigin::BlanketExtension => 2,
-                })
-        });
-
-        Ok(bindings)
-    }
-
-    /// Resolve each authored path segment through the solved member lookup.
-    ///
-    /// The declare pass cannot look up members on foreign declarations, so
-    /// checking derives every segment from the written member chain the walk
-    /// interned behind the path.
+    /// Write the declaration selected for each source path segment.
     fn write_path_segment_resolutions(&mut self, module: ModuleId) -> CompilerResult<()> {
-        if self.is_declaration() {
-            return Ok(());
-        }
-
-        // collect the authored paths that project members from a resolved base
-        let paths: Vec<(dir::GlobalNodeIdAny, u32)> = self
-            .module(module)
-            .resolved
-            .references
-            .target_by_node
-            .iter()
-            .filter_map(|(node, reference)| match reference {
-                dir::Reference::Projected {
-                    base: dir::ImportTarget::Symbol(_),
-                    from,
-                } => Some((*node, *from)),
-                _ => None,
-            })
-            .collect();
-
-        for (node, from) in paths {
-            // read the written member chain behind the authored path
-            let written = self.node_types.get(&node).copied().or_else(|| {
-                self.module(module)
-                    .declared
-                    .as_ref()
-                    .and_then(|declared| declared.types.get_node_type_id(node))
-            });
-            let Some(mut ty) = written else {
-                continue;
-            };
-
-            // peel the chain into per-segment owners and names
-            let mut segments = Vec::new();
-            let mut authored = true;
-            while let Some(member) = self.member_head(ty)? {
-                let dir::StaticKey::Name(name) = member.key else {
-                    authored = false;
-                    break;
-                };
-                segments.push((member.owner, name));
-                ty = member.owner;
-            }
-
-            // skip chains error recovery rebuilt away from the authored path
-            if !authored || segments.is_empty() {
-                continue;
-            }
-            segments.reverse();
-
-            let scope = self.enclosing_declared_template(node)?;
-            for (index, (owner, name)) in segments.into_iter().enumerate() {
-                let Some(symbol) = self.lookup_static_member(module, node, scope, owner, name)?
-                else {
-                    continue;
-                };
-                let index =
-                    u16::try_from(from as usize + index).map_err(|_| CompilerError::Internal {
-                        message: format!(
-                            "check path {} overflows its segment index",
-                            self.node_label(node)
-                        ),
-                    })?;
-                self.commit_path_resolution(node, index, symbol)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Resolve each authored member type expression to its selected symbol.
-    fn write_member_type_resolutions(&mut self, module: ModuleId) -> CompilerResult<()> {
-        if self.is_declaration() {
-            return Ok(());
-        }
-
-        // collect the member type expressions the walk recorded subjects for
-        let sources: Vec<(dir::GlobalNodeIdAny, dir::MemberSubject)> = self
+        // collect exact path sites before mutating resolutions
+        let sites = self
             .module(module)
             .members
             .iter_subjects()
-            .filter(|(source, _)| source.local_id.ty == dir::NodeType::TypeExpression)
-            .collect();
+            .filter_map(|(site, _)| match site {
+                dir::MemberSite::Path { node, segment } => Some((node, segment)),
+                dir::MemberSite::Node(_) => None,
+            })
+            .collect::<Vec<_>>();
 
-        for (node, subject) in sources {
-            // path reference nodes resolve through their segment rows instead
-            if self.module(module).resolved.references.get(node).is_some() {
-                continue;
+        for (node, segment) in sites {
+            let site = dir::MemberSite::Path { node, segment };
+
+            // read the key at this exact path site
+            if node.local_id.ty != dir::NodeType::TypeExpression {
+                return Err(CompilerError::Internal {
+                    message: format!("path member site {site:?} is not a type expression"),
+                });
             }
-
-            // read the selected member behind the written type head
-            let written = self.node_types.get(&node).copied().or_else(|| {
-                self.module(module)
-                    .declared
-                    .as_ref()
-                    .and_then(|declared| declared.types.get_node_type_id(node))
-            });
-            let Some(ty) = written else {
-                continue;
+            let type_expression = node.local_id.into_typed::<dir::TypeExpression>();
+            let dir::TypeExpression::Reference { path, .. } =
+                self.module(module).view().get(type_expression)
+            else {
+                return Err(CompilerError::Internal {
+                    message: format!("path member site {site:?} is not a reference path"),
+                });
             };
-            let Some(member) = self.member_head(ty)? else {
-                continue;
-            };
+            let name = path
+                .segments
+                .get(segment as usize)
+                .copied()
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("path member site {site:?} has no source segment"),
+                })?;
+            let key = dir::StaticKey::Name(name);
 
-            // this projections bind through their receiver, not a static subject
-            if member.qualifier.is_some() {
-                continue;
-            }
-
-            // read the selected declaration from the recorded member bindings
-            let symbol = self
+            // copy the declaration selected by member lookup
+            let resolution = self
                 .module(module)
                 .members
-                .members(subject)
-                .and_then(|bindings| bindings.iter().find(|binding| binding.key == member.key))
-                .and_then(|binding| binding.declarations.first())
-                .map(|declaration| declaration.symbol);
-            if let Some(symbol) = symbol {
-                self.commit_decision(node, Decision::Name(dir::NameResolution::new(symbol)))?;
+                .binding(site, key)
+                .and_then(dir::MemberBinding::declaration_resolution);
+            if let Some(resolution) = resolution {
+                self.commit_path_resolution(node, segment, resolution)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Resolve each source member type expression to its selected symbol.
+    fn write_member_type_resolutions(&mut self, module: ModuleId) -> CompilerResult<()> {
+        // collect the member type expressions the walk recorded subjects for
+        let sites = self
+            .module(module)
+            .members
+            .iter_subjects()
+            .filter_map(|(site, _)| match site {
+                dir::MemberSite::Node(node)
+                    if node.local_id.ty == dir::NodeType::TypeExpression =>
+                {
+                    Some(node)
+                }
+                dir::MemberSite::Node(_) | dir::MemberSite::Path { .. } => None,
+            })
+            .collect::<Vec<_>>();
+
+        for node in sites {
+            let site = dir::MemberSite::Node(node);
+
+            // read the member key at this exact node
+            let type_expression = node.local_id.into_typed::<dir::TypeExpression>();
+            let dir::TypeExpression::Member { name, .. } =
+                self.module(module).view().get(type_expression)
+            else {
+                return Err(CompilerError::Internal {
+                    message: format!("member type site {site:?} is not a member expression"),
+                });
+            };
+            let key = dir::StaticKey::Name(*name);
+
+            // copy the declaration selected by member lookup
+            let resolution = self
+                .module(module)
+                .members
+                .binding(site, key)
+                .and_then(dir::MemberBinding::declaration_resolution);
+            if let Some(resolution) = resolution {
+                self.commit_decision(node, Decision::Name(resolution))?;
             }
         }
 
@@ -610,9 +514,8 @@ impl CheckState<'_> {
         &mut self,
         node: dir::GlobalNodeIdAny,
         segment: u16,
-        symbol: dir::GlobalSymbolId,
+        resolution: dir::NameResolution,
     ) -> CompilerResult<()> {
-        let resolution = dir::NameResolution::new(symbol);
         let previous = self
             .module(node.module_id)
             .resolutions
@@ -639,42 +542,6 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Look up one static member and return its selected declaration.
-    ///
-    /// Members the lookup cannot find carry their own diagnostics, so misses
-    /// stay unresolved instead of failing the writeback.
-    fn lookup_static_member(
-        &mut self,
-        module: ModuleId,
-        node: dir::GlobalNodeIdAny,
-        scope: Option<dir::GlobalGenericTemplateId>,
-        owner: dir::GlobalTypeId,
-        name: dir::StringId,
-    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        let origin = Origin::Node(node, scope);
-        let owner = self.settled_root(owner)?;
-        let subject =
-            dir::MemberSubject::new(owner, owner, dir::MemberSpace::Static).with_scope(scope);
-        let key = dir::StaticKey::Name(name);
-        let lookup = match self.body().lookup_member(origin, module, subject, key)? {
-            Answer::Ready(lookup) => lookup,
-            Answer::Pending(blockers) => {
-                return Err(CompilerError::Internal {
-                    message: format!(
-                        "segment resolution lookup suspended after solving: {blockers:?}"
-                    ),
-                });
-            }
-        };
-
-        match lookup {
-            MemberLookup::Found(candidates) => {
-                Ok(candidates.first().map(|candidate| candidate.symbol))
-            }
-            _ => Ok(None),
-        }
-    }
-
     /// Bind bare generic subject references through their declared applications.
     fn declared_member_subject(
         &mut self,
@@ -682,10 +549,12 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::MemberSubject> {
         let receiver = self.declared_subject_type(subject.receiver)?;
         let target = self.declared_subject_type(subject.target)?;
+        let key_type = self.declared_subject_type(subject.key_type)?;
 
         Ok(dir::MemberSubject {
             receiver,
             target,
+            key_type,
             ..subject
         })
     }

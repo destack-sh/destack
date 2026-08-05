@@ -11,17 +11,22 @@ use crate::check::{
 };
 use crate::{CompilerError, CompilerResult};
 
-/// One structural property found by member lookup.
+/// One field found by member lookup.
 #[derive(Debug, Clone)]
-pub(in crate::check) struct FieldLookup {
-    /// The receiver that exposes the field.
-    pub(in crate::check) receiver: dir::MemberReceiver,
-    /// The structural aggregate that declares the field.
-    pub(in crate::check) owner: dir::GlobalTypeId,
-    /// The projected property operations.
-    pub(in crate::check) access: dir::PropertyAccess,
-    /// Whether the property may be absent.
-    pub(in crate::check) is_optional: bool,
+pub(in crate::check) enum FieldLookup {
+    /// One field declared by a structural aggregate.
+    Structural {
+        /// The receiver that exposes the field.
+        receiver: dir::MemberReceiver,
+        /// The structural aggregate that declares the field.
+        owner: dir::GlobalTypeId,
+        /// The projected property operations.
+        access: dir::PropertyAccess,
+        /// Whether the property may be absent.
+        is_optional: bool,
+    },
+    /// One compiler-defined field projection.
+    Projection(dir::Projection),
 }
 
 /// Result of looking up one member on a receiver type.
@@ -53,15 +58,25 @@ impl FieldLookup {
     /// Return the type produced by reading this property.
     pub(in crate::check) fn read_type(
         &self,
-        _module: ModuleId,
         body: &mut BodyState<'_, '_>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let Some(read) = self.access.read() else {
+        let (read, is_optional) = match self {
+            Self::Structural {
+                access,
+                is_optional,
+                ..
+            } => (access.read(), *is_optional),
+            Self::Projection(projection) => (Some(projection.ty()), false),
+        };
+
+        let Some(read) = read else {
             return Ok(None);
         };
-        if !self.is_optional {
+
+        if !is_optional {
             return Ok(Some(read));
         }
+
         let undefined = body.intern_type(dir::Type::Undefined)?;
         let read = body.normalized_union_type([read, undefined])?;
 
@@ -70,7 +85,124 @@ impl FieldLookup {
 
     /// Return the type accepted by writing this property.
     pub(in crate::check) fn write_type(&self) -> Option<dir::GlobalTypeId> {
-        self.access.write()
+        match self {
+            Self::Structural { access, .. } => access.write(),
+            Self::Projection(_) => None,
+        }
+    }
+
+    /// Return whether this field may be absent.
+    fn is_optional(&self) -> bool {
+        match self {
+            Self::Structural { is_optional, .. } => *is_optional,
+            Self::Projection(_) => false,
+        }
+    }
+
+    /// Return the member access selected by reading this field.
+    pub(in crate::check) fn read_access(
+        &self,
+        receiver: dir::GlobalTypeId,
+        key: dir::StaticKey,
+        body: &mut BodyState<'_, '_>,
+    ) -> CompilerResult<Option<dir::MemberAccess>> {
+        let Some(ty) = self.read_type(body)? else {
+            return Ok(None);
+        };
+        let target = match self {
+            Self::Structural {
+                receiver, owner, ..
+            } => dir::MemberTarget::Field(dir::FieldResolution {
+                receiver: receiver.clone(),
+                target: dir::FieldTarget::Structural { owner: *owner, key },
+                ty,
+            }),
+            Self::Projection(projection) => dir::MemberTarget::Projection {
+                key,
+                projection: projection.clone(),
+            },
+        };
+
+        Ok(Some(dir::MemberAccess::new(receiver, target, ty)))
+    }
+
+    /// Return the value projection selected by reading this field.
+    pub(in crate::check) fn projection(
+        &self,
+        key: dir::StaticKey,
+        body: &mut BodyState<'_, '_>,
+    ) -> CompilerResult<Option<dir::Projection>> {
+        let Some(ty) = self.read_type(body)? else {
+            return Ok(None);
+        };
+        let projection = match self {
+            Self::Structural {
+                receiver, owner, ..
+            } => dir::Projection::Field(dir::FieldResolution {
+                receiver: receiver.clone(),
+                target: dir::FieldTarget::Structural { owner: *owner, key },
+                ty,
+            }),
+            Self::Projection(projection) => projection.clone(),
+        };
+
+        Ok(Some(projection))
+    }
+
+    /// Return the member access selected by writing this field.
+    pub(in crate::check) fn write_access(
+        &self,
+        receiver: dir::GlobalTypeId,
+        key: dir::StaticKey,
+    ) -> Option<dir::MemberAccess> {
+        let (field_receiver, owner, ty) = match self {
+            Self::Structural {
+                receiver,
+                owner,
+                access,
+                ..
+            } => (receiver, owner, access.write()?),
+            Self::Projection(_) => return None,
+        };
+        let target = dir::MemberTarget::Field(dir::FieldResolution {
+            receiver: field_receiver.clone(),
+            target: dir::FieldTarget::Structural { owner: *owner, key },
+            ty,
+        });
+
+        Some(dir::MemberAccess::new(receiver, target, ty))
+    }
+
+    /// Prepend one implicit receiver adjustment.
+    fn prepend_adjustment(&mut self, adjustment: dir::ReceiverAdjustment) -> CompilerResult<()> {
+        match self {
+            Self::Structural { receiver, .. } => receiver.prepend(adjustment),
+            Self::Projection(_) => {
+                return Err(CompilerError::Internal {
+                    message: "compiler-defined field projection received an implicit adjustment"
+                        .to_string(),
+                });
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Select this field through one erased receiver.
+    fn select_dynamic(&mut self, dispatch: dir::DynamicDispatch) -> CompilerResult<()> {
+        match self {
+            Self::Structural { receiver, .. } => {
+                *receiver = dir::MemberReceiver::Dynamic(dispatch);
+            }
+            Self::Projection(_) => {
+                return Err(CompilerError::Internal {
+                    message: "compiler-defined field projection selected dynamic dispatch"
+                        .to_string(),
+                });
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -177,7 +309,7 @@ impl MemberLookup {
     fn is_optional(&self) -> bool {
         match self {
             Self::Missing => false,
-            Self::Field(field) => field.is_optional,
+            Self::Field(field) => field.is_optional(),
             Self::Found(candidates) => Self::selected_candidates(candidates)
                 .into_iter()
                 .any(|candidate| candidate.is_optional),
@@ -238,10 +370,13 @@ impl MemberLookup {
     }
 
     /// Prepend one implicit adjustment to every selected receiver.
-    pub(in crate::check) fn prepend_adjustment(&mut self, adjustment: dir::ReceiverAdjustment) {
+    pub(in crate::check) fn prepend_adjustment(
+        &mut self,
+        adjustment: dir::ReceiverAdjustment,
+    ) -> CompilerResult<()> {
         match self {
             Self::Missing => {}
-            Self::Field(field) => field.receiver.prepend(adjustment),
+            Self::Field(field) => field.prepend_adjustment(adjustment)?,
             Self::Found(candidates) => {
                 for candidate in candidates {
                     candidate.receiver.prepend(adjustment.clone());
@@ -249,24 +384,27 @@ impl MemberLookup {
             }
             Self::Union(lookups) => {
                 for arm in lookups {
-                    arm.lookup.prepend_adjustment(adjustment.clone());
+                    arm.lookup.prepend_adjustment(adjustment.clone())?;
                 }
             }
             Self::Intersection(lookups) => {
                 for lookup in lookups {
-                    lookup.prepend_adjustment(adjustment.clone());
+                    lookup.prepend_adjustment(adjustment.clone())?;
                 }
             }
         }
+
+        Ok(())
     }
 
     /// Select every found member through one erased receiver.
-    pub(in crate::check) fn select_dynamic(&mut self, dispatch: dir::DynamicDispatch) {
+    pub(in crate::check) fn select_dynamic(
+        &mut self,
+        dispatch: dir::DynamicDispatch,
+    ) -> CompilerResult<()> {
         match self {
             Self::Missing => {}
-            Self::Field(field) => {
-                field.receiver = dir::MemberReceiver::Dynamic(dispatch);
-            }
+            Self::Field(field) => field.select_dynamic(dispatch)?,
             Self::Found(candidates) => {
                 for candidate in candidates {
                     candidate.receiver = LookupReceiver::Dynamic(dispatch.clone());
@@ -274,15 +412,17 @@ impl MemberLookup {
             }
             Self::Union(lookups) => {
                 for arm in lookups {
-                    arm.lookup.select_dynamic(dispatch.clone());
+                    arm.lookup.select_dynamic(dispatch.clone())?;
                 }
             }
             Self::Intersection(lookups) => {
                 for lookup in lookups {
-                    lookup.select_dynamic(dispatch.clone());
+                    lookup.select_dynamic(dispatch.clone())?;
                 }
             }
         }
+
+        Ok(())
     }
 }
 
@@ -603,7 +743,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         match lookup {
             MemberLookup::Missing => Ok(None),
-            MemberLookup::Field(field) => field.read_type(origin.module(), self),
+            MemberLookup::Field(field) => field.read_type(self),
             MemberLookup::Found(candidates) => {
                 let candidates = MemberLookup::selected_candidates(candidates);
                 let single_slot = candidates
@@ -733,6 +873,37 @@ impl BodyState<'_, '_> {
         )))
     }
 
+    /// Resolve every member binding exposed by one subject.
+    pub(in crate::check) fn resolve_member_bindings(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        subject: dir::MemberSubject,
+    ) -> CompilerResult<Vec<dir::MemberBinding>> {
+        let keys = self.subject_member_keys(origin, module, &subject)?;
+        let mut bindings = Vec::with_capacity(keys.len());
+
+        // resolve each key through the same lookup used by source members
+        for key in keys {
+            let lookup = match self.lookup_member(origin, module, subject, key)? {
+                Answer::Ready(lookup) => lookup,
+                Answer::Pending(blockers) => {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "member binding lookup suspended after solving: {blockers:?}"
+                        ),
+                    });
+                }
+            };
+
+            if let Some(binding) = self.member_binding(origin, key, &lookup)? {
+                bindings.push(binding);
+            }
+        }
+
+        Ok(bindings)
+    }
+
     /// Return the lookup member represented by one definition member.
     pub(in crate::check) fn declared_member(
         &mut self,
@@ -771,24 +942,11 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<Option<dir::MemberResolution>>> {
         match lookup {
             MemberLookup::Missing => Ok(Answer::Ready(None)),
-            MemberLookup::Field(field) => {
-                // write-only properties expose nothing to a read selection
-                let Some(ty) = field.read_type(origin.module(), self)? else {
-                    return Ok(Answer::Ready(None));
-                };
-                let target = dir::MemberTarget::Field(dir::FieldResolution {
-                    receiver: field.receiver.clone(),
-                    target: dir::FieldTarget::Structural {
-                        owner: field.owner,
-                        key,
-                    },
-                    ty,
-                });
-
-                let access = dir::MemberAccess::new(receiver.ty, target, ty);
-
-                Ok(Answer::Ready(Some(dir::OperationResolution::One(access))))
-            }
+            MemberLookup::Field(field) => Ok(Answer::Ready(
+                field
+                    .read_access(receiver.ty, key, self)?
+                    .map(dir::OperationResolution::One),
+            )),
             MemberLookup::Found(candidates) => {
                 // keep the candidates the selection precedence ranks first
                 let best = candidates.iter().map(MemberCandidate::precedence).min();
@@ -1076,10 +1234,10 @@ impl BodyState<'_, '_> {
             self.report_possibly_nullish(origin, rejected.label().to_string())?;
         }
 
-        // retain the exact lookup subject at this authored site
+        // retain the lookup subject at this source site
         self.module_mut(module)
             .members
-            .record_subject(node, subject);
+            .record_subject(dir::MemberSite::Node(node), subject);
 
         // commit an error for an omitted member name
         let Some(name) = name else {
@@ -1090,29 +1248,7 @@ impl BodyState<'_, '_> {
         };
         let key = dir::StaticKey::Name(name);
 
-        // select compiler-defined member projections before declaration lookup
-        if subject.space == dir::MemberSpace::Instance
-            && let Some(projection) =
-                self.tagged_discriminator_projection(module, subject.receiver, key)?
-        {
-            return self.commit_projection_member(
-                node,
-                receiver_node,
-                subject.receiver,
-                key,
-                projection,
-            );
-        }
         let lookup = answer!(self.lookup_member(origin, module, subject, key,)?);
-
-        // retain the checked binding resolved for the touched key
-        if !matches!(lookup, MemberLookup::Missing)
-            && let Some(binding) = self.member_binding(origin, key, &lookup)?
-        {
-            self.module_mut(module)
-                .members
-                .record_binding(subject, binding);
-        }
 
         match lookup {
             MemberLookup::Missing => {
@@ -1130,28 +1266,6 @@ impl BodyState<'_, '_> {
                 lookup,
             ),
         }
-    }
-
-    /// Commit one compiler-defined member projection.
-    fn commit_projection_member(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-        receiver_node: dir::GlobalNodeIdAny,
-        receiver: dir::GlobalTypeId,
-        key: dir::StaticKey,
-        projection: dir::Projection,
-    ) -> CompilerResult<Answer<()>> {
-        let ty = projection.ty();
-        let target = dir::MemberTarget::Projection { key, projection };
-        let access = dir::MemberAccess::new(receiver, target, ty);
-        let resolution = dir::OperationResolution::One(access);
-        self.commit_decision(node, Decision::Member(resolution))?;
-        self.commit_projected_access(node, receiver_node, key)?;
-        let site = self.node_site(node)?;
-        let ty = answer!(self.flow_type_at(site, ty)?);
-        self.commit_node_type(node, ty)?;
-
-        Ok(Answer::Ready(()))
     }
 
     /// Commit one member lookup.
@@ -1521,7 +1635,7 @@ impl BodyState<'_, '_> {
         lookup: MemberLookup,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         match lookup {
-            MemberLookup::Field(field) => field.read_type(module, self),
+            MemberLookup::Field(field) => field.read_type(self),
             MemberLookup::Found(candidates) => match candidates.as_slice() {
                 [candidate] => {
                     if let Some(written) = candidate.value_type {

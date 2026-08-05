@@ -1542,6 +1542,23 @@ impl CheckState<'_> {
         Ok(self.module_mut(module).types_tail.intern_properties(values))
     }
 
+    /// Intern one structural shape type.
+    pub(in crate::check) fn intern_shape(
+        &mut self,
+        module: ModuleId,
+        properties: &[dir::TypeProperty],
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let properties = self.intern_properties(module, properties)?;
+        let shape = dir::ShapeType {
+            properties,
+            call_signatures: dir::TypeListId::EMPTY,
+            construct_signatures: dir::TypeListId::EMPTY,
+            index_signatures: dir::TypeListId::EMPTY,
+        };
+
+        self.intern_type(dir::Type::from(shape))
+    }
+
     /// Intern associated bindings around one base type.
     pub(in crate::check) fn intern_refinements(
         &mut self,

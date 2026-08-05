@@ -157,10 +157,10 @@ impl WalkState<'_, '_> {
                 // retain the lookup subject even when the written member is incomplete
                 let subject = dir::MemberSubject::new(owner, owner, dir::MemberSpace::Static)
                     .with_scope(self.flow().template_scope());
-                self.check
-                    .module_mut(self.module)
-                    .members
-                    .record_subject(id.into_global_any(self.module), subject);
+                self.check.module_mut(self.module).members.record_subject(
+                    dir::MemberSite::Node(id.into_global_any(self.module)),
+                    subject,
+                );
 
                 self.intern_member(dir::MemberType {
                     owner,
@@ -702,6 +702,7 @@ impl WalkState<'_, '_> {
             }) => self.walk_member_path_type(
                 id,
                 base,
+                from,
                 &path.segments[from as usize..],
                 generic_arguments,
             ),
@@ -1038,10 +1039,12 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
         base: dir::GlobalSymbolId,
+        from: u32,
         tail: &[dir::StringId],
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.commit_reference_name(id.into_global_any(self.module), base)?;
+        let source = id.into_global_any(self.module);
+        self.commit_reference_name(source, base)?;
 
         // start from the resolved base symbol
         let mut ty = self.referenced_symbol_type(id.into_any(), base, &[])?;
@@ -1059,15 +1062,23 @@ impl WalkState<'_, '_> {
             };
             let arguments = self.intern_type_ids(&arguments)?;
 
-            // retain the final lookup subject represented by this authored path
-            if is_last {
-                let subject = dir::MemberSubject::new(ty, ty, dir::MemberSpace::Static)
-                    .with_scope(self.flow().template_scope());
-                self.check
-                    .module_mut(self.module)
-                    .members
-                    .record_subject(id.into_global_any(self.module), subject);
-            }
+            // record the lookup subject for this path segment
+            let path_segment = from
+                .checked_add(index as u32)
+                .and_then(|index| u16::try_from(index).ok())
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("type reference {source:?} overflows its segment index"),
+                })?;
+            let site = dir::MemberSite::Path {
+                node: source,
+                segment: path_segment,
+            };
+            let subject = dir::MemberSubject::new(ty, ty, dir::MemberSpace::Static)
+                .with_scope(self.flow().template_scope());
+            self.check
+                .module_mut(self.module)
+                .members
+                .record_subject(site, subject);
 
             ty = self.intern_member(dir::MemberType {
                 owner: ty,

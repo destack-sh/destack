@@ -555,43 +555,19 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<Option<MemberAssignmentSelection>>> {
         match lookup {
             MemberLookup::Field(field) => {
-                let read = if use_ != PlaceUse::Write
-                    && let Some(ty) = field.read_type(origin.module(), self)?
-                {
-                    let target = dir::MemberTarget::Field(dir::FieldResolution {
-                        receiver: field.receiver.clone(),
-                        target: dir::FieldTarget::Structural {
-                            owner: field.owner,
-                            key,
-                        },
-                        ty,
-                    });
-
-                    Some(dir::OperationResolution::One(dir::MemberAccess::new(
-                        receiver.ty,
-                        target,
-                        ty,
-                    )))
+                let read = if use_ != PlaceUse::Write {
+                    field
+                        .read_access(receiver.ty, key, self)?
+                        .map(dir::OperationResolution::One)
                 } else {
                     None
                 };
+
                 // read-only properties select no write resolution
-                let Some(write_type) = field.write_type() else {
+                let Some(write) = field.write_access(receiver.ty, key) else {
                     return Ok(Answer::Ready(None));
                 };
-                let target = dir::MemberTarget::Field(dir::FieldResolution {
-                    receiver: field.receiver,
-                    target: dir::FieldTarget::Structural {
-                        owner: field.owner,
-                        key,
-                    },
-                    ty: write_type,
-                });
-                let write = dir::OperationResolution::One(dir::MemberAccess::new(
-                    receiver.ty,
-                    target,
-                    write_type,
-                ));
+                let write = dir::OperationResolution::One(write);
 
                 Ok(Answer::Ready(Some(MemberAssignmentSelection {
                     read,

@@ -129,6 +129,17 @@ impl BodyState<'_, '_> {
                         return Ok(Answer::Ready(error));
                     };
 
+                    // record the fields contributed by this spread
+                    let key_type = self.intern_shape(module, &spread_fields)?;
+                    let subject =
+                        dir::MemberSubject::new(spread, spread, dir::MemberSpace::Instance)
+                            .with_scope(site.scope)
+                            .with_key_type(key_type);
+                    self.module_mut(module).members.record_subject(
+                        dir::MemberSite::Node(property.into_global_any(module)),
+                        subject,
+                    );
+
                     // overwrite the slots the spread supplies
                     for field in spread_fields {
                         let field = dir::TypeProperty {
@@ -210,6 +221,17 @@ impl BodyState<'_, '_> {
         else {
             return Ok(Answer::Ready(CheckAttempt::NotApplicable));
         };
+
+        // record the fields accepted by this literal
+        let key_type = self.intern_shape(node.module_id, &target_fields)?;
+        let subject =
+            dir::MemberSubject::new(target_value, target_value, dir::MemberSpace::Instance)
+                .with_scope(site.scope)
+                .with_key_type(key_type);
+        self.module_mut(node.module_id)
+            .members
+            .record_subject(dir::MemberSite::Node(node.into_any()), subject);
+
         let mut authored = IndexSet::<dir::StaticKey>::new();
         let mut source_fields = IndexMap::<dir::StaticKey, dir::TypeProperty>::new();
         let mut check = CheckOutcome::Holds;

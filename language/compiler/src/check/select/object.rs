@@ -453,21 +453,11 @@ impl BodyState<'_, '_> {
         let field = match lookup {
             MemberLookup::Field(field) => {
                 // write-only properties expose nothing to an object read
-                let Some(ty) = field.read_type(origin.module(), self)? else {
+                let Some(projection) = field.projection(key, self)? else {
                     return Ok(Answer::Ready(ObjectField::Missing));
                 };
 
-                ObjectField::Projection(Box::new(
-                    dir::Projection::Field(dir::FieldResolution {
-                        receiver: field.receiver,
-                        target: dir::FieldTarget::Structural {
-                            owner: field.owner,
-                            key,
-                        },
-                        ty,
-                    })
-                    .into(),
-                ))
+                ObjectField::Projection(Box::new(projection.into()))
             }
             MemberLookup::Found(candidates) => {
                 answer!(self.object_member_field(origin, owner, key, candidates)?)

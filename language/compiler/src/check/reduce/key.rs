@@ -164,7 +164,7 @@ impl CheckState<'_> {
         match lookup {
             // contribute a field's value type
             MemberLookup::Field(field) => {
-                match field.read_type(origin.module(), &mut self.body())? {
+                match field.read_type(&mut self.body())? {
                     Some(ty) => Ok(OperationReduction::Projected(ty)),
                     // write-only properties project nothing readable
                     None => Ok(OperationReduction::Invalid(InvalidOperation::IndexKey {
