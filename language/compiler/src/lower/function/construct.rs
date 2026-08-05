@@ -91,11 +91,7 @@ impl FunctionLowerer<'_, '_, '_> {
         match constructor {
             dir::ClassConstructor::Declared { symbol } => {
                 let key = GenericInstanceKey::non_generic(*symbol);
-                let Some(function) = self.lowerer.functions.get(&key).copied() else {
-                    return Err(CompilerError::Internal {
-                        message: "missing a declared constructor function".to_string(),
-                    });
-                };
+                let function = self.function(&key)?;
 
                 // borrow heap references exclusively
                 let exclusive = self.type_lowerer().insert_reference(

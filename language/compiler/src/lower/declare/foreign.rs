@@ -1,11 +1,10 @@
-use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
 
 use crate::lower::{
-    CallableImplementation, GenericInstanceKey, LifetimeParameters, ModuleLowerer, ReceiverBinding,
-    TypeSubstitution,
+    CallableImplementation, FunctionDeclaration, GenericInstanceKey, LifetimeParameters,
+    ModuleLowerer, ReceiverBinding, TypeSubstitution,
 };
 use crate::{CompilerError, CompilerResult, LowerError};
 
@@ -15,85 +14,93 @@ struct ImportedMember {
     owner: dir::GlobalSymbolId,
     /// The declared member role.
     role: Option<dir::FunctionRole>,
+    /// Whether the member declares no receiver.
+    is_static: bool,
 }
 
 impl ModuleLowerer<'_> {
-    /// Declare an import header for every referenced foreign callable.
-    pub(in crate::lower) fn declare_imported_functions(
+    /// Declare an import header for one referenced foreign callable.
+    pub(in crate::lower) fn declare_imported_function(
         &mut self,
         builder: &mut mir::ModuleBuilder,
-        imports: FxIndexSet<dir::GlobalSymbolId>,
+        symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<()> {
-        // declare each import from its signature under its canonical name
-        for symbol in imports {
-            let key = GenericInstanceKey::non_generic(symbol);
-            if self.functions.contains_key(&key) {
-                continue;
-            }
-            let path = self.state(symbol.module_id)?.path.clone();
-
-            // resolve the imported signature through the owning module
-            let declared = self.symbol_type(symbol)?;
-            let lifetime_parameters = self.lifetime_parameters(declared)?;
-            let (signature, owner) = self.signature(declared)?;
-
-            // lead member callables with their receiver and qualify by owner
-            let member = self.imported_member(symbol)?;
-            let type_substitution = match &member {
-                Some(member) => TypeSubstitution::default().with_receiver(
-                    ReceiverBinding::Application(dir::GenericApplication {
-                        symbol: member.owner,
-                        arguments: dir::TypeListId::EMPTY,
-                    }),
-                ),
-                None => TypeSubstitution::default(),
-            };
-            let (name, receiver) = match &member {
-                Some(member) => {
-                    let (name, receiver) = self.imported_member_header(
-                        builder,
-                        symbol,
-                        member,
-                        signature,
-                        owner,
-                        &type_substitution,
-                        &lifetime_parameters,
-                    )?;
-
-                    (format!("{path}.{name}"), Some(receiver))
-                }
-                None => {
-                    let Some(name) = self.symbol_name(symbol)? else {
-                        return Err(CompilerError::Internal {
-                            message: "an imported function without a name".to_string(),
-                        });
-                    };
-
-                    (format!("{path}.{}", self.strings.get(name)), None)
-                }
-            };
-
-            let signature =
-                self.lower_signature(builder, declared, &type_substitution, &lifetime_parameters)?;
-            let mut parameters = signature.parameters;
-            if let Some(receiver) = receiver {
-                parameters.insert(0, receiver);
-            }
-
-            // give constructors a void result
-            let is_constructor = member
-                .as_ref()
-                .is_some_and(|member| member.role == Some(dir::FunctionRole::Constructor));
-            let result = match is_constructor {
-                true => builder.tree_mut().intern_type(mir::Type::Void),
-                false => signature.result,
-            };
-
-            let header = lifetime_parameters.declare(builder.function_header(&name));
-            let header = header.parameters(parameters).result(result);
-            let function = builder.external_function(header);
-            self.functions.insert(key, function);
+        // declare the import once under its canonical name
+        let key = GenericInstanceKey::non_generic(symbol);
+        if self.functions.contains_key(&key) {
+            return Ok(());
         }
+        let path = self.state(symbol.module_id)?.path.clone();
+
+        // resolve the imported signature through the owning module
+        let declared = self.symbol_type(symbol)?;
+        if self.signature_has_instance_parameters(declared)? {
+            return Err(LowerError::Unsupported {
+                anchor: self.module.into(),
+                construct: "an imported generic callable without instance arguments".to_string(),
+            }
+            .into());
+        }
+        let lifetime_parameters = self.lifetime_parameters(declared)?;
+        let (signature, owner) = self.signature(declared)?;
+
+        // lead member callables with their receiver and qualify by owner
+        let member = self.imported_member(symbol)?;
+        let type_substitution = match &member {
+            Some(member) => TypeSubstitution::default().with_receiver(
+                ReceiverBinding::Application(dir::GenericApplication {
+                    symbol: member.owner,
+                    arguments: dir::TypeListId::EMPTY,
+                }),
+            ),
+            None => TypeSubstitution::default(),
+        };
+        let (name, receiver) = match &member {
+            Some(member) => {
+                let (name, receiver) = self.imported_member_header(
+                    builder,
+                    symbol,
+                    member,
+                    signature,
+                    owner,
+                    &type_substitution,
+                    &lifetime_parameters,
+                )?;
+
+                (format!("{path}.{name}"), receiver)
+            }
+            None => {
+                let Some(name) = self.symbol_name(symbol)? else {
+                    return Err(CompilerError::Internal {
+                        message: "an imported function without a name".to_string(),
+                    });
+                };
+
+                (format!("{path}.{}", self.strings.get(name)), None)
+            }
+        };
+
+        let signature =
+            self.lower_signature(builder, declared, &type_substitution, &lifetime_parameters)?;
+        let mut parameters = signature.parameters;
+        if let Some(receiver) = receiver {
+            parameters.insert(0, receiver);
+        }
+
+        // give constructors a void result
+        let is_constructor = member
+            .as_ref()
+            .is_some_and(|member| member.role == Some(dir::FunctionRole::Constructor));
+        let result = match is_constructor {
+            true => builder.tree_mut().intern_type(mir::Type::Void),
+            false => signature.result,
+        };
+
+        let header = lifetime_parameters.declare(builder.function_header(&name));
+        let header = header.parameters(parameters).result(result);
+        let function = builder.external_function(header);
+        self.functions
+            .insert(key, FunctionDeclaration::Declared(function));
 
         Ok(())
     }
@@ -120,6 +127,16 @@ impl ModuleLowerer<'_> {
 
         // read the parameter and return carriers from the declared signature
         let declared = self.symbol_type(symbol)?;
+
+        // require a concrete signature for one extern header
+        if self.signature_has_instance_parameters(declared)? {
+            return Err(LowerError::Unsupported {
+                anchor: self.module.into(),
+                construct: "a generic binding callable".to_string(),
+            }
+            .into());
+        }
+
         let type_substitution = TypeSubstitution::default();
         let lifetime_parameters = self.lifetime_parameters(declared)?;
         let signature =
@@ -134,7 +151,8 @@ impl ModuleLowerer<'_> {
 
         // mark bindings as observing external state
         *builder.effects_mut().function_mut(function) = mir::FunctionEffect::unknown();
-        self.functions.insert(key, function);
+        self.functions
+            .insert(key, FunctionDeclaration::Declared(function));
 
         Ok(())
     }
@@ -149,7 +167,7 @@ impl ModuleLowerer<'_> {
         owner: ModuleId,
         type_substitution: &TypeSubstitution,
         lifetime_parameters: &LifetimeParameters,
-    ) -> CompilerResult<(String, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(String, Option<mir::LocalNodeId<mir::Type>>)> {
         let pointer_bytes = builder.pointer_bytes();
         let value = self
             .type_lowerer(
@@ -163,15 +181,17 @@ impl ModuleLowerer<'_> {
         let receiver = match member.role {
             // pass an exclusive reference to constructors
             Some(dir::FunctionRole::Constructor) => {
-                builder.tree_mut().intern_type(mir::Type::Reference {
+                Some(builder.tree_mut().intern_type(mir::Type::Reference {
                     kind: mir::ReferenceKind::Borrowed,
                     lifetime: mir::Lifetime::empty(),
                     storage: mir::Storage::Heap(mir::Space::Local),
                     access: mir::Access::Exclusive,
                     pointee,
                     nullability: mir::Nullability::None,
-                })
+                }))
             }
+            // statics call without a receiver slot
+            _ if member.is_static => None,
             // pass this at the declared receiver type
             _ => {
                 let declared = self.types(owner)?.signature(signature).this_parameter;
@@ -181,13 +201,15 @@ impl ModuleLowerer<'_> {
                     });
                 };
 
-                self.type_lowerer(
-                    builder.tree_mut(),
-                    pointer_bytes,
-                    type_substitution,
-                    lifetime_parameters,
+                Some(
+                    self.type_lowerer(
+                        builder.tree_mut(),
+                        pointer_bytes,
+                        type_substitution,
+                        lifetime_parameters,
+                    )
+                    .lower(declared)?,
                 )
-                .lower(declared)?
             }
         };
 
@@ -215,10 +237,16 @@ impl ModuleLowerer<'_> {
         let Ok(member) = node.local_id.try_into_typed::<dir::Member>() else {
             return Ok(None);
         };
-        let dir::Member::Method { signature, .. } = state.tree().get(member) else {
+        let dir::Member::Method {
+            signature,
+            is_static,
+            ..
+        } = state.tree().get(member)
+        else {
             return Ok(None);
         };
         let role = signature.role;
+        let is_static = *is_static;
 
         // read the enclosing nominal from the introducing scope's owner
         let Some(owner) = state.bindings.get_scope(declared.scope).owner else {
@@ -230,6 +258,7 @@ impl ModuleLowerer<'_> {
         Ok(Some(ImportedMember {
             owner: owner.into_global(symbol.module_id),
             role,
+            is_static,
         }))
     }
 

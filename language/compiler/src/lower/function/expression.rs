@@ -435,9 +435,11 @@ impl FunctionLowerer<'_, '_, '_> {
             .iter()
             .any(|case| case.adjustments != first.adjustments)
         {
-            return Err(CompilerError::Internal {
-                message: "a union exit requiring a missing source discriminant".to_string(),
-            });
+            return Err(LowerError::Unsupported {
+                anchor: self.lowerer.module.into(),
+                construct: "a per-arm conversion over an undiscriminated union carrier".to_string(),
+            }
+            .into());
         }
         let value = self.lower_adjustments(
             CoercionValue::Runtime(value),

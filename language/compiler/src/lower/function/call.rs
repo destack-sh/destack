@@ -1,7 +1,9 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{CallableImplementation, FunctionLowerer, GenericInstanceKey};
+use crate::lower::{
+    CallableImplementation, FunctionDeclaration, FunctionLowerer, GenericInstanceKey,
+};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -231,7 +233,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // select the declared instance from the substituted arguments
         let bindings = self
             .lowerer
-            .instance_bindings(function, &self.type_substitution)?;
+            .instance_bindings(&function.generic_arguments, &self.type_substitution)?;
         let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
         let key = self
             .type_lowerer()
@@ -247,13 +249,35 @@ impl FunctionLowerer<'_, '_, '_> {
         &self,
         key: &GenericInstanceKey,
     ) -> CompilerResult<mir::FunctionId> {
-        self.lowerer
-            .functions
-            .get(key)
-            .copied()
-            .ok_or_else(|| CompilerError::Internal {
-                message: "missing a declared function behind one call symbol".to_string(),
-            })
+        // resolve the exact instance, treating a failed symbol as a failed instance
+        let symbol = GenericInstanceKey::non_generic(key.symbol);
+        let declaration = match self.lowerer.functions.get(key) {
+            Some(declaration) => Some(declaration),
+            None => self
+                .lowerer
+                .functions
+                .get(&symbol)
+                .filter(|fallback| matches!(fallback, FunctionDeclaration::Failed)),
+        };
+
+        match declaration {
+            Some(FunctionDeclaration::Declared(function)) => Ok(*function),
+            // cascade from declarations that already reported their diagnostics
+            Some(FunctionDeclaration::Failed) => Err(LowerError::Unsupported {
+                anchor: self.lowerer.module.into(),
+                construct: "a call into an undeclared callable".to_string(),
+            }
+            .into()),
+            None => {
+                let path = self.lowerer.symbol_path(key.symbol)?;
+
+                Err(CompilerError::Internal {
+                    message: format!(
+                        "missing a declared function behind the callable symbol '{path}'"
+                    ),
+                })
+            }
+        }
     }
 
     /// Lower one call through a function-typed value.

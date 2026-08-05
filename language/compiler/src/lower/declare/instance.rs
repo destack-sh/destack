@@ -1,3 +1,6 @@
+use std::slice;
+
+use destack_artifact::DiagnosticLike;
 use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_mir as mir;
@@ -9,6 +12,17 @@ use crate::lower::{
     TypeSubstitution,
 };
 use crate::{CompilerError, CompilerResult, LowerError};
+
+/// One pending instantiation and its concrete argument bindings.
+type PendingInstance = (dir::GlobalSymbolId, Vec<dir::GenericArgumentBinding>);
+
+/// The declaration outcome behind one callable instance key.
+pub(in crate::lower) enum FunctionDeclaration {
+    /// The declared MIR function.
+    Declared(mir::FunctionId),
+    /// The declaration failed with a reported diagnostic.
+    Failed,
+}
 
 /// One concrete declaration instance.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -64,22 +78,30 @@ impl dir::NodeVisitor for ExpressionCollector {
 
 impl ModuleLowerer<'_> {
     /// Declare every concrete generic instance reachable from the bodies.
+    ///
+    /// A body whose collection or instance declaration fails keeps its diagnostic and the
+    /// remaining bodies keep their collected references.
     pub(in crate::lower) fn declare_reachable_instances(
         &mut self,
         builder: &mut mir::ModuleBuilder,
         bodies: &[FunctionDefinition],
+        errors: &mut Vec<Box<dyn DiagnosticLike>>,
     ) -> CompilerResult<(Vec<FunctionDefinition>, ExternalCallables)> {
         // collect calls from the concrete bodies queued for lowering
         let mut pending = Vec::new();
         let mut references = ExternalCallables::default();
         for body in bodies {
-            self.collect_body_calls(
+            match self.collect_body_calls(
                 body.source,
                 body.expression,
                 &body.type_substitution,
                 &mut pending,
                 &mut references,
-            )?;
+            ) {
+                Ok(()) => {}
+                Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
+                Err(error) => return Err(error),
+            }
         }
 
         // collect calls from the module initializer expressions
@@ -90,13 +112,17 @@ impl ModuleLowerer<'_> {
             .map(|(_, expression)| *expression)
             .collect();
         for expression in expressions {
-            self.collect_body_calls(
+            match self.collect_body_calls(
                 self.module,
                 expression,
                 &substitution,
                 &mut pending,
                 &mut references,
-            )?;
+            ) {
+                Ok(()) => {}
+                Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
+                Err(error) => return Err(error),
+            }
         }
 
         // collect calls recursively from each declared instance body
@@ -105,16 +131,27 @@ impl ModuleLowerer<'_> {
         while index < pending.len() {
             let (symbol, bindings) = pending[index].clone();
             index += 1;
-            let Some(body) = self.declare_instance(builder, symbol, &bindings)? else {
-                continue;
+            let body = match self.declare_instance(builder, symbol, &bindings) {
+                Ok(Some(body)) => body,
+                Ok(None) => continue,
+                Err(CompilerError::Diagnostic(diagnostic)) => {
+                    self.bank_failed_callable(Some(symbol), diagnostic, errors);
+
+                    continue;
+                }
+                Err(error) => return Err(error),
             };
-            self.collect_body_calls(
+            match self.collect_body_calls(
                 symbol.module_id,
                 body.expression,
                 &body.type_substitution,
                 &mut pending,
                 &mut references,
-            )?;
+            ) {
+                Ok(()) => {}
+                Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
+                Err(error) => return Err(error),
+            }
             instances.push(body);
         }
 
@@ -160,7 +197,7 @@ impl ModuleLowerer<'_> {
         module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
         substitution: &TypeSubstitution,
-        pending: &mut Vec<(dir::GlobalSymbolId, Vec<dir::GenericArgumentBinding>)>,
+        pending: &mut Vec<PendingInstance>,
         references: &mut ExternalCallables,
     ) -> CompilerResult<()> {
         // walk the body subtree collecting its expression nodes
@@ -217,10 +254,370 @@ impl ModuleLowerer<'_> {
                 self.collect_coercion(coercion, substitution, pending)?;
             }
 
+            // demand instances behind value-position callable references, leaving
+            //  unmatchable shapes to their own body diagnostics
+            match self.collect_function_reference(module, node, substitution, pending, references) {
+                Ok(()) => {}
+                Err(CompilerError::Diagnostic(_)) => {}
+                Err(error) => return Err(error),
+            }
+
+            // collect the accessor and protocol calls selected behind places
+            if let Some(resolution) = state.resolutions.member_resolution(node) {
+                self.collect_member_resolution(resolution, substitution, pending, references)?;
+            }
+            if let Some(resolution) = state.resolutions.subscript_resolution(node) {
+                self.collect_subscript_resolution(resolution, substitution, pending, references)?;
+            }
+            if let Some(resolution) = state.resolutions.assignment_resolution(node) {
+                match &resolution.read {
+                    Some(dir::ReadResolution::Member(member)) => {
+                        self.collect_member_resolution(member, substitution, pending, references)?;
+                    }
+                    Some(dir::ReadResolution::Subscript(subscript)) => {
+                        self.collect_subscript_resolution(
+                            subscript,
+                            substitution,
+                            pending,
+                            references,
+                        )?;
+                    }
+                    _ => {}
+                }
+                match &resolution.write {
+                    dir::WriteResolution::Member(member) => {
+                        self.collect_member_resolution(member, substitution, pending, references)?;
+                    }
+                    dir::WriteResolution::Subscript(subscript) => {
+                        self.collect_subscript_resolution(
+                            subscript,
+                            substitution,
+                            pending,
+                            references,
+                        )?;
+                    }
+                    _ => {}
+                }
+            }
+
             let Some(resolution) = state.resolutions.call_resolution(node) else {
                 continue;
             };
             self.collect_call_resolution(resolution, substitution, pending, references)?;
+        }
+
+        Ok(())
+    }
+
+    /// Collect the accessor calls selected by one member resolution.
+    fn collect_member_resolution(
+        &self,
+        resolution: &dir::MemberResolution,
+        substitution: &TypeSubstitution,
+        pending: &mut Vec<PendingInstance>,
+        references: &mut ExternalCallables,
+    ) -> CompilerResult<()> {
+        match resolution {
+            dir::OperationResolution::One(access) => {
+                self.collect_member_access(access, substitution, pending, references)
+            }
+            dir::OperationResolution::Union { arms, .. } => {
+                for access in arms {
+                    self.collect_member_access(access, substitution, pending, references)?;
+                }
+
+                Ok(())
+            }
+        }
+    }
+
+    /// Collect the accessor call selected by one member access.
+    fn collect_member_access(
+        &self,
+        access: &dir::MemberAccess,
+        substitution: &TypeSubstitution,
+        pending: &mut Vec<PendingInstance>,
+        references: &mut ExternalCallables,
+    ) -> CompilerResult<()> {
+        if let dir::MemberTarget::Call(call) = &access.target {
+            self.collect_call(call, substitution, pending, references)?;
+        }
+
+        Ok(())
+    }
+
+    /// Collect the protocol calls selected by one subscript resolution.
+    fn collect_subscript_resolution(
+        &self,
+        resolution: &dir::SubscriptResolution,
+        substitution: &TypeSubstitution,
+        pending: &mut Vec<PendingInstance>,
+        references: &mut ExternalCallables,
+    ) -> CompilerResult<()> {
+        // flatten singular and union selections into one arm list
+        let arms: &[dir::Subscript] = match resolution {
+            dir::OperationResolution::One(subscript) => slice::from_ref(subscript),
+            dir::OperationResolution::Union { arms, .. } => arms,
+        };
+
+        // collect the call selected behind each arm's target
+        for subscript in arms {
+            match &subscript.target {
+                dir::SubscriptTarget::Member(access) => {
+                    self.collect_member_access(access, substitution, pending, references)?;
+                }
+                dir::SubscriptTarget::Call(call) => {
+                    self.collect_call(call, substitution, pending, references)?;
+                }
+                dir::SubscriptTarget::Index(read) => {
+                    self.collect_call(&read.call, substitution, pending, references)?;
+                    if let dir::DereferenceTarget::Call(call) = &read.dereference.target {
+                        self.collect_call(call, substitution, pending, references)?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Collect one value-position callable reference.
+    fn collect_function_reference(
+        &self,
+        module: ModuleId,
+        node: dir::GlobalNodeIdAny,
+        substitution: &TypeSubstitution,
+        pending: &mut Vec<PendingInstance>,
+        references: &mut ExternalCallables,
+    ) -> CompilerResult<()> {
+        // resolve the referenced symbol and require a callable declaration
+        let state = self.state(module)?;
+        let Some(symbol) = state
+            .resolutions
+            .name_resolution(node)
+            .and_then(|resolution| resolution.symbols().first().copied())
+        else {
+            return Ok(());
+        };
+        let Some(ty) = self
+            .types(symbol.module_id)?
+            .get_reduced_symbol_type_id(symbol)
+        else {
+            return Ok(());
+        };
+        if !matches!(
+            self.ty(ty)?,
+            dir::Type::Function(_)
+                | dir::Type::FunctionSignature(_)
+                | dir::Type::FunctionPointer(_)
+        ) {
+            return Ok(());
+        }
+
+        // route intrinsic and binding callables without an instance
+        match self.callable_implementation(symbol)? {
+            Some(CallableImplementation::Binding { .. }) => {
+                references.bindings.insert(symbol);
+
+                return Ok(());
+            }
+            Some(CallableImplementation::Intrinsic { .. }) => return Ok(()),
+            None => {}
+        }
+
+        // select an instance when the reference binds type parameters
+        if let Some(instantiation) = state.resolutions.instantiation_resolution(node) {
+            let bindings =
+                self.instance_bindings(&instantiation.generic_arguments, substitution)?;
+            if !bindings.is_empty() {
+                return self.push_instance(symbol, bindings, pending);
+            }
+        }
+
+        // recover inferred instantiations from the converted concrete expectation
+        //  (call callees carry no expectation and resolve through call collection)
+        let parameters = self.signature_template_parameters(ty)?;
+        if !parameters.is_empty() {
+            let Some(expected) = state.types.get_expected_type_id(node) else {
+                return Ok(());
+            };
+            let mut bindings = Vec::new();
+            self.match_template_arguments(&parameters, ty, expected, &mut bindings)?;
+            let bindings = self.instance_bindings(&bindings, substitution)?;
+
+            return self.push_instance(symbol, bindings, pending);
+        }
+
+        // import plain references into other modules
+        if symbol.module_id != self.module {
+            references.imports.insert(symbol);
+        }
+
+        Ok(())
+    }
+
+    /// Return the non-lifetime template parameters behind one callable type.
+    pub(in crate::lower) fn signature_template_parameters(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Vec<dir::GlobalGenericParameterId>> {
+        // peel the callable down to its signature template
+        let (signature, owner) = self.signature(ty)?;
+        let Some(template) = self.types(owner)?.signature(signature).template else {
+            return Ok(Vec::new());
+        };
+
+        // keep the parameters an instance key selects
+        let template_module = template.module_id;
+        let generics = &self.state(template_module)?.generics;
+        let template = generics.get_template(template.local_id);
+        let mut parameters = Vec::new();
+        for parameter in &template.parameters {
+            let binding = generics.get_parameter(*parameter);
+            if binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime) {
+                continue;
+            }
+            parameters.push(parameter.into_global(template_module));
+        }
+
+        Ok(parameters)
+    }
+
+    /// Bind template parameters by matching one declared type against its instantiated form.
+    pub(in crate::lower) fn match_template_arguments(
+        &self,
+        parameters: &[dir::GlobalGenericParameterId],
+        declared: dir::GlobalTypeId,
+        concrete: dir::GlobalTypeId,
+        bindings: &mut Vec<dir::GenericArgumentBinding>,
+    ) -> CompilerResult<()> {
+        // skip declared positions without open parameters
+        let declared = self.reduced_type(declared)?;
+        let flags = self
+            .types(declared.module_id)?
+            .get_type_flags(declared.local_id);
+        if !flags.has_parameter() {
+            return Ok(());
+        }
+        let concrete = self.reduced_type(concrete)?;
+
+        match (self.ty(declared)?, self.ty(concrete)?) {
+            // bind one open parameter at its first concrete position
+            (dir::Type::Parameter(parameter), _) if parameters.contains(&parameter) => {
+                if !bindings
+                    .iter()
+                    .any(|binding| binding.parameter == parameter)
+                {
+                    bindings.push(dir::GenericArgumentBinding {
+                        parameter,
+                        argument: concrete,
+                    });
+                }
+
+                Ok(())
+            }
+
+            // walk callable carriers down to their signatures
+            (dir::Type::Function(declared), dir::Type::Function(concrete)) => self
+                .match_template_arguments(
+                    parameters,
+                    declared.signature,
+                    concrete.signature,
+                    bindings,
+                ),
+            (dir::Type::FunctionSignature(_), dir::Type::Function(concrete)) => {
+                self.match_template_arguments(parameters, declared, concrete.signature, bindings)
+            }
+            (dir::Type::Function(declared), dir::Type::FunctionSignature(_)) => {
+                self.match_template_arguments(parameters, declared.signature, concrete, bindings)
+            }
+            (dir::Type::FunctionPointer(declared), dir::Type::FunctionPointer(concrete)) => self
+                .match_template_arguments(
+                    parameters,
+                    declared.signature,
+                    concrete.signature,
+                    bindings,
+                ),
+
+            // signatures match positionally over parameters and returns
+            (
+                dir::Type::FunctionSignature(declared_signature),
+                dir::Type::FunctionSignature(concrete_signature),
+            ) => {
+                let declared_signature = *self
+                    .types(declared.module_id)?
+                    .signature(declared_signature);
+                let concrete_signature = *self
+                    .types(concrete.module_id)?
+                    .signature(concrete_signature);
+                let declared_parameters = self
+                    .types(declared.module_id)?
+                    .parameters(declared_signature.parameters)
+                    .to_vec();
+                let concrete_parameters = self
+                    .types(concrete.module_id)?
+                    .parameters(concrete_signature.parameters)
+                    .to_vec();
+                for (declared, concrete) in declared_parameters.iter().zip(&concrete_parameters) {
+                    self.match_template_arguments(parameters, declared.ty, concrete.ty, bindings)?;
+                }
+                if let (Some(declared), Some(concrete)) = (
+                    declared_signature.return_type,
+                    concrete_signature.return_type,
+                ) {
+                    self.match_template_arguments(parameters, declared, concrete, bindings)?;
+                }
+
+                Ok(())
+            }
+
+            // applications match pairwise over their arguments
+            (
+                dir::Type::Application(declared_application),
+                dir::Type::Application(concrete_application),
+            ) if declared_application.symbol == concrete_application.symbol => {
+                let declared_arguments = self
+                    .types(declared.module_id)?
+                    .type_ids(declared_application.arguments)
+                    .to_vec();
+                let concrete_arguments = self
+                    .types(concrete.module_id)?
+                    .type_ids(concrete_application.arguments)
+                    .to_vec();
+                for (declared, concrete) in declared_arguments.iter().zip(&concrete_arguments) {
+                    self.match_template_arguments(parameters, *declared, *concrete, bindings)?;
+                }
+
+                Ok(())
+            }
+
+            _ => Err(LowerError::Unsupported {
+                anchor: self.module.into(),
+                construct: "a generic reference outside matchable signature positions".to_string(),
+            }
+            .into()),
+        }
+    }
+
+    /// Queue one concrete instance for declaration.
+    fn push_instance(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        bindings: Vec<dir::GenericArgumentBinding>,
+        pending: &mut Vec<PendingInstance>,
+    ) -> CompilerResult<()> {
+        // require every generic argument to be concrete under this body instance
+        for binding in &bindings {
+            if matches!(self.ty(binding.argument)?, dir::Type::Parameter(_)) {
+                return Err(CompilerError::Internal {
+                    message: "instantiation collection left a generic argument unsubstituted"
+                        .to_string(),
+                });
+            }
+        }
+        let instance = (symbol, bindings);
+        if !pending.contains(&instance) {
+            pending.push(instance);
         }
 
         Ok(())
@@ -231,7 +628,7 @@ impl ModuleLowerer<'_> {
         &self,
         coercion: &dir::Coercion,
         substitution: &TypeSubstitution,
-        pending: &mut Vec<(dir::GlobalSymbolId, Vec<dir::GenericArgumentBinding>)>,
+        pending: &mut Vec<PendingInstance>,
     ) -> CompilerResult<()> {
         let mut source = coercion.source;
         for adjustment in &coercion.adjustments {
@@ -250,7 +647,7 @@ impl ModuleLowerer<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         substitution: &TypeSubstitution,
-        pending: &mut Vec<(dir::GlobalSymbolId, Vec<dir::GenericArgumentBinding>)>,
+        pending: &mut Vec<PendingInstance>,
     ) -> CompilerResult<()> {
         let source = substitution.resolve(self, source)?;
         let source = self.reduced_type(source)?;
@@ -294,7 +691,7 @@ impl ModuleLowerer<'_> {
         &self,
         resolution: &dir::CallResolution,
         substitution: &TypeSubstitution,
-        pending: &mut Vec<(dir::GlobalSymbolId, Vec<dir::GenericArgumentBinding>)>,
+        pending: &mut Vec<PendingInstance>,
         references: &mut ExternalCallables,
     ) -> CompilerResult<()> {
         match resolution {
@@ -316,7 +713,7 @@ impl ModuleLowerer<'_> {
         &self,
         call: &dir::Call,
         substitution: &TypeSubstitution,
-        pending: &mut Vec<(dir::GlobalSymbolId, Vec<dir::GenericArgumentBinding>)>,
+        pending: &mut Vec<PendingInstance>,
         references: &mut ExternalCallables,
     ) -> CompilerResult<()> {
         let function = match &call.target {
@@ -338,7 +735,7 @@ impl ModuleLowerer<'_> {
         }
 
         // select an instance only when the call binds type parameters
-        let bindings = self.instance_bindings(function, substitution)?;
+        let bindings = self.instance_bindings(&function.generic_arguments, substitution)?;
         if bindings.is_empty() {
             // import plain calls into other modules
             if function.symbol.module_id != self.module {
@@ -348,31 +745,17 @@ impl ModuleLowerer<'_> {
             return Ok(());
         }
 
-        // require every generic argument to be concrete under this body instance
-        for binding in &bindings {
-            if matches!(self.ty(binding.argument)?, dir::Type::Parameter(_)) {
-                return Err(CompilerError::Internal {
-                    message: "instantiation collection left a generic argument unsubstituted"
-                        .to_string(),
-                });
-            }
-        }
-        let instance = (function.symbol, bindings);
-        if !pending.contains(&instance) {
-            pending.push(instance);
-        }
-
-        Ok(())
+        self.push_instance(function.symbol, bindings, pending)
     }
 
     /// Return the substituted type bindings one candidate selects beyond lifetimes.
     pub(in crate::lower) fn instance_bindings(
         &self,
-        function: &dir::FunctionTarget,
+        generic_arguments: &[dir::GenericArgumentBinding],
         substitution: &TypeSubstitution,
     ) -> CompilerResult<Vec<dir::GenericArgumentBinding>> {
         let mut bindings = Vec::new();
-        for binding in &function.generic_arguments {
+        for binding in generic_arguments {
             let parameter = binding.parameter;
             let generics = &self.state(parameter.module_id)?.generics;
             let parameter = generics.get_parameter(parameter.local_id);
@@ -605,7 +988,8 @@ impl ModuleLowerer<'_> {
             .parameters(signature.parameters)
             .result(signature.result);
         let function = builder.declare_function(header);
-        self.functions.insert(key.clone(), function);
+        self.functions
+            .insert(key.clone(), FunctionDeclaration::Declared(function));
 
         Ok(FunctionDefinition {
             function,

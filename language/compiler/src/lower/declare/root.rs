@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 use smallvec::SmallVec;
 
-use crate::lower::{ExternalCallables, FunctionDefinition, ModuleLowerer};
+use crate::lower::{FunctionDeclaration, FunctionDefinition, GenericInstanceKey, ModuleLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// The callables one root declaration contributes.
@@ -70,28 +70,28 @@ impl ModuleLowerer<'_> {
         }
 
         // declare every concrete generic instance reachable from a body
-        let mut references = ExternalCallables::default();
-        match self.declare_reachable_instances(builder, &bodies) {
-            Ok((instances, callables)) => {
-                bodies.extend(instances);
-                references = callables;
-            }
-            Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
-            Err(error) => return Err(error),
-        }
+        let (instances, references) =
+            self.declare_reachable_instances(builder, &bodies, &mut errors)?;
+        bodies.extend(instances);
 
         // declare an import for every foreign callable the bodies call
-        match self.declare_imported_functions(builder, references.imports) {
-            Ok(()) => {}
-            Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
-            Err(error) => return Err(error),
+        for symbol in references.imports {
+            match self.declare_imported_function(builder, symbol) {
+                Ok(()) => {}
+                Err(CompilerError::Diagnostic(diagnostic)) => {
+                    self.bank_failed_callable(Some(symbol), diagnostic, &mut errors);
+                }
+                Err(error) => return Err(error),
+            }
         }
 
         // declare a dotted host extern for every binding the bodies call
         for symbol in references.bindings {
             match self.declare_binding_function(builder, symbol) {
                 Ok(()) => {}
-                Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
+                Err(CompilerError::Diagnostic(diagnostic)) => {
+                    self.bank_failed_callable(Some(symbol), diagnostic, &mut errors);
+                }
                 Err(error) => return Err(error),
             }
         }
@@ -151,7 +151,10 @@ impl ModuleLowerer<'_> {
                 // accumulate unsupported diagnostics; abort on internal failures
                 match self.declare_function(builder, declaration, body) {
                     Ok(body) => bodies.push(body),
-                    Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
+                    Err(CompilerError::Diagnostic(diagnostic)) => {
+                        let symbol = self.symbol_declared_at(node)?;
+                        self.bank_failed_callable(symbol, diagnostic, errors);
+                    }
                     Err(error) => return Err(error),
                 }
 
@@ -162,6 +165,22 @@ impl ModuleLowerer<'_> {
             }
             RootCallables::Inert => Ok(()),
         }
+    }
+
+    /// Record one failed callable declaration and keep its diagnostic.
+    pub(in crate::lower) fn bank_failed_callable(
+        &mut self,
+        symbol: Option<dir::GlobalSymbolId>,
+        diagnostic: Box<dyn DiagnosticLike>,
+        errors: &mut Vec<Box<dyn DiagnosticLike>>,
+    ) {
+        // keep any declared function over the failure marker
+        if let Some(symbol) = symbol {
+            self.functions
+                .entry(GenericInstanceKey::non_generic(symbol))
+                .or_insert(FunctionDeclaration::Failed);
+        }
+        errors.push(diagnostic);
     }
 
     /// Declare the callable members of one member-bearing declaration.
@@ -181,7 +200,11 @@ impl ModuleLowerer<'_> {
             // accumulate unsupported diagnostics; abort on internal failures
             match self.declare_member(builder, owner_symbol, *member, bodies) {
                 Ok(()) => {}
-                Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
+                Err(CompilerError::Diagnostic(diagnostic)) => {
+                    let node = member.into_global_any(self.module);
+                    let symbol = self.symbol_declared_at(node)?;
+                    self.bank_failed_callable(symbol, diagnostic, errors);
+                }
                 Err(error) => return Err(error),
             }
         }

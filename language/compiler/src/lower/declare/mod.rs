@@ -7,4 +7,4 @@ mod instance;
 mod root;
 
 pub(in crate::lower) use decorator::CallableImplementation;
-pub(in crate::lower) use instance::{ExternalCallables, GenericInstanceKey};
+pub(in crate::lower) use instance::{FunctionDeclaration, GenericInstanceKey};

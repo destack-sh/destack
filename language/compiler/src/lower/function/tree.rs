@@ -86,18 +86,14 @@ impl FunctionLowerer<'_, '_, '_> {
             false => {
                 let bindings = self
                     .lowerer
-                    .instance_bindings(function, &self.type_substitution)?;
+                    .instance_bindings(&function.generic_arguments, &self.type_substitution)?;
                 let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
 
                 self.type_lowerer()
                     .generic_instance_key(function.symbol, &arguments)?
             }
         };
-        let Some(id) = self.lowerer.functions.get(&key).copied() else {
-            return Err(CompilerError::Internal {
-                message: "missing a declared function behind one tree call".to_string(),
-            });
-        };
+        let id = self.function(&key)?;
         let value = self.builder.call_function(id, values);
 
         value.ok_or_else(|| CompilerError::Internal {

@@ -340,9 +340,11 @@ impl TypeLowerer<'_, '_> {
         let is_complete = arguments.len() == parameters.len();
         let elide_lifetimes = !is_complete && arguments.len() == value_parameters;
         if !is_complete && !elide_lifetimes && arguments.len() != written {
-            return Err(CompilerError::Internal {
-                message: "an incomplete nominal argument list".to_string(),
-            });
+            return Err(LowerError::Unsupported {
+                anchor: self.lowerer.module.into(),
+                construct: "a partially applied nominal argument list".to_string(),
+            }
+            .into());
         }
 
         let mut type_arguments = Vec::new();
@@ -359,9 +361,11 @@ impl TypeLowerer<'_, '_> {
                 continue;
             }
             let Some(argument) = supplied.next() else {
-                return Err(CompilerError::Internal {
-                    message: "an incomplete nominal argument list".to_string(),
-                });
+                return Err(LowerError::Unsupported {
+                    anchor: self.lowerer.module.into(),
+                    construct: "a partially applied nominal argument list".to_string(),
+                }
+                .into());
             };
 
             match kind {

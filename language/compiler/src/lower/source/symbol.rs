@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::lower::ModuleLowerer;
-use crate::{CompilerError, CompilerResult};
+use crate::{CompilerError, CompilerResult, LowerError};
 
 impl ModuleLowerer<'_> {
     /// Return the type of one symbol.
@@ -36,9 +36,11 @@ impl ModuleLowerer<'_> {
         let mut names = Vec::with_capacity(local_path.symbols().len());
         for symbol in local_path.symbols() {
             let Some(name) = state.bindings.get_symbol(*symbol).name() else {
-                return Err(CompilerError::Internal {
-                    message: "an unnamed owner in a runtime symbol path".to_string(),
-                });
+                return Err(LowerError::Unsupported {
+                    anchor: self.module.into(),
+                    construct: "a callable declared inside an unnamed scope".to_string(),
+                }
+                .into());
             };
             names.push(self.strings.get(name));
         }

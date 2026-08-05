@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::{
-    FunctionDefinition, GenericInstanceKey, LifetimeParameters, ModuleLowerer, ReceiverBinding,
-    TypeSubstitution,
+    FunctionDeclaration, FunctionDefinition, GenericInstanceKey, LifetimeParameters, ModuleLowerer,
+    ReceiverBinding, TypeSubstitution,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -67,8 +67,10 @@ impl ModuleLowerer<'_> {
             .parameters(signature.parameters)
             .result(signature.result);
         let function = builder.declare_function(header);
-        self.functions
-            .insert(GenericInstanceKey::non_generic(symbol), function);
+        self.functions.insert(
+            GenericInstanceKey::non_generic(symbol),
+            FunctionDeclaration::Declared(function),
+        );
 
         Ok(FunctionDefinition {
             function,
@@ -279,8 +281,10 @@ impl ModuleLowerer<'_> {
         let header = lifetime_parameters.declare(builder.function_header(&name));
         let header = header.parameters(parameters).result(result);
         let function = builder.declare_function(header);
-        self.functions
-            .insert(GenericInstanceKey::non_generic(symbol), function);
+        self.functions.insert(
+            GenericInstanceKey::non_generic(symbol),
+            FunctionDeclaration::Declared(function),
+        );
 
         Ok(FunctionDefinition {
             function,
