@@ -353,10 +353,7 @@ fn template_argument_expression_id(
     argument_id: LocalNodeId<Argument>,
 ) -> Option<LocalNodeId<Expression>> {
     let value = match context.tree.get(argument_id) {
-        Argument::Named { value, .. }
-        | Argument::Labeled { value, .. }
-        | Argument::Positional { value, .. }
-        | Argument::Spread { value, .. } => *value,
+        Argument::Positional { value } | Argument::Spread { value } => *value,
         Argument::Elision | Argument::Error => return None,
     };
     Some(unwrap_template_expression(context, value))

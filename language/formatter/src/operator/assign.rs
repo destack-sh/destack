@@ -35,10 +35,7 @@ fn is_short_argument(
     threshold: u32,
 ) -> bool {
     let argument_expression_id = match context.tree.get(argument_id) {
-        Argument::Named { value, .. }
-        | Argument::Labeled { value, .. }
-        | Argument::Positional { value, .. }
-        | Argument::Spread { value, .. } => *value,
+        Argument::Positional { value } | Argument::Spread { value } => *value,
         Argument::Elision | Argument::Error => return false,
     };
 

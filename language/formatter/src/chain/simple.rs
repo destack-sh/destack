@@ -57,10 +57,8 @@ fn argument_is_simple(
     depth: u8,
 ) -> bool {
     match context.tree.get(argument_id) {
-        // named and labeled arguments delegate to their value expression
-        Argument::Named { value, .. }
-        | Argument::Labeled { value, .. }
-        | Argument::Positional { value, .. } => {
+        // delegate positional arguments to their value expression
+        Argument::Positional { value } => {
             SimpleArgument::from(*value).is_simple_with_depth(context, depth)
         }
 

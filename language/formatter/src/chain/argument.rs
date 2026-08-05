@@ -7,10 +7,7 @@ pub(crate) fn argument_value_id_if_present(
     argument_id: LocalNodeId<Argument>,
 ) -> Option<LocalNodeId<Expression>> {
     match tree.get(argument_id) {
-        Argument::Named { value, .. }
-        | Argument::Labeled { value, .. }
-        | Argument::Positional { value, .. }
-        | Argument::Spread { value, .. } => Some(*value),
+        Argument::Positional { value } | Argument::Spread { value } => Some(*value),
         Argument::Elision | Argument::Error => None,
     }
 }

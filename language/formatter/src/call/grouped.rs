@@ -17,7 +17,7 @@ use destack_dir::{
 use destack_fir::format::{FormatElement as FirElement, FormatLayout, FormatResult, GroupId};
 use destack_fir::prelude::{
     empty_line, expand_parent, format_with, group, soft_block_indent, soft_line_break_or_space,
-    space, token,
+    token,
 };
 use destack_fir::{best_fitting, format_args, write};
 use destack_repository::TrailingComma;
@@ -600,18 +600,8 @@ fn write_function_argument_with_options<'ast>(
 
     // payload
     match argument {
-        Argument::Named { name, .. } => {
-            write!(f, [name, token(":"), space()])?;
-        }
-        Argument::Labeled { label, .. } => {
-            write!(f, [label, token(":"), space()])?;
-        }
-        Argument::Spread { label, .. } => {
+        Argument::Spread { .. } => {
             write!(f, [token("...")])?;
-
-            if let Some(label) = label {
-                write!(f, [label, token(":"), space()])?;
-            }
         }
         Argument::Positional { .. } | Argument::Elision | Argument::Error => {}
     }

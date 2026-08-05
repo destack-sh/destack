@@ -21,7 +21,7 @@ use destack_dir::{
     Argument, Declaration, DecoratorPosition, Expression, LocalNodeId, NodeType, TypeExpression,
 };
 use destack_fir::format::FormatResult;
-use destack_fir::prelude::{space, token};
+use destack_fir::prelude::token;
 use destack_fir::write;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
@@ -33,10 +33,7 @@ pub(crate) fn argument_is_plain_call_argument(
     !context.has_annotation(argument_id)
         && matches!(
             context.tree.get(argument_id),
-            Argument::Named { .. }
-                | Argument::Labeled { .. }
-                | Argument::Positional { .. }
-                | Argument::Spread { .. }
+            Argument::Positional { .. } | Argument::Spread { .. }
         )
 }
 
@@ -48,28 +45,10 @@ pub(crate) fn write_plain_call_argument<'ast>(
     write!(f, [prefix_annotations(f.context(), argument_id)])?;
 
     match f.context().tree.get(argument_id) {
-        Argument::Named { name, value, .. } => {
-            write!(f, [*name, token(":"), space()])?;
+        Argument::Positional { value } => {
             write_expression_without_trailing_comments(f, *value)?;
         }
-        Argument::Labeled { label, value, .. } => {
-            write!(f, [*label, token(":"), space()])?;
-            write_expression_without_trailing_comments(f, *value)?;
-        }
-        Argument::Positional { value, .. } => {
-            write_expression_without_trailing_comments(f, *value)?;
-        }
-        Argument::Spread {
-            label: Some(label),
-            value,
-            ..
-        } => {
-            write!(f, [token("..."), *label, token(":"), space()])?;
-            write_expression_without_trailing_comments(f, *value)?;
-        }
-        Argument::Spread {
-            label: None, value, ..
-        } => {
+        Argument::Spread { value } => {
             write!(f, [token("...")])?;
             write_expression_without_trailing_comments(f, *value)?;
         }
@@ -281,28 +260,12 @@ fn write_call_argument_payload<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     match argument {
-        Argument::Named { name, value } => {
-            write!(f, [name])?;
-            write!(f, [token(":"), space()])?;
-            write_expression_without_trailing_comments(f, *value)?;
-        }
-        Argument::Labeled { label, value } => {
-            write!(f, [label])?;
-            write!(f, [token(":"), space()])?;
-            write_expression_without_trailing_comments(f, *value)?;
-        }
         Argument::Positional { value } => {
             write_expression_without_trailing_comments(f, *value)?;
         }
-        Argument::Spread { label, value } => {
+        Argument::Spread { value } => {
             write!(f, [token("...")])?;
-            if let Some(label) = label {
-                write!(f, [label])?;
-                write!(f, [token(":"), space()])?;
-                write_expression_without_trailing_comments(f, *value)?;
-            } else {
-                write_expression_without_trailing_comments(f, *value)?;
-            }
+            write_expression_without_trailing_comments(f, *value)?;
         }
         Argument::Elision => {}
         Argument::Error => {

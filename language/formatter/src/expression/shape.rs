@@ -126,10 +126,9 @@ pub fn is_trivial_expression(tree: &Tree, expression: &Expression) -> bool {
 /// Return whether an argument prefers inline layout.
 pub fn is_trivial_argument(tree: &Tree, argument: &Argument) -> bool {
     match argument {
-        Argument::Named { value, .. }
-        | Argument::Labeled { value, .. }
-        | Argument::Positional { value, .. }
-        | Argument::Spread { value, .. } => is_trivial_expression(tree, tree.get(*value)),
+        Argument::Positional { value } | Argument::Spread { value } => {
+            is_trivial_expression(tree, tree.get(*value))
+        }
         Argument::Elision | Argument::Error => false,
     }
 }

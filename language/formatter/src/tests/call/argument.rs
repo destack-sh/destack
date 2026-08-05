@@ -1,19 +1,7 @@
 use crate::{
-    DestackFormatOptions, assert_format, assert_format_program, assert_format_roundtrip,
-    parse_first_expression,
+    DestackFormatOptions, assert_format_program, assert_format_roundtrip, parse_first_expression,
 };
 use destack_source::FileType;
-
-/// Simple named call arguments should stay stable.
-#[test]
-fn test_format_argument_named() {
-    assert_format!(
-        r#"x: 1"#,
-        r#"x: 1"#,
-        |p| p.parse_argument_fragment(),
-        DestackFormatOptions::default()
-    );
-}
 
 /// Malformed call argument slots should preserve their authored source.
 #[test]
