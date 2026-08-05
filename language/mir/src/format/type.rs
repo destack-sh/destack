@@ -704,6 +704,7 @@ fn format_storage<'a>(storage: Storage, f: &mut Writer<'a, '_>) -> FormatResult<
         Storage::Heap(space) => write!(f, [token(space.label())]),
         Storage::Frame => write!(f, [token("frame")]),
         Storage::Global(GlobalStorage::Constant) => write!(f, [token("constant")]),
+        Storage::Global(GlobalStorage::Immortal) => write!(f, [token("immortal")]),
         Storage::Global(GlobalStorage::Local) => write!(f, [token("global")]),
         Storage::Global(GlobalStorage::Shared) => {
             write!(f, [token("shared"), space(), token("global")])

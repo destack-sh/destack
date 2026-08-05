@@ -564,6 +564,7 @@ impl TypeHasher {
                     GlobalStorage::Constant => 0,
                     GlobalStorage::Local => 1,
                     GlobalStorage::Shared => 2,
+                    GlobalStorage::Immortal => 3,
                 };
                 self.hasher.write_u8(tag);
             }

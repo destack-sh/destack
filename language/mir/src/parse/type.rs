@@ -1110,6 +1110,7 @@ impl Parser {
             "local" => Storage::Heap(Space::Local),
             "frame" => Storage::Frame,
             "constant" => Storage::Global(GlobalStorage::Constant),
+            "immortal" => Storage::Global(GlobalStorage::Immortal),
             "global" => Storage::Global(GlobalStorage::Local),
             "shared" => {
                 self.bump();

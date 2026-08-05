@@ -2,7 +2,9 @@ use destack_core::StringId;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Constant, FunctionId, GlobalStorage, Mutability, Node, NodeType, Symbol, TypeId};
+use crate::{
+    Constant, FunctionId, GlobalId, GlobalStorage, Mutability, Node, NodeType, Symbol, TypeId,
+};
 
 /// Symbol linkage (visibility and definition location).
 ///
@@ -93,6 +95,14 @@ impl Global {
         global
     }
 
+    /// Create an immortal pre-built object with reference identity.
+    pub fn immortal(name: StringId, ty: TypeId, init: GlobalInitializer) -> Self {
+        let mut global = Self::new(name, ty, Mutability::Immutable, init);
+        global.storage = GlobalStorage::Immortal;
+
+        global
+    }
+
     /// Create an imported global declaration (no initializer).
     pub fn import(name: StringId, ty: TypeId, mutability: Mutability) -> Self {
         Self {
@@ -132,6 +142,8 @@ pub enum GlobalInitializer {
     Scalar(Constant),
     /// Address of one function inside the program.
     FunctionAddress(FunctionId),
+    /// Address of one immortal global inside the program.
+    GlobalAddress(GlobalId),
     /// Raw bytes (blobs).
     Bytes(Vec<u8>),
     /// Aggregate (array/struct fields).
@@ -152,6 +164,11 @@ impl GlobalInitializer {
     /// Create from a function address.
     pub fn function_address(function: FunctionId) -> Self {
         Self::FunctionAddress(function)
+    }
+
+    /// Create from an immortal global address.
+    pub fn global_address(global: GlobalId) -> Self {
+        Self::GlobalAddress(global)
     }
 
     /// Create from raw bytes.

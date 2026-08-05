@@ -119,6 +119,15 @@ impl LinkGraph {
                     },
                 );
             }
+            GlobalInitializer::GlobalAddress(global) => {
+                self.add_edge(
+                    source,
+                    LinkEdge {
+                        target: tree.get(*global).symbol,
+                        kind: LinkEdgeKind::Address,
+                    },
+                );
+            }
             GlobalInitializer::Aggregate(elements) => {
                 for element in elements {
                     self.add_initializer_edges(source, element, tree);

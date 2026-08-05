@@ -51,6 +51,7 @@ impl Parser {
             Mutability::Mutable
         };
         let is_shared = self.eat_token_if(TokenType::Shared);
+        let is_immortal = self.eat_name_if("immortal");
 
         // item grammar
         if self.peek_is(TokenType::Type) {
@@ -79,16 +80,25 @@ impl Parser {
                 return Err(ParseError::new("constants cannot be shared", self.pos()));
             }
 
+            // immortal constants carry reference identity in immortal storage
+            let storage = if is_immortal {
+                GlobalStorage::Immortal
+            } else {
+                GlobalStorage::Constant
+            };
             self.parse_global(
                 item_start,
                 linkage,
                 Mutability::Immutable,
-                GlobalStorage::Constant,
+                storage,
                 TokenType::Constant,
                 attributes,
                 attribute_spans,
             )?;
         } else if self.peek_is(TokenType::Global) {
+            if is_immortal {
+                return Err(ParseError::new("globals cannot be immortal", self.pos()));
+            }
             let storage = if is_shared {
                 GlobalStorage::Shared
             } else {
@@ -106,6 +116,9 @@ impl Parser {
         } else if self.peek_is(TokenType::Function) {
             if is_shared {
                 return Err(ParseError::new("functions cannot be shared", self.pos()));
+            }
+            if is_immortal {
+                return Err(ParseError::new("functions cannot be immortal", self.pos()));
             }
             if mutability == Mutability::Immutable {
                 return Err(ParseError::new("functions cannot be readonly", self.pos()));
@@ -649,6 +662,13 @@ impl Parser {
                 let (function, _span) = self.parse_function_reference_part()?;
 
                 Ok(GlobalInitializer::FunctionAddress(function))
+            }
+            // global address
+            TokenType::Identifier if self.tree.source_text(token.span) == "globalAddress" => {
+                self.bump();
+                let (global, _span) = self.parse_global_reference_part()?;
+
+                Ok(GlobalInitializer::GlobalAddress(global))
             }
             // aggregate initializer
             TokenType::OpenBrace => {

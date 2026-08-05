@@ -42,26 +42,29 @@ impl FormatNode for Global {
         }
 
         // reject mutable constants
-        if self.storage == GlobalStorage::Constant && self.mutability != Mutability::Immutable {
+        let is_constant = matches!(
+            self.storage,
+            GlobalStorage::Constant | GlobalStorage::Immortal
+        );
+        if is_constant && self.mutability != Mutability::Immutable {
             return Err(FormatError::SyntaxError {
                 message: "constant global is mutable",
             });
         }
 
         // format storage and mutability modifiers
-        if self.storage != GlobalStorage::Constant && self.mutability == Mutability::Immutable {
+        if !is_constant && self.mutability == Mutability::Immutable {
             write!(f, [token("readonly"), space()])?;
         }
         if self.storage == GlobalStorage::Shared {
             write!(f, [token("shared"), space()])?;
         }
+        if self.storage == GlobalStorage::Immortal {
+            write!(f, [token("immortal"), space()])?;
+        }
 
         // select the declaration noun
-        let keyword = if self.storage == GlobalStorage::Constant {
-            "constant"
-        } else {
-            "global"
-        };
+        let keyword = if is_constant { "constant" } else { "global" };
 
         // global header
         write!(
@@ -106,6 +109,11 @@ fn format_data_init<'a>(
         }
         GlobalInitializer::FunctionAddress(function) => {
             write!(f, [token("functionAddress"), space(), function])
+        }
+        GlobalInitializer::GlobalAddress(global) => {
+            let name = f.context().global_name(*global).to_string();
+
+            write!(f, [token("globalAddress"), space(), copied_text(&name)])
         }
         GlobalInitializer::Bytes(bytes) => format_byte_literal(bytes, f),
         GlobalInitializer::Aggregate(elements) => {

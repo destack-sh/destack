@@ -133,6 +133,8 @@ impl Space {
 pub enum GlobalStorage {
     /// Immutable Program constant storage.
     Constant,
+    /// Immutable pre-built object storage with reference identity.
+    Immortal,
     /// Worker-local static storage.
     #[default]
     Local,
@@ -144,7 +146,7 @@ impl GlobalStorage {
     /// Return the global storage region used by memory effects.
     pub const fn storage_set(self) -> StorageSet {
         match self {
-            Self::Constant => StorageSet::GLOBAL,
+            Self::Constant | Self::Immortal => StorageSet::GLOBAL,
             Self::Local => StorageSet::GLOBAL.union(StorageSet::LOCAL),
             Self::Shared => StorageSet::GLOBAL.union(StorageSet::SHARED),
         }
@@ -197,6 +199,7 @@ impl Storage {
             Self::Heap(space) => space.label(),
             Self::Frame => "frame",
             Self::Global(GlobalStorage::Constant) => "constant",
+            Self::Global(GlobalStorage::Immortal) => "immortal",
             Self::Global(GlobalStorage::Local) => "global",
             Self::Global(GlobalStorage::Shared) => "sharedGlobal",
         }
