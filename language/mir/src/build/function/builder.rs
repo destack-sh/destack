@@ -1,10 +1,11 @@
+use destack_source::Span;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::build::{BuildError, BuildResult, FunctionHeader, Variable};
 use crate::{
     AllocationMode, Block, EffectTable, Function, FunctionBehavior, FunctionBody,
-    FunctionParameter, Instruction, Linkage, Local, LocalNodeId, MemoryEffect, Tree, Type, TypeId,
-    Value,
+    FunctionParameter, Instruction, Linkage, Local, LocalNodeId, MemoryEffect, Node, Tree, TreeMut,
+    Type, TypeId, Value,
 };
 
 /// Builder for constructing a single MIR function with automatic SSA construction.
@@ -40,6 +41,8 @@ pub struct FunctionBuilder<'a> {
     pub(super) effects: &'a mut EffectTable,
     /// Pointer width in bits.
     pub(super) pointer_bits: u16,
+    /// Source assigned to emitted nodes.
+    pub(super) source: Option<(u32, Span)>,
     /// The id of the function being built.
     pub(super) function_id: LocalNodeId<Function>,
     /// Current block we're inserting into.
@@ -111,6 +114,7 @@ impl<'a> FunctionBuilder<'a> {
             tree,
             effects,
             pointer_bits,
+            source: None,
             function_id,
             current_block: None,
             locals: Vec::new(),
@@ -149,6 +153,7 @@ impl<'a> FunctionBuilder<'a> {
             tree,
             effects,
             pointer_bits,
+            source: None,
             function_id,
             current_block: None,
             locals: Vec::new(),
@@ -189,6 +194,11 @@ impl<'a> FunctionBuilder<'a> {
     /// Get a reference to the underlying tree.
     pub fn tree(&self) -> &Tree {
         self.tree
+    }
+
+    /// Replace the source assigned to emitted nodes.
+    pub fn replace_source(&mut self, source: Option<(u32, Span)>) -> Option<(u32, Span)> {
+        std::mem::replace(&mut self.source, source)
     }
 
     /// Return the target pointer width in bits.
@@ -279,12 +289,31 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         instruction: Instruction,
     ) -> LocalNodeId<Instruction> {
-        let instruction_id = self.tree.insert(instruction);
+        let instruction_id = self.insert(instruction);
         let block_id = self.current_block();
         let block = self.tree.get_mut(block_id);
         block.instructions.push(instruction_id);
         instruction_id
     }
+
+    /// Insert one node with the active source location.
+    pub(super) fn insert<T>(&mut self, node: T) -> LocalNodeId<T>
+    where
+        T: Node,
+        Tree: TreeMut<T>,
+    {
+        match self.source {
+            Some((source_node, span)) => {
+                let id = self.tree.insert_from(node, source_node);
+                self.tree.set_span(id, span);
+
+                id
+            }
+            None => self.tree.insert(node),
+        }
+    }
+
+    /// Finish the function body and return its function id.
     pub fn finish(mut self) -> BuildResult<LocalNodeId<Function>> {
         // seal any remaining unsealed blocks
         self.seal_all_blocks();

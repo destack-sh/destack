@@ -23,7 +23,7 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Create a local variable (stack slot).
     pub fn local(&mut self, ty: LocalNodeId<Type>, mutability: Mutability) -> LocalNodeId<Local> {
-        let local = self.tree.insert(Local::new(ty, mutability));
+        let local = self.insert(Local::new(ty, mutability));
         self.locals.push(local);
         local
     }
@@ -81,7 +81,7 @@ impl<'a> FunctionBuilder<'a> {
         ty: LocalNodeId<Type>,
         mutability: Mutability,
     ) -> LocalNodeId<Global> {
-        self.tree.insert(Global::import(name, ty, mutability))
+        self.insert(Global::import(name, ty, mutability))
     }
 
     /// Load one global value through its address.

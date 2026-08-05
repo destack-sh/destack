@@ -14,8 +14,8 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Create a new basic block.
     pub fn block(&mut self) -> LocalNodeId<Block> {
-        let terminator = self.tree.insert(Terminator::Unreachable);
-        let block = self.tree.insert(Block::new(terminator));
+        let terminator = self.insert(Terminator::Unreachable);
+        let block = self.insert(Block::new(terminator));
         self.blocks.push(block);
         self.predecessors.insert(block, Vec::new());
         block
