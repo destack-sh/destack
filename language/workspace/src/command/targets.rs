@@ -140,11 +140,15 @@ impl TargetEntry {
 
         Self {
             name: name.to_string(),
-            emit: format!("{:?}", target.emit),
+            emit: format!("{:?}", target.output),
             runtime: format!("{:?}", target.runtime()),
             platform: format!("{:?}", target.platform),
-            out_dir: target.output.directory.display().to_string(),
-            out_file: target.output.file.as_ref().map(|p| p.display().to_string()),
+            out_dir: target.destination.directory.display().to_string(),
+            out_file: target
+                .destination
+                .file
+                .as_ref()
+                .map(|p| p.display().to_string()),
             is_default,
             package_dir,
         }

@@ -218,7 +218,7 @@ impl SelectedTarget {
         }
 
         // select the linked Program root
-        if self.target.emit.is_program() {
+        if self.target.output == destack_artifact::Output::Program {
             return ArtifactKey::program(self.id.package_id(), self.id);
         }
 

@@ -439,14 +439,13 @@ fn run_entry_module(
     let environment = environment_for_source(entry_source, args);
     let mut world =
         World::new(&runtime_options, environment.clone()).map_err(|error| format!("{error}"))?;
-    let binding_table = Arc::new(BindingTable::new());
-    let engine = Engine::vm(MachineLimits::default());
+    let binding_table = Arc::new(BindingTable::new().with_fiber_bindings());
+    let engine = Engine::new(program.clone(), MachineLimits::default());
     let runtime_id = world
         .spawn_runtime(
             environment,
             &runtime_options,
             conditions,
-            program.clone(),
             binding_table,
             engine,
         )

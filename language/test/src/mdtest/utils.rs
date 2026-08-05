@@ -5,7 +5,7 @@ use std::sync::{Arc, mpsc};
 use std::time::Duration;
 use std::{io, thread};
 
-use destack_artifact::{BuildId, EmitFormat, MemoryBlobStore, Platform, Runtime};
+use destack_artifact::{BuildId, MemoryBlobStore, Output, Platform, Runtime};
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Environment, Host, Mode, Profile, Ref, Repository,
     Revision, Settings,
@@ -36,7 +36,7 @@ pub enum MdTestLibs {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct MdTestProfileOverrides {
     /// Emit format override for profile identity.
-    pub emit: Option<EmitFormat>,
+    pub emit: Option<Output>,
     /// Runtime override for import.meta.
     pub runtime: Option<Runtime>,
     /// Runtime version override for versioned globals.
@@ -145,7 +145,7 @@ pub fn select_profile_for_mdtest(
     let mut key = base_profile.key.clone();
     // apply runtime overrides
     if let Some(emit) = overrides.emit {
-        key.emit = emit;
+        key.output = emit;
     }
     if let Some(runtime) = overrides.runtime {
         key.conditions.runtime = runtime;
@@ -222,13 +222,11 @@ fn parse_bool(value: &str, key: &str) -> bool {
     }
 }
 
-/// Parse an emit format mdtest option.
-fn parse_emit_format(value: &str) -> EmitFormat {
+/// Parse an emit output mdtest option.
+fn parse_emit_format(value: &str) -> Output {
     match value.trim().to_lowercase().as_str() {
-        "js" | "javascript" => EmitFormat::Js,
-        "bytecode" => EmitFormat::Bytecode,
-        "wasm" | "webassembly" => EmitFormat::Wasm,
-        "native" => EmitFormat::Native,
+        "js" | "javascript" | "bundle" => Output::Bundle,
+        "program" | "bytecode" | "wasm" | "webassembly" | "native" => Output::Program,
         _ => panic!("invalid mdtest emit value '{value}'"),
     }
 }

@@ -185,10 +185,10 @@ fn collect_output_paths(config: &DestackFile, paths: &mut HashSet<PathBuf>) {
 
     // collect each target output path
     for target in config.targets.values() {
-        let out_dir = resolve_path(&target.output.directory, &config.directory);
+        let out_dir = resolve_path(&target.destination.directory, &config.directory);
         paths.insert(out_dir);
 
-        if let Some(out_file) = target.output.file.as_ref() {
+        if let Some(out_file) = target.destination.file.as_ref() {
             paths.insert(resolve_path(out_file, &config.directory));
         }
     }

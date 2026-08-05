@@ -82,6 +82,7 @@ fn test_task_run_dry_run_for_workspace_group() {
     program.write_json(
         "apps/web/destack.json",
         json!({
+            "name": "web",
             "tasks": {
                 "build": {
                     "exec": "echo web",
@@ -92,6 +93,7 @@ fn test_task_run_dry_run_for_workspace_group() {
     program.write_json(
         "apps/api/destack.json",
         json!({
+            "name": "api",
             "tasks": {
                 "build": {
                     "exec": "echo api",

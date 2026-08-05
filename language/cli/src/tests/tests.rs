@@ -244,6 +244,7 @@ pub(super) fn assert_success(code: i32) {
 /// Merge compiler options into a base destack.json payload.
 pub(super) fn merge_destack_config_base(extra: Value) -> Value {
     let base = json!({
+        "name": "test",
         "compiler": {
             "target": "esnext",
             "module": "esnext",
