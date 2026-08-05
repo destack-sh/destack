@@ -1,3 +1,4 @@
+mod atomic;
 mod copy;
 mod dynamic;
 mod interface;

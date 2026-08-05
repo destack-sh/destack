@@ -1,4 +1,5 @@
 mod access;
+mod atomic;
 mod borrow;
 mod containment;
 mod context;

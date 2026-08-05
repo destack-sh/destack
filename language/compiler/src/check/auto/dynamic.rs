@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{Answer, CheckState, Dependency, Origin, answer};
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Decide whether one type has a runtime representation after erasure.
@@ -13,12 +13,21 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Answer<bool>> {
+        // use bounds declared by generic types
+        if let Some(decision) =
+            self.decide_generic_auto_interface(origin, ty, dir::AutoInterface::DynamicSafe)?
+        {
+            return Ok(decision);
+        }
+
+        // close recursive structural types coinductively
         let ty = self.settled_root(ty)?;
         if active.contains(&ty) {
             return Ok(Answer::Ready(true));
         }
         active.push(ty);
 
+        // restore the active stack after this decision
         let result = self.decide_dynamic_safe_type(origin, ty, active);
         active.pop();
 
@@ -35,6 +44,7 @@ impl CheckState<'_> {
         let ty = answer!(self.reduce_type_head(origin, ty)?);
         let kind = self.ty(ty)?;
 
+        // decide each runtime representation
         match kind {
             dir::Type::Variable(variable) => Ok(Answer::pending([Dependency::Variable(variable)])),
             // look through the refinement to its base
@@ -70,30 +80,10 @@ impl CheckState<'_> {
 
                 Ok(Answer::Ready(is_type_reference))
             }
-            dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) => {
-                // prove through declared or assumed bounds
-                let mut decision = Answer::Ready(false);
-                for bound in self.parameter_bounds(origin, parameter)? {
-                    decision = decision.or(self.satisfies_dynamic_safe(origin, bound, active)?);
-                    if decision.is_ready_true() {
-                        break;
-                    }
-                }
-
-                Ok(decision)
-            }
-            dir::Type::This => {
-                // prove through assumed this bounds
-                let bounds = self.assumed_bounds(origin, |ty| matches!(ty, dir::Type::This))?;
-                let mut decision = Answer::Ready(false);
-                for bound in bounds {
-                    decision = decision.or(self.satisfies_dynamic_safe(origin, bound, active)?);
-                    if decision.is_ready_true() {
-                        break;
-                    }
-                }
-
-                Ok(decision)
+            dir::Type::Parameter(_) | dir::Type::Erased(_) | dir::Type::This => {
+                Err(CompilerError::Internal {
+                    message: format!("generic type {ty:?} reached structural dynamic safety"),
+                })
             }
             dir::Type::Member(_) | dir::Type::Operation(_) => Ok(Answer::Ready(false)),
             dir::Type::Form(form) => self.satisfies_dynamic_safe(origin, form.value, active),
@@ -190,10 +180,12 @@ impl CheckState<'_> {
         function: &dir::FunctionSignatureType,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Answer<bool>> {
+        // reject signatures whose parameters require runtime type arguments
         if !self.signature_generic_parameters(function)?.is_empty() {
             return Ok(Answer::Ready(false));
         }
 
+        // require the receiver, parameters, and result to survive erasure
         let receiver = function.this_parameter;
         let parameters: SmallVec<[dir::GlobalTypeId; 8]> = self
             .signature_parameters(module, function.parameters)?

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, answer};
+use crate::check::{Answer, CheckState, Origin, Relation, answer};
 
 impl CheckState<'_> {
     /// Decide whether one type satisfies a compiler-known auto interface.
@@ -12,18 +12,30 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         interface: dir::AutoInterface,
     ) -> CompilerResult<Answer<bool>> {
-        let mut active = SmallVec::<[dir::GlobalTypeId; 8]>::new();
+        // use bounds declared by generic types
+        if let Some(decision) = self.decide_generic_auto_interface(origin, ty, interface)? {
+            return Ok(decision);
+        }
 
+        // dispatch compiler-known conformance rules
+        let mut active = SmallVec::<[dir::GlobalTypeId; 8]>::new();
         match interface {
+            dir::AutoInterface::AtomicSafe => self.satisfies_atomic_safe(origin, ty),
             dir::AutoInterface::DynamicSafe => self.satisfies_dynamic_safe(origin, ty, &mut active),
             dir::AutoInterface::OverwriteStable => {
                 self.satisfies_overwrite_stable(origin, ty, &mut active)
             }
             dir::AutoInterface::Integer => {
-                self.satisfies_scalar_marker(origin, ty, dir::ScalarDomain::Integer)
+                self.satisfies_scalar_representation(origin, ty, dir::ScalarDomain::Integer)
+            }
+            dir::AutoInterface::IntegerDomain => {
+                self.satisfies_scalar_domain(origin, ty, dir::ScalarDomain::Integer)
             }
             dir::AutoInterface::Float => {
-                self.satisfies_scalar_marker(origin, ty, dir::ScalarDomain::Float)
+                self.satisfies_scalar_representation(origin, ty, dir::ScalarDomain::Float)
+            }
+            dir::AutoInterface::FloatDomain => {
+                self.satisfies_scalar_domain(origin, ty, dir::ScalarDomain::Float)
             }
             dir::AutoInterface::Copy => self.satisfies_copy(origin, ty, &mut active),
             dir::AutoInterface::SharedSafe => self.satisfies_shared_safe(origin, ty),
@@ -44,28 +56,65 @@ impl CheckState<'_> {
         }
     }
 
-    /// Decide whether one type holds only scalars of one domain.
-    fn satisfies_scalar_marker(
+    /// Decide auto conformance for one generic type.
+    pub(in crate::check) fn decide_generic_auto_interface(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        interface: dir::AutoInterface,
+    ) -> CompilerResult<Option<Answer<bool>>> {
+        let ty = self.settled_root(ty)?;
+
+        // select the bounds owned by each generic form
+        let decision = match self.ty(ty)? {
+            dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) => {
+                let item = dir::LanguageItem::from(interface);
+                let target = self.language_type(item, &[])?;
+
+                Some(self.decide_parameter_relation(
+                    origin,
+                    Relation::Satisfies,
+                    parameter,
+                    target,
+                )?)
+            }
+            dir::Type::This => {
+                let item = dir::LanguageItem::from(interface);
+                let target = self.language_type(item, &[])?;
+
+                Some(self.decide_this_relation(origin, Relation::Satisfies, target)?)
+            }
+            _ => None,
+        };
+
+        Ok(decision)
+    }
+
+    /// Decide whether one type has one builtin scalar representation.
+    fn satisfies_scalar_representation(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
         domain: dir::ScalarDomain,
     ) -> CompilerResult<Answer<bool>> {
-        let root = answer!(self.reduce_type_head(origin, ty)?);
-        let holds = match self.ty(root)? {
-            // match the primitive's own domain
-            dir::Type::Primitive(primitive) => primitive.scalar_domain() == domain,
+        let ty = answer!(self.reduce_type_head(origin, ty)?);
+        let holds = matches!(
+            self.ty(ty)?,
+            dir::Type::Primitive(primitive) if primitive.scalar_domain() == domain
+        );
 
-            // read a parameter's domain from its declared bounds
-            dir::Type::Parameter(_) => {
-                let families = answer!(self.builtin_scalar_families(origin, root)?);
+        Ok(Answer::Ready(holds))
+    }
 
-                families.is_some_and(|families| families.is_only_domain(domain))
-            }
-
-            // reject literals, ranges, unions, and nominal types
-            _ => false,
-        };
+    /// Decide whether one type belongs entirely to one scalar domain.
+    fn satisfies_scalar_domain(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        domain: dir::ScalarDomain,
+    ) -> CompilerResult<Answer<bool>> {
+        let families = answer!(self.scalar_families(origin, ty)?);
+        let holds = families.is_some_and(|families| families.is_only_domain(domain));
 
         Ok(Answer::Ready(holds))
     }
