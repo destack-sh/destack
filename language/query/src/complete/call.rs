@@ -5,7 +5,7 @@ use destack_source::{EnclosingSpan, FileId, Span};
 
 use crate::{
     CompletionCandidate, CompletionItemKind, CompletionOrigin, ModuleQueryContext, QueryError,
-    QueryResult, SORT_BUILTIN,
+    QueryResult, SORT_LOCAL_SYMBOL,
 };
 
 use super::CompletionContext;
@@ -441,7 +441,7 @@ impl CompletionBuilder<'_, '_, '_> {
                 name,
                 CompletionItemKind::ValueParameter,
                 CompletionOrigin::Local,
-                SORT_BUILTIN,
+                SORT_LOCAL_SYMBOL,
             );
             results.push(completion);
         }

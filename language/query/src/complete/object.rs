@@ -1,11 +1,12 @@
 use destack_dir as dir;
 use destack_source::FileId;
+use rustc_hash::FxHashSet;
 
 use super::CompletionContext;
 use super::builder::CompletionBuilder;
 use crate::{
     CompletionCandidate, CompletionItemKind, CompletionOrigin, ModuleQueryContext, QueryError,
-    QueryResult, SORT_BUILTIN,
+    QueryResult, SORT_CONTEXTUAL, SORT_LOCAL_SYMBOL,
 };
 
 /// Source spans owned by one object literal.
@@ -38,7 +39,7 @@ impl ModuleQueryContext<'_> {
 
         let mut literal = None;
 
-        // select the innermost object expression by its complete authored span
+        // select the innermost object expression by its complete source span
         for enclosing_span in &enclosing {
             let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
                 continue;
@@ -170,116 +171,161 @@ impl ObjectLiteralSpans<'_> {
 }
 
 impl CompletionBuilder<'_, '_, '_> {
-    /// Complete the expected object type's missing fields at one literal.
-    pub(super) fn complete_expected_fields(
+    /// Complete the keys of one object literal.
+    pub(super) fn complete_object_literal(
         &self,
         literal: dir::LocalNodeId<dir::Expression>,
+        scope: dir::LocalScope,
     ) -> QueryResult<Vec<CompletionCandidate>> {
         let node = literal.into_global_any(self.module.module_id());
 
-        // read the contextual type expected at the literal
-        let types = self.module.types()?;
-        let Some(expected) = types
-            .get_expected_type_id(node)
-            .or_else(|| types.get_node_type_id(node))
-        else {
-            return Ok(Vec::new());
-        };
-        let expected = types.get_reduced_type_id(expected);
+        // remove fields already supplied by this literal
+        let supplied = self.object_keys(literal)?;
+        let mut shorthands = self.visible_value_bindings(scope)?;
+        for key in &supplied {
+            shorthands.shift_remove(key);
+        }
 
-        // collect the keys the literal already authored
-        let view = self.module.view()?;
-        let dir::Expression::ObjectExpression { properties, .. } = view.get(literal) else {
-            return Err(QueryError::invalid(format!("object literal: {node:?}")));
+        // read contextual fields
+        let members = self.module.members()?;
+        let site = dir::MemberSite::Node(node);
+        let expected = match members.subject(site) {
+            Some(subject) => Some(members.members(site).ok_or(QueryError::missing(format!(
+                "object literal bindings: source={node:?}, subject={subject:?}"
+            )))?),
+            None if self.module.types()?.get_expected_type_id(node).is_some() => {
+                return Err(QueryError::missing(format!(
+                    "object literal member subject: {node:?}"
+                )));
+            }
+            None => None,
         };
-        let mut authored = Vec::new();
-        for property in properties.iter() {
-            if let dir::Property::Field { key, .. } = view.get(*property)
-                && let Some(key) = key.direct_static_key()
-            {
-                authored.push(key);
+
+        // overlay missing contextual fields onto visible shorthands
+        let mut results = Vec::new();
+        if let Some(expected) = expected {
+            for member in expected {
+                // require construction fields
+                if member.kind != dir::MemberKind::Field {
+                    return Err(QueryError::invalid(format!(
+                        "object literal member is not a field: {node:?}, {:?}",
+                        member.key
+                    )));
+                }
+
+                // omit keys already supplied by the literal
+                if supplied.contains(&member.key) {
+                    continue;
+                }
+
+                // omit keys without identifier text
+                let dir::StaticKey::Name(name) = member.key else {
+                    continue;
+                };
+
+                // describe the selected field
+                let label = self.module.strings().get(name).to_string();
+                let completion = CompletionCandidate::new(
+                    &label,
+                    CompletionItemKind::Field,
+                    CompletionOrigin::Contextual,
+                    SORT_CONTEXTUAL,
+                )
+                .with_type_id(member.access.store());
+                let completion = match member.declarations.first() {
+                    Some(declaration) => {
+                        self.resolve_declaration(completion, declaration.symbol)?
+                    }
+                    None => completion,
+                };
+
+                // prefer shorthand insertion when the value is visible
+                if shorthands.shift_remove(&member.key).is_some() {
+                    results.push(completion);
+                } else {
+                    results.push(completion.with_snippet(format!("{label}: ${{1}}")));
+                }
             }
         }
 
-        // offer each expected field the literal has not authored
-        let mut results = Vec::new();
-        for (key, ty) in self.expected_field_entries(expected)? {
-            if authored.contains(&key) {
-                continue;
-            }
+        // build the remaining shorthand fields
+        for (key, symbol) in shorthands {
             let dir::StaticKey::Name(name) = key else {
                 continue;
             };
             let label = self.module.strings().get(name).to_string();
-            let mut completion = CompletionCandidate::new(
+            let completion = CompletionCandidate::new(
                 label,
                 CompletionItemKind::Field,
-                CompletionOrigin::Member,
-                SORT_BUILTIN,
+                CompletionOrigin::Local,
+                SORT_LOCAL_SYMBOL,
             );
-            if let Some(ty) = ty {
-                completion = completion.with_type_id(ty);
-            }
-            results.push(completion);
+            results.push(self.resolve_symbol(completion, symbol)?);
         }
 
         Ok(results)
     }
 
-    /// Return the field keys and types declared by one expected type.
-    fn expected_field_entries(
+    /// Return the keys already supplied by one object literal.
+    fn object_keys(
         &self,
-        expected: dir::GlobalTypeId,
-    ) -> QueryResult<Vec<(dir::StaticKey, Option<dir::GlobalTypeId>)>> {
-        // structural expectations list their properties directly
-        let source = self.program.read_type(expected, |ty, owner| match ty {
-            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
-                let entries = owner
-                    .types()?
-                    .properties(shape.properties)
-                    .iter()
-                    .map(|field| (field.key, field.access.read()))
-                    .collect();
+        literal: dir::LocalNodeId<dir::Expression>,
+    ) -> QueryResult<FxHashSet<dir::StaticKey>> {
+        let node = literal.into_global_any(self.module.module_id());
+        let view = self.module.view()?;
+        let dir::Expression::ObjectExpression { properties, .. } = view.get(literal) else {
+            return Err(QueryError::invalid(format!("object literal: {node:?}")));
+        };
+        let mut keys = FxHashSet::default();
 
-                Ok(ExpectedFields::Structural(entries))
+        // collect direct and spread property keys
+        for property in properties.iter() {
+            match view.get(*property) {
+                dir::Property::Field { key, .. } => {
+                    if let Some(key) = key.direct_static_key() {
+                        keys.insert(key);
+                    }
+                }
+                dir::Property::Spread { .. } => {
+                    keys.extend(self.spread_field_keys(*property)?);
+                }
+                dir::Property::Method { key, .. } => {
+                    if let Some(key) = key.as_ref().and_then(|key| key.direct_static_key()) {
+                        keys.insert(key);
+                    }
+                }
+                dir::Property::Error => {}
             }
-            dir::Type::Application(instance) => Ok(ExpectedFields::Nominal(instance.symbol)),
-            dir::Type::Reference(reference) => Ok(ExpectedFields::Nominal(reference.symbol)),
-            _ => Ok(ExpectedFields::Structural(Vec::new())),
-        })?;
-        let symbol = match source {
-            ExpectedFields::Nominal(symbol) => symbol,
-            ExpectedFields::Structural(entries) => return Ok(entries),
-        };
-
-        // nominal expectations list their declared instance fields
-        let Some(symbol) = self.program.canonical_symbol(symbol)? else {
-            return Ok(Vec::new());
-        };
-        let declaration = self.program.module(symbol.module_id)?;
-        let Some(definition) = declaration.definitions()?.definition(symbol) else {
-            return Ok(Vec::new());
-        };
-        let mut entries = Vec::new();
-        for member in definition.members() {
-            let dir::DefinitionMember::Field(field) = member else {
-                continue;
-            };
-            if field.space != dir::MemberSpace::Instance {
-                continue;
-            }
-            let ty = declaration.types()?.get_symbol_type_id(field.symbol);
-            entries.push((field.key, ty));
         }
 
-        Ok(entries)
+        Ok(keys)
     }
-}
 
-/// Field source resolved from one expected literal type.
-enum ExpectedFields {
-    /// Structural fields listed by the type itself.
-    Structural(Vec<(dir::StaticKey, Option<dir::GlobalTypeId>)>),
-    /// A nominal declaration listing its instance fields.
-    Nominal(dir::GlobalSymbolId),
+    /// Return the field keys supplied by one object spread.
+    fn spread_field_keys(
+        &self,
+        property: dir::LocalNodeId<dir::Property>,
+    ) -> QueryResult<Vec<dir::StaticKey>> {
+        let node = property.into_global_any(self.module.module_id());
+        let members = self
+            .module
+            .members()?
+            .members(dir::MemberSite::Node(node))
+            .ok_or(QueryError::missing(format!(
+                "object spread members: {node:?}"
+            )))?;
+
+        let mut keys = Vec::with_capacity(members.len());
+        for member in members {
+            if member.kind != dir::MemberKind::Field {
+                return Err(QueryError::invalid(format!(
+                    "object spread member is not a field: {node:?}, {:?}",
+                    member.key
+                )));
+            }
+            keys.push(member.key);
+        }
+
+        Ok(keys)
+    }
 }

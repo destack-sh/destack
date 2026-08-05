@@ -8,10 +8,14 @@ use crate::{
     ImportOrder, ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult,
 };
 
+/// Sort order for contextual candidates.
+pub(crate) const SORT_CONTEXTUAL: u32 = 0;
 /// Sort order for local declaration candidates.
 pub(crate) const SORT_LOCAL_SYMBOL: u32 = 10;
+/// Sort order for member candidates.
+pub(crate) const SORT_MEMBER: u32 = 20;
 /// Sort order for builtin candidates.
-pub(crate) const SORT_BUILTIN: u32 = 20;
+pub(crate) const SORT_BUILTIN: u32 = 30;
 /// Sort order for default candidates.
 pub(crate) const SORT_DEFAULT: u32 = 100;
 /// Sort order for keyword candidates.
@@ -405,6 +409,13 @@ impl CompletionCandidate {
     /// Set the exact checked value type.
     pub(crate) fn with_type_id(mut self, type_id: dir::GlobalTypeId) -> Self {
         self.type_id = Some(type_id);
+        self
+    }
+
+    /// Set the declaration used to describe this candidate.
+    pub(crate) fn with_symbol(mut self, symbol: dir::GlobalSymbolId) -> Self {
+        self.symbol = Some(symbol);
+
         self
     }
 

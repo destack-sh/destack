@@ -50,7 +50,7 @@ impl CompletionBuilder<'_, '_, '_> {
             return Ok(completion);
         }
 
-        // render an authored callable from its declared parameter names
+        // render a callable from its declared parameter names
         let parameter_names =
             self.program
                 .symbol_parameter_names(symbol_id)?
@@ -71,16 +71,15 @@ impl CompletionBuilder<'_, '_, '_> {
     /// Resolve one candidate declaration and its ranking metadata.
     pub(super) fn resolve_symbol(
         &self,
-        mut completion: CompletionCandidate,
+        completion: CompletionCandidate,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<CompletionCandidate> {
-        let Some(symbol_id) = self.program.canonical_symbol(symbol_id)? else {
-            return Err(QueryError::missing(format!(
-                "completion declaration: {symbol_id:?}"
-            )));
-        };
+        let mut completion = self.resolve_declaration(completion, symbol_id)?;
+        let symbol_id = completion.symbol.ok_or(QueryError::invalid(
+            "resolved completion has no declaration",
+        ))?;
 
-        // retain the exact value type used by ranking
+        // read the declaration's value type
         if completion.kind.has_type_detail() {
             let module = self.program.module(symbol_id.module_id)?;
             let type_id =
@@ -94,14 +93,27 @@ impl CompletionBuilder<'_, '_, '_> {
             completion = completion.with_type_id(type_id);
         }
 
+        Ok(completion)
+    }
+
+    /// Resolve the declaration and modifiers behind one candidate.
+    pub(super) fn resolve_declaration(
+        &self,
+        mut completion: CompletionCandidate,
+        symbol_id: dir::GlobalSymbolId,
+    ) -> QueryResult<CompletionCandidate> {
+        let Some(symbol_id) = self.program.canonical_symbol(symbol_id)? else {
+            return Err(QueryError::missing(format!(
+                "completion declaration: {symbol_id:?}"
+            )));
+        };
+
         // mark deprecated declarations
         if self.program.symbol_is_deprecated(symbol_id)? {
             completion = completion.with_deprecated();
         }
 
-        completion.symbol = Some(symbol_id);
-
-        Ok(completion)
+        Ok(completion.with_symbol(symbol_id))
     }
 
     /// Render one filtered completion candidate.
@@ -115,6 +127,15 @@ impl CompletionBuilder<'_, '_, '_> {
                 .symbol
                 .ok_or(QueryError::invalid("call completion has no declaration"))?;
             completion = self.render_call(completion, symbol)?;
+        }
+
+        // render candidate type detail
+        if completion.kind.has_type_detail()
+            && completion.detail.is_none()
+            && let Some(type_id) = completion.type_id
+        {
+            let detail = Formatter::new(self.module, self.program).global_type(type_id)?;
+            completion = completion.with_detail(detail);
         }
 
         // render declaration text and documentation

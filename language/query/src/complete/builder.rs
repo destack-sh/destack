@@ -1,3 +1,4 @@
+use destack_core::FxIndexMap;
 use destack_dir as dir;
 use destack_source::FileId;
 use rustc_hash::FxHashSet;
@@ -63,11 +64,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
                 self.complete_values(*scope, matches!(trigger, CompletionTrigger::Invoked))?
             }
             CompletionContext::ObjectLiteralKey { literal, scope } => {
-                // offer the expected type's missing fields before scope values
-                let mut candidates = self.complete_expected_fields(*literal)?;
-                candidates.extend(self.complete_values(*scope, false)?);
-
-                candidates
+                self.complete_object_literal(*literal, *scope)?
             }
             CompletionContext::ObjectLiteralValue { scope } => {
                 self.complete_values(*scope, false)?
@@ -175,58 +172,64 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
         Ok(symbol.into())
     }
 
+    /// Return visible value bindings by lexical precedence.
+    pub(super) fn visible_value_bindings(
+        &self,
+        scope: dir::LocalScope,
+    ) -> QueryResult<FxIndexMap<dir::StaticKey, dir::GlobalSymbolId>> {
+        let module_id = self.module.module_id();
+        let bindings = self.module.bindings()?;
+        let mut values = FxIndexMap::default();
+
+        // collect the nearest value for each static name
+        for visible in bindings
+            .visible_bindings(scope)
+            .filter(|binding| SymbolUse::Value.accepts_symbol_kind(binding.symbol.kind))
+        {
+            let dir::StaticKey::Name(_) = visible.key else {
+                continue;
+            };
+            if values.contains_key(&visible.key) {
+                continue;
+            }
+
+            let symbol = dir::GlobalSymbolId {
+                module_id,
+                local_id: visible.symbol_id,
+            };
+            values.insert(visible.key, symbol);
+        }
+
+        Ok(values)
+    }
+
     /// Complete values in expression position.
     fn complete_values(
         &self,
         scope: dir::LocalScope,
         include_keywords: bool,
     ) -> QueryResult<Vec<CompletionCandidate>> {
-        let module_id = self.module.module_id();
-
         let mut results = Vec::new();
 
-        // collect visible value symbols before building completions
-        let candidates: Vec<(dir::LocalSymbolId, String, CompletionItemKind)> = {
-            let symbols = self.module.bindings()?;
-            let mut candidates = Vec::new();
-            let mut seen_names = FxHashSet::default();
-
-            for visible in symbols
-                .visible_bindings(scope)
-                .filter(|binding| SymbolUse::Value.accepts_symbol_kind(binding.symbol.kind))
-            {
-                let dir::StaticKey::Name(name_id) = visible.key else {
-                    continue;
-                };
-
-                let name = self.module.strings().get(name_id).to_string();
-                if !seen_names.insert(name.clone()) {
-                    continue;
-                }
-
-                let kind = self.completion_symbol_kind(visible.symbol_id)?;
-
-                candidates.push((visible.symbol_id, name, kind));
-            }
-
-            candidates
-        };
-
-        // build one completion per visible symbol
-        for (local_id, name, kind) in candidates {
-            let symbol_id = dir::GlobalSymbolId {
-                module_id,
-                local_id,
+        // build one completion per visible value
+        for (key, symbol) in self.visible_value_bindings(scope)? {
+            let dir::StaticKey::Name(name) = key else {
+                continue;
             };
+            let name = self.module.strings().get(name).to_string();
+            let kind = self.completion_symbol_kind(symbol.local_id)?;
+
+            // expand declarations with specialized constructor forms
             if kind == CompletionItemKind::Struct {
-                results.push(self.complete_struct(&name, symbol_id)?);
+                results.push(self.complete_struct(&name, symbol)?);
                 continue;
             }
             if kind == CompletionItemKind::Newtype {
-                results.extend(self.complete_newtype(&name, symbol_id)?);
+                results.extend(self.complete_newtype(&name, symbol)?);
                 continue;
             }
 
+            // build the ordinary value candidate
             let completion =
                 CompletionCandidate::new(&name, kind, CompletionOrigin::Local, SORT_LOCAL_SYMBOL);
             let completion = if kind.is_callable() {
@@ -234,7 +237,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
             } else {
                 completion
             };
-            results.push(self.resolve_symbol(completion, symbol_id)?);
+            results.push(self.resolve_symbol(completion, symbol)?);
         }
 
         // statement contexts can opt into keyword completions as well

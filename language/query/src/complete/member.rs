@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use super::builder::CompletionBuilder;
 use crate::{
-    CompletionCandidate, CompletionOrigin, Formatter, QueryError, QueryResult, SORT_BUILTIN,
+    CompletionCandidate, CompletionOrigin, Formatter, QueryError, QueryResult, SORT_MEMBER,
 };
 
 impl CompletionBuilder<'_, '_, '_> {
@@ -12,10 +12,11 @@ impl CompletionBuilder<'_, '_, '_> {
         source: dir::GlobalNodeIdAny,
     ) -> QueryResult<Vec<CompletionCandidate>> {
         let members = self.module.members()?;
+        let site = dir::MemberSite::Node(source);
         let subject = members
-            .subject(source)
+            .subject(site)
             .ok_or(QueryError::missing(format!("member subject: {source:?}")))?;
-        let bindings = members.members(source).ok_or(QueryError::missing(format!(
+        let bindings = members.members(site).ok_or(QueryError::missing(format!(
             "member bindings: source={source:?}, subject={subject:?}"
         )))?;
         let formatter = Formatter::new(self.module, self.program);
@@ -31,7 +32,7 @@ impl CompletionBuilder<'_, '_, '_> {
                 label,
                 member.kind.into(),
                 CompletionOrigin::Member,
-                SORT_BUILTIN,
+                SORT_MEMBER,
             );
             results.push(self.describe_member(completion, member, &formatter)?);
         }
@@ -48,7 +49,7 @@ impl CompletionBuilder<'_, '_, '_> {
     ) -> QueryResult<CompletionCandidate> {
         let declaration = member.declarations.first();
         if let Some(symbol) = declaration.map(|declaration| declaration.symbol) {
-            completion = self.resolve_symbol(completion, symbol)?;
+            completion = self.resolve_declaration(completion, symbol)?;
             if completion.kind.is_callable() {
                 completion = completion.with_call();
             }
