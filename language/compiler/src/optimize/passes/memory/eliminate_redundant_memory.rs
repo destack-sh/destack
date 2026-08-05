@@ -52,10 +52,11 @@ impl FunctionPass for EliminateRedundantMemory {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
+        let effects = &optimized.effects;
 
         // skip empty functions
         let _entry = match function.entry() {
@@ -66,9 +67,9 @@ impl FunctionPass for EliminateRedundantMemory {
         // get analyses
         let (alias, memory_ssa, constants) = {
             (
-                analyses.get::<AliasAnalysis>(function, tree).clone(),
-                analyses.get::<MemorySSA>(function, tree),
-                analyses.get::<ConstantPropagation>(function, tree),
+                analyses.alias(function, tree).clone(),
+                analyses.memory_ssa(function, tree, memory, effects),
+                analyses.constants(function, tree),
             )
         };
 

@@ -60,7 +60,7 @@ impl FunctionPass for PropagateSparseConstants {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        _analyses: &mir::FunctionAnalysisCache,
+        _analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;

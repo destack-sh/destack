@@ -38,7 +38,7 @@ impl FunctionPass for SimplifyLoops {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
@@ -50,8 +50,8 @@ impl FunctionPass for SimplifyLoops {
         // get analyses
         let (loops, cfg) = {
             (
-                analyses.get::<LoopAnalysis>(function, tree).clone(),
-                analyses.get::<ControlFlowGraph>(function, tree).clone(),
+                analyses.loops(function, tree).clone(),
+                analyses.control_flow(function, tree).clone(),
             )
         };
         if loops.num_loops() == 0 {

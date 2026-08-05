@@ -41,12 +41,13 @@ impl ModulePass for OptimizeGlobals {
         &self,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::TreeAnalysisCache,
+        analyses: &mut mir::ModuleAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
+        let memory = &optimized.memory;
         let effects = &mut optimized.effects;
 
-        let function_effects = analyses.get::<FunctionEffectAnalysis>(tree);
+        let function_effects = analyses.function_effects(tree, memory, effects);
         let changed = run_optimize_globals(tree, effects, &function_effects);
 
         // report what this pass changed

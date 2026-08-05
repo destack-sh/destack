@@ -39,7 +39,7 @@ impl FunctionPass for RotateLoops {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
@@ -51,9 +51,9 @@ impl FunctionPass for RotateLoops {
         // get analyses
         let (loops, cfg, domtree) = {
             (
-                analyses.get::<LoopAnalysis>(function, tree).clone(),
-                analyses.get::<ControlFlowGraph>(function, tree).clone(),
-                analyses.get::<DominatorTree>(function, tree).clone(),
+                analyses.loops(function, tree).clone(),
+                analyses.control_flow(function, tree).clone(),
+                analyses.dominators(function, tree).clone(),
             )
         };
         if loops.num_loops() == 0 {

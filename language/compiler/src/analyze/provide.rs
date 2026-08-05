@@ -39,12 +39,8 @@ impl Compiler {
             .map_err(CompilerError::from)?;
 
         // summarize the elaborated tree's linkable references
-        let analyses = mir::TreeAnalysisCache::new(
-            &elaborated.dispatch,
-            &elaborated.memory,
-            &elaborated.effects,
-        );
-        let links = analyses.get::<mir::LinkGraph>(&elaborated.tree);
+        let mut analyses = mir::ModuleAnalyses::new();
+        let links = analyses.link_graph(&elaborated.tree, &elaborated.effects);
 
         Ok(ArtifactPayload::MirAnalyzed(Arc::new(MirAnalyzed::new(
             (*links).clone(),

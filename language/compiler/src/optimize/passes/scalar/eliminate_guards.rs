@@ -2,7 +2,7 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
-use destack_mir::{Mutation, RangeAnalysis};
+use destack_mir::Mutation;
 
 declare_pass! {
     /// Eliminate redundant guard checks when conditions are proven.
@@ -53,7 +53,7 @@ impl FunctionPass for EliminateGuards {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
@@ -63,7 +63,7 @@ impl FunctionPass for EliminateGuards {
         };
 
         // gather analyses
-        let ranges = analyses.get::<RangeAnalysis>(function, tree).clone();
+        let ranges = analyses.ranges(function, tree).clone();
 
         // scan blocks for eliminable checks
         let mut changed = false;

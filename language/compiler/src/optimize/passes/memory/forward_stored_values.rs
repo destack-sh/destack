@@ -73,10 +73,11 @@ impl FunctionPass for ForwardStoredValues {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
+        let effects = &optimized.effects;
 
         // skip empty functions
         let entry = match function.entry() {
@@ -86,14 +87,14 @@ impl FunctionPass for ForwardStoredValues {
 
         // get analyses
         let (aa, memory_ssa, dom_children) = {
-            let domtree = analyses.get::<DominatorTree>(function, tree);
-            let aa = analyses.get::<AliasAnalysis>(function, tree).clone();
-            let memory_ssa = analyses.get::<MemorySSA>(function, tree);
+            let domtree = analyses.dominators(function, tree);
+            let aa = analyses.alias(function, tree).clone();
+            let memory_ssa = analyses.memory_ssa(function, tree, memory, effects);
             let dom_children = build_dominator_children(function, &domtree);
             (aa, memory_ssa, dom_children)
         };
 
-        let value_types = analyses.get::<ValueTypes>(function, tree);
+        let value_types = analyses.value_types(function, tree);
 
         // run load store forwarding
         let changed = run_forward_stored_values(

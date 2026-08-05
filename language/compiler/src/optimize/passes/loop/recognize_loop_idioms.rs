@@ -5,10 +5,10 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, BlockParamForwarding, ControlFlowGraph, DominatorTree, LoopAnalysis, Mutation,
-    RangeAnalysis, ScalarEvolution, Scev, UseDefMaps, ValueDefinitions, ValueRange, ValueTypes,
-    build_use_def_maps, build_value_use_counts, constant_for_value, constant_is_zero,
-    instruction_has_side_effects, instruction_is_borrow_address, instruction_is_speculatable,
+    BlockParamForwarding, ControlFlowGraph, Mutation, RangeAnalysis, ScalarEvolution, Scev,
+    UseDefMaps, ValueDefinitions, ValueRange, ValueTypes, build_use_def_maps,
+    build_value_use_counts, constant_for_value, constant_is_zero, instruction_has_side_effects,
+    instruction_is_borrow_address, instruction_is_speculatable,
 };
 
 declare_pass! {
@@ -73,7 +73,7 @@ impl FunctionPass for RecognizeLoopIdioms {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
@@ -117,17 +117,17 @@ fn run_recognize_loop_idioms(
     tree: &mut mir::Tree,
     memory: &mut mir::MemoryTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalysisCache,
+    analyses: &mut mir::FunctionAnalyses,
 ) -> bool {
     let mut changed = false;
     loop {
         // gather analyses
-        let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
-        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
-        let domtree = analyses.get::<DominatorTree>(function, tree).clone();
-        let scev = analyses.get::<ScalarEvolution>(function, tree).clone();
-        let ranges = analyses.get::<RangeAnalysis>(function, tree).clone();
-        let aa = analyses.get::<AliasAnalysis>(function, tree).clone();
+        let loops = analyses.loops(function, tree).clone();
+        let cfg = analyses.control_flow(function, tree).clone();
+        let domtree = analyses.dominators(function, tree).clone();
+        let scev = analyses.scalar_evolution(function, tree).clone();
+        let ranges = analyses.ranges(function, tree).clone();
+        let aa = analyses.alias(function, tree).clone();
         let forwarding = BlockParamForwarding::build(function, tree, &cfg);
 
         // bail out when no loops are present
@@ -139,7 +139,7 @@ fn run_recognize_loop_idioms(
         let use_def = build_use_def_maps(function, tree);
         let value_definitions = ValueDefinitions::build(function, tree).instruction_map();
         let use_counts = build_value_use_counts(function, tree);
-        let value_types = analyses.get::<ValueTypes>(function, tree);
+        let value_types = analyses.value_types(function, tree);
 
         // refresh value ids and track per iteration changes
         let mut changed_this_iteration = false;

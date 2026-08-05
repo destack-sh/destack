@@ -52,7 +52,7 @@ impl FunctionPass for PromoteMemoryToRegisters {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
@@ -65,8 +65,8 @@ impl FunctionPass for PromoteMemoryToRegisters {
         // get analyses
         let (cfg, domtree) = {
             (
-                analyses.get::<ControlFlowGraph>(function, tree).clone(),
-                analyses.get::<DominatorTree>(function, tree).clone(),
+                analyses.control_flow(function, tree).clone(),
+                analyses.dominators(function, tree).clone(),
             )
         };
 

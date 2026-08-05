@@ -52,13 +52,13 @@ impl FunctionPass for ReassociateExpressions {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
         // collect constant propagation state
-        let constants = { analyses.get::<ConstantPropagation>(function, tree).clone() };
-        let value_types = analyses.get::<ValueTypes>(function, tree);
+        let constants = { analyses.constants(function, tree).clone() };
+        let value_types = analyses.value_types(function, tree);
 
         // run reassociation
         let changed = run_reassociate(function, tree, &constants, &value_types);

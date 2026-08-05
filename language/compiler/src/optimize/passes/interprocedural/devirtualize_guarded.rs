@@ -19,7 +19,7 @@ impl ModulePass for DevirtualizeGuarded {
         &self,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::TreeAnalysisCache,
+        _analyses: &mut mir::ModuleAnalyses,
     ) -> Mutation {
         let Some(profile) = ctx.profile() else {
             return Mutation::NONE;
@@ -27,7 +27,7 @@ impl ModulePass for DevirtualizeGuarded {
 
         let changed = DevirtualizeGuardedState::new(
             &optimized.profile,
-            analyses.dispatch(),
+            &optimized.dispatch,
             profile,
             ctx.options.devirtualize_guarded,
         )

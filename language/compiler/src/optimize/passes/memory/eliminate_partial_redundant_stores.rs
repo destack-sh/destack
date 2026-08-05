@@ -5,11 +5,10 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, ConstantPropagation, ControlFlowGraph, DominatorTree, EdgeSplitPolicy,
-    MemoryAccessEffect, MemoryAccessId, MemoryNode, MemoryRegion, MemorySSA, Mutation,
-    ValueDefinitions, ValueEquivalence, build_use_def_maps, ensure_edge_block,
-    instruction_is_read_only_access, instruction_is_speculatable, resolve_edge_value,
-    value_available_in_block,
+    AliasAnalysis, ControlFlowGraph, DominatorTree, EdgeSplitPolicy, MemoryAccessEffect,
+    MemoryAccessId, MemoryNode, MemoryRegion, MemorySSA, Mutation, ValueDefinitions,
+    ValueEquivalence, build_use_def_maps, ensure_edge_block, instruction_is_read_only_access,
+    instruction_is_speculatable, resolve_edge_value, value_available_in_block,
 };
 
 declare_pass! {
@@ -63,10 +62,11 @@ impl FunctionPass for EliminatePartialRedundantStores {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
+        let effects = &optimized.effects;
 
         // skip imported functions
         if function.entry().is_none() {
@@ -74,7 +74,8 @@ impl FunctionPass for EliminatePartialRedundantStores {
         }
 
         // run store PRE
-        let changed = run_eliminate_partial_redundant_stores(function, tree, memory, ctx, analyses);
+        let changed =
+            run_eliminate_partial_redundant_stores(function, tree, memory, effects, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -143,15 +144,16 @@ fn run_eliminate_partial_redundant_stores(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     memory: &mut mir::MemoryTable,
+    effects: &mir::EffectTable,
     _ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalysisCache,
+    analyses: &mut mir::FunctionAnalyses,
 ) -> bool {
     // gather analyses
-    let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
-    let domtree = analyses.get::<DominatorTree>(function, tree).clone();
-    let memory_ssa = analyses.get::<MemorySSA>(function, tree);
-    let alias = analyses.get::<AliasAnalysis>(function, tree).clone();
-    let constants = analyses.get::<ConstantPropagation>(function, tree);
+    let cfg = analyses.control_flow(function, tree).clone();
+    let domtree = analyses.dominators(function, tree).clone();
+    let memory_ssa = analyses.memory_ssa(function, tree, memory, effects);
+    let alias = analyses.alias(function, tree).clone();
+    let constants = analyses.constants(function, tree);
 
     // build value definition info
     let use_def = build_use_def_maps(function, tree);

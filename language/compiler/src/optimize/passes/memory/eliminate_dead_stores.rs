@@ -61,9 +61,11 @@ impl FunctionPass for EliminateDeadStores {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
+        let memory = &optimized.memory;
+        let effects = &optimized.effects;
         // skip empty functions
         let _entry = match function.entry() {
             Some(entry) => entry,
@@ -71,12 +73,12 @@ impl FunctionPass for EliminateDeadStores {
         };
 
         // get analyses
-        let aa = analyses.get::<AliasAnalysis>(function, tree).clone();
-        let memory_ssa = analyses.get::<MemorySSA>(function, tree);
-        let cfg = analyses.get::<mir::ControlFlowGraph>(function, tree);
+        let aa = analyses.alias(function, tree).clone();
+        let memory_ssa = analyses.memory_ssa(function, tree, memory, effects);
+        let cfg = analyses.control_flow(function, tree);
         let postdom = PostDominatorTree::build(function, tree, &cfg);
 
-        let value_types = analyses.get::<ValueTypes>(function, tree);
+        let value_types = analyses.value_types(function, tree);
 
         // run dead store elimination
         let changed = run_eliminate_dead_stores(

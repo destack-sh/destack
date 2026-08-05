@@ -58,10 +58,11 @@ impl FunctionPass for EliminateRedundantExpressions {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
+        let effects = &optimized.effects;
 
         // skip empty functions
         let entry = match function.entry() {
@@ -70,12 +71,12 @@ impl FunctionPass for EliminateRedundantExpressions {
         };
 
         // get dominator tree children map for analysis
-        let domtree = analyses.get::<DominatorTree>(function, tree);
-        let alias = analyses.get::<AliasAnalysis>(function, tree);
-        let memory_ssa = analyses.get::<MemorySSA>(function, tree);
-        let constants = analyses.get::<ConstantPropagation>(function, tree);
+        let domtree = analyses.dominators(function, tree);
+        let alias = analyses.alias(function, tree);
+        let memory_ssa = analyses.memory_ssa(function, tree, memory, effects);
+        let constants = analyses.constants(function, tree);
         let dom_children = build_dominator_children(function, domtree.as_ref());
-        let value_types = analyses.get::<ValueTypes>(function, tree);
+        let value_types = analyses.value_types(function, tree);
 
         // run redundant-expression elimination
         let changed = run_eliminate_redundant_expressions(

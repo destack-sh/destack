@@ -81,16 +81,17 @@ impl FunctionPass for InterchangeLoops {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
+        let effects = &optimized.effects;
 
         // gather analyses
-        let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
-        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
-        let domtree = analyses.get::<DominatorTree>(function, tree).clone();
-        let memory_ssa = analyses.get::<MemorySSA>(function, tree);
+        let loops = analyses.loops(function, tree).clone();
+        let cfg = analyses.control_flow(function, tree).clone();
+        let domtree = analyses.dominators(function, tree).clone();
+        let memory_ssa = analyses.memory_ssa(function, tree, memory, effects);
         // run loop interchange
         let changed = run_interchange_loops(
             function,

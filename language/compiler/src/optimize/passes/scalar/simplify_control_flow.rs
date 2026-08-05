@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ConstantPropagation, DominatorTree, LoopAnalysis, Mutation, RangeAnalysis, RangeMap,
-    ValueRange, apply_substitutions_in_dominated_blocks, block_parameters_used_outside_block,
+    ConstantPropagation, DominatorTree, Mutation, RangeAnalysis, RangeMap, ValueRange,
+    apply_substitutions_in_dominated_blocks, block_parameters_used_outside_block,
     block_uses_available_in_predecessor, build_use_def_maps, build_value_instruction_map,
     build_value_use_counts, clone_instruction_tables, function_thread_jumps,
     instruction_is_speculatable, instruction_map, substitute_values, terminator_remap,
@@ -97,7 +97,7 @@ impl FunctionPass for SimplifyControlFlow {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
@@ -132,7 +132,7 @@ fn run_simplify_control_flow(
     memory: &mut mir::MemoryTable,
     profile: Option<&mir::Profile>,
     _ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalysisCache,
+    analyses: &mut mir::FunctionAnalyses,
 ) -> bool {
     // track whether any changes were made
     let mut changed = false;
@@ -149,11 +149,11 @@ fn run_simplify_control_flow(
         // refresh analyses for this iteration
         let (constants, ranges, domtree, loop_blocks) = {
             (
-                analyses.get::<ConstantPropagation>(function, tree).clone(),
-                analyses.get::<RangeAnalysis>(function, tree).clone(),
-                analyses.get::<DominatorTree>(function, tree).clone(),
+                analyses.constants(function, tree).clone(),
+                analyses.ranges(function, tree).clone(),
+                analyses.dominators(function, tree).clone(),
                 analyses
-                    .get::<LoopAnalysis>(function, tree)
+                    .loops(function, tree)
                     .loops()
                     .iter()
                     .flat_map(|loop_info| loop_info.blocks.iter().copied())
@@ -187,7 +187,7 @@ fn run_simplify_control_flow(
         // restart after early control flow rewrites
         if changed_this_round {
             changed = true;
-            analyses.apply(rewrite_mutation);
+            analyses.invalidate(rewrite_mutation);
 
             iteration += 1;
             if iteration >= MAX_SIMPLIFY_CFG_ITERATIONS {
@@ -203,7 +203,7 @@ fn run_simplify_control_flow(
             && merge_blocks(function, tree, memory, entry, &domtree)
         {
             changed = true;
-            analyses.apply(rewrite_mutation);
+            analyses.invalidate(rewrite_mutation);
 
             iteration += 1;
             if iteration >= MAX_SIMPLIFY_CFG_ITERATIONS {
@@ -218,7 +218,7 @@ fn run_simplify_control_flow(
             && eliminate_unreachable_blocks(function, tree, entry)
         {
             changed = true;
-            analyses.apply(rewrite_mutation);
+            analyses.invalidate(rewrite_mutation);
 
             iteration += 1;
             if iteration >= MAX_SIMPLIFY_CFG_ITERATIONS {
@@ -239,7 +239,7 @@ fn run_simplify_control_flow(
             &mut profiled_tail_dup_targets,
         ) {
             changed = true;
-            analyses.apply(rewrite_mutation);
+            analyses.invalidate(rewrite_mutation);
 
             iteration += 1;
             if iteration >= MAX_SIMPLIFY_CFG_ITERATIONS {
@@ -2003,7 +2003,7 @@ fn tail_duplicate_blocks(
     tree: &mut mir::Tree,
     memory: &mut mir::MemoryTable,
     profile: Option<&mir::Profile>,
-    analyses: &mir::FunctionAnalysisCache,
+    analyses: &mut mir::FunctionAnalyses,
     domtree: &DominatorTree,
     profiled_targets: &mut HashSet<mir::LocalNodeId<mir::Block>>,
 ) -> bool {
@@ -3801,10 +3801,8 @@ b4(v5: int32):
         let entry_block = function.entry().unwrap();
 
         // build dominance data for tail duplication
-        let analyses = test.function_analysis_cache();
-        let domtree = analyses
-            .get::<DominatorTree>(&function, &test.optimized.tree)
-            .clone();
+        let mut analyses = test.function_analyses();
+        let domtree = analyses.dominators(&function, &test.optimized.tree).clone();
 
         // weight the then predecessor hot so only its edge into the tail duplicates
         let mut profile = mir::Profile::new();
@@ -3819,7 +3817,7 @@ b4(v5: int32):
             &mut test.optimized.tree,
             &mut test.optimized.memory,
             Some(&profile),
-            &analyses,
+            &mut analyses,
             &domtree,
             &mut profiled_targets,
         );

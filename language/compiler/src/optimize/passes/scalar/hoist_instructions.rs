@@ -64,7 +64,7 @@ impl FunctionPass for HoistInstructions {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
@@ -78,8 +78,8 @@ impl FunctionPass for HoistInstructions {
         function.recompute_next_value_id(tree);
 
         // gather analyses
-        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
-        let domtree = analyses.get::<DominatorTree>(function, tree).clone();
+        let cfg = analyses.control_flow(function, tree).clone();
+        let domtree = analyses.dominators(function, tree).clone();
 
         // run the hoisting pass
         let changed = run_hoist_instructions(function, tree, memory, &cfg, &domtree);

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_core::StringPool;
 use destack_mir as mir;
-use destack_mir::{FunctionAnalysisCache, TreeAnalysisCache};
+use destack_mir::{FunctionAnalyses, ModuleAnalyses};
 use destack_source::{File, FileId, FileType, ModuleId, PackageId, ProfileId, TargetId, Uri};
 
 use crate::optimize::{FunctionPass, MirOptimized, ModulePass, PipelineContext, PipelineOptions};
@@ -558,8 +558,8 @@ impl TestProgram {
 
             // recompute next_value_id so passes can allocate fresh values
             function.recompute_next_value_id(&self.optimized.tree);
-            let analyses = self.function_analysis_cache();
-            pass.run(&mut function, &mut self.optimized, &context, &analyses);
+            let mut analyses = self.function_analyses();
+            pass.run(&mut function, &mut self.optimized, &context, &mut analyses);
             *self.optimized.tree.get_mut(function_id) = function;
         }
 
@@ -824,8 +824,8 @@ impl TestProgram {
     ///
     /// A test module is a standalone program, so its exported symbols are the roots.
     fn module_program_analysis(&self) -> Arc<destack_artifact::ProgramAnalysis> {
-        let analyses = self.tree_analysis_cache();
-        let links = analyses.get::<mir::LinkGraph>(&self.optimized.tree);
+        let mut analyses = self.module_analyses();
+        let links = analyses.link_graph(&self.optimized.tree, &self.optimized.effects);
         let roots: Vec<_> = links
             .nodes()
             .filter(|(_, node)| node.linkage().is_exported())
@@ -853,8 +853,8 @@ impl TestProgram {
         );
 
         // run the pass against the whole optimized artifact
-        let analyses = self.tree_analysis_cache();
-        pass.run(&mut self.optimized, &context, &analyses);
+        let mut analyses = self.module_analyses();
+        pass.run(&mut self.optimized, &context, &mut analyses);
 
         // collect diagnostics after pass completes
         self.errors = context
@@ -887,8 +887,8 @@ impl TestProgram {
         );
 
         // run the pass against the whole optimized artifact
-        let analyses = self.tree_analysis_cache();
-        pass.run(&mut self.optimized, &context, &analyses);
+        let mut analyses = self.module_analyses();
+        pass.run(&mut self.optimized, &context, &mut analyses);
 
         // collect diagnostics after pass completes
         self.errors = context
@@ -921,8 +921,8 @@ impl TestProgram {
         );
 
         // run the pass against the whole optimized artifact
-        let analyses = self.tree_analysis_cache();
-        pass.run(&mut self.optimized, &context, &analyses);
+        let mut analyses = self.module_analyses();
+        pass.run(&mut self.optimized, &context, &mut analyses);
 
         // collect diagnostics after pass completes
         self.errors = context
@@ -1058,18 +1058,14 @@ impl TestProgram {
         self.errors.clone()
     }
 
-    /// Create a function analysis cache for this test program.
-    pub(crate) fn function_analysis_cache(&self) -> FunctionAnalysisCache {
-        FunctionAnalysisCache::new(&self.optimized.memory, &self.optimized.effects)
+    /// Create function analyses for this test program.
+    pub(crate) fn function_analyses(&self) -> FunctionAnalyses {
+        FunctionAnalyses::new()
     }
 
-    /// Create a tree analysis cache for this test program.
-    pub(crate) fn tree_analysis_cache(&self) -> TreeAnalysisCache {
-        TreeAnalysisCache::new(
-            &self.optimized.dispatch,
-            &self.optimized.memory,
-            &self.optimized.effects,
-        )
+    /// Create module analyses for this test program.
+    pub(crate) fn module_analyses(&self) -> ModuleAnalyses {
+        ModuleAnalyses::new()
     }
 }
 
@@ -1079,110 +1075,9 @@ mod tests {
 
     use destack_core::StringPool;
     use destack_mir as mir;
-    use destack_mir::{
-        Analysis, AnalysisId, FunctionAnalysis, Mutation, instruction_is_speculatable,
-    };
+    use destack_mir::{Mutation, instruction_is_speculatable};
 
     use super::*;
-
-    /// Simple test analysis with no dependencies.
-    struct TestAnalysisA {
-        computed: bool,
-    }
-
-    impl Analysis for TestAnalysisA {
-        const ID: AnalysisId = AnalysisId("test-a");
-        // survives value-only changes so partial preservation is observable
-        const INVALIDATED_BY: Mutation = Mutation::CONTROL;
-    }
-
-    impl FunctionAnalysis for TestAnalysisA {
-        fn compute(
-            _function: &mir::Function,
-            _tree: &mir::Tree,
-            _analyses: &FunctionAnalysisCache,
-        ) -> Self {
-            Self { computed: true }
-        }
-    }
-
-    /// Test analysis that depends on TestAnalysisA.
-    struct TestAnalysisB {
-        a_computed: bool,
-    }
-
-    impl Analysis for TestAnalysisB {
-        const ID: AnalysisId = AnalysisId("test-b");
-    }
-
-    impl FunctionAnalysis for TestAnalysisB {
-        fn compute(
-            function: &mir::Function,
-            tree: &mir::Tree,
-            analyses: &FunctionAnalysisCache,
-        ) -> Self {
-            let a = analyses.get::<TestAnalysisA>(function, tree);
-            Self {
-                a_computed: a.computed,
-            }
-        }
-    }
-
-    /// Test analysis that depends on TestAnalysisB.
-    struct TestAnalysisC {
-        b_a_computed: bool,
-    }
-
-    impl Analysis for TestAnalysisC {
-        const ID: AnalysisId = AnalysisId("test-c");
-    }
-
-    impl FunctionAnalysis for TestAnalysisC {
-        fn compute(
-            function: &mir::Function,
-            tree: &mir::Tree,
-            analyses: &FunctionAnalysisCache,
-        ) -> Self {
-            let b = analyses.get::<TestAnalysisB>(function, tree);
-            Self {
-                b_a_computed: b.a_computed,
-            }
-        }
-    }
-
-    #[test]
-    fn test_compute_analysis_on_demand() {
-        let program = TestProgram::new(
-            r#"
-function test(): void {
-entry:
-    return
-}
-"#,
-        );
-
-        let function_id = program
-            .optimized
-            .tree
-            .iter_nodes::<mir::Function>()
-            .next()
-            .unwrap()
-            .0;
-        let function = program.optimized.tree.get(function_id);
-        let analyses = program.function_analysis_cache();
-
-        // initially not cached
-        assert!(!analyses.is_cached::<TestAnalysisA>());
-
-        // get computes and caches
-        let a = analyses.get::<TestAnalysisA>(function, &program.optimized.tree);
-        assert!(a.computed);
-        assert!(analyses.is_cached::<TestAnalysisA>());
-
-        // second get returns cached
-        let a2 = analyses.get::<TestAnalysisA>(function, &program.optimized.tree);
-        assert!(Arc::ptr_eq(&a, &a2));
-    }
 
     /// Pipeline context exposes profile data when provided.
     #[test]
@@ -1205,172 +1100,6 @@ entry:
         // verify profile accessors
         assert!(context.has_profile());
         assert!(context.profile().is_some());
-    }
-
-    #[test]
-    fn test_analysis_compute_dependencies() {
-        let program = TestProgram::new(
-            r#"
-function test(): void {
-entry:
-    return
-}
-"#,
-        );
-
-        let function_id = program
-            .optimized
-            .tree
-            .iter_nodes::<mir::Function>()
-            .next()
-            .unwrap()
-            .0;
-        let function = program.optimized.tree.get(function_id);
-        let analyses = program.function_analysis_cache();
-
-        // get B, which depends on A
-        let b = analyses.get::<TestAnalysisB>(function, &program.optimized.tree);
-        assert!(b.a_computed);
-
-        // A should now be cached (computed as dependency)
-        assert!(analyses.is_cached::<TestAnalysisA>());
-    }
-
-    #[test]
-    fn test_analysis_transitive_dependencies() {
-        let program = TestProgram::new(
-            r#"
-function test(): void {
-entry:
-    return
-}
-"#,
-        );
-
-        let function_id = program
-            .optimized
-            .tree
-            .iter_nodes::<mir::Function>()
-            .next()
-            .unwrap()
-            .0;
-        let function = program.optimized.tree.get(function_id);
-        let analyses = program.function_analysis_cache();
-
-        // get C, which depends on B, which depends on A
-        let c = analyses.get::<TestAnalysisC>(function, &program.optimized.tree);
-        assert!(c.b_a_computed);
-
-        // all should be cached
-        assert!(analyses.is_cached::<TestAnalysisA>());
-        assert!(analyses.is_cached::<TestAnalysisB>());
-        assert!(analyses.is_cached::<TestAnalysisC>());
-    }
-
-    #[test]
-    fn test_apply_no_change_preserves_all() {
-        let program = TestProgram::new(
-            r#"
-function test(): void {
-entry:
-    return
-}
-"#,
-        );
-
-        let function_id = program
-            .optimized
-            .tree
-            .iter_nodes::<mir::Function>()
-            .next()
-            .unwrap()
-            .0;
-        let function = program.optimized.tree.get(function_id);
-        let analyses = program.function_analysis_cache();
-
-        // compute all
-        let _ = analyses.get::<TestAnalysisC>(function, &program.optimized.tree);
-
-        // a pass that changed nothing keeps every analysis
-        analyses.apply(Mutation::NONE);
-
-        // all still cached
-        assert!(analyses.is_cached::<TestAnalysisA>());
-        assert!(analyses.is_cached::<TestAnalysisB>());
-        assert!(analyses.is_cached::<TestAnalysisC>());
-    }
-
-    #[test]
-    fn test_apply_full_change_invalidates_all() {
-        let program = TestProgram::new(
-            r#"
-function test(): void {
-entry:
-    return
-}
-"#,
-        );
-
-        let function_id = program
-            .optimized
-            .tree
-            .iter_nodes::<mir::Function>()
-            .next()
-            .unwrap()
-            .0;
-        let function = program.optimized.tree.get(function_id);
-        let analyses = program.function_analysis_cache();
-
-        // compute all
-        let _ = analyses.get::<TestAnalysisC>(function, &program.optimized.tree);
-
-        // a pass that changed everything clears every analysis
-        analyses.apply(Mutation::ALL);
-
-        // all invalidated
-        assert!(!analyses.is_cached::<TestAnalysisA>());
-        assert!(!analyses.is_cached::<TestAnalysisB>());
-        assert!(!analyses.is_cached::<TestAnalysisC>());
-    }
-
-    #[test]
-    fn test_apply_partial_change_preserves_by_mask() {
-        let program = TestProgram::new(
-            r#"
-function test(): void {
-entry:
-    return
-}
-"#,
-        );
-
-        let function_id = program
-            .optimized
-            .tree
-            .iter_nodes::<mir::Function>()
-            .next()
-            .unwrap()
-            .0;
-        let function = program.optimized.tree.get(function_id);
-        let analyses = program.function_analysis_cache();
-
-        // compute a structural analysis (invalidated by control flow only) and a
-        // data-flow analysis (invalidated by any change)
-        let _ = analyses.get::<mir::ControlFlowGraph>(function, &program.optimized.tree);
-        let _ = analyses.get::<mir::ConstantPropagation>(function, &program.optimized.tree);
-
-        // a value-only change preserves the control-flow graph and invalidates the
-        // value-dependent analysis
-        analyses.apply(Mutation::VALUE);
-
-        assert!(analyses.is_cached::<mir::ControlFlowGraph>());
-        assert!(!analyses.is_cached::<mir::ConstantPropagation>());
-    }
-
-    #[test]
-    fn test_analysis_id_display() {
-        assert_eq!(format!("{}", AnalysisId("cfg")), "cfg");
-        assert_eq!(format!("{}", TestAnalysisA::ID), "test-a");
     }
 
     #[test]

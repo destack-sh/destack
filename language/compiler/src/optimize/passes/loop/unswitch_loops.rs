@@ -5,9 +5,9 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    CallsiteHotness, ControlFlowGraph, DominatorTree, EdgeArguments, Loop, LoopAnalysis, Mutation,
-    RangeAnalysis, ValueDefinitions, clone_instruction_tables, clone_loop_blocks,
-    instruction_is_speculatable, instruction_map_with_locals, terminator_remap,
+    CallsiteHotness, ControlFlowGraph, DominatorTree, EdgeArguments, Loop, Mutation, RangeAnalysis,
+    ValueDefinitions, clone_instruction_tables, clone_loop_blocks, instruction_is_speculatable,
+    instruction_map_with_locals, terminator_remap,
 };
 
 declare_pass! {
@@ -75,7 +75,7 @@ impl FunctionPass for UnswitchLoops {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
@@ -113,7 +113,7 @@ fn run_unswitch_loops(
     tree: &mut mir::Tree,
     memory: &mut mir::MemoryTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalysisCache,
+    analyses: &mut mir::FunctionAnalyses,
 ) -> bool {
     // track progress and exclusions
     let mut changed = false;
@@ -126,10 +126,10 @@ fn run_unswitch_loops(
         // refresh analyses after each transform
         let (loops, domtree, cfg, ranges) = {
             (
-                analyses.get::<LoopAnalysis>(function, tree).clone(),
-                analyses.get::<DominatorTree>(function, tree).clone(),
-                analyses.get::<ControlFlowGraph>(function, tree).clone(),
-                analyses.get::<RangeAnalysis>(function, tree).clone(),
+                analyses.loops(function, tree).clone(),
+                analyses.dominators(function, tree).clone(),
+                analyses.control_flow(function, tree).clone(),
+                analyses.ranges(function, tree).clone(),
             )
         };
 
@@ -270,7 +270,7 @@ impl UnswitchHeuristics {
         function: &mir::Function,
         tree: &mir::Tree,
         profile: Option<&mir::Profile>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
         hotness: mir::HotnessThresholds,
     ) -> Self {
         // compute block counts from profile data

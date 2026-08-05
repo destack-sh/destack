@@ -71,7 +71,7 @@ impl FunctionPass for ConvertBranches {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
@@ -142,10 +142,10 @@ fn run_convert_branches(
     tree: &mut mir::Tree,
     memory: &mut mir::MemoryTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalysisCache,
+    analyses: &mut mir::FunctionAnalyses,
 ) -> bool {
     // build control flow graph
-    let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
+    let cfg = analyses.control_flow(function, tree).clone();
 
     // collect candidates before mutation
     let mut candidates = Vec::new();
@@ -163,7 +163,7 @@ fn run_convert_branches(
         return false;
     }
 
-    let cost = analyses.get::<mir::CostModel>(function, tree);
+    let cost = analyses.cost(function, tree);
     let execution_counts = mir::ExecutionCounts::new(function, tree, ctx.profile(), analyses);
     let mut converted_blocks = HashSet::new();
 

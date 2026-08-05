@@ -159,7 +159,7 @@ impl FunctionPass for UnrollLoops {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
@@ -198,7 +198,7 @@ impl FunctionPass for UnrollAndJamLoops {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
@@ -358,7 +358,7 @@ fn run_unroll_loops(
     tree: &mut mir::Tree,
     memory: &mut mir::MemoryTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalysisCache,
+    analyses: &mut mir::FunctionAnalyses,
 ) -> bool {
     // read the unroll threshold from the pipeline options
     let unroll_threshold = ctx.unroll_threshold();
@@ -382,10 +382,10 @@ fn run_unroll_loops(
 
     loop {
         // gather analyses
-        let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
-        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
-        let scev = analyses.get::<ScalarEvolution>(function, tree).clone();
-        let domtree = analyses.get::<DominatorTree>(function, tree).clone();
+        let loops = analyses.loops(function, tree).clone();
+        let cfg = analyses.control_flow(function, tree).clone();
+        let scev = analyses.scalar_evolution(function, tree).clone();
+        let domtree = analyses.dominators(function, tree).clone();
 
         // bail out when no loops exist
         if loops.num_loops() == 0 {
@@ -452,7 +452,7 @@ fn run_unroll_loops(
         }
 
         // rebuild loop analyses before selecting another candidate
-        analyses.apply(Mutation::CONTROL | Mutation::VALUE);
+        analyses.invalidate(Mutation::CONTROL | Mutation::VALUE);
 
         // record the successful unroll and guard the iteration count
         unrolled_headers.insert(candidate.header);
@@ -472,7 +472,7 @@ fn run_unroll_loops_and_jam(
     tree: &mut mir::Tree,
     memory: &mut mir::MemoryTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalysisCache,
+    analyses: &mut mir::FunctionAnalyses,
 ) -> bool {
     // read the unroll threshold from the pipeline options
     let unroll_threshold = ctx.unroll_threshold();
@@ -496,11 +496,11 @@ fn run_unroll_loops_and_jam(
 
     loop {
         // gather analyses
-        let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
-        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
-        let scev = analyses.get::<ScalarEvolution>(function, tree).clone();
-        let domtree = analyses.get::<DominatorTree>(function, tree).clone();
-        let value_types = analyses.get::<ValueTypes>(function, tree);
+        let loops = analyses.loops(function, tree).clone();
+        let cfg = analyses.control_flow(function, tree).clone();
+        let scev = analyses.scalar_evolution(function, tree).clone();
+        let domtree = analyses.dominators(function, tree).clone();
+        let value_types = analyses.value_types(function, tree);
 
         // bail out when no loops exist
         if loops.num_loops() == 0 {
@@ -589,7 +589,7 @@ fn run_unroll_loops_and_jam(
         }
 
         // rebuild loop analyses before selecting another candidate
-        analyses.apply(Mutation::CONTROL | Mutation::VALUE);
+        analyses.invalidate(Mutation::CONTROL | Mutation::VALUE);
 
         // record the successful unroll and jam and guard the iteration count
         jammed_headers.insert(candidate.outer_header);

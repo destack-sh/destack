@@ -10,7 +10,7 @@ use crate::optimize::{
     FunctionPass, MirOptimized, ModulePass, PipelineContext, run_function_passes,
 };
 use destack_mir::{
-    CallGraph, CallsiteHotness, ConstantPropagation, Mutation, ParameterRemap, SignatureKey,
+    CallsiteHotness, ConstantPropagation, Mutation, ParameterRemap, SignatureKey,
     apply_constant_parameters, clone_instruction_tables, constant_arguments_for_parameters,
     instruction_map_with_locals, terminator_remap,
 };
@@ -74,7 +74,7 @@ impl ModulePass for SpecializeArguments {
         &self,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::TreeAnalysisCache,
+        analyses: &mut mir::ModuleAnalyses,
     ) -> Mutation {
         // run the specialization pass
         let changed = run_specialize_arguments(optimized, ctx, analyses);
@@ -163,7 +163,7 @@ enum ConstantKey {
 fn run_specialize_arguments(
     optimized: &mut MirOptimized,
     ctx: &PipelineContext<'_>,
-    analyses: &mir::TreeAnalysisCache,
+    analyses: &mut mir::ModuleAnalyses,
 ) -> bool {
     let mut specialized_functions = Vec::new();
 
@@ -178,7 +178,7 @@ fn run_specialize_arguments(
         } = optimized;
 
         let call_data = collect_call_data(tree);
-        let callgraph = analyses.get::<CallGraph>(tree);
+        let callgraph = analyses.call_graph(tree, effects);
         let constants_by_function = build_constant_maps(tree, ctx.target_layout());
 
         let mut changed = false;
@@ -187,8 +187,7 @@ fn run_specialize_arguments(
         let mut specialization_counts: HashMap<mir::LocalNodeId<mir::Function>, usize> =
             HashMap::new();
         let mut total_specializations = 0usize;
-        let mut function_analysis_cache: HashMap<mir::FunctionId, mir::FunctionAnalysisCache> =
-            HashMap::new();
+        let mut function_analyses: HashMap<mir::FunctionId, mir::FunctionAnalyses> = HashMap::new();
         let mut caller_counts: HashMap<mir::FunctionId, mir::ExecutionCounts> = HashMap::new();
 
         // process callsites for specialization
@@ -216,15 +215,9 @@ fn run_specialize_arguments(
 
             // skip cold callsites when profile data is present
             caller_counts.entry(callsite.caller).or_insert_with(|| {
-                let analyses = function_analysis_cache
+                let analyses = function_analyses
                     .entry(callsite.caller)
-                    .or_insert_with(|| {
-                        mir::FunctionAnalysisCache::with_options(
-                            ctx.options.analysis,
-                            memory,
-                            effects,
-                        )
-                    });
+                    .or_insert_with(|| mir::FunctionAnalyses::with_options(ctx.options.analysis));
                 mir::ExecutionCounts::new(tree.get(callsite.caller), tree, ctx.profile(), analyses)
             });
             let entry_count = ctx

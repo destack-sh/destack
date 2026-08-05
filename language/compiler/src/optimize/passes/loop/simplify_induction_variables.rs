@@ -59,7 +59,7 @@ impl FunctionPass for SimplifyInductionVariables {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
@@ -70,9 +70,9 @@ impl FunctionPass for SimplifyInductionVariables {
         }
 
         // gather analyses
-        let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
-        let scev = analyses.get::<ScalarEvolution>(function, tree).clone();
-        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
+        let loops = analyses.loops(function, tree).clone();
+        let scev = analyses.scalar_evolution(function, tree).clone();
+        let cfg = analyses.control_flow(function, tree).clone();
 
         // skip when no loops are present
         if loops.num_loops() == 0 {
@@ -1041,9 +1041,9 @@ b2(v8: int32):
             .unwrap()
             .0;
         let function = test.optimized.tree.get(function_id);
-        let analyses = test.function_analysis_cache();
-        let cfg = analyses.get::<ControlFlowGraph>(function, &test.optimized.tree);
-        let loops = analyses.get::<LoopAnalysis>(function, &test.optimized.tree);
+        let mut analyses = test.function_analyses();
+        let cfg = analyses.control_flow(function, &test.optimized.tree);
+        let loops = analyses.loops(function, &test.optimized.tree);
         let forwarding = BlockParamForwarding::build(function, &test.optimized.tree, &cfg);
         let header = function.block(1);
         let header_block = test.optimized.tree.get(header);

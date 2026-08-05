@@ -64,9 +64,10 @@ impl FunctionPass for HoistLoopInvariants {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
+        let memory = &optimized.memory;
         let effects = &mut optimized.effects;
 
         let entry = match function.entry() {
@@ -77,12 +78,12 @@ impl FunctionPass for HoistLoopInvariants {
         // get analyses
         let (loops, domtree, ranges, constants, alias, memory_ssa) = {
             (
-                analyses.get::<LoopAnalysis>(function, tree).clone(),
-                analyses.get::<DominatorTree>(function, tree).clone(),
-                analyses.get::<RangeAnalysis>(function, tree).clone(),
-                analyses.get::<ConstantPropagation>(function, tree).clone(),
-                analyses.get::<AliasAnalysis>(function, tree).clone(),
-                analyses.get::<MemorySSA>(function, tree),
+                analyses.loops(function, tree).clone(),
+                analyses.dominators(function, tree).clone(),
+                analyses.ranges(function, tree).clone(),
+                analyses.constants(function, tree).clone(),
+                analyses.alias(function, tree).clone(),
+                analyses.memory_ssa(function, tree, memory, effects),
             )
         };
         if loops.num_loops() == 0 {

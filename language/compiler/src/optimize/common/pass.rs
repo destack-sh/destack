@@ -59,20 +59,19 @@ use crate::optimize::{
     MirOptimized, PackagePipelineContext, PackageWorkset, PipelineContext, ProgramPipelineContext,
     ProgramWorkset,
 };
-use destack_mir::{FunctionAnalysisCache, Mutation, TreeAnalysisCache};
+use destack_mir::{FunctionAnalyses, ModuleAnalyses, Mutation};
 
 /// Trait for optimization passes that operate on individual functions.
 pub trait FunctionPass: Pass + Send + Sync {
     /// Run the pass on a function.
     ///
-    /// The analysis cache persists across this function's pass sequence; the
-    /// pass queries it for the analyses it needs and returns what it changed.
+    /// Analyses persist across this function's pass sequence.
     fn run(
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         context: &PipelineContext<'_>,
-        analyses: &FunctionAnalysisCache,
+        analyses: &mut FunctionAnalyses,
     ) -> Mutation;
 
     /// Return the pass name.
@@ -91,7 +90,7 @@ pub trait ModulePass: Pass + Send + Sync {
         &self,
         optimized: &mut MirOptimized,
         context: &PipelineContext<'_>,
-        analyses: &TreeAnalysisCache,
+        analyses: &mut ModuleAnalyses,
     ) -> Mutation;
 
     /// Return the pass name.
@@ -143,12 +142,8 @@ pub fn run_function_passes(
         return false;
     }
 
-    // one analysis cache lives across this function's whole pass sequence
-    let analyses = FunctionAnalysisCache::with_options(
-        context.options.analysis,
-        &optimized.memory,
-        &optimized.effects,
-    );
+    // retain analyses across the function pass sequence
+    let mut analyses = FunctionAnalyses::with_options(context.options.analysis);
 
     // seal the value counter once on entry; passes maintain it via next_value
     function.recompute_next_value_id(&optimized.tree);
@@ -156,10 +151,10 @@ pub fn run_function_passes(
 
     let mut changed = false;
     for pass in passes {
-        let mutation = pass.run(&mut function, optimized, context, &analyses);
+        let mutation = pass.run(&mut function, optimized, context, &mut analyses);
 
         // drop the analyses this pass's mutation invalidates
-        analyses.apply(mutation);
+        analyses.invalidate(mutation);
         if !mutation.is_none() {
             function.rebuild_instruction_index(&optimized.tree);
             changed = true;
@@ -185,20 +180,16 @@ pub fn run_function_passes_always(
         return;
     }
 
-    // one analysis cache lives across this function's whole pass sequence
-    let analyses = FunctionAnalysisCache::with_options(
-        context.options.analysis,
-        &optimized.memory,
-        &optimized.effects,
-    );
+    // retain analyses across the function pass sequence
+    let mut analyses = FunctionAnalyses::with_options(context.options.analysis);
 
     // seal the value counter once on entry; passes maintain it via next_value
     function.recompute_next_value_id(&optimized.tree);
     function.rebuild_instruction_index(&optimized.tree);
 
     for pass in passes {
-        let mutation = pass.run(&mut function, optimized, context, &analyses);
-        analyses.apply(mutation);
+        let mutation = pass.run(&mut function, optimized, context, &mut analyses);
+        analyses.invalidate(mutation);
         if !mutation.is_none() {
             function.rebuild_instruction_index(&optimized.tree);
         }

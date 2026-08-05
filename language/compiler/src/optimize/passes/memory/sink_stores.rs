@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, ControlFlowGraph, EdgeSplitPolicy, MemoryAccessId, MemoryNode,
-    MemoryRegionBuilder, MemorySSA, Mutation, ValueDefinitions, ValueTypes, ensure_edge_block,
+    AliasAnalysis, EdgeSplitPolicy, MemoryAccessId, MemoryNode, MemoryRegionBuilder, MemorySSA,
+    Mutation, ensure_edge_block,
 };
 
 declare_pass! {
@@ -58,10 +58,11 @@ impl FunctionPass for SinkStores {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
+        let effects = &optimized.effects;
 
         // skip imported functions
         if function.entry().is_none() {
@@ -69,7 +70,7 @@ impl FunctionPass for SinkStores {
         }
 
         // run store sinking
-        let changed = run_sink_stores(function, tree, memory, ctx, analyses);
+        let changed = run_sink_stores(function, tree, memory, effects, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -123,15 +124,16 @@ fn run_sink_stores(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     memory: &mut mir::MemoryTable,
+    effects: &mir::EffectTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalysisCache,
+    analyses: &mut mir::FunctionAnalyses,
 ) -> bool {
     // gather analyses
-    let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
-    let memory_ssa = analyses.get::<MemorySSA>(function, tree);
-    let alias = analyses.get::<AliasAnalysis>(function, tree).clone();
-    let definitions = analyses.get::<ValueDefinitions>(function, tree);
-    let value_types = analyses.get::<ValueTypes>(function, tree);
+    let cfg = analyses.control_flow(function, tree).clone();
+    let memory_ssa = analyses.memory_ssa(function, tree, memory, effects);
+    let alias = analyses.alias(function, tree).clone();
+    let definitions = analyses.value_definitions(function, tree);
+    let value_types = analyses.value_types(function, tree);
 
     // resolve reference provenance once for all candidates
     let mut regions = MemoryRegionBuilder::new(

@@ -44,7 +44,7 @@ impl FunctionPass for NarrowValues {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
@@ -54,8 +54,8 @@ impl FunctionPass for NarrowValues {
         }
 
         // gather analyses
-        let ranges = analyses.get::<RangeAnalysis>(function, tree).clone();
-        let value_types = analyses.get::<ValueTypes>(function, tree);
+        let ranges = analyses.ranges(function, tree).clone();
+        let value_types = analyses.value_types(function, tree);
 
         // apply narrowing
         let changed = run_narrow(function, tree, &ranges, &value_types);

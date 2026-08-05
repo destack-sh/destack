@@ -53,10 +53,11 @@ impl ModulePass for PropagateInterproceduralSparseConstants {
         &self,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::TreeAnalysisCache,
+        analyses: &mut mir::ModuleAnalyses,
     ) -> Mutation {
         // run the interprocedural pass
-        let function_effects = analyses.get::<FunctionEffectAnalysis>(&optimized.tree);
+        let function_effects =
+            analyses.function_effects(&optimized.tree, &optimized.memory, &optimized.effects);
         let (mut changed, cleanup_functions) = {
             let tree = &mut optimized.tree;
             let memory = &mut optimized.memory;

@@ -48,14 +48,15 @@ impl FunctionPass for EliminateLocalCommonSubexpressions {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
+        let effects = &optimized.effects;
 
         // build memory analyses
-        let alias = analyses.get::<AliasAnalysis>(function, tree);
-        let memory_ssa = analyses.get::<MemorySSA>(function, tree);
+        let alias = analyses.alias(function, tree);
+        let memory_ssa = analyses.memory_ssa(function, tree, memory, effects);
 
         // run local CSE
         let changed =

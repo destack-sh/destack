@@ -59,7 +59,7 @@ impl FunctionPass for EliminatePartialRedundancy {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
@@ -70,10 +70,10 @@ impl FunctionPass for EliminatePartialRedundancy {
         };
 
         // gather analyses
-        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
-        let domtree = analyses.get::<DominatorTree>(function, tree).clone();
+        let cfg = analyses.control_flow(function, tree).clone();
+        let domtree = analyses.dominators(function, tree).clone();
         let available = AvailableExpressions::build(function, tree, &cfg);
-        let value_types = analyses.get::<ValueTypes>(function, tree);
+        let value_types = analyses.value_types(function, tree);
 
         // run PRE
         let changed = run_pre(

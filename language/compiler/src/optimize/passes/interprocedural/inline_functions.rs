@@ -52,7 +52,7 @@ impl ModulePass for InlineFunctions {
         &self,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::TreeAnalysisCache,
+        analyses: &mut mir::ModuleAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
@@ -142,17 +142,16 @@ fn run_inline(
     memory: &mut mir::MemoryTable,
     effects: &mir::EffectTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mir::TreeAnalysisCache,
+    analyses: &mut mir::ModuleAnalyses,
 ) -> bool {
     // load module analysis state
-    let callgraph = analyses.get::<CallGraph>(tree);
+    let callgraph = analyses.call_graph(tree, effects);
     let inline_budget_scale_percent = ctx.inline_budget_scale_percent();
     let mut module_budget =
         inline_budget_for_module(tree, ctx.profile(), inline_budget_scale_percent);
     let mut component_budgets =
         inline_component_budgets(tree, &callgraph, ctx.profile(), inline_budget_scale_percent);
-    let mut function_analysis_cache: HashMap<mir::FunctionId, mir::FunctionAnalysisCache> =
-        HashMap::new();
+    let mut function_analyses: HashMap<mir::FunctionId, mir::FunctionAnalyses> = HashMap::new();
 
     // collect function ids for stable iteration
     let function_ids: Vec<_> = tree
@@ -187,11 +186,9 @@ fn run_inline(
         let mut component_budget = component
             .and_then(|id| component_budgets.get(&id).copied())
             .unwrap_or(INLINE_COMPONENT_BUDGET_BASE);
-        let analyses = function_analysis_cache
+        let analyses = function_analyses
             .entry(function_id)
-            .or_insert_with(|| {
-                mir::FunctionAnalysisCache::with_options(ctx.options.analysis, memory, effects)
-            });
+            .or_insert_with(|| mir::FunctionAnalyses::with_options(ctx.options.analysis));
         let execution_counts = mir::ExecutionCounts::new(&function, tree, ctx.profile(), analyses);
 
         // iterate inline sites until the budget is exhausted
@@ -220,9 +217,7 @@ fn run_inline(
                 ctx.profile(),
                 inline_budget_scale_percent,
                 &value_definitions,
-                &mut function_analysis_cache,
-                memory,
-                effects,
+                &mut function_analyses,
                 execution_counts.blocks(),
                 available_budget,
             );
@@ -235,10 +230,9 @@ fn run_inline(
                 &mut function,
                 tree,
                 memory,
-                effects,
                 &site.site,
                 ctx,
-                &mut function_analysis_cache,
+                &mut function_analyses,
             );
             if !did_inline {
                 break;
@@ -251,8 +245,8 @@ fn run_inline(
             component_budget = component_budget.saturating_sub(site.cost);
 
             // discard caller analyses invalidated by the cloned callee body
-            if let Some(analyses) = function_analysis_cache.get(&function_id) {
-                analyses.apply(Mutation::CONTROL | Mutation::VALUE);
+            if let Some(analyses) = function_analyses.get_mut(&function_id) {
+                analyses.invalidate(Mutation::CONTROL | Mutation::VALUE);
             }
             changed = true;
         }
@@ -312,9 +306,7 @@ fn find_inline_site(
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    function_analysis_cache: &mut HashMap<mir::FunctionId, mir::FunctionAnalysisCache>,
-    memory: &mir::MemoryTable,
-    effects: &mir::EffectTable,
+    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
     inline_budget: u64,
 ) -> Option<InlineFunctionsCandidate> {
@@ -345,9 +337,7 @@ fn find_inline_site(
                 profile,
                 inline_budget_scale_percent,
                 value_definitions,
-                function_analysis_cache,
-                memory,
-                effects,
+                function_analyses,
                 block_counts,
                 InlineFunctionsSite {
                     block_id,
@@ -390,9 +380,7 @@ fn inline_candidate(
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    function_analysis_cache: &mut HashMap<mir::FunctionId, mir::FunctionAnalysisCache>,
-    memory: &mir::MemoryTable,
-    effects: &mir::EffectTable,
+    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
     site: InlineFunctionsSite,
 ) -> Option<InlineFunctionsCandidate> {
@@ -407,9 +395,7 @@ fn inline_candidate(
         profile,
         inline_budget_scale_percent,
         value_definitions,
-        function_analysis_cache,
-        memory,
-        effects,
+        function_analyses,
         block_count,
         &site.arguments,
     )?;
@@ -455,9 +441,7 @@ fn inline_score(
     profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    function_analysis_cache: &mut HashMap<mir::FunctionId, mir::FunctionAnalysisCache>,
-    memory: &mir::MemoryTable,
-    effects: &mir::EffectTable,
+    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
     block_count: u64,
     arguments: &[mir::Value],
 ) -> Option<InlineFunctionsScore> {
@@ -478,25 +462,9 @@ fn inline_score(
 
     // compute size metrics
     let caller = tree.get(caller_id);
-    let caller_cost = function_cost_for(
-        tree,
-        caller_id,
-        caller,
-        ctx,
-        function_analysis_cache,
-        memory,
-        effects,
-    );
+    let caller_cost = function_cost_for(tree, caller_id, caller, ctx, function_analyses);
     let callee = tree.get(callee_id);
-    let callee_cost = function_cost_for(
-        tree,
-        callee_id,
-        callee,
-        ctx,
-        function_analysis_cache,
-        memory,
-        effects,
-    );
+    let callee_cost = function_cost_for(tree, callee_id, callee, ctx, function_analyses);
 
     // reject callsites that do not meet heuristic thresholds
     let should_inline = should_inline(
@@ -651,10 +619,9 @@ fn inline_callsite(
     caller: &mut mir::Function,
     tree: &mut mir::Tree,
     memory: &mut mir::MemoryTable,
-    effects: &mir::EffectTable,
     site: &InlineFunctionsSite,
     ctx: &PipelineContext<'_>,
-    function_analysis_cache: &mut HashMap<mir::FunctionId, mir::FunctionAnalysisCache>,
+    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
 ) -> bool {
     // load the callee and entry block
     let callee = tree.get(site.callee_id).clone();
@@ -698,12 +665,10 @@ fn inline_callsite(
 
     // clone locals and blocks before rewriting the caller
     let local_map = clone_locals(caller, tree, &callee);
-    let callee_analyses = function_analysis_cache
+    let callee_analyses = function_analyses
         .entry(site.callee_id)
-        .or_insert_with(|| {
-            mir::FunctionAnalysisCache::with_options(ctx.options.analysis, memory, effects)
-        });
-    let callee_value_types = callee_analyses.get::<ValueTypes>(&callee, tree);
+        .or_insert_with(|| mir::FunctionAnalyses::with_options(ctx.options.analysis));
+    let callee_value_types = callee_analyses.value_types(&callee, tree);
     let (block_map, value_map) =
         clone_callee_blocks(caller, tree, &callee, &argument_map, &callee_value_types);
 
@@ -1077,16 +1042,12 @@ fn function_cost_for(
     function_id: mir::FunctionId,
     function: &mir::Function,
     ctx: &PipelineContext<'_>,
-    function_analysis_cache: &mut HashMap<mir::FunctionId, mir::FunctionAnalysisCache>,
-    memory: &mir::MemoryTable,
-    effects: &mir::EffectTable,
+    function_analyses: &mut HashMap<mir::FunctionId, mir::FunctionAnalyses>,
 ) -> mir::OperationCost {
-    let analyses = function_analysis_cache
+    let analyses = function_analyses
         .entry(function_id)
-        .or_insert_with(|| {
-            mir::FunctionAnalysisCache::with_options(ctx.options.analysis, memory, effects)
-        });
-    let cost = analyses.get::<mir::CostModel>(function, tree);
+        .or_insert_with(|| mir::FunctionAnalyses::with_options(ctx.options.analysis));
+    let cost = analyses.cost(function, tree);
 
     *cost.function()
 }

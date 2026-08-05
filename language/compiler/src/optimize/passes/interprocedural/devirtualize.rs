@@ -17,11 +17,11 @@ impl ModulePass for Devirtualize {
         &self,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::TreeAnalysisCache,
+        analyses: &mut mir::ModuleAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
-        let dispatch = analyses.get::<DispatchAnalysis>(tree);
+        let dispatch = analyses.dispatch(tree, &optimized.dispatch);
         let rewrites = Devirtualization::collect(tree, &dispatch);
         let changed = rewrites.apply(tree);
 

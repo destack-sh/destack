@@ -47,7 +47,7 @@ impl FunctionPass for PropagateCopies {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        _analyses: &mir::FunctionAnalysisCache,
+        _analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;

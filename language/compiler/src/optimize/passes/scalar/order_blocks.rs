@@ -52,7 +52,7 @@ impl FunctionPass for OrderBlocks {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
@@ -120,7 +120,7 @@ fn order_blocks(
     entry: mir::LocalNodeId<mir::Block>,
     profile: &mir::Profile,
     ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalysisCache,
+    analyses: &mut mir::FunctionAnalyses,
 ) -> bool {
     // derive block counts and hotness
     let execution_counts = mir::ExecutionCounts::new(function, tree, Some(profile), analyses);
@@ -135,7 +135,7 @@ fn order_blocks(
     cold_blocks.remove(&entry);
 
     // fetch required analyses
-    let domtree = analyses.get::<DominatorTree>(function, tree).clone();
+    let domtree = analyses.dominators(function, tree).clone();
 
     // duplicate hot edges into small blocks
     let duplicated = duplicate_hot_edges(

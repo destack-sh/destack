@@ -5,9 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    BlockParamForwarding, ControlFlowGraph, LoopAnalysis, Mutation, RangeAnalysis, ScalarEvolution,
-    Scev, UseDefMaps, ValueRange, ValueTypes, build_use_def_maps, clone_loop_blocks,
-    terminator_remap,
+    BlockParamForwarding, ControlFlowGraph, Mutation, RangeAnalysis, ScalarEvolution, Scev,
+    UseDefMaps, ValueRange, build_use_def_maps, clone_loop_blocks, terminator_remap,
 };
 
 declare_pass! {
@@ -88,7 +87,7 @@ impl FunctionPass for VersionLoops {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
@@ -134,13 +133,13 @@ fn run_version_loops(
     tree: &mut mir::Tree,
     memory: &mut mir::MemoryTable,
     ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalysisCache,
+    analyses: &mut mir::FunctionAnalyses,
 ) -> bool {
     // gather analyses
-    let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
-    let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
-    let scev = analyses.get::<ScalarEvolution>(function, tree).clone();
-    let ranges = analyses.get::<RangeAnalysis>(function, tree).clone();
+    let loops = analyses.loops(function, tree).clone();
+    let cfg = analyses.control_flow(function, tree).clone();
+    let scev = analyses.scalar_evolution(function, tree).clone();
+    let ranges = analyses.ranges(function, tree).clone();
     let forwarding = BlockParamForwarding::build(function, tree, &cfg);
 
     // bail out when no loops are present
@@ -150,7 +149,7 @@ fn run_version_loops(
 
     // track whether we rewrote any loops
     let use_def = build_use_def_maps(function, tree);
-    let value_types = analyses.get::<ValueTypes>(function, tree);
+    let value_types = analyses.value_types(function, tree);
     let mut changed = false;
     function.recompute_next_value_id(tree);
 

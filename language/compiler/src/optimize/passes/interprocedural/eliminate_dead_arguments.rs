@@ -47,7 +47,7 @@ impl ModulePass for EliminateDeadArguments {
         &self,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        _analyses: &mir::TreeAnalysisCache,
+        _analyses: &mut mir::ModuleAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let layouts = &mut optimized.layouts;

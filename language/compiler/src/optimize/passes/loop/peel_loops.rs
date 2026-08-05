@@ -4,9 +4,7 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
-use destack_mir::{
-    ControlFlowGraph, DominatorTree, LoopAnalysis, Mutation, clone_loop_blocks, terminator_remap,
-};
+use destack_mir::{ControlFlowGraph, DominatorTree, Mutation, clone_loop_blocks, terminator_remap};
 
 declare_pass! {
     /// Peel a single iteration from loops guarded at the latch.
@@ -64,7 +62,7 @@ impl FunctionPass for PeelLoops {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
@@ -99,12 +97,12 @@ fn run_peel_loops(
     tree: &mut mir::Tree,
     memory: &mut mir::MemoryTable,
     _ctx: &PipelineContext<'_>,
-    analyses: &mir::FunctionAnalysisCache,
+    analyses: &mut mir::FunctionAnalyses,
 ) -> bool {
     // gather analyses
-    let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
-    let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
-    let domtree = analyses.get::<DominatorTree>(function, tree).clone();
+    let loops = analyses.loops(function, tree).clone();
+    let cfg = analyses.control_flow(function, tree).clone();
+    let domtree = analyses.dominators(function, tree).clone();
 
     // bail out when no loops are present
     if loops.num_loops() == 0 {

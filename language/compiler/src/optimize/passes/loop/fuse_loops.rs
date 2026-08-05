@@ -91,18 +91,19 @@ impl FunctionPass for FuseLoops {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
+        let effects = &optimized.effects;
 
         // gather analyses
-        let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
-        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
-        let domtree = analyses.get::<DominatorTree>(function, tree).clone();
-        let memory_ssa = analyses.get::<MemorySSA>(function, tree);
-        let alias = analyses.get::<AliasAnalysis>(function, tree).clone();
-        let constants = analyses.get::<ConstantPropagation>(function, tree);
+        let loops = analyses.loops(function, tree).clone();
+        let cfg = analyses.control_flow(function, tree).clone();
+        let domtree = analyses.dominators(function, tree).clone();
+        let memory_ssa = analyses.memory_ssa(function, tree, memory, effects);
+        let alias = analyses.alias(function, tree).clone();
+        let constants = analyses.constants(function, tree);
 
         // run loop fusion
         let changed = run_fuse_loops(

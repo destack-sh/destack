@@ -42,7 +42,7 @@ impl FunctionPass for PropagateValueRanges {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
@@ -52,7 +52,7 @@ impl FunctionPass for PropagateValueRanges {
         }
 
         // gather range analysis
-        let ranges = { analyses.get::<RangeAnalysis>(function, tree).clone() };
+        let ranges = { analyses.ranges(function, tree).clone() };
 
         // fold instructions with constant ranges
         let changed = run_propagate_value_rangesagation(function, tree, &ranges);

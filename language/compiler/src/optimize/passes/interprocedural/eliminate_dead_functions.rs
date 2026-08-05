@@ -51,7 +51,7 @@ impl ModulePass for EliminateDeadFunctions {
         &self,
         optimized: &mut MirOptimized,
         ctx: &PipelineContext<'_>,
-        _analyses: &mir::TreeAnalysisCache,
+        _analyses: &mut mir::ModuleAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
@@ -133,8 +133,8 @@ mod tests {
 
     /// Build a program analysis treating the module as a standalone program.
     fn module_analysis(test: &TestProgram) -> ProgramAnalysis {
-        let analyses = test.tree_analysis_cache();
-        let links = analyses.get::<mir::LinkGraph>(&test.optimized.tree);
+        let mut analyses = test.module_analyses();
+        let links = analyses.link_graph(&test.optimized.tree, &test.optimized.effects);
         let roots: Vec<_> = links
             .nodes()
             .filter(|(_, node)| node.linkage().is_exported())

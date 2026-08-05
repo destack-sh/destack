@@ -69,22 +69,18 @@ impl Pipeline for FunctionPipeline {
                 continue;
             }
 
-            // one analysis cache lives across this function's whole pass sequence
-            let analyses = mir::FunctionAnalysisCache::with_options(
-                ctx.options.analysis,
-                &optimized.memory,
-                &optimized.effects,
-            );
+            // retain analyses across the function pass sequence
+            let mut analyses = mir::FunctionAnalyses::with_options(ctx.options.analysis);
 
             // seal the value counter once on entry; passes maintain it via next_value
             function.recompute_next_value_id(&optimized.tree);
             function.rebuild_instruction_index(&optimized.tree);
 
             for pass in &self.passes {
-                let mutation = pass.run(&mut function, optimized, ctx, &analyses);
+                let mutation = pass.run(&mut function, optimized, ctx, &mut analyses);
 
                 // drop the analyses this pass's mutation invalidates
-                analyses.apply(mutation);
+                analyses.invalidate(mutation);
                 if !mutation.is_none() {
                     function.rebuild_instruction_index(&optimized.tree);
                     any_changed = true;
@@ -146,19 +142,14 @@ impl Pipeline for ModulePipeline {
     fn run(&self, optimized: &mut MirOptimized, ctx: &mut PipelineContext<'_>) -> bool {
         let mut any_changed = false;
 
-        // one analysis cache lives across the tree's whole pass sequence
-        let analyses = mir::TreeAnalysisCache::with_options(
-            ctx.options.analysis,
-            &optimized.dispatch,
-            &optimized.memory,
-            &optimized.effects,
-        );
+        // retain analyses across the module pass sequence
+        let mut analyses = mir::ModuleAnalyses::with_options(ctx.options.analysis);
 
         for pass in &self.passes {
-            let mutation = pass.run(optimized, ctx, &analyses);
+            let mutation = pass.run(optimized, ctx, &mut analyses);
 
             // drop the analyses this pass's mutation invalidates
-            analyses.apply(mutation);
+            analyses.invalidate(mutation);
             if !mutation.is_none() {
                 any_changed = true;
             }
@@ -351,7 +342,7 @@ mod tests {
             _func: &mut mir::Function,
             _optimized: &mut MirOptimized,
             _ctx: &PipelineContext<'_>,
-            _analyses: &mir::FunctionAnalysisCache,
+            _analyses: &mut mir::FunctionAnalyses,
         ) -> Mutation {
             Mutation::NONE
         }
@@ -385,7 +376,7 @@ mod tests {
             _func: &mut mir::Function,
             _optimized: &mut MirOptimized,
             _ctx: &PipelineContext<'_>,
-            _analyses: &mir::FunctionAnalysisCache,
+            _analyses: &mut mir::FunctionAnalyses,
         ) -> Mutation {
             Mutation::ALL
         }

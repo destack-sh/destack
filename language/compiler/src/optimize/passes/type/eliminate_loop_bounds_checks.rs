@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    BlockParamForwarding, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, Mutation,
-    RangeAnalysis, RangeMap, ScalarEvolution, Scev, ValueRange, constant_zero_like,
+    BlockParamForwarding, DominatorTree, Loop, LoopAnalysis, Mutation, RangeAnalysis, RangeMap,
+    ScalarEvolution, Scev, ValueRange, constant_zero_like,
 };
 
 declare_pass! {
@@ -72,7 +72,7 @@ impl FunctionPass for EliminateLoopBoundsChecks {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
@@ -82,11 +82,11 @@ impl FunctionPass for EliminateLoopBoundsChecks {
         }
 
         // gather analyses
-        let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
-        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
-        let domtree = analyses.get::<DominatorTree>(function, tree).clone();
-        let ranges = analyses.get::<RangeAnalysis>(function, tree).clone();
-        let scev = analyses.get::<ScalarEvolution>(function, tree).clone();
+        let loops = analyses.loops(function, tree).clone();
+        let cfg = analyses.control_flow(function, tree).clone();
+        let domtree = analyses.dominators(function, tree).clone();
+        let ranges = analyses.ranges(function, tree).clone();
+        let scev = analyses.scalar_evolution(function, tree).clone();
 
         // skip when no loops are present
         if loops.num_loops() == 0 {

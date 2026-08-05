@@ -54,7 +54,7 @@ impl FunctionPass for EliminateDeadLoops {
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
         _ctx: &PipelineContext<'_>,
-        analyses: &mir::FunctionAnalysisCache,
+        analyses: &mut mir::FunctionAnalyses,
     ) -> Mutation {
         let tree = &mut optimized.tree;
 
@@ -65,9 +65,9 @@ impl FunctionPass for EliminateDeadLoops {
         // get analyses
         let (loops, domtree, constants) = {
             (
-                analyses.get::<LoopAnalysis>(function, tree).clone(),
-                analyses.get::<DominatorTree>(function, tree).clone(),
-                analyses.get::<ConstantPropagation>(function, tree).clone(),
+                analyses.loops(function, tree).clone(),
+                analyses.dominators(function, tree).clone(),
+                analyses.constants(function, tree).clone(),
             )
         };
         if loops.num_loops() == 0 {
