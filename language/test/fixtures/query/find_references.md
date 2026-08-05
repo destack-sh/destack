@@ -905,7 +905,7 @@ const same = api;
 
 ## Associated Types
 
-### [ignored] Find associated type occurrences
+### Find associated type occurrences
 
 An associated declaration includes each type projection that names it.
 

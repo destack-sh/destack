@@ -176,6 +176,44 @@ struct Document implements Renderable {
 @goto_implementation.target origin=main.ds#target location=main.ds#declaration:document selection=main.ds#implementation:document symbol=main.ds#render@8
 ```
 
+### Find implementations of an associated type
+
+An interface associated type resolves to every implementing associated declaration.
+
+```ds main.ds
+interface Container {
+    type Item;
+         ^^^^ target
+}
+
+class StringContainer implements Container {
+    type Item = string;
+    ^ declaration:start
+         ^^^^ implementation
+                     ^ declaration:end
+}
+```
+
+```query goto_implementation main.ds#target
+@goto_implementation.target origin=main.ds#target location=main.ds#declaration selection=main.ds#implementation symbol=main.ds#Item@5
+```
+
+```diff main.ds
+@@ -6,6 +6,6 @@
+ class StringContainer implements Container {
+-    type Item = string;
++    type Item = int32;
+     ^ declaration:start
+          ^^^^ implementation
+-                     ^ declaration:end
++                    ^ declaration:end
+ }
+```
+
+```query goto_implementation main.ds#target
+@goto_implementation.target origin=main.ds#target location=main.ds#declaration selection=main.ds#implementation symbol=main.ds#Item@5
+```
+
 ### [ignored] Find overrides of a class method
 
 An abstract class method resolves to every overriding member.

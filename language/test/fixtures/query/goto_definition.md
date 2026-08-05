@@ -337,13 +337,14 @@ declare const value: Grid.Cell.Value;
 @goto_definition.target origin=main.ds#reference:value_segment location=geometry.ds#declaration:value_member selection=geometry.ds#definition:value_member symbol=geometry.ds#Value@2
 ```
 
-### [ignored] Go to an associated type definition
+### Go to an associated type definition
 
 An associated type projection resolves to the associated declaration.
 
 ```ds main.ds
 interface Envelope<T extends string> {
     type Label<U extends string> = `${T}:${U}`;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:associated_label
          ^^^^^ definition:associated_label
 }
 
@@ -354,7 +355,49 @@ type EventLabel = Message<"orders">.Label<"created">;
 ```
 
 ```query goto_definition main.ds#reference:associated_label
-@goto_definition.target origin=main.ds#reference:associated_label location=main.ds#definition:associated_label symbol=main.ds#Label@3
+@goto_definition.target origin=main.ds#reference:associated_label location=main.ds#declaration:associated_label selection=main.ds#definition:associated_label symbol=main.ds#Label@3
+```
+
+```diff main.ds
+@@ -1,4 +1,4 @@
+ interface Envelope<T extends string> {
+-    type Label<U extends string> = `${T}:${U}`;
++    type Token<U extends string> = `${T}:${U}`;
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:associated_label
+          ^^^^^ definition:associated_label
+@@ -9,2 +9,2 @@
+-type EventLabel = Message<"orders">.Label<"created">;
++type EventToken = Message<"orders">.Token<"created">;
+                                     ^^^^^ reference:associated_label
+```
+
+```query goto_definition main.ds#reference:associated_label
+@goto_definition.target origin=main.ds#reference:associated_label location=main.ds#declaration:associated_label selection=main.ds#definition:associated_label symbol=main.ds#Token@3
+```
+
+### Go to an imported associated type definition
+
+An associated type projection resolves across its imported interface.
+
+```ds envelope.ds
+export interface Envelope<T extends string> {
+    type Label<U extends string> = `${T}:${U}`;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:associated_label
+         ^^^^^ definition:associated_label
+}
+```
+
+```ds message.ds
+import { Envelope } from "./envelope.ds";
+
+class Message<T extends string> implements Envelope<T> {}
+
+type EventLabel = Message<"orders">.Label<"created">;
+                                    ^^^^^ reference:associated_label
+```
+
+```query goto_definition message.ds#reference:associated_label
+@goto_definition.target origin=message.ds#reference:associated_label location=envelope.ds#declaration:associated_label selection=envelope.ds#definition:associated_label symbol=envelope.ds#Label@3
 ```
 
 ## Overloads

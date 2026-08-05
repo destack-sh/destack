@@ -649,7 +649,7 @@ function main(): void {
 
 ## Associated Types
 
-### [ignored] Resolve an associated type projection
+### Resolve an associated type projection
 
 An associated type projection identifies its member declaration.
 
