@@ -359,20 +359,6 @@ impl Parser {
         })
     }
 
-    /// Decode one named argument into an import attribute entry.
-    fn decode_import_attribute(
-        &self,
-        argument_id: LocalNodeId<Argument>,
-    ) -> ParserResult<ImportAttribute> {
-        let Argument::Named { name, value } = self.tree.get(argument_id) else {
-            return Err(ParserError::unexpected(self.tree.get_range(argument_id)));
-        };
-
-        let value = self.decode_import_attribute_value(*value)?;
-
-        Ok(ImportAttribute { key: *name, value })
-    }
-
     /// Record source regions for one import attribute clause.
     fn set_import_attribute_ranges(
         &mut self,
@@ -412,28 +398,39 @@ impl Parser {
         let start = self.mark_parse_start();
         self.bump();
 
-        // attribute clause body
+        // parse the attribute clause body
         self.eat_token_before(TokenType::OpenBrace, TokenType::CloseBrace)?;
-        let arguments = self.parse_named_argument_list_body(
-            TokenType::CloseBrace,
-            ExpressionContext {
-                function,
-                ..ExpressionContext::default()
-            },
-        )?;
+        let context = ExpressionContext {
+            function,
+            ..ExpressionContext::default()
+        };
+        let mut attributes = Vec::new();
+        let mut attribute_ranges = Vec::new();
+        while self.has_more_tokens() && !self.peek_is(TokenType::CloseBrace) {
+            let attribute_start = self.mark_parse_start();
+            let (key, _) = self.eat_name_with_range()?;
+            self.eat_token(TokenType::Colon)?;
+            let value = self.parse_expression(context.nested())?;
+            let value = self.decode_import_attribute_value(value)?;
+
+            attributes.push(ImportAttribute { key, value });
+            attribute_ranges.push(self.range_since(&attribute_start));
+
+            // require a separator or the end of the list
+            let has_comma = self.peek_is(TokenType::Comma);
+            let has_separator = has_comma || self.peek_is_on_new_line();
+            let is_list_end = !self.has_more_tokens() || self.peek_is(TokenType::CloseBrace);
+            if !has_separator && !is_list_end {
+                return Err(ParserError::unexpected(self.peek_token_span()));
+            }
+
+            // consume an explicit separator
+            if has_comma {
+                self.bump();
+            }
+        }
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Expression)?;
         let range = self.range_since(&start);
-        let attribute_ranges = arguments
-            .iter()
-            .map(|argument_id| self.tree.get_range(*argument_id))
-            .collect();
-
-        // decoded attributes
-        let mut attributes = Vec::with_capacity(arguments.len());
-
-        for argument_id in arguments {
-            attributes.push(self.decode_import_attribute(argument_id)?);
-        }
 
         let clause = ImportAttributeClause {
             kind: ImportAttributeClauseKind::With,

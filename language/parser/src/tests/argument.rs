@@ -937,44 +937,7 @@ class Test {
 }
 
 #[test]
-fn test_parse_named_argument() {
-    // x: 1
-    let test = TestParser::new("x: 1");
-    let mut parser = test.prepare();
-    let argument_id = parser.parse_argument(Default::default()).unwrap();
-    assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
-        // x
-        assert_string!(parser, *name, "x");
-        // 1
-        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
-    });
-
-    let main_span = parser
-        .tree
-        .get_main_span(argument_id)
-        .expect("expected argument name span");
-    assert_eq!(parser.span_str(main_span), "x");
-}
-
-#[test]
-fn test_parse_named_argument_string_span() {
-    let test = TestParser::new("\"Content-Type\": 1");
-    let mut parser = test.prepare();
-    let argument_id = parser.parse_argument(Default::default()).unwrap();
-    assert_node!(parser.tree, argument_id, Argument::Named { name: Name::String(name), value } => {
-        assert_string!(parser, *name, "Content-Type");
-        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
-    });
-
-    let main_span = parser
-        .tree
-        .get_main_span(argument_id)
-        .expect("expected argument name span");
-    assert_eq!(parser.span_str(main_span), "\"Content-Type\"");
-}
-
-#[test]
-fn test_parse_named_argument_string_literal_value() {
+fn test_parse_tree_attribute_string_literal_value() {
     let test = TestParser::new("title=\"hello\"");
     let mut parser = test.prepare();
     let argument_id = parser.parse_tree_attribute(Default::default()).unwrap();
@@ -1011,7 +974,7 @@ fn test_parse_tree_attribute_string_preserves_invalid_html_entities() {
 }
 
 #[test]
-fn test_parse_named_argument_with_newline_before_assign_before_tree() {
+fn test_parse_tree_attribute_with_newline_before_assign() {
     let test = TestParser::new("onBroadcastSelected\n    = { this._onYouTubeBroadcastIDSelected }");
     let mut parser = test.prepare();
     let argument_id = parser.parse_tree_attribute(Default::default()).unwrap();
@@ -1026,7 +989,7 @@ fn test_parse_named_argument_with_newline_before_assign_before_tree() {
 }
 
 #[test]
-fn test_parse_named_argument_with_numeric_kebab_segment() {
+fn test_parse_tree_attribute_with_numeric_kebab_segment() {
     let test = TestParser::new("panose-1=\"test\"");
     let mut parser = test.prepare();
     let argument_id = parser.parse_tree_attribute(Default::default()).unwrap();
@@ -1037,7 +1000,7 @@ fn test_parse_named_argument_with_numeric_kebab_segment() {
 }
 
 #[test]
-fn test_parse_named_argument_with_double_hyphen_kebab_segment() {
+fn test_parse_tree_attribute_with_double_hyphen_kebab_segment() {
     let test = TestParser::new(
         r#"data-nextjs-container-errors-pseudo-html--diff={sign === '+' ? "add" : "remove"}"#,
     );
@@ -1559,9 +1522,8 @@ fn test_parse_spread_argument() {
     let argument_id = parser
         .parse_positional_argument(Default::default())
         .unwrap();
-    assert_node!(parser.tree, argument_id, Argument::Spread { label, value } => {
+    assert_node!(parser.tree, argument_id, Argument::Spread { value } => {
         // ...args
-        assert!(label.is_none());
         assert_node!(parser.tree, *value, Expression::Identifier { name } => {
             assert_string!(parser, *name, "args");
         });
@@ -1577,8 +1539,7 @@ fn test_parse_spread_argument_with_doc_block_comment_newline() {
         .parse_positional_argument(Default::default())
         .unwrap();
 
-    assert_node!(parser.tree, argument_id, Argument::Spread { label, value } => {
-        assert!(label.is_none());
+    assert_node!(parser.tree, argument_id, Argument::Spread { value } => {
         assert_node!(parser.tree, *value, Expression::Identifier { name } => {
             assert_string!(parser, *name, "args");
         });

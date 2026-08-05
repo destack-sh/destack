@@ -130,7 +130,10 @@ fn test_parse_import_path_with_missing_attribute_close_brace() {
 #[test]
 fn test_parse_import_path_with_nested_attributes() {
     let test = TestParser::new(
-        "import \"destack.geometry\" with { mode: \"json\", options: { eager: true, levels: [1, 2] } }",
+        r#"import "destack.geometry" with {
+    mode: "json"
+    options: { eager: true, levels: [1, 2] }
+}"#,
     );
     let mut parser = test.prepare();
     let import_id = parser.parse_import(Default::default()).unwrap();

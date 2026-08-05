@@ -1,27 +1,17 @@
-use crate::parse::error::ParserResultExt;
 use destack_dir::{Argument, Expression, LocalNodeId, NodeType, TokenType};
 
 use crate::parse::context::{ExpressionContext, StatementPosition};
 use crate::{Parser, ParserError, ParserResult};
-
-/// The item syntax accepted by one dynamic argument list.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-enum ArgumentForm {
-    /// Accept positional and spread arguments.
-    Positional,
-    /// Also accept named arguments.
-    Named,
-}
 
 impl Parser {
     /// Parse one standalone argument fragment.
     ///
     /// Examples:
     /// ```ds
-    /// name: value
+    /// value
     /// ```
     pub fn parse_argument_fragment(&mut self) -> ParserResult<LocalNodeId<Argument>> {
-        self.parse_argument(ExpressionContext::default())
+        self.parse_positional_argument(ExpressionContext::default())
     }
 
     /// Return true when one recovered argument list should stop at the current statement boundary.
@@ -36,10 +26,7 @@ impl Parser {
             Argument::Elision => false,
 
             // missing and error values should stop newline led statement calls locally
-            Argument::Named { value, .. }
-            | Argument::Labeled { value, .. }
-            | Argument::Positional { value, .. }
-            | Argument::Spread { value, .. } => {
+            Argument::Positional { value } | Argument::Spread { value } => {
                 matches!(
                     self.tree.get(*value),
                     Expression::Missing | Expression::Error
@@ -87,10 +74,8 @@ impl Parser {
             let value = self.parse_expression(context.nested())?;
 
             // insert the spread argument
-            let argument_id = self.insert_node(
-                Argument::Spread { label: None, value },
-                self.range_since(&start),
-            );
+            let argument_id =
+                self.insert_node(Argument::Spread { value }, self.range_since(&start));
             self.attach_documentation(argument_id, documentation);
             self.attach_decorators(argument_id.id, decorators);
 
@@ -107,41 +92,6 @@ impl Parser {
         self.attach_decorators(argument_id.id, decorators);
 
         Ok(argument_id)
-    }
-
-    /// Parse one positional, spread, or named argument.
-    ///
-    /// Examples:
-    /// ```ds
-    /// x: 1
-    /// y
-    /// 2
-    /// ...args
-    /// "Content-Type": "application/json"
-    /// ```
-    pub(crate) fn parse_argument(
-        &mut self,
-        context: ExpressionContext,
-    ) -> ParserResult<LocalNodeId<Argument>> {
-        let start = self.mark_parse_start();
-
-        // named argument (name: value)
-        if self.peek_name_start() && self.peek_token_type_at(1) == TokenType::Colon {
-            let documentation = self.parse_documentation();
-            let (name, name_range) = self.eat_name_with_range().in_node(NodeType::Argument)?;
-            self.bump();
-
-            // value
-            let value = self.parse_expression(context.nested())?;
-            let argument_id =
-                self.insert_node(Argument::Named { name, value }, self.range_since(&start));
-            self.tree.set_main_range(argument_id, name_range);
-            self.attach_documentation(argument_id, documentation);
-
-            return Ok(argument_id);
-        }
-
-        self.parse_positional_argument(context)
     }
 
     /// Parse dynamic arguments (including the `(` and `)` tokens) if they exist.
@@ -169,11 +119,8 @@ impl Parser {
         }
 
         // regular dynamic arguments
-        let arguments = self.parse_argument_list_body(
-            TokenType::CloseParenthesis,
-            ArgumentForm::Positional,
-            context.nested(),
-        )?;
+        let arguments =
+            self.parse_argument_list_body(TokenType::CloseParenthesis, context.nested())?;
 
         self.eat_list_close_token_or_recover_missing(
             TokenType::CloseParenthesis,
@@ -183,24 +130,7 @@ impl Parser {
         Ok(arguments)
     }
 
-    /// Parse a comma or newline separated argument list that accepts names.
-    ///
-    /// Examples:
-    /// ```ds
-    /// T: SomeType
-    /// 3
-    /// T: SomeType, U: OtherType
-    /// ```
-    #[inline]
-    pub(crate) fn parse_named_argument_list_body(
-        &mut self,
-        terminator: TokenType,
-        context: ExpressionContext,
-    ) -> ParserResult<Vec<LocalNodeId<Argument>>> {
-        self.parse_argument_list_body(terminator, ArgumentForm::Named, context)
-    }
-
-    /// Parse one argument list body with caller-selected item syntax.
+    /// Parse one positional argument list body.
     ///
     /// Examples:
     /// ```ds
@@ -213,7 +143,6 @@ impl Parser {
     fn parse_argument_list_body(
         &mut self,
         terminator: TokenType,
-        form: ArgumentForm,
         context: ExpressionContext,
     ) -> ParserResult<Vec<LocalNodeId<Argument>>> {
         let mut arguments = smallvec::SmallVec::<[LocalNodeId<Argument>; 4]>::new();
@@ -226,10 +155,7 @@ impl Parser {
             // eat one argument
             let argument_start = self.mark_parse_start();
             let is_recovered_argument;
-            let argument = match form {
-                ArgumentForm::Positional => self.parse_positional_argument(context),
-                ArgumentForm::Named => self.parse_argument(context),
-            };
+            let argument = self.parse_positional_argument(context);
             let argument_id = match argument {
                 Ok(argument_id) => {
                     is_recovered_argument = self.has_recovered_argument_slot(argument_id);

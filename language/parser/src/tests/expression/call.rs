@@ -726,8 +726,7 @@ fn test_parse_new_with_type_identifier_receiver_and_spread_argument() {
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
         assert_expression_path!(parser, parser.tree.get(*ty), "Type");
         assert_eq!(arguments.len(), 1);
-        assert_node!(parser.tree, arguments[0], Argument::Spread { label, value } => {
-            assert!(label.is_none());
+        assert_node!(parser.tree, arguments[0], Argument::Spread { value } => {
             assert_expression_path!(parser, parser.tree.get(*value), "instances");
         });
     });

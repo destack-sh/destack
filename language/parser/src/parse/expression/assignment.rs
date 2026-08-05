@@ -171,10 +171,10 @@ impl Parser {
             Argument::Positional { value } => AssignPatternField::Positional {
                 pattern: self.lower_assignment_pattern(value)?,
             },
-            Argument::Spread { value, .. } => AssignPatternField::Rest {
+            Argument::Spread { value } => AssignPatternField::Rest {
                 pattern: Some(self.lower_assignment_pattern(value)?),
             },
-            Argument::Named { .. } | Argument::Labeled { .. } | Argument::Error => {
+            Argument::Error => {
                 return Err(ParserError::invalid_assignment_target(range));
             }
         };
