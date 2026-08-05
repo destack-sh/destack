@@ -310,6 +310,31 @@ function identity<Value, comptime size: usize>(value: Value): Value {
 @semantic_tokens.token range=main.ds#value_reference type=parameter
 ```
 
+### Classify lifetime declarations and references
+
+Lifetime declarations and references are readonly variables.
+
+```ds main.ds
+function borrow<'a>(value: &'a readonly string): &'a readonly string {
+         ^^^^^^ function
+                ^^ lifetime_declaration
+                    ^^^^^ parameter
+                            ^^ parameter_lifetime
+                                                  ^^ return_lifetime
+    return value;
+           ^^^^^ value_reference
+}
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#function type=function modifiers=declaration
+@semantic_tokens.token range=main.ds#lifetime_declaration type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#parameter type=parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#parameter_lifetime type=variable modifiers=readonly
+@semantic_tokens.token range=main.ds#return_lifetime type=variable modifiers=readonly
+@semantic_tokens.token range=main.ds#value_reference type=parameter
+```
+
 ## Imports
 
 ### Classify imported names and aliases
