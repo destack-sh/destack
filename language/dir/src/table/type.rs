@@ -417,6 +417,7 @@ impl<'a> TypeTable<'a> {
                 TypeOperation::KeyOf(unary) => visit(unary.target),
                 TypeOperation::NoInfer(unary) => visit(unary.target),
                 TypeOperation::Awaited(unary) => visit(unary.target),
+                TypeOperation::Widen(unary) => visit(unary.target),
                 TypeOperation::TryOutput { value } | TypeOperation::TryResidual { value } => {
                     visit(*value)
                 }

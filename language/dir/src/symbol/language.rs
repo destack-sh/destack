@@ -1590,6 +1590,12 @@ define_language_items! {
             ThisParameterType => (Type, "types/function", "ThisParameterType"),
         }
 
+        /// `destack:types/literal`.
+        literal {
+            /// Recursive literal widening utility.
+            Widen => (Type, "types/literal", "Widen"),
+        }
+
         /// `destack:types/object`.
         object {
             /// Awaited value alias.

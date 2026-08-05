@@ -437,6 +437,24 @@ impl TypeFlags {
         self.0 & other.0 == other.0
     }
 
+    /// Return whether the graph contains no open or symbolic leaves.
+    pub fn is_ground(self) -> bool {
+        let symbolic = Self::HAS_VARIABLE
+            | Self::HAS_PARAMETER
+            | Self::HAS_THIS
+            | Self::HAS_REFERENCE
+            | Self::HAS_MEMBER
+            | Self::HAS_OPERATION
+            | Self::HAS_INFER;
+
+        !self.contains_any(symbolic)
+    }
+
+    /// Return whether any bit of `other` is set.
+    fn contains_any(self, other: Self) -> bool {
+        self.0 & other.0 != 0
+    }
+
     /// Return whether the graph contains an open inference variable.
     pub fn has_variable(self) -> bool {
         self.contains(Self::HAS_VARIABLE)
@@ -1023,6 +1041,8 @@ pub enum TypeOperation {
     NoInfer(UnaryType),
     /// Awaited value type, like `Awaited<Promise<T>>`.
     Awaited(UnaryType),
+    /// Recursive literal widening, like `Widen<1>`.
+    Widen(UnaryType),
     /// Try success projection like `value?` continuing evaluation.
     TryOutput {
         /// The tried value type.
@@ -1700,6 +1720,26 @@ impl RangeType {
             (None, Some(end)) => Some(end),
             _ => None,
         }
+    }
+
+    /// Return this interval's ordinary scalar type.
+    pub fn widen(&self) -> Option<Type> {
+        let ty = match self.scalar_domain()? {
+            ScalarDomain::Integer => Type::Primitive(PrimitiveType::Integer(IntegerType::Fixed {
+                width: 64,
+                is_signed: true,
+            })),
+            ScalarDomain::Bigint => Type::Primitive(PrimitiveType::Bigint),
+            ScalarDomain::Character => Type::Primitive(PrimitiveType::Character),
+            ScalarDomain::Float
+            | ScalarDomain::String
+            | ScalarDomain::Symbol
+            | ScalarDomain::Boolean
+            | ScalarDomain::Null
+            | ScalarDomain::Undefined => return None,
+        };
+
+        Some(ty)
     }
 
     /// Return whether this interval can widen to one target type.
