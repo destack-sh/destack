@@ -541,34 +541,6 @@ fn format_type_inner<'a>(
             format_reference_qualifiers(*kind, lifetime, *storage, *access, *nullability, f)?;
             write!(f, [token(">")])
         }
-        Type::Continuation {
-            resume_type,
-            yield_type,
-            return_type,
-        } => write!(
-            f,
-            [
-                token("continuation"),
-                token("<"),
-                FormatTypeId(*resume_type),
-                token(","),
-                space(),
-                FormatTypeId(*yield_type),
-                token(","),
-                space(),
-                FormatTypeId(*return_type),
-                token(">")
-            ]
-        ),
-        Type::Waiter { value_type } => write!(
-            f,
-            [
-                token("waiter"),
-                token("<"),
-                FormatTypeId(*value_type),
-                token(">")
-            ]
-        ),
         Type::Application { base, lifetimes } => format_type_application(*base, lifetimes, f),
     }
 }

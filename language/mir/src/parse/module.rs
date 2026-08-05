@@ -51,13 +51,6 @@ impl Parser {
             Mutability::Mutable
         };
         let is_shared = self.eat_token_if(TokenType::Shared);
-        let is_async = self.eat_token_if(TokenType::Async);
-        if is_async && !self.peek_is(TokenType::Function) {
-            return Err(ParseError::new(
-                "expected 'function' after 'async'",
-                self.pos(),
-            ));
-        }
 
         // item grammar
         if self.peek_is(TokenType::Type) {
@@ -118,7 +111,7 @@ impl Parser {
                 return Err(ParseError::new("functions cannot be readonly", self.pos()));
             }
 
-            self.parse_function(item_start, linkage, is_async, attributes, attribute_spans)?;
+            self.parse_function(item_start, linkage, attributes, attribute_spans)?;
         } else {
             return Err(ParseError::new(
                 "expected 'type', 'function', 'global', or 'constant'",
@@ -142,7 +135,6 @@ impl Parser {
                 || self.peek_is(TokenType::Export)
                 || self.peek_is(TokenType::Readonly)
                 || self.peek_is(TokenType::Shared)
-                || self.peek_is(TokenType::Async)
                 || self.peek_is(TokenType::Type)
                 || self.peek_is(TokenType::Global)
                 || self.peek_is(TokenType::Constant)
@@ -187,11 +179,10 @@ impl Parser {
             if self.peek_is(TokenType::Shared) {
                 self.bump();
             }
-            let is_async = self.eat_token_if(TokenType::Async);
 
             if self.peek_is(TokenType::Function) {
                 let lifetime_scope_count = self.lifetime_scopes.len();
-                let _ = self.seed_function_signature(linkage, is_async);
+                let _ = self.seed_function_signature(linkage);
                 self.restore_lifetime_scopes(lifetime_scope_count);
                 continue;
             }
@@ -265,15 +256,8 @@ impl Parser {
             if self.peek_is(TokenType::Shared) {
                 self.bump();
             }
-            if self.peek_is(TokenType::Async) {
-                self.bump();
-            }
-
             if self.peek_is(TokenType::Function) {
                 self.bump();
-                if self.peek_is(TokenType::Star) {
-                    self.bump();
-                }
 
                 let lifetime_scope_count = self.lifetime_scopes.len();
                 let parsed = self.parse_symbol_name().and_then(|(name, _)| {
@@ -332,16 +316,14 @@ impl Parser {
     }
 
     /// Seed one reserved function signature.
-    fn seed_function_signature(&mut self, linkage: Linkage, is_async: bool) -> ParseResult<()> {
-        let header =
-            self.parse_function_header(linkage, is_async, FunctionHeaderMode::Signature)?;
+    fn seed_function_signature(&mut self, linkage: Linkage) -> ParseResult<()> {
+        let header = self.parse_function_header(linkage, FunctionHeaderMode::Signature)?;
         let function_id = header.function_id;
         let function = self.tree.get_mut(function_id);
         function.arguments = header.arguments;
         function.parameters = header.parameters;
         function.lifetimes = header.lifetimes;
         function.return_type = header.return_type;
-        function.coroutine = header.coroutine;
         self.pop_lifetime_scope();
 
         // imports stop at the signature

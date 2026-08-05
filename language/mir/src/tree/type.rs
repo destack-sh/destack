@@ -698,21 +698,6 @@ pub enum Type {
         signature: TypeId,
     },
 
-    /// Move-only handle for one coroutine execution.
-    Continuation {
-        /// The value accepted when resuming after a yield.
-        resume_type: TypeId,
-        /// The value produced by each yield.
-        yield_type: TypeId,
-        /// The value produced by final return.
-        return_type: TypeId,
-    },
-    /// Move-only capability for settling one parked asynchronous continuation.
-    Waiter {
-        /// The value accepted when queueing the suspended execution.
-        value_type: TypeId,
-    },
-
     /// Type use with applied lifetime arguments.
     Application {
         /// The type being applied.
@@ -857,8 +842,6 @@ impl Type {
                 | Type::Reference { .. }
                 | Type::Pointer { .. }
                 | Type::Vector { .. }
-                | Type::Continuation { .. }
-                | Type::Waiter { .. }
         )
     }
 
@@ -867,7 +850,6 @@ impl Type {
         match self {
             Type::Int { width, .. } => byte_width(*width),
             Type::Isize | Type::Usize | Type::Pointer { .. } => byte_width(pointer_width_bits),
-            Type::Continuation { .. } | Type::Waiter { .. } => byte_width(u64::BITS as u16),
             Type::Float(format) => byte_width(format.width()),
             Type::Uninit { value } | Type::ManuallyDrop { value } => {
                 tree.get(*value).byte_size(tree, pointer_width_bits)
@@ -1120,7 +1102,6 @@ impl Type {
             Type::FunctionSignature { .. } | Type::FunctionPointer { .. } => Copy::Yes,
 
             // execution handles uniquely own suspended execution
-            Type::Continuation { .. } | Type::Waiter { .. } => Copy::No,
 
             // lifetime application preserves the represented type's copy property
             Type::Application { base, .. } => tree.get(*base).copy(tree),

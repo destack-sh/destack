@@ -390,24 +390,17 @@ impl CostModel {
             | mir::Instruction::NewSliceZeroed { .. }
             | mir::Instruction::NewSliceUninit { .. }
             | mir::Instruction::ContextBind { .. }
-            | mir::Instruction::ContinuationNew { .. }
-            | mir::Instruction::TaskResolve { .. }
-            | mir::Instruction::TaskStart { .. }
             | mir::Instruction::Pin { .. }
             | mir::Instruction::Unpin { .. } => cost.allocate += 1,
-            mir::Instruction::Free { .. } | mir::Instruction::ContinuationDestroy { .. } => {
+            mir::Instruction::Free { .. } => {
                 cost.release += 1;
             }
             mir::Instruction::BarrierWrite { .. } => cost.write_barrier += 1,
             mir::Instruction::Call { call, .. } => cost.add_call(call),
             mir::Instruction::Drop { .. } => cost.drop += 1,
-            mir::Instruction::WaiterQueue { .. }
-            | mir::Instruction::WaiterCancel { .. }
+            mir::Instruction::CallDetach { .. }
             | mir::Instruction::ContextReplace { .. }
             | mir::Instruction::ContextGet { .. }
-            | mir::Instruction::TaskPark { .. }
-            | mir::Instruction::TaskCancel { .. }
-            | mir::Instruction::TaskDetach { .. }
             | mir::Instruction::Poll
             | mir::Instruction::Intrinsic { .. } => cost.intrinsic_call += 1,
         }
@@ -433,15 +426,7 @@ impl CostModel {
             mir::Terminator::Branch { .. }
             | mir::Terminator::Check { .. }
             | mir::Terminator::Switch { .. }
-            | mir::Terminator::VariantSwitch { .. }
-            | mir::Terminator::Yield { .. } => cost.branch += 1,
-            mir::Terminator::Await { .. } => {
-                cost.direct_call += 1;
-                cost.branch += 1;
-            }
-            mir::Terminator::ContinuationResume { .. }
-            | mir::Terminator::ContinuationComplete { .. } => {
-                cost.indirect_call += 1;
+            | mir::Terminator::VariantSwitch { .. } => {
                 cost.branch += 1;
             }
             mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => {

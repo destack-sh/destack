@@ -1,7 +1,7 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    Block, BlockTarget, Call, Callee, CheckConstraint, FunctionId, LocalNodeId, SwitchCase,
-    Terminator, TypeId, Value,
+    Block, BlockTarget, Call, Callee, CheckConstraint, LocalNodeId, SwitchCase, Terminator, TypeId,
+    Value,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -183,82 +183,6 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::UnwindResume;
-    }
-
-    /// Await one asynchronous value through its selected park implementation.
-    pub fn await_(
-        &mut self,
-        park: FunctionId,
-        value: Value,
-        resume_block: LocalNodeId<Block>,
-        resume_arguments: Vec<Value>,
-        cancel_block: LocalNodeId<Block>,
-        cancel_arguments: Vec<Value>,
-        unwind: Option<(LocalNodeId<Block>, Vec<Value>)>,
-    ) {
-        let block = self.current_block();
-        self.add_predecessor(block, resume_block);
-        self.add_predecessor(block, cancel_block);
-        let resume_arguments = self.tree.add_values(&resume_arguments);
-        let cancel_arguments = self.tree.add_values(&cancel_arguments);
-        let resume = BlockTarget::new(resume_block, resume_arguments);
-        let cancel = BlockTarget::new(cancel_block, cancel_arguments);
-
-        // build the optional panic unwind target
-        let unwind = if let Some((unwind_block, unwind_arguments)) = unwind {
-            self.add_predecessor(block, unwind_block);
-            let unwind_arguments = self.tree.add_values(&unwind_arguments);
-
-            Some(BlockTarget::new(unwind_block, unwind_arguments))
-        } else {
-            None
-        };
-
-        let terminator_id = self.tree.get(block).terminator;
-        *self.tree.get_mut(terminator_id) = Terminator::Await {
-            park,
-            value,
-            resume,
-            cancel,
-            unwind,
-        };
-    }
-
-    /// Yield one value to the current generator owner.
-    pub fn yield_(
-        &mut self,
-        value: Value,
-        resume_block: LocalNodeId<Block>,
-        resume_arguments: Vec<Value>,
-        complete_block: LocalNodeId<Block>,
-        complete_arguments: Vec<Value>,
-        unwind: Option<(LocalNodeId<Block>, Vec<Value>)>,
-    ) {
-        let block = self.current_block();
-        self.add_predecessor(block, resume_block);
-        self.add_predecessor(block, complete_block);
-        let resume_arguments = self.tree.add_values(&resume_arguments);
-        let complete_arguments = self.tree.add_values(&complete_arguments);
-        let resume = BlockTarget::new(resume_block, resume_arguments);
-        let complete = BlockTarget::new(complete_block, complete_arguments);
-
-        // build the optional panic unwind target
-        let unwind = if let Some((unwind_block, unwind_arguments)) = unwind {
-            self.add_predecessor(block, unwind_block);
-            let unwind_arguments = self.tree.add_values(&unwind_arguments);
-
-            Some(BlockTarget::new(unwind_block, unwind_arguments))
-        } else {
-            None
-        };
-
-        let terminator_id = self.tree.get(block).terminator;
-        *self.tree.get_mut(terminator_id) = Terminator::Yield {
-            value,
-            resume,
-            complete,
-            unwind,
-        };
     }
 
     /// Invoke one call with normal and unwind continuations.

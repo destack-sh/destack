@@ -96,6 +96,7 @@ impl Parser {
                     | "tensor.fill"
                     | "tensor.copy"
                     | "drop"
+                    | "call.detach"
                     | "free"
                     | "unpin"
                     | "barrier.write"
@@ -159,53 +160,6 @@ impl Parser {
                 Instruction::TensorCopy { target, source }
             }
 
-            // continuation operations
-            "continuation.destroy" => {
-                let continuation = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::ContinuationDestroy { continuation }
-            }
-
-            // waiter operations
-            "waiter.queue" => {
-                let destination = destination.ok_or_else(|| {
-                    ParseError::invalid("instruction 'waiter.queue'", opcode_start)
-                })?;
-                let waiter = self.parse_value_segment(&mut segment_spans)?;
-                self.eat_token(TokenType::Comma)?;
-                let value = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::WaiterQueue {
-                    destination,
-                    waiter,
-                    value,
-                }
-            }
-            "waiter.cancel" => {
-                let destination = destination.ok_or_else(|| {
-                    ParseError::invalid("instruction 'waiter.cancel'", opcode_start)
-                })?;
-                let waiter = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::WaiterCancel {
-                    destination,
-                    waiter,
-                }
-            }
-
-            // task operations
-            "task.park" => {
-                let task = self.parse_value_segment(&mut segment_spans)?;
-                self.eat_token(TokenType::Comma)?;
-                let waiter = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::TaskPark { task, waiter }
-            }
-            "task.cancel" => {
-                let task = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::TaskCancel { task }
-            }
-            "task.detach" => {
-                let task = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::TaskDetach { task }
-            }
-
             // calls and intrinsics
             "call" => {
                 let (function, arguments, signature) =
@@ -264,6 +218,11 @@ impl Parser {
                 let value = self.parse_value_segment(&mut segment_spans)?;
 
                 Instruction::Drop { value }
+            }
+            "call.detach" => {
+                let thunk = self.parse_value_segment(&mut segment_spans)?;
+
+                Instruction::CallDetach { thunk }
             }
 
             // allocation protocol
@@ -507,28 +466,6 @@ impl Parser {
                         }
                     }
 
-                    // continuation construction
-                    "continuation.new" => {
-                        let function = self.parse_function_segment(&mut segment_spans)?;
-                        let arguments = self.parse_call_argument_segments(&mut segment_spans)?;
-                        let arguments = self.tree.add_values(&arguments);
-                        Instruction::ContinuationNew {
-                            destination,
-                            function,
-                            arguments,
-                        }
-                    }
-                    "task.resolve" => {
-                        let value = self.parse_value_segment(&mut segment_spans)?;
-                        Instruction::TaskResolve { destination, value }
-                    }
-                    "task.start" => {
-                        let continuation = self.parse_value_segment(&mut segment_spans)?;
-                        Instruction::TaskStart {
-                            destination,
-                            continuation,
-                        }
-                    }
                     // memory operations
                     "load" => {
                         let pointer = self.parse_value_segment(&mut segment_spans)?;

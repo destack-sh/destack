@@ -1,8 +1,7 @@
 use destack_core::{StringId, StringPool};
 
 use crate::{
-    CoroutineKind, FunctionParameter, LifetimeParameter, LifetimeSlot, LocalNodeId, StaticId,
-    Symbol, Type, Value,
+    FunctionParameter, LifetimeParameter, LifetimeSlot, LocalNodeId, StaticId, Symbol, Type, Value,
 };
 
 /// Header used to declare or build one MIR function.
@@ -20,8 +19,6 @@ pub struct FunctionHeader {
     pub parameters: Vec<LocalNodeId<Type>>,
     /// The return type.
     pub result: LocalNodeId<Type>,
-    /// The coroutine body form, absent for an ordinary callable function.
-    pub coroutine: Option<CoroutineKind>,
 }
 
 /// Builder for one MIR function header.
@@ -39,8 +36,6 @@ pub struct FunctionHeaderBuilder<'a> {
     lifetimes: Vec<LifetimeParameter>,
     /// Parameter types in SSA parameter order.
     parameters: Vec<LocalNodeId<Type>>,
-    /// The coroutine body form, absent for an ordinary callable function.
-    coroutine: Option<CoroutineKind>,
 }
 
 impl<'a> FunctionHeaderBuilder<'a> {
@@ -55,7 +50,6 @@ impl<'a> FunctionHeaderBuilder<'a> {
             symbol: Symbol::named(name),
             lifetimes: Vec::new(),
             parameters: Vec::new(),
-            coroutine: None,
         }
     }
 
@@ -114,13 +108,6 @@ impl<'a> FunctionHeaderBuilder<'a> {
         self
     }
 
-    /// Mark the function as a coroutine body.
-    pub fn coroutine(mut self, coroutine: CoroutineKind) -> Self {
-        self.coroutine = Some(coroutine);
-
-        self
-    }
-
     /// Finish the header with its return type.
     pub fn result(self, result: LocalNodeId<Type>) -> FunctionHeader {
         FunctionHeader {
@@ -130,7 +117,6 @@ impl<'a> FunctionHeaderBuilder<'a> {
             lifetimes: self.lifetimes,
             parameters: self.parameters,
             result,
-            coroutine: self.coroutine,
         }
     }
 }

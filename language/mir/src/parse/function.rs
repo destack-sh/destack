@@ -3,10 +3,10 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use crate::source::{Token, TokenType};
 use crate::{
     AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, BinaryOperator,
-    Binding, Block, BlockParameter, BlockTarget, Call, Callee, CheckConstraint, CoroutineKind,
-    Function, FunctionBody, FunctionHeaderSpans, FunctionParameter, Instruction, LifetimeParameter,
-    Linkage, Local, LocalNodeId, Mutability, StaticId, SwitchCase, Terminator, TypeId,
-    TypedValueSpan, Value,
+    Binding, Block, BlockParameter, BlockTarget, Call, Callee, CheckConstraint, Function,
+    FunctionBody, FunctionHeaderSpans, FunctionParameter, Instruction, LifetimeParameter, Linkage,
+    Local, LocalNodeId, Mutability, StaticId, SwitchCase, Terminator, TypeId, TypedValueSpan,
+    Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -17,8 +17,6 @@ use super::parser::Parser;
 pub(super) struct ParsedFunctionHeader {
     /// The resolved function id.
     pub(super) function_id: LocalNodeId<Function>,
-    /// The coroutine body form, absent for an ordinary callable function.
-    pub(super) coroutine: Option<CoroutineKind>,
     /// The function keyword span.
     pub(super) keyword_span: Span,
     /// The parsed function name.
@@ -136,7 +134,6 @@ impl Parser {
     pub(super) fn parse_function_header(
         &mut self,
         linkage: Linkage,
-        is_async: bool,
         mode: FunctionHeaderMode,
     ) -> ParseResult<ParsedFunctionHeader> {
         // keyword and name
@@ -144,13 +141,6 @@ impl Parser {
         let keyword_start = keyword_token.start();
         let keyword_length = self.tree.source_text(keyword_token.span).len();
         let keyword_span = self.span_at(keyword_start, keyword_length);
-        let is_generator = self.eat_token_if(TokenType::Star);
-        let coroutine = match (is_async, is_generator) {
-            (false, false) => None,
-            (true, false) => Some(CoroutineKind::Async),
-            (false, true) => Some(CoroutineKind::Generator),
-            (true, true) => Some(CoroutineKind::AsyncGenerator),
-        };
         let (name, name_start) = self.parse_symbol_name()?;
         let (arguments, mut lifetimes) = self.parse_declaration_parameters()?;
         let name_span = if arguments.is_empty() && lifetimes.is_empty() {
@@ -184,7 +174,6 @@ impl Parser {
 
         Ok(ParsedFunctionHeader {
             function_id,
-            coroutine,
             keyword_span,
             name,
             arguments,
@@ -205,13 +194,11 @@ impl Parser {
         &mut self,
         item_start: usize,
         linkage: Linkage,
-        is_async: bool,
         attributes: Vec<Attribute>,
         attribute_spans: Vec<Span>,
     ) -> ParseResult<LocalNodeId<Function>> {
         // function signature
-        let header =
-            self.parse_function_header(linkage, is_async, FunctionHeaderMode::Definition)?;
+        let header = self.parse_function_header(linkage, FunctionHeaderMode::Definition)?;
         let function_id = header.function_id;
 
         // function attributes
@@ -229,7 +216,6 @@ impl Parser {
             )
             .with_arguments(header.arguments)
             .with_symbol(symbol);
-            function.coroutine = header.coroutine;
             function.environment = function_attributes.environment_type;
             function.binding = function_attributes.binding.map(Box::new);
             function.allocation = AllocationMode::Any; // #Incomplete: set proper MIR allocation mode?
@@ -304,7 +290,6 @@ impl Parser {
         function.lifetimes = header.lifetimes;
         function.return_type = header.return_type;
         function.linkage = linkage;
-        function.coroutine = header.coroutine;
         function.environment = function_attributes.environment_type;
         function.binding = function_attributes.binding.map(Box::new);
 
@@ -1008,66 +993,6 @@ impl Parser {
                     cases,
                 })
             }
-            TokenType::Await => {
-                self.bump();
-                let (park, _) = self.parse_function_reference_part()?;
-                self.eat_token(TokenType::OpenParenthesis)?;
-                let value = self.parse_value()?;
-                self.eat_token(TokenType::CloseParenthesis)?;
-                let (resume, cancel, unwind) = self.parse_await_targets()?;
-
-                Ok(Terminator::Await {
-                    park,
-                    value,
-                    resume,
-                    cancel,
-                    unwind,
-                })
-            }
-            TokenType::Yield => {
-                self.bump();
-                let value = self.parse_value()?;
-                let (resume, complete, unwind) = self.parse_yield_targets()?;
-
-                Ok(Terminator::Yield {
-                    value,
-                    resume,
-                    complete,
-                    unwind,
-                })
-            }
-            TokenType::ContinuationResume => {
-                self.bump();
-                let continuation = self.parse_value()?;
-                self.eat_token(TokenType::OpenParenthesis)?;
-                let value = self.parse_value()?;
-                self.eat_token(TokenType::CloseParenthesis)?;
-                let (yielded, returned, unwind) = self.parse_continuation_targets()?;
-
-                Ok(Terminator::ContinuationResume {
-                    continuation,
-                    value,
-                    yielded,
-                    returned,
-                    unwind,
-                })
-            }
-            TokenType::ContinuationComplete => {
-                self.bump();
-                let continuation = self.parse_value()?;
-                self.eat_token(TokenType::OpenParenthesis)?;
-                let value = self.parse_value()?;
-                self.eat_token(TokenType::CloseParenthesis)?;
-                let (yielded, returned, unwind) = self.parse_continuation_targets()?;
-
-                Ok(Terminator::ContinuationComplete {
-                    continuation,
-                    value,
-                    yielded,
-                    returned,
-                    unwind,
-                })
-            }
             TokenType::Abort => {
                 self.bump();
                 let payload =
@@ -1519,63 +1444,6 @@ impl Parser {
         let arguments = self.tree.add_values(&arguments);
 
         Ok(BlockTarget::new(block, arguments))
-    }
-
-    /// Parse resume, cancellation, and optional unwind targets for one await.
-    fn parse_await_targets(
-        &mut self,
-    ) -> ParseResult<(BlockTarget, BlockTarget, Option<BlockTarget>)> {
-        self.eat_token(TokenType::FatArrow)?;
-        let resume = self.parse_block_target()?;
-        self.eat_token(TokenType::Pipe)?;
-        let cancel = self.parse_block_target()?;
-
-        // parse the optional panic unwind target
-        if !self.eat_token_if(TokenType::Pipe) {
-            return Ok((resume, cancel, None));
-        }
-
-        let unwind = self.parse_block_target()?;
-
-        Ok((resume, cancel, Some(unwind)))
-    }
-
-    /// Parse resume, completion, and optional unwind targets for one yield.
-    fn parse_yield_targets(
-        &mut self,
-    ) -> ParseResult<(BlockTarget, BlockTarget, Option<BlockTarget>)> {
-        self.eat_token(TokenType::FatArrow)?;
-        let resume = self.parse_block_target()?;
-        self.eat_token(TokenType::Pipe)?;
-        let complete = self.parse_block_target()?;
-
-        // parse the optional panic unwind target
-        if !self.eat_token_if(TokenType::Pipe) {
-            return Ok((resume, complete, None));
-        }
-
-        let unwind = self.parse_block_target()?;
-
-        Ok((resume, complete, Some(unwind)))
-    }
-
-    /// Parse yielded, returned, and optional unwind targets for one continuation execution.
-    fn parse_continuation_targets(
-        &mut self,
-    ) -> ParseResult<(BlockTarget, BlockTarget, Option<BlockTarget>)> {
-        self.eat_token(TokenType::FatArrow)?;
-        let yielded = self.parse_block_target()?;
-        self.eat_token(TokenType::Pipe)?;
-        let returned = self.parse_block_target()?;
-
-        // parse the optional panic unwind target
-        if !self.eat_token_if(TokenType::Pipe) {
-            return Ok((yielded, returned, None));
-        }
-
-        let unwind = self.parse_block_target()?;
-
-        Ok((yielded, returned, Some(unwind)))
     }
 
     /// Parse mandatory normal and unwind continuations for one invoke.

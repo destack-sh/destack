@@ -152,10 +152,6 @@ impl LinkGraph {
                 target: tree.get(*global).symbol,
                 kind: LinkEdgeKind::Address,
             }),
-            Instruction::ContinuationNew { function, .. } => Some(LinkEdge {
-                target: tree.get(*function).symbol,
-                kind: LinkEdgeKind::Continuation,
-            }),
             _ => None,
         }
     }
@@ -504,48 +500,5 @@ impl ModuleAnalysis for LinkGraph {
         }
 
         graph
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::analyses::tests::TestProgram;
-
-    /// Continuation construction keeps the suspended function reachable without calling it.
-    #[test]
-    fn test_link_continuation_body() {
-        let program = TestProgram::new(
-            r#"
-function* generate(v0: int32): int32 {
-entry(v0: int32):
-    yield v0 => b1 | b1 | b1
-
-b1(v1: int32):
-    return v1
-}
-
-export function owner(v0: int32): continuation<int32, int32, int32> {
-entry(v0: int32):
-    v1: continuation<int32, int32, int32> = continuation.new generate(v0)
-    return v1
-}
-"#,
-        );
-        let analyses = program.tree_analysis_cache();
-        let graph = analyses.get::<LinkGraph>(&program.tree);
-        let owner = program.function_id_by_name("owner");
-        let generate = program.function_id_by_name("generate");
-        let owner = program.tree.get(owner).symbol;
-        let generate = program.tree.get(generate).symbol;
-
-        // preserve the body through a continuation edge, not a call or address edge
-        assert_eq!(
-            graph.edges(owner),
-            &[LinkEdge {
-                target: generate,
-                kind: LinkEdgeKind::Continuation,
-            }]
-        );
     }
 }

@@ -228,19 +228,6 @@ entry(v0: fn(int32, int32) => int64, v1: function<(int32) => int32, once, manage
     );
 }
 
-/// Formats uninhabited and execution handle types canonically.
-#[test]
-fn test_format_execution_types() {
-    assert_format(
-        r#"
-function executionTypes(v0: continuation<void, never, int32>, v1: waiter<int32>): continuation<void, never, int32> {
-entry(v0: continuation<void, never, int32>, v1: waiter<int32>):
-    return v0
-}
-"#,
-    );
-}
-
 /// Formats explicit initialization and destruction storage forms canonically.
 #[test]
 fn test_format_storage_forms() {

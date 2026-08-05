@@ -150,6 +150,11 @@ pub enum Instruction {
         /// The SSA value to define with the current context.
         destination: Value,
     },
+    /// Run one thunk value behind a detach boundary (call.detach).
+    CallDetach {
+        /// The thunk function value entered at the boundary.
+        thunk: Value,
+    },
     /// Replace the current execution context and return its previous value.
     ContextReplace {
         /// The SSA value to define with the previous context.
@@ -186,73 +191,6 @@ pub enum Instruction {
         node_type: TypeId,
         /// The result value type.
         result_type: TypeId,
-    },
-
-    // continuations
-    /// Create one ready continuation for a coroutine invocation.
-    ContinuationNew {
-        /// The SSA value to define with the continuation handle.
-        destination: Value,
-        /// The coroutine body entered on first resume.
-        function: FunctionId,
-        /// The captured arguments stored in the tree's value buffer.
-        arguments: ValueSlice,
-    },
-    /// Destroy one continuation and its suspended frame.
-    ContinuationDestroy {
-        /// The continuation handle to consume.
-        continuation: Value,
-    },
-
-    // waiters
-    /// Attempt to queue one runtime waiter with its completed value.
-    WaiterQueue {
-        /// The SSA value to define with whether this operation settled the waiter.
-        destination: Value,
-        /// The waiter capability to consume.
-        waiter: Value,
-        /// The value delivered to the suspended execution.
-        value: Value,
-    },
-    /// Attempt to cancel one runtime waiter.
-    WaiterCancel {
-        /// The SSA value to define with whether this operation settled the waiter.
-        destination: Value,
-        /// The waiter capability to consume.
-        waiter: Value,
-    },
-
-    // tasks
-    /// Create one already completed task.
-    TaskResolve {
-        /// The SSA value to define with the task handle.
-        destination: Value,
-        /// The completed task value.
-        value: Value,
-    },
-    /// Start one ready continuation as a task.
-    TaskStart {
-        /// The SSA value to define with the task handle.
-        destination: Value,
-        /// The ready continuation to consume.
-        continuation: Value,
-    },
-    /// Park one waiter until a task completes or is cancelled.
-    TaskPark {
-        /// The task handle to consume.
-        task: Value,
-        /// The waiter resumed or cancelled with the task outcome.
-        waiter: Value,
-    },
-    /// Request cooperative cancellation of one task.
-    TaskCancel {
-        /// The task handle to inspect without consuming it.
-        task: Value,
-    },
-    /// Detach one task from its result.
-    TaskDetach {
-        /// The task handle to consume.
-        task: Value,
     },
 
     // memory (pointers)
@@ -1010,6 +948,7 @@ impl Instruction {
     pub fn destination(&self) -> Option<Value> {
         match self {
             Instruction::Error => None,
+            Instruction::CallDetach { .. } => None,
             Instruction::Const { destination, .. } => Some(*destination),
             Instruction::Binary { destination, .. } => Some(*destination),
             Instruction::Unary { destination, .. } => Some(*destination),
@@ -1027,15 +966,6 @@ impl Instruction {
             | Instruction::ContextReplace { destination, .. }
             | Instruction::ContextBind { destination, .. }
             | Instruction::ContextGet { destination, .. } => Some(*destination),
-            Instruction::ContinuationNew { destination, .. } => Some(*destination),
-            Instruction::ContinuationDestroy { .. }
-            | Instruction::TaskPark { .. }
-            | Instruction::TaskCancel { .. }
-            | Instruction::TaskDetach { .. } => None,
-            Instruction::WaiterQueue { destination, .. }
-            | Instruction::WaiterCancel { destination, .. } => Some(*destination),
-            Instruction::TaskResolve { destination, .. }
-            | Instruction::TaskStart { destination, .. } => Some(*destination),
             Instruction::Load { destination, .. } => Some(*destination),
             Instruction::Store { .. } => None,
             Instruction::Aggregate { destination, .. } => Some(*destination),
@@ -1118,6 +1048,7 @@ impl Instruction {
     pub fn uses(&self) -> SmallVec<[Value; 4]> {
         match self {
             Instruction::Error => smallvec![],
+            Instruction::CallDetach { thunk } => smallvec![*thunk],
             Instruction::Const { .. } => smallvec![],
             Instruction::Binary { left, right, .. } => smallvec![*left, *right],
             Instruction::Unary { argument, .. } => smallvec![*argument],
@@ -1150,16 +1081,6 @@ impl Instruction {
                 default,
                 ..
             } => smallvec![*context, *variable, *default],
-            Instruction::ContinuationNew { .. } => smallvec![],
-            Instruction::ContinuationDestroy { continuation } => smallvec![*continuation],
-            Instruction::WaiterQueue { waiter, value, .. } => smallvec![*waiter, *value],
-            Instruction::WaiterCancel { waiter, .. } => smallvec![*waiter],
-            Instruction::TaskResolve { value, .. } => smallvec![*value],
-            Instruction::TaskStart { continuation, .. } => smallvec![*continuation],
-            Instruction::TaskPark { task, waiter } => smallvec![*task, *waiter],
-            Instruction::TaskCancel { task } | Instruction::TaskDetach { task } => {
-                smallvec![*task]
-            }
             Instruction::Load { pointer, .. } => smallvec![*pointer],
             Instruction::Store { pointer, value, .. } => smallvec![*pointer, *value],
             // arguments stored externally
@@ -1330,14 +1251,6 @@ impl Instruction {
             } => smallvec![*environment],
             Instruction::FunctionEnvironment { .. }
             | Instruction::FunctionEnvironmentCurrent { .. } => smallvec![],
-            Instruction::ContinuationNew { .. } => self.argument_slice_values(tree),
-            Instruction::ContinuationDestroy { continuation } => smallvec![*continuation],
-            Instruction::WaiterQueue { waiter, value, .. } => smallvec![*waiter, *value],
-            Instruction::WaiterCancel { waiter, .. } => smallvec![*waiter],
-            Instruction::TaskResolve { value, .. } => smallvec![*value],
-            Instruction::TaskStart { continuation, .. } => smallvec![*continuation],
-            Instruction::TaskPark { task, waiter } => smallvec![*task, *waiter],
-            Instruction::TaskDetach { task } => smallvec![*task],
             Instruction::VectorInsert { vector, value, .. }
             | Instruction::TensorPad {
                 tensor: vector,
@@ -1419,7 +1332,6 @@ impl Instruction {
     pub fn argument_slice(&self) -> Option<ValueSlice> {
         match self {
             Instruction::Aggregate { values, .. } => Some(*values),
-            Instruction::ContinuationNew { arguments, .. } => Some(*arguments),
             Instruction::TensorLoad { indices, .. } => Some(*indices),
             Instruction::TensorExtract { indices, .. } => Some(*indices),
             Instruction::TensorStore { indices, .. } => Some(*indices),

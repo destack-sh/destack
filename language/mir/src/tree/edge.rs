@@ -23,30 +23,6 @@ pub enum Successor {
     },
     /// The default target of a switch terminator.
     SwitchDefault,
-    /// The resume target of an await terminator.
-    AwaitResume,
-    /// The cancellation target of an await terminator.
-    AwaitCancel,
-    /// The unwind target of an await terminator.
-    AwaitUnwind,
-    /// The resume target of a yield terminator.
-    YieldResume,
-    /// The completion target of a yield terminator.
-    YieldComplete,
-    /// The unwind target of a yield terminator.
-    YieldUnwind,
-    /// The yielded target of a continuation resume terminator.
-    ContinuationResumeYielded,
-    /// The returned target of a continuation resume terminator.
-    ContinuationResumeReturned,
-    /// The unwind target of a continuation resume terminator.
-    ContinuationResumeUnwind,
-    /// The yielded target of a continuation complete terminator.
-    ContinuationCompleteYielded,
-    /// The returned target of a continuation complete terminator.
-    ContinuationCompleteReturned,
-    /// The unwind target of a continuation complete terminator.
-    ContinuationCompleteUnwind,
     /// The normal continuation of an invoke.
     InvokeNormal,
     /// The unwind continuation of an invoke.

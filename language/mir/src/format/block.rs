@@ -3,7 +3,7 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use super::call::format_call;
-use super::value::{format_block_id, format_function_id};
+use super::value::format_block_id;
 
 use crate::{
     BinaryOperator, Block, BlockTarget, CheckConstraint, FormatNode, LocalNodeId, Terminator,
@@ -191,71 +191,6 @@ fn format_terminator<'a>(term: &Terminator, f: &mut Writer<'a, '_>) -> FormatRes
             write!(f, [token("unreachable")])
         }
 
-        Terminator::Await {
-            park,
-            value,
-            resume,
-            cancel,
-            unwind,
-        } => {
-            write!(f, [token("await"), space()])?;
-            format_function_id(*park, f)?;
-            write!(f, [token("("), value, token(")")])?;
-            format_await_targets(resume, cancel, unwind.as_ref(), f)
-        }
-
-        Terminator::Yield {
-            value,
-            resume,
-            complete,
-            unwind,
-        } => {
-            write!(f, [token("yield"), space(), value])?;
-            format_yield_targets(resume, complete, unwind.as_ref(), f)
-        }
-
-        Terminator::ContinuationResume {
-            continuation,
-            value,
-            yielded,
-            returned,
-            unwind,
-        } => {
-            write!(
-                f,
-                [
-                    token("continuation.resume"),
-                    space(),
-                    continuation,
-                    token("("),
-                    value,
-                    token(")")
-                ]
-            )?;
-            format_continuation_targets(yielded, returned, unwind.as_ref(), f)
-        }
-
-        Terminator::ContinuationComplete {
-            continuation,
-            value,
-            yielded,
-            returned,
-            unwind,
-        } => {
-            write!(
-                f,
-                [
-                    token("continuation.complete"),
-                    space(),
-                    continuation,
-                    token("("),
-                    value,
-                    token(")")
-                ]
-            )?;
-            format_continuation_targets(yielded, returned, unwind.as_ref(), f)
-        }
-
         Terminator::Invoke {
             call,
             target,
@@ -366,66 +301,6 @@ fn format_terminator<'a>(term: &Terminator, f: &mut Writer<'a, '_>) -> FormatRes
             f,
         ),
     }
-}
-
-/// Format resume, cancellation, and optional unwind targets for one await.
-fn format_await_targets<'a>(
-    resume: &BlockTarget,
-    cancel: &BlockTarget,
-    unwind: Option<&BlockTarget>,
-    f: &mut Writer<'a, '_>,
-) -> FormatResult<()> {
-    write!(f, [space(), token("=>"), space()])?;
-    format_block_target(resume, f)?;
-    write!(f, [space(), token("|"), space()])?;
-    format_block_target(cancel, f)?;
-
-    if let Some(unwind) = unwind {
-        write!(f, [space(), token("|"), space()])?;
-        format_block_target(unwind, f)?;
-    }
-
-    Ok(())
-}
-
-/// Format resume, completion, and optional unwind targets for one yield.
-fn format_yield_targets<'a>(
-    resume: &BlockTarget,
-    complete: &BlockTarget,
-    unwind: Option<&BlockTarget>,
-    f: &mut Writer<'a, '_>,
-) -> FormatResult<()> {
-    write!(f, [space(), token("=>"), space()])?;
-    format_block_target(resume, f)?;
-    write!(f, [space(), token("|"), space()])?;
-    format_block_target(complete, f)?;
-
-    if let Some(unwind) = unwind {
-        write!(f, [space(), token("|"), space()])?;
-        format_block_target(unwind, f)?;
-    }
-
-    Ok(())
-}
-
-/// Format yielded, returned, and optional unwind targets for one continuation execution.
-fn format_continuation_targets<'a>(
-    yielded: &BlockTarget,
-    returned: &BlockTarget,
-    unwind: Option<&BlockTarget>,
-    f: &mut Writer<'a, '_>,
-) -> FormatResult<()> {
-    write!(f, [space(), token("=>"), space()])?;
-    format_block_target(yielded, f)?;
-    write!(f, [space(), token("|"), space()])?;
-    format_block_target(returned, f)?;
-
-    if let Some(unwind) = unwind {
-        write!(f, [space(), token("|"), space()])?;
-        format_block_target(unwind, f)?;
-    }
-
-    Ok(())
 }
 
 /// Format normal and unwind continuations for one invoke.

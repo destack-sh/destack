@@ -261,6 +261,9 @@ impl FormatNode for Instruction {
                 format_typed_destination(*destination, f)?;
                 write!(f, [space(), token("="), space(), token("context.current")])
             }
+            Instruction::CallDetach { thunk } => {
+                write!(f, [token("call.detach"), space(), thunk])
+            }
             Instruction::ContextReplace {
                 destination,
                 context,
@@ -337,117 +340,6 @@ impl FormatNode for Instruction {
                         node_type
                     ]
                 )
-            }
-            Instruction::ContinuationNew {
-                destination,
-                function,
-                arguments,
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token("continuation.new"),
-                        space()
-                    ]
-                )?;
-                format_function_reference(*function, f)?;
-                let arguments = f.context().tree.get_values(*arguments);
-                format_value_list(arguments, f)
-            }
-            Instruction::ContinuationDestroy { continuation } => {
-                write!(f, [token("continuation.destroy"), space(), continuation])
-            }
-            Instruction::WaiterQueue {
-                destination,
-                waiter,
-                value,
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token("waiter.queue"),
-                        space(),
-                        waiter,
-                        token(","),
-                        space(),
-                        value
-                    ]
-                )
-            }
-            Instruction::WaiterCancel {
-                destination,
-                waiter,
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token("waiter.cancel"),
-                        space(),
-                        waiter
-                    ]
-                )
-            }
-            Instruction::TaskResolve { destination, value } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token("task.resolve"),
-                        space(),
-                        value
-                    ]
-                )
-            }
-            Instruction::TaskStart {
-                destination,
-                continuation,
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token("task.start"),
-                        space(),
-                        continuation
-                    ]
-                )
-            }
-            Instruction::TaskPark { task, waiter } => {
-                write!(
-                    f,
-                    [
-                        token("task.park"),
-                        space(),
-                        task,
-                        token(","),
-                        space(),
-                        waiter
-                    ]
-                )
-            }
-            Instruction::TaskCancel { task } => {
-                write!(f, [token("task.cancel"), space(), task])
-            }
-            Instruction::TaskDetach { task } => {
-                write!(f, [token("task.detach"), space(), task])
             }
             Instruction::Load {
                 destination,

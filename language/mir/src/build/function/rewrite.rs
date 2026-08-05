@@ -67,7 +67,6 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::LocalAddr { .. }
                 | Instruction::GlobalAddr { .. }
                 | Instruction::FunctionAddr { .. }
-                | Instruction::ContinuationNew { .. }
                 | Instruction::NewZeroed { .. }
                 | Instruction::NewUninit { .. } => {}
                 Instruction::FunctionBind { environment, .. } => {
@@ -78,6 +77,9 @@ impl<'a> FunctionBuilder<'a> {
                 }
                 Instruction::FunctionEnvironmentCurrent { .. } => {}
                 Instruction::ContextCurrent { .. } => {}
+                Instruction::CallDetach { thunk } => {
+                    Self::replace_value_in_slot(thunk, from, to);
+                }
                 Instruction::ContextReplace { context, .. } => {
                     Self::replace_value_in_slot(context, from, to);
                 }
@@ -100,29 +102,6 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(context, from, to);
                     Self::replace_value_in_slot(variable, from, to);
                     Self::replace_value_in_slot(default, from, to);
-                }
-                Instruction::ContinuationDestroy { continuation } => {
-                    Self::replace_value_in_slot(continuation, from, to);
-                }
-                Instruction::WaiterQueue { waiter, value, .. } => {
-                    Self::replace_value_in_slot(waiter, from, to);
-                    Self::replace_value_in_slot(value, from, to);
-                }
-                Instruction::WaiterCancel { waiter, .. } => {
-                    Self::replace_value_in_slot(waiter, from, to);
-                }
-                Instruction::TaskResolve { value, .. } => {
-                    Self::replace_value_in_slot(value, from, to);
-                }
-                Instruction::TaskStart { continuation, .. } => {
-                    Self::replace_value_in_slot(continuation, from, to);
-                }
-                Instruction::TaskPark { task, waiter } => {
-                    Self::replace_value_in_slot(task, from, to);
-                    Self::replace_value_in_slot(waiter, from, to);
-                }
-                Instruction::TaskCancel { task } | Instruction::TaskDetach { task } => {
-                    Self::replace_value_in_slot(task, from, to);
                 }
                 Instruction::Poll | Instruction::Breakpoint => {}
                 Instruction::Binary { left, right, .. } => {

@@ -20,9 +20,6 @@ pub struct Function {
     pub linkage: Linkage,
     /// Memory allocation restrictions for this function.
     pub allocation: AllocationMode,
-    /// The coroutine body form, absent for an ordinary callable function.
-    pub coroutine: Option<CoroutineKind>,
-
     /// Function parameters as typed SSA slots.
     pub parameters: Vec<FunctionParameter>,
     /// Lifetime parameters in function-local slot order.
@@ -56,29 +53,6 @@ pub struct FunctionBody {
     next_value_id: u32,
     /// Instruction locations keyed by instruction id.
     instruction_index: InstructionIndex,
-}
-
-/// The execution form of one coroutine body.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum CoroutineKind {
-    /// A body owned by an asynchronous carrier that awaits values.
-    Async,
-    /// A body owned by a generator that yields values to its caller.
-    Generator,
-    /// A body owned by an async generator that may await and yield values.
-    AsyncGenerator,
-}
-
-impl CoroutineKind {
-    /// Return whether this coroutine may await asynchronous values.
-    pub const fn is_async(self) -> bool {
-        matches!(self, Self::Async | Self::AsyncGenerator)
-    }
-
-    /// Return whether this coroutine may yield values.
-    pub const fn is_generator(self) -> bool {
-        matches!(self, Self::Generator | Self::AsyncGenerator)
-    }
 }
 
 /// Memory allocation restrictions for a function.
@@ -556,7 +530,6 @@ impl Function {
             symbol: Symbol::named(name),
             linkage,
             allocation: AllocationMode::Any,
-            coroutine: None,
             parameters,
             lifetimes,
             return_type,
@@ -642,13 +615,6 @@ impl Function {
     /// Set the concrete generic arguments and return self.
     pub fn with_arguments(mut self, arguments: Vec<StaticId>) -> Self {
         self.arguments = arguments;
-
-        self
-    }
-
-    /// Mark this function as a coroutine body.
-    pub fn with_coroutine(mut self, coroutine: CoroutineKind) -> Self {
-        self.coroutine = Some(coroutine);
 
         self
     }

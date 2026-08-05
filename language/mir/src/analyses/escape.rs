@@ -293,11 +293,6 @@ impl<'a, 'b> EscapeMarker<'a, 'b> {
     fn mark_instruction(&mut self, instruction: &mir::Instruction) {
         match instruction {
             mir::Instruction::Store { value, .. } => self.mark_value(*value),
-            mir::Instruction::ContinuationNew { arguments, .. } => {
-                self.mark_values(self.tree.get_values(*arguments));
-            }
-            mir::Instruction::WaiterQueue { value, .. }
-            | mir::Instruction::TaskResolve { value, .. } => self.mark_value(*value),
             mir::Instruction::Call { call, .. } => {
                 self.mark_values(&call.callee.uses());
                 self.mark_values(self.tree.get_values(call.arguments));
@@ -312,11 +307,7 @@ impl<'a, 'b> EscapeMarker<'a, 'b> {
     /// Mark roots escaping through one terminator.
     fn mark_terminator(&mut self, terminator: &mir::Terminator) {
         match terminator {
-            mir::Terminator::Return { value: Some(value) }
-            | mir::Terminator::Await { value, .. }
-            | mir::Terminator::Yield { value, .. } => self.mark_value(*value),
-            mir::Terminator::ContinuationResume { value, .. }
-            | mir::Terminator::ContinuationComplete { value, .. } => self.mark_value(*value),
+            mir::Terminator::Return { value: Some(value) } => self.mark_value(*value),
             mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => {
                 self.mark_values(&call.callee.uses());
                 self.mark_values(self.tree.get_values(call.arguments));
@@ -355,65 +346,6 @@ function test(): ref<int32, unique, mutable> {
 entry:
     v0: ref<int32, unique, mutable> = new.zeroed int32
     return v0
-}
-"#,
-        );
-
-        let function_id = program.entry_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analysis_cache();
-        let escape = analyses.get::<EscapeAnalysis>(function, &program.tree);
-
-        assert!(escape.escapes(mir::Value::new(0)));
-    }
-
-    /// Awaited allocations escape into the selected park implementation.
-    #[test]
-    fn test_escape_marks_awaited_allocation() {
-        let program = TestProgram::new(
-            r#"
-external function park(ref<int32, unique, mutable>, waiter<int32>): void
-
-async function test(): int32 {
-entry:
-    v0: ref<int32, unique, mutable> = new.zeroed int32
-    await park(v0) => resumed | cancelled | failed
-
-resumed(v1: int32):
-    return v1
-
-cancelled:
-    return
-
-failed:
-    unwind.resume
-}
-"#,
-        );
-
-        let function_id = program.entry_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analysis_cache();
-        let escape = analyses.get::<EscapeAnalysis>(function, &program.tree);
-
-        assert!(escape.escapes(mir::Value::new(0)));
-    }
-
-    /// Task results escape into runtime task storage.
-    #[test]
-    fn test_escape_marks_task_result() {
-        let program = TestProgram::new(
-            r#"
-type Task {
-    uint64;
-}
-
-function test(): void {
-entry:
-    v0: ref<int32, unique, mutable> = new.zeroed int32
-    v1: Task = task.resolve v0
-    task.detach v1
-    return
 }
 "#,
         );

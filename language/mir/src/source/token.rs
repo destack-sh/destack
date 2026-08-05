@@ -105,8 +105,6 @@ pub enum TokenType {
     Export,
     /// `function`
     Function,
-    /// `async`
-    Async,
     /// `global`
     Global,
     /// `shared`
@@ -129,14 +127,6 @@ pub enum TokenType {
     Check,
     /// `switch`
     Switch,
-    /// `await`
-    Await,
-    /// `yield`
-    Yield,
-    /// `continuation.resume`
-    ContinuationResume,
-    /// `continuation.complete`
-    ContinuationComplete,
     /// `panic`
     Panic,
     /// `unwind.resume`
@@ -223,10 +213,6 @@ impl TokenType {
                 | Self::Branch
                 | Self::Check
                 | Self::Switch
-                | Self::Await
-                | Self::Yield
-                | Self::ContinuationResume
-                | Self::ContinuationComplete
                 | Self::Panic
                 | Self::UnwindResume
                 | Self::Abort
@@ -241,7 +227,6 @@ impl TokenType {
             "external" => Self::External,
             "export" => Self::Export,
             "function" => Self::Function,
-            "async" => Self::Async,
             "global" => Self::Global,
             "shared" => Self::Shared,
             "constant" => Self::Constant,
@@ -253,10 +238,6 @@ impl TokenType {
             "branch" => Self::Branch,
             "check" => Self::Check,
             "switch" => Self::Switch,
-            "await" => Self::Await,
-            "yield" => Self::Yield,
-            "continuation.resume" => Self::ContinuationResume,
-            "continuation.complete" => Self::ContinuationComplete,
             "panic" => Self::Panic,
             "unwind.resume" => Self::UnwindResume,
             "abort" => Self::Abort,

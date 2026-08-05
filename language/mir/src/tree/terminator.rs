@@ -283,56 +283,6 @@ pub enum Terminator {
         cases: SwitchCaseSlice,
     },
 
-    /// Await one asynchronous value.
-    Await {
-        /// The concrete `Awaitable.park` implementation called with an implicit waiter.
-        park: FunctionId,
-        /// The asynchronous value consumed by `park`.
-        value: Value,
-        /// The block entered with the produced value.
-        resume: BlockTarget,
-        /// The cleanup block entered when the waiter is cancelled.
-        cancel: BlockTarget,
-        /// The cleanup block entered during panic unwinding.
-        unwind: Option<BlockTarget>,
-    },
-    /// Yield one value to the current generator owner.
-    Yield {
-        /// The value to yield.
-        value: Value,
-        /// The block entered with the next resume value.
-        resume: BlockTarget,
-        /// The block entered with an explicit completion value.
-        complete: BlockTarget,
-        /// The cleanup block entered during panic unwinding.
-        unwind: Option<BlockTarget>,
-    },
-    /// Resume one continuation until it yields or returns.
-    ContinuationResume {
-        /// The continuation to consume.
-        continuation: Value,
-        /// The value delivered to the suspended coroutine.
-        value: Value,
-        /// The block entered with the yielded value and replacement continuation.
-        yielded: BlockTarget,
-        /// The block entered with the final return value.
-        returned: BlockTarget,
-        /// The cleanup block entered during panic unwinding.
-        unwind: Option<BlockTarget>,
-    },
-    /// Resume one continuation through completion until it yields or returns.
-    ContinuationComplete {
-        /// The continuation to consume.
-        continuation: Value,
-        /// The value delivered to the suspended completion path.
-        value: Value,
-        /// The block entered with the yielded value and replacement continuation.
-        yielded: BlockTarget,
-        /// The block entered with the final return value.
-        returned: BlockTarget,
-        /// The cleanup block entered during panic unwinding.
-        unwind: Option<BlockTarget>,
-    },
     /// Invoke one callable target with normal and unwind continuations.
     Invoke {
         /// The call operation.
@@ -487,70 +437,6 @@ impl Terminator {
 
                 edges
             }
-            Terminator::Await {
-                resume,
-                cancel,
-                unwind,
-                ..
-            } => {
-                let mut edges = Vec::with_capacity(3);
-                edges.push(resume.edge(source, Successor::AwaitResume));
-                edges.push(cancel.edge(source, Successor::AwaitCancel));
-
-                if let Some(unwind) = unwind {
-                    edges.push(unwind.edge(source, Successor::AwaitUnwind));
-                }
-
-                edges
-            }
-            Terminator::Yield {
-                resume,
-                complete,
-                unwind,
-                ..
-            } => {
-                let mut edges = Vec::with_capacity(3);
-                edges.push(resume.edge(source, Successor::YieldResume));
-                edges.push(complete.edge(source, Successor::YieldComplete));
-
-                if let Some(unwind) = unwind {
-                    edges.push(unwind.edge(source, Successor::YieldUnwind));
-                }
-
-                edges
-            }
-            Terminator::ContinuationResume {
-                yielded,
-                returned,
-                unwind,
-                ..
-            } => {
-                let mut edges = Vec::with_capacity(3);
-                edges.push(yielded.edge(source, Successor::ContinuationResumeYielded));
-                edges.push(returned.edge(source, Successor::ContinuationResumeReturned));
-
-                if let Some(unwind) = unwind {
-                    edges.push(unwind.edge(source, Successor::ContinuationResumeUnwind));
-                }
-
-                edges
-            }
-            Terminator::ContinuationComplete {
-                yielded,
-                returned,
-                unwind,
-                ..
-            } => {
-                let mut edges = Vec::with_capacity(3);
-                edges.push(yielded.edge(source, Successor::ContinuationCompleteYielded));
-                edges.push(returned.edge(source, Successor::ContinuationCompleteReturned));
-
-                if let Some(unwind) = unwind {
-                    edges.push(unwind.edge(source, Successor::ContinuationCompleteUnwind));
-                }
-
-                edges
-            }
             Terminator::Invoke { target, unwind, .. } => {
                 vec![
                     target.edge(source, Successor::InvokeNormal),
@@ -621,60 +507,6 @@ impl Terminator {
 
                 default_changed || cases_changed
             }
-            Self::Await {
-                resume,
-                cancel,
-                unwind,
-                ..
-            } => {
-                let resume_changed = resume.rewrite(successor, &mut rewrite, tree);
-                let cancel_changed = cancel.rewrite(successor, &mut rewrite, tree);
-                let unwind_changed = if let Some(unwind) = unwind {
-                    unwind.rewrite(successor, &mut rewrite, tree)
-                } else {
-                    false
-                };
-
-                resume_changed || cancel_changed || unwind_changed
-            }
-            Self::Yield {
-                resume,
-                complete,
-                unwind,
-                ..
-            } => {
-                let resume_changed = resume.rewrite(successor, &mut rewrite, tree);
-                let complete_changed = complete.rewrite(successor, &mut rewrite, tree);
-                let unwind_changed = if let Some(unwind) = unwind {
-                    unwind.rewrite(successor, &mut rewrite, tree)
-                } else {
-                    false
-                };
-
-                resume_changed || complete_changed || unwind_changed
-            }
-            Self::ContinuationResume {
-                yielded,
-                returned,
-                unwind,
-                ..
-            }
-            | Self::ContinuationComplete {
-                yielded,
-                returned,
-                unwind,
-                ..
-            } => {
-                let yielded_changed = yielded.rewrite(successor, &mut rewrite, tree);
-                let returned_changed = returned.rewrite(successor, &mut rewrite, tree);
-                let unwind_changed = if let Some(unwind) = unwind {
-                    unwind.rewrite(successor, &mut rewrite, tree)
-                } else {
-                    false
-                };
-
-                yielded_changed || returned_changed || unwind_changed
-            }
             Self::Invoke { target, unwind, .. } => {
                 let target_changed = target.rewrite(successor, &mut rewrite, tree);
                 let unwind_changed = unwind.rewrite(successor, &mut rewrite, tree);
@@ -725,53 +557,6 @@ impl Terminator {
                         .iter()
                         .map(|case| case.target.block),
                 );
-
-                successors
-            }
-            Terminator::Await {
-                resume,
-                cancel,
-                unwind,
-                ..
-            } => {
-                let mut successors = smallvec![resume.block];
-                successors.push(cancel.block);
-                if let Some(unwind) = unwind {
-                    successors.push(unwind.block);
-                }
-
-                successors
-            }
-            Terminator::Yield {
-                resume,
-                complete,
-                unwind,
-                ..
-            } => {
-                let mut successors = smallvec![resume.block];
-                successors.push(complete.block);
-                if let Some(unwind) = unwind {
-                    successors.push(unwind.block);
-                }
-
-                successors
-            }
-            Terminator::ContinuationResume {
-                yielded,
-                returned,
-                unwind,
-                ..
-            }
-            | Terminator::ContinuationComplete {
-                yielded,
-                returned,
-                unwind,
-                ..
-            } => {
-                let mut successors = smallvec![yielded.block, returned.block];
-                if let Some(unwind) = unwind {
-                    successors.push(unwind.block);
-                }
 
                 successors
             }
@@ -860,63 +645,6 @@ impl Terminator {
 
                 uses
             }
-            Terminator::Await {
-                value,
-                resume,
-                cancel,
-                unwind,
-                ..
-            } => {
-                let mut uses = smallvec![*value];
-                uses.extend(resume.arguments(tree).iter().copied());
-                uses.extend(cancel.arguments(tree).iter().copied());
-
-                if let Some(unwind) = unwind {
-                    uses.extend(unwind.arguments(tree).iter().copied());
-                }
-
-                uses
-            }
-            Terminator::Yield {
-                value,
-                resume,
-                complete,
-                unwind,
-            } => {
-                let mut uses = smallvec![*value];
-                uses.extend(resume.arguments(tree).iter().copied());
-                uses.extend(complete.arguments(tree).iter().copied());
-
-                if let Some(unwind) = unwind {
-                    uses.extend(unwind.arguments(tree).iter().copied());
-                }
-
-                uses
-            }
-            Terminator::ContinuationResume {
-                continuation,
-                value,
-                yielded,
-                returned,
-                unwind,
-            }
-            | Terminator::ContinuationComplete {
-                continuation,
-                value,
-                yielded,
-                returned,
-                unwind,
-            } => {
-                let mut uses = smallvec![*continuation, *value];
-                uses.extend(yielded.arguments(tree).iter().copied());
-                uses.extend(returned.arguments(tree).iter().copied());
-
-                if let Some(unwind) = unwind {
-                    uses.extend(unwind.arguments(tree).iter().copied());
-                }
-
-                uses
-            }
             Terminator::Invoke {
                 call,
                 target,
@@ -969,21 +697,7 @@ impl Terminator {
     /// Return values consumed by this terminator.
     pub fn consumes(&self, tree: &Tree) -> SmallVec<[Value; 8]> {
         match self {
-            Terminator::Return { value: Some(value) }
-            | Terminator::Await { value, .. }
-            | Terminator::Yield { value, .. } => {
-                smallvec![*value]
-            }
-            Terminator::ContinuationResume {
-                continuation,
-                value,
-                ..
-            }
-            | Terminator::ContinuationComplete {
-                continuation,
-                value,
-                ..
-            } => smallvec![*continuation, *value],
+            Terminator::Return { value: Some(value) } => smallvec![*value],
             Terminator::Invoke { call, .. } | Terminator::TailCall { call } => call.uses(tree),
             _ => smallvec![],
         }
@@ -1072,66 +786,6 @@ impl Terminator {
                 &[]
             }
 
-            Terminator::Await {
-                resume,
-                cancel,
-                unwind,
-                ..
-            } => {
-                if resume.block == successor {
-                    resume.arguments(tree)
-                } else if cancel.block == successor {
-                    cancel.arguments(tree)
-                } else if let Some(unwind) = unwind
-                    && unwind.block == successor
-                {
-                    unwind.arguments(tree)
-                } else {
-                    &[]
-                }
-            }
-            Terminator::Yield {
-                resume,
-                complete,
-                unwind,
-                ..
-            } => {
-                if resume.block == successor {
-                    resume.arguments(tree)
-                } else if complete.block == successor {
-                    complete.arguments(tree)
-                } else if let Some(unwind) = unwind
-                    && unwind.block == successor
-                {
-                    unwind.arguments(tree)
-                } else {
-                    &[]
-                }
-            }
-            Terminator::ContinuationResume {
-                yielded,
-                returned,
-                unwind,
-                ..
-            }
-            | Terminator::ContinuationComplete {
-                yielded,
-                returned,
-                unwind,
-                ..
-            } => {
-                if yielded.block == successor {
-                    yielded.arguments(tree)
-                } else if returned.block == successor {
-                    returned.arguments(tree)
-                } else if let Some(unwind) = unwind
-                    && unwind.block == successor
-                {
-                    unwind.arguments(tree)
-                } else {
-                    &[]
-                }
-            }
             Terminator::Invoke { target, unwind, .. } => {
                 if target.block == successor {
                     target.arguments(tree)
@@ -1202,48 +856,6 @@ impl Terminator {
                     arguments.merge_target(&case.target, successor, tree);
                 }
             }
-            Terminator::Await {
-                resume,
-                cancel,
-                unwind,
-                ..
-            } => {
-                arguments.merge_target(resume, successor, tree);
-                arguments.merge_target(cancel, successor, tree);
-                if let Some(unwind) = unwind {
-                    arguments.merge_target(unwind, successor, tree);
-                }
-            }
-            Terminator::Yield {
-                resume,
-                complete,
-                unwind,
-                ..
-            } => {
-                arguments.merge_target(resume, successor, tree);
-                arguments.merge_target(complete, successor, tree);
-                if let Some(unwind) = unwind {
-                    arguments.merge_target(unwind, successor, tree);
-                }
-            }
-            Terminator::ContinuationResume {
-                yielded,
-                returned,
-                unwind,
-                ..
-            }
-            | Terminator::ContinuationComplete {
-                yielded,
-                returned,
-                unwind,
-                ..
-            } => {
-                arguments.merge_target(yielded, successor, tree);
-                arguments.merge_target(returned, successor, tree);
-                if let Some(unwind) = unwind {
-                    arguments.merge_target(unwind, successor, tree);
-                }
-            }
             Terminator::Invoke { target, unwind, .. } => {
                 arguments.merge_target(target, successor, tree);
                 arguments.merge_target(unwind, successor, tree);
@@ -1276,22 +888,6 @@ impl Terminator {
     /// Return the number of values produced directly for one successor.
     pub fn successor_result_count(&self, successor: LocalNodeId<Block>) -> usize {
         match self {
-            Terminator::Await { resume, .. } => usize::from(resume.block == successor),
-            Terminator::Yield {
-                resume, complete, ..
-            } => usize::from(resume.block == successor || complete.block == successor),
-            Terminator::ContinuationResume {
-                yielded, returned, ..
-            }
-            | Terminator::ContinuationComplete {
-                yielded, returned, ..
-            } if yielded.block == successor => 2,
-            Terminator::ContinuationResume { returned, .. }
-            | Terminator::ContinuationComplete { returned, .. }
-                if returned.block == successor =>
-            {
-                1
-            }
             Terminator::Invoke { target, .. } => usize::from(target.block == successor),
             Terminator::NewZeroedTry { success, .. }
             | Terminator::NewUninitTry { success, .. }
@@ -1306,7 +902,6 @@ impl Terminator {
     /// Return the dispatch when this terminator performs a call.
     pub fn call_dispatch(&self) -> Option<CallDispatch> {
         match self {
-            Terminator::Await { .. } => Some(CallDispatch::Direct),
             Terminator::Invoke { call, .. } | Terminator::TailCall { call } => {
                 Some(call.callee.dispatch())
             }
@@ -1325,7 +920,6 @@ impl Terminator {
     /// Return the direct target when this terminator performs a call.
     pub fn call_direct_target(&self) -> Option<FunctionId> {
         match self {
-            Terminator::Await { park, .. } => Some(*park),
             Terminator::Invoke { call, .. } | Terminator::TailCall { call } => {
                 call.callee.function()
             }

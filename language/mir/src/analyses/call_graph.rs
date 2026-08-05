@@ -584,43 +584,6 @@ b2:
         assert!(callgraph.open_callsites(test_id).is_empty());
     }
 
-    /// Await records its selected park implementation as a precise call edge.
-    #[test]
-    fn test_call_graph_await_direct() {
-        let test = TestProgram::new(
-            r#"
-external function park(int32, waiter<int32>): void
-
-async function test(v0: int32): int32 {
-entry(v0: int32):
-    await park(v0) => resumed | cancelled | failed
-
-resumed(v1: int32):
-    return v1
-
-cancelled:
-    return
-
-failed:
-    unwind.resume
-}
-"#,
-        );
-
-        let park_id = test.function_id_by_name("park");
-        let test_id = test.function_id_by_name("test");
-
-        let analyses = test.tree_analysis_cache();
-        let callgraph = analyses.get::<CallGraph>(&test.tree);
-
-        let outgoing = callgraph.outgoing(test_id);
-        assert_eq!(outgoing.len(), 1);
-        assert_eq!(outgoing[0].callee, park_id);
-        assert_eq!(outgoing[0].dispatch, mir::CallDispatch::Direct);
-        assert!(matches!(outgoing[0].callsite, mir::CallSite::Terminator(_)));
-        assert!(callgraph.open_callsites(test_id).is_empty());
-    }
-
     /// Class dispatch keeps a call edge and records an open target.
     #[test]
     fn test_call_graph_virtual_dispatch_is_partial() {

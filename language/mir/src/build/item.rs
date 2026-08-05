@@ -80,13 +80,11 @@ impl ModuleBuilder {
             lifetimes,
             parameters,
             result,
-            coroutine,
         } = header;
         let parameters = FunctionHeader::parameters_from_types(parameters);
-        let mut function = Function::declare(name, lifetimes, parameters, result)
+        let function = Function::declare(name, lifetimes, parameters, result)
             .with_arguments(arguments)
             .with_symbol(symbol);
-        function.coroutine = coroutine;
 
         self.tree.insert(function)
     }
@@ -100,13 +98,11 @@ impl ModuleBuilder {
             lifetimes,
             parameters,
             result,
-            coroutine,
         } = header;
         let parameters = FunctionHeader::parameters_from_types(parameters);
-        let mut function = Function::import(name, lifetimes, parameters, result)
+        let function = Function::import(name, lifetimes, parameters, result)
             .with_arguments(arguments)
             .with_symbol(symbol);
-        function.coroutine = coroutine;
 
         self.tree.insert(function)
     }

@@ -1293,20 +1293,12 @@ impl<'a> MemoryAccessCollector<'a> {
                 Self::single_effect(effect)
             }
             mir::Instruction::Call { .. } => self.call_effects(instruction_id, instruction),
-            mir::Instruction::ContextCurrent { .. }
+            mir::Instruction::CallDetach { .. }
+            | mir::Instruction::ContextCurrent { .. }
             | mir::Instruction::ContextReplace { .. }
             | mir::Instruction::ContextBind { .. }
             | mir::Instruction::Free { .. }
             | mir::Instruction::Drop { .. }
-            | mir::Instruction::ContinuationNew { .. }
-            | mir::Instruction::ContinuationDestroy { .. }
-            | mir::Instruction::WaiterQueue { .. }
-            | mir::Instruction::WaiterCancel { .. }
-            | mir::Instruction::TaskResolve { .. }
-            | mir::Instruction::TaskStart { .. }
-            | mir::Instruction::TaskPark { .. }
-            | mir::Instruction::TaskCancel { .. }
-            | mir::Instruction::TaskDetach { .. }
             | mir::Instruction::Pin { .. }
             | mir::Instruction::Unpin { .. }
             | mir::Instruction::NewZeroed { .. }
@@ -1341,11 +1333,7 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Terminator::NewZeroedTry { .. }
             | mir::Terminator::NewUninitTry { .. }
             | mir::Terminator::NewSliceZeroedTry { .. }
-            | mir::Terminator::NewSliceUninitTry { .. }
-            | mir::Terminator::Await { .. }
-            | mir::Terminator::Yield { .. }
-            | mir::Terminator::ContinuationResume { .. }
-            | mir::Terminator::ContinuationComplete { .. } => {
+            | mir::Terminator::NewSliceUninitTry { .. } => {
                 Self::single_effect(MemoryAccessEffect::read_write(
                     MemoryRegion::any_spaces(mir::StorageSet::ANY),
                     false,

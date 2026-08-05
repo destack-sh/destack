@@ -166,15 +166,6 @@ impl PureExpression {
             // side effects and unstable reads are not pure expressions
             mir::Instruction::Const { .. }
             | mir::Instruction::Call { .. }
-            | mir::Instruction::ContinuationNew { .. }
-            | mir::Instruction::ContinuationDestroy { .. }
-            | mir::Instruction::WaiterQueue { .. }
-            | mir::Instruction::WaiterCancel { .. }
-            | mir::Instruction::TaskResolve { .. }
-            | mir::Instruction::TaskStart { .. }
-            | mir::Instruction::TaskPark { .. }
-            | mir::Instruction::TaskCancel { .. }
-            | mir::Instruction::TaskDetach { .. }
             | mir::Instruction::Drop { .. }
             | mir::Instruction::Intrinsic { .. }
             | mir::Instruction::Load { .. }
@@ -235,6 +226,7 @@ impl PureExpression {
             | mir::Instruction::FunctionEnvironment { .. }
             | mir::Instruction::FunctionEnvironmentCurrent { .. }
             | mir::Instruction::ContextCurrent { .. }
+            | mir::Instruction::CallDetach { .. }
             | mir::Instruction::ContextReplace { .. }
             | mir::Instruction::ContextBind { .. }
             | mir::Instruction::ContextGet { .. }

@@ -402,20 +402,6 @@ impl TypeHasher {
                 self.hasher.write_u8(27);
                 self.hash_type(*signature, tree);
             }
-            Type::Continuation {
-                resume_type,
-                yield_type,
-                return_type,
-            } => {
-                self.hasher.write_u8(28);
-                self.hash_type(*resume_type, tree);
-                self.hash_type(*yield_type, tree);
-                self.hash_type(*return_type, tree);
-            }
-            Type::Waiter { value_type } => {
-                self.hasher.write_u8(29);
-                self.hash_type(*value_type, tree);
-            }
             Type::Application { base, lifetimes } => {
                 self.hasher.write_u8(30);
                 self.hash_type(*base, tree);

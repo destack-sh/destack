@@ -417,18 +417,6 @@ impl Tree {
             Type::FunctionPointer { signature } => Type::FunctionPointer {
                 signature: self.intern_representation(signature),
             },
-            Type::Continuation {
-                resume_type,
-                yield_type,
-                return_type,
-            } => Type::Continuation {
-                resume_type: self.intern_representation(resume_type),
-                yield_type: self.intern_representation(yield_type),
-                return_type: self.intern_representation(return_type),
-            },
-            Type::Waiter { value_type } => Type::Waiter {
-                value_type: self.intern_representation(value_type),
-            },
 
             // erase pure lifetime applications
             Type::Application { base, .. } => return self.intern_representation(base),
@@ -665,18 +653,6 @@ impl Tree {
             },
             Type::FunctionPointer { signature } => Type::FunctionPointer {
                 signature: self.instantiate_type_lifetimes(signature, arguments),
-            },
-            Type::Continuation {
-                resume_type,
-                yield_type,
-                return_type,
-            } => Type::Continuation {
-                resume_type: self.instantiate_type_lifetimes(resume_type, arguments),
-                yield_type: self.instantiate_type_lifetimes(yield_type, arguments),
-                return_type: self.instantiate_type_lifetimes(return_type, arguments),
-            },
-            Type::Waiter { value_type } => Type::Waiter {
-                value_type: self.instantiate_type_lifetimes(value_type, arguments),
             },
 
             // instantiate explicit applications without entering their identified base

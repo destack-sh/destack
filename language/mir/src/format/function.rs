@@ -103,24 +103,9 @@ pub(super) fn format_lifetime_where<'a>(
     Ok(())
 }
 
-/// Format the async and generator function modifiers.
-fn format_function_keyword<'a>(function: &Function, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-    if function
-        .coroutine
-        .is_some_and(|coroutine| coroutine.is_async())
-    {
-        write!(f, [token("async"), space()])?;
-    }
-
-    write!(f, [token("function")])?;
-    if function
-        .coroutine
-        .is_some_and(|coroutine| coroutine.is_generator())
-    {
-        write!(f, [token("*")])?;
-    }
-
-    Ok(())
+/// Format the function keyword.
+fn format_function_keyword<'a>(_function: &Function, f: &mut Writer<'a, '_>) -> FormatResult<()> {
+    write!(f, [token("function")])
 }
 
 /// Format one function's concrete generic arguments and lifetime binders.
