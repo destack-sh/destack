@@ -4,9 +4,13 @@ import { sizeOf } from "destack:reflect";
 
 import { One, Zero } from "./identity.ds";
 
+/// Marker for integer literals, intervals, and builtin integer types.
+@languageItem("math.IntegerDomain")
+export newtype interface IntegerDomain {}
+
 /// Marker for the builtin integer types of any width.
 @languageItem("math.Integer")
-export newtype interface Integer extends Concrete, Zero, One {}
+export newtype interface Integer extends Concrete, IntegerDomain, Zero, One {}
 
 /// Methods shared by every builtin integer type.
 export extension<T: Integer> of T {

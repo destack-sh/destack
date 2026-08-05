@@ -2,10 +2,10 @@ export * from "./bigint.ds";
 export * from "./number.ds";
 export * from "./math.ds";
 
-export { Float } from "./float.ds";
+export { Float, FloatDomain } from "./float.ds";
 export { One, Zero } from "./identity.ds";
-export { Integer } from "./integer.ds";
-export { Numeric } from "./numeric.ds";
+export { Integer, IntegerDomain } from "./integer.ds";
+export { Numeric, NumericDomain } from "./numeric.ds";
 export { Arithmetic } from "./arithmetic.ds";
 export { Cast } from "./cast.ds";
 export { Wrapping } from "./wrapping.ds";

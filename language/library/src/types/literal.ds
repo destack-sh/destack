@@ -1,0 +1,3 @@
+/// Recursively widen literal refinements in `T`.
+@languageItem("types.Widen")
+export type Widen<T> = intrinsic;

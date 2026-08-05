@@ -7,6 +7,7 @@ export {
     ReturnType,
     ThisParameterType,
 } from "./function.ds";
+export { Widen } from "./literal.ds";
 export {
     Awaited,
     Exclude,

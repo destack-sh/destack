@@ -45,6 +45,7 @@ global {
         ThisType,
         Uncapitalize,
         Uppercase,
+        Widen,
     } from "destack:types";
 
     // destack:memory

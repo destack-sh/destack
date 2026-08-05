@@ -3,9 +3,13 @@ import { Concrete } from "destack:memory";
 
 import { One, Zero } from "./identity.ds";
 
+/// Marker for float literals and builtin float types.
+@languageItem("math.FloatDomain")
+export newtype interface FloatDomain {}
+
 /// Marker for the builtin float formats of any width.
 @languageItem("math.Float")
-export newtype interface Float extends Concrete, Zero, One {}
+export newtype interface Float extends Concrete, FloatDomain, Zero, One {}
 
 /// Methods shared by every builtin float format.
 export extension<T: Float> of T {
