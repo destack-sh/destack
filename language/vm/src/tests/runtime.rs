@@ -16,8 +16,6 @@ pub(crate) enum RuntimeCall {
     Poll {
         /// Action returned to the machine.
         action: program::Poll,
-        /// Managed roots visible at the poll.
-        root_count: usize,
     },
     /// Call one linked runtime binding.
     Binding {
@@ -26,52 +24,20 @@ pub(crate) enum RuntimeCall {
         /// Flattened binding arguments.
         arguments: Vec<program::Word>,
     },
-    /// Settle one waiter with a value.
-    Queue {
-        /// Waiter passed to the runtime.
-        waiter: program::Waiter,
-        /// Value passed to the runtime.
-        value: program::Value,
-    },
-    /// Cancel one waiter.
-    CancelWaiter(program::Waiter),
-    /// Create one completed task.
-    Resolve {
-        /// Task returned by the runtime.
-        task: program::Task,
-        /// Completed task value.
-        value: program::Value,
-    },
-    /// Start one eager task.
-    Start(program::Task),
-    /// Suspend one eager task.
-    Suspend {
-        /// Task passed to the runtime.
-        task: program::Task,
-        /// Waiter returned by the runtime.
-        waiter: program::Waiter,
-        /// Continuation passed to the runtime.
-        continuation: program::Continuation,
-    },
-    /// Park one waiter on a task.
+    /// Park one logical fiber.
     Park {
-        /// Task passed to the runtime.
-        task: program::Task,
-        /// Waiter passed to the runtime.
-        waiter: program::Waiter,
+        /// The parked fiber identity.
+        fiber: program::Fiber,
     },
-    /// Request task cancellation.
-    CancelTask(program::Task),
-    /// Query task cancellation.
-    IsCancelled(program::Task),
-    /// Detach one task result.
-    Detach(program::Task),
-    /// Finish one eager task.
-    Finish {
-        /// Task passed to the runtime.
-        task: program::Task,
-        /// Terminal task outcome.
-        outcome: program::TaskOutcome,
+    /// Allocate one detached fiber identity.
+    Detach {
+        /// The issued identity.
+        fiber: program::Fiber,
+    },
+    /// Retire one detached fiber that never parked.
+    Retire {
+        /// The retired identity.
+        fiber: program::Fiber,
     },
 }
 
@@ -80,14 +46,14 @@ pub(crate) enum RuntimeCall {
 pub(crate) struct TestRuntime {
     /// Binding implementations keyed by stable identity.
     bindings: HashMap<program::BindingId, TestBinding>,
-    /// Next task slot issued by this runtime.
-    next_task_index: u32,
-    /// Next waiter slot issued by this runtime.
-    next_waiter_index: u32,
+    /// Wake values delivered to the next parks.
+    wakes: Vec<program::Value>,
     /// Action returned by the next requested poll.
     poll: Option<program::Poll>,
     /// Runtime calls in execution order.
     calls: Vec<RuntimeCall>,
+    /// Next detached fiber slot to issue.
+    next_fiber: u32,
 }
 
 impl TestRuntime {
@@ -116,20 +82,10 @@ impl program::Runtime for TestRuntime {
         self.poll.is_some()
     }
 
-    /// Service one requested poll against the active roots.
-    fn poll(
-        &mut self,
-        _memory: program::Memory<'_>,
-        roots: &mut dyn program::RootSet<Error = Self::Error>,
-    ) -> Result<program::Poll> {
+    /// Service one requested poll.
+    fn poll(&mut self, _memory: program::Memory<'_>) -> Result<program::Poll> {
         let action = self.poll.take().ok_or_else(Error::invalid_instruction)?;
-        let mut root_count = 0;
-        roots.visit(&mut |_root| {
-            root_count += 1;
-
-            Ok(())
-        })?;
-        self.calls.push(RuntimeCall::Poll { action, root_count });
+        self.calls.push(RuntimeCall::Poll { action });
 
         Ok(action)
     }
@@ -139,6 +95,7 @@ impl program::Runtime for TestRuntime {
         &mut self,
         memory: program::Memory<'_>,
         _context: program::Context,
+        _fiber: program::Fiber,
         binding: &program::Binding,
         arguments: &[program::Word],
         result: &mut [program::Word],
@@ -154,86 +111,30 @@ impl program::Runtime for TestRuntime {
         invoke(memory, arguments, result)
     }
 
-    /// Record one waiter settlement.
-    fn queue_waiter(&mut self, waiter: program::Waiter, value: program::Value) -> Result<bool> {
-        self.calls.push(RuntimeCall::Queue { waiter, value });
+    /// Park one logical fiber or deliver one queued wake.
+    fn park(&mut self, fiber: program::Fiber) -> Result<program::Park> {
+        self.calls.push(RuntimeCall::Park { fiber });
 
-        Ok(true)
+        // deliver one queued wake immediately when present
+        if self.wakes.is_empty() {
+            Ok(program::Park::Parked)
+        } else {
+            Ok(program::Park::Ready(self.wakes.remove(0)))
+        }
     }
 
-    /// Record one waiter cancellation.
-    fn cancel_waiter(&mut self, waiter: program::Waiter) -> Result<bool> {
-        self.calls.push(RuntimeCall::CancelWaiter(waiter));
+    /// Allocate one detached fiber identity.
+    fn detach(&mut self) -> Result<program::Fiber> {
+        let fiber = program::Fiber::new(self.next_fiber, 1);
+        self.next_fiber += 1;
+        self.calls.push(RuntimeCall::Detach { fiber });
 
-        Ok(true)
+        Ok(fiber)
     }
 
-    /// Record one completed task creation.
-    fn resolve_task(&mut self, value: program::Value) -> program::Task {
-        let task = program::Task::new(self.next_task_index, 1);
-        self.next_task_index += 1;
-        self.calls.push(RuntimeCall::Resolve { task, value });
-
-        task
-    }
-
-    /// Record one eager task creation.
-    fn start_task(&mut self) -> program::Task {
-        let task = program::Task::new(self.next_task_index, 1);
-        self.next_task_index += 1;
-        self.calls.push(RuntimeCall::Start(task));
-
-        task
-    }
-
-    /// Record one task cancellation request.
-    fn cancel_task(&mut self, task: program::Task) -> Result<()> {
-        self.calls.push(RuntimeCall::CancelTask(task));
-
-        Ok(())
-    }
-
-    /// Record one eager task suspension.
-    fn suspend_task(
-        &mut self,
-        task: program::Task,
-        continuation: program::Continuation,
-    ) -> std::result::Result<program::Waiter, (Self::Error, program::Continuation)> {
-        let waiter = program::Waiter::new(self.next_waiter_index, 1);
-        self.next_waiter_index += 1;
-        self.calls.push(RuntimeCall::Suspend {
-            task,
-            waiter,
-            continuation,
-        });
-
-        Ok(waiter)
-    }
-
-    /// Record one task result waiter.
-    fn park_task(&mut self, task: program::Task, waiter: program::Waiter) -> Result<()> {
-        self.calls.push(RuntimeCall::Park { task, waiter });
-
-        Ok(())
-    }
-
-    /// Record one cancellation query.
-    fn is_task_cancelled(&mut self, task: program::Task) -> Result<bool> {
-        self.calls.push(RuntimeCall::IsCancelled(task));
-
-        Ok(false)
-    }
-
-    /// Record one detached task result.
-    fn detach_task(&mut self, task: program::Task) -> Result<()> {
-        self.calls.push(RuntimeCall::Detach(task));
-
-        Ok(())
-    }
-
-    /// Record one terminal task outcome.
-    fn finish_task(&mut self, task: program::Task, outcome: program::TaskOutcome) -> Result<()> {
-        self.calls.push(RuntimeCall::Finish { task, outcome });
+    /// Retire one detached fiber that never parked.
+    fn retire(&mut self, fiber: program::Fiber) -> Result<()> {
+        self.calls.push(RuntimeCall::Retire { fiber });
 
         Ok(())
     }

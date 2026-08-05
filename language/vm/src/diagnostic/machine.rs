@@ -14,6 +14,8 @@ pub enum MachineError {
     ExecutionNotStopped,
     /// A machine image does not match the linked frame tables.
     InvalidImage,
+    /// A detach boundary split could not relocate its suffix frames.
+    InvalidSplit,
     /// The Program pointer width differs from the host pointer width.
     IncompatiblePointerWidth {
         /// The Program pointer width in bytes.
@@ -31,6 +33,7 @@ impl fmt::Display for MachineError {
             Self::ExecutionActive => formatter.write_str("execution is already active"),
             Self::ExecutionNotStopped => formatter.write_str("execution is not stopped"),
             Self::InvalidImage => formatter.write_str("invalid machine image"),
+            Self::InvalidSplit => formatter.write_str("invalid detach boundary split"),
             Self::IncompatiblePointerWidth { program, host } => write!(
                 formatter,
                 "program uses {program}-byte pointers on a {host}-byte host"

@@ -1,6 +1,6 @@
 use destack_bytecode::{RegisterId, RegisterSpan};
 use destack_mir::{GlobalStorage, ReferenceKind, Space, Storage};
-use destack_program::{CoroutineKind, MemoryAccess, Poll, StopReason, StopSet, WatchSet, Word};
+use destack_program::{MemoryAccess, Poll, StopReason, StopSet, WatchSet, Word};
 
 use super::{RuntimeCall, TestMachine, TestProgram};
 
@@ -24,7 +24,7 @@ function f0 {
     );
     machine.request_poll(Poll::Pause);
 
-    // expose the live allocation to the runtime and retain the poll successor
+    // pause at the poll and retain the poll successor
     let reason = machine.run_to_stop(0, &[], None, None);
     assert_eq!(
         reason,
@@ -36,7 +36,6 @@ function f0 {
         machine.take_runtime_calls(),
         vec![RuntimeCall::Poll {
             action: Poll::Pause,
-            root_count: 1,
         }]
     );
 
@@ -187,62 +186,13 @@ function f1 {
     // capture both physical frames before the callee dereferences its caller
     let stopped = machine.run_to_stop(0, &[Word::int32(41)], Some(&stops), None);
     assert_eq!(stopped, reason);
-    let (image, memory) = machine.capture();
-    assert_eq!(image.frames().len(), 2);
+    let (fiber, memory) = machine.fork_fiber();
+    assert_eq!(fiber.frame_count(), 2);
 
     // restore into a distinct virtual memory map and follow the frame address
-    machine.restore(image, memory);
+    machine.adopt_fiber(fiber, memory);
     let value = machine.continue_to_completion(Some(&stops), None, stopped.resume_skip());
     assert_eq!(value, vec![Word::int32(41)]);
-}
-
-/// Restore a stopped destructor with its retained continuation value.
-#[test]
-fn test_restore_continuation_destruction() {
-    let program = TestProgram::words()
-        .signature(0, [1], 0)
-        .signature(1, [0], 0)
-        .signature(2, [0], 0)
-        .coroutine(1, CoroutineKind::GENERATOR)
-        .reference(1, 0, ReferenceKind::Borrowed, Storage::Frame)
-        .frame(0, 1, [(RegisterSpan::new(RegisterId(0), 1), 1)])
-        .frame(2, 1, [])
-        .local_global()
-        .destructor(0, Storage::Frame, 0);
-    let mut machine = TestMachine::parse(
-        r#"
-function destroy {
-    breakpoint
-    load r1, r0: int32
-    global.address.local r15, g0
-    store r15, r1: int32
-    return
-}
-
-function generate {
-    unreachable
-}
-
-function owner {
-    continuation.new r1, generate, r0
-    continuation.destroy r1
-    global.address.local r15, g0
-    load r3, r15: int32
-    return r3
-}
-"#,
-        program,
-    );
-
-    // stop while the destructor points into retained continuation storage
-    machine.run_to_stop(2, &[Word::int32(47)], None, None);
-    let (image, memory) = machine.capture();
-    assert_eq!(image.frames().len(), 3);
-
-    // restore the owner, retained frame, and destructor into a fresh memory map
-    machine.restore(image, memory);
-    let value = machine.continue_to_completion(None, None, None);
-    assert_eq!(value, vec![Word::int32(47)]);
 }
 
 /// Expose managed references retained by stopped physical frames as mutable roots.

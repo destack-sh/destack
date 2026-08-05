@@ -7,12 +7,12 @@ use destack_mir::{
 };
 use destack_program as program;
 use destack_program::{
-    AllocationSite, BreakpointId, CallDispatch, CallMode, CallSite, ContinuationSite, CounterId,
-    CounterSite, DynamicEntry, DynamicTableBuilder, FunctionId, LayoutId, LayoutShapeBuilder,
-    MemoryAccess, MemorySite, MemoryStop, MemoryTarget, ObjectLayoutBuilder, ProgramPoint,
-    ReferenceLayout, SampleSite, SamplerId, ScalarFormat, Signature, SignatureId, SiteTableBuilder,
-    StopPoint, StopReason, Suspension, SuspensionSite, TensorDimension, TensorLayoutBuilder,
-    TensorViewLayoutBuilder, TypeId, VirtualTableBuilder, WatchpointId, Word,
+    AllocationSite, BreakpointId, CallDispatch, CallMode, CallSite, CounterId, CounterSite,
+    DynamicEntry, DynamicTableBuilder, FunctionId, LayoutId, LayoutShapeBuilder, MemoryAccess,
+    MemorySite, MemoryStop, MemoryTarget, ObjectLayoutBuilder, ProgramPoint, ReferenceLayout,
+    SampleSite, SamplerId, ScalarFormat, Signature, SignatureId, SiteTableBuilder, StopPoint,
+    StopReason, TensorDimension, TensorLayoutBuilder, TensorViewLayoutBuilder, TypeId,
+    VirtualTableBuilder, WatchpointId, Word,
 };
 
 pub(super) const TEST_GLOBAL_BYTES: usize = Word::BYTE_LEN;
@@ -27,14 +27,10 @@ pub(crate) struct TestProgram {
     pub(super) default_signature: Option<Signature>,
     /// Hidden environment types keyed by bytecode function id.
     pub(super) environments: HashMap<u32, TypeId>,
-    /// Coroutine behavior keyed by bytecode function id.
-    pub(super) coroutines: HashMap<u32, program::CoroutineKind>,
     /// Program global locations in dense global id order.
     pub(super) globals: Vec<program::GlobalLocation>,
     /// Program sites under test.
     pub(super) sites: SiteTableBuilder,
-    /// Suspension sites awaiting canonical frame state assignment.
-    pub(super) suspensions: Vec<TestSuspension>,
     /// Virtual tables in dense runtime id order.
     pub(super) virtual_tables: Vec<VirtualTableBuilder>,
     /// Dynamic tables in dense runtime id order.
@@ -58,52 +54,6 @@ pub(super) struct TestFrame {
     pub(super) operation: u32,
     /// Physical register spans and their Program types.
     pub(super) values: Vec<(bytecode::RegisterSpan, TypeId)>,
-}
-
-/// One suspension site before its canonical frame state is linked.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct TestSuspension {
-    /// The suspension operation point.
-    point: ProgramPoint,
-    /// The normal resumption point.
-    resume: ProgramPoint,
-    /// The cancellation cleanup point when present.
-    cancel: Optional<ProgramPoint>,
-    /// The generator completion point when present.
-    complete: Optional<ProgramPoint>,
-    /// The panic unwind point when present.
-    unwind: Optional<ProgramPoint>,
-    /// The suspension operation.
-    operation: Suspension,
-    /// The suspended value type.
-    value_type: TypeId,
-    /// The normal resumption value type.
-    resume_type: TypeId,
-    /// The generator completion value type when present.
-    complete_type: Optional<TypeId>,
-}
-
-impl TestSuspension {
-    /// Return the suspension operation point.
-    pub(super) const fn point(self) -> ProgramPoint {
-        self.point
-    }
-
-    /// Link this suspension to its canonical frame state.
-    pub(super) fn link(self, frame_state: program::FrameStateId) -> SuspensionSite {
-        SuspensionSite {
-            point: self.point,
-            resume: self.resume,
-            cancel: self.cancel,
-            complete: self.complete,
-            unwind: self.unwind,
-            frame_state,
-            operation: self.operation,
-            value_type: self.value_type,
-            resume_type: self.resume_type,
-            complete_type: self.complete_type,
-        }
-    }
 }
 
 /// One concrete test type layout.
@@ -241,72 +191,6 @@ impl TestProgram {
         }
     }
 
-    /// Create one await suspension site.
-    pub(crate) const fn await_site(
-        function: u32,
-        operation: u32,
-        resume: u32,
-        cancel: u32,
-        unwind: u32,
-        value_type: u32,
-        resume_type: u32,
-    ) -> TestSuspension {
-        TestSuspension {
-            point: Self::point(function, operation),
-            resume: Self::point(function, resume),
-            cancel: Optional::some(Self::point(function, cancel)),
-            complete: Optional::none(),
-            unwind: Optional::some(Self::point(function, unwind)),
-            operation: Suspension::Await,
-            value_type: TypeId(value_type),
-            resume_type: TypeId(resume_type),
-            complete_type: Optional::none(),
-        }
-    }
-
-    /// Create one yield suspension site.
-    pub(crate) const fn yield_site(
-        function: u32,
-        operation: u32,
-        resume: u32,
-        complete: u32,
-        unwind: u32,
-        value_type: u32,
-        resume_type: u32,
-        complete_type: u32,
-    ) -> TestSuspension {
-        TestSuspension {
-            point: Self::point(function, operation),
-            resume: Self::point(function, resume),
-            cancel: Optional::none(),
-            complete: Optional::some(Self::point(function, complete)),
-            unwind: Optional::some(Self::point(function, unwind)),
-            operation: Suspension::Yield,
-            value_type: TypeId(value_type),
-            resume_type: TypeId(resume_type),
-            complete_type: Optional::some(TypeId(complete_type)),
-        }
-    }
-
-    /// Create one continuation control site.
-    pub(crate) const fn continuation_site(
-        function: u32,
-        operation: u32,
-        yielded: u32,
-        returned: u32,
-        unwind: Option<u32>,
-    ) -> ContinuationSite {
-        ContinuationSite {
-            point: Self::point(function, operation),
-            yielded: Self::point(function, yielded),
-            returned: Self::point(function, returned),
-            unwind: match unwind {
-                Some(operation) => Optional::some(Self::point(function, operation)),
-                None => Optional::none(),
-            },
-        }
-    }
-
     /// Create one direct returning call site.
     pub(crate) const fn call(function: u32, operation: u32, resume: u32, target: u32) -> CallSite {
         CallSite {
@@ -357,10 +241,8 @@ impl TestProgram {
             signatures: Vec::new(),
             default_signature: None,
             environments: HashMap::new(),
-            coroutines: HashMap::new(),
             globals: Vec::new(),
             sites: SiteTableBuilder::new(),
-            suspensions: Vec::new(),
             virtual_tables: Vec::new(),
             dynamic_tables: Vec::new(),
             dynamic_table_ids: HashMap::new(),
@@ -409,20 +291,6 @@ impl TestProgram {
         self
     }
 
-    /// Set one function's hidden environment type.
-    pub(crate) fn environment(mut self, function: u32, ty: u32) -> Self {
-        self.environments.insert(function, TypeId(ty));
-
-        self
-    }
-
-    /// Set one function's coroutine behavior.
-    pub(crate) fn coroutine(mut self, function: u32, coroutine: program::CoroutineKind) -> Self {
-        self.coroutines.insert(function, coroutine);
-
-        self
-    }
-
     /// Append one mutable worker-local global.
     pub(crate) fn local_global(mut self) -> Self {
         self.globals.push(program::GlobalLocation::LocalStatic);
@@ -461,23 +329,6 @@ impl TestProgram {
     /// Set profile sample sites.
     pub(crate) fn samples(mut self, sites: impl IntoIterator<Item = SampleSite>) -> Self {
         self.sites = self.sites.samples(sites);
-
-        self
-    }
-
-    /// Set coroutine suspension sites.
-    pub(crate) fn suspensions(mut self, sites: impl IntoIterator<Item = TestSuspension>) -> Self {
-        self.suspensions = sites.into_iter().collect();
-
-        self
-    }
-
-    /// Set continuation control sites.
-    pub(crate) fn continuations(
-        mut self,
-        sites: impl IntoIterator<Item = ContinuationSite>,
-    ) -> Self {
-        self.sites = self.sites.continuations(sites);
 
         self
     }

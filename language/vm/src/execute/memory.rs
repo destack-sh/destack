@@ -45,7 +45,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let registers = operands.span()?;
         let frame = self.frame();
         let byte_offset = frame.range(registers) * Word::BYTE_LEN;
-        let reference = self.machine.stack.memory_offset(byte_offset);
+        let reference = self.fiber.stack.memory_offset(byte_offset);
 
         self.write(target.0, Word::from_bits(reference as u64));
 
@@ -276,10 +276,10 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let address = self.resolve_address(address.0, mode, byte_len)?;
 
         // clear register padding before loading exact layout bytes
-        self.machine.stack.zero(target.start, target.len())?;
+        self.fiber.stack.zero(target.start, target.len())?;
 
         // load each volatile byte exactly once or copy the ordinary range
-        let target = self.machine.stack.address(target.start) as *mut u8;
+        let target = self.fiber.stack.address(target.start) as *mut u8;
         if is_volatile {
             for offset in 0..byte_len {
                 // SAFETY: volatile load requires one live source and target byte
@@ -314,7 +314,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let address = self.resolve_address(address.0, mode, byte_len)?;
 
         // store each volatile byte exactly once or copy the ordinary range
-        let value = self.machine.stack.address(value.start) as *const u8;
+        let value = self.fiber.stack.address(value.start) as *const u8;
         if is_volatile {
             for offset in 0..byte_len {
                 // SAFETY: volatile store requires one live source and target byte

@@ -184,8 +184,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                 continue;
             };
 
-            // retain the completed access in an activation image
-            self.capture(frame.pc)?;
+            // retain the stopped frames in place for later continuation
+            self.retain_stop(frame.pc);
             let reason = StopReason::Watchpoint {
                 watchpoint_id,
                 point,
@@ -220,7 +220,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             }
             Some(Storage::Frame) => {
                 let offset = self
-                    .machine
+                    .fiber
                     .stack
                     .byte_offset(address)
                     .ok_or_else(|| self.invalid_instruction())?;

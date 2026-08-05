@@ -65,7 +65,7 @@ impl TestProgram {
         }
 
         // build physical bytecode and canonical Program frame tables
-        let (functions, frames, registers, frame_table, frame_states) = self.frames(&object);
+        let (functions, frames, registers, frame_table, _frame_states) = self.frames(&object);
         let code = CodeBuilder::new()
             .functions(functions)
             .frames(frames)
@@ -86,15 +86,7 @@ impl TestProgram {
                 .map(|index| Symbol::from_raw(index as u64))
                 .zip(globals),
         );
-        let suspensions = self.suspensions.into_iter().map(|site| {
-            let point = FramePoint::operation(site.point());
-            let frame_state = *frame_states
-                .get(&point)
-                .expect("test suspension requires a matching frame state");
-
-            site.link(frame_state)
-        });
-        let sites = self.sites.suspensions(suspensions);
+        let sites = self.sites;
         let program = ProgramBuilder::new(Default::default())
             .bytecode(code)
             .strings(&strings, names)
@@ -299,9 +291,6 @@ impl TestProgram {
                     BindingAffinity::None,
                 ));
             }
-            if let Some(coroutine) = self.coroutines.get(&(index as u32)).copied() {
-                entry = entry.coroutine(coroutine);
-            }
             names.push(name);
             let signature = self
                 .signatures
@@ -374,40 +363,6 @@ impl TestProgram {
             let entry_register_count = u16::try_from(entry_register_count)
                 .expect("test function entry should fit one register window");
             function.register_count = function.register_count.max(entry_register_count);
-
-            // retain the complete callable input before coroutine execution
-            if self.coroutines.contains_key(&(function_index as u32)) {
-                let mut register_start = 0u16;
-                let values = entry_types
-                    .iter()
-                    .copied()
-                    .map(|ty| {
-                        let word_count = self
-                            .layouts
-                            .iter()
-                            .find(|layout| layout.ty == ty)
-                            .map_or(1, |layout| {
-                                layout.byte_len.div_ceil(Word::BYTE_LEN as u32) as u16
-                            });
-                        let span = bytecode::RegisterSpan::new(
-                            bytecode::RegisterId(register_start),
-                            word_count,
-                        );
-                        register_start += word_count;
-
-                        (span, ty)
-                    })
-                    .collect::<Vec<_>>();
-                Self::append_frame(
-                    FramePoint::entry(FunctionId(function_index as u32)),
-                    &values,
-                    &mut maps,
-                    &mut registers,
-                    &mut states,
-                    &mut layouts,
-                    &self.layouts,
-                );
-            }
 
             // append operation maps after the entry state
             for frame in configured

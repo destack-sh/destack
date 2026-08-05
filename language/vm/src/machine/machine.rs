@@ -1,21 +1,20 @@
+use std::fmt;
 use std::sync::Arc;
-use std::{fmt, process};
 
 use destack_bytecode::{Code, CodeRange, Function};
 use destack_memory::MemoryMap;
 use destack_mir as mir;
 use destack_program as program;
 use destack_program::{
-    ActivationImage, ContinuationTable, FunctionId, Outcome, Profile, Program, ResumeSkip, Runtime,
-    StopSet, Value, WatchSet, Word,
+    FunctionId, Outcome, Profile, Program, ResumeSkip, Runtime, StopSet, Value, WatchSet, Word,
 };
 
 use crate::diagnostic::{Error, ExecutionError, Result};
 use crate::options::MachineLimits;
 
-use super::{Activation, Callee, Frame, Return, Stack};
+use super::{Activation, Callee, Fiber, Frame, Return};
 
-/// One bytecode machine bound to a Program and world memory.
+/// One bytecode machine bound to a Program, executing over borrowed fibers.
 pub struct Machine {
     /// The immutable linked Program.
     pub(crate) program: Arc<Program>,
@@ -23,23 +22,13 @@ pub struct Machine {
     pub(crate) bytecode: Code,
     /// The machine resource limits.
     pub(crate) limits: MachineLimits,
-    /// The active call frames.
-    pub(crate) frames: Vec<Frame>,
-    /// The contiguous register stack.
-    pub(crate) stack: Stack,
-    /// Canonical execution captured at a runtime or debugger stop.
-    pub(crate) activation: Option<ActivationImage>,
     /// Reusable storage for flattened runtime binding calls.
     pub(crate) binding_buffer: Vec<Word>,
 }
 
 impl Machine {
     /// Create one bytecode machine.
-    pub fn new(
-        program: Arc<Program>,
-        memory: Arc<MemoryMap>,
-        limits: MachineLimits,
-    ) -> Result<Self> {
+    pub fn new(program: Arc<Program>, limits: MachineLimits) -> Result<Self> {
         let bytecode = program
             .bytecode()
             .copied()
@@ -52,72 +41,33 @@ impl Machine {
             ));
         }
 
-        // reserve the reusable execution stack
-        let stack = Stack::new(memory, limits.stack_bytes)?;
-
         Ok(Self {
             program,
             bytecode,
             limits,
-            frames: Vec::new(),
-            stack,
-            activation: None,
             binding_buffer: Vec::new(),
         })
     }
 
-    /// Fork this machine over one already-forked world memory map.
-    pub fn fork(&self, memory: Arc<MemoryMap>) -> Self {
-        let stack = self.stack.fork(memory);
+    /// Reserve one idle fiber sized by this machine's limits.
+    pub fn reserve_fiber(&self, memory: Arc<MemoryMap>) -> Result<Fiber> {
+        Fiber::new(memory, self.limits.stack_bytes)
+    }
+
+    /// Fork this machine for one forked world.
+    pub fn fork(&self) -> Self {
         Self {
             program: self.program.clone(),
             bytecode: self.bytecode,
             limits: self.limits,
-            frames: self.frames.clone(),
-            stack,
-            activation: self.activation.as_ref().map(ActivationImage::inherit),
             binding_buffer: Vec::new(),
         }
     }
 
-    /// Create one empty machine over the same Program and world memory.
-    pub fn spawn(&self) -> Result<Self> {
-        Self::new(self.program.clone(), self.stack.memory(), self.limits)
-    }
-
-    /// Clear all execution state.
-    pub fn clear(&mut self) -> Result<()> {
-        let release = self.release_activation();
-        self.clear_physical();
-
-        release
-    }
-
-    /// Move the captured activation out of this VM.
-    pub fn take_activation(&mut self) -> Option<ActivationImage> {
-        self.activation.take()
-    }
-
-    /// Release only transient physical execution storage.
-    pub(crate) fn clear_physical(&mut self) {
-        self.frames.clear();
-        self.stack.clear();
-        self.binding_buffer.clear();
-    }
-
-    /// Release the captured activation when present.
-    fn release_activation(&mut self) -> Result<()> {
-        let Some(image) = self.activation.take() else {
-            return Ok(());
-        };
-
-        image.release(&self.stack.memory()).map_err(Error::program)
-    }
-
-    /// Execute one linked function.
+    /// Execute one linked function on an idle fiber.
     pub fn run<'run, R>(
         &mut self,
-        continuations: &mut ContinuationTable,
+        fiber: &mut Fiber,
         activation: program::Activation<'run, 'run, R>,
         function: FunctionId,
         environment: Option<&Value>,
@@ -130,25 +80,82 @@ impl Machine {
         R: Runtime + ?Sized,
         R::Error: From<Error>,
     {
-        if !self.frames.is_empty() || self.activation.is_some() {
+        if !fiber.is_idle() {
             return Err(Error::execution_active().into());
         }
 
         let arguments = self.encode_arguments(function, environment, arguments)?;
 
         // execute encoded arguments without crossing the typed host boundary again
-        let outcome = Activation::new(self, continuations, activation)
+        let outcome = Activation::new(self, fiber, activation)
             .instrument(stop_points, watch_points, profile, None)
             .run(function, &arguments)
-            .map_err(ExecutionError::into_error)?;
+            .map_err(ExecutionError::into_error);
 
-        self.decode_outcome(function, outcome).map_err(Into::into)
+        self.settle(fiber, function, outcome)
+    }
+
+    /// Decode one outcome and release the fiber at terminal outcomes.
+    fn settle<E: From<Error>>(
+        &mut self,
+        fiber: &mut Fiber,
+        function: FunctionId,
+        outcome: std::result::Result<Outcome<Vec<Word>>, E>,
+    ) -> std::result::Result<Outcome<Value>, E> {
+        self.binding_buffer.clear();
+        let outcome = match outcome {
+            Ok(outcome) => self.decode_outcome(function, outcome).map_err(E::from),
+            Err(error) => Err(error),
+        };
+
+        // keep parked and stopped fibers intact for later resumption
+        match &outcome {
+            Ok(Outcome::Parked | Outcome::Stopped { .. }) => {}
+            Ok(Outcome::Completed { .. } | Outcome::Cancelled) | Err(_) => fiber.clear(),
+        }
+
+        outcome
+    }
+
+    /// Resume one parked fiber with a delivered wake value.
+    pub fn resume<'run, R>(
+        &mut self,
+        fiber: &mut Fiber,
+        activation: program::Activation<'run, 'run, R>,
+        value: &Value,
+        stop_points: Option<&'run StopSet>,
+        watch_points: Option<&'run WatchSet>,
+        profile: Option<&'run mut Profile>,
+    ) -> std::result::Result<Outcome<Value>, R::Error>
+    where
+        R: Runtime + ?Sized,
+        R::Error: From<Error>,
+    {
+        let Some(frame) = fiber.frames.first().copied() else {
+            return Err(Error::execution_not_stopped().into());
+        };
+        let function = frame.function;
+        self.validate_frames(fiber)?;
+
+        // deliver the wake value into the parked call's result registers
+        let Some(wake_to) = fiber.wake_to.take() else {
+            return Err(Error::execution_not_stopped().into());
+        };
+        self.deliver_wake(fiber, wake_to, value)?;
+
+        // continue the retained physical frame stack
+        let outcome = Activation::new(self, fiber, activation)
+            .instrument(stop_points, watch_points, profile, None)
+            .execute()
+            .map_err(ExecutionError::into_error);
+
+        self.settle(fiber, function, outcome)
     }
 
     /// Destroy one type-erased runtime value to completion.
     pub fn destroy_value<'run, R>(
         &mut self,
-        continuations: &mut ContinuationTable,
+        fiber: &mut Fiber,
         activation: program::Activation<'run, 'run, R>,
         value: Value,
     ) -> std::result::Result<(), R::Error>
@@ -156,7 +163,7 @@ impl Machine {
         R: Runtime + ?Sized,
         R::Error: From<Error>,
     {
-        if !self.frames.is_empty() || self.activation.is_some() {
+        if !fiber.is_idle() {
             return Err(Error::execution_active().into());
         }
 
@@ -179,36 +186,31 @@ impl Machine {
             .ok_or_else(|| Error::invalid_destructor(function))?;
 
         // retain the complete value below its synchronous destructor frame
-        let payload = self
+        let payload = fiber
             .stack
             .push_bytes(bytes.len(), layout.alignment as usize)?;
-        self.stack.write_bytes(payload, bytes)?;
+        fiber.stack.write_bytes(payload, bytes)?;
 
         // enter the generated destructor through its relative reference ABI
         let return_to = Return::Exit {
             completion: program::Completion::Return,
         };
-        let frame = self.allocate_frame(function, 1, return_to)?;
-        let reference = self.stack.memory_offset(payload);
+        let frame = self.allocate_frame(fiber, function, 1, return_to)?;
+        let reference = fiber.stack.memory_offset(payload);
         let reference = Word::from_bits(reference as u64);
-        self.stack.write(frame.register_offset, reference);
-        self.frames.push(frame);
-        let outcome = Activation::new(self, continuations, activation).execute();
+        fiber.stack.write(frame.register_offset, reference);
+        fiber.frames.push(frame);
+        let outcome = Activation::new(self, fiber, activation).execute();
 
         // accept only complete synchronous destructor execution
         let result = match outcome {
             Ok(Outcome::Completed { .. }) => Ok(()),
-            Ok(
-                Outcome::Cancelled
-                | Outcome::Stopped { .. }
-                | Outcome::Awaited { .. }
-                | Outcome::Yielded { .. },
-            ) => Err(Error::invalid_destructor(function).into()),
+            Ok(Outcome::Cancelled | Outcome::Stopped { .. } | Outcome::Parked) => {
+                Err(Error::invalid_destructor(function).into())
+            }
             Err(error) => Err(error.into_error()),
         };
-
-        // discard an invalid captured activation before releasing its traced payload
-        self.clear()?;
+        fiber.clear();
 
         result
     }
@@ -216,7 +218,7 @@ impl Machine {
     /// Continue execution retained at one debugger stop.
     pub fn continue_execution<'run, R>(
         &mut self,
-        continuations: &mut ContinuationTable,
+        fiber: &mut Fiber,
         activation: program::Activation<'run, 'run, R>,
         stop_points: Option<&'run StopSet>,
         watch_points: Option<&'run WatchSet>,
@@ -227,27 +229,19 @@ impl Machine {
         R: Runtime + ?Sized,
         R::Error: From<Error>,
     {
-        if self.frames.is_empty() && self.activation.is_some() {
-            let context = self
-                .activation
-                .as_ref()
-                .map(ActivationImage::context)
-                .ok_or_else(Error::execution_not_stopped)?;
-            *activation.context = context;
-            self.materialize()?;
-        }
-        let Some(frame) = self.frames.first().copied() else {
+        let Some(frame) = fiber.frames.first().copied() else {
             return Err(Error::execution_not_stopped().into());
         };
         let function = frame.function;
+        self.validate_frames(fiber)?;
 
         // continue the retained physical frame stack
-        let outcome = Activation::new(self, continuations, activation)
+        let outcome = Activation::new(self, fiber, activation)
             .instrument(stop_points, watch_points, profile, resume_skip)
             .execute()
-            .map_err(ExecutionError::into_error)?;
+            .map_err(ExecutionError::into_error);
 
-        self.decode_outcome(function, outcome).map_err(Into::into)
+        self.settle(fiber, function, outcome)
     }
 
     /// Return the immutable Program.
@@ -268,24 +262,23 @@ impl Machine {
         }
     }
 
-    /// Allocate one fixed register window and frame descriptor.
+    /// Allocate one fixed register window and frame descriptor on a fiber.
     pub(crate) fn allocate_frame(
         &mut self,
+        fiber: &mut Fiber,
         function: FunctionId,
         initialized_word_count: usize,
         return_to: Return,
     ) -> Result<Frame> {
-        self.reserve_frame(
-            self.frames.len(),
-            function,
-            initialized_word_count,
-            return_to,
-        )
+        let depth = fiber.frames.len();
+
+        self.reserve_frame(fiber, depth, function, initialized_word_count, return_to)
     }
 
     /// Reserve one fixed register window at one post-transition frame depth.
     pub(crate) fn reserve_frame(
         &mut self,
+        fiber: &mut Fiber,
         depth: usize,
         function: FunctionId,
         initialized_word_count: usize,
@@ -303,7 +296,7 @@ impl Machine {
         }
 
         // allocate the function's sole register window
-        let register_offset = self.stack.push_words(register_count as usize)?;
+        let register_offset = fiber.stack.push_words(register_count as usize)?;
 
         Ok(Frame::new(
             function,
@@ -367,6 +360,60 @@ impl Machine {
         Ok(words)
     }
 
+    /// Require every retained frame to match its linked bytecode function.
+    fn validate_frames(&self, fiber: &Fiber) -> Result<()> {
+        let sections = self.program.sections();
+        for frame in &fiber.frames {
+            let linked = self
+                .bytecode
+                .function(sections, frame.function.index())
+                .ok_or_else(Error::invalid_image)?;
+            let code = linked.code().ok_or_else(Error::invalid_image)?;
+            if frame.code != code
+                || frame.register_count as usize != linked.register_count()
+                || frame.pc.0 >= code.byte_len
+            {
+                return Err(Error::invalid_image());
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Write one wake value into a parked call's result registers.
+    fn deliver_wake(
+        &self,
+        fiber: &mut Fiber,
+        wake_to: destack_bytecode::RegisterSpan,
+        value: &Value,
+    ) -> Result<()> {
+        let words = value.words();
+        if words.len() != wake_to.word_count as usize {
+            return Err(Error::invalid_instruction());
+        }
+        let Some(frame) = fiber.frames.last() else {
+            return Err(Error::execution_not_stopped());
+        };
+
+        // wake registers never leave the parked frame's register window
+        let end = wake_to.start.0 as usize + words.len();
+        if end > frame.register_count as usize {
+            return Err(Error::invalid_image());
+        }
+        let byte_end = (frame.register_offset + end) * Word::BYTE_LEN;
+        if byte_end > fiber.stack.byte_len() {
+            return Err(Error::invalid_image());
+        }
+
+        // write wake words into the parked frame's register window
+        let offset = frame.register_offset + wake_to.start.0 as usize;
+        for (index, word) in words.iter().enumerate() {
+            fiber.stack.write(offset + index, *word);
+        }
+
+        Ok(())
+    }
+
     /// Decode raw register words through linked Program types.
     pub(crate) fn decode_outcome(
         &self,
@@ -384,48 +431,8 @@ impl Machine {
                 Ok(Outcome::Completed { value })
             }
             Outcome::Cancelled => Ok(Outcome::Cancelled),
-            Outcome::Awaited {
-                park,
-                awaitable,
-                continuation,
-            } => {
-                let (_, site) = self.suspension(&continuation)?;
-                let awaitable = self
-                    .program
-                    .value(site.value_type, awaitable)
-                    .map_err(Error::program)?;
-
-                Ok(Outcome::Awaited {
-                    park,
-                    awaitable,
-                    continuation,
-                })
-            }
-            Outcome::Yielded {
-                value,
-                continuation,
-            } => {
-                let (_, site) = self.suspension(&continuation)?;
-                let value = self
-                    .program
-                    .value(site.value_type, value)
-                    .map_err(Error::program)?;
-
-                Ok(Outcome::Yielded {
-                    value,
-                    continuation,
-                })
-            }
+            Outcome::Parked => Ok(Outcome::Parked),
             Outcome::Stopped { reason } => Ok(Outcome::Stopped { reason }),
-        }
-    }
-}
-
-impl Drop for Machine {
-    /// Release retained canonical execution owned by this machine.
-    fn drop(&mut self) {
-        if self.release_activation().is_err() {
-            process::abort();
         }
     }
 }
@@ -436,7 +443,6 @@ impl fmt::Debug for Machine {
         formatter
             .debug_struct("Machine")
             .field("limits", &self.limits)
-            .field("frame_count", &self.frames.len())
             .finish()
     }
 }

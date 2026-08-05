@@ -552,7 +552,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let frame = self.frame();
         let byte_offset = frame.range(range) * Word::BYTE_LEN;
 
-        self.machine.stack.address(byte_offset) as *mut u8
+        self.fiber.stack.address(byte_offset) as *mut u8
     }
 
     /// Return one vector lane bit mask.

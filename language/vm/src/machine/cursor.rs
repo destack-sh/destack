@@ -110,14 +110,6 @@ impl Cursor {
         }
     }
 
-    /// Advance by one encoded instruction byte length.
-    #[inline(always)]
-    pub(crate) fn advance(&mut self, byte_len: usize) {
-        let mut position = self.position();
-        position.advance(byte_len);
-        self.set_position(position);
-    }
-
     /// Branch relative to the current instruction successor.
     #[inline(always)]
     pub(crate) fn branch(&mut self, displacement: i32) {

@@ -32,7 +32,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let result = self.register_byte_range(result)?;
 
         // initialize padding before placing the exact source bytes
-        self.machine.stack.zero(result.start, result.len())?;
+        self.fiber.stack.zero(result.start, result.len())?;
         for placement in placements {
             let source = self.register_byte_range(placement.registers)?;
             let byte_offset = placement.byte_offset as usize;
@@ -57,8 +57,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         }
 
         // clear register padding before copying the selected bytes
-        self.machine.stack.zero(result.start, result.len())?;
-        self.machine
+        self.fiber.stack.zero(result.start, result.len())?;
+        self.fiber
             .stack
             .move_bytes(source.start + byte_offset, result.start, byte_len);
 
@@ -81,7 +81,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         if result.len() != source.len() {
             return Err(self.invalid_instruction());
         }
-        self.machine
+        self.fiber
             .stack
             .move_bytes(source.start, result.start, source.len());
 
@@ -109,7 +109,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
         // initialize padding and place the optional payload
         self.check_layout_range(&layout, &result)?;
-        self.machine.stack.zero(result.start, result.len())?;
+        self.fiber.stack.zero(result.start, result.len())?;
         if payload.word_count > 0 {
             let payload = self.register_byte_range(payload)?;
             let payload_layout = self
@@ -242,7 +242,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         if result.len() > bytes.len() {
             return Err(self.invalid_instruction());
         }
-        self.machine
+        self.fiber
             .stack
             .write_bytes(result.start, &bytes[..result.len()])?;
 
@@ -306,7 +306,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         if byte_len > source.len() || byte_offset + byte_len > target.len() {
             return Err(self.invalid_instruction());
         }
-        self.machine
+        self.fiber
             .stack
             .move_bytes(source.start, target.start + byte_offset, byte_len);
 
@@ -320,7 +320,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             return Err(self.invalid_instruction());
         }
         let mut bytes = [0; size_of::<u128>()];
-        self.machine
+        self.fiber
             .stack
             .read_bytes(base + field.offset as usize, &mut bytes[..byte_len])?;
 
@@ -339,7 +339,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             return Err(self.invalid_instruction());
         }
         let bytes = scalar.to_le_bytes();
-        self.machine
+        self.fiber
             .stack
             .write_bytes(base + field.offset as usize, &bytes[..byte_len])?;
 

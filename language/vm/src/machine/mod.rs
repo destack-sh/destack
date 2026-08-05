@@ -1,16 +1,19 @@
 mod activation;
 mod callee;
-mod continuation;
 mod cursor;
+mod fiber;
 mod frame;
-mod image;
 mod machine;
+mod materialize;
+mod split;
 mod stack;
+mod state;
 
 pub(crate) use activation::*;
 pub(crate) use callee::*;
 pub(crate) use cursor::*;
+pub use fiber::*;
 pub(crate) use frame::*;
-pub(crate) use image::*;
 pub use machine::*;
 pub(crate) use stack::*;
+pub(crate) use state::*;

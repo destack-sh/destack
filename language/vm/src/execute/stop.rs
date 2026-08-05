@@ -28,8 +28,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             return Ok(None);
         };
 
-        // retain the selected frame state in an activation image
-        self.capture(pc)?;
+        // retain the stopped frames in place for later continuation
+        self.retain_stop(pc);
 
         Ok(Some(Outcome::Stopped { reason }))
     }
@@ -42,7 +42,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     ) -> Result<Outcome<Vec<Word>>> {
         let frame = self.frame();
         let point = self.point(frame, point_pc)?;
-        self.capture(resume_pc)?;
+        self.retain_stop(resume_pc);
 
         Ok(Outcome::Stopped {
             reason: StopReason::Instruction { point },

@@ -98,6 +98,11 @@ impl Error {
         Self::new(ErrorReason::Machine(MachineError::InvalidImage))
     }
 
+    /// Create one invalid detach boundary split error.
+    pub fn invalid_split() -> Self {
+        Self::new(ErrorReason::Machine(MachineError::InvalidSplit))
+    }
+
     /// Create one unavailable bytecode error.
     pub fn bytecode_unavailable() -> Self {
         Self::new(ErrorReason::Machine(MachineError::BytecodeUnavailable))

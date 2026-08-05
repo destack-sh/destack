@@ -38,6 +38,30 @@ impl Stack {
         })
     }
 
+    /// Rebuild one stack over a range retained in restored world memory.
+    pub(crate) fn from_range(
+        memory: Arc<MemoryMap>,
+        range: MemoryRange,
+        byte_len: usize,
+    ) -> Result<Self> {
+        let base = memory.base_address() + range.offset;
+        let mut stack = Self {
+            memory,
+            range,
+            base,
+            materialized_byte_len: 0,
+            byte_len: 0,
+        };
+        stack.grow(byte_len)?;
+
+        Ok(stack)
+    }
+
+    /// Return the reserved stack range in world memory.
+    pub(crate) const fn range(&self) -> MemoryRange {
+        self.range
+    }
+
     /// Fork this stack over the corresponding range in one forked memory map.
     pub(crate) fn fork(&self, memory: Arc<MemoryMap>) -> Self {
         let base = memory.base_address() + self.range.offset;
@@ -138,13 +162,6 @@ impl Stack {
         self.range.offset + byte_offset
     }
 
-    /// Return the stack byte offset of one live memory offset.
-    pub(crate) fn stack_offset(&self, memory_offset: usize) -> Option<usize> {
-        let byte_offset = memory_offset.checked_sub(self.range.offset)?;
-
-        (byte_offset < self.byte_len).then_some(byte_offset)
-    }
-
     /// Return the stack-relative offset of one native address.
     pub(crate) fn byte_offset(&self, address: usize) -> Option<usize> {
         let offset = address.checked_sub(self.base)?;
@@ -178,6 +195,33 @@ impl Stack {
                 bytes.as_ptr(),
                 self.address(byte_offset) as *mut u8,
                 bytes.len(),
+            );
+        }
+
+        Ok(())
+    }
+
+    /// Copy one live byte range from another stack in the same memory map.
+    pub(crate) fn copy_from(
+        &mut self,
+        byte_offset: usize,
+        source: &Stack,
+        source_offset: usize,
+        byte_len: usize,
+    ) -> Result<()> {
+        debug_assert!(
+            Arc::ptr_eq(&self.memory, &source.memory),
+            "stack copies stay inside one memory map"
+        );
+        self.live_range(byte_offset, byte_len)?;
+        source.live_range(source_offset, byte_len)?;
+
+        // SAFETY: both ranges are live and distinct reservations never overlap
+        unsafe {
+            ptr::copy_nonoverlapping(
+                source.address(source_offset) as *const u8,
+                self.address(byte_offset) as *mut u8,
+                byte_len,
             );
         }
 

@@ -6,11 +6,11 @@ use destack_heap::{
 };
 use destack_memory::MemoryMap;
 use destack_program as program;
-use destack_program::{Completion, FunctionId, Program, StopReason, StopSet, WatchSet, Word};
+use destack_program::{FunctionId, Program, StopReason, StopSet, WatchSet, Word};
 
 use crate::diagnostic::ExecutionError;
-use crate::machine::{Activation, Return};
-use crate::{Machine, MachineLimits, Result};
+use crate::machine::Activation;
+use crate::{Fiber, Machine, MachineLimits, Result};
 
 use super::{RuntimeCall, TestBinding, TestProgram, TestRuntime};
 
@@ -23,8 +23,8 @@ pub(crate) struct TestMachine {
     program: Arc<Program>,
     /// World memory used by runtime storage and the machine.
     memory: Arc<MemoryMap>,
-    /// Worker-local continuation storage.
-    continuations: program::ContinuationTable,
+    /// The fiber carrying test executions.
+    fiber: Fiber,
     /// The bytecode machine under test.
     machine: Machine,
     /// Runtime allocation plans indexed by Program allocation site id.
@@ -78,13 +78,16 @@ impl TestMachine {
             .plan_allocations(local_heap.options(), shared_heap.options())
             .expect("test allocation plans should build")
             .into();
-        let machine = Machine::new(program.clone(), memory.clone(), MachineLimits::test())
+        let machine = Machine::new(program.clone(), MachineLimits::test())
             .expect("test machine should build");
+        let fiber = machine
+            .reserve_fiber(memory.clone())
+            .expect("test fiber should reserve");
 
         Self {
             program,
             memory,
-            continuations: program::ContinuationTable::default(),
+            fiber,
             machine,
             allocation_plans,
             runtime: TestRuntime::default(),
@@ -137,122 +140,6 @@ impl TestMachine {
             .map_err(ExecutionError::into_error)
     }
 
-    /// Resume one suspended coroutine and return its raw machine outcome.
-    pub(crate) fn resume(
-        &mut self,
-        continuation: program::Continuation,
-        values: &[Word],
-    ) -> Result<program::Outcome<Vec<Word>>> {
-        let completion = continuation.completion();
-        self.enter_continuation(continuation, completion)?;
-
-        self.activation(None, None, None, None)
-            .resume(values)
-            .map_err(ExecutionError::into_error)
-    }
-
-    /// Complete one suspended generator and return its raw machine outcome.
-    pub(crate) fn complete_continuation(
-        &mut self,
-        continuation: program::Continuation,
-        values: &[Word],
-    ) -> Result<program::Outcome<Vec<Word>>> {
-        let completion = continuation.completion();
-        self.enter_continuation(continuation, completion)?;
-
-        self.activation(None, None, None, None)
-            .complete(values)
-            .map_err(ExecutionError::into_error)
-    }
-
-    /// Cancel one suspended asynchronous continuation.
-    pub(crate) fn cancel(
-        &mut self,
-        continuation: program::Continuation,
-    ) -> Result<program::Outcome<Vec<Word>>> {
-        self.enter_continuation(continuation, Completion::Cancel)?;
-
-        self.activation(None, None, None, None)
-            .cancel()
-            .map_err(ExecutionError::into_error)
-    }
-
-    /// Execute one function and require asynchronous suspension.
-    pub(crate) fn run_to_await(
-        &mut self,
-        function: u32,
-        arguments: &[Word],
-    ) -> (FunctionId, Vec<Word>, program::Continuation) {
-        let outcome = self
-            .run(function, arguments, None, None, None)
-            .unwrap_or_else(|error| panic!("f{function} should execute: {error}"));
-        let program::Outcome::Awaited {
-            park,
-            awaitable,
-            continuation,
-        } = outcome
-        else {
-            panic!("f{function} should await");
-        };
-
-        (park, awaitable, continuation)
-    }
-
-    /// Execute one function and require generator suspension.
-    pub(crate) fn run_to_yield(
-        &mut self,
-        function: u32,
-        arguments: &[Word],
-    ) -> (Vec<Word>, program::Continuation) {
-        let outcome = self
-            .run(function, arguments, None, None, None)
-            .unwrap_or_else(|error| panic!("f{function} should execute: {error}"));
-        let program::Outcome::Yielded {
-            value,
-            continuation,
-        } = outcome
-        else {
-            panic!("f{function} should yield");
-        };
-
-        (value, continuation)
-    }
-
-    /// Return the canonical bytes retained by one continuation.
-    pub(crate) fn continuation_bytes(&self, continuation: &program::Continuation) -> Vec<u8> {
-        let range = continuation.memory();
-
-        self.memory
-            .read_bytes(range.offset, range.byte_len)
-            .expect("continuation bytes should remain readable")
-    }
-
-    /// Resume one continuation and require normal completion.
-    pub(crate) fn resume_to_completion(
-        &mut self,
-        continuation: program::Continuation,
-        values: &[Word],
-    ) -> Vec<Word> {
-        let outcome = self
-            .resume(continuation, values)
-            .unwrap_or_else(|error| panic!("continuation should resume: {error}"));
-
-        Self::completion("resumed continuation", outcome)
-    }
-
-    /// Complete one continuation and require normal completion.
-    pub(crate) fn complete_to_completion(
-        &mut self,
-        continuation: program::Continuation,
-        values: &[Word],
-    ) -> Vec<Word> {
-        let outcome = self
-            .complete_continuation(continuation, values)
-            .unwrap_or_else(|error| panic!("continuation should complete: {error}"));
-
-        Self::completion("completed continuation", outcome)
-    }
-
     /// Return and clear exact runtime boundary calls.
     pub(crate) fn take_runtime_calls(&mut self) -> Vec<RuntimeCall> {
         self.runtime.take_calls()
@@ -289,14 +176,6 @@ impl TestMachine {
         profile: Option<&mut program::Profile>,
         resume_skip: Option<program::ResumeSkip>,
     ) -> Result<program::Outcome<Vec<Word>>> {
-        self.context = self
-            .machine
-            .activation
-            .as_ref()
-            .map(program::ActivationImage::context)
-            .ok_or_else(crate::Error::execution_not_stopped)?;
-        self.machine.materialize()?;
-
         self.activation(stop_points, watch_points, profile, resume_skip)
             .execute()
             .map_err(ExecutionError::into_error)
@@ -316,35 +195,29 @@ impl TestMachine {
         Self::completion("stopped execution", outcome)
     }
 
-    /// Copy the captured activation into one forked memory map.
-    pub(crate) fn capture(&self) -> (program::ActivationImage, Arc<MemoryMap>) {
+    /// Fork the stopped fiber into one forked memory map.
+    pub(crate) fn fork_fiber(&self) -> (crate::Fiber, Arc<MemoryMap>) {
         let memory = Arc::new(
             self.memory
                 .fork_lazy()
                 .expect("test machine memory should fork"),
         );
-        let mut machine = self.machine.fork(memory.clone());
-        let image = machine
-            .take_activation()
-            .expect("test machine should contain one captured activation");
+        let fiber = self.fiber.fork(memory.clone());
 
-        (image, memory)
+        (fiber, memory)
     }
 
-    /// Restore one canonical activation over its captured memory image.
-    pub(crate) fn restore(&mut self, image: program::ActivationImage, memory: Arc<MemoryMap>) {
-        let mut machine = Machine::new(self.program.clone(), memory.clone(), MachineLimits::test())
-            .expect("test machine should build");
-        machine.restore(image).expect("test machine should restore");
+    /// Adopt one forked fiber over its forked memory map.
+    pub(crate) fn adopt_fiber(&mut self, fiber: crate::Fiber, memory: Arc<MemoryMap>) {
         self.memory = memory;
-        self.machine = machine;
+        self.fiber = fiber;
     }
 
     /// Return heap roots retained by the machine.
     pub(crate) fn roots(&mut self) -> Vec<Root> {
         let mut roots = Vec::new();
         self.machine
-            .visit_root_slots(&mut |slot| {
+            .visit_root_slots(&mut self.fiber, &mut |slot| {
                 let root = slot.load()?;
                 if !root.is_nullish() {
                     roots.push(root);
@@ -353,16 +226,6 @@ impl TestMachine {
                 Ok(())
             })
             .expect("test roots should visit");
-        self.continuations
-            .visit_root_slots(&self.program, &self.memory, &mut |slot| {
-                let root = slot.load()?;
-                if !root.is_nullish() {
-                    roots.push(root);
-                }
-
-                Ok(())
-            })
-            .expect("test continuation roots should visit");
 
         roots
     }
@@ -374,20 +237,6 @@ impl TestMachine {
         };
 
         value
-    }
-
-    /// Enter one continuation through the raw bytecode test boundary.
-    fn enter_continuation(
-        &mut self,
-        continuation: program::Continuation,
-        completion: Completion,
-    ) -> Result<()> {
-        self.context = continuation.context();
-        let return_to = Return::Exit { completion };
-        self.machine
-            .consume_continuation(continuation, |machine, continuation| {
-                machine.materialize_continuation(continuation, return_to)
-            })
     }
 
     /// Bind one clean activation to this test machine.
@@ -416,7 +265,7 @@ impl TestMachine {
             },
         };
 
-        Activation::new(&mut self.machine, &mut self.continuations, activation).instrument(
+        Activation::new(&mut self.machine, &mut self.fiber, activation).instrument(
             stop_points,
             watch_points,
             profile,
@@ -432,16 +281,5 @@ impl TestMachine {
     /// Register one runtime binding implementation.
     pub(crate) fn bind(&mut self, name: &'static str, binding: TestBinding) {
         self.runtime.bind(name, binding);
-    }
-
-    /// Build one exact Program value for runtime call assertions.
-    pub(crate) fn value(
-        &self,
-        ty: program::TypeId,
-        words: impl IntoIterator<Item = Word>,
-    ) -> program::Value {
-        self.program
-            .value(ty, words)
-            .expect("test value should match linked Program metadata")
     }
 }

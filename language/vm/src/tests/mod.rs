@@ -14,8 +14,6 @@ mod program;
 mod runtime;
 mod slice;
 mod stop;
-mod suspension;
-mod task;
 mod tensor;
 mod value;
 mod vector;
