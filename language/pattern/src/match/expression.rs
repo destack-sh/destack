@@ -1025,52 +1025,6 @@ impl Matcher<'_, '_> {
 
         match (pattern, candidate) {
             (
-                dir::Argument::Named {
-                    name: pattern_name,
-                    value: pattern_value,
-                },
-                dir::Argument::Named {
-                    name: candidate_name,
-                    value: candidate_value,
-                },
-            ) => {
-                if !self.match_name(
-                    nodes,
-                    pattern_id.into_any(),
-                    candidate_id.into_any(),
-                    *pattern_name,
-                    *candidate_name,
-                    bindings,
-                )? {
-                    return Ok(false);
-                }
-
-                self.match_expression(nodes, *pattern_value, *candidate_value, bindings)
-            }
-            (
-                dir::Argument::Labeled {
-                    label: pattern_label,
-                    value: pattern_value,
-                },
-                dir::Argument::Labeled {
-                    label: candidate_label,
-                    value: candidate_value,
-                },
-            ) => {
-                if !self.match_node_name(
-                    nodes,
-                    pattern_id.into_any(),
-                    candidate_id.into_any(),
-                    Some(*pattern_label),
-                    Some(*candidate_label),
-                    bindings,
-                )? {
-                    return Ok(false);
-                }
-
-                self.match_expression(nodes, *pattern_value, *candidate_value, bindings)
-            }
-            (
                 dir::Argument::Positional {
                     value: pattern_value,
                 },
@@ -1080,27 +1034,12 @@ impl Matcher<'_, '_> {
             ) => self.match_expression(nodes, *pattern_value, *candidate_value, bindings),
             (
                 dir::Argument::Spread {
-                    label: pattern_label,
                     value: pattern_value,
                 },
                 dir::Argument::Spread {
-                    label: candidate_label,
                     value: candidate_value,
                 },
-            ) => {
-                if !self.match_node_name(
-                    nodes,
-                    pattern_id.into_any(),
-                    candidate_id.into_any(),
-                    *pattern_label,
-                    *candidate_label,
-                    bindings,
-                )? {
-                    return Ok(false);
-                }
-
-                self.match_expression(nodes, *pattern_value, *candidate_value, bindings)
-            }
+            ) => self.match_expression(nodes, *pattern_value, *candidate_value, bindings),
             (dir::Argument::Elision, dir::Argument::Elision)
             | (dir::Argument::Error, dir::Argument::Error) => Ok(true),
             _ => Ok(false),
