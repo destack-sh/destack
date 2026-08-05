@@ -1,2 +1,2 @@
-export { gpu, GpuBinding } from "./binding/gpu.ds";
+export { GpuBinding, gpu } from "./binding/gpu.ds";
 export * as binding from "./binding";

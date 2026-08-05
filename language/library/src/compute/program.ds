@@ -232,12 +232,6 @@ export extension of Kernel {
         workgroupSize?: WorkgroupSize,
         stream?: &Stream,
     ): Event {
-        compute.get().program.dispatch(
-            this,
-            arguments,
-            workgroups,
-            workgroupSize,
-            stream,
-        )
+        compute.get().program.dispatch(this, arguments, workgroups, workgroupSize, stream)
     }
 }

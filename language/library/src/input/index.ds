@@ -1,2 +1,2 @@
-export { input, InputBinding } from "./binding/input.ds";
+export { InputBinding, input } from "./binding/input.ds";
 export * as binding from "./binding";

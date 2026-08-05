@@ -1,2 +1,2 @@
-export { device, DeviceBinding } from "./binding/device.ds";
+export { DeviceBinding, device } from "./binding/device.ds";
 export * as binding from "./binding";

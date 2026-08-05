@@ -1,2 +1,2 @@
-export { ipc, IpcBinding } from "./binding/ipc.ds";
+export { IpcBinding, ipc } from "./binding/ipc.ds";
 export * as binding from "./binding";

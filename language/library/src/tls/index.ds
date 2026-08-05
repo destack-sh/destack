@@ -1,3 +1,3 @@
-export { tls, TlsBinding } from "./binding/tls.ds";
+export { TlsBinding, tls } from "./binding/tls.ds";
 export * from "./tls.ds";
 export * as binding from "./binding";

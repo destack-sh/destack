@@ -1,6 +1,6 @@
-import { telemetry } from "./binding/telemetry.ds";
 import { Duration } from "destack:time";
 
+import { telemetry } from "./binding/telemetry.ds";
 import { Fields } from "./field.ds";
 import { InstrumentKind, MetricEntry } from "./record.ds";
 

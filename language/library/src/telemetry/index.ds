@@ -1,4 +1,4 @@
-export { telemetry, TelemetryBinding } from "./binding/telemetry.ds";
+export { TelemetryBinding, telemetry } from "./binding/telemetry.ds";
 export * from "./field.ds";
 export * from "./log.ds";
 export * from "./metric.ds";
