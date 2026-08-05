@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{Activation, Space, TaskOutcome, Unwind};
+use super::{Activation, Space, Unwind};
 
 macro_rules! runtime_operations {
     ($macro:ident) => {
@@ -33,26 +33,6 @@ macro_rules! runtime_operations {
             UnwindClassify = 0x0016 => unwind_classify: ClassifyUnwind -> Uint32,
             /// Continue the active unwind.
             UnwindResume = 0x0017 => unwind_resume: ResumeUnwind -> Never,
-            /// Queue one suspended waiter.
-            WaiterQueue = 0x0020 => waiter_queue: QueueWaiter -> Uint32,
-            /// Cancel one suspended waiter.
-            WaiterCancel = 0x0021 => waiter_cancel: CancelWaiter -> Uint32,
-            /// Create one completed task.
-            TaskResolve = 0x0022 => task_resolve: ResolveTask -> Uint64,
-            /// Start one running task.
-            TaskStart = 0x0023 => task_start: StartTask -> Uint64,
-            /// Suspend one running task.
-            TaskSuspend = 0x0024 => task_suspend: SuspendTask -> Uint64,
-            /// Park one waiter until a task settles.
-            TaskPark = 0x0025 => task_park: ParkTask -> Void,
-            /// Request cooperative task cancellation.
-            TaskCancel = 0x0026 => task_cancel: CancelTask -> Void,
-            /// Query cooperative task cancellation.
-            TaskIsCancelled = 0x0027 => task_is_cancelled: IsTaskCancelled -> Uint32,
-            /// Detach one task result.
-            TaskDetach = 0x0028 => task_detach: DetachTask -> Void,
-            /// Finish one task.
-            TaskFinish = 0x0029 => task_finish: FinishTask -> Void,
 
             /// Increment one explicit profile counter.
             ProfileIncrement = 0x0030 => profile_increment: IncrementProfile -> Void,
@@ -208,56 +188,6 @@ pub enum UnwindAction {
     /// Retain live values without running cleanup.
     Retain = 1,
 }
-
-/// Queue one suspended waiter with a typed value.
-pub type QueueWaiter = unsafe extern "C-unwind" fn(
-    activation: *mut Activation,
-    waiter: u64,
-    ty: u32,
-    words: *const u64,
-) -> u32;
-
-/// Cancel one suspended waiter.
-pub type CancelWaiter =
-    unsafe extern "C-unwind" fn(activation: *mut Activation, waiter: u64) -> u32;
-
-/// Create one already completed task.
-pub type ResolveTask =
-    unsafe extern "C-unwind" fn(activation: *mut Activation, ty: u32, words: *const u64) -> u64;
-
-/// Start one running task.
-pub type StartTask = unsafe extern "C-unwind" fn(activation: *mut Activation) -> u64;
-
-/// Suspend one running task at a reconstructable native frame.
-pub type SuspendTask = unsafe extern "C-unwind" fn(
-    activation: *mut Activation,
-    task: u64,
-    frame_map: u32,
-    marker: *const u8,
-) -> u64;
-
-/// Park one waiter until a task settles.
-pub type ParkTask =
-    unsafe extern "C-unwind" fn(activation: *mut Activation, task: u64, waiter: u64);
-
-/// Request cooperative cancellation of one task.
-pub type CancelTask = unsafe extern "C-unwind" fn(activation: *mut Activation, task: u64);
-
-/// Query whether cooperative cancellation was requested for one task.
-pub type IsTaskCancelled =
-    unsafe extern "C-unwind" fn(activation: *mut Activation, task: u64) -> u32;
-
-/// Detach one task result.
-pub type DetachTask = unsafe extern "C-unwind" fn(activation: *mut Activation, task: u64);
-
-/// Finish one task with its terminal outcome.
-pub type FinishTask = unsafe extern "C-unwind" fn(
-    activation: *mut Activation,
-    task: u64,
-    outcome: TaskOutcome,
-    result_type: u32,
-    result: *const u64,
-);
 
 /// Increment one explicit profile counter.
 pub type IncrementProfile = unsafe extern "C-unwind" fn(activation: *mut Activation, counter: u32);

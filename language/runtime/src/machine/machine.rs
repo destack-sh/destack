@@ -11,16 +11,16 @@ use super::{Engine, Entry, MachineImage, Target};
 use crate::diagnostic::{MachineError, RuntimeError, RuntimeResult};
 use crate::worker::Activation;
 
-/// Worker-owned runtime machine.
+/// Worker-owned runtime machine executing fibers over world memory.
 pub struct Machine {
     /// Shared process-local execution engine.
     engine: Engine,
-    /// World memory containing retained execution state.
+    /// World memory containing fiber stacks.
     memory: Arc<MemoryMap>,
-    /// Worker-local continuation storage.
-    continuations: program::ContinuationTable,
-    /// Engine-neutral execution retained outside an active engine.
-    activation: Option<program::ActivationImage>,
+    /// Fiber retained at one handshake or debugger stop.
+    stopped: Option<vm::Fiber>,
+    /// Idle fiber reused by synchronous destructor execution.
+    scratch: Option<vm::Fiber>,
     /// Worker-local bytecode execution state when bytecode is available.
     vm: Option<vm::Machine>,
 }
@@ -29,9 +29,8 @@ impl Machine {
     /// Create one worker-owned machine from a shared engine.
     pub(crate) fn new(engine: Engine, memory: Arc<MemoryMap>) -> RuntimeResult<Self> {
         let vm = if engine.program().bytecode().is_some() {
-            let machine =
-                vm::Machine::new(engine.program().clone(), memory.clone(), engine.limits())
-                    .map_err(Box::<RuntimeError>::from)?;
+            let machine = vm::Machine::new(engine.program().clone(), engine.limits())
+                .map_err(Box::<RuntimeError>::from)?;
 
             Some(machine)
         } else {
@@ -41,8 +40,8 @@ impl Machine {
         Ok(Self {
             engine,
             memory,
-            continuations: program::ContinuationTable::default(),
-            activation: None,
+            stopped: None,
+            scratch: None,
             vm,
         })
     }
@@ -52,22 +51,39 @@ impl Machine {
         self.engine.program()
     }
 
-    /// Return the world memory containing retained execution state.
-    pub(crate) fn memory(&self) -> Arc<MemoryMap> {
-        self.memory.clone()
-    }
-
-    /// Return the innermost point of the captured activation when present.
-    pub fn activation_point(&self) -> Option<program::ProgramPoint> {
-        self.activation
+    /// Reserve one idle fiber for a fresh invocation.
+    pub(crate) fn reserve_fiber(&self) -> RuntimeResult<vm::Fiber> {
+        let machine = self
+            .vm
             .as_ref()
-            .and_then(|activation| activation.frames().last())
-            .map(|frame| frame.point())
+            .ok_or_else(|| Self::unsupported("fiber execution"))?;
+
+        machine
+            .reserve_fiber(self.memory.clone())
+            .map_err(Box::<RuntimeError>::from)
     }
 
-    /// Run one entrypoint.
+    /// Return the innermost point of the stopped fiber when present.
+    pub fn activation_point(&self) -> Option<program::ProgramPoint> {
+        let fiber = self.stopped.as_ref()?;
+
+        self.vm.as_ref()?.fiber_point(fiber)
+    }
+
+    /// Retain one stopped fiber across a handshake or debugger stop.
+    pub(crate) fn retain_stopped(&mut self, fiber: vm::Fiber) {
+        self.stopped = Some(fiber);
+    }
+
+    /// Take the retained stopped fiber for continuation.
+    pub(crate) fn take_stopped(&mut self) -> Option<vm::Fiber> {
+        self.stopped.take()
+    }
+
+    /// Run one entrypoint on one idle fiber.
     pub fn run<'run>(
         &mut self,
+        fiber: &mut vm::Fiber,
         activation: program::Activation<'run, 'run, Activation<'_>>,
         entry: &Entry,
         args: &[program::Value],
@@ -79,7 +95,9 @@ impl Machine {
             .program()
             .function_id_by_name(entry.name())
             .ok_or_else(|| Self::entry_unavailable(entry.name()))?;
+
         self.execute(
+            fiber,
             activation,
             function,
             None,
@@ -91,8 +109,10 @@ impl Machine {
     }
 
     /// Run one linked function with an optional closure environment.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn run_function<'run>(
         &mut self,
+        fiber: &mut vm::Fiber,
         activation: program::Activation<'run, 'run, Activation<'_>>,
         function: program::FunctionId,
         environment: Option<&program::Value>,
@@ -102,6 +122,7 @@ impl Machine {
         profile: Option<&'run mut program::Profile>,
     ) -> RuntimeResult<Outcome<Value>> {
         self.execute(
+            fiber,
             activation,
             function,
             environment,
@@ -112,119 +133,41 @@ impl Machine {
         )
     }
 
-    /// Resume one canonical coroutine continuation.
+    /// Resume one parked fiber with its delivered wake value.
     pub fn resume<'run>(
         &mut self,
+        fiber: &mut vm::Fiber,
         activation: program::Activation<'run, 'run, Activation<'_>>,
-        continuation: program::Continuation,
         value: &program::Value,
         stop_points: Option<&'run program::StopSet>,
         watch_points: Option<&'run program::WatchSet>,
         profile: Option<&'run mut program::Profile>,
     ) -> RuntimeResult<Outcome<Value>> {
-        if self.vm.is_none() {
-            continuation
-                .release(&self.memory)
-                .map_err(Box::<RuntimeError>::from)?;
+        let machine = Self::require_vm(&mut self.vm, "fiber resumption")?;
 
-            return Err(Self::unsupported("continuation resume"));
-        }
-
-        let Self {
-            activation: captured,
-            continuations,
-            vm,
-            ..
-        } = self;
-        let machine = Self::require_vm(vm, "continuation resume")?;
-
-        let outcome = machine.resume(
-            continuations,
-            activation,
-            continuation,
-            value,
-            stop_points,
-            watch_points,
-            profile,
-        )?;
-
-        Self::capture_vm_outcome(captured, machine, outcome)
+        machine.resume(fiber, activation, value, stop_points, watch_points, profile)
     }
 
-    /// Complete one canonical generator continuation.
-    pub fn complete<'run>(
+    /// Continue one fiber retained at a debugger stop.
+    pub fn continue_execution<'run>(
         &mut self,
+        fiber: &mut vm::Fiber,
         activation: program::Activation<'run, 'run, Activation<'_>>,
-        continuation: program::Continuation,
-        value: &program::Value,
         stop_points: Option<&'run program::StopSet>,
         watch_points: Option<&'run program::WatchSet>,
         profile: Option<&'run mut program::Profile>,
+        resume_skip: Option<program::ResumeSkip>,
     ) -> RuntimeResult<Outcome<Value>> {
-        if self.vm.is_none() {
-            continuation
-                .release(&self.memory)
-                .map_err(Box::<RuntimeError>::from)?;
+        let machine = Self::require_vm(&mut self.vm, "retained execution")?;
 
-            return Err(Self::unsupported("continuation completion"));
-        }
-
-        let Self {
-            activation: captured,
-            continuations,
-            vm,
-            ..
-        } = self;
-        let machine = Self::require_vm(vm, "continuation completion")?;
-
-        let outcome = machine.complete(
-            continuations,
+        machine.continue_execution(
+            fiber,
             activation,
-            continuation,
-            value,
             stop_points,
             watch_points,
             profile,
-        )?;
-
-        Self::capture_vm_outcome(captured, machine, outcome)
-    }
-
-    /// Cancel one canonical asynchronous continuation.
-    pub fn cancel<'run>(
-        &mut self,
-        activation: program::Activation<'run, 'run, Activation<'_>>,
-        continuation: program::Continuation,
-        stop_points: Option<&'run program::StopSet>,
-        watch_points: Option<&'run program::WatchSet>,
-        profile: Option<&'run mut program::Profile>,
-    ) -> RuntimeResult<Outcome<Value>> {
-        if self.vm.is_none() {
-            continuation
-                .release(&self.memory)
-                .map_err(Box::<RuntimeError>::from)?;
-
-            return Err(Self::unsupported("continuation cancellation"));
-        }
-
-        let Self {
-            activation: captured,
-            continuations,
-            vm,
-            ..
-        } = self;
-        let machine = Self::require_vm(vm, "continuation cancellation")?;
-
-        let outcome = machine.cancel(
-            continuations,
-            activation,
-            continuation,
-            stop_points,
-            watch_points,
-            profile,
-        )?;
-
-        Self::capture_vm_outcome(captured, machine, outcome)
+            resume_skip,
+        )
     }
 
     /// Destroy one unreachable value to completion.
@@ -274,12 +217,12 @@ impl Machine {
         activation: program::Activation<'run, 'run, Activation<'_>>,
         value: program::Value,
     ) -> RuntimeResult<()> {
-        let Self {
-            continuations, vm, ..
-        } = self;
-        let machine = Self::require_vm(vm, "scheduler value destruction")?;
+        let mut fiber = self.take_scratch()?;
+        let machine = Self::require_vm(&mut self.vm, "scheduler value destruction")?;
+        let result = machine.destroy_value(&mut fiber, activation, value);
+        self.stash_scratch(fiber);
 
-        machine.destroy_value(continuations, activation, value)
+        result
     }
 
     /// Run one value destructor to completion.
@@ -290,9 +233,11 @@ impl Machine {
         value: program::Value,
     ) -> RuntimeResult<()> {
         let args = [value];
+        let mut fiber = self.take_scratch()?;
 
         // execute without debugger or profiler hooks
         let outcome = self.execute(
+            &mut fiber,
             activation.reborrow(),
             function,
             None,
@@ -300,152 +245,96 @@ impl Machine {
             None,
             None,
             None,
-        )?;
-        let result = match outcome {
+        );
+        self.stash_scratch(fiber);
+
+        match outcome? {
             Outcome::Completed { .. } => Ok(()),
             Outcome::Cancelled => Err(RuntimeError::machine(MachineError::DropCancelled).boxed()),
             Outcome::Stopped { .. } => {
                 Err(RuntimeError::machine(MachineError::DropStopped).boxed())
             }
-            Outcome::Awaited { .. } | Outcome::Yielded { .. } => {
-                Err(RuntimeError::machine(MachineError::DropSuspended).boxed())
-            }
-        };
-
-        // discard invalid retained destructor state before returning its failure
-        if result.is_err() {
-            self.clear()?;
+            Outcome::Parked => Err(RuntimeError::machine(MachineError::DropSuspended).boxed()),
         }
-
-        result
     }
 
-    /// Continue execution retained at one debugger stop.
-    pub fn continue_execution<'run>(
-        &mut self,
-        activation: program::Activation<'run, 'run, Activation<'_>>,
-        stop_points: Option<&'run program::StopSet>,
-        watch_points: Option<&'run program::WatchSet>,
-        profile: Option<&'run mut program::Profile>,
-        resume_skip: Option<program::ResumeSkip>,
-    ) -> RuntimeResult<Outcome<Value>> {
-        let Self {
-            activation: captured,
-            continuations,
-            vm,
-            ..
-        } = self;
-        let machine = Self::require_vm(vm, "retained execution")?;
-        let image = captured.take().ok_or_else(|| {
-            RuntimeError::Internal {
-                message: "retained execution has no activation image".to_string(),
-            }
-            .boxed()
-        })?;
-        machine.restore(image).map_err(Box::<RuntimeError>::from)?;
-        let outcome = machine.continue_execution(
-            continuations,
-            activation,
-            stop_points,
-            watch_points,
-            profile,
-            resume_skip,
-        )?;
+    /// Take the reusable synchronous destructor fiber.
+    fn take_scratch(&mut self) -> RuntimeResult<vm::Fiber> {
+        match self.scratch.take() {
+            Some(fiber) => Ok(fiber),
+            None => self.reserve_fiber(),
+        }
+    }
 
-        Self::capture_vm_outcome(captured, machine, outcome)
+    /// Return the destructor fiber, discarding any retained execution.
+    fn stash_scratch(&mut self, mut fiber: vm::Fiber) {
+        fiber.clear();
+        self.scratch = Some(fiber);
     }
 
     /// Capture retained engine-neutral execution state.
     pub fn image(&self) -> MachineImage {
-        MachineImage::new(
-            self.continuations.inherit(),
-            self.activation
-                .as_ref()
-                .map(program::ActivationImage::inherit),
-        )
+        MachineImage::new(self.stopped.as_ref().map(vm::Fiber::image))
     }
 
     /// Restore retained engine-neutral execution state.
     pub(crate) fn restore(&mut self, image: &MachineImage) -> RuntimeResult<()> {
-        self.clear()?;
-        self.activation = image.activation().map(program::ActivationImage::inherit);
-        self.continuations = image.continuation_table().inherit();
-
-        Ok(())
-    }
-
-    /// Clear retained execution state.
-    pub(crate) fn clear(&mut self) -> RuntimeResult<()> {
-        let activation = self.activation.take();
-        let continuations = std::mem::take(&mut self.continuations);
-
-        // release every owned execution range even when one release fails
-        let activation = activation
-            .map(|activation| activation.release(&self.memory))
+        self.stopped = image
+            .stopped()
+            .map(|image| vm::Fiber::from_image(self.memory.clone(), image))
             .transpose()
-            .map_err(Box::<RuntimeError>::from);
-        let continuations = continuations
-            .release(&self.memory)
-            .map_err(Box::<RuntimeError>::from);
-        let vm = self
-            .vm
-            .as_mut()
-            .map(vm::Machine::clear)
-            .transpose()
-            .map_err(Box::<RuntimeError>::from);
-
-        activation?;
-        continuations?;
-        vm?;
-
-        Ok(())
-    }
-
-    /// Release one continuation that cannot reach a language-level owner.
-    pub(crate) fn release_continuation(
-        &self,
-        continuation: program::Continuation,
-    ) -> RuntimeResult<()> {
-        continuation
-            .release(&self.memory)
-            .map_err(Box::<RuntimeError>::from)
-    }
-
-    /// Visit mutable heap roots retained by canonical execution state.
-    pub fn visit_root_slots(
-        &mut self,
-        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> RuntimeResult<()> {
-        if let Some(activation) = &mut self.activation {
-            self.engine
-                .program()
-                .visit_activation_root_slots(&self.memory, activation, visit)
-                .map_err(Box::<RuntimeError>::from)?;
-        }
-
-        // visit canonical continuations shared by all execution forms
-        let program = self.engine.program();
-
-        self.continuations
-            .visit_root_slots(program, &self.memory, visit)
             .map_err(Box::<RuntimeError>::from)?;
 
         Ok(())
     }
 
+    /// Discard retained execution state.
+    pub(crate) fn clear(&mut self) {
+        self.stopped = None;
+    }
+
+    /// Visit mutable heap roots retained by the stopped fiber.
+    pub fn visit_root_slots(
+        &mut self,
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+    ) -> RuntimeResult<()> {
+        let Self { stopped, vm, .. } = self;
+        let (Some(fiber), Some(machine)) = (stopped.as_mut(), vm.as_ref()) else {
+            return Ok(());
+        };
+
+        machine
+            .visit_root_slots(fiber, visit)
+            .map_err(Box::<RuntimeError>::from)
+    }
+
+    /// Visit mutable heap roots retained by one scheduler-owned fiber.
+    pub(crate) fn visit_fiber_root_slots(
+        &self,
+        fiber: &mut vm::Fiber,
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+    ) -> RuntimeResult<()> {
+        let machine = self
+            .vm
+            .as_ref()
+            .ok_or_else(|| Self::unsupported("fiber roots"))?;
+
+        machine
+            .visit_root_slots(fiber, visit)
+            .map_err(Box::<RuntimeError>::from)
+    }
+
     /// Fork this machine over already-forked memory.
     pub fn fork(&self, memory: Arc<MemoryMap>) -> Self {
-        let vm = self.vm.as_ref().map(|machine| machine.fork(memory.clone()));
-
         Self {
             engine: self.engine.clone(),
-            memory,
-            continuations: self.continuations.inherit(),
-            activation: self
-                .activation
+            stopped: self
+                .stopped
                 .as_ref()
-                .map(program::ActivationImage::inherit),
-            vm,
+                .map(|fiber| fiber.fork(memory.clone())),
+            scratch: None,
+            vm: self.vm.as_ref().map(vm::Machine::fork),
+            memory,
         }
     }
 
@@ -453,6 +342,7 @@ impl Machine {
     #[allow(clippy::too_many_arguments)]
     fn execute<'run>(
         &mut self,
+        fiber: &mut vm::Fiber,
         mut activation: program::Activation<'run, 'run, Activation<'_>>,
         function: program::FunctionId,
         environment: Option<&program::Value>,
@@ -478,21 +368,15 @@ impl Machine {
 
         match target {
             Target::Bytecode => {
-                let Self {
-                    activation: captured,
-                    continuations,
-                    vm,
-                    ..
-                } = self;
-                let machine = vm.as_mut().ok_or_else(|| {
+                let machine = self.vm.as_mut().ok_or_else(|| {
                     RuntimeError::Internal {
                         message: "bytecode entry has no worker machine".to_string(),
                     }
                     .boxed()
                 })?;
 
-                let outcome = machine.run(
-                    continuations,
+                machine.run(
+                    fiber,
                     activation,
                     function,
                     environment,
@@ -500,9 +384,7 @@ impl Machine {
                     stop_points,
                     watch_points,
                     profile,
-                )?;
-
-                Self::capture_vm_outcome(captured, machine, outcome)
+                )
             }
             Target::Native => {
                 let engine = self.engine.clone();
@@ -513,6 +395,7 @@ impl Machine {
                     .boxed()
                 })?;
 
+                let mut captured = None;
                 let outcome = code.run(
                     engine.program(),
                     &mut activation,
@@ -524,41 +407,59 @@ impl Machine {
                     environment,
                     arguments,
                     profile.as_deref_mut(),
-                    &mut self.activation,
+                    &mut captured,
                 )?;
 
-                // continue canonical deoptimized state without exposing a host stop
                 match outcome {
-                    super::native::Outcome::Program(outcome) => Ok(outcome),
+                    super::native::Outcome::Program(outcome) => {
+                        // land retained native frames on the executing fiber
+                        if let Some(image) = captured {
+                            self.adopt_capture(fiber, image)?;
+                        }
+
+                        Ok(outcome)
+                    }
+                    // continue deoptimized execution through canonical bytecode
                     super::native::Outcome::Deoptimized => {
-                        let image = self.activation.take().ok_or_else(|| {
+                        let image = captured.ok_or_else(|| {
                             RuntimeError::Internal {
                                 message: "native deoptimization retained no activation".to_string(),
                             }
                             .boxed()
                         })?;
-                        let Self {
-                            activation: captured,
-                            continuations,
-                            vm,
-                            ..
-                        } = self;
-                        let machine = Self::require_vm(vm, "native deoptimization")?;
-                        machine.restore(image).map_err(Box::<RuntimeError>::from)?;
-                        let outcome = machine.continue_execution(
-                            continuations,
+                        self.adopt_capture(fiber, image)?;
+                        let machine = Self::require_vm(&mut self.vm, "native deoptimization")?;
+
+                        machine.continue_execution(
+                            fiber,
                             activation,
                             stop_points,
                             watch_points,
                             profile,
                             None,
-                        )?;
-
-                        Self::capture_vm_outcome(captured, machine, outcome)
+                        )
                     }
                 }
             }
         }
+    }
+
+    /// Materialize one captured native activation onto the executing fiber.
+    fn adopt_capture(
+        &mut self,
+        fiber: &mut vm::Fiber,
+        image: program::ActivationImage,
+    ) -> RuntimeResult<()> {
+        let machine = Self::require_vm(&mut self.vm, "native frame adoption")?;
+        let result = machine
+            .materialize(fiber, &image)
+            .map_err(Box::<RuntimeError>::from);
+        let release = image
+            .release(&self.memory)
+            .map_err(Box::<RuntimeError>::from);
+
+        result?;
+        release
     }
 
     /// Return the worker-local bytecode machine required by one operation.
@@ -567,25 +468,6 @@ impl Machine {
         feature: &str,
     ) -> RuntimeResult<&'machine mut vm::Machine> {
         vm.as_mut().ok_or_else(|| Self::unsupported(feature))
-    }
-
-    /// Capture canonical stopped execution from a VM into runtime ownership.
-    fn capture_vm_outcome(
-        captured: &mut Option<program::ActivationImage>,
-        machine: &mut vm::Machine,
-        outcome: Outcome<Value>,
-    ) -> RuntimeResult<Outcome<Value>> {
-        if matches!(outcome, Outcome::Stopped { .. }) {
-            let image = machine.take_activation().ok_or_else(|| {
-                RuntimeError::Internal {
-                    message: "retained VM outcome has no activation image".to_string(),
-                }
-                .boxed()
-            })?;
-            *captured = Some(image);
-        }
-
-        Ok(outcome)
     }
 
     /// Return one unavailable entry error.
@@ -608,17 +490,7 @@ impl fmt::Debug for Machine {
         formatter
             .debug_struct("Machine")
             .field("engine", &self.engine)
-            .field("continuations", &self.continuations)
             .field("vm", &self.vm)
             .finish()
-    }
-}
-
-impl Drop for Machine {
-    fn drop(&mut self) {
-        // abort because dropping owned execution ranges must not corrupt world memory
-        if self.clear().is_err() {
-            std::process::abort();
-        }
     }
 }

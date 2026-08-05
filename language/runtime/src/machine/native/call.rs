@@ -95,16 +95,6 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         panic_value: Self::panic_value,
         unwind_classify: Self::unwind_classify,
         unwind_resume: Self::unwind_resume,
-        waiter_queue: Self::queue_waiter,
-        waiter_cancel: Self::cancel_waiter,
-        task_resolve: Self::resolve_task,
-        task_start: Self::start_task,
-        task_suspend: Self::suspend_task,
-        task_park: Self::park_task,
-        task_cancel: Self::cancel_task,
-        task_is_cancelled: Self::is_task_cancelled,
-        task_detach: Self::detach_task,
-        task_finish: Self::finish_task,
         profile_increment: Self::increment_profile,
         profile_sample: Self::sample_profile,
         binding_call: Self::binding,
@@ -237,7 +227,9 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
                             return Ok(());
                         };
                         let target = range.target + pointer - range.source.start;
-                        let word = program::Word::from_bits((target + 2) as u64);
+                        let word = program::Word::from_bits(
+                            target as u64 + program::ActivationImage::FRAME_ADDRESS_BIAS,
+                        );
                         address.copy_from_slice(&word.to_bytes());
 
                         Ok(())
@@ -321,10 +313,17 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         };
         let memory = call.activation.memory.reborrow();
         let context = *call.activation.context;
+
+        // the native tier carries no detach boundaries; the mounted fiber is current
+        let fiber = call
+            .activation
+            .runtime
+            .current_fiber()
+            .unwrap_or(program::Fiber::NONE);
         if let Err(error) = call
             .activation
             .runtime
-            .call_binding(memory, context, binding, arguments, result)
+            .call_binding(memory, context, fiber, binding, arguments, result)
         {
             call.fail_boxed(error);
         }
@@ -586,168 +585,6 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         call.retain()
     }
 
-    /// Queue one suspended waiter.
-    unsafe extern "C-unwind" fn queue_waiter(
-        activation: *mut abi::Activation,
-        waiter: u64,
-        ty: u32,
-        words: *const u64,
-    ) -> u32 {
-        // SAFETY: generated code passes the active activation supplied to abi::Entry
-        let call = unsafe { Self::from_activation(activation) };
-        let value = unsafe { call.value(program::TypeId(ty), words) };
-        let waiter = program::Waiter::from_bits(waiter);
-
-        match call.activation.runtime.queue_waiter(waiter, value) {
-            Ok(is_settled) => u32::from(is_settled),
-            Err(error) => call.fail_boxed(error),
-        }
-    }
-
-    /// Cancel one suspended waiter.
-    unsafe extern "C-unwind" fn cancel_waiter(
-        activation: *mut abi::Activation,
-        waiter: u64,
-    ) -> u32 {
-        // SAFETY: generated code passes the active activation supplied to abi::Entry
-        let call = unsafe { Self::from_activation(activation) };
-        let waiter = program::Waiter::from_bits(waiter);
-
-        match call.activation.runtime.cancel_waiter(waiter) {
-            Ok(is_settled) => u32::from(is_settled),
-            Err(error) => call.fail_boxed(error),
-        }
-    }
-
-    /// Create one completed task.
-    unsafe extern "C-unwind" fn resolve_task(
-        activation: *mut abi::Activation,
-        ty: u32,
-        words: *const u64,
-    ) -> u64 {
-        // SAFETY: generated code passes the active activation supplied to abi::Entry
-        let call = unsafe { Self::from_activation(activation) };
-        let value = unsafe { call.value(program::TypeId(ty), words) };
-
-        call.activation.runtime.resolve_task(value).bits()
-    }
-
-    /// Start one running task.
-    unsafe extern "C-unwind" fn start_task(activation: *mut abi::Activation) -> u64 {
-        // SAFETY: generated code passes the active activation supplied to abi::Entry
-        let call = unsafe { Self::from_activation(activation) };
-
-        call.activation.runtime.start_task().bits()
-    }
-
-    /// Suspend one running task.
-    unsafe extern "C-unwind" fn suspend_task(
-        activation: *mut abi::Activation,
-        task: u64,
-        frame_map: u32,
-        anchor: *const u8,
-    ) -> u64 {
-        // SAFETY: generated code passes its active frame marker
-        let call = unsafe { Self::from_activation(activation) };
-        if let Err(error) = unsafe { call.capture(frame_map, anchor) } {
-            call.fail_boxed(error);
-        }
-        let image = call
-            .take_activation()
-            .unwrap_or_else(|error| call.fail_boxed(error));
-        let continuation = program::Continuation::new(image);
-        let task = program::Task::from_bits(task);
-
-        match call.activation.runtime.suspend_task(task, continuation) {
-            Ok(waiter) => waiter.bits(),
-            Err((error, continuation)) => {
-                if let Err(release) = continuation.release(call.memory) {
-                    call.fail(release);
-                }
-
-                call.fail_boxed(error)
-            }
-        }
-    }
-
-    /// Park one waiter until its task settles.
-    unsafe extern "C-unwind" fn park_task(
-        activation: *mut abi::Activation,
-        task: u64,
-        waiter: u64,
-    ) {
-        // SAFETY: generated code passes the active activation supplied to abi::Entry
-        let call = unsafe { Self::from_activation(activation) };
-        let task = program::Task::from_bits(task);
-        let waiter = program::Waiter::from_bits(waiter);
-
-        if let Err(error) = call.activation.runtime.park_task(task, waiter) {
-            call.fail_boxed(error);
-        }
-    }
-
-    /// Request cancellation of one task.
-    unsafe extern "C-unwind" fn cancel_task(activation: *mut abi::Activation, task: u64) {
-        // SAFETY: generated code passes the active activation supplied to abi::Entry
-        let call = unsafe { Self::from_activation(activation) };
-        let task = program::Task::from_bits(task);
-
-        if let Err(error) = call.activation.runtime.cancel_task(task) {
-            call.fail_boxed(error);
-        }
-    }
-
-    /// Return whether cancellation was requested for one task.
-    unsafe extern "C-unwind" fn is_task_cancelled(
-        activation: *mut abi::Activation,
-        task: u64,
-    ) -> u32 {
-        // SAFETY: generated code passes the active activation supplied to abi::Entry
-        let call = unsafe { Self::from_activation(activation) };
-        let task = program::Task::from_bits(task);
-
-        match call.activation.runtime.is_task_cancelled(task) {
-            Ok(is_cancelled) => u32::from(is_cancelled),
-            Err(error) => call.fail_boxed(error),
-        }
-    }
-
-    /// Detach one task result.
-    unsafe extern "C-unwind" fn detach_task(activation: *mut abi::Activation, task: u64) {
-        // SAFETY: generated code passes the active activation supplied to abi::Entry
-        let call = unsafe { Self::from_activation(activation) };
-        let task = program::Task::from_bits(task);
-
-        if let Err(error) = call.activation.runtime.detach_task(task) {
-            call.fail_boxed(error);
-        }
-    }
-
-    /// Finish one task with its terminal outcome.
-    unsafe extern "C-unwind" fn finish_task(
-        activation: *mut abi::Activation,
-        task: u64,
-        outcome: abi::TaskOutcome,
-        result_type: u32,
-        result: *const u64,
-    ) {
-        // SAFETY: generated code passes the active activation supplied to abi::Entry
-        let call = unsafe { Self::from_activation(activation) };
-        let task = program::Task::from_bits(task);
-        let outcome = match outcome {
-            abi::TaskOutcome::Completed => {
-                let value = unsafe { call.value(program::TypeId(result_type), result) };
-
-                program::TaskOutcome::Completed(value)
-            }
-            abi::TaskOutcome::Cancelled => program::TaskOutcome::Cancelled,
-        };
-
-        if let Err(error) = call.activation.runtime.finish_task(task, outcome) {
-            call.fail_boxed(error);
-        }
-    }
-
     /// Increment one explicit profile counter when recording is active.
     unsafe extern "C-unwind" fn increment_profile(activation: *mut abi::Activation, counter: u32) {
         // SAFETY: generated code passes the active activation supplied to abi::Entry
@@ -955,31 +792,6 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
             abi::AllocationInitialization::Zeroed => Payload::Zeroed,
             abi::AllocationInitialization::Uninit => Payload::Uninit,
         }
-    }
-
-    /// Copy one typed value from generated native storage.
-    unsafe fn value(&mut self, ty: program::TypeId, words: *const u64) -> program::Value {
-        let byte_len = self.program.type_byte_len(ty).unwrap_or_else(|| {
-            self.fail(RuntimeError::Internal {
-                message: format!("native value type {ty:?} has no layout"),
-            })
-        });
-        let word_count = byte_len.div_ceil(program::Word::BYTE_LEN);
-        if word_count != 0 && words.is_null() {
-            self.fail(RuntimeError::Internal {
-                message: format!("native value type {ty:?} has no words"),
-            });
-        }
-        let words = if word_count == 0 {
-            Vec::new()
-        } else {
-            // SAFETY: generated code supplies the exact typed value range
-            unsafe { std::slice::from_raw_parts(words.cast(), word_count).to_vec() }
-        };
-
-        self.program
-            .value(ty, words)
-            .unwrap_or_else(|error| self.fail(error))
     }
 
     /// Raise one runtime operation failure through native cleanup blocks.

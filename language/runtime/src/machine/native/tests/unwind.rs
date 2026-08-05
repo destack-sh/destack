@@ -79,6 +79,8 @@ fn fail(
     _activation: &mut Activation<'_>,
     _memory: program::Memory<'_>,
     _context: program::Context,
+    _fiber: program::Fiber,
+    _declaration: &program::Binding,
     _arguments: &[program::Word],
     _results: &mut [program::Word],
 ) -> RuntimeResult<()> {
@@ -93,6 +95,8 @@ fn cleanup(
     _activation: &mut Activation<'_>,
     _memory: program::Memory<'_>,
     _context: program::Context,
+    _fiber: program::Fiber,
+    _declaration: &program::Binding,
     _arguments: &[program::Word],
     _results: &mut [program::Word],
 ) -> RuntimeResult<()> {
