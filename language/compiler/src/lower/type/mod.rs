@@ -20,7 +20,7 @@ mod substitution;
 mod variant;
 
 pub(in crate::lower) use alias::AliasForm;
-pub(in crate::lower) use dispatch::DynamicSource;
+pub(in crate::lower) use dispatch::Implementer;
 pub use layout::{LayoutBuilder, LayoutError};
 pub(in crate::lower) use lifetime::LifetimeParameters;
 pub(in crate::lower) use lower::TypeLowerer;

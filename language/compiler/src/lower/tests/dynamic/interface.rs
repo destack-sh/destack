@@ -38,8 +38,8 @@ entry(v0: ref<Console, managed, mutable>):
     return v1
 }
 
-function test.main.talk(v0: dynamic<Greeter>): int32 {
-entry(v0: dynamic<Greeter>):
+function test.main.talk(v0: dynamic<Greeter, managed, mutable>): int32 {
+entry(v0: dynamic<Greeter, managed, mutable>):
     v1: int32 = call.dynamic v0, Greeter, 0(): () => int32
     return v1
 }
@@ -47,8 +47,8 @@ entry(v0: dynamic<Greeter>):
 function test.main.run(): int32 {
 entry:
     v0: ref<Console, managed, mutable> = new.zeroed Console
-    v1: dynamic<Greeter> = dynamic.bind v0, Console
-    v2: int32 = call test.main.talk(v1)
+    v1: dynamic<Greeter, managed, mutable> = dynamic.bind v0, Console
+    v2: int32 = call test.main.talk(v1): (dynamic<Greeter, managed, mutable>) => int32
     return v2
 }
 /// @layout.struct name=Console size=0 align=1
@@ -84,11 +84,11 @@ function write(sink: Sink | undefined): int32 {
         r#"
 type Sink { }
 
-function test.main.write(v0: dynamic<Sink, undefined>): int32 {
-entry(v0: dynamic<Sink, undefined>):
-    v1: dynamic<Sink, undefined> = undefined
+function test.main.write(v0: dynamic<Sink, managed, mutable, undefined>): int32 {
+entry(v0: dynamic<Sink, managed, mutable, undefined>):
+    v1: dynamic<Sink, managed, mutable, undefined> = undefined
     v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
+    branch v2 => b1 | b2
 
 b1:
     v3: int32 = 0

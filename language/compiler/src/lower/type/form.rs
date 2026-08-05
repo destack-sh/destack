@@ -107,7 +107,7 @@ impl TypeLowerer<'_, '_> {
 
         // fuse dynamic payload references into the erased descriptor
         if let dir::Type::Dynamic(dynamic) = self.lowerer.ty(payload)? {
-            let constraint = self.lower(dynamic.constraint)?;
+            let constraint = self.lower_dynamic_constraint(dynamic.constraint)?;
 
             return Ok(self.tree.intern_type(mir::Type::Dynamic {
                 kind,

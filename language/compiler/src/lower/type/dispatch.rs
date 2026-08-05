@@ -5,16 +5,19 @@ use destack_core::StringId;
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{GenericInstanceKey, ModuleLowerer};
+use crate::lower::{FunctionDeclaration, GenericInstanceKey, ModuleLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
-/// One erasure fact backing a dynamic dispatch table.
+/// The concrete implementer behind one erasure.
 #[derive(Debug)]
-pub(in crate::lower) enum DynamicSource {
+pub(in crate::lower) enum Implementer {
     /// A nominal class erased at a constraint, filling slots from its members.
     Class(dir::GlobalSymbolId),
-    /// A concrete object row erased at a structural contract, with its written keys.
-    Object(Vec<StringId>),
+    /// A concrete object row erased at a structural constraint.
+    Object {
+        /// The property names the row wrote, leaving other optional slots absent.
+        written: Vec<StringId>,
+    },
 }
 
 impl ModuleLowerer<'_> {
@@ -25,10 +28,10 @@ impl ModuleLowerer<'_> {
         errors: &mut Vec<Box<dyn DiagnosticLike>>,
     ) -> CompilerResult<()> {
         let shapes = mem::take(&mut self.dynamic_shapes);
-        let sources = mem::take(&mut self.dynamic_sources);
+        let erasures = mem::take(&mut self.erasures);
 
         // derive the table each erased concrete row answers its constraint with
-        for ((concrete, constraint), source) in sources {
+        for ((concrete, constraint), implementer) in erasures {
             let Some(shape) = shapes.get(&constraint) else {
                 return Err(CompilerError::Internal {
                     message: "an erasure without its registered constraint shape".to_string(),
@@ -37,7 +40,7 @@ impl ModuleLowerer<'_> {
             let fields = Self::laid_out_fields(builder, concrete);
 
             // keep unsupported erasures isolated per table
-            let entries = match self.dispatch_entries(&shape.slots, &source, &fields) {
+            let entries = match self.dispatch_entries(&shape.slots, &implementer, &fields) {
                 Ok(entries) => entries,
                 Err(CompilerError::Diagnostic(diagnostic)) => {
                     errors.push(diagnostic);
@@ -49,7 +52,7 @@ impl ModuleLowerer<'_> {
 
             // index the concrete fields by name for keyed constraints
             let mut names = Vec::new();
-            if self.keyed_constraints.contains(&constraint) {
+            if shape.is_keyed {
                 names.extend(fields.iter().map(|(name, offset)| mir::DynamicNamedEntry {
                     name: *name,
                     entry: mir::DynamicEntry::Field { offset: *offset },
@@ -79,11 +82,11 @@ impl ModuleLowerer<'_> {
         Ok(())
     }
 
-    /// Derive the dispatch entries one source supplies for the constraint slots.
+    /// Derive the dispatch entries one implementer supplies for the constraint slots.
     fn dispatch_entries(
         &self,
         slots: &[mir::DynamicSlot],
-        source: &DynamicSource,
+        implementer: &Implementer,
         fields: &[(StringId, u32)],
     ) -> CompilerResult<Vec<mir::DynamicEntry>> {
         let field_offset = |name: StringId| {
@@ -98,15 +101,15 @@ impl ModuleLowerer<'_> {
 
         let mut entries = Vec::with_capacity(slots.len());
         for slot in slots {
-            let entry = match (slot, source) {
+            let entry = match (slot, implementer) {
                 // read field slots at their laid-out offsets
-                (mir::DynamicSlot::Field { name, .. }, DynamicSource::Class(_)) => {
+                (mir::DynamicSlot::Field { name, .. }, Implementer::Class(_)) => {
                     mir::DynamicEntry::Field {
                         offset: field_offset(*name)?,
                     }
                 }
                 // read unwritten optional row slots as undefined
-                (mir::DynamicSlot::Field { name, .. }, DynamicSource::Object(written)) => {
+                (mir::DynamicSlot::Field { name, .. }, Implementer::Object { written }) => {
                     match written.contains(name) {
                         true => mir::DynamicEntry::Field {
                             offset: field_offset(*name)?,
@@ -119,19 +122,32 @@ impl ModuleLowerer<'_> {
                     mir::DynamicSlot::Function {
                         name: Some(name), ..
                     },
-                    DynamicSource::Class(symbol),
+                    Implementer::Class(symbol),
                 ) => {
                     let method = self.implementing_method(*symbol, *name)?;
                     let key = GenericInstanceKey::non_generic(method);
-                    let function = self.functions.get(&key).copied().ok_or_else(|| {
-                        CompilerError::Internal {
-                            message: "a dispatch method without a declared function".to_string(),
+                    let function = match self.functions.get(&key) {
+                        Some(FunctionDeclaration::Declared(function)) => *function,
+                        // cascade from declarations that already reported their diagnostics
+                        Some(FunctionDeclaration::Failed) => {
+                            return Err(LowerError::Unsupported {
+                                anchor: self.module.into(),
+                                construct: "a dispatch method behind a failed declaration"
+                                    .to_string(),
+                            }
+                            .into());
                         }
-                    })?;
+                        None => {
+                            return Err(CompilerError::Internal {
+                                message: "a dispatch method without a declared function"
+                                    .to_string(),
+                            });
+                        }
+                    };
 
                     mir::DynamicEntry::Function { function }
                 }
-                (mir::DynamicSlot::Function { name: Some(_), .. }, DynamicSource::Object(_)) => {
+                (mir::DynamicSlot::Function { name: Some(_), .. }, Implementer::Object { .. }) => {
                     return Err(LowerError::Unsupported {
                         anchor: self.module.into(),
                         construct: "a function member on a structural contract".to_string(),

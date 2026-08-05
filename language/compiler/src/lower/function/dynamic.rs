@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{DynamicSource, FunctionLowerer};
+use crate::lower::{FunctionLowerer, Implementer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -19,14 +19,6 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a value erased outside a dynamic target".to_string(),
             });
         };
-
-        // record constraints that answer keyed finds
-        let contract = self.lowerer.reduced_type(target)?;
-        if let dir::Type::Shape(shape) = self.lowerer.ty(contract)?
-            && !shape.index_signatures.is_empty()
-        {
-            self.lowerer.keyed_constraints.insert(constraint);
-        }
 
         // register the concrete class's constraint entries
         let source = self.lowerer.reduced_type(source)?;
@@ -52,9 +44,9 @@ impl FunctionLowerer<'_, '_, '_> {
                 })
                 .collect::<Vec<_>>();
             self.lowerer
-                .dynamic_sources
+                .erasures
                 .entry((concrete, constraint))
-                .or_insert(DynamicSource::Object(written));
+                .or_insert(Implementer::Object { written });
 
             return Ok(self.builder.dynamic_bind(dynamic, value, concrete));
         }
@@ -77,9 +69,9 @@ impl FunctionLowerer<'_, '_, '_> {
             .lower_nominal(instance.symbol, &arguments)?
             .storage;
         self.lowerer
-            .dynamic_sources
+            .erasures
             .entry((concrete, constraint))
-            .or_insert(DynamicSource::Class(instance.symbol));
+            .or_insert(Implementer::Class(instance.symbol));
 
         Ok(self.builder.dynamic_bind(dynamic, value, concrete))
     }

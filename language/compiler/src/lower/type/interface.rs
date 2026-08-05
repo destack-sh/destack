@@ -86,9 +86,13 @@ impl TypeLowerer<'_, '_> {
                 }
             }
 
-            let signature = self.lower_callable_signature(reduced)?;
+            // leave the receiver to the dispatch and lower the bare row
+            let signature = self.lower_signature_row(&signature, reduced.module_id)?;
             let name = self.lowerer.symbol_name(method.symbol)?;
-            slots.push(mir::DynamicSlot::Function { name, signature });
+            slots.push(mir::DynamicSlot::Function {
+                name,
+                signature: mir::TypeId::from(signature),
+            });
         }
 
         // hold the property storage in the constraint row
@@ -100,13 +104,15 @@ impl TypeLowerer<'_, '_> {
             },
         );
 
-        // register the constraint's dispatch shape once
+        // register the constraint's dispatch shape once, unkeyed: interface
+        //  constraints declare no index signatures
         self.lowerer
             .dynamic_shapes
             .entry(ty)
             .or_insert(mir::DynamicShape {
                 constraint: ty,
                 slots,
+                is_keyed: false,
             });
 
         Ok(fields)

@@ -29,14 +29,18 @@ impl TypeLowerer<'_, '_> {
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         // read the properties the constraint declares
         let constraint = self.lowerer.reduced_type(constraint)?;
-        let properties = match self.lowerer.ty(constraint)? {
-            dir::Type::Shape(shape) => self
-                .lowerer
-                .types(constraint.module_id)?
-                .properties(shape.properties)
-                .to_vec(),
+        let (properties, is_keyed) = match self.lowerer.ty(constraint)? {
+            dir::Type::Shape(shape) => {
+                let properties = self
+                    .lowerer
+                    .types(constraint.module_id)?
+                    .properties(shape.properties)
+                    .to_vec();
+
+                (properties, !shape.index_signatures.is_empty())
+            }
             // leave the top constraint without entries
-            dir::Type::Unknown => Vec::new(),
+            dir::Type::Unknown => (Vec::new(), false),
             // dispatch interface instances through their declared members
             dir::Type::Application(instance)
                 if matches!(
@@ -93,6 +97,7 @@ impl TypeLowerer<'_, '_> {
             .or_insert(mir::DynamicShape {
                 constraint: struct_type,
                 slots,
+                is_keyed,
             });
 
         Ok(struct_type)

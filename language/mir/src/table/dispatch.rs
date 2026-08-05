@@ -179,6 +179,8 @@ pub struct DynamicShape {
     pub constraint: LocalNodeId<Type>,
     /// Slots in declaration order.
     pub slots: Vec<DynamicSlot>,
+    /// Whether the constraint answers keyed finds by field name.
+    pub is_keyed: bool,
 }
 
 /// Entry in a dynamic dispatch table.

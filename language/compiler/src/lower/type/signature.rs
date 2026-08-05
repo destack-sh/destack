@@ -100,7 +100,7 @@ impl TypeLowerer<'_, '_> {
     }
 
     /// Lower one signature row, leaving any receiver to its dispatch.
-    fn lower_signature_row(
+    pub(in crate::lower) fn lower_signature_row(
         &mut self,
         signature: &dir::FunctionSignatureType,
         module: ModuleId,
