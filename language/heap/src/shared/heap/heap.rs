@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use destack_memory::MemoryMap;
+use destack_memory::{MemoryMap, MemoryRange};
 use destack_mir::TraceMap;
 use serde::{Deserialize, Serialize};
 
@@ -31,6 +31,13 @@ pub struct SharedHeap {
     collection_requested: AtomicBool,
     /// Shared collector pacing state.
     gc_pacer: Pacer,
+}
+
+impl SharedHeap {
+    /// Set the immortal object range, which tracing skips.
+    pub fn set_immortal_range(&mut self, range: MemoryRange) {
+        self.storage.immortal = range;
+    }
 }
 
 /// One frozen shared heap metadata image.

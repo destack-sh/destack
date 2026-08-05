@@ -9,7 +9,7 @@ use crate::{
     GcStats, HeapError, HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, RootSlot,
     SharedHeapReference, SmallAllocationPlan,
 };
-use destack_memory::MemoryMap;
+use destack_memory::{MemoryMap, MemoryRange};
 
 /// One live heap over one shared memory.
 #[derive(Debug)]
@@ -27,6 +27,11 @@ pub struct Heap {
 }
 
 impl Heap {
+    /// Set the immortal object range, which tracing skips.
+    pub fn set_immortal_range(&mut self, range: MemoryRange) {
+        self.storage.immortal = range;
+    }
+
     /// Create one heap over one explicit memory, limits, and options.
     pub fn new(
         memory: Arc<MemoryMap>,

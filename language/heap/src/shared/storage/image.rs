@@ -197,6 +197,7 @@ impl HeapStorage {
             page_size_bytes: self.page_size_bytes,
             accounting: HeapAccounting::from_state(&cloned_store),
             state: RwLock::new(cloned_store),
+            immortal: self.immortal,
             gc: CollectorState::default(),
         };
 
@@ -216,6 +217,7 @@ impl HeapStorage {
             memory,
             page_size_bytes: image.page_size_bytes(),
             state: RwLock::new(store),
+            immortal: MemoryRange::default(),
             gc: CollectorState::default(),
         };
 

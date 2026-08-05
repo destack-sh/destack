@@ -37,6 +37,15 @@ impl HeapStorage {
         }
     }
 
+    /// Return whether one reference addresses immortal storage, which tracing skips.
+    pub(crate) fn is_immortal(&self, reference: SharedHeapReference) -> bool {
+        let offset = reference.offset();
+
+        self.immortal.byte_len != 0
+            && offset >= self.immortal.offset
+            && offset < self.immortal.offset + self.immortal.byte_len
+    }
+
     /// Return the resolved extent for one live shared heap reference.
     pub(crate) fn resolve_extent(&self, reference: SharedHeapReference) -> Option<HeapExtent> {
         let page_size_bytes = self.page_size_bytes();
