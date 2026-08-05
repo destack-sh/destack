@@ -44,6 +44,8 @@ pub enum GlobalLocation {
     SharedStatic = 1,
     /// Worker-owned local static storage.
     LocalStatic = 2,
+    /// Immutable pre-built object storage with reference identity.
+    Immortal = 3,
 }
 
 /// Program global entry.

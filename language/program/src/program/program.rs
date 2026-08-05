@@ -59,6 +59,8 @@ pub struct Program {
 
     /// Immutable constant storage owned by this program.
     pub(crate) constants: StaticImage,
+    /// Immortal object storage materialized once per world.
+    pub(crate) immortals: StaticImage,
     /// Initial shared static storage for each runtime.
     pub(crate) shared_statics: StaticImage,
     /// Initial local static storage for each worker.
@@ -309,6 +311,11 @@ impl Program {
     /// Return initial local static storage for new workers.
     pub fn local_statics(&self) -> &StaticImage {
         &self.local_statics
+    }
+
+    /// Materialize immortal object storage with rebased addresses.
+    pub fn materialize_immortals(&self, memory: Arc<MemoryMap>) -> MemoryResult<StaticSpace> {
+        self.immortals.materialize(self.sections(), memory)
     }
 
     /// Materialize initial shared static storage.

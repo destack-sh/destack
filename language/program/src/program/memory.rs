@@ -24,6 +24,8 @@ pub struct Memory<'a> {
     pub local_statics: &'a mut StaticSpace,
     /// Shared static memory.
     pub shared_statics: &'a mut StaticSpace,
+    /// Immortal object memory.
+    pub immortals: &'a StaticSpace,
     /// Program constant memory.
     pub constants: &'a StaticImage,
 }
@@ -45,6 +47,7 @@ impl Memory<'_> {
             shared_mark_worker: self.shared_mark_worker,
             local_statics: self.local_statics,
             shared_statics: self.shared_statics,
+            immortals: self.immortals,
             constants: self.constants,
         }
     }

@@ -5,6 +5,8 @@ use crate::{GlobalAddress, StaticBytes};
 pub struct GlobalAllocator {
     /// Static bytes.
     bytes: Vec<u8>,
+    /// Image-relative word offsets holding image-relative target offsets.
+    relocations: Vec<u64>,
     /// Maximum global alignment.
     alignment: usize,
 }
@@ -13,6 +15,7 @@ impl Default for GlobalAllocator {
     fn default() -> Self {
         Self {
             bytes: vec![0; GlobalAddress::FIRST_OFFSET],
+            relocations: Vec::new(),
             alignment: 1,
         }
     }
@@ -26,6 +29,14 @@ impl GlobalAllocator {
 
     /// Allocate one static global byte range.
     pub fn allocate(&mut self, alignment: usize, bytes: &[u8]) -> (usize, usize) {
+        let offset = self.reserve(alignment, bytes.len());
+        self.write(offset, bytes);
+
+        (offset, bytes.len())
+    }
+
+    /// Reserve one zeroed static global byte range.
+    pub fn reserve(&mut self, alignment: usize, byte_len: usize) -> usize {
         assert!(
             alignment.is_power_of_two(),
             "global alignment must be a power of two"
@@ -33,18 +44,27 @@ impl GlobalAllocator {
 
         // align the next global start
         let offset = align_static_offset(self.bytes.len(), alignment);
-        self.bytes.resize(offset, 0);
         self.alignment = self.alignment.max(alignment);
 
-        // append global bytes
-        self.bytes.extend_from_slice(bytes);
+        // extend zeroed storage over the reserved range
+        self.bytes.resize(offset + byte_len, 0);
 
-        (offset, bytes.len())
+        offset
+    }
+
+    /// Write bytes into one reserved range.
+    pub fn write(&mut self, offset: usize, bytes: &[u8]) {
+        self.bytes[offset..offset + bytes.len()].copy_from_slice(bytes);
+    }
+
+    /// Record one address word to rebase at materialization.
+    pub fn relocate(&mut self, word_offset: usize) {
+        self.relocations.push(word_offset as u64);
     }
 
     /// Build the initialized and aligned static bytes.
     pub fn build(self) -> StaticBytes {
-        StaticBytes::new(self.bytes, self.alignment)
+        StaticBytes::relocated(self.bytes, self.relocations, self.alignment)
     }
 }
 

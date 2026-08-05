@@ -672,6 +672,7 @@ impl ReferenceLayout {
             3 => Some(Storage::Global(GlobalStorage::Constant)),
             4 => Some(Storage::Global(GlobalStorage::Local)),
             5 => Some(Storage::Global(GlobalStorage::Shared)),
+            6 => Some(Storage::Global(GlobalStorage::Immortal)),
             _ => None,
         }
     }
@@ -685,6 +686,7 @@ impl ReferenceLayout {
             Storage::Global(GlobalStorage::Constant) => 3,
             Storage::Global(GlobalStorage::Local) => 4,
             Storage::Global(GlobalStorage::Shared) => 5,
+            Storage::Global(GlobalStorage::Immortal) => 6,
         }
     }
 }

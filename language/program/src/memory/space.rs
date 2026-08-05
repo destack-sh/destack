@@ -14,6 +14,8 @@ use crate::{Global, GlobalAddress};
 pub struct StaticImage {
     /// Static bytes.
     bytes: SectionSlice<u8>,
+    /// Image-relative word offsets rebased to the placed range at materialization.
+    relocations: SectionSlice<u64>,
     /// Required byte alignment.
     alignment: u32,
     /// Reserved image word.
@@ -25,6 +27,8 @@ pub struct StaticImage {
 pub struct StaticBytes {
     /// Initialized bytes.
     bytes: Vec<u8>,
+    /// Image-relative word offsets holding image-relative target offsets.
+    relocations: Vec<u64>,
     /// Required byte alignment.
     alignment: usize,
 }
@@ -34,6 +38,7 @@ impl Default for StaticBytes {
     fn default() -> Self {
         Self {
             bytes: Vec::new(),
+            relocations: Vec::new(),
             alignment: 1,
         }
     }
@@ -44,6 +49,7 @@ impl Default for StaticImage {
     fn default() -> Self {
         Self {
             bytes: SectionSlice::empty(),
+            relocations: SectionSlice::empty(),
             alignment: 1,
             reserved: 0,
         }
@@ -53,6 +59,11 @@ impl Default for StaticImage {
 impl StaticBytes {
     /// Create initialized static bytes with one required alignment.
     pub fn new(bytes: Vec<u8>, alignment: usize) -> Self {
+        Self::relocated(bytes, Vec::new(), alignment)
+    }
+
+    /// Create initialized static bytes with address words to rebase.
+    pub fn relocated(bytes: Vec<u8>, relocations: Vec<u64>, alignment: usize) -> Self {
         assert!(
             alignment.is_power_of_two(),
             "static alignment must be a power of two"
@@ -62,7 +73,11 @@ impl StaticBytes {
             "static alignment must fit its Program representation"
         );
 
-        Self { bytes, alignment }
+        Self {
+            bytes,
+            relocations,
+            alignment,
+        }
     }
 }
 
@@ -70,10 +85,12 @@ impl StaticImage {
     /// Pack one static image.
     pub(crate) fn pack(sections: &mut SectionBuilder, bytes: StaticBytes) -> Self {
         let alignment = bytes.alignment;
+        let relocations = sections.insert(bytes.relocations);
         let bytes = sections.insert_bytes(bytes.bytes, alignment);
 
         Self {
             bytes,
+            relocations,
             alignment: alignment as u32,
             reserved: 0,
         }
@@ -118,13 +135,16 @@ impl StaticImage {
         self.address(sections, address, byte_len).is_some()
     }
 
-    /// Materialize this image into mutable runtime static memory.
+    /// Materialize this image into runtime static memory with rebased addresses.
     pub fn materialize(
         &self,
         sections: SectionImage<'_>,
         memory: Arc<MemoryMap>,
     ) -> MemoryResult<StaticSpace> {
-        StaticSpace::new(memory, sections.entries(self.bytes), self.alignment())
+        let space = StaticSpace::new(memory, sections.entries(self.bytes), self.alignment())?;
+        space.rebase(sections.entries(self.relocations))?;
+
+        Ok(space)
     }
 
     /// Return whether no static bytes exist.
@@ -217,6 +237,26 @@ impl StaticSpace {
             memory_offset: self.range.offset,
             byte_len: self.range.byte_len,
         }
+    }
+
+    /// Rebase relocated address words by this space's world offset.
+    ///
+    /// Each relocation names a space-relative word holding a space-relative
+    /// target offset; after rebasing, the word holds a world offset.
+    pub fn rebase(&self, relocations: &[u64]) -> MemoryResult<()> {
+        for &relocation in relocations {
+            // read the space-relative target offset
+            let word_offset = self.range.offset + relocation as usize;
+            let bytes = self.memory.read_bytes(word_offset, GlobalAddress::BYTE_LEN)?;
+            let mut word = [0u8; GlobalAddress::BYTE_LEN];
+            word.copy_from_slice(&bytes);
+
+            // rebase the target into world memory
+            let target = u64::from_le_bytes(word) + self.range.offset as u64;
+            self.memory.write_bytes(word_offset, &target.to_le_bytes())?;
+        }
+
+        Ok(())
     }
 
     /// Borrow one mapped global byte range mutably.

@@ -109,6 +109,8 @@ pub struct ProgramBuilder {
 
     /// Immutable constant bytes.
     constants: StaticBytes,
+    /// Immortal object bytes and relocations.
+    immortals: StaticBytes,
     /// Initial shared static bytes.
     shared_statics: StaticBytes,
     /// Initial local static bytes.
@@ -167,6 +169,8 @@ struct ProgramHeader {
 
     /// Immutable constant storage.
     constants: StaticImage,
+    /// Immortal object storage.
+    immortals: StaticImage,
     /// Initial shared static storage.
     shared_statics: StaticImage,
     /// Initial local static storage.
@@ -184,7 +188,7 @@ impl ProgramHeader {
     /// Stable Program image marker.
     const MAGIC: u32 = u32::from_le_bytes(*b"DSPG");
     /// Stable Program image format version.
-    const VERSION: u16 = 13;
+    const VERSION: u16 = 14;
 
     /// Create one empty Program header for a target layout.
     fn new(target_layout: TargetLayout) -> Self {
@@ -208,6 +212,7 @@ impl ProgramHeader {
             globals: GlobalTable::default(),
             info: Optional::none(),
             constants: StaticImage::default(),
+            immortals: StaticImage::default(),
             shared_statics: StaticImage::default(),
             local_statics: StaticImage::default(),
             bytecode: Code::default(),
@@ -232,6 +237,7 @@ impl ProgramHeader {
 
         // require every static region to satisfy its recorded physical alignment
         if !self.constants.is_aligned(sections)
+            || !self.immortals.is_aligned(sections)
             || !self.shared_statics.is_aligned(sections)
             || !self.local_statics.is_aligned(sections)
         {
@@ -322,6 +328,7 @@ impl ProgramBuilder {
             globals: GlobalTableBuilder::default(),
             info: None,
             constants: StaticBytes::default(),
+            immortals: StaticBytes::default(),
             shared_statics: StaticBytes::default(),
             local_statics: StaticBytes::default(),
             bytecode: None,
@@ -450,6 +457,13 @@ impl ProgramBuilder {
         self
     }
 
+    /// Set immortal object storage.
+    pub fn immortals(mut self, bytes: StaticBytes) -> Self {
+        self.immortals = bytes;
+
+        self
+    }
+
     /// Set initial shared static storage.
     pub fn shared_statics(mut self, bytes: StaticBytes) -> Self {
         self.shared_statics = bytes;
@@ -502,6 +516,7 @@ impl ProgramBuilder {
 
         // pack immutable storage in canonical order
         header.constants = StaticImage::pack(&mut sections, self.constants);
+        header.immortals = StaticImage::pack(&mut sections, self.immortals);
         header.shared_statics = StaticImage::pack(&mut sections, self.shared_statics);
         header.local_statics = StaticImage::pack(&mut sections, self.local_statics);
 
@@ -576,6 +591,7 @@ impl Program {
             globals: header.globals,
             info: header.info.get(),
             constants: header.constants,
+            immortals: header.immortals,
             shared_statics: header.shared_statics,
             local_statics: header.local_statics,
             bytecode: header.bytecode,
