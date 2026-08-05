@@ -86,7 +86,7 @@ impl Formatter<'_, '_, '_> {
     }
 
     /// Format one generic parameter.
-    fn generic_parameter(
+    pub(super) fn generic_parameter(
         &self,
         parameter_id: dir::LocalNodeId<dir::GenericParameter>,
     ) -> QueryResult<String> {

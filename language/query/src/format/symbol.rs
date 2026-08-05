@@ -175,6 +175,12 @@ impl Formatter<'_, '_, '_> {
 
                 formatter.parameter_symbol_signature(parameter_id)?
             }
+            dir::NodeType::GenericParameter => {
+                let parameter_id =
+                    dir::LocalNodeId::<dir::GenericParameter>::new(declaration.local_id.id);
+
+                formatter.generic_parameter_symbol_signature(parameter_id)?
+            }
             dir::NodeType::Pattern => {
                 let name = name.as_deref().ok_or(QueryError::missing(format!(
                     "signature name: {symbol_id:?}"
@@ -193,6 +199,29 @@ impl Formatter<'_, '_, '_> {
         };
 
         Ok(signature)
+    }
+
+    /// Format one generic parameter symbol.
+    fn generic_parameter_symbol_signature(
+        &self,
+        parameter_id: dir::LocalNodeId<dir::GenericParameter>,
+    ) -> QueryResult<String> {
+        let parameter = self.module.view()?.get(parameter_id);
+        let kind = match parameter {
+            dir::GenericParameter::Type { .. } | dir::GenericParameter::VariadicType { .. } => {
+                "type parameter"
+            }
+            dir::GenericParameter::Value { .. } | dir::GenericParameter::VariadicValue { .. } => {
+                "value parameter"
+            }
+            dir::GenericParameter::Lifetime { .. } => "lifetime parameter",
+            dir::GenericParameter::Error => {
+                return Err(QueryError::missing("generic parameter signature"));
+            }
+        };
+        let parameter = self.generic_parameter(parameter_id)?;
+
+        Ok(format!("({kind}) {parameter}"))
     }
 
     /// Format one member symbol.

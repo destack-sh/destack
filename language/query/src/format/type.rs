@@ -35,10 +35,6 @@ impl Formatter<'_, '_, '_> {
     /// Format one global type id.
     pub(crate) fn global_type(&self, type_id: dir::GlobalTypeId) -> QueryResult<String> {
         self.read_type(type_id, |type_value, formatter| {
-            if matches!(type_value, dir::Type::Error) {
-                return Err(QueryError::missing(format!("type formatting: {type_id:?}")));
-            }
-
             formatter.local_type(type_value)
         })
     }
@@ -46,7 +42,7 @@ impl Formatter<'_, '_, '_> {
     /// Format one type owned by this formatter's module.
     pub(super) fn local_type(&self, type_value: &dir::Type) -> QueryResult<String> {
         let text = match type_value {
-            dir::Type::Error => return Err(QueryError::missing("type formatting")),
+            dir::Type::Error => "<error>".to_string(),
             dir::Type::Never => "never".to_string(),
             dir::Type::Any => "any".to_string(),
             dir::Type::Unknown => "unknown".to_string(),
