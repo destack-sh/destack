@@ -69,13 +69,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
             CompletionContext::ObjectLiteralValue { scope } => {
                 self.complete_values(*scope, false)?
             }
-            CompletionContext::CallArgument { call, scope, .. } => {
-                // offer the callee's unbound parameter names before values
-                let mut candidates = self.complete_unbound_parameters(*call)?;
-                candidates.extend(self.complete_values(*scope, false)?);
-
-                candidates
-            }
+            CompletionContext::CallArgument { scope, .. } => self.complete_values(*scope, false)?,
             CompletionContext::NewExpression { scope } => self.complete_new_expression(*scope)?,
             CompletionContext::ImportPath { partial_path } => {
                 self.complete_import_paths(partial_path)?

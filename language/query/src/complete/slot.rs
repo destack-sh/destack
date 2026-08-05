@@ -33,10 +33,9 @@ impl ExpressionSlotOwner {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
         match argument {
-            dir::Argument::Named { value, .. }
-            | dir::Argument::Labeled { value, .. }
-            | dir::Argument::Positional { value, .. }
-            | dir::Argument::Spread { value, .. } => *value == expression_id,
+            dir::Argument::Positional { value } | dir::Argument::Spread { value } => {
+                *value == expression_id
+            }
             dir::Argument::Elision | dir::Argument::Error => false,
         }
     }

@@ -41,8 +41,6 @@ pub(crate) enum CompletionContext {
     },
     /// Call argument context inside `call(...)`.
     CallArgument {
-        /// The call expression node.
-        call: dir::LocalNodeId<dir::Expression>,
         /// The scope used for visible symbols.
         scope: dir::LocalScope,
         /// The selected parameter type.

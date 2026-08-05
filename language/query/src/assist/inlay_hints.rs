@@ -442,9 +442,7 @@ impl ModuleQueryContext<'_> {
         let argument_id = dir::LocalNodeId::<dir::Argument>::new(argument.local_id.id);
         let value = match self.view()?.get(argument_id) {
             dir::Argument::Positional { value } => *value,
-            dir::Argument::Named { .. }
-            | dir::Argument::Labeled { .. }
-            | dir::Argument::Spread { .. } => return Ok(None),
+            dir::Argument::Spread { .. } => return Ok(None),
             dir::Argument::Elision | dir::Argument::Error => {
                 return Err(QueryError::invalid(format!(
                     "inlay hint argument: {argument:?}"

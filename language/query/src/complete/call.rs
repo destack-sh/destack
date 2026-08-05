@@ -1,15 +1,9 @@
-use std::slice;
-
 use destack_dir as dir;
 use destack_source::{EnclosingSpan, FileId, Span};
 
-use crate::{
-    CompletionCandidate, CompletionItemKind, CompletionOrigin, ModuleQueryContext, QueryError,
-    QueryResult, SORT_LOCAL_SYMBOL,
-};
+use crate::{ModuleQueryContext, QueryError, QueryResult};
 
 use super::CompletionContext;
-use super::builder::CompletionBuilder;
 
 /// One generated call completion insertion.
 pub(super) struct CallSnippet {
@@ -253,7 +247,6 @@ impl ModuleQueryContext<'_> {
         let expected_type = self.call_argument_type(view, call.id, call.arguments, offset)?;
 
         Ok(Some(CompletionContext::CallArgument {
-            call: call.id,
             scope,
             expected_type,
         }))
@@ -285,7 +278,6 @@ impl ModuleQueryContext<'_> {
             };
 
             return Ok(Some(CompletionContext::CallArgument {
-                call: call.id,
                 scope,
                 expected_type: None,
             }));
@@ -393,89 +385,5 @@ impl ModuleQueryContext<'_> {
         }
 
         Ok(offset > left_span.end && offset <= call_span.end)
-    }
-}
-
-impl CompletionBuilder<'_, '_, '_> {
-    /// Complete the callee's parameter names not yet bound at one call.
-    pub(super) fn complete_unbound_parameters(
-        &self,
-        call: dir::LocalNodeId<dir::Expression>,
-    ) -> QueryResult<Vec<CompletionCandidate>> {
-        let mut results = Vec::new();
-
-        let node = call.into_global_any(self.module.module_id());
-        // FUGU #Incomplete: DIR must retain attempted candidates for rejected overloads
-        let resolution =
-            self.module
-                .resolutions()?
-                .call_resolution(node)
-                .ok_or(QueryError::missing(format!(
-                    "completion call selection: {node:?}"
-                )))?;
-
-        // union calls offer only the names every runtime arm still accepts
-        let selections = match resolution {
-            dir::OperationResolution::One(selected) => slice::from_ref(selected),
-            dir::OperationResolution::Union { arms, .. } => arms.as_slice(),
-        };
-
-        // intersect the unbound names across every arm
-        let mut shared: Option<Vec<String>> = None;
-        for selected in selections {
-            let Some(names) = self.unbound_parameter_names(selected)? else {
-                return Ok(results);
-            };
-            shared = Some(match shared {
-                None => names,
-                Some(shared) => shared
-                    .into_iter()
-                    .filter(|name| names.contains(name))
-                    .collect(),
-            });
-        }
-
-        // offer each shared unbound parameter name
-        for name in shared.unwrap_or_default() {
-            let completion = CompletionCandidate::new(
-                name,
-                CompletionItemKind::ValueParameter,
-                CompletionOrigin::Local,
-                SORT_LOCAL_SYMBOL,
-            );
-            results.push(completion);
-        }
-
-        Ok(results)
-    }
-
-    /// Return one selected call's parameter names past the bound arguments.
-    fn unbound_parameter_names(&self, selected: &dir::Call) -> QueryResult<Option<Vec<String>>> {
-        // read the selected target's parameter names
-        let names = match selected.target.symbol() {
-            Some(symbol) => self
-                .program
-                .symbol_parameter_names(symbol)?
-                .map(|names| names.into_iter().map(Some).collect::<Vec<_>>()),
-            None => match &selected.target {
-                dir::CallTarget::Dynamic {
-                    function:
-                        dir::DynamicFunction::CallSignature(source)
-                        | dir::DynamicFunction::IndexRead(source)
-                        | dir::DynamicFunction::IndexWrite(source)
-                        | dir::DynamicFunction::ConstructSignature(source),
-                    ..
-                } => self.program.node_parameter_names(*source)?,
-                _ => None,
-            },
-        };
-        let Some(names) = names else {
-            return Ok(None);
-        };
-
-        // exclude parameters already bound by positional arguments
-        let bound = selected.arguments.len();
-
-        Ok(Some(names.into_iter().skip(bound).flatten().collect()))
     }
 }
