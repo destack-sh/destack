@@ -44,6 +44,10 @@ fn format_fields<'a>(binding: &Binding, f: &mut Writer<'a, '_>) -> FormatResult<
         format_separator(f)?;
         format_field("affinity", binding.affinity.name(), f)?;
     }
+    if binding.is_park {
+        format_separator(f)?;
+        write!(f, [token("park:"), space(), token("true")])?;
+    }
 
     // non-empty target constraints
     format_list("requires", &binding.requires, f)?;

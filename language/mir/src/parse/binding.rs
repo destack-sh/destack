@@ -55,6 +55,7 @@ impl Parser {
         // resolve optional execution properties
         let replay = self.binding_replay(options)?;
         let affinity = self.binding_affinity(options)?;
+        let is_park = self.binding_boolean(options, "park")?;
 
         Ok(Binding {
             name: *name,
@@ -62,6 +63,7 @@ impl Parser {
             effect,
             replay,
             affinity,
+            is_park,
             requires: self.binding_strings(options, "requires")?,
             platforms: self.binding_strings(options, "platforms")?,
             families: self.binding_strings(options, "families")?,
@@ -82,6 +84,7 @@ impl Parser {
                     | "effect"
                     | "replay"
                     | "affinity"
+                    | "park"
                     | "requires"
                     | "platforms"
                     | "families"
@@ -138,6 +141,21 @@ impl Parser {
         };
 
         Ok(Some(*value))
+    }
+
+    /// Return one optional boolean binding option.
+    fn binding_boolean(&self, options: &[AttributeKeyValue], name: &str) -> ParseResult<bool> {
+        let Some(value) = self.binding_option(options, name)? else {
+            return Ok(false);
+        };
+        let AttributeValue::Boolean(value) = value else {
+            return Err(ParseError::new(
+                format!("binding {name} expects a boolean"),
+                self.pos(),
+            ));
+        };
+
+        Ok(*value)
     }
 
     /// Return one optional string-list binding option.
