@@ -113,18 +113,10 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
 
         // calls may have side effects
         mir::Instruction::Call { .. }
+        | mir::Instruction::CallDetach { .. }
         | mir::Instruction::ContextCurrent { .. }
         | mir::Instruction::ContextReplace { .. }
         | mir::Instruction::ContextBind { .. }
-        | mir::Instruction::ContinuationNew { .. }
-        | mir::Instruction::ContinuationDestroy { .. }
-        | mir::Instruction::WaiterQueue { .. }
-        | mir::Instruction::WaiterCancel { .. }
-        | mir::Instruction::TaskResolve { .. }
-        | mir::Instruction::TaskStart { .. }
-        | mir::Instruction::TaskPark { .. }
-        | mir::Instruction::TaskCancel { .. }
-        | mir::Instruction::TaskDetach { .. }
         | mir::Instruction::Drop { .. } => false,
 
         // allocations have side effects
@@ -149,7 +141,7 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
 pub fn instruction_is_speculatable(instruction: &mir::Instruction, tree: &mir::Tree) -> bool {
     // classify instructions by speculative safety
     match instruction {
-        // borrow producing address computations are not speculatable
+        // address computations recompute freely once verify sealed their borrows
         mir::Instruction::FieldAddr { result_type, .. }
         | mir::Instruction::ElementAddr { result_type, .. }
         | mir::Instruction::VariantPayloadAddr { result_type, .. }
@@ -157,7 +149,18 @@ pub fn instruction_is_speculatable(instruction: &mir::Instruction, tree: &mir::T
             let result_type = *result_type;
 
             let ty = tree.get(result_type);
-            matches!(ty, mir::Type::Pointer { .. })
+            matches!(
+                ty,
+                mir::Type::Pointer { .. }
+                    | mir::Type::Reference {
+                        kind: mir::ReferenceKind::Borrowed,
+                        ..
+                    }
+                    | mir::Type::TensorView {
+                        kind: mir::ReferenceKind::Borrowed,
+                        ..
+                    }
+            )
         }
 
         // assumptions and linear transitions must not cross control flow
@@ -292,17 +295,9 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
 
         // calls may have side effects
         mir::Instruction::Call { .. }
+        | mir::Instruction::CallDetach { .. }
         | mir::Instruction::ContextReplace { .. }
         | mir::Instruction::ContextBind { .. }
-        | mir::Instruction::ContinuationNew { .. }
-        | mir::Instruction::ContinuationDestroy { .. }
-        | mir::Instruction::WaiterQueue { .. }
-        | mir::Instruction::WaiterCancel { .. }
-        | mir::Instruction::TaskResolve { .. }
-        | mir::Instruction::TaskStart { .. }
-        | mir::Instruction::TaskPark { .. }
-        | mir::Instruction::TaskCancel { .. }
-        | mir::Instruction::TaskDetach { .. }
         | mir::Instruction::Drop { .. } => true,
 
         // allocations have side effects (memory allocation)
@@ -511,6 +506,9 @@ pub fn instruction_substitute_uses(
         mir::Instruction::Error => {
             panic!("recovered MIR instruction reached optimizer");
         }
+        mir::Instruction::CallDetach { thunk } => mir::Instruction::CallDetach {
+            thunk: substitute(thunk),
+        },
         mir::Instruction::Binary {
             destination,
             operator,
@@ -1222,48 +1220,6 @@ pub fn instruction_substitute_uses(
             value: substitute(value),
             result_type: *result_type,
         },
-        mir::Instruction::WaiterQueue {
-            destination,
-            waiter,
-            value,
-        } => mir::Instruction::WaiterQueue {
-            destination: *destination,
-            waiter: substitute(waiter),
-            value: substitute(value),
-        },
-        mir::Instruction::ContinuationDestroy { continuation } => {
-            mir::Instruction::ContinuationDestroy {
-                continuation: substitute(continuation),
-            }
-        }
-        mir::Instruction::WaiterCancel {
-            destination,
-            waiter,
-        } => mir::Instruction::WaiterCancel {
-            destination: *destination,
-            waiter: substitute(waiter),
-        },
-        mir::Instruction::TaskResolve { destination, value } => mir::Instruction::TaskResolve {
-            destination: *destination,
-            value: substitute(value),
-        },
-        mir::Instruction::TaskStart {
-            destination,
-            continuation,
-        } => mir::Instruction::TaskStart {
-            destination: *destination,
-            continuation: substitute(continuation),
-        },
-        mir::Instruction::TaskPark { task, waiter } => mir::Instruction::TaskPark {
-            task: substitute(task),
-            waiter: substitute(waiter),
-        },
-        mir::Instruction::TaskCancel { task } => mir::Instruction::TaskCancel {
-            task: substitute(task),
-        },
-        mir::Instruction::TaskDetach { task } => mir::Instruction::TaskDetach {
-            task: substitute(task),
-        },
         mir::Instruction::ProfileSample { sampler, value } => mir::Instruction::ProfileSample {
             sampler: *sampler,
             value: substitute(value),
@@ -1273,7 +1229,6 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::LocalGet { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
-        | mir::Instruction::ContinuationNew { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::Aggregate { .. }
         | mir::Instruction::FunctionEnvironmentCurrent { .. }
@@ -2074,6 +2029,9 @@ pub fn instruction_map(
         mir::Instruction::Error => {
             panic!("recovered MIR instruction reached optimizer");
         }
+        mir::Instruction::CallDetach { thunk } => mir::Instruction::CallDetach {
+            thunk: remap(*thunk),
+        },
         mir::Instruction::Const { destination, value } => mir::Instruction::Const {
             destination: remap(*destination),
             value: value.clone(),
@@ -2407,57 +2365,6 @@ pub fn instruction_map(
             node_type: *node_type,
             result_type: *result_type,
         },
-        mir::Instruction::ContinuationNew {
-            destination,
-            function,
-            arguments,
-        } => mir::Instruction::ContinuationNew {
-            destination: remap(*destination),
-            function: *function,
-            arguments: remap_arguments(*arguments),
-        },
-        mir::Instruction::ContinuationDestroy { continuation } => {
-            mir::Instruction::ContinuationDestroy {
-                continuation: remap(*continuation),
-            }
-        }
-        mir::Instruction::WaiterQueue {
-            destination,
-            waiter,
-            value,
-        } => mir::Instruction::WaiterQueue {
-            destination: remap(*destination),
-            waiter: remap(*waiter),
-            value: remap(*value),
-        },
-        mir::Instruction::WaiterCancel {
-            destination,
-            waiter,
-        } => mir::Instruction::WaiterCancel {
-            destination: remap(*destination),
-            waiter: remap(*waiter),
-        },
-        mir::Instruction::TaskResolve { destination, value } => mir::Instruction::TaskResolve {
-            destination: remap(*destination),
-            value: remap(*value),
-        },
-        mir::Instruction::TaskStart {
-            destination,
-            continuation,
-        } => mir::Instruction::TaskStart {
-            destination: remap(*destination),
-            continuation: remap(*continuation),
-        },
-        mir::Instruction::TaskPark { task, waiter } => mir::Instruction::TaskPark {
-            task: remap(*task),
-            waiter: remap(*waiter),
-        },
-        mir::Instruction::TaskCancel { task } => {
-            mir::Instruction::TaskCancel { task: remap(*task) }
-        }
-        mir::Instruction::TaskDetach { task } => {
-            mir::Instruction::TaskDetach { task: remap(*task) }
-        }
         mir::Instruction::LocalAddr {
             destination,
             local,
@@ -2951,6 +2858,9 @@ pub fn instruction_map_with_locals(
         mir::Instruction::Error => {
             panic!("recovered MIR instruction reached optimizer");
         }
+        mir::Instruction::CallDetach { thunk } => mir::Instruction::CallDetach {
+            thunk: remap(*thunk),
+        },
         mir::Instruction::Const { destination, value } => mir::Instruction::Const {
             destination: remap(*destination),
             value: value.clone(),
@@ -3098,57 +3008,6 @@ pub fn instruction_map_with_locals(
             node_type: *node_type,
             result_type: *result_type,
         },
-        mir::Instruction::ContinuationNew {
-            destination,
-            function,
-            arguments,
-        } => mir::Instruction::ContinuationNew {
-            destination: remap(*destination),
-            function: *function,
-            arguments: remap_arguments(*arguments),
-        },
-        mir::Instruction::ContinuationDestroy { continuation } => {
-            mir::Instruction::ContinuationDestroy {
-                continuation: remap(*continuation),
-            }
-        }
-        mir::Instruction::WaiterQueue {
-            destination,
-            waiter,
-            value,
-        } => mir::Instruction::WaiterQueue {
-            destination: remap(*destination),
-            waiter: remap(*waiter),
-            value: remap(*value),
-        },
-        mir::Instruction::WaiterCancel {
-            destination,
-            waiter,
-        } => mir::Instruction::WaiterCancel {
-            destination: remap(*destination),
-            waiter: remap(*waiter),
-        },
-        mir::Instruction::TaskResolve { destination, value } => mir::Instruction::TaskResolve {
-            destination: remap(*destination),
-            value: remap(*value),
-        },
-        mir::Instruction::TaskStart {
-            destination,
-            continuation,
-        } => mir::Instruction::TaskStart {
-            destination: remap(*destination),
-            continuation: remap(*continuation),
-        },
-        mir::Instruction::TaskPark { task, waiter } => mir::Instruction::TaskPark {
-            task: remap(*task),
-            waiter: remap(*waiter),
-        },
-        mir::Instruction::TaskCancel { task } => {
-            mir::Instruction::TaskCancel { task: remap(*task) }
-        }
-        mir::Instruction::TaskDetach { task } => {
-            mir::Instruction::TaskDetach { task: remap(*task) }
-        }
         mir::Instruction::LocalAddr {
             destination,
             local,
@@ -3956,75 +3815,6 @@ pub fn terminator_remap(
         mir::Terminator::Return { value } => {
             if let Some(v) = value {
                 remap_value(v);
-            }
-        }
-        mir::Terminator::Await {
-            value,
-            resume,
-            cancel,
-            unwind,
-            ..
-        } => {
-            remap_value(value);
-            remap_target(resume);
-            resume.arguments = remap_value_slice(tree, resume.arguments, value_map);
-            remap_target(cancel);
-            cancel.arguments = remap_value_slice(tree, cancel.arguments, value_map);
-            if let Some(unwind) = unwind {
-                remap_target(unwind);
-                unwind.arguments = remap_value_slice(tree, unwind.arguments, value_map);
-            }
-        }
-        mir::Terminator::Yield {
-            value,
-            resume,
-            complete,
-            unwind,
-        } => {
-            remap_value(value);
-            remap_target(resume);
-            resume.arguments = remap_value_slice(tree, resume.arguments, value_map);
-            remap_target(complete);
-            complete.arguments = remap_value_slice(tree, complete.arguments, value_map);
-            if let Some(unwind) = unwind {
-                remap_target(unwind);
-                unwind.arguments = remap_value_slice(tree, unwind.arguments, value_map);
-            }
-        }
-        mir::Terminator::ContinuationResume {
-            continuation,
-            value,
-            yielded,
-            returned,
-            unwind,
-        } => {
-            remap_value(continuation);
-            remap_value(value);
-            remap_target(yielded);
-            yielded.arguments = remap_value_slice(tree, yielded.arguments, value_map);
-            remap_target(returned);
-            returned.arguments = remap_value_slice(tree, returned.arguments, value_map);
-            if let Some(unwind) = unwind {
-                remap_target(unwind);
-                unwind.arguments = remap_value_slice(tree, unwind.arguments, value_map);
-            }
-        }
-        mir::Terminator::ContinuationComplete {
-            continuation,
-            value,
-            yielded,
-            returned,
-            unwind,
-        } => {
-            remap_value(continuation);
-            remap_value(value);
-            remap_target(yielded);
-            yielded.arguments = remap_value_slice(tree, yielded.arguments, value_map);
-            remap_target(returned);
-            returned.arguments = remap_value_slice(tree, returned.arguments, value_map);
-            if let Some(unwind) = unwind {
-                remap_target(unwind);
-                unwind.arguments = remap_value_slice(tree, unwind.arguments, value_map);
             }
         }
         mir::Terminator::Invoke {

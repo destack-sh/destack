@@ -1389,57 +1389,9 @@ entry:
         assert!(!Mutation::CONTROL.intersects(Mutation::VALUE));
     }
 
-    /// Borrow address instructions are not speculatable.
+    /// Pointer and sealed borrow address computations are speculatable.
     #[test]
-    fn test_instruction_is_speculatable_rejects_borrow_addresses() {
-        let mut tree = mir::Tree::new();
-
-        let pointee = tree.intern_type(mir::Type::Int {
-            width: 32,
-            is_signed: true,
-        });
-        let borrowed_ref = tree.intern_type(mir::Type::Reference {
-            kind: mir::ReferenceKind::Borrowed,
-            lifetime: mir::Lifetime::empty(),
-            storage: mir::Storage::Frame,
-            access: mir::Access::Mutable,
-            pointee,
-            nullability: mir::Nullability::None,
-        });
-
-        let destination = mir::Value::new(0);
-        let local = mir::LocalNodeId::new(0);
-        let aggregate = mir::Value::new(1);
-        let array = mir::Value::new(2);
-        let index = mir::Value::new(3);
-
-        let local_addr = mir::Instruction::LocalAddr {
-            destination,
-            local,
-            result_type: borrowed_ref,
-        };
-        assert!(!instruction_is_speculatable(&local_addr, &tree));
-
-        let field_addr = mir::Instruction::FieldAddr {
-            destination,
-            aggregate,
-            field: 0,
-            result_type: borrowed_ref,
-        };
-        assert!(!instruction_is_speculatable(&field_addr, &tree));
-
-        let element_addr = mir::Instruction::ElementAddr {
-            destination,
-            base: array,
-            index,
-            result_type: borrowed_ref,
-        };
-        assert!(!instruction_is_speculatable(&element_addr, &tree));
-    }
-
-    /// Pointer address instructions are speculatable with typed checks.
-    #[test]
-    fn test_instruction_is_speculatable_allows_pointer_addresses() {
+    fn test_instruction_is_speculatable_allows_address_computations() {
         let mut tree = mir::Tree::new();
 
         let pointee = tree.intern_type(mir::Type::Int {
@@ -1462,19 +1414,65 @@ entry:
 
         let destination = mir::Value::new(0);
         let local = mir::LocalNodeId::new(0);
+        let aggregate = mir::Value::new(1);
+        let array = mir::Value::new(2);
+        let index = mir::Value::new(3);
 
         let pointer_addr = mir::Instruction::LocalAddr {
             destination,
             local,
             result_type: pointer,
         };
-        let borrowed_addr = mir::Instruction::LocalAddr {
+        assert!(instruction_is_speculatable(&pointer_addr, &tree));
+
+        let local_addr = mir::Instruction::LocalAddr {
             destination,
             local,
             result_type: borrowed_ref,
         };
+        assert!(instruction_is_speculatable(&local_addr, &tree));
 
-        assert!(instruction_is_speculatable(&pointer_addr, &tree));
-        assert!(!instruction_is_speculatable(&borrowed_addr, &tree));
+        let field_addr = mir::Instruction::FieldAddr {
+            destination,
+            aggregate,
+            field: 0,
+            result_type: borrowed_ref,
+        };
+        assert!(instruction_is_speculatable(&field_addr, &tree));
+
+        let element_addr = mir::Instruction::ElementAddr {
+            destination,
+            base: array,
+            index,
+            result_type: borrowed_ref,
+        };
+        assert!(instruction_is_speculatable(&element_addr, &tree));
+    }
+
+    /// Managed reference results pin address computations in place.
+    #[test]
+    fn test_instruction_is_speculatable_rejects_managed_addresses() {
+        let mut tree = mir::Tree::new();
+
+        let pointee = tree.intern_type(mir::Type::Int {
+            width: 32,
+            is_signed: true,
+        });
+        let managed_ref = tree.intern_type(mir::Type::Reference {
+            kind: mir::ReferenceKind::Managed,
+            lifetime: mir::Lifetime::empty(),
+            storage: mir::Storage::Heap(mir::Space::Local),
+            access: mir::Access::Mutable,
+            pointee,
+            nullability: mir::Nullability::None,
+        });
+
+        let field_addr = mir::Instruction::FieldAddr {
+            destination: mir::Value::new(0),
+            aggregate: mir::Value::new(1),
+            field: 0,
+            result_type: managed_ref,
+        };
+        assert!(!instruction_is_speculatable(&field_addr, &tree));
     }
 }
