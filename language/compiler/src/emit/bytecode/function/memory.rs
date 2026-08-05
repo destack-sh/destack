@@ -99,6 +99,7 @@ impl<'a> FunctionEmitter<'a> {
         let storage = self.optimized.tree.get(global).storage;
         let opcode = match storage {
             mir::GlobalStorage::Constant => bytecode::Opcode::GLOBAL_ADDRESS_CONSTANT,
+            mir::GlobalStorage::Immortal => bytecode::Opcode::GLOBAL_ADDRESS_IMMORTAL,
             mir::GlobalStorage::Local => bytecode::Opcode::GLOBAL_ADDRESS_LOCAL,
             mir::GlobalStorage::Shared => bytecode::Opcode::GLOBAL_ADDRESS_SHARED,
         };

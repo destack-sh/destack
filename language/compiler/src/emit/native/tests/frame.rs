@@ -25,7 +25,7 @@ function u0:0(i64, i32) -> i32 native {
 
 block0(v0: i64, v1: i32):
     v2 = iadd v1, v1
-    v3 = load.i64 notrap aligned v0+104
+    v3 = load.i64 notrap aligned v0+120
     v4 = atomic_load.i32 notrap aligned v3
     brif v4, block1, block2
 

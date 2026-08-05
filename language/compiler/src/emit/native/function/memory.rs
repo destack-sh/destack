@@ -142,6 +142,14 @@ impl<'a> FunctionEmitter<'a> {
         let offset = self.index_pointer(native::Index::Global { global: global.id }, builder)?;
         let reference = match definition.storage {
             mir::GlobalStorage::Constant => offset,
+            mir::GlobalStorage::Immortal => {
+                let base = self.static_offset(
+                    std::mem::offset_of!(native::abi::Activation, immortals),
+                    builder,
+                )?;
+
+                builder.ins().iadd(base, offset)
+            }
             mir::GlobalStorage::Local => {
                 let base = self.static_offset(
                     std::mem::offset_of!(native::abi::Activation, local_statics),
@@ -211,11 +219,14 @@ impl<'a> FunctionEmitter<'a> {
         let base = match storage {
             mir::Storage::Frame => return Ok(reference),
             mir::Storage::Heap(_)
-            | mir::Storage::Global(mir::GlobalStorage::Local | mir::GlobalStorage::Shared) => self
-                .activation_pointer(
-                    std::mem::offset_of!(native::abi::Activation, memory_base),
-                    builder,
-                )?,
+            | mir::Storage::Global(
+                mir::GlobalStorage::Local
+                | mir::GlobalStorage::Shared
+                | mir::GlobalStorage::Immortal,
+            ) => self.activation_pointer(
+                std::mem::offset_of!(native::abi::Activation, memory_base),
+                builder,
+            )?,
             mir::Storage::Global(mir::GlobalStorage::Constant) => self.activation_pointer(
                 std::mem::offset_of!(native::abi::Activation, constants)
                     + std::mem::offset_of!(native::abi::ConstantSpace, bytes),

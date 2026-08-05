@@ -240,6 +240,7 @@ impl TypeEmitter<'_> {
             mir::Storage::Heap(mir::Space::Shared) => bytecode::Storage::SHARED,
             mir::Storage::Frame => bytecode::Storage::FRAME,
             mir::Storage::Global(mir::GlobalStorage::Constant) => bytecode::Storage::CONSTANT,
+            mir::Storage::Global(mir::GlobalStorage::Immortal) => bytecode::Storage::IMMORTAL,
             mir::Storage::Global(mir::GlobalStorage::Local) => bytecode::Storage::LOCAL_GLOBAL,
             mir::Storage::Global(mir::GlobalStorage::Shared) => bytecode::Storage::SHARED_GLOBAL,
         }

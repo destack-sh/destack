@@ -19,7 +19,7 @@ entry:
         r#"
 function u0:0(i64) -> i64 native {
 block0(v0: i64):
-    v1 = load.i64 notrap aligned v0+96
+    v1 = load.i64 notrap aligned v0+112
     return v1
 }
 
@@ -57,8 +57,8 @@ entry(v0: ref<Context, managed, readonly>):
         r#"
 function u0:0(i64, i64) -> i64 native {
 block0(v0: i64, v1: i64):
-    v2 = load.i64 notrap aligned v0+96
-    store notrap aligned v1, v0+96
+    v2 = load.i64 notrap aligned v0+112
+    store notrap aligned v1, v0+112
     return v2
 }
 

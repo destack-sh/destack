@@ -81,11 +81,11 @@ block0(v0: i64, v1: i32):
     v3 = load.i64 notrap aligned v2
     v4 = symbol_value.i64 gv1
     v5 = load.i64 notrap aligned v4
-    v6 = load.i64 notrap aligned v0+80
+    v6 = load.i64 notrap aligned v0+96
     v7 = iadd v6, v5
     v8 = symbol_value.i64 gv2
     v9 = load.i64 notrap aligned v8
-    v10 = load.i64 notrap aligned v0+64
+    v10 = load.i64 notrap aligned v0+80
     v11 = iadd v10, v9
     v12 = load.i64 notrap aligned v0+48
     v13 = iadd v12, v3
