@@ -827,7 +827,7 @@ impl CheckState<'_> {
                             .to_vec(),
                     ),
                     dir::Type::Application(_) => {
-                        answer!(self.interface_instance_fields(origin, target, target)?)
+                        answer!(self.interface_instance_fields(target, target)?)
                     }
                     _ => None,
                 }

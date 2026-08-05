@@ -87,13 +87,12 @@ impl Protocol {
     fn members(
         &self,
         check: &mut CheckState<'_>,
-        origin: Origin,
         implementation: dir::GlobalTypeId,
         receiver: dir::GlobalTypeId,
         space: dir::MemberSpace,
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<SmallVec<[InterfaceMember; 2]>>> {
-        check.interface_members(origin, implementation, receiver, space, key)
+        check.interface_members(implementation, receiver, space, key)
     }
 }
 
@@ -298,7 +297,7 @@ impl BodyState<'_, '_> {
         let interface = protocol.instance(self, module)?;
         let interface = self.intern_type(dir::Type::Application(interface))?;
         let requirements =
-            answer!(protocol.members(self, origin, interface, lookup_receiver, space, key)?);
+            answer!(protocol.members(self, interface, lookup_receiver, space, key)?);
         let lookup =
             answer!(self.lookup_inherent_member(origin, module, lookup_receiver, space, key,)?);
         self.select_protocol_member_lookup(
@@ -346,7 +345,7 @@ impl BodyState<'_, '_> {
         let interface = protocol.instance(self, module)?;
         let interface = self.intern_type(dir::Type::Application(interface))?;
         let requirements =
-            answer!(protocol.members(self, origin, interface, lookup_receiver, space, key)?);
+            answer!(protocol.members(self, interface, lookup_receiver, space, key)?);
         let lookup =
             answer!(self.lookup_inherent_member(origin, module, lookup_receiver, space, key,)?);
         self.select_protocol_call_lookup(
@@ -386,7 +385,6 @@ impl BodyState<'_, '_> {
             |state, implementation, candidates| {
                 let requirements = answer!(protocol.members(
                     state,
-                    origin,
                     implementation,
                     lookup_receiver,
                     space,
@@ -433,7 +431,6 @@ impl BodyState<'_, '_> {
             |state, implementation, candidates| {
                 let requirements = answer!(protocol.members(
                     state,
-                    origin,
                     implementation,
                     lookup_receiver,
                     space,
@@ -626,12 +623,23 @@ impl BodyState<'_, '_> {
         let Some((substitution, implementation)) = answer!(matched) else {
             return Ok(Answer::Ready(None));
         };
-        let implementation = self.refine_extension_implementation(
-            extension_symbol,
+        let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)? else {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "matched extension symbol {extension_symbol:?} has no extension definition"
+                ),
+            });
+        };
+        let definition_members = extension.members.clone();
+        let Some(implementation) = answer!(self.instantiate_interface_implementation(
+            origin,
             implementation,
             lookup_receiver,
+            &definition_members,
             &substitution,
-        )?;
+        )?) else {
+            return Ok(Answer::Ready(None));
+        };
         let candidates =
             self.extension_member_candidates(origin, extension_symbol, &substitution, members)?;
         let candidates = answer!(candidates);

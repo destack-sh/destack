@@ -2419,12 +2419,6 @@ impl CheckState<'_> {
                 source,
                 target,
             },
-            (Relation::Implements, _) => CheckError::InterfaceNotImplemented {
-                anchor,
-                module,
-                source,
-                target,
-            },
             // report satisfies checks with their own failure shape
             (_, Some(ValueUse::Satisfies)) => CheckError::ConstraintNotSatisfied {
                 anchor,

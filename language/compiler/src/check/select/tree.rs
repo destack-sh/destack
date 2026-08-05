@@ -93,7 +93,7 @@ impl BodyState<'_, '_> {
         let interface = protocol.instance(self.check, origin.module())?;
         let interface = self.check.intern_type(dir::Type::Application(interface))?;
         let implements =
-            answer!(self.decide_relation(origin, Relation::Implements, target, interface)?);
+            answer!(self.decide_relation(origin, Relation::Satisfies, target, interface)?);
 
         Ok(Answer::Ready(implements.then_some(target)))
     }

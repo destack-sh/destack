@@ -192,7 +192,6 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             Relation::Castable => "castable",
             Relation::Satisfies => "satisfies",
             Relation::Extends => "extends",
-            Relation::Implements => "implements",
         }
     }
 

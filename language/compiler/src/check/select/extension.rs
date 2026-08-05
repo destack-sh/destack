@@ -406,55 +406,6 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(Some((substitution, implementation))))
     }
 
-    /// Refine one matched implementation with its complete associated bindings.
-    pub(in crate::check) fn refine_extension_implementation(
-        &mut self,
-        extension_symbol: dir::GlobalSymbolId,
-        implementation: dir::GlobalTypeId,
-        receiver: dir::GlobalTypeId,
-        substitution: &TypeSubstitution,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)? else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "matched extension symbol {extension_symbol:?} has no extension definition"
-                ),
-            });
-        };
-
-        // bind the extension's declared associated types
-        let declared = associated_type_values(&extension.members);
-        let mut bindings = SmallVec::<[_; 2]>::new();
-        for (key, value) in declared {
-            bindings.push((key, self.substitute_type(value, substitution)?));
-        }
-
-        // fill unbound associated types from interface defaults
-        let (base, _) = self.refinement_bindings(implementation)?;
-        if let Some((interface_module, interface)) = self.nominal_application_maybe(base)?
-            && let Some(dir::Definition::Interface(definition)) =
-                self.definition(interface.symbol)?
-        {
-            let defaults = associated_type_values(&definition.members);
-            let instance =
-                self.qualified_instance_substitution(interface_module, &interface, receiver)?;
-            for (key, value) in defaults {
-                if bindings.iter().any(|(bound, _)| *bound == key) {
-                    continue;
-                }
-                bindings.push((key, self.substitute_type(value, &instance)?));
-            }
-        }
-
-        // keep the unrefined application when nothing was bound
-        if bindings.is_empty() {
-            return Ok(implementation);
-        }
-
-        let module = self.check.module_id;
-        self.intern_refinements(module, implementation, &bindings)
-    }
-
     /// Bind extension parameters by matching the target against the receiver.
     fn bind_extension_target(
         &mut self,
@@ -1030,21 +981,5 @@ fn keyed_members(
         .iter()
         .filter(|member| member.space() == space && member.key() == Some(key))
         .cloned()
-        .collect()
-}
-
-/// Collect the written associated type values declared by one member list.
-fn associated_type_values(
-    members: &[dir::DefinitionMember],
-) -> SmallVec<[(dir::StaticKey, dir::GlobalTypeId); 2]> {
-    members
-        .iter()
-        .filter_map(|member| {
-            let dir::DefinitionMember::AssociatedType(associated) = member else {
-                return None;
-            };
-
-            Some((member.key()?, associated.value?))
-        })
         .collect()
 }

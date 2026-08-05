@@ -198,11 +198,8 @@ impl CheckState<'_> {
                 &target_instance,
             ),
 
-            // explicit implements requires the heritage relation
-            (None, Relation::Implements) => Ok(Answer::Ready(false)),
-
-            // everything else satisfies through assignability,
-            //  or sits inside a union target as a member
+            // other values satisfy through assignability,
+            //  or sit inside a union target as a member
             (None, _) => {
                 // check-only relations read structural pairs covariantly
                 if let (
@@ -229,12 +226,20 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         target_instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<bool>> {
-        // accept applications whose definitions are not readable yet,
-        //  checking relates them against loaded declarations
-        if self.definition(target_instance.symbol)?.is_none()
-            || self.definition(source_instance.symbol)?.is_none()
-        {
-            return Ok(Answer::Ready(true));
+        // keep nominal applications symbolic while declaring
+        let has_target_definition = self.definition(target_instance.symbol)?.is_some();
+        let has_source_definition = self.definition(source_instance.symbol)?.is_some();
+        if !has_target_definition || !has_source_definition {
+            if !self.is_checking {
+                return Ok(Answer::Ready(true));
+            }
+
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "nominal relation has missing definitions: source = {:?}, target = {:?}",
+                    source_instance.symbol, target_instance.symbol,
+                ),
+            });
         }
         let target_kind = self.symbol_kind(target_instance.symbol)?;
 

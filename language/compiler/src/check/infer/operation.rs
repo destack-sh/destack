@@ -200,7 +200,7 @@ impl BodyState<'_, '_> {
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                 self.push_constraint(Constraint::r#type(
                     origin,
-                    Relation::Implements,
+                    Relation::Satisfies,
                     ret,
                     target,
                     cause,

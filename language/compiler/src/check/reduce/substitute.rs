@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{Answer, CheckState, Origin};
+use crate::check::CheckState;
 use crate::{CompilerError, CompilerResult};
 
 /// One generic type substitution.
@@ -194,11 +194,10 @@ impl CheckState<'_> {
     /// Instantiate one interface type under a selected implementation.
     pub(in crate::check) fn instantiate_interface_type(
         &mut self,
-        origin: Origin,
         id: dir::GlobalTypeId,
         implementation: dir::GlobalTypeId,
         receiver: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         // derive the complete positional and receiver substitution
         let (base, _) = self.refinement_bindings(implementation)?;
         let dir::Type::Application(application) = self.ty(base)? else {
@@ -217,11 +216,7 @@ impl CheckState<'_> {
             self.replace_type(self.module_id, id, base, implementation)?
         };
 
-        // keep open instantiation arguments symbolic in the requirement
-        match self.reduce_type(origin, id)? {
-            Answer::Ready(reduced) => Ok(Answer::Ready(reduced)),
-            Answer::Pending(_) => Ok(Answer::Ready(id)),
-        }
+        Ok(id)
     }
 
     /// Remove inference barriers after candidate inference has closed.

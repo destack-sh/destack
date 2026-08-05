@@ -70,6 +70,201 @@ value satisfies HasX;
 }
 
 #[test]
+fn test_struct_requires_nominal_inherited_interface() {
+    let session = TestSession::single(
+        r#"
+newtype interface Named {
+    name: string;
+}
+
+interface Drawable extends Named {
+    opacity: float32;
+}
+
+struct Picture {
+    name: string;
+    opacity: float32;
+}
+
+declare const picture: Picture;
+picture satisfies Drawable;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+newtype interface Named {
+    name: string;
+}
+
+interface Drawable extends Named {
+    opacity: float32;
+}
+
+struct Picture {
+    name: string;
+    opacity: float32;
+}
+
+declare const picture: Picture;
+picture satisfies Drawable;
+
+=== checked ===
+newtype interface Named {
+/// @type.symbol symbol=Named type=Named
+/// @definition.interface symbol=Named nominal=true
+/// @definition.field symbol=Named.name source="name: string" key=name type=string
+
+    name: string;
+    /// @type.symbol symbol=Named.name source="name: string" type=string
+
+}
+
+interface Drawable extends Named {
+/// @type.symbol symbol=Drawable type=Drawable
+/// @definition.interface symbol=Drawable
+/// @definition.extends symbol=Drawable source=Named target=Named
+/// @definition.field symbol=Drawable.opacity source="opacity: float32" key=opacity type=float32
+/// @resolution.name source=Named target=Named
+
+    opacity: float32;
+    /// @type.symbol symbol=Drawable.opacity source="opacity: float32" type=float32
+
+}
+
+struct Picture {
+/// @type.symbol symbol=Picture type=Picture
+/// @definition.struct symbol=Picture
+/// @definition.field symbol=Picture.name source="name: string" key=name type=string
+/// @definition.field symbol=Picture.opacity source="opacity: float32" key=opacity type=float32
+
+    name: string;
+    /// @type.symbol symbol=Picture.name source="name: string" type=string
+
+    opacity: float32;
+    /// @type.symbol symbol=Picture.opacity source="opacity: float32" type=float32
+
+}
+
+declare const picture: Picture;
+/// @type.symbol symbol=picture source=picture type=Picture
+/// @resolution.pattern source=picture kind=binding target=picture
+/// @resolution.name source=Picture target=Picture
+
+picture satisfies Drawable;
+/// @resolution.name source=picture target=picture
+/// @resolution.place source=picture placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=picture root=picture
+/// @resolution.name source=Drawable target=Drawable
+"#,
+        r#"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'Picture' does not satisfy 'Drawable'"
+/// @diagnostic.label line=16 column=9 span="satisfies" line_source="picture satisfies Drawable;"
+"#,
+    );
+}
+
+#[test]
+fn test_struct_satisfies_structural_interface_with_nominal_heritage() {
+    let session = TestSession::single(
+        r#"
+newtype interface Named {
+    name: string;
+}
+
+interface Drawable extends Named {
+    opacity: float32;
+}
+
+struct Picture implements Named {
+    name: string;
+    opacity: float32;
+}
+
+declare const picture: Picture;
+picture satisfies Drawable;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+newtype interface Named {
+    name: string;
+}
+
+interface Drawable extends Named {
+    opacity: float32;
+}
+
+struct Picture implements Named {
+    name: string;
+    opacity: float32;
+}
+
+declare const picture: Picture;
+picture satisfies Drawable;
+
+=== checked ===
+newtype interface Named {
+/// @type.symbol symbol=Named type=Named
+/// @definition.interface symbol=Named nominal=true
+/// @definition.field symbol=Named.name source="name: string" key=name type=string
+
+    name: string;
+    /// @type.symbol symbol=Named.name source="name: string" type=string
+
+}
+
+interface Drawable extends Named {
+/// @type.symbol symbol=Drawable type=Drawable
+/// @definition.interface symbol=Drawable
+/// @definition.extends symbol=Drawable source=Named target=Named
+/// @definition.field symbol=Drawable.opacity source="opacity: float32" key=opacity type=float32
+/// @resolution.name source=Named target=Named
+
+    opacity: float32;
+    /// @type.symbol symbol=Drawable.opacity source="opacity: float32" type=float32
+
+}
+
+struct Picture implements Named {
+/// @type.symbol symbol=Picture type=Picture
+/// @definition.struct symbol=Picture
+/// @definition.where symbol=Picture source=Named relation=satisfies left=this right=Named
+/// @definition.implements symbol=Picture source=Named target=Named
+/// @definition.field symbol=Picture.name source="name: string" key=name type=string
+/// @definition.field symbol=Picture.opacity source="opacity: float32" key=opacity type=float32
+/// @resolution.name source=Named target=Named
+
+    name: string;
+    /// @type.symbol symbol=Picture.name source="name: string" type=string
+
+    opacity: float32;
+    /// @type.symbol symbol=Picture.opacity source="opacity: float32" type=float32
+
+}
+
+declare const picture: Picture;
+/// @type.symbol symbol=picture source=picture type=Picture
+/// @resolution.pattern source=picture kind=binding target=picture
+/// @resolution.name source=Picture target=Picture
+
+picture satisfies Drawable;
+/// @resolution.name source=picture target=picture
+/// @resolution.place source=picture placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=picture root=picture
+/// @resolution.name source=Drawable target=Drawable
+"#,
+    );
+}
+
+#[test]
 fn test_struct_satisfies_but_does_not_store_as_object_type() {
     // check-only satisfies keeps structural width, object-typed storage stays exact
     let session = TestSession::single(
@@ -255,7 +450,8 @@ struct Point implements Drawable {
 }
 "#,
         r#"
-
+/// @diagnostic.error id=interface-not-implemented message="type 'Point' does not implement interface 'Drawable'"
+/// @diagnostic.label line=6 column=25 span="Drawable" line_source="struct Point implements Drawable {"
 "#,
     );
 }

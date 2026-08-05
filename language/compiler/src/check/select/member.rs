@@ -232,8 +232,6 @@ pub(in crate::check) struct DeclaredMember {
     pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The member space.
     pub(in crate::check) space: dir::MemberSpace,
-    /// The member key.
-    pub(in crate::check) key: Option<dir::StaticKey>,
     /// The member type when the declaration has one.
     pub(in crate::check) ty: Option<dir::GlobalTypeId>,
     /// The member static value when it carries one.
@@ -471,11 +469,6 @@ impl MemberRole {
 }
 
 impl DeclaredMember {
-    /// Return whether this member matches one lookup key.
-    pub(in crate::check) fn matches(&self, space: dir::MemberSpace, key: dir::StaticKey) -> bool {
-        self.space == space && self.key == Some(key)
-    }
-
     /// Return the value type exposed by this member at a use site.
     pub(in crate::check) fn access_type(
         &self,
@@ -922,7 +915,6 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(Some(DeclaredMember {
             symbol,
             space: member.space(),
-            key: member.key(),
             ty,
             value: member.static_value(),
             role,
@@ -1426,7 +1418,7 @@ impl BodyState<'_, '_> {
                 dir::Type::Application(_) => self.project_selected_member(origin, member, base),
                 // project the lexical extension scope's own associated member
                 dir::Type::Reference(reference) => {
-                    self.project_scope_member(origin, member, reference.symbol)
+                    self.project_scope_member(member, reference.symbol)
                 }
                 _ => Ok(Answer::Ready(None)),
             };
@@ -1465,13 +1457,7 @@ impl BodyState<'_, '_> {
             let substitution =
                 self.qualified_instance_substitution(interface_module, &interface, owner)?;
 
-            return self.project_implemented_member(
-                origin,
-                member,
-                &members,
-                &substitution,
-                qualifier,
-            );
+            return self.project_declared_associated_member(member, &members, &substitution);
         }
 
         // enumerate candidate extensions by receiver family
@@ -1535,14 +1521,17 @@ impl BodyState<'_, '_> {
             let Some((substitution, implementation)) = matched else {
                 continue;
             };
-
-            return self.project_implemented_member(
+            let Some(implementation) = answer!(self.instantiate_interface_implementation(
                 origin,
-                member,
+                implementation,
+                owner,
                 &members,
                 &substitution,
-                implementation,
-            );
+            )?) else {
+                continue;
+            };
+
+            return self.project_interface_member(member, implementation);
         }
 
         // match the owner's own declared implementations
@@ -1564,13 +1553,17 @@ impl BodyState<'_, '_> {
                     &interface,
                 )?);
                 if let Some(implementation) = matched {
-                    return self.project_implemented_member(
+                    let Some(implementation) = answer!(self.instantiate_interface_implementation(
                         origin,
-                        member,
+                        implementation,
+                        owner,
                         &members,
                         &substitution,
-                        implementation,
-                    );
+                    )?) else {
+                        return Ok(Answer::Ready(None));
+                    };
+
+                    return self.project_interface_member(member, implementation);
                 }
             }
         }
@@ -1581,31 +1574,30 @@ impl BodyState<'_, '_> {
     /// Project one associated member declared by a lexical extension scope.
     fn project_scope_member(
         &mut self,
-        origin: Origin,
         member: &dir::MemberType,
         scope: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let Some(definition) = self.definition(scope)? else {
-            return Ok(Answer::Ready(None));
+            return Err(CompilerError::Internal {
+                message: format!("associated type scope {scope:?} has no definition"),
+            });
         };
 
         // project the scope's own members against the written owner
         let members = definition.members().to_vec();
         let substitution = TypeSubstitution::default().with_receiver(member.owner);
 
-        self.project_implemented_member(origin, member, &members, &substitution, member.owner)
+        self.project_declared_associated_member(member, &members, &substitution)
     }
 
-    /// Project one associated member of a matched implementation.
-    fn project_implemented_member(
+    /// Project one associated type declared by a selected scope.
+    fn project_declared_associated_member(
         &mut self,
-        origin: Origin,
         member: &dir::MemberType,
         members: &[dir::DefinitionMember],
         substitution: &TypeSubstitution,
-        implementation: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        // prefer the implementer's declared associated type
+        // select and substitute the scope's declared value
         let declared = members.iter().find_map(|declared| match declared {
             dir::DefinitionMember::AssociatedType(associated) if associated.key == member.key => {
                 associated.value.map(|value| (associated, value))
@@ -1624,13 +1616,22 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(Some(value)));
         }
 
-        // read written refinements on the matched header
-        let (_, bindings) = self.refinement_bindings(implementation)?;
-        if let Some((_, value)) = bindings.iter().find(|(key, _)| *key == member.key) {
-            return Ok(Answer::Ready(Some(*value)));
-        }
+        Ok(Answer::Ready(None))
+    }
 
-        self.project_default_member(origin, member)
+    /// Project one associated type from a complete interface implementation.
+    fn project_interface_member(
+        &self,
+        member: &dir::MemberType,
+        implementation: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let (_, bindings) = self.refinement_bindings(implementation)?;
+        let projected = bindings
+            .iter()
+            .find(|(key, _)| *key == member.key)
+            .map(|(_, value)| *value);
+
+        Ok(Answer::Ready(projected))
     }
 
     /// Return the type projected by one selected member lookup.

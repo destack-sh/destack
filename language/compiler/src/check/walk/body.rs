@@ -2,12 +2,10 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    Answer, CauseKind, CheckState, ClassInitializationObligation, FlowBranch, Obligation, Origin,
-    Receiver, ValueUse, WalkState,
+    Answer, CauseKind, ClassInitializationObligation, FlowBranch, Obligation, Origin, Receiver,
+    ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
-
-impl CheckState<'_> {}
 
 impl WalkState<'_, '_> {
     /// Visit one module root, walking only the bodies the checking pass owns.
@@ -370,13 +368,20 @@ impl WalkState<'_, '_> {
             );
         }
 
-        // extensions check conformance and coherence against their targets,
-        //  their parameters are used by the target type itself
-        if matches!(
-            self.check.definition_maybe(symbol),
-            Some(dir::Definition::Extension(_))
-        ) {
-            self.queue_extension_conformance_obligation(source, symbol)?;
+        // validate every authored interface implementation in one obligation
+        let Some(definition) = self.check.definition(symbol)? else {
+            return Err(CompilerError::Internal {
+                message: format!("declaration body {symbol:?} has no definition"),
+            });
+        };
+        let has_implementations = !definition.implementations().is_empty();
+        let is_extension = matches!(definition, dir::Definition::Extension(_));
+        if has_implementations {
+            self.queue_interface_conformance_obligation(source, symbol)?;
+        }
+
+        // extensions additionally require coherence across visible implementations
+        if is_extension {
             self.queue_implementation_coherence_obligation(source, symbol)?;
             self.queue_extension_coherence_obligation(source, symbol)?;
         } else {

@@ -116,7 +116,7 @@ impl CheckState<'_> {
                     self.decide_assignable(origin, relation, source, target)?
                 }
                 Relation::Castable => self.decide_castable(origin, source, target)?,
-                Relation::Satisfies | Relation::Extends | Relation::Implements => {
+                Relation::Satisfies | Relation::Extends => {
                     self.decide_satisfies(origin, relation, source, target)?
                 }
             };

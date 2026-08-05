@@ -727,8 +727,6 @@ const value = bag.missing;
     );
 }
 
-// TODO #Incomplete: subscript selection does not project nominal interface
-//  index signatures yet, so the read below still rejects with no-matching-operator
 #[test]
 fn test_interface_index_signature_carries_its_key_domain() {
     let session = TestSession::single(
@@ -789,6 +787,150 @@ const value = bag["name"];
 "#,
         r#"
 
+"#,
+    );
+}
+
+#[test]
+fn test_object_satisfies_interface_index_signature() {
+    let session = TestSession::single(
+        r#"
+interface Bag {
+    readonly [key: string]: int32;
+}
+
+declare const values: { readonly [key: string]: int32 };
+values satisfies Bag;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Bag {
+    readonly [key: string]: int32;
+}
+
+declare const values: { readonly [key: string]: int32 };
+values satisfies Bag;
+
+=== checked ===
+interface Bag {
+/// @type.symbol symbol=Bag type=Bag
+/// @definition.interface symbol=Bag
+/// @definition.signature kind=index source="readonly [key: string]: int32" key=string type=int32
+
+    readonly [key: string]: int32;
+}
+
+declare const values: { readonly [key: string]: int32 };
+/// @type.symbol symbol=values source=values type={ readonly [key: string]: int32 }
+/// @resolution.pattern source=values kind=binding target=values
+
+values satisfies Bag;
+/// @resolution.name source=values target=values
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
+/// @resolution.name source=Bag target=Bag
+"#,
+    );
+}
+
+#[test]
+fn test_object_rejects_incompatible_interface_index_signature() {
+    let session = TestSession::single(
+        r#"
+interface Bag {
+    readonly [key: string]: int32;
+}
+
+declare const values: { readonly [key: string]: string };
+values satisfies Bag;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Bag {
+    readonly [key: string]: int32;
+}
+
+declare const values: { readonly [key: string]: string };
+values satisfies Bag;
+
+=== checked ===
+interface Bag {
+/// @type.symbol symbol=Bag type=Bag
+/// @definition.interface symbol=Bag
+/// @definition.signature kind=index source="readonly [key: string]: int32" key=string type=int32
+
+    readonly [key: string]: int32;
+}
+
+declare const values: { readonly [key: string]: string };
+/// @type.symbol symbol=values source=values type={ readonly [key: string]: string }
+/// @resolution.pattern source=values kind=binding target=values
+
+values satisfies Bag;
+/// @resolution.name source=values target=values
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
+/// @resolution.name source=Bag target=Bag
+"#,
+        r#"
+/// @diagnostic.error id=constraint-not-satisfied message="type '{ readonly [key: string]: string }' does not satisfy 'Bag'"
+/// @diagnostic.label line=7 column=8 span="satisfies" line_source="values satisfies Bag;"
+"#,
+    );
+}
+
+#[test]
+fn test_struct_implements_clause_requires_index_signature() {
+    let session = TestSession::single(
+        r#"
+interface Bag {
+    readonly [key: string]: int32;
+}
+
+struct Values implements Bag {}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Bag {
+    readonly [key: string]: int32;
+}
+
+struct Values implements Bag {}
+
+=== checked ===
+interface Bag {
+/// @type.symbol symbol=Bag type=Bag
+/// @definition.interface symbol=Bag
+/// @definition.signature kind=index source="readonly [key: string]: int32" key=string type=int32
+
+    readonly [key: string]: int32;
+}
+
+struct Values implements Bag {}
+/// @type.symbol symbol=Values source="struct Values implements Bag {}" type=Values
+/// @definition.struct symbol=Values source="struct Values implements Bag {}"
+/// @definition.where symbol=Values source=Bag relation=satisfies left=this right=Bag
+/// @definition.implements symbol=Values source=Bag target=Bag
+/// @resolution.name source=Bag target=Bag
+"#,
+        r#"
+/// @diagnostic.error id=interface-not-implemented message="type 'Values' does not implement interface 'Bag'"
+/// @diagnostic.label line=6 column=26 span="Bag" line_source="struct Values implements Bag {}"
 "#,
     );
 }

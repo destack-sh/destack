@@ -19,8 +19,6 @@ pub(in crate::check) enum Relation {
     Satisfies,
     /// The source operand extends the target operand.
     Extends,
-    /// The source operand implements the target operand.
-    Implements,
 }
 
 impl From<dir::WhereRelation> for Relation {
@@ -60,12 +58,7 @@ impl Relation {
     pub(in crate::check) fn distributes_over_union_target(self) -> bool {
         matches!(
             self,
-            Self::Subtype
-                | Self::Assignable
-                | Self::Castable
-                | Self::Satisfies
-                | Self::Extends
-                | Self::Implements
+            Self::Subtype | Self::Assignable | Self::Castable | Self::Satisfies | Self::Extends
         )
     }
 
@@ -73,12 +66,7 @@ impl Relation {
     pub(in crate::check) fn distributes_over_union_source(self) -> bool {
         matches!(
             self,
-            Self::Subtype
-                | Self::Assignable
-                | Self::Widens
-                | Self::Satisfies
-                | Self::Extends
-                | Self::Implements
+            Self::Subtype | Self::Assignable | Self::Widens | Self::Satisfies | Self::Extends
         )
     }
 }

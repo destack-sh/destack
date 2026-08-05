@@ -874,3 +874,65 @@ cleanEnvelope satisfies SharedSafe;
 "#,
     );
 }
+
+#[test]
+fn test_accept_unsafe_shared_safe_implementation() {
+    let session = TestSession::single(
+        r#"
+import { SharedSafe } from "destack:memory";
+
+local class Handle {}
+
+@unsafe
+extension of Handle implements SharedSafe {}
+
+declare const handle: Handle;
+handle satisfies SharedSafe;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_definitions().with_decorators(),
+        r#"
+=== annotated ===
+import { SharedSafe } from "destack:memory";
+
+local class Handle {}
+
+@unsafe
+extension of Handle implements SharedSafe {}
+
+declare const handle: Handle;
+handle satisfies SharedSafe;
+
+=== checked ===
+import { SharedSafe } from "destack:memory";
+
+local class Handle {}
+/// @type.symbol symbol=Handle source="local class Handle {}" type=Handle
+/// @definition.class symbol=Handle source="local class Handle {}"
+
+@unsafe
+/// @decorator.node source=@unsafe owner="extension of Handle implements SharedSafe {}" expression=unsafe target=decorator.unsafe type=unsafe kind=newtype parameters=() newtype=decorator.taint.unsafe backing=() value=unsafe()
+/// @resolution.name source=unsafe target=decorator.taint.unsafe
+
+extension of Handle implements SharedSafe {}
+/// @definition.extension symbol=<module>#2 source="extension of Handle implements SharedSafe {}" form=local target=Handle
+/// @definition.implements symbol=<module>#2 source=SharedSafe target=memory.capability.SharedSafe
+/// @resolution.name source=Handle target=Handle
+/// @resolution.name source=SharedSafe target=memory.capability.SharedSafe
+
+declare const handle: Handle;
+/// @type.symbol symbol=handle source=handle type=Handle
+/// @resolution.pattern source=handle kind=binding target=handle
+/// @resolution.name source=Handle target=Handle
+
+handle satisfies SharedSafe;
+/// @resolution.name source=handle target=handle
+/// @resolution.place source=handle placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=handle root=handle
+/// @resolution.name source=SharedSafe target=memory.capability.SharedSafe
+"#,
+    );
+}

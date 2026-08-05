@@ -61,7 +61,7 @@ pub(in crate::check) enum Obligation {
     RuntimePredicate(Box<RuntimePredicateObligation>),
     /// A for-in source must be enumerable.
     ForInSource(ForInSourceObligation),
-    /// A declaration must implement every member of its declared interfaces.
+    /// A declaration must satisfy every declared interface.
     InterfaceConformance(InterfaceConformanceObligation),
     /// An implementation must not overlap a conflicting implementation.
     ImplementationCoherence(ImplementationCoherenceObligation),
@@ -626,7 +626,7 @@ pub(in crate::check) struct ForInSourceObligation {
     pub(in crate::check) ty: dir::GlobalTypeId,
 }
 
-/// Obliges a declaration to implement every member of its declared interfaces.
+/// Obliges a declaration to satisfy every declared interface.
 ///
 /// ```ds
 /// struct Point implements Display { toString(): string }
@@ -803,13 +803,13 @@ impl CheckState<'_> {
             }
             Obligation::ForInSource(obligation) => self.check_for_in_source(origin, obligation),
             Obligation::InterfaceConformance(obligation) => {
-                self.check_interface_conformance(origin, obligation.symbol)
+                self.check_interface_conformance(origin, obligation)
             }
             Obligation::ExtensionCoherence(obligation) => {
                 self.body().check_extension_coherence(obligation)
             }
             Obligation::ImplementationCoherence(obligation) => {
-                self.check_implementation_coherence(origin, obligation.symbol)
+                self.check_implementation_coherence(origin, obligation)
             }
             Obligation::DeclarationHeritage(obligation) => {
                 self.check_declaration_heritage(origin, obligation.symbol)

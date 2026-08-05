@@ -510,7 +510,7 @@ impl BodyState<'_, '_> {
         if self.symbol_kind_maybe(instance.symbol)? != Some(dir::SymbolKind::Interface) {
             return Ok(Answer::Ready(None));
         }
-        let requirements = answer!(self.interface_requirements(origin, constraint, constraint)?);
+        let requirements = answer!(self.interface_requirements(constraint, constraint)?);
 
         // prefer index signatures declared by the selected interface
         for signature in requirements.index_signatures {
@@ -518,7 +518,7 @@ impl BodyState<'_, '_> {
                 origin,
                 Relation::Assignable,
                 index,
-                signature.key_type,
+                signature.signature.key_type,
             )?);
             if accepts {
                 let selection = self.dynamic_subscript_selection(
@@ -557,9 +557,10 @@ impl BodyState<'_, '_> {
         index: dir::GlobalNodeIdAny,
         signature: InterfaceIndexSignature,
     ) -> CompilerResult<Option<SubscriptSelection>> {
+        let structural = signature.signature;
         let read = match use_ {
             PlaceUse::Read | PlaceUse::Update => {
-                let read_type = self.index_signature_read_type(origin, signature.value_type)?;
+                let read_type = self.index_signature_read_type(origin, structural.value_type)?;
                 let call = self.dynamic_index_call(
                     origin,
                     receiver,
@@ -575,7 +576,7 @@ impl BodyState<'_, '_> {
             PlaceUse::Write => None,
         };
         let write = match use_ {
-            PlaceUse::Write | PlaceUse::Update if signature.is_readonly => return Ok(None),
+            PlaceUse::Write | PlaceUse::Update if structural.is_readonly => return Ok(None),
             PlaceUse::Write | PlaceUse::Update => {
                 let void = self.intern_type(dir::Type::Void)?;
                 let call = self.dynamic_index_call(
@@ -590,8 +591,8 @@ impl BodyState<'_, '_> {
 
                 Some(SubscriptSelection::call_write(
                     dir::OperationResolution::One(call),
-                    signature.value_type,
-                    SmallVec::from_slice(&[signature.key_type]),
+                    structural.value_type,
+                    SmallVec::from_slice(&[structural.key_type]),
                 )?)
             }
             PlaceUse::Read => None,
@@ -620,9 +621,10 @@ impl BodyState<'_, '_> {
         protocol: SubscriptProtocol,
         return_type: dir::GlobalTypeId,
     ) -> CompilerResult<dir::Call> {
+        let structural = signature.signature;
         let mut parameters = SmallVec::<[dir::FunctionParameterType; 2]>::new();
         parameters.push(dir::FunctionParameterType {
-            ty: signature.key_type,
+            ty: structural.key_type,
             is_optional: false,
             is_rest: false,
         });
@@ -634,7 +636,7 @@ impl BodyState<'_, '_> {
             SubscriptProtocol::Index => dir::DynamicFunction::IndexRead(signature.source),
             SubscriptProtocol::IndexSet => {
                 parameters.push(dir::FunctionParameterType {
-                    ty: signature.value_type,
+                    ty: structural.value_type,
                     is_optional: false,
                     is_rest: false,
                 });

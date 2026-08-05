@@ -539,7 +539,6 @@ impl WalkState<'_, '_> {
         // walk implemented interfaces
         let implements = self.walk_nominal_implements(
             symbol,
-            receiver,
             template,
             induction,
             &declaration.implements_types,
@@ -630,7 +629,6 @@ impl WalkState<'_, '_> {
         // walk implemented interfaces
         let implements = self.walk_nominal_implements(
             symbol,
-            receiver,
             template,
             induction,
             &declaration.implements_types,
@@ -679,7 +677,6 @@ impl WalkState<'_, '_> {
     fn walk_nominal_implements(
         &mut self,
         symbol: dir::GlobalSymbolId,
-        receiver: Receiver,
         template: Option<GenericTemplateId>,
         induction: InducedParameterOwner,
         implements_types: &[dir::LocalNodeId<dir::TypeExpression>],
@@ -713,8 +710,6 @@ impl WalkState<'_, '_> {
 
                 continue;
             }
-            self.relate_heritage_clause(*implemented_type, Relation::Implements, receiver.ty, ty);
-
             // members assume this satisfies the implemented interface
             if let Some(template) = template {
                 self.push_this_heritage_predicate(source, template, ty)?;
@@ -819,7 +814,6 @@ impl WalkState<'_, '_> {
         // walk implemented interfaces
         let implements = self.walk_nominal_implements(
             symbol,
-            receiver,
             template,
             induction,
             &declaration.implements_types,
@@ -1107,8 +1101,8 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Queue one extension conformance obligation.
-    pub(in crate::check) fn queue_extension_conformance_obligation(
+    /// Queue one interface conformance obligation.
+    pub(in crate::check) fn queue_interface_conformance_obligation(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,

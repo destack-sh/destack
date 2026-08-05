@@ -210,6 +210,64 @@ class Document implements Printable {
 }
 
 #[test]
+fn test_class_rejects_incompatible_present_optional_member() {
+    let session = TestSession::single(
+        r#"
+interface Named {
+    name?: string;
+}
+
+class User implements Named {
+    name: int32 = 0;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Named {
+    name?: string;
+}
+
+class User implements Named {
+    name: int32 = 0;
+}
+
+=== checked ===
+interface Named {
+/// @type.symbol symbol=Named type=Named
+/// @definition.interface symbol=Named
+/// @definition.field symbol=Named.name source="name?: string" key=name type=string
+
+    name?: string;
+    /// @type.symbol symbol=Named.name source="name?: string" type=string
+
+}
+
+class User implements Named {
+/// @type.symbol symbol=User type=User
+/// @definition.class symbol=User
+/// @definition.where symbol=User source=Named relation=satisfies left=this right=Named
+/// @definition.implements symbol=User source=Named target=Named
+/// @definition.field symbol=User.name source="name: int32 = 0" key=name type=int32
+/// @resolution.name source=Named target=Named
+
+    name: int32 = 0;
+    /// @type.symbol symbol=User.name source="name: int32 = 0" type=int32
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=interface-not-implemented message="type 'User' does not implement interface 'Named'"
+/// @diagnostic.label line=6 column=23 span="Named" line_source="class User implements Named {"
+"#,
+    );
+}
+
+#[test]
 fn test_class_implements_rejects_type_alias_interface() {
     let session = TestSession::single(
         r#"
@@ -323,7 +381,8 @@ class Point implements Drawable {
 }
 "#,
         r#"
-
+/// @diagnostic.error id=interface-not-implemented message="type 'Point' does not implement interface 'Drawable'"
+/// @diagnostic.label line=6 column=24 span="Drawable" line_source="class Point implements Drawable {"
 "#,
     );
 }
@@ -400,7 +459,8 @@ class Point implements Drawable {
 }
 "#,
         r#"
-
+/// @diagnostic.error id=interface-not-implemented message="type 'Point' does not implement interface 'Drawable'"
+/// @diagnostic.label line=10 column=24 span="Drawable" line_source="class Point implements Drawable {"
 "#,
     );
 }
