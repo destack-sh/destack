@@ -31,10 +31,14 @@ pub enum AutoInterface {
     Equal,
     /// Builtin float marker for any float format.
     Float,
+    /// Float literals and builtin float formats.
+    FloatDomain,
     /// Hashing interface.
     Hash,
     /// Builtin integer marker for any integer width.
     Integer,
+    /// Integer literals, intervals, and builtin integer types.
+    IntegerDomain,
     /// Non-exclusive overwrite marker.
     OverwriteStable,
     /// Partial ordered comparison interface.
@@ -76,8 +80,10 @@ impl AutoInterface {
             LanguageItem::DynamicSafe => Some(Self::DynamicSafe),
             LanguageItem::Equal => Some(Self::Equal),
             LanguageItem::Float => Some(Self::Float),
+            LanguageItem::FloatDomain => Some(Self::FloatDomain),
             LanguageItem::Hash => Some(Self::Hash),
             LanguageItem::Integer => Some(Self::Integer),
+            LanguageItem::IntegerDomain => Some(Self::IntegerDomain),
             LanguageItem::OverwriteStable => Some(Self::OverwriteStable),
             LanguageItem::PartialCompare => Some(Self::PartialCompare),
             LanguageItem::PartialEqual => Some(Self::PartialEqual),
@@ -103,8 +109,10 @@ impl AutoInterface {
             Self::DynamicSafe => "DynamicSafe",
             Self::Equal => "Equal",
             Self::Float => "Float",
+            Self::FloatDomain => "FloatDomain",
             Self::Hash => "Hash",
             Self::Integer => "Integer",
+            Self::IntegerDomain => "IntegerDomain",
             Self::OverwriteStable => "OverwriteStable",
             Self::PartialCompare => "PartialCompare",
             Self::PartialEqual => "PartialEqual",
@@ -127,7 +135,9 @@ impl AutoInterface {
             | Self::Unpin
             | Self::Zeroable
             | Self::Integer
-            | Self::Float => true,
+            | Self::IntegerDomain
+            | Self::Float
+            | Self::FloatDomain => true,
             Self::Compare
             | Self::Clone
             | Self::Debug
@@ -139,11 +149,6 @@ impl AutoInterface {
             | Self::PartialEqual
             | Self::Serialize => false,
         }
-    }
-
-    /// Return whether this interface is a scalar marker.
-    pub fn is_scalar_marker(self) -> bool {
-        matches!(self, Self::Integer | Self::Float)
     }
 
     /// Return whether satisfying this interface can generate members.
@@ -167,7 +172,9 @@ impl AutoInterface {
             | Self::Unpin
             | Self::Zeroable
             | Self::Integer
+            | Self::IntegerDomain
             | Self::Float
+            | Self::FloatDomain
             | Self::Concrete => false,
         }
     }
@@ -200,8 +207,10 @@ impl From<AutoInterface> for LanguageItem {
             AutoInterface::DynamicSafe => Self::DynamicSafe,
             AutoInterface::Equal => Self::Equal,
             AutoInterface::Float => Self::Float,
+            AutoInterface::FloatDomain => Self::FloatDomain,
             AutoInterface::Hash => Self::Hash,
             AutoInterface::Integer => Self::Integer,
+            AutoInterface::IntegerDomain => Self::IntegerDomain,
             AutoInterface::OverwriteStable => Self::OverwriteStable,
             AutoInterface::PartialCompare => Self::PartialCompare,
             AutoInterface::PartialEqual => Self::PartialEqual,

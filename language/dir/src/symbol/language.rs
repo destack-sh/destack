@@ -127,6 +127,15 @@ macro_rules! define_language_items {
             /// Return the scalar domain this item's interface admits.
             pub fn scalar_domain(&self) -> Option<ScalarDomain> {
                 match self {
+                    Self::Integer | Self::IntegerDomain => Some(ScalarDomain::Integer),
+                    Self::Float | Self::FloatDomain => Some(ScalarDomain::Float),
+                    _ => None,
+                }
+            }
+
+            /// Return the scalar domain whose builtin representation this item admits.
+            pub fn scalar_representation(&self) -> Option<ScalarDomain> {
+                match self {
                     Self::Integer => Some(ScalarDomain::Integer),
                     Self::Float => Some(ScalarDomain::Float),
                     _ => None,
@@ -786,6 +795,24 @@ define_language_items! {
             Complex => (Struct, "math/complex", "Complex"),
         }
 
+        /// `destack:math/float`.
+        float {
+            /// Float value domain marker.
+            FloatDomain => (NewtypeInterface, "math/float", "FloatDomain"),
+
+            /// Builtin float marker.
+            Float => (NewtypeInterface, "math/float", "Float"),
+        }
+
+        /// `destack:math/integer`.
+        integer {
+            /// Integer value domain marker.
+            IntegerDomain => (NewtypeInterface, "math/integer", "IntegerDomain"),
+
+            /// Builtin integer marker.
+            Integer => (NewtypeInterface, "math/integer", "Integer"),
+        }
+
         /// `destack:math/math`.
         math {
             /// Math class.
@@ -802,15 +829,6 @@ define_language_items! {
 
             /// The `Number.NaN` constant.
             NumberNaN => (Variable, "math/number", "NaN", "math.Number.NaN"),
-        }
-
-        /// `destack:math/scalar`.
-        scalar {
-            /// Builtin integer marker.
-            Integer => (NewtypeInterface, "math/scalar", "Integer"),
-
-            /// Builtin float marker.
-            Float => (NewtypeInterface, "math/scalar", "Float"),
         }
 
         /// `destack:math/vector`.
