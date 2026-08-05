@@ -274,6 +274,26 @@ declare const box: Box<int32>;
 @hover.item index=0 signature="class Box<Value>" type="Box<int32>" location=main.ds:1:1-1:20 selection=main.ds:1:7-1:10 range=main.ds#reference
 ```
 
+### Hover over extension type parameters
+
+An extension type parameter reports its declaration at both declaration and reference sites.
+
+```ds main.ds
+newtype Box<Value> = Value;
+
+extension<Element> of Box<Element> {}
+          ^^^^^^^ declaration
+                          ^^^^^^^ reference
+```
+
+```query hover main.ds#declaration
+@hover.item index=0 signature="(type parameter) Element" location=main.ds#declaration range=main.ds#declaration
+```
+
+```query hover main.ds#reference
+@hover.item index=0 signature="(type parameter) Element" location=main.ds#declaration range=main.ds#reference
+```
+
 ## Members
 
 ### Hover over a field access
@@ -830,4 +850,42 @@ function unrelated(): int32 {
 
 ```query hover main.ds#reference
 @hover.item index=0 signature="function message(): string" location=main.ds:1:1-3:2 selection=main.ds#definition range=main.ds#reference
+```
+
+### Update extension type parameter hover after a rename
+
+Extension parameter hover updates at its declaration and reference.
+
+```ds main.ds
+newtype Box<Value> = Value;
+
+extension<Element> of Box<Element> {}
+          ^^^^^^^ declaration
+                          ^^^^^^^ reference
+```
+
+```query hover main.ds#declaration
+@hover.item index=0 signature="(type parameter) Element" location=main.ds#declaration range=main.ds#declaration
+```
+
+```query hover main.ds#reference
+@hover.item index=0 signature="(type parameter) Element" location=main.ds#declaration range=main.ds#reference
+```
+
+```diff main.ds
+@@ -3,3 +3,3 @@
+-extension<Element> of Box<Element> {}
+-          ^^^^^^^ declaration
+-                          ^^^^^^^ reference
++extension<Item> of Box<Item> {}
++          ^^^^ declaration
++                       ^^^^ reference
+```
+
+```query hover main.ds#declaration
+@hover.item index=0 signature="(type parameter) Item" location=main.ds#declaration range=main.ds#declaration
+```
+
+```query hover main.ds#reference
+@hover.item index=0 signature="(type parameter) Item" location=main.ds#declaration range=main.ds#reference
 ```

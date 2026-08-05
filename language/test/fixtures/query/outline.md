@@ -49,6 +49,72 @@ const answer = 42;
 @outline.symbol depth=0 name=answer kind=constant detail=42 range=main.ds#answer_range selection=main.ds#answer_selection
 ```
 
+### Render unresolved class field types
+
+An unresolved field type keeps its class and renders as `<error>`.
+
+```ds main.ds
+class Player {
+^ player_range:start
+      ^^^^^^ player_selection
+    x: string;
+    ^^^^^^^^^ field_range
+    ^ field_selection
+}
+^ player_range:end
+```
+
+```query outline main.ds
+@outline.symbol depth=0 name=Player kind=class range=main.ds#player_range selection=main.ds#player_selection
+@outline.symbol depth=1 name=x kind=field detail=string range=main.ds#field_range selection=main.ds#field_selection
+```
+
+```diff main.ds
+@@ -1,8 +1,8 @@
+ class Player {
+ ^ player_range:start
+       ^^^^^^ player_selection
+-    x: string;
+-    ^^^^^^^^^ field_range
++    x: Missing;
++    ^^^^^^^^^^ field_range
+     ^ field_selection
+ }
+ ^ player_range:end
+```
+
+```query outline main.ds
+@outline.symbol depth=0 name=Player kind=class range=main.ds#player_range selection=main.ds#player_selection
+@outline.symbol depth=1 name=x kind=field detail="<error>" range=main.ds#field_range selection=main.ds#field_selection
+```
+
+### Render unresolved initializer types
+
+An unresolved initializer keeps its declaration and renders as `<error>`.
+
+```ds main.ds
+const value = 1;
+^^^^^^^^^^^^^^^ value_range
+      ^^^^^ value_selection
+```
+
+```query outline main.ds
+@outline.symbol depth=0 name=value kind=constant detail=1 range=main.ds#value_range selection=main.ds#value_selection
+```
+
+```diff main.ds
+@@ -1,3 +1,3 @@
+-const value = 1;
+-^^^^^^^^^^^^^^^ value_range
++const value = missing;
++^^^^^^^^^^^^^^^^^^^^^ value_range
+       ^^^^^ value_selection
+```
+
+```query outline main.ds
+@outline.symbol depth=0 name=value kind=constant detail="<error>" range=main.ds#value_range selection=main.ds#value_selection
+```
+
 ## Members
 
 ### Preserve hierarchical member order

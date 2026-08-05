@@ -628,3 +628,51 @@ const value = true;
 ```query inlay_hints main.ds#binding
 @inlay_hints.hint position=main.ds#binding@end label=": true" kind=type
 ```
+
+### Render inferred types during incomplete edits
+
+An unresolved initializer renders as `<error>`.
+
+```ds main.ds
+const value = 1;
+      ^^^^^ binding
+```
+
+```query inlay_hints main.ds#binding
+@inlay_hints.hint position=main.ds#binding@end label=": 1" kind=type
+```
+
+```ds main.ds change
+const value = missing;
+      ^^^^^ binding
+```
+
+```query inlay_hints main.ds#binding
+@inlay_hints.hint position=main.ds#binding@end label=": <error>" kind=type
+```
+
+### Update parameter names after a callable edit
+
+Parameter name hints update when the callable parameter is renamed.
+
+```ds main.ds
+function send(value: string): void {}
+
+send("ready");
+^^^^^^^^^^^^^^ call
+     ^ argument
+```
+
+```query inlay_hints main.ds#call
+@inlay_hints.hint position=main.ds#argument label="value:" kind=parameter padding_right=true
+```
+
+```diff main.ds
+@@ -1 +1 @@
+-function send(value: string): void {}
++function send(message: string): void {}
+```
+
+```query inlay_hints main.ds#call
+@inlay_hints.hint position=main.ds#argument label="message:" kind=parameter padding_right=true
+```

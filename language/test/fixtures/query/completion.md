@@ -429,6 +429,31 @@ function display(user: User): string {
 @completion.item label=displayName kind=method replace=main.ds#prefix detail="() => string" insert="displayName()" preselect=true matches=0,1,2
 ```
 
+### [ignored] Omit an inapplicable blanket extension
+
+A constrained blanket extension does not appear for a receiver outside its bound.
+
+```ds main.ds
+interface Named {}
+
+struct User {}
+
+extension<Value: Named> of Value {
+    displayName(): string {
+        return "user";
+    }
+}
+
+function display(user: User): string {
+    return user.dis;
+                ^^^ prefix
+}
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.none
+```
+
 ### Complete an optional-chain member
 
 Optional chaining completes the same members as direct access.
@@ -2005,4 +2030,104 @@ const selected = box.cou;
 
 ```query completion main.ds#prefix@end trigger=.
 @completion.item label=count kind=field replace=main.ds#prefix detail=boolean preselect=true matches=0,1,2
+```
+
+### Update a newtype constructor after its backing type changes
+
+Newtype completion updates when its backing type changes.
+
+```ds main.ds
+newtype UserId = string;
+
+const result = UserI;
+               ^^^^^ prefix
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=UserId kind=constructor replace=main.ds#prefix detail="(string) => UserId" insert="UserId(${1})$0" snippet=true preselect=true matches=0,1,2,3,4
+```
+
+```diff main.ds
+@@ -1 +1 @@
+-newtype UserId = string;
++newtype UserId = int32;
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=UserId kind=constructor replace=main.ds#prefix detail="(int32) => UserId" insert="UserId(${1})$0" snippet=true preselect=true matches=0,1,2,3,4
+```
+
+### [ignored] Update blanket extension completion after conformance changes
+
+Blanket extension completion follows the receiver's current interface conformance.
+
+```ds main.ds
+interface Named {}
+
+struct User implements Named {}
+
+extension<Value: Named> of Value {
+    displayName(): string {
+        return "user";
+    }
+}
+
+declare const user: User;
+const result = user.dis;
+                    ^^^ prefix
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=displayName kind=method replace=main.ds#prefix detail="() => string" insert="displayName()" preselect=true matches=0,1,2
+```
+
+```diff main.ds
+@@ -3 +3 @@
+-struct User implements Named {}
++struct User {}
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.none
+```
+
+```diff main.ds
+@@ -3 +3 @@
+-struct User {}
++struct User implements Named {}
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=displayName kind=method replace=main.ds#prefix detail="() => string" insert="displayName()" preselect=true matches=0,1,2
+```
+
+### Return no members for an unresolved receiver after an edit
+
+An unresolved receiver has no member completion candidates.
+
+```ds main.ds
+struct Box {
+    value: string;
+}
+
+declare const box: Box;
+const selected = box.val;
+                     ^^^ prefix
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=value kind=field replace=main.ds#prefix detail=string preselect=true matches=0,1,2
+```
+
+```diff main.ds
+@@ -5,3 +5,3 @@
+ declare const box: Box;
+-const selected = box.val;
++const selected = missing.val;
+-                     ^^^ prefix
++                         ^^^ prefix
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.none
 ```
