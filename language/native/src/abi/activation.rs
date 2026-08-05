@@ -18,6 +18,8 @@ pub struct Activation {
     pub memory_base: *mut u8,
     /// Program constant bytes.
     pub constants: ConstantSpace,
+    /// Immortal object bytes.
+    pub immortals: StaticSpace,
     /// Runtime-shared static bytes.
     pub shared_statics: StaticSpace,
     /// Worker-local static bytes.
@@ -55,6 +57,7 @@ impl Activation {
         dynamics: *const *const u32,
         memory_base: *mut u8,
         constants: ConstantSpace,
+        immortals: StaticSpace,
         shared_statics: StaticSpace,
         local_statics: StaticSpace,
         context: usize,
@@ -69,6 +72,7 @@ impl Activation {
             dynamics,
             memory_base,
             constants,
+            immortals,
             shared_statics,
             local_statics,
             context,

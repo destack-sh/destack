@@ -73,6 +73,7 @@ impl Runtime {
             world,
             &self.shared_collection,
             &mut self.shared_static,
+            &self.immortal_space,
             &self.constant_space,
             host,
             host_queue,
@@ -97,6 +98,7 @@ impl Runtime {
         };
         let collection = &self.shared_collection;
         let shared_static = &mut self.shared_static;
+        let immortal_space = &self.immortal_space;
         let constant_space = &self.constant_space;
         let workers = &mut self.workers;
 
@@ -105,6 +107,7 @@ impl Runtime {
                 world,
                 collection,
                 shared_static,
+                immortal_space,
                 constant_space,
                 host,
                 host_queue,
@@ -121,6 +124,7 @@ impl Runtime {
                 world,
                 collection,
                 shared_static,
+                immortal_space,
                 constant_space,
                 host,
                 host_queue,
@@ -149,6 +153,7 @@ impl Runtime {
         let start_index = self.next_worker_cursor % worker_count;
         let collection = &self.shared_collection;
         let shared_static = &mut self.shared_static;
+        let immortal_space = &self.immortal_space;
         let constant_space = &self.constant_space;
         let workers = &mut self.workers;
 
@@ -159,6 +164,7 @@ impl Runtime {
                 world,
                 collection,
                 shared_static,
+                immortal_space,
                 constant_space,
                 host,
                 host_queue,
@@ -178,6 +184,7 @@ impl Runtime {
                 world,
                 collection,
                 shared_static,
+                immortal_space,
                 constant_space,
                 host,
                 host_queue,
@@ -209,6 +216,7 @@ impl Runtime {
         };
         let collection = &self.shared_collection;
         let shared_static = &mut self.shared_static;
+        let immortal_space = &self.immortal_space;
         let constant_space = &self.constant_space;
         let workers = &mut self.workers;
 
@@ -218,6 +226,7 @@ impl Runtime {
                 world,
                 collection,
                 shared_static,
+                immortal_space,
                 constant_space,
                 host,
                 host_queue,
@@ -235,6 +244,7 @@ impl Runtime {
                 world,
                 collection,
                 shared_static,
+                immortal_space,
                 constant_space,
                 host,
                 host_queue,
@@ -265,6 +275,7 @@ impl Runtime {
         let start_index = self.next_worker_cursor % worker_count;
         let collection = &self.shared_collection;
         let shared_static = &mut self.shared_static;
+        let immortal_space = &self.immortal_space;
         let constant_space = &self.constant_space;
 
         // scan workers after the scheduler cursor
@@ -275,6 +286,7 @@ impl Runtime {
                 world,
                 collection,
                 shared_static,
+                immortal_space,
                 constant_space,
                 host,
                 host_queue,
@@ -293,6 +305,7 @@ impl Runtime {
                 world,
                 collection,
                 shared_static,
+                immortal_space,
                 constant_space,
                 host,
                 host_queue,

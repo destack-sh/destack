@@ -4,6 +4,7 @@ use std::sync::Arc;
 use destack_artifact::ConditionSet;
 use destack_core::{Capture, CaptureMode};
 use destack_heap as heap;
+use destack_memory::MemoryRange;
 use destack_program as program;
 use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 use serde::{Deserialize, Serialize};
@@ -150,6 +151,7 @@ impl Worker {
         world: &mut WorldState,
         shared_heap: &Arc<heap::SharedHeap>,
         allocation_plans: &Arc<[Option<heap::AllocationPlan>]>,
+        immortal_range: MemoryRange,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
         binding_table: Arc<BindingTable>,
@@ -169,12 +171,13 @@ impl Worker {
             .heap
             .local_heap_options()
             .map_err(Box::<RuntimeError>::from)?;
-        let heap = heap::Heap::new(
+        let mut heap = heap::Heap::new(
             shared_heap.memory().clone(),
             options.heap.local.limits(),
             heap_options,
         )
         .map_err(Box::<RuntimeError>::from)?;
+        heap.set_immortal_range(immortal_range);
         let machine = engine.spawn(shared_heap.memory().clone())?;
         let handshake = Arc::new(Handshake::new());
         let local_static = program.materialize_local_statics(shared_heap.memory().clone())?;
@@ -479,6 +482,7 @@ impl Worker {
         world: &mut WorldState,
         shared_heap: &Arc<heap::SharedHeap>,
         allocation_plans: &Arc<[Option<heap::AllocationPlan>]>,
+        immortal_range: MemoryRange,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
         environment: Arc<Environment>,
@@ -502,13 +506,14 @@ impl Worker {
         let mut event_loop = EventLoop::default();
 
         // heap
-        let heap = heap::Heap::from_image(
+        let mut heap = heap::Heap::from_image(
             &image.heap,
             shared_heap.memory().clone(),
             options.heap.local.limits(),
             program.trace_view(),
         )
         .map_err(Box::<RuntimeError>::from)?;
+        heap.set_immortal_range(immortal_range);
         let mut machine = engine.spawn(shared_heap.memory().clone())?;
         machine.restore(&image.machine)?;
         let handshake = Arc::new(Handshake::new());

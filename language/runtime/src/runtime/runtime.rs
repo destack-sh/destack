@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_artifact::ConditionSet;
 use destack_heap as heap;
-use destack_memory::MemoryMap;
+use destack_memory::{MemoryMap, MemoryRange};
 use destack_program as program;
 use destack_repository::{Environment, RuntimeOptions};
 
@@ -39,6 +39,8 @@ pub struct Runtime {
     pub(crate) allocation_plans: Arc<[Option<heap::AllocationPlan>]>,
     /// Immutable program constant space.
     pub(crate) constant_space: program::StaticImage,
+    /// Runtime-owned immortal object space.
+    pub(crate) immortal_space: program::StaticSpace,
     /// Runtime-owned shared static space.
     pub(crate) shared_static: program::StaticSpace,
     /// All active workers keyed by identifier.
@@ -91,6 +93,7 @@ impl Runtime {
 
         // materialize runtime-owned storage before publishing topology
         let constant_space = *program.constants();
+        let immortal_space = program.materialize_immortals(memory.clone())?;
         let shared_static = program.materialize_shared_statics(memory.clone())?;
         let local_heap_options = options
             .heap
@@ -100,10 +103,15 @@ impl Runtime {
             .heap
             .shared_heap_options()
             .map_err(Box::<RuntimeError>::from)?;
-        let shared_heap = Arc::new(
+        let immortal_range = MemoryRange {
+            offset: immortal_space.offset(),
+            byte_len: immortal_space.byte_len(),
+        };
+        let mut shared_heap =
             heap::SharedHeap::new(memory, options.heap.shared.limits(), shared_heap_options)
-                .map_err(Box::<RuntimeError>::from)?,
-        );
+                .map_err(Box::<RuntimeError>::from)?;
+        shared_heap.set_immortal_range(immortal_range);
+        let shared_heap = Arc::new(shared_heap);
         let shared_collection = SharedCollectionState::new(&collector);
         let allocation_plans = program
             .plan_allocations(&local_heap_options, shared_heap.options())?
@@ -115,6 +123,7 @@ impl Runtime {
             world,
             &shared_heap,
             &allocation_plans,
+            immortal_range,
             runtime_id,
             default_worker_id,
             binding_table.clone(),
@@ -157,11 +166,20 @@ impl Runtime {
             shared_collection,
             allocation_plans,
             constant_space,
+            immortal_space,
             shared_static,
             workers,
             default_worker_id,
             next_worker_cursor: 0,
         })
+    }
+
+    /// Return the immortal object range inside world memory.
+    pub(crate) fn immortal_range(&self) -> MemoryRange {
+        MemoryRange {
+            offset: self.immortal_space.offset(),
+            byte_len: self.immortal_space.byte_len(),
+        }
     }
 
     /// Return the current default worker id.
@@ -265,6 +283,7 @@ impl Runtime {
             world,
             &self.shared_heap,
             &self.allocation_plans,
+            self.immortal_range(),
             self.id,
             worker_id,
             self.binding_table.clone(),

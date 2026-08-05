@@ -144,6 +144,7 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
             dynamics,
             self.memory.base_address() as *mut u8,
             memory.constants.native(self.program.sections()),
+            memory.immortals.native(),
             memory.shared_statics.native(),
             memory.local_statics.native(),
             self.activation.context.reference().bits(),

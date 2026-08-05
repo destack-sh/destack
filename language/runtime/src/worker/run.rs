@@ -74,6 +74,7 @@ impl Worker {
         world: &mut WorldState,
         collection: &Arc<SharedCollectionState>,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -90,6 +91,7 @@ impl Worker {
             world,
             collection,
             shared_static,
+            immortal_space,
             constant_space,
             host,
             host_queue,
@@ -112,6 +114,7 @@ impl Worker {
         world: &mut WorldState,
         collection: &Arc<SharedCollectionState>,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -149,6 +152,7 @@ impl Worker {
                 shared_mark_worker: &self.shared_mark_worker,
                 local_statics: &mut self.local_static,
                 shared_statics: shared_static,
+                immortals: immortal_space,
                 constants: constant_space,
             },
         };
@@ -189,6 +193,7 @@ impl Worker {
                         world,
                         collection,
                         shared_static,
+                        immortal_space,
                         constant_space,
                         host,
                         host_queue,
@@ -232,6 +237,7 @@ impl Worker {
                             shared_mark_worker: &self.shared_mark_worker,
                             local_statics: &mut self.local_static,
                             shared_statics: shared_static,
+                            immortals: immortal_space,
                             constants: constant_space,
                         },
                     };
@@ -260,6 +266,7 @@ impl Worker {
         world: &mut WorldState,
         collection: &Arc<SharedCollectionState>,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -268,6 +275,7 @@ impl Worker {
             world,
             collection,
             shared_static,
+            immortal_space,
             constant_space,
             host,
             host_queue,
@@ -281,6 +289,7 @@ impl Worker {
         world: &mut WorldState,
         collection: &Arc<SharedCollectionState>,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -300,6 +309,7 @@ impl Worker {
         let outcome = self.execute_retained_runnable(
             world,
             shared_static,
+            immortal_space,
             constant_space,
             host,
             host_queue,
@@ -311,6 +321,7 @@ impl Worker {
             world,
             collection,
             shared_static,
+            immortal_space,
             constant_space,
             host,
             host_queue,
@@ -324,6 +335,7 @@ impl Worker {
         world: &mut WorldState,
         collection: &Arc<SharedCollectionState>,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -332,6 +344,7 @@ impl Worker {
             world,
             collection,
             shared_static,
+            immortal_space,
             constant_space,
             host,
             host_queue,
@@ -346,6 +359,7 @@ impl Worker {
         world: &mut WorldState,
         collection: &Arc<SharedCollectionState>,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -363,6 +377,7 @@ impl Worker {
                 self.execute_retained_runnable(
                     world,
                     shared_static,
+                    immortal_space,
                     constant_space,
                     host,
                     host_queue,
@@ -372,7 +387,7 @@ impl Worker {
             } else {
                 match queue {
                     RunQueue::Task => {
-                        self.select_task(world, shared_static, constant_space, host, host_queue)?
+                        self.select_task(world, shared_static, immortal_space, constant_space, host, host_queue)?
                     }
                     RunQueue::Microtask => {
                         let Some(runnable) = self.event_loop.pop_microtask() else {
@@ -382,6 +397,7 @@ impl Worker {
                         self.run_microtask_runnable(
                             world,
                             shared_static,
+                            immortal_space,
                             constant_space,
                             host,
                             host_queue,
@@ -394,6 +410,7 @@ impl Worker {
                 world,
                 collection,
                 shared_static,
+                immortal_space,
                 constant_space,
                 host,
                 host_queue,
@@ -410,6 +427,7 @@ impl Worker {
                 world,
                 collection,
                 shared_static,
+                immortal_space,
                 constant_space,
                 host,
                 host_queue,
@@ -433,6 +451,7 @@ impl Worker {
         world: &mut WorldState,
         collection: &Arc<SharedCollectionState>,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -452,6 +471,7 @@ impl Worker {
                     world,
                     collection,
                     shared_static,
+                    immortal_space,
                     constant_space,
                     host,
                     host_queue,
@@ -461,6 +481,7 @@ impl Worker {
                     world,
                     collection,
                     shared_static,
+                    immortal_space,
                     constant_space,
                     host,
                     host_queue,
@@ -486,6 +507,7 @@ impl Worker {
         world: &mut WorldState,
         collection: &Arc<SharedCollectionState>,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -509,6 +531,7 @@ impl Worker {
                 world,
                 collection,
                 shared_static,
+                immortal_space,
                 constant_space,
                 host,
                 host_queue,
@@ -548,6 +571,7 @@ impl Worker {
         world: &mut WorldState,
         collection: &Arc<SharedCollectionState>,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -562,6 +586,7 @@ impl Worker {
                 world,
                 collection,
                 shared_static,
+                immortal_space,
                 constant_space,
                 host,
                 host_queue,
@@ -571,6 +596,7 @@ impl Worker {
                 world,
                 collection,
                 shared_static,
+                immortal_space,
                 constant_space,
                 host,
                 host_queue,
@@ -584,6 +610,7 @@ impl Worker {
         world: &mut WorldState,
         collection: &Arc<SharedCollectionState>,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -603,6 +630,7 @@ impl Worker {
             world,
             collection,
             shared_static,
+            immortal_space,
             constant_space,
             host,
             host_queue,
@@ -612,7 +640,7 @@ impl Worker {
 
         // local heap work
         let progress =
-            self.step_local_collection(world, shared_static, constant_space, host, host_queue)?;
+            self.step_local_collection(world, shared_static, immortal_space, constant_space, host, host_queue)?;
         if progress.advanced() {
             return Ok(Some(progress));
         }
@@ -626,13 +654,14 @@ impl Worker {
         world: &mut WorldState,
         collection: &Arc<SharedCollectionState>,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
     ) -> RuntimeResult<Option<heap::GcAdvance>> {
         // local heap work
         let progress =
-            self.step_local_collection(world, shared_static, constant_space, host, host_queue)?;
+            self.step_local_collection(world, shared_static, immortal_space, constant_space, host, host_queue)?;
         if progress.advanced() {
             return Ok(Some(progress));
         }
@@ -652,6 +681,7 @@ impl Worker {
             world,
             collection,
             shared_static,
+            immortal_space,
             constant_space,
             host,
             host_queue,
@@ -726,6 +756,7 @@ impl Worker {
         world: &mut WorldState,
         collection: &Arc<SharedCollectionState>,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -757,7 +788,7 @@ impl Worker {
             .map_err(Box::<RuntimeError>::from)?;
 
         if let heap::GcAdvance::Drop(drop) = progress {
-            self.drop_value(world, shared_static, constant_space, host, host_queue, drop)?;
+            self.drop_value(world, shared_static, immortal_space, constant_space, host, host_queue, drop)?;
             shared_heap
                 .complete_drop(drop.reference)
                 .map_err(Box::<RuntimeError>::from)?;
@@ -775,6 +806,7 @@ impl Worker {
         &mut self,
         world: &mut WorldState,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -800,7 +832,7 @@ impl Worker {
                 .step_collection(&mut roots, budget_bytes, self.program.trace_view())?;
 
         if let heap::GcAdvance::Drop(drop) = progress {
-            self.drop_value(world, shared_static, constant_space, host, host_queue, drop)?;
+            self.drop_value(world, shared_static, immortal_space, constant_space, host, host_queue, drop)?;
             self.heap
                 .complete_drop(drop.reference)
                 .map_err(Box::<RuntimeError>::from)?;
@@ -814,6 +846,7 @@ impl Worker {
         &mut self,
         world: &mut WorldState,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -848,6 +881,7 @@ impl Worker {
                 shared_mark_worker: &self.shared_mark_worker,
                 local_statics: &mut self.local_static,
                 shared_statics: shared_static,
+                immortals: immortal_space,
                 constants: constant_space,
             },
         };
@@ -861,6 +895,7 @@ impl Worker {
         &mut self,
         world: &mut WorldState,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -870,6 +905,7 @@ impl Worker {
             return self.run_task_runnable(
                 world,
                 shared_static,
+                immortal_space,
                 constant_space,
                 host,
                 host_queue,
@@ -889,6 +925,7 @@ impl Worker {
             return self.run_task_runnable(
                 world,
                 shared_static,
+                immortal_space,
                 constant_space,
                 host,
                 host_queue,
@@ -904,6 +941,7 @@ impl Worker {
         &mut self,
         world: &mut WorldState,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -914,6 +952,7 @@ impl Worker {
         let outcome = self.execute_invocation(
             world,
             shared_static,
+            immortal_space,
             constant_space,
             host,
             host_queue,
@@ -929,6 +968,7 @@ impl Worker {
         &mut self,
         world: &mut WorldState,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -940,6 +980,7 @@ impl Worker {
         let outcome = self.execute_invocation(
             world,
             shared_static,
+            immortal_space,
             constant_space,
             host,
             host_queue,
@@ -955,6 +996,7 @@ impl Worker {
         &mut self,
         world: &mut WorldState,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -967,6 +1009,7 @@ impl Worker {
         let outcome = self.continue_runnable(
             world,
             shared_static,
+            immortal_space,
             constant_space,
             host,
             host_queue,
@@ -1049,6 +1092,7 @@ impl Worker {
         &mut self,
         world: &mut WorldState,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -1118,6 +1162,7 @@ impl Worker {
                 shared_mark_worker: &self.shared_mark_worker,
                 local_statics: &mut self.local_static,
                 shared_statics: shared_static,
+                immortals: immortal_space,
                 constants: constant_space,
             },
         };
@@ -1171,6 +1216,7 @@ impl Worker {
         &mut self,
         world: &mut WorldState,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -1215,6 +1261,7 @@ impl Worker {
                 shared_mark_worker: &self.shared_mark_worker,
                 local_statics: &mut self.local_static,
                 shared_statics: shared_static,
+                immortals: immortal_space,
                 constants: constant_space,
             },
         };
@@ -1252,6 +1299,7 @@ impl Worker {
         world: &mut WorldState,
         collection: &Arc<SharedCollectionState>,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -1259,7 +1307,7 @@ impl Worker {
     ) -> RuntimeResult<WorkerRunOutcome> {
         // destroy released values only after physical execution has completed
         if matches!(outcome, WorkerRunOutcome::Progressed { .. }) {
-            self.destroy_released_values(world, shared_static, constant_space, host, host_queue)?;
+            self.destroy_released_values(world, shared_static, immortal_space, constant_space, host, host_queue)?;
         }
 
         if outcome != WorkerRunOutcome::Idle {
@@ -1275,6 +1323,7 @@ impl Worker {
                 world,
                 collection,
                 shared_static,
+                immortal_space,
                 constant_space,
                 host,
                 host_queue,
@@ -1290,6 +1339,7 @@ impl Worker {
         &mut self,
         world: &mut WorldState,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -1298,6 +1348,7 @@ impl Worker {
             self.destroy_value(
                 world,
                 shared_static,
+                immortal_space,
                 constant_space,
                 host,
                 host_queue,
@@ -1313,6 +1364,7 @@ impl Worker {
         &mut self,
         world: &mut WorldState,
         shared_static: &mut program::StaticSpace,
+        immortal_space: &program::StaticSpace,
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -1347,6 +1399,7 @@ impl Worker {
                 shared_mark_worker: &self.shared_mark_worker,
                 local_statics: &mut self.local_static,
                 shared_statics: shared_static,
+                immortals: immortal_space,
                 constants: constant_space,
             },
         };
