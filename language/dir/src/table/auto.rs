@@ -176,6 +176,41 @@ impl AutoInterface {
     pub fn has_auto_conformance(self) -> bool {
         self.is_marker()
     }
+
+    /// Return whether an unsafe extension may assume this interface.
+    pub fn permits_unsafe_implementation(self) -> bool {
+        matches!(
+            self,
+            Self::OverwriteStable | Self::SharedSafe | Self::Unpin | Self::Zeroable
+        )
+    }
+}
+
+impl From<AutoInterface> for LanguageItem {
+    fn from(interface: AutoInterface) -> Self {
+        match interface {
+            AutoInterface::AtomicSafe => Self::AtomicSafe,
+            AutoInterface::Compare => Self::Compare,
+            AutoInterface::Concrete => Self::Concrete,
+            AutoInterface::Copy => Self::Copy,
+            AutoInterface::Clone => Self::Clone,
+            AutoInterface::Debug => Self::Debug,
+            AutoInterface::Default => Self::Default,
+            AutoInterface::Deserialize => Self::Deserialize,
+            AutoInterface::DynamicSafe => Self::DynamicSafe,
+            AutoInterface::Equal => Self::Equal,
+            AutoInterface::Float => Self::Float,
+            AutoInterface::Hash => Self::Hash,
+            AutoInterface::Integer => Self::Integer,
+            AutoInterface::OverwriteStable => Self::OverwriteStable,
+            AutoInterface::PartialCompare => Self::PartialCompare,
+            AutoInterface::PartialEqual => Self::PartialEqual,
+            AutoInterface::Serialize => Self::Serialize,
+            AutoInterface::SharedSafe => Self::SharedSafe,
+            AutoInterface::Unpin => Self::Unpin,
+            AutoInterface::Zeroable => Self::Zeroable,
+        }
+    }
 }
 
 /// One checked marker conformance.

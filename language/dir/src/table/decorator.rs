@@ -180,6 +180,18 @@ impl DecoratorSegment {
         })
     }
 
+    /// Iterate decorator applications attached to one owner.
+    pub fn applications_for_owner(
+        &self,
+        owner: GlobalNodeIdAny,
+    ) -> impl Iterator<Item = &DecoratorApplication> + '_ {
+        self.applications_by_owner
+            .get(&owner)
+            .into_iter()
+            .flatten()
+            .map(|id| self.get_application(*id))
+    }
+
     /// Get a decorator application by id.
     pub fn get_application(&self, application_id: LocalDecoratorId) -> &DecoratorApplication {
         self.get_local_application(application_id)
@@ -294,6 +306,16 @@ pub enum DecoratorTarget {
         /// The resolved decorator symbol.
         symbol: GlobalSymbolId,
     },
+}
+
+impl DecoratorTarget {
+    /// Return the well-known decorator identity, when present.
+    pub fn language_item(self) -> Option<LanguageItem> {
+        match self {
+            Self::LanguageItem { item, .. } => Some(item),
+            Self::Symbol { .. } => None,
+        }
+    }
 }
 
 /// Selection used to construct one checked decorator value.
