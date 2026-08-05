@@ -34,7 +34,6 @@ pub static LINTS: &[&Lint] = &[
     &correctness::USE_ISNAN,
 
     // performance
-    &performance::BUSY_WAIT_WITHOUT_YIELD,
     &performance::CLONE_ON_COPY,
     &performance::CLONED_INSTEAD_OF_COPIED,
     &performance::COLLAPSIBLE_STRING_REPLACE,
@@ -54,6 +53,7 @@ pub static LINTS: &[&Lint] = &[
     &performance::MANUAL_ROTATE,
     &performance::MANUAL_SPLIT_ONCE,
     &performance::MANUAL_TRY_FOLD,
+    &performance::MISSING_SPIN_LOOP,
     &performance::NEEDLESS_BORROW_OF_COPY,
     &performance::NEEDLESS_COLLECT,
     &performance::NEEDLESS_PASS_BY_VALUE,

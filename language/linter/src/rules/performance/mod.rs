@@ -1,4 +1,3 @@
-mod busy_wait_without_yield;
 mod clone_on_copy;
 mod cloned_instead_of_copied;
 mod collapsible_string_replace;
@@ -18,6 +17,7 @@ mod manual_retain;
 mod manual_rotate;
 mod manual_split_once;
 mod manual_try_fold;
+mod missing_spin_loop;
 mod needless_borrow_of_copy;
 mod needless_collect;
 mod needless_pass_by_value;
@@ -65,7 +65,6 @@ mod unnecessary_lazy_evaluations;
 mod unnecessary_sort_comparator;
 mod unused_peekable;
 
-pub use busy_wait_without_yield::*;
 pub use clone_on_copy::*;
 pub use cloned_instead_of_copied::*;
 pub use collapsible_string_replace::*;
@@ -85,6 +84,7 @@ pub use manual_retain::*;
 pub use manual_rotate::*;
 pub use manual_split_once::*;
 pub use manual_try_fold::*;
+pub use missing_spin_loop::*;
 pub use needless_borrow_of_copy::*;
 pub use needless_collect::*;
 pub use needless_pass_by_value::*;
