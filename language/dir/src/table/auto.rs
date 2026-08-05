@@ -179,11 +179,6 @@ impl AutoInterface {
         }
     }
 
-    /// Return whether the checker proves this interface by auto conformance.
-    pub fn has_auto_conformance(self) -> bool {
-        self.is_marker()
-    }
-
     /// Return whether an unsafe extension may assume this interface.
     pub fn permits_unsafe_implementation(self) -> bool {
         matches!(

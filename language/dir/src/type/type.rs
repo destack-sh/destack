@@ -1041,8 +1041,6 @@ pub enum TypeOperation {
     NoInfer(UnaryType),
     /// Awaited value type, like `Awaited<Promise<T>>`.
     Awaited(UnaryType),
-    /// Recursive literal widening, like `Widen<1>`.
-    Widen(UnaryType),
     /// Try success projection like `value?` continuing evaluation.
     TryOutput {
         /// The tried value type.
