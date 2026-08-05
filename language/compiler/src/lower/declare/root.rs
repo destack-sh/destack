@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use destack_artifact::DiagnosticLike;
 use destack_dir as dir;
 use destack_mir as mir;
@@ -5,16 +7,6 @@ use smallvec::SmallVec;
 
 use crate::lower::{FunctionDeclaration, FunctionDefinition, GenericInstanceKey, ModuleLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
-
-/// The callables one root declaration contributes.
-enum RootCallables {
-    /// One function body to declare.
-    Function(dir::LocalNodeId<dir::Expression>),
-    /// One member list to declare under its host declaration.
-    Members(SmallVec<[dir::LocalNodeId<dir::Member>; 8]>),
-    /// No runtime code.
-    Inert,
-}
 
 impl ModuleLowerer<'_> {
     /// Declare every identity the module's bodies build against.
@@ -96,6 +88,27 @@ impl ModuleLowerer<'_> {
             }
         }
 
+        // declare an imported global for every foreign constant the bodies read
+        for symbol in references.constants {
+            match self.declare_imported_constant(builder, symbol) {
+                Ok(()) => {}
+                // keep the diagnostic for the first body that reads the constant
+                Err(CompilerError::Diagnostic(diagnostic)) => {
+                    self.globals.insert(symbol, Err(Arc::from(diagnostic)));
+                }
+                Err(error) => return Err(error),
+            }
+        }
+
+        // declare the dispatch entries behind every collected erasure
+        for (source, target) in references.erasures {
+            match self.declare_implementer(builder, source, target) {
+                Ok(()) => {}
+                Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
+                Err(error) => return Err(error),
+            }
+        }
+
         Ok((bodies, errors))
     }
 
@@ -108,63 +121,51 @@ impl ModuleLowerer<'_> {
         errors: &mut Vec<Box<dyn DiagnosticLike>>,
     ) -> CompilerResult<()> {
         // classify the declaration in one narrow tree borrow
-        let runtime = match self.local().tree().get(declaration) {
-            // function f() { ... }
-            dir::Declaration::Function(function) => match function.body {
-                Some(body) => RootCallables::Function(body),
-                // skip ambient functions
-                None => RootCallables::Inert,
-            },
+        // read the declared body or member list in one narrow tree borrow
+        let (body, members) = match self.local().tree().get(declaration) {
+            // function f() { ... }, skipping ambient signatures
+            dir::Declaration::Function(function) => (function.body, SmallVec::new()),
 
-            // collect members declaring their own callables
-            dir::Declaration::Class(class) => {
-                RootCallables::Members(SmallVec::from_slice(&class.members))
-            }
-            dir::Declaration::Struct(structure) => {
-                RootCallables::Members(SmallVec::from_slice(&structure.members))
-            }
+            // members declare their own callables
+            dir::Declaration::Class(class) => (None, SmallVec::from_slice(&class.members)),
+            dir::Declaration::Struct(structure) => (None, SmallVec::from_slice(&structure.members)),
             dir::Declaration::Enum(enumeration) => {
-                RootCallables::Members(SmallVec::from_slice(&enumeration.members))
+                (None, SmallVec::from_slice(&enumeration.members))
             }
             dir::Declaration::Extension(extension) => {
-                RootCallables::Members(SmallVec::from_slice(&extension.members))
+                (None, SmallVec::from_slice(&extension.members))
             }
 
-            // skip interface members
-            dir::Declaration::Interface(_) => RootCallables::Inert,
-            // skip type declarations
-            dir::Declaration::Type(_) => RootCallables::Inert,
-            // skip ambient global and module blocks
-            dir::Declaration::Global(_) | dir::Declaration::Module(_) => RootCallables::Inert,
+            // interfaces, type declarations, and ambient blocks carry no runtime code
+            dir::Declaration::Interface(_)
+            | dir::Declaration::Type(_)
+            | dir::Declaration::Global(_)
+            | dir::Declaration::Module(_) => (None, SmallVec::<[_; 8]>::new()),
         };
 
-        match runtime {
-            RootCallables::Function(body) => {
-                // defer generic functions to their concrete instances
-                let node = declaration.into_global_any(self.module);
-                if let Some(symbol) = self.symbol_declared_at(node)?
-                    && self.signature_has_instance_parameters(self.symbol_type(symbol)?)?
-                {
-                    return Ok(());
-                }
-
-                // accumulate unsupported diagnostics; abort on internal failures
-                match self.declare_function(builder, declaration, body) {
-                    Ok(body) => bodies.push(body),
-                    Err(CompilerError::Diagnostic(diagnostic)) => {
-                        let symbol = self.symbol_declared_at(node)?;
-                        self.bank_failed_callable(symbol, diagnostic, errors);
-                    }
-                    Err(error) => return Err(error),
-                }
-
-                Ok(())
+        // declare one function body, deferring generics to their instances
+        if let Some(body) = body {
+            let node = declaration.into_global_any(self.module);
+            if let Some(symbol) = self.symbol_declared_at(node)?
+                && self.signature_has_instance_parameters(self.symbol_type(symbol)?)?
+            {
+                return Ok(());
             }
-            RootCallables::Members(members) => {
-                self.declare_members(builder, declaration, &members, bodies, errors)
+
+            // accumulate unsupported diagnostics; abort on internal failures
+            match self.declare_function(builder, declaration, body) {
+                Ok(body) => bodies.push(body),
+                Err(CompilerError::Diagnostic(diagnostic)) => {
+                    let symbol = self.symbol_declared_at(node)?;
+                    self.bank_failed_callable(symbol, diagnostic, errors);
+                }
+                Err(error) => return Err(error),
             }
-            RootCallables::Inert => Ok(()),
+
+            return Ok(());
         }
+
+        self.declare_members(builder, declaration, &members, bodies, errors)
     }
 
     /// Record one failed callable declaration and keep its diagnostic.

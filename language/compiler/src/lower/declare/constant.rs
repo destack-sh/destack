@@ -46,7 +46,7 @@ impl ModuleLowerer<'_> {
                     mir::Mutability::Mutable,
                     mir::GlobalInitializer::zero(),
                 );
-                self.globals.insert(symbol, global);
+                self.globals.insert(symbol, Ok(global));
                 self.initializers.push((global, value));
 
                 continue;
@@ -58,7 +58,7 @@ impl ModuleLowerer<'_> {
             let ty = self.constant_type(builder, declared)?;
             let name = self.constant_name(symbol)?;
             let global = builder.constant(&name, ty, initializer);
-            self.globals.insert(symbol, global);
+            self.globals.insert(symbol, Ok(global));
         }
 
         Ok(())

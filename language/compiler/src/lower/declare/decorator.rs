@@ -82,25 +82,27 @@ impl ModuleLowerer<'_> {
         Ok(None)
     }
 
-    /// Return the symbol declaring one language item across the loaded modules.
-    pub(in crate::lower) fn language_item_symbol(
-        &mut self,
-        item: dir::LanguageItem,
-    ) -> CompilerResult<dir::GlobalSymbolId> {
-        // scan every loaded module once for decorated declarations
-        if self.language_items.is_empty() {
-            let modules: Vec<_> = self.modules.keys().copied().collect();
-            for module in modules {
-                let ids: Vec<_> = self.state(module)?.bindings.symbol_ids().collect();
-                for id in ids {
-                    let symbol = id.into_global(module);
-                    if let Some(item) = self.language_item(symbol)? {
-                        self.language_items.entry(item).or_insert(symbol);
-                    }
+    /// Scan every loaded module once for language item declarations.
+    pub(in crate::lower) fn scan_language_items(&mut self) -> CompilerResult<()> {
+        let modules: Vec<_> = self.modules.keys().copied().collect();
+        for module in modules {
+            let ids: Vec<_> = self.state(module)?.bindings.symbol_ids().collect();
+            for id in ids {
+                let symbol = id.into_global(module);
+                if let Some(item) = self.language_item(symbol)? {
+                    self.language_items.entry(item).or_insert(symbol);
                 }
             }
         }
 
+        Ok(())
+    }
+
+    /// Return the symbol declaring one language item.
+    pub(in crate::lower) fn language_item_symbol(
+        &self,
+        item: dir::LanguageItem,
+    ) -> CompilerResult<dir::GlobalSymbolId> {
         self.language_items.get(&item).copied().ok_or_else(|| {
             LowerError::Unsupported {
                 anchor: self.module.into(),

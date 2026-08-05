@@ -1,20 +1,18 @@
 use std::slice;
+use std::sync::Arc;
 
 use destack_artifact::DiagnosticLike;
-use destack_core::FxIndexSet;
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
 
 use crate::lower::r#type::LoweredSignature;
 use crate::lower::{
-    CallableImplementation, FunctionDefinition, LifetimeParameters, ModuleLowerer, ReceiverBinding,
-    TypeSubstitution,
+    CallableImplementation, FunctionDefinition, LifetimeParameters, LowerModuleState,
+    ModuleLowerer, ReceiverBinding, TypeSubstitution,
 };
 use crate::{CompilerError, CompilerResult, LowerError};
-
-/// One pending instantiation and its concrete argument bindings.
-type PendingInstance = (dir::GlobalSymbolId, Vec<dir::GenericArgumentBinding>);
 
 /// The declaration outcome behind one callable instance key.
 pub(in crate::lower) enum FunctionDeclaration {
@@ -43,36 +41,36 @@ impl GenericInstanceKey {
     }
 }
 
-/// Foreign and host callables referenced by function bodies.
+/// Everything the bodies reference beyond the module's own declarations.
 #[derive(Default)]
-pub(in crate::lower) struct ExternalCallables {
+pub(in crate::lower) struct References {
+    /// Generic instantiations to declare as concrete instances, in demand order.
+    pub(in crate::lower) instances: Vec<(dir::GlobalSymbolId, Vec<dir::GenericArgumentBinding>)>,
     /// Foreign callables to declare as imports.
     pub(in crate::lower) imports: FxIndexSet<dir::GlobalSymbolId>,
     /// Sealed bindings to declare as dotted host externs.
     pub(in crate::lower) bindings: FxIndexSet<dir::GlobalSymbolId>,
+    /// Foreign module constants to declare as imported globals.
+    pub(in crate::lower) constants: FxIndexSet<dir::GlobalSymbolId>,
+    /// Erased concrete and constraint pairs to declare as dispatch implementers.
+    pub(in crate::lower) erasures: FxIndexSet<(dir::GlobalTypeId, dir::GlobalTypeId)>,
 }
 
-/// Visitor collecting every expression node in one body subtree.
-struct ExpressionCollector {
+/// Visitor collecting every node in one body subtree.
+struct NodeCollector {
     /// The visitor options.
     options: dir::NodeVisitorOptions,
-    /// The collected expression nodes.
-    expressions: Vec<dir::LocalNodeId<dir::Expression>>,
+    /// Every collected node, of any kind.
+    nodes: Vec<dir::LocalNodeIdAny>,
 }
 
-impl dir::NodeVisitor for ExpressionCollector {
+impl dir::NodeVisitor for NodeCollector {
     fn options(&self) -> &dir::NodeVisitorOptions {
         &self.options
     }
 
-    fn visit_expression(
-        &mut self,
-        tree: &dir::Tree,
-        id: dir::LocalNodeId<dir::Expression>,
-        expression: &dir::Expression,
-    ) {
-        self.expressions.push(id);
-        destack_core::ensure_sufficient_stack(|| dir::walk_expression(self, tree, id, expression));
+    fn visit_any(&mut self, _tree: &dir::Tree, ty: dir::NodeType, id: u32) {
+        self.nodes.push(dir::LocalNodeIdAny::new(id, ty));
     }
 }
 
@@ -86,50 +84,51 @@ impl ModuleLowerer<'_> {
         builder: &mut mir::ModuleBuilder,
         bodies: &[FunctionDefinition],
         errors: &mut Vec<Box<dyn DiagnosticLike>>,
-    ) -> CompilerResult<(Vec<FunctionDefinition>, ExternalCallables)> {
+    ) -> CompilerResult<(Vec<FunctionDefinition>, References)> {
         // collect calls from the concrete bodies queued for lowering
-        let mut pending = Vec::new();
-        let mut references = ExternalCallables::default();
+        let mut references = References::default();
         for body in bodies {
             match self.collect_body_calls(
                 body.source,
                 body.expression,
                 &body.type_substitution,
-                &mut pending,
                 &mut references,
             ) {
                 Ok(()) => {}
                 Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
                 Err(error) => return Err(error),
             }
+            self.declare_body_types(builder, body)?;
         }
 
         // collect calls from the module initializer expressions
         let substitution = TypeSubstitution::default();
+        let lifetime_parameters = LifetimeParameters::default();
         let expressions: Vec<_> = self
             .initializers
             .iter()
             .map(|(_, expression)| *expression)
             .collect();
         for expression in expressions {
-            match self.collect_body_calls(
-                self.module,
-                expression,
-                &substitution,
-                &mut pending,
-                &mut references,
-            ) {
+            match self.collect_body_calls(self.module, expression, &substitution, &mut references) {
                 Ok(()) => {}
                 Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
                 Err(error) => return Err(error),
             }
+            self.declare_expression_types(
+                builder,
+                self.module,
+                expression,
+                &substitution,
+                &lifetime_parameters,
+            )?;
         }
 
         // collect calls recursively from each declared instance body
         let mut instances = Vec::new();
         let mut index = 0;
-        while index < pending.len() {
-            let (symbol, bindings) = pending[index].clone();
+        while index < references.instances.len() {
+            let (symbol, bindings) = references.instances[index].clone();
             index += 1;
             let body = match self.declare_instance(builder, symbol, &bindings) {
                 Ok(Some(body)) => body,
@@ -145,17 +144,335 @@ impl ModuleLowerer<'_> {
                 symbol.module_id,
                 body.expression,
                 &body.type_substitution,
-                &mut pending,
                 &mut references,
             ) {
                 Ok(()) => {}
                 Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
                 Err(error) => return Err(error),
             }
+            self.declare_body_types(builder, &body)?;
             instances.push(body);
         }
 
         Ok((instances, references))
+    }
+
+    /// Declare the type representations one queued body reads.
+    fn declare_body_types(
+        &mut self,
+        builder: &mut mir::ModuleBuilder,
+        body: &FunctionDefinition,
+    ) -> CompilerResult<()> {
+        // record the body's own parameter types beside its expression types
+        let state = self.state(body.source)?;
+        let mut types = FxIndexSet::default();
+        for parameter in &body.parameters {
+            let symbol = parameter.into_global(body.source);
+            types.extend(state.types.get_symbol_type_id(symbol));
+        }
+        self.declare_recorded_types(
+            builder,
+            body.source,
+            types,
+            FxIndexSet::default(),
+            &body.type_substitution,
+            &body.lifetime_parameters,
+        )?;
+
+        self.declare_expression_types(
+            builder,
+            body.source,
+            body.expression,
+            &body.type_substitution,
+            &body.lifetime_parameters,
+        )
+    }
+
+    /// Declare the type representations one body subtree reads.
+    ///
+    /// Unrepresentable types keep quiet here: the body derives and reports them itself.
+    fn declare_expression_types(
+        &mut self,
+        builder: &mut mir::ModuleBuilder,
+        module: ModuleId,
+        expression: dir::LocalNodeId<dir::Expression>,
+        substitution: &TypeSubstitution,
+        lifetime_parameters: &LifetimeParameters,
+    ) -> CompilerResult<()> {
+        // record the checked, expected, and resolution types behind every node
+        let state = self.state(module)?;
+        let mut collector = NodeCollector {
+            options: dir::NodeVisitorOptions::default(),
+            nodes: Vec::new(),
+        };
+        dir::NodeVisitor::visit_expression(
+            &mut collector,
+            state.tree(),
+            expression,
+            state.tree().get(expression),
+        );
+
+        // index the module's symbols by their declaring nodes once
+        let mut declared = FxIndexMap::default();
+        for id in state.bindings.symbol_ids() {
+            let symbol = state.bindings.get_symbol(id);
+            if let Some(node) = symbol.declaration {
+                declared.insert(node, id.into_global(module));
+            }
+        }
+
+        // record the checked, expected, declared, and resolution types per node
+        let mut types = FxIndexSet::default();
+        let mut constraints = FxIndexSet::default();
+        for id in collector.nodes {
+            let node = dir::GlobalNodeIdAny {
+                module_id: module,
+                local_id: id,
+            };
+            types.extend(state.types.get_node_type_id(node));
+            types.extend(state.types.get_expected_type_id(node));
+            if let Some(symbol) = declared.get(&node) {
+                types.extend(state.types.get_symbol_type_id(*symbol));
+            }
+            self.record_resolution_types(state, node, &mut types, &mut constraints);
+        }
+
+        self.declare_recorded_types(
+            builder,
+            module,
+            types,
+            constraints,
+            substitution,
+            lifetime_parameters,
+        )
+    }
+
+    /// Declare the representations behind one recorded type set.
+    fn declare_recorded_types(
+        &mut self,
+        builder: &mut mir::ModuleBuilder,
+        module: ModuleId,
+        types: FxIndexSet<dir::GlobalTypeId>,
+        constraints: FxIndexSet<dir::GlobalTypeId>,
+        substitution: &TypeSubstitution,
+        lifetime_parameters: &LifetimeParameters,
+    ) -> CompilerResult<()> {
+        // lower each type into the shared representation table, keeping alias
+        //  identity by lowering the unreduced spelling
+        let pointer_bytes = builder.pointer_bytes();
+        for ty in types {
+            // materialize best effort: bodies rederive and report their own failures
+            let Ok(ty) = substitution.resolve(self, ty) else {
+                continue;
+            };
+            // reduce through the reading module: reductions key per consumer
+            let Ok(reduced) = self
+                .types(module)
+                .map(|types| types.get_reduced_type_id(ty))
+            else {
+                continue;
+            };
+            if self.lowered_types.contains_key(&ty) {
+                continue;
+            }
+
+            let mut lowerer = self.type_lowerer(
+                builder.tree_mut(),
+                pointer_bytes,
+                substitution,
+                lifetime_parameters,
+            );
+            match lowerer.lower(ty) {
+                Ok(node) => {
+                    self.lowered_types.insert(ty, Ok(node));
+                }
+                // keep the diagnostic for the first body that reads the type
+                Err(CompilerError::Diagnostic(diagnostic)) => {
+                    self.lowered_types.insert(ty, Err(Arc::from(diagnostic)));
+                }
+                Err(_) => {}
+            }
+
+            // lower the reduced spelling separately for reduced body reads
+            if reduced != ty && !self.lowered_types.contains_key(&reduced) {
+                let mut lowerer = self.type_lowerer(
+                    builder.tree_mut(),
+                    pointer_bytes,
+                    substitution,
+                    lifetime_parameters,
+                );
+                match lowerer.lower(reduced) {
+                    Ok(node) => {
+                        self.lowered_types.insert(reduced, Ok(node));
+                    }
+                    Err(CompilerError::Diagnostic(diagnostic)) => {
+                        self.lowered_types
+                            .insert(reduced, Err(Arc::from(diagnostic)));
+                    }
+                    Err(_) => {}
+                }
+            }
+            self.declare_stored_nominal(builder, ty, substitution, lifetime_parameters)?;
+        }
+
+        // lower each dispatch constraint into its registered shape row
+        for constraint in constraints {
+            let Ok(constraint) = substitution.resolve(self, constraint) else {
+                continue;
+            };
+            let Ok(reduced) = self
+                .types(module)
+                .map(|types| types.get_reduced_type_id(constraint))
+            else {
+                continue;
+            };
+            if self.lowered_constraints.contains_key(&reduced) {
+                continue;
+            }
+
+            let mut lowerer = self.type_lowerer(
+                builder.tree_mut(),
+                pointer_bytes,
+                substitution,
+                lifetime_parameters,
+            );
+            match lowerer.lower_dynamic_constraint(reduced) {
+                Ok(row) => {
+                    self.lowered_constraints.insert(reduced, Ok(row));
+                }
+                // keep the diagnostic for the first body that reads the constraint
+                Err(CompilerError::Diagnostic(diagnostic)) => {
+                    self.lowered_constraints
+                        .insert(reduced, Err(Arc::from(diagnostic)));
+                }
+                Err(_) => {}
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Declare the nominal instance behind one stored application type.
+    ///
+    /// Unrepresentable nominals keep quiet here: the body derives and reports them itself.
+    fn declare_stored_nominal(
+        &mut self,
+        builder: &mut mir::ModuleBuilder,
+        ty: dir::GlobalTypeId,
+        substitution: &TypeSubstitution,
+        lifetime_parameters: &LifetimeParameters,
+    ) -> CompilerResult<()> {
+        // peel value indirection down to one stored application, skipping
+        //  shapes outside the value form algebra
+        let stored = match self.peel_indirection(ty, substitution) {
+            Ok(Some(reference)) => reference.stored,
+            Ok(None) => match self.peel_owned(ty, substitution) {
+                Ok(stored) => stored,
+                Err(CompilerError::Diagnostic(_)) => return Ok(()),
+                Err(error) => return Err(error),
+            },
+            Err(CompilerError::Diagnostic(_)) => return Ok(()),
+            Err(error) => return Err(error),
+        };
+        let dir::Type::Application(instance) = self.ty(stored)? else {
+            return Ok(());
+        };
+        if self.lowered_nominals.contains_key(&stored) {
+            return Ok(());
+        }
+
+        // lower the instance once for every body that reads it
+        let arguments = self
+            .types(stored.module_id)?
+            .type_ids(instance.arguments)
+            .to_vec();
+        let pointer_bytes = builder.pointer_bytes();
+        let mut lowerer = self.type_lowerer(
+            builder.tree_mut(),
+            pointer_bytes,
+            substitution,
+            lifetime_parameters,
+        );
+        match lowerer.lower_nominal(instance.symbol, &arguments) {
+            Ok(nominal) => {
+                self.lowered_nominals.insert(stored, Ok(nominal));
+            }
+            // keep the diagnostic for the first body that reads the nominal
+            Err(CompilerError::Diagnostic(diagnostic)) => {
+                self.lowered_nominals
+                    .insert(stored, Err(Arc::from(diagnostic)));
+            }
+            Err(_) => {}
+        }
+
+        Ok(())
+    }
+
+    /// Record the artifact types one node's resolutions carry.
+    fn record_resolution_types(
+        &self,
+        state: &LowerModuleState,
+        node: dir::GlobalNodeIdAny,
+        types: &mut FxIndexSet<dir::GlobalTypeId>,
+        constraints: &mut FxIndexSet<dir::GlobalTypeId>,
+    ) {
+        // record every type id each resolution carries
+        let mut record = |ty: dir::GlobalTypeId| {
+            types.insert(ty);
+            ty
+        };
+        if let Some(resolution) = state.resolutions.call_resolution(node) {
+            resolution.clone().map_type_ids(&mut record);
+        }
+        if let Some(resolution) = state.resolutions.member_resolution(node) {
+            resolution.clone().map_type_ids(&mut record);
+        }
+        if let Some(resolution) = state.resolutions.subscript_resolution(node) {
+            resolution.clone().map_type_ids(&mut record);
+        }
+        if let Some(resolution) = state.resolutions.assignment_resolution(node) {
+            resolution.clone().map_type_ids(&mut record);
+        }
+        if let Some(resolution) = state.resolutions.construct_resolution(node) {
+            resolution.clone().map_type_ids(&mut record);
+        }
+        if let Some(resolution) = state.resolutions.operator_resolution(node) {
+            resolution.clone().map_type_ids(&mut record);
+        }
+        if let Some(resolution) = state.resolutions.tree_resolution(node) {
+            resolution.clone().map_type_ids(&mut record);
+        }
+        if let Some(coercion) = state.coercions.coercion(node) {
+            coercion.clone().map_type_ids(&mut record);
+        }
+        if let Some(resolution) = state.resolutions.place_resolution(node) {
+            resolution.clone().map_type_ids(&mut record);
+        }
+        if let Some(resolution) = state.resolutions.receiver_resolution(node) {
+            resolution.clone().map_type_ids(&mut record);
+        }
+        if let Some(resolution) = state.resolutions.guard_resolution(node) {
+            resolution.clone().map_type_ids(&mut record);
+        }
+        if let Some(resolution) = state.resolutions.pattern_resolution(node) {
+            resolution.clone().map_type_ids(&mut record);
+        }
+        if let Some(resolution) = state.resolutions.instantiation_resolution(node) {
+            resolution.clone().map_type_ids(&mut record);
+        }
+
+        // record the dispatch constraints behind dynamic call targets
+        if let Some(resolution) = state.resolutions.call_resolution(node) {
+            let calls: &[dir::Call] = match resolution {
+                dir::OperationResolution::One(call) => slice::from_ref(call),
+                dir::OperationResolution::Union { arms, .. } => arms,
+            };
+            for call in calls {
+                if let dir::CallTarget::Dynamic { dispatch, .. } = &call.target {
+                    constraints.insert(dispatch.constraint);
+                }
+            }
+        }
     }
 
     /// Declare one concrete instance unless its representation is already declared.
@@ -197,14 +514,13 @@ impl ModuleLowerer<'_> {
         module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
         substitution: &TypeSubstitution,
-        pending: &mut Vec<PendingInstance>,
-        references: &mut ExternalCallables,
+        references: &mut References,
     ) -> CompilerResult<()> {
-        // walk the body subtree collecting its expression nodes
+        // walk the body subtree collecting every node
         let state = self.state(module)?;
-        let mut collector = ExpressionCollector {
+        let mut collector = NodeCollector {
             options: dir::NodeVisitorOptions::default(),
-            expressions: Vec::new(),
+            nodes: Vec::new(),
         };
         dir::NodeVisitor::visit_expression(
             &mut collector,
@@ -213,8 +529,11 @@ impl ModuleLowerer<'_> {
             state.tree().get(expression),
         );
 
-        for id in collector.expressions {
-            let node = id.into_global_any(module);
+        for id in collector.nodes {
+            let node = dir::GlobalNodeIdAny {
+                module_id: module,
+                local_id: id,
+            };
 
             // import foreign declared constructors
             if let Some(resolution) = state.resolutions.construct_resolution(node)
@@ -229,11 +548,11 @@ impl ModuleLowerer<'_> {
             if let Some(resolution) = state.resolutions.tree_resolution(node) {
                 match &resolution.target {
                     dir::TreeTarget::Element { call, .. } | dir::TreeTarget::Fragment { call } => {
-                        self.collect_call_resolution(call, substitution, pending, references)?;
+                        self.collect_call_resolution(call, substitution, references)?;
                     }
                     dir::TreeTarget::Component { invocation, .. } => match invocation {
                         dir::TreeInvocation::Call(call) => {
-                            self.collect_call_resolution(call, substitution, pending, references)?;
+                            self.collect_call_resolution(call, substitution, references)?;
                         }
                         dir::TreeInvocation::Construct(construct) => {
                             if let dir::ConstructTarget::Class(candidate) = &construct.target
@@ -251,12 +570,12 @@ impl ModuleLowerer<'_> {
 
             // collect the implementing methods required by erasing coercions
             if let Some(coercion) = state.coercions.coercion(node) {
-                self.collect_coercion(coercion, substitution, pending)?;
+                self.collect_coercion(coercion, substitution, references)?;
             }
 
             // demand instances behind value-position callable references, leaving
             //  unmatchable shapes to their own body diagnostics
-            match self.collect_function_reference(module, node, substitution, pending, references) {
+            match self.collect_function_reference(module, node, substitution, references) {
                 Ok(()) => {}
                 Err(CompilerError::Diagnostic(_)) => {}
                 Err(error) => return Err(error),
@@ -264,37 +583,27 @@ impl ModuleLowerer<'_> {
 
             // collect the accessor and protocol calls selected behind places
             if let Some(resolution) = state.resolutions.member_resolution(node) {
-                self.collect_member_resolution(resolution, substitution, pending, references)?;
+                self.collect_member_resolution(resolution, substitution, references)?;
             }
             if let Some(resolution) = state.resolutions.subscript_resolution(node) {
-                self.collect_subscript_resolution(resolution, substitution, pending, references)?;
+                self.collect_subscript_resolution(resolution, substitution, references)?;
             }
             if let Some(resolution) = state.resolutions.assignment_resolution(node) {
                 match &resolution.read {
                     Some(dir::ReadResolution::Member(member)) => {
-                        self.collect_member_resolution(member, substitution, pending, references)?;
+                        self.collect_member_resolution(member, substitution, references)?;
                     }
                     Some(dir::ReadResolution::Subscript(subscript)) => {
-                        self.collect_subscript_resolution(
-                            subscript,
-                            substitution,
-                            pending,
-                            references,
-                        )?;
+                        self.collect_subscript_resolution(subscript, substitution, references)?;
                     }
                     _ => {}
                 }
                 match &resolution.write {
                     dir::WriteResolution::Member(member) => {
-                        self.collect_member_resolution(member, substitution, pending, references)?;
+                        self.collect_member_resolution(member, substitution, references)?;
                     }
                     dir::WriteResolution::Subscript(subscript) => {
-                        self.collect_subscript_resolution(
-                            subscript,
-                            substitution,
-                            pending,
-                            references,
-                        )?;
+                        self.collect_subscript_resolution(subscript, substitution, references)?;
                     }
                     _ => {}
                 }
@@ -303,7 +612,7 @@ impl ModuleLowerer<'_> {
             let Some(resolution) = state.resolutions.call_resolution(node) else {
                 continue;
             };
-            self.collect_call_resolution(resolution, substitution, pending, references)?;
+            self.collect_call_resolution(resolution, substitution, references)?;
         }
 
         Ok(())
@@ -314,16 +623,15 @@ impl ModuleLowerer<'_> {
         &self,
         resolution: &dir::MemberResolution,
         substitution: &TypeSubstitution,
-        pending: &mut Vec<PendingInstance>,
-        references: &mut ExternalCallables,
+        references: &mut References,
     ) -> CompilerResult<()> {
         match resolution {
             dir::OperationResolution::One(access) => {
-                self.collect_member_access(access, substitution, pending, references)
+                self.collect_member_access(access, substitution, references)
             }
             dir::OperationResolution::Union { arms, .. } => {
                 for access in arms {
-                    self.collect_member_access(access, substitution, pending, references)?;
+                    self.collect_member_access(access, substitution, references)?;
                 }
 
                 Ok(())
@@ -336,11 +644,10 @@ impl ModuleLowerer<'_> {
         &self,
         access: &dir::MemberAccess,
         substitution: &TypeSubstitution,
-        pending: &mut Vec<PendingInstance>,
-        references: &mut ExternalCallables,
+        references: &mut References,
     ) -> CompilerResult<()> {
         if let dir::MemberTarget::Call(call) = &access.target {
-            self.collect_call(call, substitution, pending, references)?;
+            self.collect_call(call, substitution, references)?;
         }
 
         Ok(())
@@ -351,8 +658,7 @@ impl ModuleLowerer<'_> {
         &self,
         resolution: &dir::SubscriptResolution,
         substitution: &TypeSubstitution,
-        pending: &mut Vec<PendingInstance>,
-        references: &mut ExternalCallables,
+        references: &mut References,
     ) -> CompilerResult<()> {
         // flatten singular and union selections into one arm list
         let arms: &[dir::Subscript] = match resolution {
@@ -364,15 +670,15 @@ impl ModuleLowerer<'_> {
         for subscript in arms {
             match &subscript.target {
                 dir::SubscriptTarget::Member(access) => {
-                    self.collect_member_access(access, substitution, pending, references)?;
+                    self.collect_member_access(access, substitution, references)?;
                 }
                 dir::SubscriptTarget::Call(call) => {
-                    self.collect_call(call, substitution, pending, references)?;
+                    self.collect_call(call, substitution, references)?;
                 }
                 dir::SubscriptTarget::Index(read) => {
-                    self.collect_call(&read.call, substitution, pending, references)?;
+                    self.collect_call(&read.call, substitution, references)?;
                     if let dir::DereferenceTarget::Call(call) = &read.dereference.target {
-                        self.collect_call(call, substitution, pending, references)?;
+                        self.collect_call(call, substitution, references)?;
                     }
                 }
             }
@@ -387,8 +693,7 @@ impl ModuleLowerer<'_> {
         module: ModuleId,
         node: dir::GlobalNodeIdAny,
         substitution: &TypeSubstitution,
-        pending: &mut Vec<PendingInstance>,
-        references: &mut ExternalCallables,
+        references: &mut References,
     ) -> CompilerResult<()> {
         // resolve the referenced symbol and require a callable declaration
         let state = self.state(module)?;
@@ -399,6 +704,13 @@ impl ModuleLowerer<'_> {
         else {
             return Ok(());
         };
+
+        // import foreign module constants before any callable routing
+        if symbol.module_id != self.module && self.module_constant(symbol)?.is_some() {
+            references.constants.insert(symbol);
+
+            return Ok(());
+        }
         let Some(ty) = self
             .types(symbol.module_id)?
             .get_reduced_symbol_type_id(symbol)
@@ -430,7 +742,7 @@ impl ModuleLowerer<'_> {
             let bindings =
                 self.instance_bindings(&instantiation.generic_arguments, substitution)?;
             if !bindings.is_empty() {
-                return self.push_instance(symbol, bindings, pending);
+                return self.push_instance(symbol, bindings, references);
             }
         }
 
@@ -445,7 +757,7 @@ impl ModuleLowerer<'_> {
             self.match_template_arguments(&parameters, ty, expected, &mut bindings)?;
             let bindings = self.instance_bindings(&bindings, substitution)?;
 
-            return self.push_instance(symbol, bindings, pending);
+            return self.push_instance(symbol, bindings, references);
         }
 
         // import plain references into other modules
@@ -604,7 +916,7 @@ impl ModuleLowerer<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
         bindings: Vec<dir::GenericArgumentBinding>,
-        pending: &mut Vec<PendingInstance>,
+        references: &mut References,
     ) -> CompilerResult<()> {
         // require every generic argument to be concrete under this body instance
         for binding in &bindings {
@@ -616,8 +928,8 @@ impl ModuleLowerer<'_> {
             }
         }
         let instance = (symbol, bindings);
-        if !pending.contains(&instance) {
-            pending.push(instance);
+        if !references.instances.contains(&instance) {
+            references.instances.push(instance);
         }
 
         Ok(())
@@ -628,12 +940,12 @@ impl ModuleLowerer<'_> {
         &self,
         coercion: &dir::Coercion,
         substitution: &TypeSubstitution,
-        pending: &mut Vec<PendingInstance>,
+        references: &mut References,
     ) -> CompilerResult<()> {
         let mut source = coercion.source;
         for adjustment in &coercion.adjustments {
             if let dir::CoercionAdjustment::Existential { target } = adjustment {
-                self.collect_existential(source, *target, substitution, pending)?;
+                self.collect_existential(source, *target, substitution, references)?;
             }
             source = adjustment.target();
         }
@@ -647,10 +959,15 @@ impl ModuleLowerer<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         substitution: &TypeSubstitution,
-        pending: &mut Vec<PendingInstance>,
+        references: &mut References,
     ) -> CompilerResult<()> {
+        // record the resolved erasure for its declared dispatch entries
         let source = substitution.resolve(self, source)?;
         let source = self.reduced_type(source)?;
+        let resolved_target = substitution.resolve(self, target)?;
+        let resolved_target = self.reduced_type(resolved_target)?;
+        references.erasures.insert((source, resolved_target));
+
         let dir::Type::Application(class) = self.ty(source)? else {
             return Ok(());
         };
@@ -678,8 +995,8 @@ impl ModuleLowerer<'_> {
             };
             let implementing = self.implementing_method(class.symbol, name)?;
             let instance = (implementing, Vec::new());
-            if !pending.contains(&instance) {
-                pending.push(instance);
+            if !references.instances.contains(&instance) {
+                references.instances.push(instance);
             }
         }
 
@@ -691,16 +1008,15 @@ impl ModuleLowerer<'_> {
         &self,
         resolution: &dir::CallResolution,
         substitution: &TypeSubstitution,
-        pending: &mut Vec<PendingInstance>,
-        references: &mut ExternalCallables,
+        references: &mut References,
     ) -> CompilerResult<()> {
         match resolution {
             dir::OperationResolution::One(call) => {
-                self.collect_call(call, substitution, pending, references)
+                self.collect_call(call, substitution, references)
             }
             dir::OperationResolution::Union { arms, .. } => {
                 for call in arms {
-                    self.collect_call(call, substitution, pending, references)?;
+                    self.collect_call(call, substitution, references)?;
                 }
 
                 Ok(())
@@ -713,8 +1029,7 @@ impl ModuleLowerer<'_> {
         &self,
         call: &dir::Call,
         substitution: &TypeSubstitution,
-        pending: &mut Vec<PendingInstance>,
-        references: &mut ExternalCallables,
+        references: &mut References,
     ) -> CompilerResult<()> {
         let function = match &call.target {
             dir::CallTarget::Expression { .. } | dir::CallTarget::Dynamic { .. } => return Ok(()),
@@ -745,7 +1060,7 @@ impl ModuleLowerer<'_> {
             return Ok(());
         }
 
-        self.push_instance(function.symbol, bindings, pending)
+        self.push_instance(function.symbol, bindings, references)
     }
 
     /// Return the substituted type bindings one candidate selects beyond lifetimes.

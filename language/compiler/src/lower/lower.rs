@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use destack_artifact::{DiagnosticLike, MirLowered};
 use destack_core::{FxIndexMap, StringPool};
 use destack_dir as dir;
@@ -6,7 +8,7 @@ use destack_source::ModuleId;
 
 use crate::lower::{
     FunctionDeclaration, FunctionLowerer, GenericInstanceKey, Implementer, LayoutBuilder,
-    LowerModuleState, NominalState,
+    LowerModuleState, NominalInstance, NominalState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -21,10 +23,22 @@ pub(crate) struct ModuleLowerer<'a> {
 
     /// The declaration outcome for each callable instance key.
     pub(in crate::lower) functions: FxIndexMap<GenericInstanceKey, FunctionDeclaration>,
+    /// The lowering outcome for each resolved type spelling the bodies read.
+    pub(in crate::lower) lowered_types:
+        FxIndexMap<dir::GlobalTypeId, Result<mir::LocalNodeId<mir::Type>, Arc<dyn DiagnosticLike>>>,
+    /// The shape row outcome for each resolved dispatch constraint the bodies read.
+    pub(in crate::lower) lowered_constraints:
+        FxIndexMap<dir::GlobalTypeId, Result<mir::LocalNodeId<mir::Type>, Arc<dyn DiagnosticLike>>>,
+    /// The nominal instance outcome for each resolved application type the bodies read.
+    pub(in crate::lower) lowered_nominals:
+        FxIndexMap<dir::GlobalTypeId, Result<NominalInstance, Arc<dyn DiagnosticLike>>>,
     /// The state of each nominal representation being lowered or already lowered.
     pub(in crate::lower) nominals: FxIndexMap<GenericInstanceKey, NominalState>,
-    /// The global declared for each module constant.
-    pub(in crate::lower) globals: FxIndexMap<dir::GlobalSymbolId, mir::LocalNodeId<mir::Global>>,
+    /// The global outcome declared for each module constant.
+    pub(in crate::lower) globals: FxIndexMap<
+        dir::GlobalSymbolId,
+        Result<mir::LocalNodeId<mir::Global>, Arc<dyn DiagnosticLike>>,
+    >,
     /// The declaring symbol behind each loaded language item, scanned lazily.
     pub(in crate::lower) language_items: FxIndexMap<dir::LanguageItem, dir::GlobalSymbolId>,
     /// The runtime bindings stored by the module initializer, in order.
@@ -52,6 +66,9 @@ impl<'a> ModuleLowerer<'a> {
             strings,
             modules,
             functions: FxIndexMap::default(),
+            lowered_types: FxIndexMap::default(),
+            lowered_constraints: FxIndexMap::default(),
+            lowered_nominals: FxIndexMap::default(),
             nominals: FxIndexMap::default(),
             globals: FxIndexMap::default(),
             language_items: FxIndexMap::default(),
@@ -68,6 +85,9 @@ impl<'a> ModuleLowerer<'a> {
     ) -> CompilerResult<(MirLowered, Vec<Box<dyn DiagnosticLike>>)> {
         let mut builder = mir::ModuleBuilder::new();
         builder.set_target_layout(target_layout);
+
+        // scan the loaded modules for language items before any type lowering
+        self.scan_language_items()?;
 
         // declare identities: types, callable headers, globals, imports, instances
         let (bodies, mut errors) = self.declare_module(&mut builder)?;
@@ -96,7 +116,7 @@ impl<'a> ModuleLowerer<'a> {
         layouts.layout_reachable_types()?;
 
         // publish dynamic dispatch over the laid-out types
-        self.publish_dispatch(&mut builder, &mut errors)?;
+        self.build_dispatch_tables(&mut builder, &mut errors)?;
 
         // publish the lowered names into the shared pool
         let (tree, target, types, layouts, dispatch, drops, memory, effects, profile, strings) =

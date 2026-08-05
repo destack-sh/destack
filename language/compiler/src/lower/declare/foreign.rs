@@ -105,6 +105,31 @@ impl ModuleLowerer<'_> {
         Ok(())
     }
 
+    /// Declare the imported global behind one foreign module constant.
+    pub(in crate::lower) fn declare_imported_constant(
+        &mut self,
+        builder: &mut mir::ModuleBuilder,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        if self.globals.contains_key(&symbol) {
+            return Ok(());
+        }
+
+        // declare the import at the constant's lowered type and dotted name
+        let pointer_bytes = builder.pointer_bytes();
+        let substitution = TypeSubstitution::default();
+        let lifetimes = LifetimeParameters::default();
+        let declared = self.symbol_type(symbol)?;
+        let ty = self
+            .type_lowerer(builder.tree_mut(), pointer_bytes, &substitution, &lifetimes)
+            .lower(declared)?;
+        let name = self.constant_name(symbol)?;
+        let global = builder.external_global(&name, ty, mir::Mutability::Immutable);
+        self.globals.insert(symbol, Ok(global));
+
+        Ok(())
+    }
+
     /// Declare the dotted-name extern behind one binding.
     pub(in crate::lower) fn declare_binding_function(
         &mut self,

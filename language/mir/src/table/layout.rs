@@ -51,6 +51,22 @@ impl LayoutTable {
     }
 
     /// Return the layout id for a type when present.
+    /// Return the named field offsets of one laid-out struct type.
+    pub fn named_field_offsets(&self, ty: LocalNodeId<Type>) -> Vec<(StringId, u32)> {
+        let layout = self.layout_id(ty).map(|id| self.layout(id));
+        let mut fields = Vec::new();
+        if let Some(LayoutShape::Struct(layout)) = layout.map(|layout| &layout.shape) {
+            fields.extend(
+                layout
+                    .fields
+                    .iter()
+                    .filter_map(|field| field.name.map(|name| (name, field.offset))),
+            );
+        }
+
+        fields
+    }
+
     pub fn layout_id(&self, ty: LocalNodeId<Type>) -> Option<LayoutId> {
         self.types.get(&ty).copied()
     }

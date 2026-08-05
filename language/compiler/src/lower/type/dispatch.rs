@@ -5,7 +5,9 @@ use destack_core::StringId;
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{FunctionDeclaration, GenericInstanceKey, ModuleLowerer};
+use crate::lower::{
+    FunctionDeclaration, GenericInstanceKey, LifetimeParameters, ModuleLowerer, TypeSubstitution,
+};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// The concrete implementer behind one erasure.
@@ -21,8 +23,77 @@ pub(in crate::lower) enum Implementer {
 }
 
 impl ModuleLowerer<'_> {
-    /// Publish the registered dispatch shapes and tables over final layouts.
-    pub(in crate::lower) fn publish_dispatch(
+    /// Declare the implementer behind one collected erasure.
+    pub(in crate::lower) fn declare_implementer(
+        &mut self,
+        builder: &mut mir::ModuleBuilder,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        // read the constraint from the erased target
+        let pointer_bytes = builder.pointer_bytes();
+        let substitution = TypeSubstitution::default();
+        let lifetimes = LifetimeParameters::default();
+        let dynamic = self
+            .type_lowerer(builder.tree_mut(), pointer_bytes, &substitution, &lifetimes)
+            .lower(target)?;
+        let mir::Type::Dynamic { constraint, .. } = *builder.tree().get(dynamic) else {
+            return Err(CompilerError::Internal {
+                message: "a value erased outside a dynamic target".to_string(),
+            });
+        };
+
+        // register the concrete object row's written property names
+        if let dir::Type::Object(shape) = self.ty(source)? {
+            let reference = self
+                .type_lowerer(builder.tree_mut(), pointer_bytes, &substitution, &lifetimes)
+                .lower(source)?;
+            let mir::Type::Reference { pointee, .. } = *builder.tree().get(reference) else {
+                return Err(CompilerError::Internal {
+                    message: "an object class without a reference representation".to_string(),
+                });
+            };
+            let written = self
+                .types(source.module_id)?
+                .properties(shape.properties)
+                .iter()
+                .filter_map(|property| match property.key {
+                    dir::StaticKey::Name(name) => Some(name),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            self.erasures
+                .entry((pointee, constraint))
+                .or_insert(Implementer::Object { written });
+
+            return Ok(());
+        }
+
+        // register the declaring class's constraint entries
+        let dir::Type::Application(instance) = self.ty(source)? else {
+            return Err(LowerError::Unsupported {
+                anchor: self.module.into(),
+                construct: "a structural existential source".to_string(),
+            }
+            .into());
+        };
+        let arguments = self
+            .types(source.module_id)?
+            .type_ids(instance.arguments)
+            .to_vec();
+        let concrete = self
+            .type_lowerer(builder.tree_mut(), pointer_bytes, &substitution, &lifetimes)
+            .lower_nominal(instance.symbol, &arguments)?
+            .storage;
+        self.erasures
+            .entry((concrete, constraint))
+            .or_insert(Implementer::Class(instance.symbol));
+
+        Ok(())
+    }
+
+    /// Build the dispatch shapes and tables over final layouts.
+    pub(in crate::lower) fn build_dispatch_tables(
         &mut self,
         builder: &mut mir::ModuleBuilder,
         errors: &mut Vec<Box<dyn DiagnosticLike>>,
@@ -37,7 +108,7 @@ impl ModuleLowerer<'_> {
                     message: "an erasure without its registered constraint shape".to_string(),
                 });
             };
-            let fields = Self::laid_out_fields(builder, concrete);
+            let fields = builder.layouts().named_field_offsets(concrete);
 
             // keep unsupported erasures isolated per table
             let entries = match self.dispatch_entries(&shape.slots, &implementer, &fields) {
@@ -166,27 +237,5 @@ impl ModuleLowerer<'_> {
         }
 
         Ok(entries)
-    }
-
-    /// Return the named field offsets of one laid-out concrete row.
-    fn laid_out_fields(
-        builder: &mir::ModuleBuilder,
-        concrete: mir::LocalNodeId<mir::Type>,
-    ) -> Vec<(StringId, u32)> {
-        let layout = builder
-            .layouts()
-            .layout_id(concrete)
-            .map(|id| builder.layouts().layout(id));
-        let mut fields = Vec::new();
-        if let Some(mir::LayoutShape::Struct(layout)) = layout.map(|layout| &layout.shape) {
-            fields.extend(
-                layout
-                    .fields
-                    .iter()
-                    .filter_map(|field| field.name.map(|name| (name, field.offset))),
-            );
-        }
-
-        fields
     }
 }

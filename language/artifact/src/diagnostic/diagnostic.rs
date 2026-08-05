@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use destack_source::Diagnostic;
 
 use crate::{DiagnosticContext, DiagnosticError};
@@ -29,6 +31,19 @@ where
     T: ToDiagnostic + ?Sized,
 {
     /// Convert this boxed value into one final diagnostic.
+    fn to_diagnostic(
+        &self,
+        context: &dyn DiagnosticContext,
+    ) -> Result<Diagnostic, DiagnosticError> {
+        self.as_ref().to_diagnostic(context)
+    }
+}
+
+impl<T> ToDiagnostic for Arc<T>
+where
+    T: ToDiagnostic + ?Sized,
+{
+    /// Convert this shared value into one final diagnostic.
     fn to_diagnostic(
         &self,
         context: &dyn DiagnosticContext,
