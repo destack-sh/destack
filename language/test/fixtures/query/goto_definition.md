@@ -295,6 +295,48 @@ const message = localGreeting("Destack");
 
 ## Associated Types
 
+### Go to a path segment definition
+
+Each segment of a qualified type path resolves to its own declaration.
+
+```ds geometry.ds
+export struct Slot {
+    type Value = int32;
+    ^^^^^^^^^^^^^^^^^^ declaration:value_member
+         ^^^^^ definition:value_member
+}
+
+export struct Grid {
+^ declaration:grid:start
+              ^^^^ definition:grid
+    type Cell = Slot;
+    ^^^^^^^^^^^^^^^^ declaration:cell_member
+         ^^^^ definition:cell_member
+}
+^ declaration:grid:end
+```
+
+```ds main.ds
+import { Grid } from "./geometry.ds";
+
+declare const value: Grid.Cell.Value;
+                     ^^^^ reference:grid_segment
+                          ^^^^ reference:cell_segment
+                               ^^^^^ reference:value_segment
+```
+
+```query goto_definition main.ds#reference:grid_segment
+@goto_definition.target origin=main.ds#reference:grid_segment location=geometry.ds#declaration:grid selection=geometry.ds#definition:grid symbol=geometry.ds#Grid@4
+```
+
+```query goto_definition main.ds#reference:cell_segment
+@goto_definition.target origin=main.ds#reference:cell_segment location=geometry.ds#declaration:cell_member selection=geometry.ds#definition:cell_member symbol=geometry.ds#Cell@5
+```
+
+```query goto_definition main.ds#reference:value_segment
+@goto_definition.target origin=main.ds#reference:value_segment location=geometry.ds#declaration:value_member selection=geometry.ds#definition:value_member symbol=geometry.ds#Value@2
+```
+
 ### [ignored] Go to an associated type definition
 
 An associated type projection resolves to the associated declaration.

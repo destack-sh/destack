@@ -1041,7 +1041,6 @@ impl WalkState<'_, '_> {
         tail: &[dir::StringId],
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // FUGU #Incomplete: retain each authored path segment as its own DIR node
         self.commit_reference_name(id.into_global_any(self.module), base)?;
 
         // start from the resolved base symbol

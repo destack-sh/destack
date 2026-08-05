@@ -158,7 +158,7 @@ impl CheckState<'_> {
     }
 
     /// Return the template of the declaration enclosing one node.
-    fn enclosing_declared_template(
+    pub(in crate::check) fn enclosing_declared_template(
         &mut self,
         source: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Option<GenericTemplateId>> {

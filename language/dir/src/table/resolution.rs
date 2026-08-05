@@ -68,6 +68,14 @@ impl<'a> ResolutionTable<'a> {
         self.visible_entries(|segment| &segment.names)
     }
 
+    /// Iterate visible path segment resolutions.
+    pub fn path_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, u16, &NameResolution)> + '_ {
+        self.visible_entries(|segment| &segment.paths)
+            .map(|((node_id, index), resolution)| (node_id, index, resolution))
+    }
+
     /// Iterate visible generic instantiation resolutions.
     pub fn instantiation_entries(
         &self,
@@ -165,7 +173,7 @@ impl<'a> ResolutionTable<'a> {
     pub fn assign_pattern_entries(
         &self,
     ) -> impl Iterator<Item = (GlobalNodeIdAny, &AssignPatternResolution)> + '_ {
-        self.visible_entries(|segment| &segment.assign_patterns)
+        self.visible_entries(|segment| &segment.assigns)
     }
 
     /// Get the lexical symbol resolution for a node.
@@ -176,6 +184,15 @@ impl<'a> ResolutionTable<'a> {
     /// Get the name resolution for a node.
     pub fn name_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&NameResolution> {
         self.lookup(node_id, |segment| &segment.names)
+    }
+
+    /// Get the name resolution for one path segment of a node.
+    pub fn path_resolution(
+        &self,
+        node_id: GlobalNodeIdAny,
+        segment: u16,
+    ) -> Option<&NameResolution> {
+        self.lookup((node_id, segment), |segment| &segment.paths)
     }
 
     /// Get the explicit generic instantiation for a node.
@@ -261,7 +278,7 @@ impl<'a> ResolutionTable<'a> {
         &self,
         node_id: GlobalNodeIdAny,
     ) -> Option<&AssignPatternResolution> {
-        self.lookup(node_id, |segment| &segment.assign_patterns)
+        self.lookup(node_id, |segment| &segment.assigns)
     }
 
     /// Return whether this table has no resolutions.
@@ -270,13 +287,13 @@ impl<'a> ResolutionTable<'a> {
     }
 
     /// Look up the latest visible entry in one resolution column.
-    fn lookup<T>(
+    fn lookup<K: std::hash::Hash + Eq + 'a, T>(
         &self,
-        node_id: GlobalNodeIdAny,
-        column: impl Fn(&ResolutionSegment) -> &IndexMap<GlobalNodeIdAny, T>,
+        key: K,
+        column: impl Fn(&ResolutionSegment) -> &IndexMap<K, T>,
     ) -> Option<&T> {
         for segment in self.segments.iter().rev() {
-            if let Some(resolution) = column(segment).get(&node_id) {
+            if let Some(resolution) = column(segment).get(&key) {
                 return Some(resolution);
             }
         }
@@ -285,10 +302,10 @@ impl<'a> ResolutionTable<'a> {
     }
 
     /// Iterate the visible entries in one resolution column.
-    fn visible_entries<'b, T: 'b>(
+    fn visible_entries<'b, K: std::hash::Hash + Eq + Copy + 'b, T: 'b>(
         &'b self,
-        column: impl Fn(&ResolutionSegment) -> &IndexMap<GlobalNodeIdAny, T> + Copy + 'b,
-    ) -> impl Iterator<Item = (GlobalNodeIdAny, &'b T)> + 'b {
+        column: impl Fn(&ResolutionSegment) -> &IndexMap<K, T> + Copy + 'b,
+    ) -> impl Iterator<Item = (K, &'b T)> + 'b {
         self.segments
             .iter()
             .enumerate()
@@ -315,6 +332,8 @@ pub struct ResolutionSegment {
     pub module_id: ModuleId,
     /// Checked lexical or path resolutions keyed by DIR node.
     pub(crate) names: IndexMap<GlobalNodeIdAny, NameResolution>,
+    /// Checked path segment resolutions keyed by DIR node and segment index.
+    pub(crate) paths: IndexMap<(GlobalNodeIdAny, u16), NameResolution>,
     /// Checked generic instantiations keyed by DIR node.
     pub(crate) instantiations: IndexMap<GlobalNodeIdAny, InstantiationResolution>,
     /// Checked label resolutions keyed by DIR node.
@@ -344,7 +363,7 @@ pub struct ResolutionSegment {
     /// Checked pattern resolutions keyed by DIR node.
     pub(crate) patterns: IndexMap<GlobalNodeIdAny, PatternResolution>,
     /// Checked assignment pattern resolutions keyed by DIR node.
-    pub(crate) assign_patterns: IndexMap<GlobalNodeIdAny, AssignPatternResolution>,
+    pub(crate) assigns: IndexMap<GlobalNodeIdAny, AssignPatternResolution>,
     /// Unresolved reference paths keyed by DIR node.
     pub(crate) unresolved: IndexMap<GlobalNodeIdAny, Path>,
 }
@@ -354,6 +373,8 @@ impl ResolutionSegment {
     pub fn drop_carried(&mut self, sealed: &ResolutionSegment) {
         self.names
             .retain(|node, resolution| sealed.names.get(node) != Some(resolution));
+        self.paths
+            .retain(|key, resolution| sealed.paths.get(key) != Some(resolution));
         self.instantiations
             .retain(|node, resolution| sealed.instantiations.get(node) != Some(resolution));
         self.labels
@@ -384,8 +405,8 @@ impl ResolutionSegment {
             .retain(|node, resolution| sealed.trees.get(node) != Some(resolution));
         self.patterns
             .retain(|node, resolution| sealed.patterns.get(node) != Some(resolution));
-        self.assign_patterns
-            .retain(|node, resolution| sealed.assign_patterns.get(node) != Some(resolution));
+        self.assigns
+            .retain(|node, resolution| sealed.assigns.get(node) != Some(resolution));
     }
 }
 
@@ -393,7 +414,7 @@ impl ResolutionSegment {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ResolutionMark {
     /// The per-kind map lengths at the mark.
-    lengths: [usize; 16],
+    lengths: [usize; 17],
 }
 
 impl ResolutionSegment {
@@ -402,6 +423,7 @@ impl ResolutionSegment {
         ResolutionMark {
             lengths: [
                 self.names.len(),
+                self.paths.len(),
                 self.instantiations.len(),
                 self.labels.len(),
                 self.receivers.len(),
@@ -416,7 +438,7 @@ impl ResolutionSegment {
                 self.constructs.len(),
                 self.trees.len(),
                 self.patterns.len(),
-                self.assign_patterns.len(),
+                self.assigns.len(),
             ],
         }
     }
@@ -425,6 +447,7 @@ impl ResolutionSegment {
     pub fn truncate_to(&mut self, mark: ResolutionMark) {
         let [
             names,
+            paths,
             instantiations,
             labels,
             receivers,
@@ -439,9 +462,10 @@ impl ResolutionSegment {
             constructs,
             trees,
             patterns,
-            assign_patterns,
+            assigns,
         ] = mark.lengths;
         Self::truncate_map(&mut self.names, names);
+        Self::truncate_map(&mut self.paths, paths);
         Self::truncate_map(&mut self.instantiations, instantiations);
         Self::truncate_map(&mut self.labels, labels);
         Self::truncate_map(&mut self.receivers, receivers);
@@ -456,11 +480,11 @@ impl ResolutionSegment {
         Self::truncate_map(&mut self.constructs, constructs);
         Self::truncate_map(&mut self.trees, trees);
         Self::truncate_map(&mut self.patterns, patterns);
-        Self::truncate_map(&mut self.assign_patterns, assign_patterns);
+        Self::truncate_map(&mut self.assigns, assigns);
     }
 
     /// Drop map entries added past one length.
-    fn truncate_map<T>(map: &mut IndexMap<GlobalNodeIdAny, T>, length: usize) {
+    fn truncate_map<K: std::hash::Hash + Eq, T>(map: &mut IndexMap<K, T>, length: usize) {
         while map.len() > length {
             map.pop();
         }
@@ -473,6 +497,7 @@ impl ResolutionSegment {
         Self {
             module_id,
             names: IndexMap::default(),
+            paths: IndexMap::default(),
             instantiations: IndexMap::default(),
             labels: IndexMap::default(),
             receivers: IndexMap::default(),
@@ -487,7 +512,7 @@ impl ResolutionSegment {
             constructs: IndexMap::default(),
             trees: IndexMap::default(),
             patterns: IndexMap::default(),
-            assign_patterns: IndexMap::default(),
+            assigns: IndexMap::default(),
             unresolved: IndexMap::default(),
         }
     }
@@ -505,6 +530,25 @@ impl ResolutionSegment {
     /// Set the name resolution for a node.
     pub fn set_name_resolution(&mut self, node_id: GlobalNodeIdAny, resolution: NameResolution) {
         self.names.insert(node_id, resolution);
+    }
+
+    /// Set the name resolution for one path segment of a node.
+    pub fn set_path_resolution(
+        &mut self,
+        node_id: GlobalNodeIdAny,
+        segment: u16,
+        resolution: NameResolution,
+    ) {
+        self.paths.insert((node_id, segment), resolution);
+    }
+
+    /// Get the name resolution for one path segment of a node.
+    pub fn path_resolution(
+        &self,
+        node_id: GlobalNodeIdAny,
+        segment: u16,
+    ) -> Option<&NameResolution> {
+        self.paths.get(&(node_id, segment))
     }
 
     /// Get the name resolution for a node.
@@ -707,7 +751,7 @@ impl ResolutionSegment {
         node_id: GlobalNodeIdAny,
         resolution: AssignPatternResolution,
     ) {
-        self.assign_patterns.insert(node_id, resolution);
+        self.assigns.insert(node_id, resolution);
     }
 
     /// Get the assignment pattern resolution for a node.
@@ -715,7 +759,7 @@ impl ResolutionSegment {
         &self,
         node_id: GlobalNodeIdAny,
     ) -> Option<&AssignPatternResolution> {
-        self.assign_patterns.get(&node_id)
+        self.assigns.get(&node_id)
     }
 
     /// Iterate visible name resolutions.
@@ -723,6 +767,15 @@ impl ResolutionSegment {
         self.names
             .iter()
             .map(|(node_id, resolution)| (*node_id, resolution))
+    }
+
+    /// Iterate the path segment resolutions in this segment.
+    pub fn path_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, u16, &NameResolution)> + '_ {
+        self.paths
+            .iter()
+            .map(|((node_id, segment), resolution)| (*node_id, *segment, resolution))
     }
 
     /// Iterate visible generic instantiation resolutions.
@@ -845,7 +898,7 @@ impl ResolutionSegment {
     pub fn assign_pattern_entries(
         &self,
     ) -> impl Iterator<Item = (GlobalNodeIdAny, &AssignPatternResolution)> + '_ {
-        self.assign_patterns
+        self.assigns
             .iter()
             .map(|(node_id, resolution)| (*node_id, resolution))
     }
@@ -853,6 +906,7 @@ impl ResolutionSegment {
     /// Return whether this segment has no resolutions.
     pub fn is_empty(&self) -> bool {
         self.names.is_empty()
+            && self.paths.is_empty()
             && self.instantiations.is_empty()
             && self.labels.is_empty()
             && self.receivers.is_empty()
@@ -868,7 +922,7 @@ impl ResolutionSegment {
             && self.trees.is_empty()
             && self.patterns.is_empty()
             && self.unresolved.is_empty()
-            && self.assign_patterns.is_empty()
+            && self.assigns.is_empty()
     }
 
     /// Apply one mapping to every type id stored in this segment.
@@ -911,7 +965,7 @@ impl ResolutionSegment {
         for resolution in self.patterns.values_mut() {
             resolution.map_type_ids(map);
         }
-        for resolution in self.assign_patterns.values_mut() {
+        for resolution in self.assigns.values_mut() {
             resolution.map_type_ids(map);
         }
     }

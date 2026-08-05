@@ -4,7 +4,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::check::{Answer, CheckError, CheckState, Origin, VarianceState};
+use crate::check::{Answer, CheckError, CheckState, Decision, MemberLookup, Origin, VarianceState};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -120,6 +120,10 @@ impl CheckState<'_> {
 
         // record checked member bindings for every authored lookup subject
         self.write_member_bindings(module)?;
+
+        // record solved symbols for authored path segments and member types
+        self.write_path_segment_resolutions(module)?;
+        self.write_member_type_resolutions(module)?;
 
         // seal every embedded type id
         self.close_output_segments(module, failed_applications, &mut sealed)?;
@@ -468,6 +472,207 @@ impl CheckState<'_> {
         });
 
         Ok(bindings)
+    }
+
+    /// Resolve each authored path segment through the solved member lookup.
+    ///
+    /// The declare pass cannot look up members on foreign declarations, so
+    /// checking derives every segment from the written member chain the walk
+    /// interned behind the path.
+    fn write_path_segment_resolutions(&mut self, module: ModuleId) -> CompilerResult<()> {
+        if self.is_declaration() {
+            return Ok(());
+        }
+
+        // collect the authored paths that project members from a resolved base
+        let paths: Vec<(dir::GlobalNodeIdAny, u32)> = self
+            .module(module)
+            .resolved
+            .references
+            .target_by_node
+            .iter()
+            .filter_map(|(node, reference)| match reference {
+                dir::Reference::Projected {
+                    base: dir::ImportTarget::Symbol(_),
+                    from,
+                } => Some((*node, *from)),
+                _ => None,
+            })
+            .collect();
+
+        for (node, from) in paths {
+            // read the written member chain behind the authored path
+            let written = self.node_types.get(&node).copied().or_else(|| {
+                self.module(module)
+                    .declared
+                    .as_ref()
+                    .and_then(|declared| declared.types.get_node_type_id(node))
+            });
+            let Some(mut ty) = written else {
+                continue;
+            };
+
+            // peel the chain into per-segment owners and names
+            let mut segments = Vec::new();
+            let mut authored = true;
+            while let Some(member) = self.member_head(ty)? {
+                let dir::StaticKey::Name(name) = member.key else {
+                    authored = false;
+                    break;
+                };
+                segments.push((member.owner, name));
+                ty = member.owner;
+            }
+
+            // skip chains error recovery rebuilt away from the authored path
+            if !authored || segments.is_empty() {
+                continue;
+            }
+            segments.reverse();
+
+            let scope = self.enclosing_declared_template(node)?;
+            for (index, (owner, name)) in segments.into_iter().enumerate() {
+                let Some(symbol) = self.lookup_static_member(module, node, scope, owner, name)?
+                else {
+                    continue;
+                };
+                let index =
+                    u16::try_from(from as usize + index).map_err(|_| CompilerError::Internal {
+                        message: format!(
+                            "check path {} overflows its segment index",
+                            self.node_label(node)
+                        ),
+                    })?;
+                self.commit_path_resolution(node, index, symbol)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Resolve each authored member type expression to its selected symbol.
+    fn write_member_type_resolutions(&mut self, module: ModuleId) -> CompilerResult<()> {
+        if self.is_declaration() {
+            return Ok(());
+        }
+
+        // collect the member type expressions the walk recorded subjects for
+        let sources: Vec<(dir::GlobalNodeIdAny, dir::MemberSubject)> = self
+            .module(module)
+            .members
+            .iter_subjects()
+            .filter(|(source, _)| source.local_id.ty == dir::NodeType::TypeExpression)
+            .collect();
+
+        for (node, subject) in sources {
+            // path reference nodes resolve through their segment rows instead
+            if self.module(module).resolved.references.get(node).is_some() {
+                continue;
+            }
+
+            // read the selected member behind the written type head
+            let written = self.node_types.get(&node).copied().or_else(|| {
+                self.module(module)
+                    .declared
+                    .as_ref()
+                    .and_then(|declared| declared.types.get_node_type_id(node))
+            });
+            let Some(ty) = written else {
+                continue;
+            };
+            let Some(member) = self.member_head(ty)? else {
+                continue;
+            };
+
+            // this projections bind through their receiver, not a static subject
+            if member.qualifier.is_some() {
+                continue;
+            }
+
+            // read the selected declaration from the recorded member bindings
+            let symbol = self
+                .module(module)
+                .members
+                .members(subject)
+                .and_then(|bindings| bindings.iter().find(|binding| binding.key == member.key))
+                .and_then(|binding| binding.declarations.first())
+                .map(|declaration| declaration.symbol);
+            if let Some(symbol) = symbol {
+                self.commit_decision(node, Decision::Name(dir::NameResolution::new(symbol)))?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Commit one path segment resolution into its module's resolution segment.
+    fn commit_path_resolution(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        segment: u16,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        let resolution = dir::NameResolution::new(symbol);
+        let previous = self
+            .module(node.module_id)
+            .resolutions
+            .path_resolution(node, segment);
+
+        // collapse identical re-derivations, reject conflicting ones
+        if let Some(previous) = previous {
+            if previous == &resolution {
+                return Ok(());
+            }
+
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "check node {} selected conflicting resolutions {previous:?} and {resolution:?} for segment {segment}",
+                    self.node_label(node),
+                ),
+            });
+        }
+
+        self.module_mut(node.module_id)
+            .resolutions
+            .set_path_resolution(node, segment, resolution);
+
+        Ok(())
+    }
+
+    /// Look up one static member and return its selected declaration.
+    ///
+    /// Members the lookup cannot find carry their own diagnostics, so misses
+    /// stay unresolved instead of failing the writeback.
+    fn lookup_static_member(
+        &mut self,
+        module: ModuleId,
+        node: dir::GlobalNodeIdAny,
+        scope: Option<dir::GlobalGenericTemplateId>,
+        owner: dir::GlobalTypeId,
+        name: dir::StringId,
+    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
+        let origin = Origin::Node(node, scope);
+        let owner = self.settled_root(owner)?;
+        let subject =
+            dir::MemberSubject::new(owner, owner, dir::MemberSpace::Static).with_scope(scope);
+        let key = dir::StaticKey::Name(name);
+        let lookup = match self.body().lookup_member(origin, module, subject, key)? {
+            Answer::Ready(lookup) => lookup,
+            Answer::Pending(blockers) => {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "segment resolution lookup suspended after solving: {blockers:?}"
+                    ),
+                });
+            }
+        };
+
+        match lookup {
+            MemberLookup::Found(candidates) => {
+                Ok(candidates.first().map(|candidate| candidate.symbol))
+            }
+            _ => Ok(None),
+        }
     }
 
     /// Bind bare generic subject references through their declared applications.

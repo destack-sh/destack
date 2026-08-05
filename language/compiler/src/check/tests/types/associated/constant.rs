@@ -48,6 +48,7 @@ declare const lane: Segment<string>.Lane;
 /// @type.symbol symbol=lane source=lane type=Segment<string>.Lane reduced=FixedArray<uint8, 8>
 /// @resolution.pattern source=lane kind=binding target=lane
 /// @resolution.name source=Segment target=Segment
+/// @resolution.name source=Segment<string>.Lane target=Segment.Lane
 
 /// @generic.instance id=Segment<string> template=Segment arguments=(string)
 "#,

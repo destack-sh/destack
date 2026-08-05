@@ -196,6 +196,7 @@ export type ReadPort = Port<Mode.Write>;
 /// @definition.type symbol=ReadPort source="export type ReadPort = Port<Mode.Write>" value=Port<Mode.Write> reduced=Port<1>
 /// @resolution.name source=Port target=Port
 /// @resolution.name source=Mode.Write target=Mode
+/// @resolution.path source=Mode.Write index=1 target=Mode.Write
 
 /// @generic.instance id=Port<Mode.Write> template=Port arguments=(Mode.Write)
 "#,

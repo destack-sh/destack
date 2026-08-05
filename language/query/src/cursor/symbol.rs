@@ -452,6 +452,13 @@ impl ModuleQueryContext<'_> {
             return Ok(Some(vec![symbol]));
         }
 
+        // checked member segments retain their selected symbol per segment
+        let index = u16::try_from(segment)
+            .map_err(|_| QueryError::invalid(format!("qualified segment: {source:?}")))?;
+        if let Some(resolution) = self.resolutions()?.path_resolution(source, index) {
+            return Ok(Some(resolution.symbols().to_vec()));
+        }
+
         let reference = self
             .resolved()?
             .references

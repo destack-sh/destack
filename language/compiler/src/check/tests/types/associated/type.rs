@@ -48,6 +48,7 @@ declare const value: Box<string>.Item;
 /// @type.symbol symbol=value source=value type=Box<string>.Item reduced=string
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Box target=Box
+/// @resolution.name source=Box<string>.Item target=Box.Item
 
 /// @generic.instance id=Box<string> template=Box arguments=(string)
 "#,
@@ -252,6 +253,7 @@ type Made<F: Producing> = F.Output;
 /// @type.symbol symbol=Made.F source="F: Producing" type=F
 /// @resolution.name source=Producing target=Producing
 /// @resolution.name source=F.Output target=Made.F
+/// @resolution.path source=F.Output index=1 target=Producing.Output
 
 declare const made: Made<Factory>;
 /// @type.symbol symbol=made source=made type=Made<Factory> reduced=int32
@@ -332,6 +334,120 @@ function nextDefault<I: Iterator>(iter: I): uint8 {
         r#"
 /// @diagnostic.error id=return-not-assignable message="type 'I.Item' is not assignable to the declared result type 'uint8'"
 /// @diagnostic.label line=9 column=12 span="iter.next()" line_source="return iter.next();"
+"#,
+    );
+}
+
+#[test]
+fn test_member_path_segments_resolve_through_an_imported_base() {
+    let session = TestSession::builder()
+        .module(
+            "geometry.ds",
+            r#"
+export struct Slot {
+    type Value = int32;
+}
+
+export struct Grid {
+    type Cell = Slot;
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { Grid } from "./geometry.ds";
+
+declare const value: Grid.Cell.Value;
+"#,
+        )
+        .build();
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_statics(),
+        r#"
+=== annotated ===
+import { Grid } from "./geometry.ds";
+
+declare const value: Grid.Cell.Value;
+
+=== checked ===
+import { Grid } from "./geometry.ds";
+
+declare const value: Grid.Cell.Value;
+/// @type.symbol symbol=value source=value type=geometry.Grid.Cell.Value reduced=int32
+/// @resolution.pattern source=value kind=binding target=value
+/// @resolution.name source=Grid.Cell.Value target=geometry.Grid
+/// @resolution.path source=Grid.Cell.Value index=1 target=geometry.Grid.Cell
+/// @resolution.path source=Grid.Cell.Value index=2 target=geometry.Slot.Value
+"#,
+    );
+}
+
+#[test]
+#[ignore = "static member lookup does not project implemented-interface associated types"]
+fn test_resolve_an_implemented_associated_type_through_the_class() {
+    let session = TestSession::single(
+        r#"
+interface Envelope<T extends string> {
+    type Label<U extends string> = `${T}:${U}`;
+}
+
+class Message<T extends string> implements Envelope<T> {}
+
+type EventLabel = Message<"orders">.Label<"created">;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Envelope<in out T: string> {
+    type Label<U: string> = `${T}:${U}`;
+}
+
+class Message<in out T: string> implements Envelope<T> {}
+
+type EventLabel = Message<"orders">.Label<"created">;
+
+=== checked ===
+interface Envelope<T extends string> {
+/// @generic.template symbol=Envelope parameters=(in out T#1: string)
+/// @type.symbol symbol=Envelope type=Envelope
+/// @definition.interface symbol=Envelope template=(in out T#1: string)
+/// @definition.where symbol=Envelope relation=satisfies left=this right=Envelope<T#1>
+/// @definition.associated.type symbol=Envelope.Label source="type Label<U extends string> = `${T}:${U}`" key=Label value=`${T#1}:${U}`
+/// @type.symbol symbol=Envelope.T source="T extends string" type=T#1
+
+    type Label<U extends string> = `${T}:${U}`;
+    /// @generic.template symbol=Envelope.Label parent=template#0 parameters=(U: string)
+    /// @type.symbol symbol=Envelope.Label source="type Label<U extends string> = `${T}:${U}`" type=`${T#1}:${U}`
+    /// @type.symbol symbol=Envelope.Label.U source="U extends string" type=U
+    /// @resolution.name source=T target=Envelope.T
+    /// @resolution.name source=U target=Envelope.Label.U
+
+}
+
+class Message<T extends string> implements Envelope<T> {}
+/// @generic.template symbol=Message parameters=(in out T#2: string)
+/// @type.symbol symbol=Message source="class Message<T extends string> implements Envelope<T> {}" type=Message
+/// @definition.class symbol=Message source="class Message<T extends string> implements Envelope<T> {}" template=(in out T#2: string)
+/// @definition.where symbol=Message source=Envelope<T> relation=satisfies left=this right=Envelope<T#2>
+/// @definition.implements symbol=Message source=Envelope<T> target=Envelope<T#2>
+/// @type.symbol symbol=Message.T source="T extends string" type=T#2
+/// @resolution.name source=Envelope target=Envelope
+/// @resolution.name source=T target=Message.T
+
+type EventLabel = Message<"orders">.Label<"created">;
+/// @type.symbol symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" type=Message<"orders">.Label<"created"> reduced="orders:created"
+/// @definition.type symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" value=Message<"orders">.Label<"created"> reduced="orders:created"
+/// @resolution.name source=Message target=Message
+/// @resolution.name source="Message<\"orders\">.Label<\"created\">" target=Envelope.Label
+
+/// @generic.instance id="Message<\"orders\">" template=Message arguments=("orders")
 "#,
     );
 }
