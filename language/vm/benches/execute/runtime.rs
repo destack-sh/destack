@@ -29,8 +29,8 @@ const MEMORY_FRAME_BYTES: usize = 16 * 1024 * 1024;
 pub(crate) struct Runtime {
     /// Immutable Program retained by the activation.
     program: Arc<program::Program>,
-    /// Worker-local continuation storage.
-    continuations: program::ContinuationTable,
+    /// Reusable execution fiber under measurement.
+    fiber: destack_vm::Fiber,
     /// Bytecode machine under measurement.
     machine: Machine,
     /// Runtime allocation plans indexed by Program allocation site id.
@@ -64,11 +64,7 @@ impl program::Runtime for BenchmarkRuntime {
     }
 
     /// Continue benchmark execution after one impossible poll request.
-    fn poll(
-        &mut self,
-        _memory: program::Memory<'_>,
-        _roots: &mut dyn program::RootSource<Error = Self::Error>,
-    ) -> Result<program::Poll> {
+    fn poll(&mut self, _memory: program::Memory<'_>) -> Result<program::Poll> {
         Ok(program::Poll::Continue)
     }
 
@@ -77,6 +73,7 @@ impl program::Runtime for BenchmarkRuntime {
         &mut self,
         _memory: program::Memory<'_>,
         _context: program::Context,
+        _fiber: program::Fiber,
         _binding: &program::Binding,
         _arguments: &[Word],
         _result: &mut [Word],
@@ -84,58 +81,19 @@ impl program::Runtime for BenchmarkRuntime {
         unreachable!("direct execution benchmarks do not call runtime bindings")
     }
 
-    /// Reject waiter settlement outside asynchronous benchmarks.
-    fn queue_waiter(&mut self, _waiter: program::Waiter, _value: Value) -> Result<bool> {
-        unreachable!("direct execution benchmarks do not await")
+    /// Reject fiber parks outside asynchronous benchmarks.
+    fn park(&mut self, _fiber: program::Fiber) -> Result<program::Park> {
+        unreachable!("direct execution benchmarks do not park")
     }
 
-    /// Reject waiter cancellation outside asynchronous benchmarks.
-    fn cancel_waiter(&mut self, _waiter: program::Waiter) -> Result<bool> {
-        unreachable!("direct execution benchmarks do not await")
+    /// Reject detach boundaries outside asynchronous benchmarks.
+    fn detach(&mut self) -> Result<program::Fiber> {
+        unreachable!("direct execution benchmarks do not detach")
     }
 
-    /// Reject resolved tasks outside asynchronous benchmarks.
-    fn resolve_task(&mut self, _value: Value) -> program::Task {
-        unreachable!("direct execution benchmarks do not create tasks")
-    }
-
-    /// Reject eager tasks outside asynchronous benchmarks.
-    fn start_task(&mut self) -> program::Task {
-        unreachable!("direct execution benchmarks do not create tasks")
-    }
-
-    /// Reject task cancellation requests outside asynchronous benchmarks.
-    fn cancel_task(&mut self, _task: program::Task) -> Result<()> {
-        unreachable!("direct execution benchmarks do not create tasks")
-    }
-
-    /// Reject task suspension outside asynchronous benchmarks.
-    fn suspend_task(
-        &mut self,
-        _task: program::Task,
-        _continuation: program::Continuation,
-    ) -> std::result::Result<program::Waiter, (Self::Error, program::Continuation)> {
-        unreachable!("direct execution benchmarks do not create tasks")
-    }
-
-    /// Reject task waiting outside asynchronous benchmarks.
-    fn park_task(&mut self, _task: program::Task, _waiter: program::Waiter) -> Result<()> {
-        unreachable!("direct execution benchmarks do not create tasks")
-    }
-
-    /// Reject task cancellation queries outside asynchronous benchmarks.
-    fn is_task_cancelled(&mut self, _task: program::Task) -> Result<bool> {
-        unreachable!("direct execution benchmarks do not create tasks")
-    }
-
-    /// Reject task detachment outside asynchronous benchmarks.
-    fn detach_task(&mut self, _task: program::Task) -> Result<()> {
-        unreachable!("direct execution benchmarks do not create tasks")
-    }
-
-    /// Reject terminal task outcomes outside asynchronous benchmarks.
-    fn finish_task(&mut self, _task: program::Task, _outcome: program::TaskOutcome) -> Result<()> {
-        unreachable!("direct execution benchmarks do not create tasks")
+    /// Reject boundary retirement outside asynchronous benchmarks.
+    fn retire(&mut self, _fiber: program::Fiber) -> Result<()> {
+        unreachable!("direct execution benchmarks do not detach")
     }
 }
 
@@ -180,12 +138,15 @@ impl Runtime {
             .plan_allocations(heap.options(), shared_heap.options())
             .expect("benchmark allocation plans should build")
             .into();
-        let machine = Machine::new(program.clone(), memory, MachineLimits::unbounded())
+        let machine = Machine::new(program.clone(), MachineLimits::unbounded())
             .expect("benchmark machine should build");
+        let fiber = machine
+            .reserve_fiber(memory)
+            .expect("benchmark fiber should reserve");
 
         Self {
             program,
-            continuations: program::ContinuationTable::default(),
+            fiber,
             machine,
             allocation_plans,
             runtime: BenchmarkRuntime,
@@ -206,13 +167,13 @@ impl Runtime {
             context: &mut context,
             memory: program::Memory {
                 allocation_plans: &self.allocation_plans,
-                heap: &mut self.heap,
+                local_heap: &mut self.heap,
                 shared_heap: &self.shared_heap,
                 shared_cache: &mut self.shared_cache,
                 shared_mark_worker: &self.shared_mark_worker,
-                local_static: &mut self.local_static,
-                shared_static: &mut self.shared_static,
-                constant_space: self.program.constants(),
+                local_statics: &mut self.local_static,
+                shared_statics: &mut self.shared_static,
+                constants: self.program.constants(),
             },
         };
         let parameter = self
@@ -229,7 +190,7 @@ impl Runtime {
         let outcome = self
             .machine
             .run(
-                &mut self.continuations,
+                &mut self.fiber,
                 activation,
                 FunctionId(0),
                 None,
@@ -244,9 +205,7 @@ impl Runtime {
             program::Outcome::Completed { value } => value,
             program::Outcome::Cancelled => panic!("benchmark bytecode should not cancel"),
             program::Outcome::Stopped { .. } => panic!("benchmark bytecode should not stop"),
-            program::Outcome::Awaited { .. } | program::Outcome::Yielded { .. } => {
-                panic!("benchmark bytecode should not suspend")
-            }
+            program::Outcome::Parked => panic!("benchmark bytecode should not park"),
         }
     }
 

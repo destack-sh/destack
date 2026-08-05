@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{
-    ConditionSet, EmitFormat, Host, MirLowered, MirOptimized, Platform, Runtime,
-};
+use destack_artifact::{ConditionSet, Host, MirLowered, MirOptimized, Platform, Runtime};
 use destack_compiler::{BytecodeEmitter, LayoutBuilder, ObjectEmitter, ProgramLinker};
 use destack_core::StringPool;
 use destack_heap::{
@@ -20,9 +18,7 @@ use destack_runtime::launch::Launch;
 use destack_runtime::machine::{Engine, Entry};
 use destack_runtime::worker::WorkerOptions;
 use destack_runtime::world::{RuntimeId, World};
-use destack_source::{
-    DiagnosticSeverity, File, FileId, FileType, ModuleId, PackageId, TargetId, Uri,
-};
+use destack_source::{DiagnosticSeverity, File, FileId, FileType, ModuleId, PackageId, Uri};
 use destack_vm::{Error, Machine, MachineLimits, Result};
 
 const ENTRY: &str = "bench.entry";
@@ -54,8 +50,8 @@ pub(crate) struct VmMachine {
     program: Arc<program::Program>,
     /// Footprint entry function.
     entry: FunctionId,
-    /// Worker-local continuation storage.
-    continuations: program::ContinuationTable,
+    /// Reusable footprint execution fiber.
+    fiber: destack_vm::Fiber,
     /// Machine under measurement.
     machine: Machine,
     /// Runtime allocation plans indexed by Program allocation site id.
@@ -172,10 +168,8 @@ impl VmSetup {
     /// Build one VM machine before runtime storage initialization.
     pub(crate) fn build_machine(self) -> Machine {
         let program = self.program();
-        let memory = self.memory();
 
-        Machine::new(program, memory, MachineLimits::unbounded())
-            .expect("footprint machine should build")
+        Machine::new(program, MachineLimits::unbounded()).expect("footprint machine should build")
     }
 
     /// Build one initialized VM machine with runtime storage.
@@ -206,13 +200,16 @@ impl VmMachine {
         let entry = program
             .function_id_by_name(ENTRY)
             .expect("footprint entry should exist");
-        let machine = Machine::new(program.clone(), memory, MachineLimits::unbounded())
+        let machine = Machine::new(program.clone(), MachineLimits::unbounded())
             .expect("footprint machine should build");
+        let fiber = machine
+            .reserve_fiber(memory)
+            .expect("footprint fiber should reserve");
 
         Self {
             program,
             entry,
-            continuations: program::ContinuationTable::default(),
+            fiber,
             machine,
             allocation_plans,
             runtime: VmRuntime,
@@ -233,19 +230,19 @@ impl VmMachine {
             context: &mut context,
             memory: Memory {
                 allocation_plans: &self.allocation_plans,
-                heap: &mut self.heap,
+                local_heap: &mut self.heap,
                 shared_heap: &self.shared,
                 shared_cache: &mut self.shared_cache,
                 shared_mark_worker: &self.shared_mark_worker,
-                local_static: &mut self.local_static,
-                shared_static: &mut self.shared_static,
-                constant_space: self.program.constants(),
+                local_statics: &mut self.local_static,
+                shared_statics: &mut self.shared_static,
+                constants: self.program.constants(),
             },
         };
         let outcome = self
             .machine
             .run(
-                &mut self.continuations,
+                &mut self.fiber,
                 activation,
                 self.entry,
                 None,
@@ -260,9 +257,7 @@ impl VmMachine {
             Outcome::Completed { value } => value,
             Outcome::Cancelled => panic!("footprint entry cancelled"),
             Outcome::Stopped { reason } => panic!("footprint entry stopped: {reason:?}"),
-            Outcome::Awaited { .. } | Outcome::Yielded { .. } => {
-                panic!("footprint entry suspended")
-            }
+            Outcome::Parked => panic!("footprint entry parked"),
         }
     }
 }
@@ -279,11 +274,7 @@ impl program::Runtime for VmRuntime {
     }
 
     /// Continue footprint execution after one impossible poll request.
-    fn poll(
-        &mut self,
-        _memory: program::Memory<'_>,
-        _roots: &mut dyn program::RootSource<Error = Self::Error>,
-    ) -> Result<program::Poll> {
+    fn poll(&mut self, _memory: program::Memory<'_>) -> Result<program::Poll> {
         Ok(program::Poll::Continue)
     }
 
@@ -292,6 +283,7 @@ impl program::Runtime for VmRuntime {
         &mut self,
         _memory: Memory<'_>,
         _context: program::Context,
+        _fiber: program::Fiber,
         _binding: &program::Binding,
         _arguments: &[program::Word],
         _result: &mut [program::Word],
@@ -299,58 +291,19 @@ impl program::Runtime for VmRuntime {
         unreachable!("runtime footprint execution does not call runtime bindings")
     }
 
-    /// Reject waiter queues outside the runtime scheduler.
-    fn queue_waiter(&mut self, waiter: program::Waiter, _value: Value) -> Result<bool> {
-        Err(program::Error::UndefinedWaiter { waiter }.into())
+    /// Reject fiber parks outside the runtime scheduler.
+    fn park(&mut self, fiber: program::Fiber) -> Result<program::Park> {
+        Err(program::Error::UndefinedFiber { fiber }.into())
     }
 
-    /// Reject waiter cancellation outside the runtime scheduler.
-    fn cancel_waiter(&mut self, waiter: program::Waiter) -> Result<bool> {
-        Err(program::Error::UndefinedWaiter { waiter }.into())
+    /// Reject detach boundaries outside the runtime scheduler.
+    fn detach(&mut self) -> Result<program::Fiber> {
+        unreachable!("footprint execution does not detach")
     }
 
-    /// Reject resolved tasks outside the runtime scheduler.
-    fn resolve_task(&mut self, _value: Value) -> program::Task {
-        unreachable!("footprint execution does not create tasks")
-    }
-
-    /// Reject eager tasks outside the runtime scheduler.
-    fn start_task(&mut self) -> program::Task {
-        unreachable!("footprint execution does not create tasks")
-    }
-
-    /// Reject task cancellation requests outside the runtime scheduler.
-    fn cancel_task(&mut self, task: program::Task) -> Result<()> {
-        Err(program::Error::UndefinedTask { task }.into())
-    }
-
-    /// Reject task suspension outside the runtime scheduler.
-    fn suspend_task(
-        &mut self,
-        task: program::Task,
-        continuation: program::Continuation,
-    ) -> std::result::Result<program::Waiter, (Self::Error, program::Continuation)> {
-        Err((program::Error::UndefinedTask { task }.into(), continuation))
-    }
-
-    /// Reject task waiting outside the runtime scheduler.
-    fn park_task(&mut self, task: program::Task, _waiter: program::Waiter) -> Result<()> {
-        Err(program::Error::UndefinedTask { task }.into())
-    }
-
-    /// Reject task cancellation queries outside the runtime scheduler.
-    fn is_task_cancelled(&mut self, task: program::Task) -> Result<bool> {
-        Err(program::Error::UndefinedTask { task }.into())
-    }
-
-    /// Reject task detachment outside the runtime scheduler.
-    fn detach_task(&mut self, task: program::Task) -> Result<()> {
-        Err(program::Error::UndefinedTask { task }.into())
-    }
-
-    /// Reject terminal task outcomes outside the runtime scheduler.
-    fn finish_task(&mut self, task: program::Task, _outcome: program::TaskOutcome) -> Result<()> {
-        Err(program::Error::UndefinedTask { task }.into())
+    /// Reject boundary retirement outside the runtime scheduler.
+    fn retire(&mut self, fiber: program::Fiber) -> Result<()> {
+        Err(program::Error::UndefinedFiber { fiber }.into())
     }
 }
 
@@ -359,7 +312,6 @@ impl VmSetup {
     fn program(self) -> Arc<program::Program> {
         let package = PackageId::new(0);
         let module = ModuleId::new(package, 0);
-        let target = TargetId::new(package, "footprint");
         let (optimized, strings) = self.optimize(module);
 
         // emit one relocatable object through the production compiler path
@@ -368,19 +320,13 @@ impl VmSetup {
         let bytecode = BytecodeEmitter::new(module, &optimized, &emitter)
             .emit()
             .expect("footprint MIR should emit bytecode");
-        let object = Arc::new(emitter.build(bytecode));
+        let object = Arc::new(emitter.bytecode(bytecode).build());
 
         // link the object into one executable Program
-        let program = ProgramLinker::new(
-            package,
-            target,
-            EmitFormat::Bytecode,
-            vec![(module, object)],
-            &strings,
-        )
-        .expect("footprint object should initialize its linker")
-        .link()
-        .expect("footprint object should link");
+        let program = ProgramLinker::new(package, vec![(module, object)], &strings)
+            .expect("footprint object should initialize its linker")
+            .link()
+            .expect("footprint object should link");
 
         Arc::new(program)
     }
