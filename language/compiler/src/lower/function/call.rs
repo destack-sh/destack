@@ -342,9 +342,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // unwrap the provided value from argument nodes
         if let Ok(argument) = source.local_id.try_into_typed::<dir::Argument>() {
             let value = match self.source().tree().get(argument) {
-                dir::Argument::Positional { value }
-                | dir::Argument::Named { value, .. }
-                | dir::Argument::Labeled { value, .. } => *value,
+                dir::Argument::Positional { value } => *value,
                 dir::Argument::Spread { .. } => {
                     return Err(LowerError::Unsupported {
                         anchor: self.lowerer.module.into(),

@@ -1163,18 +1163,12 @@ impl ModuleLowerer<'_> {
         let argument = self.dir_tree.get(argument_id);
 
         let array_element = match argument {
-            dir::Argument::Named { .. } => {
-                return Err(self.unhandled(
-                    expression_id.into_global_any(self.module.id),
-                    Some("named array elements are not lowered to JS".to_string()),
-                ));
-            }
-            dir::Argument::Positional { value, .. } | dir::Argument::Labeled { value, .. } => {
+            dir::Argument::Positional { value } => {
                 let value = self.lower_expression_as::<js::Expression>(*value)?;
 
                 js::ArrayElement::Expression { value }
             }
-            dir::Argument::Spread { value, .. } => {
+            dir::Argument::Spread { value } => {
                 let value = self.lower_expression_as::<js::Expression>(*value)?;
 
                 js::ArrayElement::Spread { value }

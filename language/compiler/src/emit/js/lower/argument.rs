@@ -71,17 +71,11 @@ impl ModuleLowerer<'_> {
     ) -> Result<js::LocalNodeId<js::Argument>, EmitError> {
         let argument = self.dir_tree.get(argument_id);
         let argument = match argument {
-            dir::Argument::Named { name: _, value, .. }
-            | dir::Argument::Labeled {
-                label: _, value, ..
-            }
-            | dir::Argument::Positional { value, .. } => {
+            dir::Argument::Positional { value } => {
                 let value = self.lower_expression_as::<js::Expression>(*value)?;
                 js::Argument::Positional { value }
             }
-            dir::Argument::Spread {
-                label: _, value, ..
-            } => {
+            dir::Argument::Spread { value } => {
                 let value = self.lower_expression_as::<js::Expression>(*value)?;
                 js::Argument::Spread { value }
             }

@@ -26,15 +26,13 @@ impl BodyState<'_, '_> {
         // infer explicit elements and spread sources
         for argument in elements {
             match self.module(module).view().get(*argument) {
-                dir::Argument::Spread { value, .. } => {
+                dir::Argument::Spread { value } => {
                     let value = *value;
                     let value_site = self.node_site(value.into_global_any(module))?;
                     let ty = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
                     spreads.push((value, ty));
                 }
-                dir::Argument::Positional { value }
-                | dir::Argument::Named { value, .. }
-                | dir::Argument::Labeled { value, .. } => {
+                dir::Argument::Positional { value } => {
                     let value = *value;
                     let value_site = self.node_site(value.into_global_any(module))?;
                     let ty = answer!(self.infer_node(value_site, PlaceUse::Read, element_mode)?);
@@ -216,11 +214,9 @@ impl BodyState<'_, '_> {
 
         // infer each tuple field under the current literal mode
         for element in elements {
-            let (label, value, is_rest) = match self.module(module).view().get(*element) {
-                dir::Argument::Positional { value } => (None, Some(*value), false),
-                dir::Argument::Named { value, .. } => (None, Some(*value), false),
-                dir::Argument::Labeled { label, value } => (Some(*label), Some(*value), false),
-                dir::Argument::Spread { value, .. } => (None, Some(*value), true),
+            let (value, is_rest) = match self.module(module).view().get(*element) {
+                dir::Argument::Positional { value } => (Some(*value), false),
+                dir::Argument::Spread { value } => (Some(*value), true),
                 dir::Argument::Elision => {
                     let ty = self.intern_type(dir::Type::Undefined)?;
                     fields.push(dir::TypeElement {
@@ -233,7 +229,7 @@ impl BodyState<'_, '_> {
                     sources.push(None);
                     continue;
                 }
-                dir::Argument::Error => (None, None, false),
+                dir::Argument::Error => (None, false),
             };
             let Some(value) = value else {
                 continue;
@@ -243,7 +239,7 @@ impl BodyState<'_, '_> {
             let ty = answer!(self.infer_node(value_site, PlaceUse::Read, element_mode)?);
             let ty = answer!(self.flow_type_at(value_site, ty)?);
             fields.push(dir::TypeElement {
-                label,
+                label: None,
                 ty,
                 is_optional: false,
                 is_readonly: false,
@@ -348,9 +344,7 @@ impl BodyState<'_, '_> {
 
         // check every explicit element against the expected element type
         for (index, argument) in elements.iter().enumerate() {
-            let (dir::Argument::Positional { value }
-            | dir::Argument::Named { value, .. }
-            | dir::Argument::Labeled { value, .. }) =
+            let dir::Argument::Positional { value } =
                 self.module(node.module_id).view().get(*argument)
             else {
                 return Ok(Answer::Ready(CheckAttempt::NotApplicable));
@@ -507,11 +501,8 @@ impl BodyState<'_, '_> {
 
         // check each tuple element against its matching expected element type
         for (index, (argument, element)) in elements.iter().zip(tuple_elements.iter()).enumerate() {
-            let (label, value) = match self.module(node.module_id).view().get(*argument) {
-                dir::Argument::Positional { value } | dir::Argument::Named { value, .. } => {
-                    (None, *value)
-                }
-                dir::Argument::Labeled { label, value } => (Some(*label), *value),
+            let value = match self.module(node.module_id).view().get(*argument) {
+                dir::Argument::Positional { value } => *value,
                 _ => return Ok(Answer::Ready(CheckAttempt::NotApplicable)),
             };
             let child = value.into_global_any(node.module_id);
@@ -533,7 +524,7 @@ impl BodyState<'_, '_> {
             };
             let child_check = answer!(self.check_node(child_site, child_expectation)?);
             source_elements.push(dir::TypeElement {
-                label,
+                label: None,
                 ty: child_check.source,
                 is_optional: false,
                 is_readonly: expectation.mode.is_readonly(),
