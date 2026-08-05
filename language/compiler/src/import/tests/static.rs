@@ -487,7 +487,7 @@ fn test_import_records_static_if_output_edge() {
         .module(
             "main.ds",
             r#"
-@if(import.meta.output == "js")
+@if(import.meta.output == "bundle")
 import { Foo } from "./dep.ds";
 "#,
         )
@@ -503,7 +503,7 @@ export type Foo = string;
         "main.ds",
         DirRows::modules().with_summaries().with_import_stats(),
         r#"
-@if(import.meta.output == "js")
+@if(import.meta.output == "bundle")
 import { Foo } from "./dep.ds";
 /// @module.edge relation=import specifier=./dep.ds module=dep.ds
 
