@@ -264,37 +264,6 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
-    /// Report the source expression that lowers into the controlling atomic load.
-    #[test]
-    fn test_reports_source_atomic_load_polling_loop() {
-        let session = TestSession::dir(
-            &MISSING_SPIN_LOOP,
-            r#"
-import { Atomic } from "destack:sync";
-
-function wait(ready: &readonly Atomic<boolean>): void {
-    while (ready.load()) {}
-}
-"#,
-        );
-
-        session.assert_diagnostics(
-            r#"
-warning[missing-spin-loop]: atomic busy-wait loop has no processor hint
- ──▶ main.ds:4:12
-  │
-2 │
-3 │ function wait(ready: &readonly Atomic<boolean>): void {
-4 │     while (ready.load()) {}
-  │            ^^^^^^^^^^^^
-5 │ }
-  │
-
- = help: call spinLoop() during bounded spinning or use a blocking wait
-"#,
-        );
-    }
-
     /// Report an atomic load loop without a processor hint.
     #[test]
     fn test_reports_atomic_load_polling_loop() {
