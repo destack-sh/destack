@@ -442,3 +442,47 @@ b2:
 "#,
     );
 }
+
+#[test]
+fn test_bind_a_generic_function_value_to_a_concrete_instance() {
+    let session = TestSession::single(
+        r#"
+function identity<T>(value: T): T {
+    return value;
+}
+
+function apply(f: (x: int32) => int32, v: int32): int32 {
+    return f(v);
+}
+
+function run(): int32 {
+    return apply(identity, 7);
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+function test.main.apply(v0: function<(int32) => int32, repeatable, managed, mutable>, v1: int32): int32 {
+entry(v0: function<(int32) => int32, repeatable, managed, mutable>, v1: int32):
+    v2: int32 = call.indirect v0(v1): (int32) => int32
+    return v2
+}
+
+function test.main.run(): int32 {
+entry:
+    v0: ref<void, managed, mutable, nullable> = null
+    v1: function<(int32) => int32, repeatable, managed, mutable> = function.bind test.main.identity<int32>, v0
+    v2: int32 = 7
+    v3: int32 = call test.main.apply(v1, v2): (function<(int32) => int32, repeatable, managed, mutable>, int32) => int32
+    return v3
+}
+
+function test.main.identity<int32>(v0: int32): int32 {
+entry(v0: int32):
+    return v0
+}
+"#,
+    );
+}

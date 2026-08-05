@@ -97,9 +97,10 @@ impl FunctionLowerer<'_, '_, '_> {
                 let key = match function.generic_arguments.is_empty() {
                     true => GenericInstanceKey::non_generic(function.symbol),
                     false => {
-                        let bindings = self
-                            .lowerer
-                            .instance_bindings(function, &self.type_substitution)?;
+                        let bindings = self.lowerer.instance_bindings(
+                            &function.generic_arguments,
+                            &self.type_substitution,
+                        )?;
                         let arguments: Vec<_> =
                             bindings.iter().map(|binding| binding.argument).collect();
 

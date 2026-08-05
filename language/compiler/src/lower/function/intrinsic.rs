@@ -594,7 +594,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
         let bindings = self
             .lowerer
-            .instance_bindings(function, &self.type_substitution)?;
+            .instance_bindings(&function.generic_arguments, &self.type_substitution)?;
         let Some(subject) = bindings.first().map(|binding| binding.argument) else {
             return Err(CompilerError::Internal {
                 message: "a layout intrinsic without a subject type".to_string(),
