@@ -2,28 +2,27 @@ use std::ops::Range;
 use std::ptr;
 
 use destack_bytecode::{CodeOffset, Instruction, Operands, RegisterId, RegisterSpan};
-use destack_heap::{HeapResult, RootSlot};
 use destack_program as program;
 use destack_program::{
-    Completion, ContinuationTable, FrameStateId, FunctionId, Outcome, Profile, ProgramPoint,
-    ResumeSkip, Runtime, StopSet, WatchSet, Word,
+    Completion, FrameStateId, FunctionId, Outcome, Profile, ProgramPoint, ResumeSkip, Runtime,
+    StopSet, WatchSet, Word,
 };
 
 use crate::diagnostic::{
     DiagnosticAnchor, Error, ErrorReason, ExecutionError, ExecutionResult, Result, StackTraceFrame,
 };
 
-use super::{Callee, Cursor, Frame, Machine, Return, Stack};
+use super::{Callee, Cursor, Fiber, Frame, Machine, Return};
 
-/// One active execution over mutable machine state.
+/// One active execution over one machine and one fiber.
 pub(crate) struct Activation<'machine, 'run, R>
 where
     R: Runtime + ?Sized,
 {
     /// The machine being executed.
     pub(crate) machine: &'machine mut Machine,
-    /// Worker-local continuation storage.
-    pub(crate) continuations: &'machine mut ContinuationTable,
+    /// The fiber carrying this execution.
+    pub(crate) fiber: &'machine mut Fiber,
     /// The runtime activation available to this execution.
     pub(crate) activation: program::Activation<'run, 'run, R>,
     /// Native addresses derived for the active frame.
@@ -48,15 +47,15 @@ impl<'machine, 'run, R> Activation<'machine, 'run, R>
 where
     R: Runtime + ?Sized,
 {
-    /// Bind one activation to a machine.
+    /// Bind one activation to a machine and fiber.
     pub(crate) const fn new(
         machine: &'machine mut Machine,
-        continuations: &'machine mut ContinuationTable,
+        fiber: &'machine mut Fiber,
         activation: program::Activation<'run, 'run, R>,
     ) -> Self {
         Self {
             machine,
-            continuations,
+            fiber,
             activation,
             cursor: Cursor::dangling(),
             instruction_count: 0,
@@ -111,6 +110,10 @@ where
         if let Callee::Binding(binding) =
             Callee::resolve(&self.machine.program, self.machine.bytecode, function)?
         {
+            // park points require an active frame to receive the wake value
+            if binding.is_park() {
+                return Err(Error::invalid_instruction().into());
+            }
             let result_count = self.binding_result_word_count(function)?;
             let mut result = vec![Word::ZERO; result_count];
             let memory = self.activation.memory.reborrow();
@@ -119,6 +122,7 @@ where
                 .call_binding(
                     memory,
                     *self.activation.context,
+                    self.fiber.current,
                     binding,
                     arguments,
                     &mut result,
@@ -186,28 +190,12 @@ where
 
     /// Service one pending runtime poll against the live VM activation.
     #[cold]
-    pub(crate) fn poll(&mut self, state: FrameStateId) -> ExecutionResult<program::Poll, R::Error>
-    where
-        R::Error: From<Error>,
-    {
-        let machine = &mut *self.machine;
-        let continuations = &mut *self.continuations;
-        let program = machine.program.clone();
-        let mut roots = |visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>| {
-            machine
-                .visit_root_slots_at(state, visit)
-                .map_err(R::Error::from)?;
-            continuations
-                .visit_root_slots(&program, &machine.stack.memory(), visit)
-                .map_err(Error::program)
-                .map_err(R::Error::from)?;
-            Ok(())
-        };
+    pub(crate) fn poll(&mut self) -> ExecutionResult<program::Poll, R::Error> {
         let memory = self.activation.memory.reborrow();
 
         self.activation
             .runtime
-            .poll(memory, &mut roots)
+            .poll(memory)
             .map_err(ExecutionError::runtime)
     }
 
@@ -218,17 +206,17 @@ where
         arguments: &[Word],
         return_to: Return,
     ) -> ExecutionResult<(), R::Error> {
-        let frame = self
-            .machine
-            .allocate_frame(function, arguments.len(), return_to)?;
+        let frame =
+            self.machine
+                .allocate_frame(self.fiber, function, arguments.len(), return_to)?;
 
         // initialize argument registers in calling order
         for (index, argument) in arguments.iter().copied().enumerate() {
-            self.machine
+            self.fiber
                 .stack
                 .write(frame.register_offset + index, argument);
         }
-        self.machine.frames.push(frame);
+        self.fiber.frames.push(frame);
         self.activate();
 
         Ok(())
@@ -243,15 +231,7 @@ where
         return_to: Return,
         normal_displacement: Option<i32>,
         unwind_displacement: Option<i32>,
-    ) -> ExecutionResult<(), R::Error> {
-        if self
-            .machine
-            .program
-            .function(function)
-            .is_some_and(|function| function.coroutine().is_some())
-        {
-            return Err(self.invalid_instruction().into());
-        }
+    ) -> ExecutionResult<Option<Outcome<Vec<Word>>>, R::Error> {
         let caller = self.frame();
         let argument_start = caller.range(arguments);
         let environment_word_count = usize::from(environment.is_some());
@@ -265,35 +245,34 @@ where
                 normal,
                 unwind,
             },
-            Return::Exit { .. } | Return::Continuation { .. } | Return::Task { .. } => {
+            Return::Exit { .. } => {
                 return Err(self.invalid_instruction().into());
             }
-            Return::Drop {
-                pc,
-                caller_state,
-                frame_count,
-            } => Return::Drop {
-                pc,
-                caller_state,
-                frame_count,
-            },
+            Return::Drop { .. } | Return::Detach { .. } => return_to,
         };
         if let Callee::Binding(binding) =
             Callee::resolve(&self.machine.program, self.machine.bytecode, function)?
         {
+            // boundaries and destructors enter bodies, never bindings
             let Return::Call {
                 registers, normal, ..
             } = return_to
             else {
-                unreachable!("ordinary binding calls require one call return");
+                return Err(self.invalid_instruction().into());
             };
+
+            // park points suspend this fiber instead of entering a host call
+            if binding.is_park() {
+                return self.park(registers, normal);
+            }
             let result_count = registers.word_count as usize;
             let frame = self.frame();
             Self::call_binding(
                 frame,
-                &self.machine.stack,
+                &self.fiber.stack,
                 &mut self.machine.binding_buffer,
                 &mut self.activation,
+                self.fiber.current,
                 binding,
                 environment,
                 arguments,
@@ -310,27 +289,142 @@ where
                 self.jump(normal);
             }
 
-            return Ok(());
+            return Ok(None);
         }
-        let frame = self
-            .machine
-            .allocate_frame(function, initialized_word_count, return_to)?;
+        let frame =
+            self.machine
+                .allocate_frame(self.fiber, function, initialized_word_count, return_to)?;
 
         // transfer arguments directly between contiguous stack windows
         if let Some(environment) = environment {
-            self.machine.stack.write(frame.register_offset, environment);
+            self.fiber.stack.write(frame.register_offset, environment);
         }
         let argument_offset = frame.register_offset + environment_word_count;
-        self.machine.stack.copy_words(
+        self.fiber.stack.copy_words(
             argument_start,
             argument_offset,
             arguments.word_count as usize,
         );
         self.save_position();
-        self.machine.frames.push(frame);
+        self.fiber.frames.push(frame);
         self.activate();
 
-        Ok(())
+        Ok(None)
+    }
+
+    /// Enter one detach boundary call on a fresh logical fiber.
+    pub(crate) fn detach(
+        &mut self,
+        pc: CodeOffset,
+        thunk: RegisterSpan,
+    ) -> ExecutionResult<Option<Outcome<Vec<Word>>>, R::Error> {
+        // decode the thunk function value
+        let environment = match thunk.word_count {
+            1 => None,
+            2 => Some(self.read(thunk.start.0 + 1)),
+            _ => return Err(self.invalid_instruction().into()),
+        };
+        let function = self.function_id(self.read(thunk.start.0))?;
+
+        // mount one detached logical fiber under the boundary
+        let fiber = self
+            .activation
+            .runtime
+            .detach()
+            .map_err(ExecutionError::runtime)?;
+        let return_to = Return::Detach {
+            pc,
+            saved: self.fiber.current,
+            context: *self.activation.context,
+        };
+        let arguments = RegisterSpan::new(RegisterId(0), 0);
+        match self.call(function, arguments, environment, return_to, None, None) {
+            // boundary calls enter bodies and never publish an outcome
+            Ok(None) => {
+                self.fiber.current = fiber;
+
+                Ok(None)
+            }
+            Ok(Some(_)) => {
+                let _ = self.activation.runtime.retire(fiber);
+
+                Err(self.invalid_instruction().into())
+            }
+            Err(error) => {
+                // release the unused identity so the boundary fails atomically
+                let _ = self.activation.runtime.retire(fiber);
+
+                Err(error)
+            }
+        }
+    }
+
+    /// Ask the runtime to park the running fiber at one binding call.
+    fn park(
+        &mut self,
+        registers: RegisterSpan,
+        normal: Option<CodeOffset>,
+    ) -> ExecutionResult<Option<Outcome<Vec<Word>>>, R::Error> {
+        let park = self
+            .activation
+            .runtime
+            .park(self.fiber.current)
+            .map_err(ExecutionError::runtime)?;
+        match park {
+            // deliver an already settled wake like ordinary binding results
+            program::Park::Ready(value) => {
+                let words = value.words();
+                if words.len() != registers.word_count as usize {
+                    return Err(self.invalid_instruction().into());
+                }
+                for (index, word) in words.iter().copied().enumerate() {
+                    self.write(registers.start.0 + index as u16, word);
+                }
+                if let Some(normal) = normal {
+                    self.jump(normal);
+                }
+
+                Ok(None)
+            }
+            // retain the post-call continuation and await one wake delivery
+            program::Park::Parked => {
+                if let Some(normal) = normal {
+                    self.jump(normal);
+                }
+                self.save_position();
+                self.fiber.context = *self.activation.context;
+
+                // split at the innermost detach boundary instead of parking whole
+                let boundary = self
+                    .fiber
+                    .frames
+                    .iter()
+                    .rposition(|frame| matches!(frame.return_to, Return::Detach { .. }));
+                if let Some(boundary) = boundary {
+                    let Return::Detach { saved, context, .. } =
+                        self.fiber.frames[boundary].return_to
+                    else {
+                        unreachable!("boundary position matched a detach return");
+                    };
+                    let detached = self.fiber.current;
+                    let split = self.machine.split(self.fiber, boundary, registers);
+                    self.fiber.current = saved;
+                    *self.activation.context = context;
+                    if let Err(error) = split {
+                        // release the orphaned identity so the failure stays atomic
+                        let _ = self.activation.runtime.retire(detached);
+
+                        return Err(error.into());
+                    }
+                    self.activate();
+
+                    return Ok(None);
+                }
+                self.fiber.wake_to = Some(registers);
+
+                Ok(Some(Outcome::Parked))
+            }
+        }
     }
 
     /// Call one destructor with an exclusive reference to caller storage.
@@ -342,7 +436,7 @@ where
         caller_state: FrameStateId,
         frame_count: u16,
     ) -> Result<()> {
-        let Some(_caller) = self.machine.frames.last().copied() else {
+        let Some(_caller) = self.fiber.frames.last().copied() else {
             unreachable!("destructors require an active caller");
         };
         let return_to = Return::Drop {
@@ -350,15 +444,17 @@ where
             caller_state,
             frame_count,
         };
-        let frame = self.machine.allocate_frame(function, 1, return_to)?;
-        let reference = self.machine.stack.memory_offset(value_offset);
+        let frame = self
+            .machine
+            .allocate_frame(self.fiber, function, 1, return_to)?;
+        let reference = self.fiber.stack.memory_offset(value_offset);
 
         // pass one MemoryMap-relative reference to retained value storage
-        self.machine
+        self.fiber
             .stack
             .write(frame.register_offset, Word::from_bits(reference as u64));
         self.save_position();
-        self.machine.frames.push(frame);
+        self.fiber.frames.push(frame);
         self.activate();
 
         Ok(())
@@ -371,24 +467,21 @@ where
         arguments: RegisterSpan,
         environment: Option<Word>,
     ) -> ExecutionResult<Option<Outcome<Vec<Word>>>, R::Error> {
-        if self
-            .machine
-            .program
-            .function(function)
-            .is_some_and(|function| function.coroutine().is_some())
-        {
-            return Err(self.invalid_instruction().into());
-        }
         let current = self.frame();
         let argument_start = current.range(arguments);
         let callee = Callee::resolve(&self.machine.program, self.machine.bytecode, function)?;
         if let Callee::Binding(binding) = callee {
+            // park points are never emitted in tail position
+            if binding.is_park() {
+                return Err(self.invalid_instruction().into());
+            }
             let result_count = self.binding_result_word_count(function)?;
             Self::call_binding(
                 current,
-                &self.machine.stack,
+                &self.fiber.stack,
                 &mut self.machine.binding_buffer,
                 &mut self.activation,
+                self.fiber.current,
                 binding,
                 environment,
                 arguments,
@@ -398,10 +491,10 @@ where
                 return Err(self.invalid_instruction().into());
             };
             let byte_len = result_count * Word::BYTE_LEN;
-            self.machine.stack.grow(current.byte_offset() + byte_len)?;
+            self.fiber.stack.grow(current.byte_offset() + byte_len)?;
             for index in 0..result_count {
                 let value = self.machine.binding_buffer[index];
-                self.machine
+                self.fiber
                     .stack
                     .write(current.register_offset + index, value);
             }
@@ -428,11 +521,11 @@ where
         let register_offset = current.register_offset;
         let register_byte_offset = register_offset * Word::BYTE_LEN;
         let end = register_byte_offset + register_count as usize * Word::BYTE_LEN;
-        self.machine.stack.grow(end)?;
+        self.fiber.stack.grow(end)?;
 
         // move arguments before replacing bytes that may overlap their source
         let argument_offset = register_offset + environment_word_count;
-        self.machine.stack.move_words(
+        self.fiber.stack.move_words(
             argument_start,
             argument_offset,
             arguments.word_count as usize,
@@ -440,9 +533,9 @@ where
 
         // initialize the hidden environment after moving overlapping arguments
         if let Some(environment) = environment {
-            self.machine.stack.write(register_offset, environment);
+            self.fiber.stack.write(register_offset, environment);
         }
-        self.machine.stack.truncate(end);
+        self.fiber.stack.truncate(end);
 
         // retain only the original caller transition
         let frame = Frame::new(
@@ -461,9 +554,10 @@ where
     /// Call one runtime binding with flattened frame arguments.
     fn call_binding(
         frame: Frame,
-        stack: &Stack,
+        stack: &super::Stack,
         words: &mut Vec<Word>,
         activation: &mut program::Activation<'run, 'run, R>,
+        fiber: program::Fiber,
         binding: &program::Binding,
         environment: Option<Word>,
         arguments: RegisterSpan,
@@ -485,7 +579,14 @@ where
         let memory = activation.memory.reborrow();
         activation
             .runtime
-            .call_binding(memory, *activation.context, binding, arguments, result)
+            .call_binding(
+                memory,
+                *activation.context,
+                fiber,
+                binding,
+                arguments,
+                result,
+            )
             .map_err(ExecutionError::runtime)?;
 
         // retain only returned words in the existing allocation
@@ -508,11 +609,11 @@ where
         &mut self,
         results: RegisterSpan,
     ) -> ExecutionResult<Option<Outcome<Vec<Word>>>, R::Error> {
-        let Some(frame) = self.machine.frames.pop() else {
+        let Some(frame) = self.fiber.frames.pop() else {
             unreachable!("bytecode returns require an active frame");
         };
         let result_start = frame.range(results);
-        if !self.machine.frames.is_empty() {
+        if !self.fiber.frames.is_empty() {
             self.activate();
         }
 
@@ -520,10 +621,10 @@ where
             // publish the root frame outcome
             Return::Exit { completion } => {
                 let values = self
-                    .machine
+                    .fiber
                     .stack
                     .words(result_start, results.word_count as usize);
-                self.machine.stack.truncate(frame.byte_offset());
+                self.fiber.stack.truncate(frame.byte_offset());
                 let outcome = match completion {
                     Completion::Return => Outcome::Completed { value: values },
                     Completion::Cancel => Outcome::Cancelled,
@@ -539,85 +640,34 @@ where
                 if results.word_count != registers.word_count {
                     return Err(self.invalid_instruction().into());
                 }
-                let Some(caller) = self.machine.frames.last().copied() else {
+                let Some(caller) = self.fiber.frames.last().copied() else {
                     unreachable!("called frames require a caller");
                 };
                 let target = caller.range(registers);
-                self.machine
+                self.fiber
                     .stack
                     .copy_words(result_start, target, results.word_count as usize);
                 if let Some(normal) = normal {
                     self.jump(normal);
                 }
-                self.machine.stack.truncate(frame.byte_offset());
+                self.fiber.stack.truncate(frame.byte_offset());
 
                 Ok(None)
             }
 
-            // enter the final-return successor of a continuation drive
-            Return::Continuation {
-                returned_registers,
-                returned,
-                ..
-            } => {
-                if results.word_count != returned_registers.word_count {
+            // settle one detach boundary that completed without parking
+            Return::Detach { saved, context, .. } => {
+                if results.word_count != 0 {
                     return Err(self.invalid_instruction().into());
                 }
-                let Some(caller) = self.machine.frames.last().copied() else {
-                    unreachable!("continued frames require a caller");
-                };
-                let target = caller.range(returned_registers);
-                self.machine
-                    .stack
-                    .copy_words(result_start, target, results.word_count as usize);
-                self.jump(returned);
-                self.machine.stack.truncate(frame.byte_offset());
-
-                Ok(None)
-            }
-
-            // settle the eagerly started task owned by the caller
-            Return::Task { task_register, .. } => {
-                let Some(caller) = self.machine.frames.last().copied() else {
-                    unreachable!("task frames require a caller");
-                };
-                let task = program::Task::from_bits(
-                    self.machine
-                        .stack
-                        .read(caller.register(task_register))
-                        .bits(),
-                );
-                let result_type = self
-                    .machine
-                    .program
-                    .function_result(frame.function)
-                    .ok_or_else(|| self.invalid_instruction())?;
-                let words = self
-                    .machine
-                    .stack
-                    .words(result_start, results.word_count as usize);
-                let value = self
-                    .machine
-                    .program
-                    .value(result_type, words)
-                    .map_err(Error::program)?;
-                let is_cancelled = self
-                    .activation
-                    .runtime
-                    .is_task_cancelled(task)
-                    .map_err(ExecutionError::runtime)?;
-
-                // publish the exact terminal task state
-                let outcome = if is_cancelled {
-                    program::TaskOutcome::Cancelled
-                } else {
-                    program::TaskOutcome::Completed(value)
-                };
+                let retired = self.fiber.current;
+                self.fiber.current = saved;
+                *self.activation.context = context;
                 self.activation
                     .runtime
-                    .finish_task(task, outcome)
+                    .retire(retired)
                     .map_err(ExecutionError::runtime)?;
-                self.machine.stack.truncate(frame.byte_offset());
+                self.fiber.stack.truncate(frame.byte_offset());
 
                 Ok(None)
             }
@@ -631,20 +681,20 @@ where
                     frame.byte_offset()
                 } else {
                     let first_frame = self
-                        .machine
+                        .fiber
                         .frames
                         .len()
                         .checked_sub(frame_count as usize)
                         .ok_or_else(|| self.invalid_instruction())?;
-                    let Some(first) = self.machine.frames.get(first_frame).copied() else {
+                    let Some(first) = self.fiber.frames.get(first_frame).copied() else {
                         return Err(self.invalid_instruction().into());
                     };
-                    self.machine.frames.truncate(first_frame);
+                    self.fiber.frames.truncate(first_frame);
 
                     first.byte_offset()
                 };
-                self.machine.stack.truncate(stack_byte_len);
-                if !self.machine.frames.is_empty() {
+                self.fiber.stack.truncate(stack_byte_len);
+                if !self.fiber.frames.is_empty() {
                     self.activate();
                 }
 
@@ -665,18 +715,19 @@ where
         self.cursor.save_position();
     }
 
-    /// Capture execution at one canonical frame state and release physical frames.
-    pub(crate) fn capture(&mut self, pc: CodeOffset) -> Result<()> {
-        let frame = self.frame();
-        let state = self.machine.frame_state_at(frame, pc)?;
-        self.save_position();
+    /// Retain stopped execution in place with the exact resume position.
+    pub(crate) fn retain_stop(&mut self, pc: CodeOffset) {
+        let Some(frame) = self.fiber.frames.last_mut() else {
+            unreachable!("stops require an active frame");
+        };
 
-        self.machine.capture(state, *self.activation.context)
+        frame.pc = pc;
+        self.fiber.context = *self.activation.context;
     }
 
     /// Derive native execution addresses for the active canonical frame.
     pub(crate) fn activate(&mut self) {
-        let Some(frame) = self.machine.frames.last_mut() else {
+        let Some(frame) = self.fiber.frames.last_mut() else {
             unreachable!("bytecode execution requires an active frame");
         };
         let active = *frame;
@@ -686,18 +737,12 @@ where
 
         // materialize native addresses only for this activation
         let code = unsafe { bytes.as_ptr().add(active.code.byte_offset as usize) };
-        let registers = self.machine.stack.address(active.byte_offset()) as *mut Word;
+        let registers = self.fiber.stack.address(active.byte_offset()) as *mut Word;
 
         // SAFETY: linked frame ranges address Program code and live stack registers
         unsafe {
             self.cursor.set(code, active.pc, registers, frame);
         }
-    }
-
-    /// Advance the active canonical frame and native cursor.
-    #[inline(always)]
-    pub(crate) fn advance(&mut self, byte_len: usize) {
-        self.cursor.advance(byte_len);
     }
 
     /// Branch from the current instruction successor.
@@ -774,13 +819,13 @@ where
     /// Attach the active program location and call stack to one failure.
     pub(crate) fn locate(&self, error: Error) -> Error {
         let program = &self.machine.program;
-        let Some(last) = self.machine.frames.len().checked_sub(1) else {
+        let Some(last) = self.fiber.frames.len().checked_sub(1) else {
             unreachable!("located execution failures require an active frame");
         };
 
         // capture each active bytecode location from entry to failure
         let stack = self
-            .machine
+            .fiber
             .frames
             .iter()
             .copied()
@@ -802,7 +847,7 @@ where
 
         // attach the engine-neutral point when the operation has one
         let anchor = self
-            .machine
+            .fiber
             .frames
             .last()
             .copied()
@@ -815,12 +860,5 @@ where
     /// Return one end-relative branch target in the caller function.
     fn branch_offset(frame: Frame, displacement: i32) -> CodeOffset {
         frame.branch_offset(displacement)
-    }
-}
-
-impl<R: Runtime + ?Sized> Drop for Activation<'_, '_, R> {
-    /// Release physical state after completed or failed execution.
-    fn drop(&mut self) {
-        self.machine.clear_physical();
     }
 }

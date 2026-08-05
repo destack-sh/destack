@@ -24,6 +24,13 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let opcode = instruction.opcode();
         let mut operands = self.operands(instruction);
 
+        // enter detach boundaries on a fresh logical fiber
+        if opcode == Opcode::CALL_DETACH {
+            let thunk = operands.span()?;
+
+            return self.detach(pc, thunk);
+        }
+
         // replace the current frame directly for tail calls
         if Self::is_tail_call(opcode) {
             let callee = self.callee(opcode, &mut operands)?;
@@ -57,9 +64,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             },
             normal,
             unwind,
-        )?;
-
-        Ok(None)
+        )
     }
 
     /// Return one value range from the active frame.

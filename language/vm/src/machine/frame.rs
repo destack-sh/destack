@@ -1,5 +1,6 @@
 use destack_bytecode::{CodeOffset, CodeRange, RegisterSpan};
-use destack_program::{Completion, FrameReturn, FrameStateId, FunctionId, Word};
+use destack_program as program;
+use destack_program::{Completion, Context, FrameStateId, FunctionId, Word};
 use serde::{Deserialize, Serialize};
 
 /// One active bytecode call frame.
@@ -38,30 +39,6 @@ pub(crate) enum Return {
         /// Caller bytecode offset entered during panic unwinding.
         unwind: Option<CodeOffset>,
     },
-    /// Return from one continuation control transfer.
-    Continuation {
-        /// Caller program counter that drove the continuation.
-        pc: CodeOffset,
-        /// Caller registers receiving one yielded value.
-        yielded_registers: RegisterSpan,
-        /// Caller register receiving the replacement continuation.
-        continuation_register: u16,
-        /// Caller registers receiving the final return value.
-        returned_registers: RegisterSpan,
-        /// Caller bytecode offset entered when the continuation yields.
-        yielded: CodeOffset,
-        /// Caller bytecode offset entered when the continuation returns.
-        returned: CodeOffset,
-        /// Caller bytecode offset entered during panic unwinding.
-        unwind: Option<CodeOffset>,
-    },
-    /// Return from the initial eager execution of one task.
-    Task {
-        /// Caller program counter that started the task.
-        pc: CodeOffset,
-        /// Caller register containing the runtime task identity.
-        task_register: u16,
-    },
     /// Resume the caller after one destructor completes.
     Drop {
         /// Caller program counter that entered the destructor.
@@ -71,6 +48,15 @@ pub(crate) enum Return {
         /// Retained caller frames released after this destructor returns.
         frame_count: u16,
     },
+    /// Resume the caller of one detach boundary when its thunk settles or splits.
+    Detach {
+        /// Caller program counter that entered the boundary.
+        pc: CodeOffset,
+        /// Logical fiber restored on the caller.
+        saved: program::Fiber,
+        /// Execution context restored on the caller after a split.
+        context: Context,
+    },
 }
 
 impl Return {
@@ -78,10 +64,7 @@ impl Return {
     pub(crate) const fn pc(self) -> Option<CodeOffset> {
         match self {
             Self::Exit { .. } => None,
-            Self::Call { pc, .. }
-            | Self::Continuation { pc, .. }
-            | Self::Task { pc, .. }
-            | Self::Drop { pc, .. } => Some(pc),
+            Self::Call { pc, .. } | Self::Drop { pc, .. } | Self::Detach { pc, .. } => Some(pc),
         }
     }
 
@@ -90,17 +73,6 @@ impl Return {
         match self {
             Self::Drop { caller_state, .. } => Some(caller_state),
             _ => None,
-        }
-    }
-
-    /// Return the canonical child-to-parent transition.
-    pub(crate) const fn frame_return(self) -> FrameReturn {
-        match self {
-            Self::Exit { .. } => FrameReturn::Root,
-            Self::Call { .. } => FrameReturn::Call,
-            Self::Continuation { .. } => FrameReturn::Continuation,
-            Self::Task { .. } => FrameReturn::Task,
-            Self::Drop { frame_count, .. } => FrameReturn::Drop { frame_count },
         }
     }
 }

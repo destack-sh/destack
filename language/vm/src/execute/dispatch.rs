@@ -191,14 +191,6 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                         let displacement = self.execute_switch(instruction)?;
                         position.branch(displacement);
                     }
-                    Opcode::AWAIT | Opcode::YIELD => {
-                        self.cursor.set_position(position);
-                        let outcome = self.execute_suspension(operation_pc, instruction)?;
-                        if let Some(outcome) = outcome {
-                            return Ok(outcome);
-                        }
-                        position = self.cursor.position();
-                    }
                     Opcode::CHECK_NULLISH | Opcode::CHECK_EXACT_TYPE | Opcode::CHECK_SUBTYPE => {
                         if let Some(displacement) = self.execute_runtime_check(instruction)? {
                             position.branch(displacement);
@@ -217,28 +209,6 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     | Opcode::CONTEXT_BIND
                     | Opcode::CONTEXT_GET => self.execute_context::<PROFILE>(instruction)?,
 
-                    // continuations, waiters, and tasks
-                    Opcode::CONTINUATION_NEW
-                    | Opcode::CONTINUATION_DESTROY
-                    | Opcode::CONTINUATION_RESUME
-                    | Opcode::CONTINUATION_COMPLETE => {
-                        self.cursor.set_position(position);
-                        self.execute_continuation(operation_pc, instruction)?;
-                        position = self.cursor.position();
-                    }
-                    Opcode::WAITER_QUEUE | Opcode::WAITER_CANCEL => {
-                        self.execute_waiter(instruction)?
-                    }
-                    Opcode::TASK_RESOLVE
-                    | Opcode::TASK_PARK
-                    | Opcode::TASK_CANCEL
-                    | Opcode::TASK_DETACH => self.execute_task(operation_pc, instruction)?,
-                    Opcode::TASK_START => {
-                        self.cursor.set_position(position);
-                        self.execute_task(operation_pc, instruction)?;
-                        position = self.cursor.position();
-                    }
-
                     // dynamic values and calls
                     Opcode::DYNAMIC_BIND | Opcode::DYNAMIC_TYPE => {
                         self.execute_dynamic(instruction)?
@@ -254,7 +224,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     | Opcode::TAIL_CALL
                     | Opcode::TAIL_CALL_INDIRECT
                     | Opcode::TAIL_CALL_VIRTUAL
-                    | Opcode::TAIL_CALL_DYNAMIC => {
+                    | Opcode::TAIL_CALL_DYNAMIC
+                    | Opcode::CALL_DETACH => {
                         self.cursor.set_position(position);
                         if let Some(outcome) = self.execute_call(operation_pc, instruction)? {
                             return Ok(outcome);
@@ -288,16 +259,15 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     }
                     Opcode::POLL => {
                         if self.activation.runtime.is_poll_requested() {
-                            let frame = self.frame();
-                            let state = self.machine.frame_state_at(frame, position.pc())?;
                             self.cursor.set_position(position);
                             self.save_position();
 
-                            match self.poll(state)? {
+                            match self.poll()? {
                                 Poll::Continue | Poll::Deoptimize => {}
                                 Poll::Pause => {
+                                    let frame = self.frame();
                                     let point = self.point(frame, operation_pc)?;
-                                    self.machine.capture(state, *self.activation.context)?;
+                                    self.fiber.context = *self.activation.context;
 
                                     return Ok(Outcome::Stopped {
                                         reason: StopReason::Pause { point },

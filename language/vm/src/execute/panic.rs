@@ -1,5 +1,5 @@
 use destack_bytecode::{Instruction, Opcode};
-use destack_program::{Runtime, Task, TaskOutcome, TypeId};
+use destack_program::{Runtime, TypeId};
 
 use crate::diagnostic::{Error, ExecutionError, ExecutionResult, Panic, Trap};
 use crate::machine::{Activation, Return};
@@ -20,7 +20,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                 let ty = TypeId(operands.u32()?);
                 let range = operands.span()?;
                 let start = self.frame().range(range);
-                let words = self.machine.stack.words(start, range.word_count as usize);
+                let words = self.fiber.stack.words(start, range.word_count as usize);
 
                 Panic::new(ty, words)
             }
@@ -44,13 +44,13 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Unwind frames until cleanup or the host boundary is reached.
     fn unwind(&mut self) -> ExecutionResult<(), R::Error> {
         loop {
-            let Some(frame) = self.machine.frames.pop() else {
+            let Some(frame) = self.fiber.frames.pop() else {
                 unreachable!("panic unwinding requires an active frame");
             };
-            self.machine.stack.truncate(frame.byte_offset());
+            self.fiber.stack.truncate(frame.byte_offset());
 
             // report the panic after the entry frame leaves the machine
-            let Some(_caller) = self.machine.frames.last().copied() else {
+            let Some(_caller) = self.fiber.frames.last().copied() else {
                 let Some(error) = self.panic.take() else {
                     unreachable!("panic unwinding requires a retained payload");
                 };
@@ -59,19 +59,22 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             };
             self.activate();
 
-            // settle task state before unwinding through its eager caller
-            if let Return::Task { task_register, .. } = frame.return_to {
-                let task = Task::from_bits(self.read(task_register).bits());
-                self.activation
-                    .runtime
-                    .finish_task(task, TaskOutcome::Cancelled)
-                    .map_err(ExecutionError::runtime)?;
-            }
-
             // enter the nearest explicit unwind cleanup
             let unwind = match frame.return_to {
-                Return::Call { unwind, .. } | Return::Continuation { unwind, .. } => unwind,
-                Return::Exit { .. } | Return::Task { .. } | Return::Drop { .. } => None,
+                Return::Call { unwind, .. } => unwind,
+                Return::Exit { .. } | Return::Drop { .. } => None,
+                // lowered thunks catch their own panics before the boundary
+                Return::Detach { saved, context, .. } => {
+                    let retired = self.fiber.current;
+                    self.fiber.current = saved;
+                    *self.activation.context = context;
+                    self.activation
+                        .runtime
+                        .retire(retired)
+                        .map_err(ExecutionError::runtime)?;
+
+                    None
+                }
             };
             if let Some(unwind) = unwind {
                 self.jump(unwind);
