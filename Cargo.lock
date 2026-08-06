@@ -1318,6 +1318,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_rpc"
+version = "0.55.4"
+dependencies = [
+ "base64",
+ "crossbeam-channel",
+ "destack_core",
+ "destack_rpc_macros",
+ "destack_serde",
+ "futures",
+ "httparse",
+ "interprocess",
+ "parking_lot",
+ "serde",
+ "sha1",
+]
+
+[[package]]
+name = "destack_rpc_macros"
+version = "0.55.4"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "destack_runtime"
 version = "0.55.4"
 dependencies = [

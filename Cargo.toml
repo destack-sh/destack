@@ -40,6 +40,8 @@ members = [
 	"language/parser",
 	"language/pattern",
 	"language/query",
+	"language/rpc",
+	"language/rpc/macros",
 	"language/runtime",
 	"language/session",
 	"language/lsp",
@@ -93,6 +95,8 @@ destack_mir = { path = "language/mir" }
 destack_parser = { path = "language/parser" }
 destack_pattern = { path = "language/pattern" }
 destack_query = { path = "language/query" }
+destack_rpc = { path = "language/rpc" }
+destack_rpc_macros = { path = "language/rpc/macros" }
 destack_runtime = { path = "language/runtime" }
 destack_session = { path = "language/session", default-features = false }
 destack_serde = { path = "language/serde" }

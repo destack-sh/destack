@@ -1,0 +1,33 @@
+[package]
+name = "destack_rpc"
+description = "Destack RPC"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+# language
+destack_core = { workspace = true }
+destack_rpc_macros = { workspace = true }
+destack_serde = { workspace = true }
+
+# general
+crossbeam-channel = { workspace = true }
+futures = { workspace = true, features = ["async-await", "std"] }
+parking_lot = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+base64 = { workspace = true }
+httparse = { workspace = true }
+interprocess = { workspace = true }
+sha1 = { workspace = true }
+
+[lints]
+workspace = true
