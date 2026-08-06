@@ -16,7 +16,7 @@ declare_lint_stub! {
 }
 
 /// Check no-duplicate-code.
-fn check(_program: &DirProgram, lint: &Lint) -> LintResult {
+fn check(_program: &DirProgram<'_>, lint: &Lint) -> LintResult {
     Err(ProviderError::internal(format!(
         "lint {} is not implemented",
         lint.id

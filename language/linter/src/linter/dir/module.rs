@@ -14,7 +14,7 @@ use super::Dir;
 #[derive(Debug, Clone, Copy)]
 pub struct DirModule<'a> {
     /// The indexed checked DIR.
-    pub dir: &'a Dir,
+    pub dir: &'a Dir<'a>,
     /// The module id.
     pub id: ModuleId,
     /// The contributing source files in parsed order.
@@ -104,7 +104,7 @@ pub(super) struct DirModuleStorage {
 
 impl<'a> DirModule<'a> {
     /// Create a borrowed checked DIR module.
-    pub(super) fn new(dir: &'a Dir, storage: &'a DirModuleStorage) -> Self {
+    pub(super) fn new(dir: &'a Dir<'a>, storage: &'a DirModuleStorage) -> Self {
         Self {
             dir,
             id: storage.id,

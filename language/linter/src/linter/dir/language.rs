@@ -3,53 +3,55 @@ use destack_repository::ProviderError;
 
 use super::{Dir, DirModule};
 
-impl Dir {
+impl Dir<'_> {
     /// Return the canonical language member declared by one symbol.
     pub fn language_member(
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Result<Option<dir::LanguageMember>, ProviderError> {
-        let module = self.module(symbol.module_id)?;
-        let declaration = module
-            .bindings
-            .get_symbol_maybe(symbol.local_id)
-            .ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "selected member symbol {symbol:?} is absent from its binding table"
-                ))
-            })?;
-        let Some(key) = declaration.key else {
-            return Ok(None);
-        };
+        self.read_module(symbol.module_id, |module| {
+            // read the selected member declaration
+            let declaration = module
+                .bindings
+                .get_symbol_maybe(symbol.local_id)
+                .ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "selected member symbol {symbol:?} is absent from its binding table"
+                    ))
+                })?;
+            let Some(key) = declaration.key else {
+                return Ok(None);
+            };
 
-        // select the declaration that owns the member symbol
-        let owner = module
-            .bindings
-            .symbol_owner(symbol.local_id)
-            .ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "selected member symbol {symbol:?} has no owning declaration"
-                ))
-            })?;
-        let owner = owner.into_global(symbol.module_id);
+            // select the declaration that owns the member symbol
+            let owner = module
+                .bindings
+                .symbol_owner(symbol.local_id)
+                .ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "selected member symbol {symbol:?} has no owning declaration"
+                    ))
+                })?;
+            let owner = owner.into_global(symbol.module_id);
 
-        // resolve inherent extension members to their receiver declaration
-        let owner = match module.definitions.extension_definition(owner) {
-            Some(extension) if extension.is_inherent() => {
-                let Some(target) = extension.target.root() else {
-                    return Ok(None);
-                };
+            // resolve inherent extension members to their receiver declaration
+            let owner = match module.definitions.extension_definition(owner) {
+                Some(extension) if extension.is_inherent() => {
+                    let Some(target) = extension.target.root() else {
+                        return Ok(None);
+                    };
 
-                target
-            }
-            Some(_) => return Ok(None),
-            None => owner,
-        };
-        let Some(owner) = self.environment.language.item(owner) else {
-            return Ok(None);
-        };
+                    target
+                }
+                Some(_) => return Ok(None),
+                None => owner,
+            };
+            let Some(owner) = self.environment.language.item(owner) else {
+                return Ok(None);
+            };
 
-        Ok(Some(dir::LanguageMember { owner, key }))
+            Ok(Some(dir::LanguageMember { owner, key }))
+        })
     }
 }
 

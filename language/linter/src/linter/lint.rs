@@ -117,7 +117,7 @@ impl LintOutput {
 pub type DirModuleCheck = for<'a> fn(&DirModule<'a>, &Lint) -> LintResult;
 
 /// One checked DIR program lint function.
-pub type DirProgramCheck = fn(&DirProgram, &Lint) -> LintResult;
+pub type DirProgramCheck = for<'a> fn(&DirProgram<'a>, &Lint) -> LintResult;
 
 /// One verified MIR module lint function.
 pub type MirModuleCheck = fn(&mut MirModule, &Lint) -> LintResult;

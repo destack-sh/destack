@@ -11,10 +11,9 @@ impl DirModule<'_> {
     ) -> Result<Option<dir::ScalarLiteral>, ProviderError> {
         // select one symbol-backed constant expression
         if let Some(symbol) = self.symbol(node)? {
-            let module = self.dir.module_storage(symbol.module_id)?;
-            if let Some(static_id) = module.statics.get_symbol_static_id(symbol) {
-                let value = match self.dir.get_static(static_id)? {
-                    dir::StaticTerm::ScalarLiteral { value } => Some(*value),
+            if let Some(value) = self.dir.symbol_static(symbol)? {
+                let value = match value {
+                    dir::StaticTerm::ScalarLiteral { value } => Some(value),
                     _ => None,
                 };
                 if value.is_some() {

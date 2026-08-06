@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey,
-    DiagnosticControlIndex, ModuleLinted,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, DiagnosticControlIndex, ModuleLinted,
 };
 use destack_repository::{ProfileId, ProviderContext, ProviderError};
 use destack_source::{ModuleId, TargetId};
@@ -38,37 +37,8 @@ impl Linter {
 
         // require this module's checked DIR
         if lints.has_dir_modules() {
-            let Some(environment) =
-                self.collect_environment_bound(context, profile, &mut dependencies)?
-            else {
-                return Ok(dependencies);
-            };
-
-            // read the root edges before walking the reachable graph
-            let graph_key = ArtifactKey::module_graph(profile);
-            dependencies.require_projection(graph_key, ArtifactProjectionKey::ModuleEdges(module));
-            let mut roots = environment.globals.clone();
-            roots.push(module);
-            roots.sort_unstable();
-            roots.dedup();
-            let artifacts = self.artifact_reader(context);
-            let graph = match artifacts.module_graph_reader(profile) {
-                Ok(graph) => graph,
-                Err(ProviderError::Blocked { .. }) => {
-                    dependencies.mark_partial();
-
-                    return Ok(dependencies);
-                }
-                Err(error) => return Err(error),
-            };
-
-            // project the reachable checked DIR modules
-            let modules = graph.reachable(&roots)?;
-            for module in modules.iter().copied() {
-                dependencies
-                    .require_projection(graph_key, ArtifactProjectionKey::ModuleEdges(module));
-            }
-            self.require_dir_modules(revision, &modules, profile, &mut dependencies)?;
+            dependencies.require(ArtifactKey::environment_bound(profile));
+            self.require_dir_modules(revision, &[module], profile, &mut dependencies)?;
         }
 
         // require this module's verified MIR
@@ -128,27 +98,17 @@ impl Linter {
             return Ok(());
         }
 
-        // collect the module and global roots
+        // load this module's checked DIR
         let revision = context.revision();
         let artifacts = self.artifact_reader(context);
         let environment = artifacts.environment_bound(profile)?;
-        let graph = artifacts.module_graph_reader(profile)?;
-        let mut roots = environment.globals.clone();
-        roots.push(module);
-        roots.sort_unstable();
-        roots.dedup();
-
-        // collect the reachable checked DIR modules
-        let modules = graph.reachable(&roots)?;
-
-        // load the reachable checked DIR modules
         let dir = Dir::load(
             self.repository.as_ref(),
             revision,
             &artifacts,
             profile,
             environment,
-            &modules,
+            &[module],
         )?;
         let module = dir.module(module)?;
         let strings = &dir.strings;
