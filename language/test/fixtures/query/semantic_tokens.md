@@ -456,6 +456,29 @@ interface Callable {
 @semantic_tokens.token range=main.ds#named type=method modifiers=declaration,abstract
 ```
 
+### Classify receiver parameters
+
+Receiver modifiers remain lexical tokens while `this` is the declared parameter.
+
+```ds main.ds
+interface Borrow<T> {
+          ^^^^^^ interface
+                 ^ generic
+    borrow(&readonly this): &readonly T;
+    ^^^^^^ method
+                     ^^^^ receiver
+                                      ^ result
+}
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#interface type=interface modifiers=declaration
+@semantic_tokens.token range=main.ds#generic type=type_parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#method type=method modifiers=declaration,abstract
+@semantic_tokens.token range=main.ds#receiver type=parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#result type=type_parameter
+```
+
 ### Classify every nominal declaration kind
 
 Type aliases, newtypes, nominal interfaces, and extensions use distinct roles.
