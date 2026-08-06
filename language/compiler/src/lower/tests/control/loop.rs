@@ -167,7 +167,7 @@ b4:
 }
 
 #[test]
-fn test_lower_do_while_runs_body_before_condition() {
+fn test_run_a_do_while_body_before_its_condition() {
     let session = TestSession::single(
         r#"
 function drain(n: int64): int64 {
@@ -263,7 +263,7 @@ b4:
 }
 
 #[test]
-fn test_lower_labeled_break_exits_outer_loop() {
+fn test_exit_an_outer_loop_through_a_labeled_break() {
     let session = TestSession::single(
         r#"
 function find(limit: int32): int32 {

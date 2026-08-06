@@ -16,8 +16,8 @@ impl ModuleLowerer<'_> {
         &mut self,
         builder: &mut mir::ModuleBuilder,
     ) -> CompilerResult<(Vec<FunctionDefinition>, Vec<Box<dyn DiagnosticLike>>)> {
-        let mut errors = Vec::new();
         // lower every concrete nominal declaration owned by this module
+        let mut errors = Vec::new();
         self.lower_nominal_declarations(builder)?;
 
         // declare every callable header so bodies can call in any order
@@ -62,12 +62,12 @@ impl ModuleLowerer<'_> {
         }
 
         // declare every concrete generic instance reachable from a body
-        let (instances, references) =
+        let (instances, reachable) =
             self.declare_reachable_instances(builder, &bodies, &mut errors)?;
         bodies.extend(instances);
 
         // declare an import for every foreign callable the bodies call
-        for symbol in references.imports {
+        for symbol in reachable.imports {
             match self.declare_imported_function(builder, symbol) {
                 Ok(()) => {}
                 Err(CompilerError::Diagnostic(diagnostic)) => {
@@ -78,7 +78,7 @@ impl ModuleLowerer<'_> {
         }
 
         // declare a dotted host extern for every binding the bodies call
-        for symbol in references.bindings {
+        for symbol in reachable.bindings {
             match self.declare_binding_function(builder, symbol) {
                 Ok(()) => {}
                 Err(CompilerError::Diagnostic(diagnostic)) => {
@@ -89,7 +89,7 @@ impl ModuleLowerer<'_> {
         }
 
         // declare an imported global for every foreign constant the bodies read
-        for symbol in references.constants {
+        for symbol in reachable.constants {
             match self.declare_imported_constant(builder, symbol) {
                 Ok(()) => {}
                 // keep the diagnostic for the first body that reads the constant
@@ -100,11 +100,28 @@ impl ModuleLowerer<'_> {
             }
         }
 
-        // declare the dispatch entries behind every collected erasure
-        for (source, target) in references.erasures {
+        // declare the dispatch entries behind every collected implementer
+        for (source, target) in reachable.implementers {
             match self.declare_implementer(builder, source, target) {
                 Ok(()) => {}
                 Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
+                Err(error) => return Err(error),
+            }
+        }
+
+        // declare the immortal String and BigInt objects behind every collected literal
+        self.declare_string_literals(builder, reachable.strings)?;
+        self.declare_bigint_literals(builder, reachable.bigints)?;
+
+        // declare every closure the bodies bind, queueing each for lowering
+        for (declaration, body) in reachable.closures {
+            match self.declare_function(builder, declaration, body) {
+                Ok(closure) => bodies.push(closure),
+                Err(CompilerError::Diagnostic(diagnostic)) => {
+                    let node = declaration.into_global_any(self.module);
+                    let symbol = self.symbol_declared_at(node)?;
+                    self.bank_failed_callable(symbol, diagnostic, &mut errors);
+                }
                 Err(error) => return Err(error),
             }
         }
@@ -120,7 +137,6 @@ impl ModuleLowerer<'_> {
         bodies: &mut Vec<FunctionDefinition>,
         errors: &mut Vec<Box<dyn DiagnosticLike>>,
     ) -> CompilerResult<()> {
-        // classify the declaration in one narrow tree borrow
         // read the declared body or member list in one narrow tree borrow
         let (body, members) = match self.local().tree().get(declaration) {
             // function f() { ... }, skipping ambient signatures
@@ -197,8 +213,16 @@ impl ModuleLowerer<'_> {
         let node = declaration.into_global_any(self.module);
         let owner_symbol = self.symbol_declared_at(node)?;
 
+        // generic owners declare their members per concrete instance in declare_reachable_instances
+        if let Some(owner) = owner_symbol
+            && self.owner_has_instance_parameters(owner)?
+        {
+            return Ok(());
+        }
+
+        // declare each member of the concrete owner, accumulating unsupported
+        //  diagnostics and aborting on internal failures
         for member in members {
-            // accumulate unsupported diagnostics; abort on internal failures
             match self.declare_member(builder, owner_symbol, *member, bodies) {
                 Ok(()) => {}
                 Err(CompilerError::Diagnostic(diagnostic)) => {
@@ -261,6 +285,7 @@ impl ModuleLowerer<'_> {
             return Ok(());
         };
 
+        // reject the roles without a runtime callable
         match role {
             // accept methods, constructors and accessors
             None
@@ -278,13 +303,15 @@ impl ModuleLowerer<'_> {
             }
         }
 
+        // members always declare inside a named owner
         let Some(owner_symbol) = owner_symbol else {
             return Err(CompilerError::Internal {
                 message: "missing a symbol for one member owner".to_string(),
             });
         };
 
-        // defer members of parameterized owners to their concrete instances
+        // parameterized owners declare their members per concrete instance in
+        //  declare_reachable_instances
         let is_parameterized = match self.definition(owner_symbol)? {
             Some(definition) => {
                 self.definition_is_parameterized(owner_symbol.module_id, definition)?
@@ -303,7 +330,7 @@ impl ModuleLowerer<'_> {
             });
         };
 
-        // defer generic members to their concrete instances
+        // generic members declare per concrete instance in declare_reachable_instances
         if self.signature_has_instance_parameters(self.symbol_type(symbol)?)? {
             return Ok(());
         }

@@ -66,7 +66,7 @@ b3:
 }
 
 #[test]
-fn test_lower_ternary_joins_arm_values() {
+fn test_join_the_arm_values_of_a_ternary() {
     let session = TestSession::single(
         r#"
 function clamp(value: float32, limit: float32): float32 {

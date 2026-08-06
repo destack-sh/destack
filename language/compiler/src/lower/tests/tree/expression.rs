@@ -69,8 +69,8 @@ entry(v0: (Badge)):
 /// @layout.field owner=Panel index=0 name=width offset=0 size=4 align=4
 /// @layout.struct name=Badge size=4 align=4
 /// @layout.field owner=Badge index=0 name=label offset=0 size=4 align=4
-/// @layout.tuple name=type@10 size=4 align=4
-/// @layout.element owner=type@10 index=0 offset=0 size=4 align=4
+/// @layout.tuple name=type@8 size=4 align=4
+/// @layout.element owner=type@8 index=0 offset=0 size=4 align=4
 "#,
     );
 }

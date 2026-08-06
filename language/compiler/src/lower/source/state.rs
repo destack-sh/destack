@@ -31,6 +31,8 @@ pub(crate) struct LowerModuleState {
     pub(in crate::lower) generics: dir::GenericTable<'static>,
     /// The decorator table.
     pub(in crate::lower) decorators: dir::DecoratorTable<'static>,
+    /// The capture table.
+    pub(in crate::lower) captures: dir::CaptureTable<'static>,
     /// The canonical symbol path of the module.
     pub(in crate::lower) path: String,
 }
@@ -56,6 +58,7 @@ impl LowerModuleState {
             statics: materialized.static_table(bound, expanded, declared, checked),
             generics: materialized.generic_table(declared, checked),
             decorators: checked.decorator_table(declared),
+            captures: materialized.capture_table(checked),
             path,
             parsed,
         }

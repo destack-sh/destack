@@ -202,8 +202,13 @@ impl FunctionLowerer<'_, '_, '_> {
         // apply the selected receiver adjustments
         let receiver = self.lower_adjusted_receiver(receiver, adjusted)?;
 
-        // resolve the declared function behind the method symbol
-        let function = self.function(&GenericInstanceKey::non_generic(function.symbol))?;
+        // resolve the declared function behind the selected method instance
+        let bindings = self
+            .lowerer
+            .instance_bindings(&function.generic_arguments, &self.type_substitution)?;
+        let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
+        let key = self.generic_instance_key(function.symbol, &arguments)?;
+        let function = self.function(&key)?;
 
         // bind the arguments after the receiver
         let mut values = vec![receiver];

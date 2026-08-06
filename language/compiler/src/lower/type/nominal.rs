@@ -56,11 +56,14 @@ impl NominalState {
 }
 
 /// One lowered nominal instance field.
+#[derive(Clone)]
 pub(in crate::lower) struct NominalField {
     /// The field key.
     pub(in crate::lower) key: dir::StaticKey,
     /// The field symbol.
     pub(in crate::lower) symbol: dir::LocalSymbolId,
+    /// Whether absence stores as undefined.
+    pub(in crate::lower) is_optional: bool,
 }
 
 /// The identity and types of one lowered nominal instance.
@@ -139,9 +142,9 @@ impl TypeLowerer<'_, '_> {
     ) -> CompilerResult<Vec<NominalField>> {
         let value = self.lowerer.reduced_type(definition.value)?;
 
-        // define declared object rows in place at the alias identity
+        // define declared object types in place at the alias identity
         if let dir::Type::Object(shape) = self.lowerer.ty(value)? {
-            self.define_object_row(&shape, value.module_id, ty)?;
+            self.define_object_struct(&shape, value.module_id, ty)?;
 
             return Ok(Vec::new());
         }
@@ -163,7 +166,7 @@ impl TypeLowerer<'_, '_> {
         let arguments = self.nominal_arguments(symbol, arguments)?;
 
         // reuse the reserved or completed value carrier
-        if let Some(nominal) = self.lowerer.nominals.get(&arguments.key) {
+        if let Some(nominal) = self.lowerer.nominal_states.get(&arguments.key) {
             let storage = nominal.storage();
             let value = nominal.value();
 
@@ -187,9 +190,9 @@ impl TypeLowerer<'_, '_> {
         let ty = self.tree.reserve_type(instance);
         let value = match &definition {
             dir::Definition::Class(_) => self.insert_managed_reference(ty),
-            // declared object rows ride managed references like classes
+            // declared object types ride managed references like classes
             dir::Definition::TypeAlias(_)
-                if self.lowerer.alias_form(symbol)? == Some(AliasForm::Row) =>
+                if self.lowerer.alias_form(symbol)? == Some(AliasForm::Object) =>
             {
                 self.insert_managed_reference(ty)
             }
@@ -214,7 +217,7 @@ impl TypeLowerer<'_, '_> {
                 .into());
             }
         };
-        self.lowerer.nominals.insert(
+        self.lowerer.nominal_states.insert(
             arguments.key.clone(),
             NominalState::Declared { storage: ty, value },
         );
@@ -246,7 +249,7 @@ impl TypeLowerer<'_, '_> {
         let fields = match fields {
             Ok(fields) => fields,
             Err(error) => {
-                self.lowerer.nominals.shift_remove(&arguments.key);
+                self.lowerer.nominal_states.shift_remove(&arguments.key);
 
                 return Err(error);
             }
@@ -257,7 +260,7 @@ impl TypeLowerer<'_, '_> {
             fields,
         };
         self.lowerer
-            .nominals
+            .nominal_states
             .insert(arguments.key.clone(), NominalState::Lowered(nominal));
 
         // declare the nominal under its canonical instance name
@@ -321,26 +324,42 @@ impl TypeLowerer<'_, '_> {
             .map(|parameter| {
                 let binding = generics.get_parameter(*parameter);
 
-                (binding.kind, binding.is_induced_lifetime_parameter())
+                (
+                    parameter.into_global(symbol.module_id),
+                    binding.kind,
+                    binding.is_induced_lifetime_parameter(),
+                )
             })
             .collect();
         let written = parameters
             .iter()
-            .filter(|(_, is_induced)| !is_induced)
+            .filter(|(_, _, is_induced)| !is_induced)
             .count();
         let value_parameters = parameters
             .iter()
-            .filter(|(kind, _)| {
+            .filter(|(_, kind, _)| {
                 *kind != dir::GenericParameterKind::Memory(dir::MemoryParameter::Lifetime)
             })
             .count();
+        let bound_parameters = parameters
+            .iter()
+            .filter(|(parameter, kind, _)| {
+                *kind == dir::GenericParameterKind::Type
+                    && self.type_substitution.binding(*parameter).is_some()
+            })
+            .count();
 
-        // accept three spellings: every parameter, every written parameter
-        //  with induced lifetimes elided, or every value parameter with all
-        //  lifetimes elided — lifetimes erase at runtime either way
+        // accept four argument lists: the full list, the written list with
+        //  induced lifetimes elided, the value list with all lifetimes elided,
+        //  and an empty list inside a receiver context whose parameters the
+        //  substitution binds, since lifetimes erase at runtime anyway
         let is_complete = arguments.len() == parameters.len();
         let elide_lifetimes = !is_complete && arguments.len() == value_parameters;
-        if !is_complete && !elide_lifetimes && arguments.len() != written {
+        let is_substituted = !is_complete
+            && !elide_lifetimes
+            && arguments.is_empty()
+            && bound_parameters == value_parameters;
+        if !is_complete && !elide_lifetimes && !is_substituted && arguments.len() != written {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "a partially applied nominal argument list".to_string(),
@@ -348,16 +367,34 @@ impl TypeLowerer<'_, '_> {
             .into());
         }
 
+        // pair every parameter with its argument, erasing elided lifetimes
         let mut type_arguments = Vec::new();
         let mut concrete_types = Vec::new();
         let mut lifetimes = Vec::new();
         let mut supplied = arguments.iter();
-        for (kind, is_induced) in parameters {
+        for (parameter, kind, is_induced) in parameters {
             // erase lifetimes absent from the argument list
             let is_lifetime =
                 kind == dir::GenericParameterKind::Memory(dir::MemoryParameter::Lifetime);
-            if !is_complete && ((is_lifetime && elide_lifetimes) || is_induced) {
+            if !is_complete
+                && ((is_lifetime && elide_lifetimes)
+                    || is_induced
+                    || (is_substituted && is_lifetime))
+            {
                 lifetimes.push(mir::Lifetime::default());
+
+                continue;
+            }
+
+            // fill elided receiver-context parameters through the substitution
+            if is_substituted && kind == dir::GenericParameterKind::Type {
+                let Some(argument) = self.type_substitution.binding(parameter) else {
+                    return Err(CompilerError::Internal {
+                        message: "an unbound substituted nominal parameter".to_string(),
+                    });
+                };
+                type_arguments.push(argument);
+                concrete_types.push(self.type_substitution.resolve(self.lowerer, argument)?);
 
                 continue;
             }
@@ -424,6 +461,7 @@ impl TypeLowerer<'_, '_> {
             };
         }
 
+        // apply the instance lifetimes over the reserved representation
         let applied_storage = self.tree.intern_type(mir::Type::Application {
             base: storage,
             lifetimes: lifetimes.to_vec(),
@@ -462,6 +500,7 @@ impl ModuleLowerer<'_> {
             fields.push(NominalField {
                 key: field.key,
                 symbol: field.symbol.local_id,
+                is_optional: field.is_optional,
             });
         }
 
@@ -498,7 +537,11 @@ impl ModuleLowerer<'_> {
         &self,
         key: &GenericInstanceKey,
     ) -> CompilerResult<&NominalRepresentation> {
-        let Some(nominal) = self.nominals.get(key).and_then(NominalState::as_lowered) else {
+        let Some(nominal) = self
+            .nominal_states
+            .get(key)
+            .and_then(NominalState::as_lowered)
+        else {
             return Err(CompilerError::Internal {
                 message: "nominal lowering has not completed the declaration".to_string(),
             });

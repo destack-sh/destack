@@ -55,13 +55,8 @@ impl ModuleLowerer<'_> {
             });
         }
 
-        // declare the header under the function's name
-        let Some(name) = self.symbol_name(symbol)? else {
-            return Err(CompilerError::Internal {
-                message: "missing a name on one lowered function declaration".to_string(),
-            });
-        };
-        let name = format!("{}.{}", self.local().path, self.strings.get(name));
+        // declare the header under the function's lexical path
+        let name = self.symbol_path(symbol)?;
         let header = lifetime_parameters.declare(builder.function_header(&name));
         let header = header
             .parameters(signature.parameters)
@@ -74,6 +69,7 @@ impl ModuleLowerer<'_> {
 
         Ok(FunctionDefinition {
             function,
+            symbol,
             has_this: false,
             parameters: symbols,
             type_substitution,
@@ -94,9 +90,31 @@ impl ModuleLowerer<'_> {
             return Ok(false);
         };
 
-        // report any non-lifetime parameter
-        let template_module = template.module_id;
-        let generics = &self.state(template_module)?.generics;
+        self.template_has_instance_parameters(template)
+    }
+
+    /// Return whether one owner declaration binds type parameters of its own.
+    pub(in crate::lower) fn owner_has_instance_parameters(
+        &self,
+        owner: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        // read the owner template, treating non-nominal owners as concrete
+        let Some(definition) = self.definition(owner)? else {
+            return Ok(false);
+        };
+        let Some(template) = definition.template() else {
+            return Ok(false);
+        };
+
+        self.template_has_instance_parameters(template.into_global(owner.module_id))
+    }
+
+    /// Return whether one generic template declares any non-lifetime parameter.
+    fn template_has_instance_parameters(
+        &self,
+        template: dir::GlobalGenericTemplateId,
+    ) -> CompilerResult<bool> {
+        let generics = &self.state(template.module_id)?.generics;
         let template = generics.get_template(template.local_id);
         for parameter in &template.parameters {
             let binding = generics.get_parameter(*parameter);
@@ -170,6 +188,7 @@ impl ModuleLowerer<'_> {
             signature.role
         };
 
+        // classify the receiver the member declares
         let this = match role {
             // take no receiver for static members
             _ if is_static => None,
@@ -288,6 +307,7 @@ impl ModuleLowerer<'_> {
 
         Ok(FunctionDefinition {
             function,
+            symbol,
             has_this: !is_static,
             parameters: symbols,
             type_substitution,

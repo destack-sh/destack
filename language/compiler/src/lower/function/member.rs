@@ -16,6 +16,7 @@ impl FunctionLowerer<'_, '_, '_> {
             return self.lower_variant_member(&variant);
         }
 
+        // read the single access the checker selected for this member
         let resolution = self.member_resolution(expression)?;
         let dir::OperationResolution::One(access) = &resolution else {
             return Err(LowerError::Unsupported {

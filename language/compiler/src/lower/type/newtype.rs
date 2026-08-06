@@ -45,6 +45,7 @@ impl TypeLowerer<'_, '_> {
             cases.push(NominalField {
                 key: variant.key,
                 symbol: variant.symbol.local_id,
+                is_optional: false,
             });
             payloads.push(self.lower(variant.backing)?);
         }

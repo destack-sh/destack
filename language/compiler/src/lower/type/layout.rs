@@ -44,11 +44,6 @@ pub enum LayoutError {
         /// Byte offset of the missing niche scalar.
         offset: u32,
     },
-    /// One value type contains itself without indirection.
-    Recursive {
-        /// Recursive MIR type.
-        ty: mir::LocalNodeId<mir::Type>,
-    },
 }
 
 impl fmt::Display for LayoutError {
@@ -71,12 +66,6 @@ impl fmt::Display for LayoutError {
                 write!(
                     formatter,
                     "variant niche at byte offset {offset} is absent from its representation"
-                )
-            }
-            Self::Recursive { ty } => {
-                write!(
-                    formatter,
-                    "type {ty:?} is value-recursive without indirection"
                 )
             }
         }
@@ -158,6 +147,7 @@ impl<'tree> LayoutBuilder<'tree> {
             mir::NodeVisitor::visit_function(&mut reachable, self.tree, id, function);
         }
 
+        // lay out every type the walk reached
         for ty in reachable.types {
             self.layout_reachable_type(ty)?;
         }
@@ -236,7 +226,7 @@ impl<'tree> LayoutBuilder<'tree> {
 
         // reject recursive inline storage
         if !self.computing.insert(ty) {
-            return Err(LayoutError::Recursive { ty });
+            return Err(self.unsupported("value-recursive representation"));
         }
         let layout = self.compute_type(ty);
         self.computing.swap_remove(&ty);
@@ -768,9 +758,6 @@ impl From<LayoutError> for CompilerError {
                 message: format!(
                     "variant niche at byte offset {offset} is absent from its representation"
                 ),
-            },
-            LayoutError::Recursive { ty } => Self::Internal {
-                message: format!("type {ty:?} is value-recursive without indirection"),
             },
         }
     }

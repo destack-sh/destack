@@ -132,6 +132,7 @@ impl Compiler {
                 continue;
             }
 
+            // load the bound and checked state of every reachable module
             let parsed = artifacts
                 .dir_parsed(reachable)
                 .map_err(CompilerError::from)?;
@@ -218,6 +219,7 @@ impl Compiler {
         let path = path.strip_suffix(".ds").unwrap_or(path);
         let path = path.trim_matches('/').replace('/', ".");
 
+        // qualify the module path under its package name
         let name = package
             .name
             .as_deref()

@@ -2,6 +2,7 @@ mod binding;
 mod block;
 mod body;
 mod call;
+mod capture;
 mod cast;
 mod construct;
 mod control;

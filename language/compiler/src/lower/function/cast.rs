@@ -19,6 +19,7 @@ impl FunctionLowerer<'_, '_, '_> {
             return self.lower_constant(literal, target);
         }
 
+        // hand the value through unchanged when it already carries the target
         let source = self.node_type(value)?;
         let source = self.lowerer.scalar_type(&source)?;
         let lowered = self.lower_expression(value)?;
@@ -26,6 +27,7 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(lowered);
         }
 
+        // convert between the two scalar carriers
         let operator = self.cast_operator(&source, &target)?;
         let target = self.builder.tree_mut().intern_type(target);
 

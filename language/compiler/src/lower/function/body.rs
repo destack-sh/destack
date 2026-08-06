@@ -1,11 +1,13 @@
+use std::sync::Arc;
+
 use destack_core::{FxIndexMap, StringId};
 use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
 
 use crate::lower::{
-    GenericInstanceKey, LifetimeParameters, LowerModuleState, ModuleLowerer, NominalInstance,
-    TypeSubstitution, insert_local_reference,
+    GenericInstanceKey, LifetimeParameters, LowerModuleState, Lowered, ModuleLowerer,
+    NominalInstance, ResolvedTypeKey, TypeSubstitution, insert_local_reference,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -16,6 +18,15 @@ pub(in crate::lower) enum Binding {
     Value(mir::Value),
     /// A mutable local.
     Local(mir::LocalNodeId<mir::Local>),
+    /// A field of a managed capture frame.
+    Captured {
+        /// The frame reference holding the binding.
+        frame: mir::Value,
+        /// The field index within the frame.
+        field: u32,
+        /// The stored field type.
+        ty: mir::LocalNodeId<mir::Type>,
+    },
 }
 
 /// One enclosing loop's control targets.
@@ -32,6 +43,8 @@ pub(in crate::lower) struct ControlFrame {
 pub(in crate::lower) struct FunctionDefinition {
     /// The declared function.
     pub(in crate::lower) function: mir::FunctionId,
+    /// The symbol declaring this function.
+    pub(in crate::lower) symbol: dir::GlobalSymbolId,
     /// Whether the function receives this as its leading parameter.
     pub(in crate::lower) has_this: bool,
     /// The parameter symbols in order.
@@ -49,15 +62,19 @@ pub(in crate::lower) struct FunctionDefinition {
 /// Lowering state for one function body.
 pub(in crate::lower) struct FunctionLowerer<'lowerer, 'builder, 'module> {
     /// The module lowering state.
-    pub(in crate::lower) lowerer: &'lowerer ModuleLowerer<'module>,
+    pub(in crate::lower) lowerer: &'lowerer mut ModuleLowerer<'module>,
     /// The function builder.
     pub(in crate::lower) builder: mir::FunctionBuilder<'builder>,
     /// The module declaring this function.
     pub(in crate::lower) source: ModuleId,
     /// The concrete type substitutions of this function.
     pub(in crate::lower) type_substitution: TypeSubstitution,
+    /// The polymorphic lifetime parameters of this function.
+    pub(in crate::lower) lifetime_parameters: LifetimeParameters,
     /// The lowered binding for each symbol.
     pub(in crate::lower) values: FxIndexMap<dir::LocalSymbolId, Binding>,
+    /// The allocated capture frame for each lifted scope.
+    pub(in crate::lower) frames: FxIndexMap<dir::GlobalScopeId, mir::Value>,
     /// The receiver reference of the enclosing method, when one exists.
     pub(in crate::lower) this: Option<mir::Value>,
     /// The enclosing control statements, innermost last.
@@ -73,10 +90,11 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
     ) -> CompilerResult<()> {
         let FunctionDefinition {
             function,
+            symbol,
             has_this,
             parameters,
             type_substitution,
-            lifetime_parameters: _,
+            lifetime_parameters,
             source,
             expression,
         } = definition;
@@ -90,7 +108,9 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             builder,
             source,
             type_substitution,
+            lifetime_parameters,
             values: FxIndexMap::default(),
+            frames: FxIndexMap::default(),
             this: None,
             controls: Vec::new(),
         };
@@ -105,9 +125,19 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             function.values.insert(*symbol, Binding::Value(value));
         }
 
-        // lower the body into the entry block and finalize its blocks
+        // open the entry block
         let entry = function.builder.block();
         function.builder.switch_to_block(entry);
+
+        // receive the closure environment and lift any captured parameters
+        function.bind_captures(symbol)?;
+        for symbol in &parameters {
+            if let Some(Binding::Value(value)) = function.values.get(symbol).copied() {
+                function.bind_lifted(symbol.into_global(source), value)?;
+            }
+        }
+
+        // lower the body and finalize its blocks
         function.lower_body(expression)?;
         function.builder.seal_all_blocks();
         function
@@ -141,7 +171,9 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             builder,
             source,
             type_substitution: TypeSubstitution::default(),
+            lifetime_parameters: LifetimeParameters::default(),
             values: FxIndexMap::default(),
+            frames: FxIndexMap::default(),
             this: None,
             controls: Vec::new(),
         };
@@ -188,41 +220,64 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         Ok(self.builder.local(ty, mir::Mutability::Mutable))
     }
 
-    /// Return the declared representation of one type.
+    /// Return the representation of one type, lowering it at first read.
     pub(in crate::lower) fn lower_type(
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         let id = self.type_substitution.resolve(self.lowerer, id)?;
+        let key = (id, self.type_substitution.bindings_key());
 
-        match self.lowerer.lowered_types.get(&id) {
-            Some(Ok(node)) => Ok(*node),
-            // cascade the declaration failure the pre-pass kept
-            Some(Err(diagnostic)) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
-            None => Err(CompilerError::Internal {
-                message: format!(
-                    "missing a declared representation behind the type {:?}",
-                    self.lowerer.ty(id)
-                ),
-            }),
+        // lower the representation once for every body that reads it
+        if !self.lowerer.representations.contains_key(&key) {
+            let pointer_bytes = self.builder.pointer_bytes();
+            let outcome = self
+                .lowerer
+                .type_lowerer(
+                    self.builder.tree_mut(),
+                    pointer_bytes,
+                    &self.type_substitution,
+                    &self.lifetime_parameters,
+                )
+                .lower(id);
+            Self::bank(&mut self.lowerer.representations, key.clone(), outcome)?;
+        }
+
+        // read the banked outcome, cascading the kept failure
+        match &self.lowerer.representations[&key] {
+            Ok(node) => Ok(*node),
+            Err(diagnostic) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
         }
     }
 
-    /// Return the declared shape row of one dispatch constraint.
+    /// Return the dispatch shape of one constraint, lowering it at first read.
     pub(in crate::lower) fn lower_constraint(
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         let id = self.type_substitution.resolve(self.lowerer, id)?;
         let reduced = self.lowerer.reduced_type(id)?;
+        let key = (reduced, self.type_substitution.bindings_key());
 
-        match self.lowerer.lowered_constraints.get(&reduced) {
-            Some(Ok(row)) => Ok(*row),
-            // cascade the declaration failure the pre-pass kept
-            Some(Err(diagnostic)) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
-            None => Err(CompilerError::Internal {
-                message: format!("missing a declared shape row behind the constraint {reduced:?}"),
-            }),
+        // lower the dispatch shape once for every body that reads it
+        if !self.lowerer.constraints.contains_key(&key) {
+            let pointer_bytes = self.builder.pointer_bytes();
+            let outcome = self
+                .lowerer
+                .type_lowerer(
+                    self.builder.tree_mut(),
+                    pointer_bytes,
+                    &self.type_substitution,
+                    &self.lifetime_parameters,
+                )
+                .lower_dynamic_constraint(reduced);
+            Self::bank(&mut self.lowerer.constraints, key.clone(), outcome)?;
+        }
+
+        // read the banked outcome, cascading the kept failure
+        match &self.lowerer.constraints[&key] {
+            Ok(shape) => Ok(*shape),
+            Err(diagnostic) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
         }
     }
 
@@ -245,7 +300,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         Ok(GenericInstanceKey { symbol, arguments })
     }
 
-    /// Return the declared nominal instance beneath one value type.
+    /// Return the nominal instance beneath one value type, lowering it at first read.
     pub(in crate::lower) fn lower_nominal(
         &mut self,
         id: dir::GlobalTypeId,
@@ -254,14 +309,59 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             Some(reference) => reference.stored,
             None => self.lowerer.peel_owned(id, &self.type_substitution)?,
         };
-        match self.lowerer.lowered_nominals.get(&stored) {
-            Some(Ok(nominal)) => Ok(nominal.clone()),
-            // cascade the declaration failure the pre-pass kept
-            Some(Err(diagnostic)) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
-            None => Err(CompilerError::Internal {
-                message: format!("missing a declared nominal behind the type {stored:?}"),
-            }),
+        let key = (stored, self.type_substitution.bindings_key());
+
+        // lower the nominal instance once for every body that reads it
+        if !self.lowerer.stored_nominals.contains_key(&key) {
+            let dir::Type::Application(instance) = self.lowerer.ty(stored)? else {
+                return Err(CompilerError::Internal {
+                    message: format!("a nominal read outside an application type {stored:?}"),
+                });
+            };
+            let arguments = self
+                .lowerer
+                .types(stored.module_id)?
+                .type_ids(instance.arguments)
+                .to_vec();
+            let pointer_bytes = self.builder.pointer_bytes();
+            let outcome = self
+                .lowerer
+                .type_lowerer(
+                    self.builder.tree_mut(),
+                    pointer_bytes,
+                    &self.type_substitution,
+                    &self.lifetime_parameters,
+                )
+                .lower_nominal(instance.symbol, &arguments);
+            Self::bank(&mut self.lowerer.stored_nominals, key.clone(), outcome)?;
         }
+
+        // read the banked outcome, cascading the kept failure
+        match &self.lowerer.stored_nominals[&key] {
+            Ok(nominal) => Ok(nominal.clone()),
+            Err(diagnostic) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
+        }
+    }
+
+    /// Bank one lowering outcome under its key for every body that reads it.
+    ///
+    /// Diagnostics bank as the stored failure; internal errors propagate.
+    fn bank<T>(
+        outcomes: &mut FxIndexMap<ResolvedTypeKey, Lowered<T>>,
+        key: ResolvedTypeKey,
+        outcome: CompilerResult<T>,
+    ) -> CompilerResult<()> {
+        match outcome {
+            Ok(value) => {
+                outcomes.insert(key, Ok(value));
+            }
+            Err(CompilerError::Diagnostic(diagnostic)) => {
+                outcomes.insert(key, Err(Arc::from(diagnostic)));
+            }
+            Err(error) => return Err(error),
+        }
+
+        Ok(())
     }
 
     /// Intern one local reference type over a lowered pointee.

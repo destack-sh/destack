@@ -21,12 +21,18 @@ impl TypeLowerer<'_, '_> {
             let ty = self
                 .lowerer
                 .symbol_type(field.symbol.into_global(symbol.module_id))?;
-            let ty = self.lower(ty)?;
+            let mut ty = self.lower(ty)?;
+
+            // widen optional fields so their absent case stores as undefined
+            if field.is_optional {
+                ty = self.insert_optional_carrier(ty)?;
+            }
+
+            // intern the field, leaving computed keys unnamed
             let name = match field.key {
                 dir::StaticKey::Name(name) => Some(name),
                 _ => None,
             };
-
             field_nodes.push(self.tree.intern_field(mir::Field { name, ty }, Vec::new()));
         }
 

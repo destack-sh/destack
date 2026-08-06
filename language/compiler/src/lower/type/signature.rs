@@ -96,11 +96,11 @@ impl TypeLowerer<'_, '_> {
             .into());
         }
 
-        self.lower_signature_row(&signature, owner)
+        self.lower_bare_signature(&signature, owner)
     }
 
-    /// Lower one signature row, leaving any receiver to its dispatch.
-    pub(in crate::lower) fn lower_signature_row(
+    /// Lower one signature, leaving any receiver to its dispatch.
+    pub(in crate::lower) fn lower_bare_signature(
         &mut self,
         signature: &dir::FunctionSignatureType,
         module: ModuleId,
@@ -118,7 +118,7 @@ impl TypeLowerer<'_, '_> {
             Some(template) => LifetimeParameters::from_template(self.lowerer, template)?,
             None => LifetimeParameters::default(),
         };
-        let rows = self
+        let declared = self
             .lowerer
             .types(module)?
             .parameters(signature.parameters)
@@ -131,9 +131,9 @@ impl TypeLowerer<'_, '_> {
             self.type_substitution,
             &lifetime_parameters,
         );
-        let mut parameters = Vec::with_capacity(rows.len());
-        for row in rows {
-            let ty = types.lower(row.ty)?;
+        let mut parameters = Vec::with_capacity(declared.len());
+        for parameter in declared {
+            let ty = types.lower(parameter.ty)?;
             parameters.push(mir::SignatureParameter::new(ty));
         }
         let result = match signature.return_type {

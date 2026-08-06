@@ -180,6 +180,7 @@ impl FunctionLowerer<'_, '_, '_> {
         self.builder.jump(body_block);
         self.builder.switch_to_block(body_block);
 
+        // loop back to the body unless it already terminated
         let terminated = self.lower_loop_body(label, body_block, exit, body)?;
         if !terminated {
             self.builder.jump(body_block);
@@ -280,6 +281,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 .find(|frame| frame.label == Some(label)),
         };
 
+        // a break outside any breakable statement never checks
         let Some(frame) = frame else {
             return Err(CompilerError::Internal {
                 message: "missing an enclosing statement for one break".to_string(),
@@ -302,6 +304,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
         });
 
+        // a continue outside any loop never checks
         let Some(target) = frame.and_then(|frame| frame.continue_target) else {
             return Err(CompilerError::Internal {
                 message: "missing an enclosing loop for one continue".to_string(),

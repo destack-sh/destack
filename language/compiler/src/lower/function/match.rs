@@ -87,6 +87,7 @@ impl FunctionLowerer<'_, '_, '_> {
             self.builder.jump(exit);
         }
 
+        // read the joined value out of the exit block
         self.builder.switch_to_block(exit);
 
         Ok(self.builder.local_get(slot))
@@ -227,6 +228,7 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(None);
         };
 
+        // read the constant selector of every non-default case
         let mut selected = Vec::with_capacity(cases.len());
         for case in cases {
             let selector = self.source().tree().get(case.case).selector;

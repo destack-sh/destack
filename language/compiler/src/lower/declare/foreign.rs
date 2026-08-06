@@ -80,6 +80,7 @@ impl ModuleLowerer<'_> {
             }
         };
 
+        // lower the signature, prepending the receiver of a method import
         let signature =
             self.lower_signature(builder, declared, &type_substitution, &lifetime_parameters)?;
         let mut parameters = signature.parameters;
@@ -96,6 +97,7 @@ impl ModuleLowerer<'_> {
             false => signature.result,
         };
 
+        // declare the header as an external function under the imported name
         let header = lifetime_parameters.declare(builder.function_header(&name));
         let header = header.parameters(parameters).result(result);
         let function = builder.external_function(header);
@@ -162,11 +164,13 @@ impl ModuleLowerer<'_> {
             .into());
         }
 
+        // lower the signature outside any instance bindings
         let type_substitution = TypeSubstitution::default();
         let lifetime_parameters = self.lifetime_parameters(declared)?;
         let signature =
             self.lower_signature(builder, declared, &type_substitution, &lifetime_parameters)?;
 
+        // declare the header as a host binding under the dotted extern name
         let name = self.strings.get(binding.name);
         let header = lifetime_parameters.declare(builder.function_header(name));
         let header = header
@@ -238,6 +242,7 @@ impl ModuleLowerer<'_> {
             }
         };
 
+        // name the extern after its owner and member
         let Some(owner_name) = self.symbol_name(member.owner)? else {
             return Err(CompilerError::Internal {
                 message: "an imported method from an unnamed nominal".to_string(),

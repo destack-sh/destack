@@ -12,7 +12,7 @@ pub(in crate::lower) struct LifetimeParameters {
     pub(in crate::lower) slots: FxIndexMap<dir::GlobalGenericParameterId, mir::LifetimeSlot>,
     /// The declared name of each slot, without the tick.
     pub(in crate::lower) names: Vec<String>,
-    /// Declared outlives rows between slots, left outliving right.
+    /// The declared outlives pairs between slots, left outliving right.
     pub(in crate::lower) outlives: Vec<(mir::LifetimeSlot, mir::LifetimeSlot)>,
 }
 
@@ -23,9 +23,11 @@ impl LifetimeParameters {
         template: dir::GlobalGenericTemplateId,
     ) -> CompilerResult<Self> {
         let generics = &lowerer.state(template.module_id)?.generics;
-        let template_row = generics.get_template(template.local_id);
+        let declared = generics.get_template(template.local_id);
+
+        // give every declared lifetime parameter its own slot and printed name
         let mut parameters = Self::default();
-        for parameter in &template_row.parameters {
+        for parameter in &declared.parameters {
             let binding = generics.get_parameter(*parameter);
             if binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime) {
                 let slot = mir::LifetimeSlot(parameters.slots.len() as u32);
@@ -52,7 +54,7 @@ impl LifetimeParameters {
         }
 
         // carry declared outlives predicates between the collected slots
-        for predicate in &template_row.predicates {
+        for predicate in &declared.predicates {
             if predicate.relation != dir::WhereRelation::Satisfies {
                 continue;
             }

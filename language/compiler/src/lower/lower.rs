@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{DiagnosticLike, MirLowered};
-use destack_core::{FxIndexMap, StringPool};
+use destack_core::{FxIndexMap, StringId, StringPool};
 use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
@@ -12,7 +12,22 @@ use crate::lower::{
 };
 use crate::{CompilerError, CompilerResult};
 
+/// One resolved type under one instance's bindings.
+pub(in crate::lower) type ResolvedTypeKey = (
+    dir::GlobalTypeId,
+    Vec<(dir::GlobalGenericParameterId, dir::GlobalTypeId)>,
+);
+
+/// One lowering outcome a body reads: the lowered value, or the banked diagnostic of the first
+/// failure.
+pub(in crate::lower) type Lowered<T> = Result<T, Arc<dyn DiagnosticLike>>;
+
 /// Lowering state for one module.
+///
+/// Lowering reports failures in three ways.
+/// `CompilerResult::Internal` reports a compiler bug.
+/// `CompilerResult::Diagnostic` reports a user error where lowering raises it.
+/// `Lowered` banks an outcome at first read and raises it for every body that reads it.
 pub(crate) struct ModuleLowerer<'a> {
     /// The module being lowered.
     pub(in crate::lower) module: ModuleId,
@@ -23,24 +38,27 @@ pub(crate) struct ModuleLowerer<'a> {
 
     /// The declaration outcome for each callable instance key.
     pub(in crate::lower) functions: FxIndexMap<GenericInstanceKey, FunctionDeclaration>,
-    /// The lowering outcome for each resolved type spelling the bodies read.
-    pub(in crate::lower) lowered_types:
-        FxIndexMap<dir::GlobalTypeId, Result<mir::LocalNodeId<mir::Type>, Arc<dyn DiagnosticLike>>>,
-    /// The shape row outcome for each resolved dispatch constraint the bodies read.
-    pub(in crate::lower) lowered_constraints:
-        FxIndexMap<dir::GlobalTypeId, Result<mir::LocalNodeId<mir::Type>, Arc<dyn DiagnosticLike>>>,
-    /// The nominal instance outcome for each resolved application type the bodies read.
-    pub(in crate::lower) lowered_nominals:
-        FxIndexMap<dir::GlobalTypeId, Result<NominalInstance, Arc<dyn DiagnosticLike>>>,
+    /// The MIR representation behind each type the bodies read.
+    pub(in crate::lower) representations:
+        FxIndexMap<ResolvedTypeKey, Lowered<mir::LocalNodeId<mir::Type>>>,
+    /// The dispatch shape behind each constraint the bodies read.
+    pub(in crate::lower) constraints:
+        FxIndexMap<ResolvedTypeKey, Lowered<mir::LocalNodeId<mir::Type>>>,
+    /// The nominal instance behind each application type the bodies read.
+    pub(in crate::lower) stored_nominals: FxIndexMap<ResolvedTypeKey, Lowered<NominalInstance>>,
     /// The state of each nominal representation being lowered or already lowered.
-    pub(in crate::lower) nominals: FxIndexMap<GenericInstanceKey, NominalState>,
-    /// The global outcome declared for each module constant.
-    pub(in crate::lower) globals: FxIndexMap<
-        dir::GlobalSymbolId,
-        Result<mir::LocalNodeId<mir::Global>, Arc<dyn DiagnosticLike>>,
-    >,
+    pub(in crate::lower) nominal_states: FxIndexMap<GenericInstanceKey, NominalState>,
+    /// The global declared for each module constant.
+    pub(in crate::lower) globals:
+        FxIndexMap<dir::GlobalSymbolId, Lowered<mir::LocalNodeId<mir::Global>>>,
     /// The declaring symbol behind each loaded language item, scanned lazily.
     pub(in crate::lower) language_items: FxIndexMap<dir::LanguageItem, dir::GlobalSymbolId>,
+    /// The immortal String object and value type per collected literal content.
+    pub(in crate::lower) string_literals:
+        FxIndexMap<StringId, Lowered<(mir::GlobalId, mir::LocalNodeId<mir::Type>)>>,
+    /// The immortal BigInt object and value type per collected literal value.
+    pub(in crate::lower) bigint_literals:
+        FxIndexMap<i64, Lowered<(mir::GlobalId, mir::LocalNodeId<mir::Type>)>>,
     /// The runtime bindings stored by the module initializer, in order.
     pub(in crate::lower) initializers: Vec<(
         mir::LocalNodeId<mir::Global>,
@@ -49,8 +67,8 @@ pub(crate) struct ModuleLowerer<'a> {
 
     /// The dispatch shape registered for each lowered constraint.
     pub(in crate::lower) dynamic_shapes: FxIndexMap<mir::LocalNodeId<mir::Type>, mir::DynamicShape>,
-    /// The implementer registered for each erased concrete row and constraint.
-    pub(in crate::lower) erasures:
+    /// The implementer registered for each erased concrete type and constraint.
+    pub(in crate::lower) implementers:
         FxIndexMap<(mir::LocalNodeId<mir::Type>, mir::LocalNodeId<mir::Type>), Implementer>,
 }
 
@@ -66,15 +84,17 @@ impl<'a> ModuleLowerer<'a> {
             strings,
             modules,
             functions: FxIndexMap::default(),
-            lowered_types: FxIndexMap::default(),
-            lowered_constraints: FxIndexMap::default(),
-            lowered_nominals: FxIndexMap::default(),
-            nominals: FxIndexMap::default(),
+            representations: FxIndexMap::default(),
+            constraints: FxIndexMap::default(),
+            stored_nominals: FxIndexMap::default(),
+            nominal_states: FxIndexMap::default(),
             globals: FxIndexMap::default(),
             language_items: FxIndexMap::default(),
+            string_literals: FxIndexMap::default(),
+            bigint_literals: FxIndexMap::default(),
             initializers: Vec::new(),
             dynamic_shapes: FxIndexMap::default(),
-            erasures: FxIndexMap::default(),
+            implementers: FxIndexMap::default(),
         }
     }
 

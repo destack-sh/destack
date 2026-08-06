@@ -1,7 +1,7 @@
 use crate::tests::TestSession;
 
 #[test]
-fn test_lower_logical_and_short_circuits() {
+fn test_short_circuit_a_logical_and() {
     let session = TestSession::single(
         r#"
 function both(a: boolean, b: boolean): boolean {
@@ -33,7 +33,7 @@ b2:
 }
 
 #[test]
-fn test_lower_logical_or_short_circuits() {
+fn test_short_circuit_a_logical_or() {
     let session = TestSession::single(
         r#"
 function either(a: boolean, b: boolean): boolean {

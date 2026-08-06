@@ -23,18 +23,6 @@ pub(in crate::lower) struct TypeSubstitution {
 }
 
 impl TypeSubstitution {
-    /// Bind selected arguments directly to their declaration parameters.
-    pub(in crate::lower) fn from_bindings(bindings: &[dir::GenericArgumentBinding]) -> Self {
-        let mut substitution = Self::default();
-        for binding in bindings {
-            substitution
-                .bindings
-                .insert(binding.parameter, binding.argument);
-        }
-
-        substitution
-    }
-
     /// Return this substitution with its contextual receiver.
     pub(in crate::lower) fn with_receiver(mut self, receiver: ReceiverBinding) -> Self {
         self.receiver = Some(receiver);
@@ -85,6 +73,36 @@ impl TypeSubstitution {
         }
 
         Ok(substitution)
+    }
+
+    /// Bind one generic parameter to its selected argument.
+    pub(in crate::lower) fn insert(
+        &mut self,
+        parameter: dir::GlobalGenericParameterId,
+        argument: dir::GlobalTypeId,
+    ) {
+        self.bindings.insert(parameter, argument);
+    }
+
+    /// Return the bindings as one resolved-type cache key component.
+    ///
+    /// Bodies of different instances share dir type ids; the bindings
+    /// disambiguate the representations recorded for each instance.
+    pub(in crate::lower) fn bindings_key(
+        &self,
+    ) -> Vec<(dir::GlobalGenericParameterId, dir::GlobalTypeId)> {
+        self.bindings
+            .iter()
+            .map(|(parameter, argument)| (*parameter, *argument))
+            .collect()
+    }
+
+    /// Return the bound argument behind one generic parameter.
+    pub(in crate::lower) fn binding(
+        &self,
+        parameter: dir::GlobalGenericParameterId,
+    ) -> Option<dir::GlobalTypeId> {
+        self.bindings.get(&parameter).copied()
     }
 
     /// Resolve one type through every enclosing parameter binding.

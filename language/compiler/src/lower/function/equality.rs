@@ -103,14 +103,15 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         }
 
-        let mut carrier = operand.ty;
-
         // leave standalone nullish values unmaterialized until they meet a reference
+        let mut carrier = operand.ty;
         match self.node_type(expression)? {
             dir::Type::Null => return Ok(LoweredOperand::Null),
             dir::Type::Undefined => return Ok(LoweredOperand::Undefined),
             _ => {}
         }
+
+        // evaluate the operand at its own carrier
         let mut value = self.lower_expression(expression)?;
 
         // read inline values through their indirect carriers
@@ -159,6 +160,7 @@ impl FunctionLowerer<'_, '_, '_> {
             carrier = self.lowerer.reduced_type(definition.backing)?;
         }
 
+        // classify the operand by the carrier it lowered to
         let Some(ty) = self.builder.value_type(value) else {
             return Err(CompilerError::Internal {
                 message: "the lowered equality operand has no type".to_string(),
@@ -442,6 +444,7 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(self.builder.bconst(true));
         }
 
+        // only two scalar operands compare directly, anything else by address
         let (
             LoweredOperand::Scalar {
                 value: left_value,

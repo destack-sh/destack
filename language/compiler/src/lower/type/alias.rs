@@ -6,8 +6,8 @@ use crate::lower::ModuleLowerer;
 /// The identity one type alias declares for its value.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(in crate::lower) enum AliasForm {
-    /// An object row: a named struct behind a managed reference.
-    Row,
+    /// An object type: a named struct behind a managed reference.
+    Object,
     /// A compound value family: a named type holding the value content.
     Value,
 }
@@ -24,7 +24,7 @@ impl ModuleLowerer<'_> {
         let value = self.reduced_type(alias.value)?;
 
         Ok(match self.ty(value)? {
-            dir::Type::Object(_) => Some(AliasForm::Row),
+            dir::Type::Object(_) => Some(AliasForm::Object),
             // families whose lowering recurses into children need identity
             dir::Type::Union(_)
             | dir::Type::Tuple(_)

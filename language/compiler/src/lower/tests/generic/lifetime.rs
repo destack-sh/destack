@@ -101,7 +101,7 @@ entry(v0: ref<User, borrowed, 'a | 'b, readonly>):
 }
 
 #[test]
-fn test_lower_shares_one_polymorphic_nominal_across_lifetime_applications() {
+fn test_share_one_polymorphic_nominal_across_lifetime_applications() {
     let session = TestSession::single(
         r#"
 struct User {
@@ -217,7 +217,7 @@ entry(v0: Holder<'a>):
 }
 
 #[test]
-fn test_lower_shares_one_function_body_across_lifetime_instantiations() {
+fn test_share_one_function_body_across_lifetime_instantiations() {
     let session = TestSession::single(
         r#"
 class User {

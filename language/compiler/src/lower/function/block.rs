@@ -25,6 +25,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
         }
 
+        // return the block's tail value, or void when it has none
         match self.source().tree().get(block).tail_expression {
             // run valueless tails for control flow, not for a result
             Some(tail) if self.tail_is_valueless(tail)? => {

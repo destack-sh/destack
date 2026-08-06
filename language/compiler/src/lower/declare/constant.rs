@@ -20,6 +20,7 @@ impl ModuleLowerer<'_> {
             .into());
         }
 
+        // declare one global per bound name, in declaration order
         for declarator in declarators {
             let pattern = self.local().tree().get(*declarator).pattern;
             let node = pattern.into_global_any(self.module);
@@ -83,6 +84,18 @@ impl ModuleLowerer<'_> {
         FunctionLowerer::lower_initializer(self, builder, function, initializers)?;
 
         Ok(Some(function))
+    }
+
+    /// Return whether one symbol names a module-level value binding.
+    pub(in crate::lower) fn is_module_binding(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        let state = self.state(symbol.module_id)?;
+        let declared = state.bindings.get_symbol(symbol.local_id);
+        let scope = state.bindings.get_scope(declared.scope);
+
+        Ok(declared.kind == dir::SymbolKind::Variable && scope.is_root())
     }
 
     /// Return the evaluated constant behind one module binding, when one exists.
@@ -149,9 +162,9 @@ impl ModuleLowerer<'_> {
                     });
                 };
                 let backing = newtype.backing;
-                let inner = self.constant_initializer(builder, value, backing)?;
+                let backing = self.constant_initializer(builder, value, backing)?;
 
-                Ok(mir::GlobalInitializer::Aggregate(vec![inner]))
+                Ok(mir::GlobalInitializer::Aggregate(vec![backing]))
             }
 
             // initialize each tuple element at its own type
@@ -197,6 +210,7 @@ impl ModuleLowerer<'_> {
         let type_substitution = TypeSubstitution::default();
         let lifetime_parameters = LifetimeParameters::default();
 
+        // lower the constant's type outside any instance bindings
         self.type_lowerer(
             builder.tree_mut(),
             pointer_bytes,

@@ -29,6 +29,8 @@ impl ModuleLowerer<'_> {
             return Ok(None);
         };
 
+        // find the intrinsic decorator among the declaration's applications
+        // find the language item decorator among the declaration's applications
         for application in state.decorators.applications_for_owner(node) {
             let dir::DecoratorTarget::LanguageItem { item, .. } = application.resolution.target
             else {

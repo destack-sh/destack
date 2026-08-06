@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
 
-use crate::lower::{ModuleLowerer, TypeLowerer, TypeSubstitution};
+use crate::lower::{ModuleLowerer, ReceiverBinding, TypeLowerer, TypeSubstitution};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// One indirect layer peeled from a value type.
@@ -211,7 +211,7 @@ impl TypeLowerer<'_, '_> {
 
                 Ok(nominal.storage)
             }
-            // store anonymous object rows as their concrete struct
+            // store anonymous object types as their concrete struct
             dir::Type::Object(shape) => self.lower_object_struct(&shape, id.module_id),
             // hold value families as their value form
             _ => self.lower(id),
@@ -360,7 +360,10 @@ impl ModuleLowerer<'_> {
             }
 
             // answer bare bases by their family default
-            other => Ok(self.base_default_ownership(&other)? == dir::Ownership::Managed),
+            other => {
+                Ok(self.base_default_ownership(&other, type_substitution)?
+                    == dir::Ownership::Managed)
+            }
         }
     }
 
@@ -384,7 +387,11 @@ impl ModuleLowerer<'_> {
     }
 
     /// Return the default ownership of one base type family.
-    fn base_default_ownership(&self, base: &dir::Type) -> CompilerResult<dir::Ownership> {
+    fn base_default_ownership(
+        &self,
+        base: &dir::Type,
+        type_substitution: &TypeSubstitution,
+    ) -> CompilerResult<dir::Ownership> {
         Ok(match base {
             // default reference families to managed
             dir::Type::Shape(_)
@@ -422,7 +429,29 @@ impl ModuleLowerer<'_> {
             dir::Type::Variant(variant) => {
                 let owner = self.ty(variant.owner)?;
 
-                return self.base_default_ownership(&owner);
+                return self.base_default_ownership(&owner, type_substitution);
+            }
+
+            // classify This through the receiver in scope
+            dir::Type::This => {
+                let Some(receiver) = type_substitution.receiver() else {
+                    return Err(LowerError::Unsupported {
+                        anchor: self.module.into(),
+                        construct: "a 'This' type outside a receiver context".to_string(),
+                    })?;
+                };
+
+                return match receiver {
+                    ReceiverBinding::Application(receiver) => self.base_default_ownership(
+                        &dir::Type::Application(receiver),
+                        type_substitution,
+                    ),
+                    ReceiverBinding::Type(ty) => {
+                        let receiver = self.ty(ty)?;
+
+                        self.base_default_ownership(&receiver, type_substitution)
+                    }
+                };
             }
 
             other => Err(LowerError::Unsupported {

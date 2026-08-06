@@ -486,3 +486,256 @@ entry(v0: int32):
 "#,
     );
 }
+
+#[test]
+fn test_call_a_generic_method_at_its_argument_instance() {
+    let session = TestSession::builder()
+        .module(
+            "lib.ds",
+            r#"
+export class Channel {
+    value: int32 = 0;
+
+    send<T>(this, value: T): void {}
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { Channel } from "./lib";
+
+function notify(channel: &Channel): void {
+    channel.send<int32>(1);
+}
+"#,
+        )
+        .build();
+
+    session.assert_mir_lowered("main.ds", r#"
+type test.lib.Channel {
+    value: int32;
+}
+
+function test.main.notify<'a>(v0: ref<test.lib.Channel, borrowed, 'a, mutable>): void {
+entry(v0: ref<test.lib.Channel, borrowed, 'a, mutable>):
+    v1: ref<test.lib.Channel, managed, mutable> = load v0
+    v2: int32 = 1
+    call test.lib.Channel.send<int32>(v1, v2): (ref<test.lib.Channel, managed, mutable>, int32) => void
+    return
+}
+
+function test.lib.Channel.send<int32>(v0: ref<test.lib.Channel, managed, mutable>, v1: int32): void {
+entry(v0: ref<test.lib.Channel, managed, mutable>, v1: int32):
+    return
+}
+/// @layout.struct name=test.lib.Channel size=4 align=4
+/// @layout.field owner=test.lib.Channel index=0 name=value offset=0 size=4 align=4
+"#);
+}
+
+#[test]
+fn test_call_a_generic_owner_method_at_its_instance() {
+    let session = TestSession::builder()
+        .module(
+            "lib.ds",
+            r#"
+export class Box<T> {
+    value: T;
+
+    constructor(value: T) {
+        this.value = value;
+    }
+
+    read(this): T {
+        return this.value;
+    }
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { Box } from "./lib";
+
+function unwrap(box: &Box<int32>): int32 {
+    return box.read();
+}
+"#,
+        )
+        .build();
+
+    session.assert_mir_lowered("main.ds", r#"
+type test.lib.Box<int32> {
+    value: int32;
+}
+
+function test.main.unwrap<'a>(v0: ref<test.lib.Box<int32>, borrowed, 'a, mutable>): int32 {
+entry(v0: ref<test.lib.Box<int32>, borrowed, 'a, mutable>):
+    v1: ref<test.lib.Box<int32>, managed, mutable> = load v0
+    v2: int32 = call test.lib.Box.read<int32>(v1): (ref<test.lib.Box<int32>, managed, mutable>) => int32
+    return v2
+}
+
+function test.lib.Box.read<int32>(v0: ref<test.lib.Box<int32>, managed, mutable>): int32 {
+entry(v0: ref<test.lib.Box<int32>, managed, mutable>):
+    v1: ref<int32, borrowed, mutable> = field.address v0, 0
+    v2: int32 = load v1
+    return v2
+}
+/// @layout.struct name=test.lib.Box<int32> size=4 align=4
+/// @layout.field owner=test.lib.Box<int32> index=0 name=value offset=0 size=4 align=4
+"#);
+}
+
+#[test]
+fn test_call_an_inherited_generic_method_at_the_base_instance() {
+    let session = TestSession::builder()
+        .module(
+            "lib.ds",
+            r#"
+export class Source<T> {
+    value: T;
+
+    constructor(value: T) {
+        this.value = value;
+    }
+
+    read(this): T {
+        return this.value;
+    }
+}
+
+export class Tap<T> extends Source<T> {
+    constructor(value: T) {
+        super(value);
+    }
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { Tap } from "./lib";
+
+function drain(tap: &Tap<int32>): int32 {
+    return tap.read();
+}
+"#,
+        )
+        .build();
+
+    session.assert_mir_lowered("main.ds", r#"
+type test.lib.Tap<int32> { }
+
+type test.lib.Source<int32> {
+    value: int32;
+}
+
+function test.main.drain<'a>(v0: ref<test.lib.Tap<int32>, borrowed, 'a, mutable>): int32 {
+entry(v0: ref<test.lib.Tap<int32>, borrowed, 'a, mutable>):
+    v1: ref<test.lib.Tap<int32>, managed, mutable> = load v0
+    v2: int32 = call test.lib.Source.read<int32>(v1): (ref<test.lib.Source<int32>, managed, mutable>) => int32
+    return v2
+}
+
+function test.lib.Source.read<int32>(v0: ref<test.lib.Source<int32>, managed, mutable>): int32 {
+entry(v0: ref<test.lib.Source<int32>, managed, mutable>):
+    v1: ref<int32, borrowed, mutable> = field.address v0, 0
+    v2: int32 = load v1
+    return v2
+}
+/// @layout.struct name=test.lib.Tap<int32> size=0 align=1
+/// @layout.struct name=test.lib.Source<int32> size=4 align=4
+/// @layout.field owner=test.lib.Source<int32> index=0 name=value offset=0 size=4 align=4
+"#);
+}
+
+#[test]
+fn test_lower_isomorphic_newtype_instances_separately() {
+    let session = TestSession::builder()
+        .module(
+            "lib.ds",
+            r#"
+export newtype AId = int32;
+export newtype ARef = AId;
+export newtype BId = int32;
+export newtype BRef = BId;
+
+export struct Pair<T> {
+    value: T;
+}
+
+export function wrap<T>(value: T): Pair<T> {
+    Pair { value }
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { AId, ARef, BId, BRef, wrap } from "./lib";
+
+function run(): int32 {
+    const a = wrap(ARef(AId(1)));
+    const b = wrap(BRef(BId(2)));
+    return 0;
+}
+"#,
+        )
+        .build();
+
+    session.assert_mir_lowered("main.ds", r#"
+@copy
+type test.lib.AId = newtype<int32>;
+
+@copy
+type test.lib.ARef = newtype<test.lib.AId>;
+
+@copy
+type test.lib.Pair<test.lib.ARef> {
+    value: test.lib.ARef;
+}
+
+@copy
+type test.lib.BId = newtype<int32>;
+
+@copy
+type test.lib.BRef = newtype<test.lib.BId>;
+
+@copy
+type test.lib.Pair<test.lib.BRef> {
+    value: test.lib.BRef;
+}
+
+function test.main.run(): int32 {
+entry:
+    v0: int32 = 1
+    v1: test.lib.AId = aggregate (v0)
+    v2: test.lib.ARef = aggregate (v1)
+    v3: test.lib.Pair<test.lib.ARef> = call test.lib.wrap<test.lib.ARef>(v2): (test.lib.ARef) => test.lib.Pair<test.lib.ARef>
+    v4: int32 = 2
+    v5: test.lib.BId = aggregate (v4)
+    v6: test.lib.BRef = aggregate (v5)
+    v7: test.lib.Pair<test.lib.BRef> = call test.lib.wrap<test.lib.BRef>(v6): (test.lib.BRef) => test.lib.Pair<test.lib.BRef>
+    v8: int32 = 0
+    return v8
+}
+
+function test.lib.wrap<test.lib.ARef>(v0: test.lib.ARef): test.lib.Pair<test.lib.ARef> {
+entry(v0: test.lib.ARef):
+    v1: test.lib.Pair<test.lib.ARef> = aggregate (v0)
+    return v1
+}
+
+function test.lib.wrap<test.lib.BRef>(v0: test.lib.BRef): test.lib.Pair<test.lib.BRef> {
+entry(v0: test.lib.BRef):
+    v1: test.lib.Pair<test.lib.BRef> = aggregate (v0)
+    return v1
+}
+/// @layout.struct name=test.lib.Pair<test.lib.ARef> size=4 align=4
+/// @layout.field owner=test.lib.Pair<test.lib.ARef> index=0 name=value offset=0 size=4 align=4
+/// @layout.struct name=test.lib.Pair<test.lib.BRef> size=4 align=4
+/// @layout.field owner=test.lib.Pair<test.lib.BRef> index=0 name=value offset=0 size=4 align=4
+"#);
+}

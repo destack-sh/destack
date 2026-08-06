@@ -44,6 +44,21 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         }
     }
 
+    /// Return a nested walker lowering under one bound substitution.
+    pub(in crate::lower) fn with_substitution<'nested>(
+        &'nested mut self,
+        type_substitution: &'nested TypeSubstitution,
+    ) -> TypeLowerer<'nested, 'module> {
+        TypeLowerer {
+            lowerer: &mut *self.lowerer,
+            tree: &mut *self.tree,
+            pointer_bytes: self.pointer_bytes,
+            type_substitution,
+            lifetime_parameters: self.lifetime_parameters,
+            reservations: FxIndexMap::default(),
+        }
+    }
+
     /// Lower one type.
     pub(in crate::lower) fn lower(
         &mut self,
@@ -71,7 +86,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             if is_generic && arguments.is_empty() {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
-                    construct: "a defaulted generic row alias".to_string(),
+                    construct: "a defaulted generic object alias".to_string(),
                 }
                 .into());
             }
@@ -81,9 +96,9 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
 
         let id = self.lowerer.reduced_type(id)?;
 
-        // anonymous compound graphs can cycle when reduction strands the
-        //  declared spelling: a revisit reserves the identity, the first
-        //  visit defines it
+        // anonymous compound graphs can cycle once reduction strands the
+        //  written type: a revisit reserves the identity and the first visit
+        //  defines it
         let compound = matches!(
             self.lowerer.ty(id)?,
             dir::Type::Union(_)
@@ -94,15 +109,24 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                 | dir::Type::Object(_)
         );
         if compound {
+            // name the persistent identity this cyclic graph resolves to
+            let name = format!("cycle{}:{}", id.module_id, id.local_id.0);
+            let symbol = mir::Symbol::named(self.lowerer.strings.intern(&name));
+
+            // reuse the identity an earlier walk defined for this cycle
+            if let Some(defined) = self.tree.identified_type(symbol)
+                && !self.tree.type_is_reserved(defined)
+                && !self.reservations.contains_key(&id)
+            {
+                return Ok(defined);
+            }
+
+            // return the reservation a nested revisit takes, creating it once
             if let Some(entry) = self.reservations.get_mut(&id) {
                 if let Some(reserved) = entry {
                     return Ok(*reserved);
                 }
-
-                // reserve the identity for the outer visit to define
-                let name = format!("cycle{}", id.local_id.0);
-                let name = self.lowerer.strings.intern(&name);
-                let reserved = self.tree.reserve_type(mir::Symbol::named(name));
+                let reserved = self.tree.reserve_type(symbol);
                 *entry = Some(reserved);
 
                 return Ok(reserved);
@@ -111,14 +135,31 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             self.reservations.insert(id, None);
         }
 
-        // lower the family, then define any reservation a revisit created
-        let lowered = self.lower_reduced(id);
+        // lower the family, then define any reservation a revisit created;
+        //  the identified node becomes the one identity of the cyclic graph
+        let mut lowered = self.lower_reduced(id);
         if compound
             && let Some(reservation) = self.reservations.swap_remove(&id)
             && let (Ok(result), Some(reserved)) = (&lowered, reservation)
         {
             let value = self.tree.get(*result).clone();
             self.tree.define_type(reserved, value);
+
+            // give isomorphic cycles one shared node: the canonical registry
+            //  hands back the node an earlier walk registered, and a first walk
+            //  registers every member of the cycle it just built
+            let key = self.tree.canonical_key(reserved);
+            match self.tree.canonical_type(&key) {
+                Some(existing) => lowered = Ok(existing),
+                None => {
+                    let canonical = *result;
+                    for (member, member_key) in self.tree.canonical_component(canonical) {
+                        self.tree.register_canonical(member_key, member);
+                    }
+                    self.tree.register_canonical(key, canonical);
+                    lowered = Ok(canonical);
+                }
+            }
         }
 
         lowered
@@ -138,6 +179,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                     return self.insert_storage_carrier(&instance, value);
                 }
 
+                // lower the instance at its applied arguments
                 let arguments = self
                     .lowerer
                     .types(id.module_id)?
@@ -184,11 +226,15 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             }
             // store concrete object classes behind a managed reference
             dir::Type::Object(shape) => {
-                let row = self.lower_object_struct(&shape, id.module_id)?;
+                let storage = self.lower_object_struct(&shape, id.module_id)?;
 
-                Ok(self.insert_reference(mir::ReferenceKind::Managed, mir::Access::Mutable, row))
+                Ok(self.insert_reference(
+                    mir::ReferenceKind::Managed,
+                    mir::Access::Mutable,
+                    storage,
+                ))
             }
-            // erase structural rows behind the dynamic carrier
+            // erase structural shapes behind the dynamic carrier
             dir::Type::Shape(_) | dir::Type::Unknown => self.lower_dynamic(id),
             // resolve memory forms through the form algebra
             dir::Type::Form(_) => self.lower_form(id, None),
@@ -314,6 +360,7 @@ impl<'module> ModuleLowerer<'module> {
             return Ok(None);
         }
 
+        // storage carriers wrap exactly one value argument
         let arguments = self.types(id.module_id)?.type_ids(instance.arguments);
         let Some(argument) = arguments.first().copied() else {
             return Err(CompilerError::Internal {
@@ -432,6 +479,7 @@ impl TypeLowerer<'_, '_> {
             false => mir::Copy::No,
         };
 
+        // index the payloads as cases of one tagged variant
         let variant = self.variant_type(payloads, copy);
 
         self.tree.intern_type(variant)

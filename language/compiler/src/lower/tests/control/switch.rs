@@ -1,7 +1,7 @@
 use crate::tests::TestSession;
 
 #[test]
-fn test_lower_switch_preserves_fallthrough_and_break() {
+fn test_preserve_switch_fallthrough_and_break() {
     let session = TestSession::single(
         r#"
 function classify(value: int32): int32 {
@@ -68,7 +68,7 @@ b5:
 }
 
 #[test]
-fn test_lower_switch_evaluates_selectors_in_order() {
+fn test_evaluate_switch_selectors_in_order() {
     let session = TestSession::single(
         r#"
 function select(value: int32, first: int32, second: int32): int32 {
@@ -119,7 +119,7 @@ b6:
 }
 
 #[test]
-fn test_lower_switch_compares_newtype_backings() {
+fn test_compare_switch_cases_over_newtype_backings() {
     let session = TestSession::single(
         r#"
 newtype Meters = int32;
@@ -169,7 +169,7 @@ b4:
 }
 
 #[test]
-fn test_lower_switch_compares_literal_unions_through_their_scalar_carrier() {
+fn test_compare_switch_cases_over_the_scalar_carrier_of_a_literal_union() {
     let session = TestSession::single(
         r#"
 function isTwo(value: 1 | 2): boolean {
@@ -217,7 +217,7 @@ b4:
 }
 
 #[test]
-fn test_lower_switch_compares_singleton_newtype_union_cases() {
+fn test_compare_switch_cases_over_singleton_newtype_unions() {
     let session = TestSession::single(
         r#"
 newtype Ready = true;

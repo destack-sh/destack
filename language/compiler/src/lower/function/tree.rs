@@ -114,39 +114,39 @@ impl FunctionLowerer<'_, '_, '_> {
         self.lower_constant(literal, carrier)
     }
 
-    /// Lower the attributes row of one tree literal.
+    /// Lower the attribute type of one tree literal.
     fn lower_tree_attributes(
         &mut self,
-        row: dir::GlobalTypeId,
+        attributes: dir::GlobalTypeId,
         resolution: &dir::TreeResolution,
     ) -> CompilerResult<mir::Value> {
-        let row = self.lowerer.reduced_type(row)?;
-        let dir::Type::Application(_) = self.lowerer.ty(row)? else {
+        let attributes = self.lowerer.reduced_type(attributes)?;
+        let dir::Type::Application(_) = self.lowerer.ty(attributes)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
-                construct: "a structural tree attribute row".to_string(),
+                construct: "a structural tree attribute type".to_string(),
             }
             .into());
         };
 
-        self.lower_tree_aggregate(row, resolution)
+        self.lower_tree_aggregate(attributes, resolution)
     }
 
-    /// Lower one nominal attribute row to its field aggregate.
+    /// Lower one nominal attribute type to its field aggregate.
     fn lower_tree_aggregate(
         &mut self,
-        row: dir::GlobalTypeId,
+        attributes: dir::GlobalTypeId,
         resolution: &dir::TreeResolution,
     ) -> CompilerResult<mir::Value> {
-        let row = self.lowerer.reduced_type(row)?;
-        let dir::Type::Application(instance) = self.lowerer.ty(row)? else {
+        let attributes = self.lowerer.reduced_type(attributes)?;
+        let dir::Type::Application(instance) = self.lowerer.ty(attributes)? else {
             return Err(CompilerError::Internal {
-                message: "tree aggregate row is not nominal".to_string(),
+                message: "a tree aggregate outside a nominal type".to_string(),
             });
         };
         let owner = instance.symbol.module_id;
-        let representation = self.lower_nominal(row)?;
-        let ty = self.lower_type(row)?;
+        let representation = self.lower_nominal(attributes)?;
+        let ty = self.lower_type(attributes)?;
         let nominal = self.lowerer.nominal(&representation.key)?;
         let members = nominal
             .fields
@@ -254,7 +254,7 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.aggregate(ty, values))
     }
 
-    /// Lower one class component construction with its props row.
+    /// Lower one class component construction with its attribute object.
     fn lower_tree_construct(
         &mut self,
         construct: &dir::ConstructResolution,
@@ -273,6 +273,11 @@ impl FunctionLowerer<'_, '_, '_> {
         };
         let props = self.lower_tree_attributes(props.ty, resolution)?;
 
-        self.lower_class_instance(construct.return_type, &candidate.constructor, vec![props])
+        self.lower_class_instance(
+            construct.return_type,
+            &candidate.constructor,
+            &candidate.generic_arguments,
+            vec![props],
+        )
     }
 }

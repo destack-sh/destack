@@ -53,6 +53,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .into());
         };
 
+        // route the name through the machine operations, then the instructions
         if let Ok(operation) = name.parse::<mir::Intrinsic>() {
             return self.lower_operation_intrinsic(operation, resolution);
         }
@@ -155,6 +156,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
         }
 
+        // continue building into an unreachable block after the terminator
         let dead = self.builder.block();
         self.builder.switch_to_block(dead);
 
@@ -262,7 +264,7 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(Some(self.builder.cast(operator, operand, target)))
     }
 
-    /// Lower one slice view over raw parts.
+    /// Lower one slice view over a raw address and length.
     pub(in crate::lower) fn lower_slice_from_raw(
         &mut self,
         resolution: &dir::Call,
@@ -602,6 +604,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
         let subject = self.lower_type(subject)?;
 
+        // lay the subject out at the target to answer the query
         let pointer_bytes = (self.builder.pointer_bits() / 8) as u8;
         let target = mir::TargetLayout::for_pointer_bytes(pointer_bytes);
         let mut layouts = mir::LayoutTable::default();

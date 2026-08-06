@@ -20,7 +20,7 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
 
-        // bind object rows behind their managed reference representation
+        // bind object types behind their managed reference representation
         let source = self.lowerer.reduced_type(source)?;
         if let dir::Type::Object(_) = self.lowerer.ty(source)? {
             let reference = self.lower_type(source)?;
@@ -126,18 +126,18 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
-        contract: dir::GlobalTypeId,
+        constraint: dir::GlobalTypeId,
         key: dir::StaticKey,
     ) -> CompilerResult<mir::Value> {
         // find the constraint slot the key declares
-        let dir::Type::Shape(shape) = self.lowerer.ty(contract)? else {
+        let dir::Type::Shape(shape) = self.lowerer.ty(constraint)? else {
             return Err(CompilerError::Internal {
-                message: "dynamic field read outside a structural contract".to_string(),
+                message: "a dynamic field read outside a structural constraint".to_string(),
             });
         };
         let slot = self
             .lowerer
-            .types(contract.module_id)?
+            .types(constraint.module_id)?
             .properties(shape.properties)
             .iter()
             .position(|property| property.key == key)

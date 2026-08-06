@@ -1,9 +1,11 @@
 mod aggregate;
 mod binding;
 mod call;
+mod closure;
 mod control;
 mod dynamic;
 mod generic;
 mod library;
+mod literal;
 mod scalar;
 mod tree;

@@ -1,7 +1,7 @@
 use crate::tests::TestSession;
 
 #[test]
-fn test_lower_integer_widening_extends_by_sign() {
+fn test_extend_by_sign_when_widening_an_integer() {
     let session = TestSession::single(
         r#"
 function widen(a: int32, b: uint32): int64 {
@@ -25,7 +25,7 @@ entry(v0: int32, v1: uint32):
 }
 
 #[test]
-fn test_lower_integer_narrowing_truncates() {
+fn test_truncate_when_narrowing_an_integer() {
     let session = TestSession::single(
         r#"
 function narrow(value: int64): int8 {
@@ -47,7 +47,7 @@ entry(v0: int64):
 }
 
 #[test]
-fn test_lower_integer_to_float_converts_by_sign() {
+fn test_convert_an_integer_to_float_by_sign() {
     let session = TestSession::single(
         r#"
 function ratio(hits: uint32, total: int32): float64 {
@@ -71,7 +71,7 @@ entry(v0: uint32, v1: int32):
 }
 
 #[test]
-fn test_lower_float_to_integer_saturates() {
+fn test_saturate_when_converting_a_float_to_integer() {
     let session = TestSession::single(
         r#"
 function whole(value: float64): int32 {
@@ -93,7 +93,7 @@ entry(v0: float64):
 }
 
 #[test]
-fn test_lower_literal_cast_materializes_at_target() {
+fn test_materialize_a_literal_cast_at_its_target_type() {
     let session = TestSession::single(
         r#"
 function big(): int64 {

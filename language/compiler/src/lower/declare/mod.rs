@@ -4,7 +4,10 @@ mod constant;
 mod decorator;
 mod foreign;
 mod instance;
+mod literal;
+mod reachable;
 mod root;
 
 pub(in crate::lower) use decorator::CallableImplementation;
 pub(in crate::lower) use instance::{FunctionDeclaration, GenericInstanceKey};
+pub(in crate::lower) use reachable::Reachable;
