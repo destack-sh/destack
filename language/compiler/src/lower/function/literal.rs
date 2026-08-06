@@ -1,3 +1,4 @@
+use destack_core::StringId;
 use destack_dir as dir;
 use destack_mir as mir;
 
@@ -11,6 +12,25 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         literal: dir::ScalarLiteral,
     ) -> CompilerResult<mir::Value> {
+        // a string or bigint at its singleton type is comptime: zero sized,
+        //  its content lives in the type and widening materializes it
+        let is_comptime = matches!(self.node_type(expression)?, dir::Type::Literal(_));
+        match literal {
+            dir::ScalarLiteral::String(string) if !is_comptime => {
+                return self.lower_string_literal(string);
+            }
+            dir::ScalarLiteral::Bigint(bigint) if !is_comptime => {
+                return self.lower_bigint_literal(bigint);
+            }
+            dir::ScalarLiteral::String(_) | dir::ScalarLiteral::Bigint(_) => {
+                let void = self.builder.tree_mut().intern_type(mir::Type::Void);
+
+                return Ok(self.builder.constant(mir::Constant::Undefined, void));
+            }
+            _ => {}
+        }
+
+        // materialize the literal at the carrier its node commits to
         let carrier = self.literal_carrier(expression, literal)?;
 
         self.lower_constant(literal, carrier)
@@ -34,21 +54,68 @@ impl FunctionLowerer<'_, '_, '_> {
             (dir::ScalarLiteral::Integer(value), mir::Type::Float(float)) => {
                 Ok(self.builder.fconst(value as f64, float))
             }
+            // materialize integers at the pointer-sized carriers
+            (dir::ScalarLiteral::Integer(value), mir::Type::Usize) => {
+                Ok(self.builder.usize_const(value as u128))
+            }
+            (dir::ScalarLiteral::Integer(value), mir::Type::Isize) => {
+                let width = self.builder.pointer_bits();
+
+                Ok(self.builder.iconst(value as i128, width, true))
+            }
 
             // materialize floats at their selected format
             (dir::ScalarLiteral::Float(value), mir::Type::Float(float)) => {
                 Ok(self.builder.fconst(value, float))
             }
 
-            // reject string literals, which carry no scalar constant
-            (dir::ScalarLiteral::String(_), _) => Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
-                construct: "a string literal constant".to_string(),
+            // read string and bigint literals from their declared immortal objects
+            (dir::ScalarLiteral::String(string), _) => self.lower_string_literal(string),
+            (dir::ScalarLiteral::Bigint(bigint), _) => self.lower_bigint_literal(bigint),
+
+            // materialize undefined as the void unit in void positions
+            (dir::ScalarLiteral::Undefined, carrier @ mir::Type::Void) => {
+                let ty = self.builder.tree_mut().intern_type(carrier);
+
+                Ok(self.builder.constant(mir::Constant::Undefined, ty))
             }
-            .into()),
 
             (literal, carrier) => Err(CompilerError::Internal {
                 message: format!("carrier {carrier:?} for literal {literal:?}"),
+            }),
+        }
+    }
+
+    /// Lower one string literal to its immortal String object reference.
+    fn lower_string_literal(&mut self, string: StringId) -> CompilerResult<mir::Value> {
+        // read the declared immortal object, cascading its declare diagnostic
+        match self.lowerer.string_literals.get(&string) {
+            Some(Ok((global, value))) => {
+                let global = *global;
+                let value = *value;
+
+                Ok(self.builder.global_addr(global, value))
+            }
+            Some(Err(diagnostic)) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
+            None => Err(CompilerError::Internal {
+                message: format!("string literal {} reached lowering undeclared", string.0),
+            }),
+        }
+    }
+
+    /// Lower one bigint literal to its immortal BigInt object reference.
+    fn lower_bigint_literal(&mut self, bigint: i64) -> CompilerResult<mir::Value> {
+        // read the declared immortal object, cascading its declare diagnostic
+        match self.lowerer.bigint_literals.get(&bigint) {
+            Some(Ok((global, value))) => {
+                let global = *global;
+                let value = *value;
+
+                Ok(self.builder.global_addr(global, value))
+            }
+            Some(Err(diagnostic)) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
+            None => Err(CompilerError::Internal {
+                message: format!("bigint literal {bigint} reached lowering undeclared"),
             }),
         }
     }

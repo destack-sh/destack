@@ -25,17 +25,14 @@ import { NumberFormatOptions } from "./number.ds";
 /// Arbitrary-precision integer.
 @languageItem("math.BigInt")
 export class BigInt {
-    /// The sign of this integer.
+    /// The sign of this integer: -1, 0, or 1.
     private sign: int8 = 0;
 
-    /// The little-endian limb storage.
+    /// The little-endian magnitude limb storage, whose slice length is the capacity.
     private limbs: Unique<[MaybeUninit<uint64>]> = Unique.empty();
 
-    /// The initialized limb count.
-    private initializedLength: usize = 0;
-
-    /// The allocated limb count.
-    private capacity: usize = 0;
+    /// The significant limb count, with no trailing zero limbs.
+    private length: usize = 0;
 }
 
 export extension of BigInt {
