@@ -471,12 +471,23 @@ newtype UserId = Identifier;
 newtype interface Display {}
                   ^^^^^^^ nominal_interface
 
+struct Report {}
+       ^^^^^^ struct
+
 extension BufferAccess of UserId {}
           ^^^^^^^^^^^^ extension
                           ^^^^^^ extension_target
 
 extension of UserId {}
              ^^^^^^ unnamed_extension_target
+
+extension of UserId implements Display {}
+             ^^^^^^ repeated_extension_target
+                               ^^^^^^^ implemented_interface
+
+extension of Report implements Display {}
+             ^^^^^^ struct_extension_target
+                               ^^^^^^^ implemented_interface_again
 ```
 
 ```query semantic_tokens main.ds
@@ -484,9 +495,14 @@ extension of UserId {}
 @semantic_tokens.token range=main.ds#newtype type=type modifiers=declaration
 @semantic_tokens.token range=main.ds#newtype_value type=type
 @semantic_tokens.token range=main.ds#nominal_interface type=interface modifiers=declaration
+@semantic_tokens.token range=main.ds#struct type=struct modifiers=declaration
 @semantic_tokens.token range=main.ds#extension type=type modifiers=declaration
 @semantic_tokens.token range=main.ds#extension_target type=type
 @semantic_tokens.token range=main.ds#unnamed_extension_target type=type
+@semantic_tokens.token range=main.ds#repeated_extension_target type=type
+@semantic_tokens.token range=main.ds#implemented_interface type=interface
+@semantic_tokens.token range=main.ds#struct_extension_target type=struct
+@semantic_tokens.token range=main.ds#implemented_interface_again type=interface
 ```
 
 ### Classify generic declarations and references

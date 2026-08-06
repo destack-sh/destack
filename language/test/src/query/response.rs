@@ -386,6 +386,7 @@ fn completion_rows(
                 .field("kind", enum_name(item.kind))
                 .field("replace", run.format_span(item.edit.span)?)
                 .optional("detail", item.detail.as_deref())
+                .optional("description", item.description.as_deref())
                 .optional("documentation", item.documentation.as_deref())
                 .optional(
                     "insert",
