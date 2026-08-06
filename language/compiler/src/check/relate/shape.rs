@@ -5,6 +5,24 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{Answer, CheckState, Dependency, Origin, Relation, TypeSubstitution, answer};
 
+/// One signature instantiated at its required signature.
+pub(in crate::check) struct SignatureInstantiation {
+    /// The instantiated signature.
+    pub(in crate::check) signature: dir::GlobalTypeId,
+    /// The complete generic arguments selecting the instance, or None while parameters stay open.
+    pub(in crate::check) arguments: Option<Vec<dir::GenericArgumentBinding>>,
+}
+
+impl SignatureInstantiation {
+    /// Return one concrete signature passed through unchanged.
+    fn concrete(signature: dir::GlobalTypeId) -> Self {
+        Self {
+            signature,
+            arguments: Some(Vec::new()),
+        }
+    }
+}
+
 impl CheckState<'_> {
     /// Return whether one type can be used as a property key.
     pub(in crate::check) fn is_property_key_type(
@@ -706,9 +724,11 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         // bind a polymorphic source against the required signature first
-        let Some(source) = answer!(self.instantiate_signature(origin, source, target)?) else {
+        let Some(instantiation) = answer!(self.instantiate_signature(origin, source, target)?)
+        else {
             return Ok(Answer::Ready(false));
         };
+        let source = instantiation.signature;
 
         // collect directed comparison pairs
         let Some(pairs) =
@@ -724,28 +744,46 @@ impl CheckState<'_> {
     /// Instantiate one polymorphic signature at its required signature.
     ///
     /// The signature's own generics bind by structurally matching the required signature, bound
-    /// arguments must satisfy their declared constraints, and the instantiation compares from
-    /// there on.
-    fn instantiate_signature(
+    /// arguments must satisfy their declared constraints, and the instantiation compares or
+    /// converts from there on.
+    pub(in crate::check) fn instantiate_signature(
         &mut self,
         origin: Origin,
         signature: dir::GlobalTypeId,
         required: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Answer<Option<SignatureInstantiation>>> {
+        // peel callable carriers down to their matchable signatures
+        let peeled = match self.ty(signature)? {
+            dir::Type::Function(function) => function.signature,
+            dir::Type::FunctionPointer(pointer) => pointer.signature,
+            _ => signature,
+        };
+        let required = match self.ty(required)? {
+            dir::Type::Function(function) => function.signature,
+            dir::Type::FunctionPointer(pointer) => pointer.signature,
+            _ => required,
+        };
+
         // pass signatures without their own generics through unchanged
-        let Some(head) = self.signature_head(signature)? else {
-            return Ok(Answer::Ready(Some(signature)));
+        let Some(head) = self.signature_head(peeled)? else {
+            return Ok(Answer::Ready(Some(SignatureInstantiation::concrete(
+                signature,
+            ))));
         };
         let Some(template) = head.template else {
-            return Ok(Answer::Ready(Some(signature)));
+            return Ok(Answer::Ready(Some(SignatureInstantiation::concrete(
+                signature,
+            ))));
         };
         let parameters = self.generic_template_parameters(template)?;
         if parameters.is_empty() {
-            return Ok(Answer::Ready(Some(signature)));
+            return Ok(Answer::Ready(Some(SignatureInstantiation::concrete(
+                signature,
+            ))));
         }
 
         // reject shapes that expose no matchable pairs
-        let Some(pairs) = self.signature_match_pairs(signature, required)? else {
+        let Some(pairs) = self.signature_match_pairs(peeled, required)? else {
             return Ok(Answer::Ready(None));
         };
 
@@ -763,9 +801,31 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(None));
         }
 
-        Ok(Answer::Ready(Some(
-            self.substitute_type(signature, &substitution)?,
-        )))
+        // extract the complete selection when every value parameter binds
+        let mut arguments = Some(Vec::with_capacity(parameters.len()));
+        for parameter in parameters.iter().copied() {
+            // lifetimes are proof-only and erase from instance identity
+            let is_lifetime = self.generic_parameter(parameter).is_some_and(|binding| {
+                binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
+            });
+            if is_lifetime {
+                continue;
+            }
+            match substitution.argument(parameter) {
+                Some(argument) => {
+                    let argument = self.settled_root(argument)?;
+                    if let Some(arguments) = &mut arguments {
+                        arguments.push(dir::GenericArgumentBinding::new(parameter, argument));
+                    }
+                }
+                None => arguments = None,
+            }
+        }
+
+        Ok(Answer::Ready(Some(SignatureInstantiation {
+            signature: self.substitute_type(signature, &substitution)?,
+            arguments,
+        })))
     }
 
     /// Decide one relation between receiver-bound method signatures.
@@ -946,7 +1006,7 @@ impl CheckState<'_> {
     }
 
     /// Return positional signature pairs for generic parameter matching.
-    fn signature_match_pairs(
+    pub(in crate::check) fn signature_match_pairs(
         &self,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,

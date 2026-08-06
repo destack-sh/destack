@@ -284,6 +284,80 @@ impl BodyState<'_, '_> {
             ..source
         };
         let target = answer!(self.reduce_named_head(origin, target)?);
+
+        // a scalar singleton widens first: materialization leads the ladder,
+        //  and the widened runtime value converts like any other
+        let source_value = answer!(self.strip_form(origin, source.ty)?);
+        if let dir::Type::Literal(literal) = self.ty(source_value)? {
+            let base = answer!(self.strip_form(origin, target)?);
+            let base_head = self.ty(base)?;
+            let is_runtime = matches!(base_head, dir::Type::Primitive(_) | dir::Type::Range(_));
+            if is_runtime && literal.widens_to(&base_head) {
+                let widened = Value { ty: base, ..source };
+                let rest =
+                    answer!(self.convert_closed_value(site, origin, cause, widened, target, use_)?);
+                let rung = dir::CoercionAdjustment::Widen { target: base };
+
+                return Ok(Answer::Ready(match rest {
+                    Ok(Some(coercion)) => {
+                        let mut adjustments = vec![rung];
+                        adjustments.extend(coercion.adjustments);
+
+                        Ok(Some(Box::new(dir::Coercion::new(
+                            source.ty,
+                            adjustments,
+                            dir::CastOrigin::Implicit,
+                        ))))
+                    }
+                    Ok(None) => Ok(Some(Box::new(dir::Coercion::new(
+                        source.ty,
+                        vec![rung],
+                        dir::CastOrigin::Implicit,
+                    )))),
+                    Err(failure) => Err(failure),
+                }));
+            }
+        }
+
+        // a generic callable reference instantiates first: the selection leads
+        //  the ladder, and the instantiated runtime value converts like any other
+        let required = answer!(self.strip_form(origin, target)?);
+        if let Some(instantiation) =
+            answer!(self.instantiate_signature(origin, source_value, required)?)
+            && let Some(arguments) = instantiation.arguments
+            && !arguments.is_empty()
+        {
+            let selected = Value {
+                ty: instantiation.signature,
+                ..source
+            };
+            let rest =
+                answer!(self.convert_closed_value(site, origin, cause, selected, target, use_)?);
+            let rung = dir::CoercionAdjustment::Instantiate {
+                target: instantiation.signature,
+                arguments,
+            };
+
+            return Ok(Answer::Ready(match rest {
+                Ok(Some(coercion)) => {
+                    let mut adjustments = vec![rung];
+                    adjustments.extend(coercion.adjustments);
+
+                    Ok(Some(Box::new(dir::Coercion::new(
+                        source.ty,
+                        adjustments,
+                        dir::CastOrigin::Implicit,
+                    ))))
+                }
+                Ok(None) => Ok(Some(Box::new(dir::Coercion::new(
+                    source.ty,
+                    vec![rung],
+                    dir::CastOrigin::Implicit,
+                )))),
+                Err(failure) => Err(failure),
+            }));
+        }
+
         let target = match use_.requires_storage() {
             true => {
                 let target = answer!(self.reduce_type(origin, target)?);
