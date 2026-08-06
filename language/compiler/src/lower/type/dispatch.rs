@@ -15,9 +15,9 @@ use crate::{CompilerError, CompilerResult, LowerError};
 pub(in crate::lower) enum Implementer {
     /// A nominal class erased at a constraint, filling slots from its members.
     Class(dir::GlobalSymbolId),
-    /// A concrete object row erased at a structural constraint.
+    /// A concrete object type erased at a structural constraint.
     Object {
-        /// The property names the row wrote, leaving other optional slots absent.
+        /// The property names the object wrote, leaving other optional slots absent.
         written: Vec<StringId>,
     },
 }
@@ -43,7 +43,7 @@ impl ModuleLowerer<'_> {
             });
         };
 
-        // register the concrete object row's written property names
+        // register the concrete object's written property names
         if let dir::Type::Object(shape) = self.ty(source)? {
             let reference = self
                 .type_lowerer(builder.tree_mut(), pointer_bytes, &substitution, &lifetimes)
@@ -62,7 +62,7 @@ impl ModuleLowerer<'_> {
                     _ => None,
                 })
                 .collect::<Vec<_>>();
-            self.erasures
+            self.implementers
                 .entry((pointee, constraint))
                 .or_insert(Implementer::Object { written });
 
@@ -85,7 +85,7 @@ impl ModuleLowerer<'_> {
             .type_lowerer(builder.tree_mut(), pointer_bytes, &substitution, &lifetimes)
             .lower_nominal(instance.symbol, &arguments)?
             .storage;
-        self.erasures
+        self.implementers
             .entry((concrete, constraint))
             .or_insert(Implementer::Class(instance.symbol));
 
@@ -99,10 +99,10 @@ impl ModuleLowerer<'_> {
         errors: &mut Vec<Box<dyn DiagnosticLike>>,
     ) -> CompilerResult<()> {
         let shapes = mem::take(&mut self.dynamic_shapes);
-        let erasures = mem::take(&mut self.erasures);
+        let implementers = mem::take(&mut self.implementers);
 
-        // derive the table each erased concrete row answers its constraint with
-        for ((concrete, constraint), implementer) in erasures {
+        // derive the table each erased concrete type answers its constraint with
+        for ((concrete, constraint), implementer) in implementers {
             let Some(shape) = shapes.get(&constraint) else {
                 return Err(CompilerError::Internal {
                     message: "an erasure without its registered constraint shape".to_string(),
@@ -110,7 +110,7 @@ impl ModuleLowerer<'_> {
             };
             let fields = builder.layouts().named_field_offsets(concrete);
 
-            // keep unsupported erasures isolated per table
+            // keep unsupported implementers isolated per table
             let entries = match self.dispatch_entries(&shape.slots, &implementer, &fields) {
                 Ok(entries) => entries,
                 Err(CompilerError::Diagnostic(diagnostic)) => {
@@ -135,6 +135,7 @@ impl ModuleLowerer<'_> {
                 });
             }
 
+            // publish the table this concrete type answers the constraint with
             builder
                 .dispatch_mut()
                 .insert_dynamic_table(mir::DynamicTable {
@@ -170,6 +171,7 @@ impl ModuleLowerer<'_> {
                 })
         };
 
+        // fill one entry per constraint slot
         let mut entries = Vec::with_capacity(slots.len());
         for slot in slots {
             let entry = match (slot, implementer) {
@@ -179,7 +181,7 @@ impl ModuleLowerer<'_> {
                         offset: field_offset(*name)?,
                     }
                 }
-                // read unwritten optional row slots as undefined
+                // read unwritten optional object slots as undefined
                 (mir::DynamicSlot::Field { name, .. }, Implementer::Object { written }) => {
                     match written.contains(name) {
                         true => mir::DynamicEntry::Field {
@@ -221,7 +223,7 @@ impl ModuleLowerer<'_> {
                 (mir::DynamicSlot::Function { name: Some(_), .. }, Implementer::Object { .. }) => {
                     return Err(LowerError::Unsupported {
                         anchor: self.module.into(),
-                        construct: "a function member on a structural contract".to_string(),
+                        construct: "a function member on a structural constraint".to_string(),
                     }
                     .into());
                 }

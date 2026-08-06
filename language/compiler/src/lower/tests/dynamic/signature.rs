@@ -2,7 +2,7 @@ use crate::tests::TestSession;
 
 /// Read one computed key through a structural signature's dynamic table.
 #[test]
-fn test_find_a_computed_key_through_a_signature_row() {
+fn test_read_a_computed_key_through_an_index_signature() {
     let session = TestSession::single(
         r#"
 type Counts = { [key: string]: int32 };
