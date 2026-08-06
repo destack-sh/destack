@@ -24,8 +24,7 @@ export enum GpuDeviceLossReason {
 export struct GpuDeviceStatus {
     /// Whether the device is currently operational.
     healthy: boolean;
-    /// Device-loss reason category when the device is not healthy.
-    /// `Unknown` and `Destroyed` match WebGPU and `wgpu` reasons.
+    /// Device-loss reason category, with `Unknown` and `Destroyed` matching WebGPU and `wgpu`.
     lossReason?: GpuDeviceLossReason;
     /// Backend-specific status code when the backend exposes one.
     backendCode?: int32;

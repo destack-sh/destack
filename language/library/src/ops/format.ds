@@ -4,8 +4,9 @@ import { MaybeOwned } from "destack:memory";
 /// Interface for user-facing string representation.
 ///
 /// Template interpolation dispatches through this interface: `${value}`
-/// requires the value's type to implement it. Conformance is deliberate,
-/// so a type without a semantic textual form never prints implicitly.
+/// requires the value's type to implement it.
+/// Conformance is deliberate, so a type without a meaningful textual representation
+/// never prints implicitly.
 @languageItem("ops.Display")
 export newtype interface Display {
     /// Return a user-facing string representation.

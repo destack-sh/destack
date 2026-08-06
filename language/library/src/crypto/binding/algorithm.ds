@@ -156,7 +156,7 @@ export enum CryptoKdfAlgorithm {
     Hkdf = 1,
     /// PBKDF2.
     Pbkdf2 = 2,
-    /// scrypt.
+    /// `scrypt`.
     Scrypt = 3,
     /// Argon2id.
     Argon2id = 4,

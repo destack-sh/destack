@@ -14,8 +14,7 @@ export struct AccessibilityTreeUpdate {
     rootNodeId: AccessibilityNodeId;
     /// Focused node identifier, or the root when nothing else is focused.
     focusedNodeId: AccessibilityNodeId;
-    /// Added or replaced node descriptors.
-    /// Each node replaces the previous descriptor for the same identifier.
+    /// Added or replaced nodes that supersede any previous descriptor for the same identifier.
     nodes: [AccessibilityNode];
     /// Removed node identifiers.
     removedNodeIds: [AccessibilityNodeId];

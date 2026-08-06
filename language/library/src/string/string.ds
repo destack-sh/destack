@@ -86,8 +86,7 @@ export extension of string implements Add<string>, Equal<string>, Hash {
         todo("String.isEmpty")
     }
 
-    /// Get a character at the given UTF-16 index.
-    /// Returns undefined if index is out of bounds.
+    /// Return a one-code-unit string at the given UTF-16 index, or undefined out of bounds.
     charAt(&readonly this, index: number): ^string | undefined {
         todo("String.charAt")
     }

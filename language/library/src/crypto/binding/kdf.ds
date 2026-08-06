@@ -29,7 +29,7 @@ export struct CryptoPbkdf2<'a> {
     iterations: uint32;
 }
 
-/// scrypt derivation.
+/// `scrypt` derivation.
 export struct CryptoScrypt<'a> {
     /// Password bytes.
     password: &'a readonly [uint8];

@@ -6,15 +6,15 @@ import { Concrete, Copy, SharedSafe } from "destack:memory";
 ///
 /// Specifies how memory accesses around atomic operations can be reordered.
 export enum MemoryOrdering {
-    /// No ordering constraints. Fastest but provides no synchronization.
+    /// Atomicity without synchronization ordering.
     Relaxed,
-    /// Acquire ordering for loads. Prevents reordering of subsequent reads and writes.
+    /// Acquire ordering that prevents subsequent reads and writes from moving before a load.
     Acquire,
-    /// Release ordering for stores. Prevents reordering of prior reads and writes.
+    /// Release ordering that prevents prior reads and writes from moving after a store.
     Release,
-    /// Acquire-release ordering. Combines Acquire and Release.
+    /// Combined acquire and release ordering.
     AcquireRelease,
-    /// Sequentially consistent ordering. Strongest guarantee.
+    /// Acquire-release ordering within one global total order.
     SequentiallyConsistent,
 }
 

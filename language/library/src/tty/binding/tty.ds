@@ -11,7 +11,7 @@ export interface TtyBinding {
     readonly pty: TtyPtyBinding;
     /// Terminal bindings.
     readonly terminal: TtyTerminalBinding;
-    /// termios bindings.
+    /// `termios` bindings.
     readonly termios: TtyTermiosBinding;
 }
 
