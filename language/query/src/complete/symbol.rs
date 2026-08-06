@@ -77,7 +77,7 @@ impl CompletionCollector<'_, '_, '_> {
         ))?;
 
         // read the declaration's value type
-        if completion.kind.has_type_detail() {
+        if completion.kind.has_value_detail() {
             let module = self.program.module(symbol_id.module_id)?;
             let type_id =
                 module
@@ -180,17 +180,27 @@ impl CompletionCollector<'_, '_, '_> {
 
         // render declaration text and documentation
         if let Some(symbol) = completion.symbol() {
-            if completion.kind.has_type_detail() && completion.detail.is_none() {
-                let detail = Formatter::new(self.module, self.program).symbol_type(symbol)?;
-                completion = completion.with_detail(detail);
+            if completion.detail.is_none() {
+                let formatter = Formatter::new(self.module, self.program);
+                let detail = if completion.kind.has_value_detail() {
+                    Some(formatter.symbol_type(symbol)?)
+                } else if completion.kind.has_declaration_detail() {
+                    Some(formatter.symbol_signature(symbol)?)
+                } else {
+                    None
+                };
+                if let Some(detail) = detail {
+                    completion = completion.with_detail(detail);
+                }
             }
+
             if let Some(documentation) = self.program.symbol_documentation(symbol)? {
                 completion = completion.with_documentation(documentation);
             }
         }
 
-        // render contextual types without declarations
-        if completion.kind.has_type_detail()
+        // render contextual value types without declarations
+        if completion.kind.has_value_detail()
             && completion.detail.is_none()
             && let Some(type_id) = completion.type_id
         {
@@ -203,8 +213,8 @@ impl CompletionCollector<'_, '_, '_> {
 }
 
 impl CompletionItemKind {
-    /// Return whether this editor item includes its type as detail.
-    fn has_type_detail(self) -> bool {
+    /// Return whether this editor item includes its value type as detail.
+    fn has_value_detail(self) -> bool {
         matches!(
             self,
             Self::AssociatedConst
@@ -217,6 +227,23 @@ impl CompletionItemKind {
                 | Self::Value
                 | Self::ValueParameter
                 | Self::Variable
+        )
+    }
+
+    /// Return whether this editor item includes its declaration as detail.
+    fn has_declaration_detail(self) -> bool {
+        matches!(
+            self,
+            Self::AssociatedType
+                | Self::Class
+                | Self::Enum
+                | Self::Extension
+                | Self::Interface
+                | Self::Newtype
+                | Self::NewtypeInterface
+                | Self::Struct
+                | Self::TypeAlias
+                | Self::TypeParameter
         )
     }
 }

@@ -176,6 +176,8 @@ pub struct CompletionItem {
     pub kind: CompletionItemKind,
     /// Detail shown alongside the label.
     pub detail: Option<String>,
+    /// Description shown separately from the label.
+    pub description: Option<String>,
     /// Documentation for the item.
     pub documentation: Option<String>,
     /// The primary source edit.
@@ -201,6 +203,8 @@ pub(crate) struct CompletionCandidate {
     pub(crate) kind: CompletionItemKind,
     /// Detail shown alongside the label.
     pub(crate) detail: Option<String>,
+    /// Description shown separately from the label.
+    pub(crate) description: Option<String>,
     /// Documentation for the item.
     pub(crate) documentation: Option<String>,
     /// The insertion produced when this candidate is selected.
@@ -378,6 +382,7 @@ impl CompletionCandidate {
             label: label.into(),
             kind,
             detail: None,
+            description: None,
             documentation: None,
             insertion: CompletionInsertion::Label,
             producer_order,
@@ -409,6 +414,13 @@ impl CompletionCandidate {
     /// Set the detail text.
     pub(crate) fn with_detail(mut self, detail: impl Into<String>) -> Self {
         self.detail = Some(detail.into());
+        self
+    }
+
+    /// Set the item description.
+    pub(crate) fn with_description(mut self, description: impl Into<String>) -> Self {
+        self.description = Some(description.into());
+
         self
     }
 
@@ -560,6 +572,7 @@ impl CompletionCandidate {
             label: self.label,
             kind: self.kind,
             detail: self.detail,
+            description: self.description,
             documentation: self.documentation,
             edit: CompletionEdit {
                 span,

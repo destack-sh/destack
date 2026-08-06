@@ -363,10 +363,10 @@ impl CompletionCollector<'_, '_, '_> {
             };
             let import_order = candidate.order(&import_specifier)?;
             let kind = declaration.completion_kind(self.program)?;
-            let detail = format!("Auto import from {import_specifier}");
+            let description = format!("from {import_specifier}");
             let completion =
                 CompletionCandidate::new(name, kind, CompletionOrigin::AutoImport, SORT_DEFAULT)
-                    .with_detail(detail)
+                    .with_description(description)
                     .with_import_order(import_order)
                     .with_auto_import(binding.clone(), import_specifier);
             let completion = match declaration {
