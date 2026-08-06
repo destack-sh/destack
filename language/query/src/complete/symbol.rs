@@ -183,7 +183,7 @@ impl CompletionCollector<'_, '_, '_> {
             if completion.detail.is_none() {
                 let formatter = Formatter::new(self.module, self.program);
                 let detail = if completion.kind.has_value_detail() {
-                    Some(formatter.symbol_type(symbol)?)
+                    formatter.symbol_type_detail(symbol)?
                 } else if completion.kind.has_declaration_detail() {
                     Some(formatter.symbol_signature(symbol)?)
                 } else {
@@ -199,10 +199,17 @@ impl CompletionCollector<'_, '_, '_> {
             }
         }
 
-        // render contextual value types without declarations
+        // render contextual value types without declarations, skipping error types
         if completion.kind.has_value_detail()
             && completion.detail.is_none()
             && let Some(type_id) = completion.type_id
+            && !matches!(
+                self.program
+                    .module(type_id.module_id)?
+                    .types()?
+                    .get_type(type_id.local_id),
+                destack_dir::Type::Error
+            )
         {
             let detail = Formatter::new(self.module, self.program).global_type(type_id)?;
             completion = completion.with_detail(detail);
