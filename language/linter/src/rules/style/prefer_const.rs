@@ -52,12 +52,12 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect mutable binding declarations
-    for expression in view.iter_nodes::<dir::Expression>() {
+    for (expression, node) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::Let {
             kind: dir::LetKind::Let,
             declarators,
             ..
-        } = view.get(expression)
+        } = node
         else {
             continue;
         };
@@ -169,7 +169,7 @@ fn mutable_binding_uses(
 
     // collect explicit mutable and exclusive borrows of root binding storage
     let view = module.view();
-    for (expression, value) in view.iter_nodes_of_type::<dir::Expression>() {
+    for (expression, value) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::BorrowOf { right, .. } = value else {
             continue;
         };

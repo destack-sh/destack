@@ -34,7 +34,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // report every visible debugger expression
-    for (expression_id, expression) in view.iter_nodes_of_type::<dir::Expression>() {
+    for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
         // skip other expressions
         if !matches!(expression, dir::Expression::Debugger) {
             continue;

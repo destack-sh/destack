@@ -44,8 +44,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // collect every authored expression condition
-    for expression in view.iter_nodes::<dir::Expression>() {
-        match view.get(expression) {
+    for (_, expression) in view.iter_nodes::<dir::Expression>() {
+        match expression {
             dir::Expression::If { condition, .. } => {
                 for operand in &condition.operands {
                     if let dir::ConditionOperand::Expression { condition } = operand {
@@ -65,15 +65,15 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             _ => {}
         }
     }
-    for arm in view.iter_nodes::<dir::MatchArm>() {
-        if let Some(guard) = view.get(arm).guard() {
+    for (_, arm) in view.iter_nodes::<dir::MatchArm>() {
+        if let Some(guard) = arm.guard() {
             conditions.insert(guard.into_any());
         }
     }
 
     // inspect assignments evaluated inside those conditions
-    for expression in view.iter_nodes::<dir::Expression>() {
-        if !matches!(view.get(expression), dir::Expression::Assign { .. })
+    for (expression, node) in view.iter_nodes::<dir::Expression>() {
+        if !matches!(node, dir::Expression::Assign { .. })
             || !is_condition_assignment(view, expression.into_any(), &conditions)
         {
             continue;

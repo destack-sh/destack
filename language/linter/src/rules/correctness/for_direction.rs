@@ -211,12 +211,12 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect complete three-part for loops
-    for expression in view.iter_nodes::<dir::Expression>() {
+    for (_, node) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::For {
             condition: Some(condition),
             increment: Some(increment),
             ..
-        } = view.get(expression)
+        } = node
         else {
             continue;
         };

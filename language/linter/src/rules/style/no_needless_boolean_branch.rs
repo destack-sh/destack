@@ -40,13 +40,13 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect regular if statements with one expression condition
-    for expression in view.iter_nodes::<dir::Expression>() {
+    for (expression, node) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::If {
             form: dir::IfForm::If,
             condition,
             then_expression,
             else_expression: Some(else_expression),
-        } = view.get(expression)
+        } = node
         else {
             continue;
         };

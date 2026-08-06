@@ -118,7 +118,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect authored floating-point literals
-    for (expression, value) in view.iter_nodes_of_type::<dir::Expression>() {
+    for (expression, value) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::ScalarLiteral(dir::ScalarLiteral::Float(value)) = value else {
             continue;
         };

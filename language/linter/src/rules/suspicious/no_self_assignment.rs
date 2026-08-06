@@ -37,12 +37,12 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect plain assignments to direct places
-    for expression in view.iter_nodes::<dir::Expression>() {
+    for (expression, node) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::Assign {
             left,
             operator: dir::AssignOperator::Assign,
             right,
-        } = view.get(expression)
+        } = node
         else {
             continue;
         };

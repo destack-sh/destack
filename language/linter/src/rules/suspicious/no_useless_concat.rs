@@ -34,12 +34,12 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect builtin addition between two literal strings
-    for expression in view.iter_nodes::<dir::Expression>() {
+    for (expression, node) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::Binary {
             left,
             operator: dir::BinaryOperator::Add,
             right,
-        } = view.get(expression)
+        } = node
         else {
             continue;
         };

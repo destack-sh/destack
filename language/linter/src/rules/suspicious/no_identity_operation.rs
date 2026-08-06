@@ -36,12 +36,12 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect builtin binary operations over integral values
-    for expression in view.iter_nodes::<dir::Expression>() {
+    for (expression, node) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::Binary {
             left,
             operator,
             right,
-        } = view.get(expression)
+        } = node
         else {
             continue;
         };

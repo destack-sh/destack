@@ -36,10 +36,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect checked calls that optionally consume one first element
-    for expression in view.iter_nodes::<dir::Expression>() {
+    for (expression, node) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::Call {
             left, arguments, ..
-        } = view.get(expression)
+        } = node
         else {
             continue;
         };
