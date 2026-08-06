@@ -247,52 +247,6 @@ const total = offset + 1;
 @code_actions.patch action=1 range=main.ds#target text=10
 ```
 
-## Extract Function
-
-### [ignored] Extract an expression into a function
-
-Extraction can introduce a module function and replace the selected expression with its call.
-
-```ds main.ds
-
-^ insertion
-function calculate(): int32 {
-    return 1 + 2;
-           ^^^^^ selection
-}
-```
-
-```query code_actions main.ds#selection only=refactor_extract
-@code_actions.action index=0 title="Extract function" kind=refactor_extract
-@code_actions.patch action=0 range=main.ds#insertion text="function extracted(): int32 {\n    return 1 + 2;\n}\n\n"
-@code_actions.patch action=0 range=main.ds#selection text="extracted()"
-```
-
-## Implementations
-
-### [ignored] Implement required members
-
-A concrete type can insert the interface members it has not implemented.
-
-```ds main.ds
-interface Drawable {
-    draw(): void;
-}
-
-class Point implements Drawable {
-                       ^^^^^^^ diagnostic
-    x: int32 = 0;
-}
-^ insertion
-```
-
-```query code_actions main.ds#diagnostic
-diagnostic interface-not-implemented main.ds#diagnostic
-@code_actions.action index=0 title="Implement missing members" kind=quick_fix applicability=dangerous
-@code_actions.diagnostic action=0 id=interface-not-implemented location=main.ds#diagnostic
-@code_actions.patch action=0 range=main.ds#insertion@start text="    draw(): void {}\n"
-```
-
 ## Source changes
 
 ### Update available actions after an expression changes

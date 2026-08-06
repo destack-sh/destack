@@ -737,30 +737,6 @@ declare const packet: library.Pac;
 @completion.item label=Packet kind=struct replace=main.ds#prefix detail="export struct Packet" preselect=true matches=0,1,2
 ```
 
-## Implementations
-
-### [ignored] Complete a required method
-
-A class body can insert the entire missing interface method.
-
-```ds main.ds
-interface Service {
-    run(value: int32): void;
-    stop(): void;
-}
-
-class Application implements Service {
-    run(value: int32): void {}
-
-    st
-    ^^ prefix
-}
-```
-
-```query completion main.ds#prefix@end
-@completion.item label=stop kind=method replace=main.ds#prefix detail="Implement Service.stop" insert="stop(): void {\n    $0\n}" snippet=true preselect=true matches=0,1
-```
-
 ## Types
 
 ### Complete a nominal type

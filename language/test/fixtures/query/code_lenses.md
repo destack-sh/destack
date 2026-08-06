@@ -64,23 +64,6 @@ struct Packet implements Encode {
 @code_lenses.lens range=main.ds#interface action=implementations count=1
 ```
 
-## Tests
-
-### [ignored] Offer test actions for a decorated function
-
-A test decorator produces run and debug lenses for its function.
-
-```ds main.ds
-@test
-function verify(): void {}
-         ^^^^^^ declaration
-```
-
-```query code_lenses main.ds
-@code_lenses.lens range=main.ds#declaration action=run_test symbol=main.ds#verify@1
-@code_lenses.lens range=main.ds#declaration action=debug_test symbol=main.ds#verify@1
-```
-
 ## Modules
 
 ### Count references across modules
