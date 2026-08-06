@@ -1,12 +1,12 @@
-use std::slice;
 use std::sync::Arc;
 
-use destack_artifact::{DiagnosticAnchor, DirExpanded, DirExported, DirParsed, DirResolved};
+use destack_artifact::{
+    DirBound, DirChecked, DirDeclared, DirExpanded, DirExported, DirImported, DirParsed,
+    DirResolved,
+};
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, Module, ProfileId, ProviderError, Repository, Revision};
-use destack_source::{
-    File, FileId, ModuleId, NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span,
-};
+use destack_source::{File, ModuleId};
 
 use super::Dir;
 
@@ -158,147 +158,6 @@ impl<'a> DirModule<'a> {
 
         self.dir.get_type(type_id)
     }
-
-    /// Return the required source span for one DIR node.
-    pub fn span(&self, node: dir::LocalNodeIdAny) -> Result<Span, ProviderError> {
-        self.view()
-            .get_span_by_id(node.id)
-            .ok_or_else(|| ProviderError::Internal {
-                message: format!(
-                    "DIR node {} in module {:?} has no source span",
-                    node.id, self.id
-                ),
-            })
-    }
-
-    /// Return the main source span for one DIR node.
-    pub fn main_span(&self, node: dir::LocalNodeIdAny) -> Result<Span, ProviderError> {
-        self.view()
-            .get_side_span_by_id(node.id, NodeSpanType::Main)
-            .ok_or_else(|| ProviderError::Internal {
-                message: format!(
-                    "DIR node {} in module {:?} has no main source span",
-                    node.id, self.id
-                ),
-            })
-    }
-
-    /// Return the complete authored source span for one DIR node.
-    pub fn source_extent(&self, node: dir::LocalNodeIdAny) -> Result<Span, ProviderError> {
-        self.view()
-            .get_source_extent_by_id(node.id)
-            .ok_or_else(|| ProviderError::Internal {
-                message: format!(
-                    "DIR node {} in module {:?} has no source extent",
-                    node.id, self.id
-                ),
-            })
-    }
-
-    /// Return the authored parentheses around one DIR node.
-    pub fn source_parentheses(&self, node: dir::LocalNodeIdAny) -> Option<Span> {
-        self.view()
-            .get_side_span_by_id(node.id, NodeSpanType::Region(NodeSpanRegion::Parentheses))
-    }
-
-    /// Return the source text covered by one span.
-    pub fn source(&self, span: Span) -> Result<&str, ProviderError> {
-        let source = self.file(span.file)?.text();
-        let range = span.start as usize..span.end as usize;
-
-        source.get(range).ok_or_else(|| ProviderError::Internal {
-            message: format!("source span {span:?} is not a valid UTF-8 range"),
-        })
-    }
-
-    /// Return whether an extent contains a comment outside the retained spans.
-    pub fn has_unretained_comment(
-        &self,
-        extent: Span,
-        retained: &[Span],
-    ) -> Result<bool, ProviderError> {
-        let parsed_file = self.parsed.file(extent.file).ok_or_else(|| {
-            ProviderError::internal(format!(
-                "source file {:?} is absent from parsed lint module {:?}",
-                extent.file, self.id
-            ))
-        })?;
-        let has_comment = parsed_file.comments.iter().any(|comment| {
-            extent.contains_span(comment.span)
-                && !retained
-                    .iter()
-                    .any(|retained| retained.contains_span(comment.span))
-        });
-
-        Ok(has_comment)
-    }
-
-    /// Return the source span and trailing boundary for one DIR statement.
-    pub fn statement_span(
-        &self,
-        expression: dir::LocalNodeId<dir::Expression>,
-    ) -> Result<Span, ProviderError> {
-        let view = self.view();
-        let span = self.span(expression.into_any())?;
-        let trailing = view.get_side_span(
-            expression,
-            NodeSpanType::Boundary(NodeSpanBoundary::Trailing),
-        );
-
-        Ok(trailing.map_or(span, |trailing| span.merge(trailing)))
-    }
-
-    /// Return the source span removed with one DIR statement.
-    pub fn statement_removal_span(
-        &self,
-        expression: dir::LocalNodeId<dir::Expression>,
-    ) -> Result<Span, ProviderError> {
-        let span = self.statement_span(expression)?;
-        let source = self.file(span.file)?.text().as_bytes();
-        let mut start = span.start as usize;
-
-        // absorb the horizontal separator immediately before the statement
-        while start > 0 && matches!(source[start - 1], b' ' | b'\t') {
-            start -= 1;
-        }
-
-        // absorb the line break when only the block close follows
-        let mut end = span.end as usize;
-        if (start == 0 || source[start - 1] == b'\n') && source.get(end) == Some(&b'\n') {
-            let mut next = end + 1;
-            while next < source.len() && matches!(source[next], b' ' | b'\t') {
-                next += 1;
-            }
-            if source.get(next) == Some(&b'}') {
-                end += 1;
-            }
-        }
-
-        Ok(Span::new(span.file, start as u32, end as u32))
-    }
-
-    /// Return a source anchor for one DIR node.
-    pub fn anchor(&self, node: dir::LocalNodeIdAny) -> Result<DiagnosticAnchor, ProviderError> {
-        let span = self.span(node)?;
-
-        Ok(DiagnosticAnchor::Span(span))
-    }
-
-    /// Return the checked DIR tree.
-    pub fn view(&self) -> dir::View<'_> {
-        dir::View::with_patches(&self.parsed.tree, slice::from_ref(&self.expanded.patch))
-    }
-
-    /// Return one source file.
-    pub fn file(&self, file_id: FileId) -> Result<&File, ProviderError> {
-        self.files
-            .iter()
-            .find(|file| file.id == file_id)
-            .map(AsRef::as_ref)
-            .ok_or_else(|| ProviderError::Internal {
-                message: format!("file {file_id:?} is outside lint module {:?}", self.id),
-            })
-    }
 }
 
 impl DirModuleStorage {
@@ -313,14 +172,14 @@ impl DirModuleStorage {
         let module_id = module.id;
 
         // read the DIR artifacts
-        let parsed = artifacts.dir_parsed(module_id)?;
-        let bound = artifacts.dir_bound(module_id, profile)?;
-        let imported = artifacts.dir_imported(module_id, profile)?;
-        let resolved = artifacts.dir_resolved(module_id, profile)?;
-        let expanded = artifacts.dir_expanded(module_id, profile)?;
-        let exported = artifacts.dir_exported(module_id, profile)?;
-        let checked = artifacts.dir_checked(module_id, profile)?;
-        let declared = artifacts.dir_declared(module_id, profile)?;
+        let parsed = artifacts.read::<DirParsed>(module_id)?;
+        let bound = artifacts.read::<DirBound>((module_id, profile))?;
+        let imported = artifacts.read::<DirImported>((module_id, profile))?;
+        let resolved = artifacts.read::<DirResolved>((module_id, profile))?;
+        let expanded = artifacts.read::<DirExpanded>((module_id, profile))?;
+        let exported = artifacts.read::<DirExported>((module_id, profile))?;
+        let checked = artifacts.read::<DirChecked>((module_id, profile))?;
+        let declared = artifacts.read::<DirDeclared>((module_id, profile))?;
         let expected_files = module
             .files
             .iter()

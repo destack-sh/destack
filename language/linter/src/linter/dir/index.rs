@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::EnvironmentBound;
+use destack_artifact::{DirBound, DirChecked, DirDeclared, DirExpanded, EnvironmentBound};
 use destack_core::FxIndexMap;
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProfileId, ProviderError, Repository, Revision};
@@ -17,10 +17,6 @@ pub struct Dir<'a> {
     pub environment: Arc<EnvironmentBound>,
     /// The repository string pool.
     pub strings: Arc<dir::StringPool>,
-    /// The repository that owns the inspected modules.
-    repository: &'a Repository,
-    /// The repository revision.
-    revision: Revision,
     /// The artifact reader for globally owned DIR values.
     artifacts: ArtifactReader<'a>,
     /// The modules inspected by this lint artifact.
@@ -49,9 +45,8 @@ impl<'a> Dir<'a> {
 
     /// Return one checked type by global id.
     pub fn get_type(&self, type_id: dir::GlobalTypeId) -> Result<dir::Type, ProviderError> {
-        self.read_module(type_id.module_id, |module| {
-            module
-                .types
+        self.read_types(type_id.module_id, |types| {
+            types
                 .get_type_maybe(type_id.local_id)
                 .ok_or_else(|| ProviderError::Internal {
                     message: format!("DIR type {type_id:?} is not present in its owning module"),
@@ -61,15 +56,12 @@ impl<'a> Dir<'a> {
 
     /// Return the borrow form carried by one checked type.
     pub fn get_borrow(&self, type_id: dir::GlobalTypeId) -> Result<dir::BorrowForm, ProviderError> {
-        self.read_module(type_id.module_id, |module| {
-            let ty = module
-                .types
-                .get_type_maybe(type_id.local_id)
-                .ok_or_else(|| {
-                    ProviderError::internal(format!(
-                        "borrow target {type_id:?} is absent from its owning type table"
-                    ))
-                })?;
+        self.read_types(type_id.module_id, |types| {
+            let ty = types.get_type_maybe(type_id.local_id).ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "borrow target {type_id:?} is absent from its owning type table"
+                ))
+            })?;
             let dir::Type::Form(form) = ty else {
                 return Err(ProviderError::internal(format!(
                     "borrow target {type_id:?} is not a form type"
@@ -81,15 +73,11 @@ impl<'a> Dir<'a> {
                 )));
             };
 
-            module
-                .types
-                .borrow_form_maybe(borrow_id)
-                .copied()
-                .ok_or_else(|| {
-                    ProviderError::internal(format!(
-                        "borrow target {type_id:?} has no borrow form {borrow_id:?}"
-                    ))
-                })
+            types.borrow_form_maybe(borrow_id).copied().ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "borrow target {type_id:?} has no borrow form {borrow_id:?}"
+                ))
+            })
         })
     }
 
@@ -110,9 +98,8 @@ impl<'a> Dir<'a> {
         &self,
         static_id: dir::GlobalStaticId,
     ) -> Result<dir::StaticTerm, ProviderError> {
-        self.read_module(static_id.module_id, |module| {
-            module
-                .statics
+        self.read_statics(static_id.module_id, |statics| {
+            statics
                 .get_static_maybe(static_id.local_id)
                 .cloned()
                 .ok_or_else(|| ProviderError::Internal {
@@ -128,11 +115,10 @@ impl<'a> Dir<'a> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Result<Option<dir::StaticTerm>, ProviderError> {
-        self.read_module(symbol.module_id, |module| {
-            let value = module
-                .statics
+        self.read_statics(symbol.module_id, |statics| {
+            let value = statics
                 .get_symbol_static_id(symbol)
-                .and_then(|static_id| module.statics.get_static_maybe(static_id.local_id))
+                .and_then(|static_id| statics.get_static_maybe(static_id.local_id))
                 .cloned();
 
             Ok(value)
@@ -175,45 +161,72 @@ impl<'a> Dir<'a> {
             profile,
             environment,
             strings: repository.string_pool().clone(),
-            repository,
-            revision,
             artifacts: artifacts.clone(),
             modules: loaded,
         })
     }
 
-    /// Read one module that owns globally addressed DIR values.
-    pub(super) fn read_module<T>(
+    /// Read the type table that owns globally addressed DIR types.
+    fn read_types<T>(
         &self,
         module: ModuleId,
-        read: impl FnOnce(&DirModuleStorage) -> Result<T, ProviderError>,
+        read: impl FnOnce(&dir::TypeTable<'_>) -> Result<T, ProviderError>,
     ) -> Result<T, ProviderError> {
-        // read modules already loaded for direct inspection
+        // read the table already loaded for direct inspection
         if let Some(module) = self.modules.get(&module) {
-            return read(module);
+            return read(&module.types);
         }
 
-        // select the foreign code module
-        let repository_module = self
-            .repository
-            .module(self.revision, module)
-            .map_err(|error| ProviderError::internal(error.to_string()))?
-            .ok_or_else(|| ProviderError::internal(format!("missing DIR module {module:?}")))?;
-        if !repository_module.is_code() {
-            return Err(ProviderError::internal(format!(
-                "globally addressed DIR value belongs to non-code module {module:?}"
-            )));
+        // compose the foreign table from its checked DIR
+        let bound = self.artifacts.read::<DirBound>((module, self.profile))?;
+        let expanded = self.artifacts.read::<DirExpanded>((module, self.profile))?;
+        let declared = self.artifacts.read::<DirDeclared>((module, self.profile))?;
+        let checked = self.artifacts.read::<DirChecked>((module, self.profile))?;
+        let types = checked.type_table(&bound, &expanded, &declared);
+
+        read(&types)
+    }
+
+    /// Read the static table that owns globally addressed DIR values.
+    fn read_statics<T>(
+        &self,
+        module: ModuleId,
+        read: impl FnOnce(&dir::StaticTable<'_>) -> Result<T, ProviderError>,
+    ) -> Result<T, ProviderError> {
+        // read the table already loaded for direct inspection
+        if let Some(module) = self.modules.get(&module) {
+            return read(&module.statics);
         }
 
-        // load its checked DIR through recorded artifact reads
-        let module = DirModuleStorage::load(
-            self.repository,
-            self.revision,
-            self.profile,
-            repository_module,
-            &self.artifacts,
-        )?;
+        // compose the foreign table from its checked DIR
+        let bound = self.artifacts.read::<DirBound>((module, self.profile))?;
+        let expanded = self.artifacts.read::<DirExpanded>((module, self.profile))?;
+        let declared = self.artifacts.read::<DirDeclared>((module, self.profile))?;
+        let checked = self.artifacts.read::<DirChecked>((module, self.profile))?;
+        let statics = checked.static_table(&bound, &expanded, &declared);
 
-        read(&module)
+        read(&statics)
+    }
+
+    /// Read binding and definition tables for one globally addressed declaration.
+    pub(super) fn read_declaration_tables<T>(
+        &self,
+        module: ModuleId,
+        read: impl FnOnce(&dir::BindingTable<'_>, &dir::DefinitionTable<'_>) -> Result<T, ProviderError>,
+    ) -> Result<T, ProviderError> {
+        // read the tables already loaded for direct inspection
+        if let Some(module) = self.modules.get(&module) {
+            return read(&module.bindings, &module.definitions);
+        }
+
+        // compose the foreign tables from their checked DIR
+        let bound = self.artifacts.read::<DirBound>((module, self.profile))?;
+        let expanded = self.artifacts.read::<DirExpanded>((module, self.profile))?;
+        let declared = self.artifacts.read::<DirDeclared>((module, self.profile))?;
+        let checked = self.artifacts.read::<DirChecked>((module, self.profile))?;
+        let bindings = checked.binding_table(&bound, &expanded, &declared);
+        let definitions = checked.definition_table(&declared);
+
+        read(&bindings, &definitions)
     }
 }

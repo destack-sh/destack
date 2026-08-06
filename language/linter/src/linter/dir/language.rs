@@ -9,40 +9,32 @@ impl Dir<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Result<Option<dir::LanguageMember>, ProviderError> {
-        self.read_module(symbol.module_id, |module| {
+        self.read_declaration_tables(symbol.module_id, |bindings, definitions| {
             // read the selected member declaration
-            let declaration = module
-                .bindings
-                .get_symbol_maybe(symbol.local_id)
-                .ok_or_else(|| {
-                    ProviderError::internal(format!(
-                        "selected member symbol {symbol:?} is absent from its binding table"
-                    ))
-                })?;
+            let declaration = bindings.get_symbol_maybe(symbol.local_id).ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "selected member symbol {symbol:?} is absent from its binding table"
+                ))
+            })?;
             let Some(key) = declaration.key else {
                 return Ok(None);
             };
 
             // select the declaration that owns the member symbol
-            let owner = module
-                .bindings
-                .symbol_owner(symbol.local_id)
-                .ok_or_else(|| {
-                    ProviderError::internal(format!(
-                        "selected member symbol {symbol:?} has no owning declaration"
-                    ))
-                })?;
+            let owner = bindings.symbol_owner(symbol.local_id).ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "selected member symbol {symbol:?} has no owning declaration"
+                ))
+            })?;
             let owner = owner.into_global(symbol.module_id);
 
             // resolve inherent extension members to their receiver declaration
-            let owner = match module.definitions.extension_definition(owner) {
-                Some(extension) if extension.is_inherent() => {
-                    let Some(target) = extension.target.root() else {
-                        return Ok(None);
-                    };
-
-                    target
-                }
+            let owner = match definitions.extension_definition(owner) {
+                Some(dir::ExtensionDefinition {
+                    symbol: extension_symbol,
+                    target: dir::ExtensionTarget::Rooted { root, .. },
+                    ..
+                }) if extension_symbol.module_id == root.module_id => *root,
                 Some(_) => return Ok(None),
                 None => owner,
             };

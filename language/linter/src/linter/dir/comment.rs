@@ -306,11 +306,12 @@ impl<'a> CommentBlock<'a> {
 
         Ok(lines)
     }
+}
 
-    /// Return prose sentences in this block.
-    pub fn sentences(self) -> Result<Vec<CommentSentence<'a>>, ProviderError> {
-        let lines = self.lines()?;
-        let contents = Self::line_contents(&lines);
+impl<'a> CommentSentence<'a> {
+    /// Collect prose sentences from physical comment lines.
+    pub fn collect(lines: &[CommentLine<'a>]) -> Result<Vec<Self>, ProviderError> {
+        let contents = Self::line_contents(lines);
         let mut sentences = Vec::new();
         let mut current = None;
 

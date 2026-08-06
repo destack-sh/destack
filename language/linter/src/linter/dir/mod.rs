@@ -5,6 +5,7 @@ mod language;
 mod module;
 mod program;
 mod scalar;
+mod source;
 
 pub use comment::*;
 pub use index::*;

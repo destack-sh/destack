@@ -129,26 +129,7 @@ impl DirModule<'_> {
 
         let is_same = match (left_expression, right_expression) {
             // repeatable compiler-defined unary operations
-            (
-                dir::Expression::Unary {
-                    operator: left_operator,
-                    right: left_value,
-                },
-                dir::Expression::Unary {
-                    operator: right_operator,
-                    right: right_value,
-                },
-            ) if left_operator == right_operator
-                && matches!(
-                    left_operator,
-                    dir::UnaryOperator::Not
-                        | dir::UnaryOperator::Plus
-                        | dir::UnaryOperator::Negate
-                        | dir::UnaryOperator::ElementwiseNot
-                        | dir::UnaryOperator::Typeof
-                        | dir::UnaryOperator::Void
-                ) =>
-            {
+            (dir::Expression::Unary { .. }, dir::Expression::Unary { .. }) => {
                 let left_resolution = self.operator_resolution(left.into_any())?;
                 let right_resolution = self.operator_resolution(right.into_any())?;
                 let (Some(left_resolution), Some(right_resolution)) =
@@ -156,29 +137,31 @@ impl DirModule<'_> {
                 else {
                     return Ok(false);
                 };
-                let (Some([left_operand]), Some([right_operand])) = (
-                    left_resolution.builtin_operands(),
-                    right_resolution.builtin_operands(),
+                let (Some((left_operator, left_operand)), Some((right_operator, right_operand))) = (
+                    left_resolution.builtin_unary(),
+                    right_resolution.builtin_unary(),
                 ) else {
                     return Ok(false);
                 };
+                if left_operator != right_operator
+                    || !matches!(
+                        left_operator,
+                        dir::UnaryOperator::Not
+                            | dir::UnaryOperator::Plus
+                            | dir::UnaryOperator::Negate
+                            | dir::UnaryOperator::ElementwiseNot
+                            | dir::UnaryOperator::Typeof
+                            | dir::UnaryOperator::Void
+                    )
+                {
+                    return Ok(false);
+                }
 
-                self.is_repeated_operand(*left_value, left_operand, *right_value, right_operand)?
+                self.is_repeated_operand(left_operand, right_operand)?
             }
 
             // repeatable compiler-defined binary operations
-            (
-                dir::Expression::Binary {
-                    left: left_left,
-                    operator: left_operator,
-                    right: left_right,
-                },
-                dir::Expression::Binary {
-                    left: right_left,
-                    operator: right_operator,
-                    right: right_right,
-                },
-            ) if left_operator == right_operator => {
+            (dir::Expression::Binary { .. }, dir::Expression::Binary { .. }) => {
                 let left_resolution = self.operator_resolution(left.into_any())?;
                 let right_resolution = self.operator_resolution(right.into_any())?;
                 let (Some(left_resolution), Some(right_resolution)) =
@@ -186,20 +169,22 @@ impl DirModule<'_> {
                 else {
                     return Ok(false);
                 };
-                let (Some([left_first, left_second]), Some([right_first, right_second])) = (
-                    left_resolution.builtin_operands(),
-                    right_resolution.builtin_operands(),
-                ) else {
+                let (
+                    Some((left_operator, [left_first, left_second])),
+                    Some((right_operator, [right_first, right_second])),
+                ) = (
+                    left_resolution.builtin_binary(),
+                    right_resolution.builtin_binary(),
+                )
+                else {
                     return Ok(false);
                 };
+                if left_operator != right_operator {
+                    return Ok(false);
+                }
 
-                self.is_repeated_operand(*left_left, left_first, *right_left, right_first)?
-                    && self.is_repeated_operand(
-                        *left_right,
-                        left_second,
-                        *right_right,
-                        right_second,
-                    )?
+                self.is_repeated_operand(left_first, right_first)?
+                    && self.is_repeated_operand(left_second, right_second)?
             }
 
             // compiler-defined casts and static assertions
@@ -238,9 +223,7 @@ impl DirModule<'_> {
     /// Return whether two builtin operands repeat one checked runtime value.
     pub fn is_repeated_operand(
         &self,
-        left: dir::LocalNodeId<dir::Expression>,
         left_operand: &dir::BuiltinOperand,
-        right: dir::LocalNodeId<dir::Expression>,
         right_operand: &dir::BuiltinOperand,
     ) -> Result<bool, ProviderError> {
         if left_operand.ty != right_operand.ty
@@ -249,13 +232,14 @@ impl DirModule<'_> {
             return Ok(false);
         }
 
-        let left_global = left.into_global_any(self.id);
-        let right_global = right.into_global_any(self.id);
-        let left_coercion = self.coercions.coercion(left_global);
-        let right_coercion = self.coercions.coercion(right_global);
+        let left_coercion = self.coercions.coercion(left_operand.source.into_any());
+        let right_coercion = self.coercions.coercion(right_operand.source.into_any());
         if left_coercion != right_coercion {
             return Ok(false);
         }
+
+        let left = left_operand.source.local_id;
+        let right = right_operand.source.local_id;
 
         self.is_repeated_expression(left, right)
     }
@@ -306,7 +290,7 @@ impl DirModule<'_> {
         application: dir::LocalNodeIdAny,
         source: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<&dir::BuiltinOperand>, ProviderError> {
-        let source = source.into_global_any(self.id);
+        let source = source.into_global(self.id);
         let Some(operands) = self.builtin_operands(application)? else {
             return Ok(None);
         };
@@ -348,6 +332,26 @@ impl DirModule<'_> {
 
             return Err(ProviderError::internal(format!(
                 "checked member expression {} in module {:?} has no member resolution",
+                node.id, self.id
+            )));
+        };
+
+        Ok(Some(resolution))
+    }
+
+    /// Return the subscript resolution selected for one checked expression.
+    pub fn subscript_resolution(
+        &self,
+        node: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<&dir::SubscriptResolution>, ProviderError> {
+        let global = node.into_global_any(self.id);
+        let Some(resolution) = self.resolutions.subscript_resolution(global) else {
+            if self.node_type(node.into_any())?.is_error() {
+                return Ok(None);
+            }
+
+            return Err(ProviderError::internal(format!(
+                "checked subscript expression {} in module {:?} has no subscript resolution",
                 node.id, self.id
             )));
         };
