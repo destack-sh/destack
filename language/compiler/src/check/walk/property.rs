@@ -571,6 +571,9 @@ impl WalkState<'_, '_> {
             return Ok(None);
         };
 
+        // walk parameter decorators even when no body is written
+        self.walk_parameter_decorators(signature.this_parameter, &signature.parameters)?;
+
         // only written method bodies check against a declared signature
         if body.is_none() || *is_ambient || abstraction.is_abstract() {
             return Ok(None);
@@ -622,10 +625,6 @@ impl WalkState<'_, '_> {
         is_ambient_scope: bool,
         method_body: Option<MethodBody>,
     ) -> CompilerResult<Option<FlowBranch>> {
-        // walk decorator expressions as values in the body pass
-        if !self.walk_decorators(id.into_any())? {
-            return Ok(None);
-        }
         let _receiver =
             self.enter_receiver_scope(receiver_scope.filter(|_| member.binds_receiver()));
 

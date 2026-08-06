@@ -4,6 +4,25 @@ use crate::check::{CauseKind, GenericParameterId, GenericTemplateId, ValueUse, W
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
+    /// Walk decorators on one declared callable's parameters.
+    pub(in crate::check) fn walk_parameter_decorators(
+        &mut self,
+        this_parameter: Option<dir::LocalNodeId<dir::Parameter>>,
+        parameters: &[dir::LocalNodeId<dir::Parameter>],
+    ) -> CompilerResult<()> {
+        // walk the explicit receiver
+        if let Some(parameter) = this_parameter {
+            self.walk_decorators(parameter.into_any())?;
+        }
+
+        // walk ordinary parameters
+        for parameter in parameters {
+            self.walk_decorators(parameter.into_any())?;
+        }
+
+        Ok(())
+    }
+
     /// Open one generic parameter header.
     ///
     /// Example:

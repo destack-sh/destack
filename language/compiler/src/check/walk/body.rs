@@ -126,7 +126,27 @@ impl WalkState<'_, '_> {
             // walk interface member decorators
             dir::Declaration::Interface(declaration) => {
                 for member in &declaration.members {
-                    self.walk_decorators(member.into_any())?;
+                    if !self.walk_decorators(member.into_any())? {
+                        continue;
+                    }
+
+                    // walk parameters retained by the declared signature
+                    match self.tree.get(*member).clone() {
+                        dir::TypeMember::Method { signature, .. } => self
+                            .walk_parameter_decorators(
+                                signature.this_parameter,
+                                &signature.parameters,
+                            )?,
+                        dir::TypeMember::CallSignature { signature } => self
+                            .walk_parameter_decorators(
+                                signature.this_parameter,
+                                &signature.parameters,
+                            )?,
+                        dir::TypeMember::ConstructSignature { signature } => {
+                            self.walk_parameter_decorators(None, &signature.parameters)?
+                        }
+                        _ => {}
+                    }
                 }
 
                 // queue interface obligations
@@ -284,6 +304,11 @@ impl WalkState<'_, '_> {
         let source = id.into_global_any(self.module);
         let mut constructor_branches = Vec::new();
         for member in members {
+            // walk member decorators before its parameters and body
+            if !self.walk_decorators(member.into_any())? {
+                continue;
+            }
+
             // validate annotated field defaults against their declared types
             if let dir::Member::Field {
                 declared_type: Some(annotation),
@@ -370,6 +395,12 @@ impl WalkState<'_, '_> {
         declaration: &dir::FunctionDeclaration,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<bool> {
+        // walk parameter decorators even when no body is written
+        self.walk_parameter_decorators(
+            declaration.signature.this_parameter,
+            &declaration.signature.parameters,
+        )?;
+
         // skip the body, declaring already reported it missing
         let Some(body) = declaration.body else {
             return Ok(true);

@@ -8,7 +8,7 @@ newtype mark = (string,);
 
 interface Reader {
     @mark("checked")
-    read(): string;
+    read(@mark("parameter") value: string): string;
 }
 "#,
     );
@@ -22,7 +22,7 @@ newtype mark = (string,);
 
 interface Reader {
     @mark("checked")
-    read(): string;
+    read(@mark("parameter") value: string): string;
 }
 
 === checked ===
@@ -33,16 +33,21 @@ newtype mark = (string,);
 interface Reader {
 /// @type.symbol symbol=Reader type=Reader
 /// @definition.interface symbol=Reader
-/// @definition.method symbol=Reader.read source="read(): string" slot=read type=(this: this) => string
+/// @definition.method symbol=Reader.read source="read(@mark(\"parameter\") value: string): string" slot=read type=(this: this, string) => string
 
     @mark("checked")
-    /// @decorator.node source="@mark(\"checked\")" owner="read(): string" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("checked") as string) newtype=mark backing=(string,) value="mark(\"checked\")"
+    /// @decorator.node source="@mark(\"checked\")" owner="read(@mark(\"parameter\") value: string): string" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("checked") as string) newtype=mark backing=(string,) value="mark(\"checked\")"
     /// @type.node source=mark type=mark
     /// @resolution.name source=mark target=mark
     /// @type.node source="\"checked\"" type="checked"
 
-    read(): string;
-    /// @type.symbol symbol=Reader.read source="read(): string" type=(this: this) => string
+    read(@mark("parameter") value: string): string;
+    /// @type.symbol symbol=Reader.read source="read(@mark(\"parameter\") value: string): string" type=(this: this, string) => string
+    /// @decorator.node source="@mark(\"parameter\")" owner="value: string" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("parameter") as string) newtype=mark backing=(string,) value="mark(\"parameter\")"
+    /// @type.node source=mark type=mark
+    /// @resolution.name source=mark target=mark
+    /// @type.node source="\"parameter\"" type="parameter"
+    /// @type.symbol symbol=Reader.read.value source="value: string" type=string
 
 }
 "#,
