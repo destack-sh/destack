@@ -230,7 +230,7 @@ const counts: Counts = { apples: 1, oranges: 2 };
 /// @type.node source=2 type=2
 /// @coercion.node source=2 from=2 adjustments=[{ kind: widen, target: int32 }] origin=implicit
 
-/// @check.stats.solve variables=0 types=11 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=12 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -431,7 +431,7 @@ const moved = Point { ...point, x: 3 };
 /// @resolution.access source=point root=point
 /// @type.node source=3 type=3
 
-/// @check.stats.solve variables=2 types=16 constraints=0 obligations=4 solutions=2 bounds=0 decisions=5
+/// @check.stats.solve variables=2 types=17 constraints=0 obligations=4 solutions=2 bounds=0 decisions=5
 "#,
     );
 }
@@ -495,7 +495,7 @@ const object = { ...point, label: "origin" };
 /// @resolution.access source=point root=point
 /// @type.node source="\"origin\"" type="origin"
 
-/// @check.stats.solve variables=2 types=15 constraints=0 obligations=4 solutions=2 bounds=0 decisions=4
+/// @check.stats.solve variables=2 types=16 constraints=0 obligations=4 solutions=2 bounds=0 decisions=4
 "#,
     );
 }

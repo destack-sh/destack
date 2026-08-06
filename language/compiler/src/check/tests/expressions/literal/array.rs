@@ -191,9 +191,9 @@ let values = [1, "two", true];
 /// @type.node source=1 type=1
 /// @coercion.node source=1 from=1 adjustments=[{ kind: union, target: float64 | string | boolean, cases: ({ source: 1, target: float64, adjustments: [{ kind: widen, target: float64 }] }) }] origin=implicit
 /// @type.node source="\"two\"" type="two"
-/// @coercion.node source="\"two\"" from="two" adjustments=[{ kind: union, target: float64 | string | boolean, cases: ({ source: "two", target: string }) }] origin=implicit
+/// @coercion.node source="\"two\"" from="two" adjustments=[{ kind: union, target: float64 | string | boolean, cases: ({ source: "two", target: string, adjustments: [{ kind: widen, target: string }] }) }] origin=implicit
 /// @type.node source=true type=true
-/// @coercion.node source=true from=true adjustments=[{ kind: union, target: float64 | string | boolean, cases: ({ source: true, target: boolean }) }] origin=implicit
+/// @coercion.node source=true from=true adjustments=[{ kind: union, target: float64 | string | boolean, cases: ({ source: true, target: boolean, adjustments: [{ kind: widen, target: boolean }] }) }] origin=implicit
 
 /// @check.stats.solve variables=1 types=12 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,

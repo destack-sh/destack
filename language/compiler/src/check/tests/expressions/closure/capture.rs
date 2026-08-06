@@ -4,8 +4,11 @@ use crate::tests::{DirRows, TestSession};
 fn test_closure_captures_lexical_binding() {
     let session = TestSession::single(
         r#"
-let count = 1;
-const next = () => count + 1;
+function make(): () => float64 {
+    let count = 1;
+    const next = () => count + 1;
+    return next;
+}
 "#,
     );
 
@@ -14,30 +17,45 @@ const next = () => count + 1;
         DirRows::checked().with_reference_types().with_capture(),
         r#"
 === annotated ===
-let count: float64 = 1;
-const next: () => float64 = (): float64 => count + 1;
+function make(): () => float64 {
+    let count: float64 = 1;
+    const next: () => float64 = (): float64 => count + 1;
+    return next;
+}
 
 === checked ===
-let count = 1;
-/// @type.symbol symbol=count source=count type=float64
-/// @resolution.pattern source=count kind=binding target=count
-/// @type.node source=1 type=1
+function make(): () => float64 {
+/// @type.symbol symbol=make type=() => Function<(), float64>
+/// @capture.function function=make bindings=0
 
-const next = () => count + 1;
-/// @type.symbol symbol=next source=next type=Function<(), float64>
-/// @resolution.pattern source=next kind=binding target=next
-/// @type.symbol symbol=symbol2 source="() => count + 1" type=Function<(), float64>
-/// @type.node source="() => count + 1" type=Function<(), float64>
-/// @capture.function function=symbol2 bindings=1 frames=(main.<frame0>)
-/// @capture.binding function=symbol2 symbol=count mode=manage type=float64 frame=main.<frame0>
-/// @capture.frame frame=main.<frame0> scope=<module> type=Managed<{ count: float64 }> fields={ count: float64 }
-/// @type.node source="count + 1" type=float64
-/// @type.node source=count type=float64
-/// @resolution.name source=count target=count
-/// @resolution.operator source="count + 1" type=float64 operator="+" kind=builtin operands=[count as float64 families=(float), 1 as float64 families=(float)]
-/// @resolution.place source=count placement="local" lifetime="static" access="exclusive"
-/// @resolution.access source=count root=count
-/// @type.node source=1 type=1
+    let count = 1;
+    /// @type.symbol symbol=make.count source=count type=float64
+    /// @resolution.pattern source=count kind=binding target=make.count
+    /// @type.node source=1 type=1
+
+    const next = () => count + 1;
+    /// @type.symbol symbol=make.next source=next type=Function<(), float64>
+    /// @resolution.pattern source=next kind=binding target=make.next
+    /// @type.symbol symbol=make.symbol3 source="() => count + 1" type=Function<(), float64>
+    /// @type.node source="() => count + 1" type=Function<(), float64>
+    /// @capture.function function=make.symbol3 bindings=1 frames=(main.<frame0>)
+    /// @capture.binding function=make.symbol3 symbol=count mode=manage type=float64 frame=main.<frame0>
+    /// @capture.frame frame=main.<frame0> scope=scope4 type=Managed<{ count: float64 }> fields={ count: float64 }
+    /// @type.node source="count + 1" type=float64
+    /// @type.node source=count type=float64
+    /// @resolution.name source=count target=make.count
+    /// @resolution.operator source="count + 1" type=float64 operator="+" kind=builtin operands=[count as float64 families=(float), 1 as float64 families=(float)]
+    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=count root=make.count
+    /// @type.node source=1 type=1
+
+    return next;
+    /// @type.node source=next type=Function<(), float64>
+    /// @resolution.name source=next target=make.next
+    /// @resolution.place source=next placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=next root=make.next
+
+}
 "#,
     );
 }
@@ -46,19 +64,24 @@ const next = () => count + 1;
 fn test_sibling_closures_share_capture_frame() {
     let session = TestSession::single(
         r#"
-let a = 0;
-let b = 0;
-let c = 0;
+function run(): void {
+    let a = 0;
+    let b = 0;
+    let c = 0;
 
-const foo = () => {
-    a += 1;
-    b += 1;
-};
+    const foo = () => {
+        a += 1;
+        b += 1;
+    };
 
-const boo = () => {
-    b += 1;
-    c += 1;
-};
+    const boo = () => {
+        b += 1;
+        c += 1;
+    };
+
+    foo();
+    boo();
+}
 "#,
     );
 
@@ -67,98 +90,125 @@ const boo = () => {
         DirRows::checked().with_reference_types().with_capture(),
         r#"
 === annotated ===
-let a: float64 = 0;
-let b: float64 = 0;
-let c: float64 = 0;
+function run(): void {
+    let a: float64 = 0;
+    let b: float64 = 0;
+    let c: float64 = 0;
 
-const foo: () => void = (): void => {
-    a += 1;
-    b += 1;
-};
+    const foo: () => void = (): void => {
+        a += 1;
+        b += 1;
+    };
 
-const boo: () => void = (): void => {
-    b += 1;
-    c += 1;
-};
+    const boo: () => void = (): void => {
+        b += 1;
+        c += 1;
+    };
+
+    foo();
+    boo();
+}
 
 === checked ===
-let a = 0;
-/// @type.symbol symbol=a source=a type=float64
-/// @resolution.pattern source=a kind=binding target=a
-/// @type.node source=0 type=0
+function run(): void {
+/// @type.symbol symbol=run type=() => void
+/// @capture.function function=run bindings=0
 
-let b = 0;
-/// @type.symbol symbol=b source=b type=float64
-/// @resolution.pattern source=b kind=binding target=b
-/// @type.node source=0 type=0
+    let a = 0;
+    /// @type.symbol symbol=run.a source=a type=float64
+    /// @resolution.pattern source=a kind=binding target=run.a
+    /// @type.node source=0 type=0
 
-let c = 0;
-/// @type.symbol symbol=c source=c type=float64
-/// @resolution.pattern source=c kind=binding target=c
-/// @type.node source=0 type=0
+    let b = 0;
+    /// @type.symbol symbol=run.b source=b type=float64
+    /// @resolution.pattern source=b kind=binding target=run.b
+    /// @type.node source=0 type=0
 
-const foo = () => {
-/// @type.symbol symbol=foo source=foo type=Function<(), void>
-/// @resolution.pattern source=foo kind=binding target=foo
-/// @type.symbol symbol=symbol4 type=Function<(), void>
-/// @type.node type=Function<(), void>
-/// @capture.function function=symbol4 bindings=2 frames=(main.<frame0>)
-/// @capture.binding function=symbol4 symbol=a mode=manage type=float64 frame=main.<frame0>
-/// @capture.binding function=symbol4 symbol=b mode=manage type=float64 frame=main.<frame0>
-/// @capture.frame frame=main.<frame0> scope=<module> type=Managed<{ a: float64; b: float64; c: float64 }> fields={ a: float64, b: float64, c: float64 }
+    let c = 0;
+    /// @type.symbol symbol=run.c source=c type=float64
+    /// @resolution.pattern source=c kind=binding target=run.c
+    /// @type.node source=0 type=0
 
-    a += 1;
-    /// @type.node source="a += 1" type=float64
-    /// @type.node source=a type=float64
-    /// @resolution.operator source="a += 1" type=float64 operator="+" kind=builtin operands=[a as float64 families=(float), 1 as float64 families=(float)]
-    /// @resolution.pattern.assign source=a kind=place
-    /// @resolution.place source=a placement="local" lifetime="static" access="exclusive"
-    /// @resolution.assignment source=a read=binding(a) write=binding(a) type=float64
-    /// @resolution.access source=a root=a
-    /// @type.node source=1 type=1
+    const foo = () => {
+    /// @type.symbol symbol=run.foo source=foo type=Function<(), void>
+    /// @resolution.pattern source=foo kind=binding target=run.foo
+    /// @type.symbol symbol=run.symbol5 type=Function<(), void>
+    /// @type.node type=Function<(), void>
+    /// @capture.function function=run.symbol5 bindings=2 frames=(main.<frame0>)
+    /// @capture.binding function=run.symbol5 symbol=a mode=manage type=float64 frame=main.<frame0>
+    /// @capture.binding function=run.symbol5 symbol=b mode=manage type=float64 frame=main.<frame0>
+    /// @capture.frame frame=main.<frame0> scope=scope3 type=Managed<{ a: float64; b: float64; c: float64 }> fields={ a: float64, b: float64, c: float64 }
 
-    b += 1;
-    /// @type.node source="b += 1" type=float64
-    /// @type.node source=b type=float64
-    /// @resolution.operator source="b += 1" type=float64 operator="+" kind=builtin operands=[b as float64 families=(float), 1 as float64 families=(float)]
-    /// @resolution.pattern.assign source=b kind=place
-    /// @resolution.place source=b placement="local" lifetime="static" access="exclusive"
-    /// @resolution.assignment source=b read=binding(b) write=binding(b) type=float64
-    /// @resolution.access source=b root=b
-    /// @type.node source=1 type=1
+        a += 1;
+        /// @type.node source="a += 1" type=float64
+        /// @type.node source=a type=float64
+        /// @resolution.operator source="a += 1" type=float64 operator="+" kind=builtin operands=[a as float64 families=(float), 1 as float64 families=(float)]
+        /// @resolution.pattern.assign source=a kind=place
+        /// @resolution.place source=a placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.assignment source=a read=binding(run.a) write=binding(run.a) type=float64
+        /// @resolution.access source=a root=run.a
+        /// @type.node source=1 type=1
 
-};
+        b += 1;
+        /// @type.node source="b += 1" type=float64
+        /// @type.node source=b type=float64
+        /// @resolution.operator source="b += 1" type=float64 operator="+" kind=builtin operands=[b as float64 families=(float), 1 as float64 families=(float)]
+        /// @resolution.pattern.assign source=b kind=place
+        /// @resolution.place source=b placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.assignment source=b read=binding(run.b) write=binding(run.b) type=float64
+        /// @resolution.access source=b root=run.b
+        /// @type.node source=1 type=1
 
-const boo = () => {
-/// @type.symbol symbol=boo source=boo type=Function<(), void>
-/// @resolution.pattern source=boo kind=binding target=boo
-/// @type.symbol symbol=symbol6 type=Function<(), void>
-/// @type.node type=Function<(), void>
-/// @capture.function function=symbol6 bindings=2 frames=(main.<frame0>)
-/// @capture.binding function=symbol6 symbol=b mode=manage type=float64 frame=main.<frame0>
-/// @capture.binding function=symbol6 symbol=c mode=manage type=float64 frame=main.<frame0>
+    };
 
-    b += 1;
-    /// @type.node source="b += 1" type=float64
-    /// @type.node source=b type=float64
-    /// @resolution.operator source="b += 1" type=float64 operator="+" kind=builtin operands=[b as float64 families=(float), 1 as float64 families=(float)]
-    /// @resolution.pattern.assign source=b kind=place
-    /// @resolution.place source=b placement="local" lifetime="static" access="exclusive"
-    /// @resolution.assignment source=b read=binding(b) write=binding(b) type=float64
-    /// @resolution.access source=b root=b
-    /// @type.node source=1 type=1
+    const boo = () => {
+    /// @type.symbol symbol=run.boo source=boo type=Function<(), void>
+    /// @resolution.pattern source=boo kind=binding target=run.boo
+    /// @type.symbol symbol=run.symbol7 type=Function<(), void>
+    /// @type.node type=Function<(), void>
+    /// @capture.function function=run.symbol7 bindings=2 frames=(main.<frame0>)
+    /// @capture.binding function=run.symbol7 symbol=b mode=manage type=float64 frame=main.<frame0>
+    /// @capture.binding function=run.symbol7 symbol=c mode=manage type=float64 frame=main.<frame0>
 
-    c += 1;
-    /// @type.node source="c += 1" type=float64
-    /// @type.node source=c type=float64
-    /// @resolution.operator source="c += 1" type=float64 operator="+" kind=builtin operands=[c as float64 families=(float), 1 as float64 families=(float)]
-    /// @resolution.pattern.assign source=c kind=place
-    /// @resolution.place source=c placement="local" lifetime="static" access="exclusive"
-    /// @resolution.assignment source=c read=binding(c) write=binding(c) type=float64
-    /// @resolution.access source=c root=c
-    /// @type.node source=1 type=1
+        b += 1;
+        /// @type.node source="b += 1" type=float64
+        /// @type.node source=b type=float64
+        /// @resolution.operator source="b += 1" type=float64 operator="+" kind=builtin operands=[b as float64 families=(float), 1 as float64 families=(float)]
+        /// @resolution.pattern.assign source=b kind=place
+        /// @resolution.place source=b placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.assignment source=b read=binding(run.b) write=binding(run.b) type=float64
+        /// @resolution.access source=b root=run.b
+        /// @type.node source=1 type=1
 
-};
+        c += 1;
+        /// @type.node source="c += 1" type=float64
+        /// @type.node source=c type=float64
+        /// @resolution.operator source="c += 1" type=float64 operator="+" kind=builtin operands=[c as float64 families=(float), 1 as float64 families=(float)]
+        /// @resolution.pattern.assign source=c kind=place
+        /// @resolution.place source=c placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.assignment source=c read=binding(run.c) write=binding(run.c) type=float64
+        /// @resolution.access source=c root=run.c
+        /// @type.node source=1 type=1
+
+    };
+
+    foo();
+    /// @type.node source=foo type=Function<(), void>
+    /// @type.node source=foo() type=void
+    /// @resolution.name source=foo target=run.foo
+    /// @resolution.call source=foo() parameters=() return=void kind=expression target=expression
+    /// @resolution.place source=foo placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=foo root=run.foo
+
+    boo();
+    /// @type.node source=boo type=Function<(), void>
+    /// @type.node source=boo() type=void
+    /// @resolution.name source=boo target=run.boo
+    /// @resolution.call source=boo() parameters=() return=void kind=expression target=expression
+    /// @resolution.place source=boo placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=boo root=run.boo
+
+}
 "#,
     );
 }
@@ -167,14 +217,17 @@ const boo = () => {
 fn test_capture_directives_select_capture_mode() {
     let session = TestSession::single(
         r#"
-let count = 1;
-let step = 2;
+function make(): () => float64 {
+    let count = 1;
+    let step = 2;
 
-@capture({
-    default: "manage",
-    step: "copy",
-})
-const next = () => count + step;
+    @capture({
+        default: "manage",
+        step: "copy",
+    })
+    const next = () => count + step;
+    return next;
+}
 "#,
     );
 
@@ -183,59 +236,74 @@ const next = () => count + step;
         DirRows::checked().with_reference_types().with_capture(),
         r#"
 === annotated ===
-let count: float64 = 1;
-let step: float64 = 2;
+function make(): () => float64 {
+    let count: float64 = 1;
+    let step: float64 = 2;
 
-@capture({
-    default: "manage",
-    step: "copy",
-})
-const next: () => float64 = (): float64 => count + step;
+    @capture({
+        default: "manage",
+        step: "copy",
+    })
+    const next: () => float64 = (): float64 => count + step;
+    return next;
+}
 
 === checked ===
-let count = 1;
-/// @type.symbol symbol=count source=count type=float64
-/// @resolution.pattern source=count kind=binding target=count
-/// @type.node source=1 type=1
+function make(): () => float64 {
+/// @type.symbol symbol=make type=() => Function<(), float64>
+/// @capture.function function=make bindings=0
 
-let step = 2;
-/// @type.symbol symbol=step source=step type=float64
-/// @resolution.pattern source=step kind=binding target=step
-/// @type.node source=2 type=2
+    let count = 1;
+    /// @type.symbol symbol=make.count source=count type=float64
+    /// @resolution.pattern source=count kind=binding target=make.count
+    /// @type.node source=1 type=1
 
-@capture({
-/// @type.node source=capture type=capture
-/// @resolution.name source=capture target=decorator.capture.capture
-/// @type.node type={ default: decorator.capture.CaptureMode; step: decorator.capture.CaptureMode }
+    let step = 2;
+    /// @type.symbol symbol=make.step source=step type=float64
+    /// @resolution.pattern source=step kind=binding target=make.step
+    /// @type.node source=2 type=2
 
-    default: "manage",
-    /// @type.node source="\"manage\"" type="manage"
+    @capture({
+    /// @type.node source=capture type=capture
+    /// @resolution.name source=capture target=decorator.capture.capture
+    /// @type.node type={ default: decorator.capture.CaptureMode; step: decorator.capture.CaptureMode }
 
-    step: "copy",
-    /// @type.node source="\"copy\"" type="copy"
+        default: "manage",
+        /// @type.node source="\"manage\"" type="manage"
 
-})
-const next = () => count + step;
-/// @type.symbol symbol=next source=next type=Function<(), float64>
-/// @resolution.pattern source=next kind=binding target=next
-/// @type.symbol symbol=symbol3 source="() => count + step" type=Function<(), float64>
-/// @type.node source="() => count + step" type=Function<(), float64>
-/// @capture.function function=symbol3 bindings=2 frames=(main.<frame0>)
-/// @capture.binding function=symbol3 symbol=count mode=manage type=float64 frame=main.<frame0>
-/// @capture.binding function=symbol3 symbol=step mode=copy type=float64
-/// @capture.directive function=symbol3 default=manage rules=1
-/// @capture.rule function=symbol3 binding=step mode=copy
-/// @capture.frame frame=main.<frame0> scope=<module> type=Managed<{ count: float64 }> fields={ count: float64 }
-/// @type.node source="count + step" type=float64
-/// @type.node source=count type=float64
-/// @resolution.name source=count target=count
-/// @resolution.operator source="count + step" type=float64 operator="+" kind=builtin operands=[count as float64 families=(float), step as float64 families=(float)]
-/// @resolution.place source=count placement="local" lifetime="static" access="exclusive"
-/// @resolution.access source=count root=count
-/// @type.node source=step type=float64
-/// @resolution.name source=step target=step
-/// @resolution.place source=step placement="local" lifetime="static" access="exclusive"
-/// @resolution.access source=step root=step
+        step: "copy",
+        /// @type.node source="\"copy\"" type="copy"
+
+    })
+    const next = () => count + step;
+    /// @type.symbol symbol=make.next source=next type=Function<(), float64>
+    /// @resolution.pattern source=next kind=binding target=make.next
+    /// @type.symbol symbol=make.symbol4 source="() => count + step" type=Function<(), float64>
+    /// @type.node source="() => count + step" type=Function<(), float64>
+    /// @capture.function function=make.symbol4 bindings=2 frames=(main.<frame0>)
+    /// @capture.binding function=make.symbol4 symbol=count mode=manage type=float64 frame=main.<frame0>
+    /// @capture.binding function=make.symbol4 symbol=step mode=copy type=float64
+    /// @capture.directive function=make.symbol4 default=manage rules=1
+    /// @capture.rule function=make.symbol4 binding=step mode=copy
+    /// @capture.frame frame=main.<frame0> scope=scope4 type=Managed<{ count: float64 }> fields={ count: float64 }
+    /// @type.node source="count + step" type=float64
+    /// @type.node source=count type=float64
+    /// @resolution.name source=count target=make.count
+    /// @resolution.operator source="count + step" type=float64 operator="+" kind=builtin operands=[count as float64 families=(float), step as float64 families=(float)]
+    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=count root=make.count
+    /// @type.node source=step type=float64
+    /// @resolution.name source=step target=make.step
+    /// @resolution.place source=step placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=step root=make.step
+
+    return next;
+    /// @type.node source=next type=Function<(), float64>
+    /// @resolution.name source=next target=make.next
+    /// @resolution.place source=next placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=next root=make.next
+
+}
 "#,
     );
 }
@@ -248,17 +316,21 @@ struct Socket {
     write(message: string): void {}
 }
 
-let count = 0;
-let socket = Socket {};
+function connect(): void {
+    let count = 0;
+    let socket = Socket {};
 
-@capture({
-    default: "manage",
-    socket: "move",
-})
-const send: ^Function<(string,), void> = (message) => {
-    count += 1;
-    socket.write(message);
-};
+    @capture({
+        default: "manage",
+        socket: "move",
+    })
+    const send: ^Function<(string,), void> = (message) => {
+        count += 1;
+        socket.write(message);
+    };
+
+    send("ping");
+}
 "#,
     );
 
@@ -271,17 +343,21 @@ struct Socket {
     write(message: string): void {}
 }
 
-let count: float64 = 0;
-let socket: Socket = Socket {};
+function connect(): void {
+    let count: float64 = 0;
+    let socket: Socket = Socket {};
 
-@capture({
-    default: "manage",
-    socket: "move",
-})
-const send: ^Function<(string,), void> = (message: string): void => {
-    count += 1;
-    socket.write(message);
-};
+    @capture({
+        default: "manage",
+        socket: "move",
+    })
+    const send: ^Function<(string,), void> = (message: string): void => {
+        count += 1;
+        socket.write(message);
+    };
+
+    send("ping");
+}
 
 === checked ===
 struct Socket {
@@ -297,68 +373,84 @@ struct Socket {
 
 }
 
-let count = 0;
-/// @type.symbol symbol=count source=count type=float64
-/// @resolution.pattern source=count kind=binding target=count
-/// @type.node source=0 type=0
+function connect(): void {
+/// @type.symbol symbol=connect type=() => void
+/// @capture.function function=connect bindings=0
 
-let socket = Socket {};
-/// @type.symbol symbol=socket source=socket type=Socket
-/// @resolution.pattern source=socket kind=binding target=socket
-/// @type.node source="Socket {}" type=Socket
-/// @resolution.name source=Socket target=Socket
+    let count = 0;
+    /// @type.symbol symbol=connect.count source=count type=float64
+    /// @resolution.pattern source=count kind=binding target=connect.count
+    /// @type.node source=0 type=0
 
-@capture({
-/// @type.node source=capture type=capture
-/// @resolution.name source=capture target=decorator.capture.capture
-/// @type.node type={ default: decorator.capture.CaptureMode; socket: decorator.capture.CaptureMode }
+    let socket = Socket {};
+    /// @type.symbol symbol=connect.socket source=socket type=Socket
+    /// @resolution.pattern source=socket kind=binding target=connect.socket
+    /// @type.node source="Socket {}" type=Socket
+    /// @resolution.name source=Socket target=Socket
 
-    default: "manage",
-    /// @type.node source="\"manage\"" type="manage"
+    @capture({
+    /// @type.node source=capture type=capture
+    /// @resolution.name source=capture target=decorator.capture.capture
+    /// @type.node type={ default: decorator.capture.CaptureMode; socket: decorator.capture.CaptureMode }
 
-    socket: "move",
-    /// @type.node source="\"move\"" type="move"
+        default: "manage",
+        /// @type.node source="\"manage\"" type="manage"
 
-})
-const send: ^Function<(string,), void> = (message) => {
-/// @type.symbol symbol=send source=send type=Owned<Function<(string,), void>>
-/// @resolution.pattern source=send kind=binding target=send
-/// @resolution.name source=Function target=types.function.Function
-/// @type.symbol symbol=symbol7 type=Function<(string,), void>
-/// @type.node type=Owned<Function<(string,), void>>
-/// @capture.function function=symbol7 bindings=2 frames=(main.<frame0>)
-/// @capture.binding function=symbol7 symbol=count mode=manage type=float64 frame=main.<frame0>
-/// @capture.binding function=symbol7 symbol=socket mode=move type=Socket
-/// @capture.directive function=symbol7 default=manage rules=1
-/// @capture.rule function=symbol7 binding=socket mode=move
-/// @capture.frame frame=main.<frame0> scope=<module> type=Managed<{ count: float64 }> fields={ count: float64 }
-/// @type.symbol symbol=symbol7.message source=message type=string
+        socket: "move",
+        /// @type.node source="\"move\"" type="move"
 
-    count += 1;
-    /// @type.node source="count += 1" type=float64
-    /// @type.node source=count type=float64
-    /// @resolution.operator source="count += 1" type=float64 operator="+" kind=builtin operands=[count as float64 families=(float), 1 as float64 families=(float)]
-    /// @resolution.pattern.assign source=count kind=place
-    /// @resolution.place source=count placement="local" lifetime="static" access="exclusive"
-    /// @resolution.assignment source=count read=binding(count) write=binding(count) type=float64
-    /// @resolution.access source=count root=count
-    /// @type.node source=1 type=1
+    })
+    const send: ^Function<(string,), void> = (message) => {
+    /// @type.symbol symbol=connect.send source=send type=Owned<Function<(string,), void>>
+    /// @resolution.pattern source=send kind=binding target=connect.send
+    /// @resolution.name source=Function target=types.function.Function
+    /// @type.symbol symbol=connect.symbol8 type=Function<(string,), void>
+    /// @type.node type=Owned<Function<(string,), void>>
+    /// @capture.function function=connect.symbol8 bindings=2 frames=(main.<frame0>)
+    /// @capture.binding function=connect.symbol8 symbol=count mode=manage type=float64 frame=main.<frame0>
+    /// @capture.binding function=connect.symbol8 symbol=socket mode=move type=Socket
+    /// @capture.directive function=connect.symbol8 default=manage rules=1
+    /// @capture.rule function=connect.symbol8 binding=socket mode=move
+    /// @capture.frame frame=main.<frame0> scope=scope6 type=Managed<{ count: float64 }> fields={ count: float64 }
+    /// @type.symbol symbol=connect.symbol8.message source=message type=string
 
-    socket.write(message);
-    /// @type.node source=socket type=Socket
-    /// @type.node source=socket.write type=<Socket.write.'a>(this: &Socket.write.'a exclusive Socket, string) => void
-    /// @type.node source=socket.write(message) type=void
-    /// @resolution.name source=socket target=socket
-    /// @resolution.member source=socket.write receiver=Socket type=<Socket.write.'a>(this: &Socket.write.'a exclusive Socket, string) => void kind=symbol target_receiver=Socket target=Socket.write
-    /// @resolution.call source=socket.write(message) parameters=(string) arguments=(provided(message) as string) return=void kind=symbol target=Socket.write receiver=Socket adjustments=(borrow(&'static exclusive Socket))
-    /// @resolution.place source=socket placement="local" lifetime="static" access="exclusive"
-    /// @resolution.access source=socket root=socket
-    /// @type.node source=message type=string
-    /// @resolution.name source=message target=symbol7.message
-    /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
-    /// @resolution.access source=message root=symbol7.message
+        count += 1;
+        /// @type.node source="count += 1" type=float64
+        /// @type.node source=count type=float64
+        /// @resolution.operator source="count += 1" type=float64 operator="+" kind=builtin operands=[count as float64 families=(float), 1 as float64 families=(float)]
+        /// @resolution.pattern.assign source=count kind=place
+        /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.assignment source=count read=binding(connect.count) write=binding(connect.count) type=float64
+        /// @resolution.access source=count root=connect.count
+        /// @type.node source=1 type=1
 
-};
+        socket.write(message);
+        /// @type.node source=socket type=Socket
+        /// @type.node source=socket.write type=<Socket.write.'a>(this: &Socket.write.'a exclusive Socket, string) => void
+        /// @type.node source=socket.write(message) type=void
+        /// @resolution.name source=socket target=connect.socket
+        /// @resolution.member source=socket.write receiver=Socket type=<Socket.write.'a>(this: &Socket.write.'a exclusive Socket, string) => void kind=symbol target_receiver=Socket target=Socket.write
+        /// @resolution.call source=socket.write(message) parameters=(string) arguments=(provided(message) as string) return=void kind=symbol target=Socket.write receiver=Socket adjustments=(borrow(&'frame exclusive Socket))
+        /// @resolution.place source=socket placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=socket root=connect.socket
+        /// @type.node source=message type=string
+        /// @resolution.name source=message target=connect.symbol8.message
+        /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=message root=connect.symbol8.message
+
+    };
+
+    send("ping");
+    /// @type.node source="send(\"ping\")" type=void
+    /// @type.node source=send type=Owned<Function<(string,), void>>
+    /// @resolution.name source=send target=connect.send
+    /// @resolution.call source="send(\"ping\")" parameters=(string) arguments=(provided("ping") as string) return=void kind=expression target=expression
+    /// @resolution.place source=send placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=send root=connect.send
+    /// @generic.instance source=send id="Function<(string,), void>"
+    /// @type.node source="\"ping\"" type="ping"
+
+}
 
 /// @generic.instance id="Function<(string,), void>" template=types.function.Function arguments=((string,), void)
 "#,
@@ -373,10 +465,13 @@ declare class Client {
     read(): Promise<string>;
 }
 
-let client = new Client();
+function make(): () => Promise<string> {
+    let client = new Client();
 
-@capture("copy")
-const load = async () => await client.read();
+    @capture("copy")
+    const load = async () => await client.read();
+    return load;
+}
 "#,
     );
 
@@ -389,10 +484,13 @@ declare class Client {
     read(): Promise<string>;
 }
 
-let client: Client = new Client();
+function make(): () => Promise<string> {
+    let client: Client = new Client();
 
-@capture("copy")
-const load = async () => await client.read();
+    @capture("copy")
+    const load = async () => await client.read();
+    return load;
+}
 
 === checked ===
 declare class Client {
@@ -406,38 +504,52 @@ declare class Client {
 
 }
 
-let client = new Client();
-/// @type.symbol symbol=client source=client type=Client
-/// @resolution.pattern source=client kind=binding target=client
-/// @type.node source="new Client()" type=Client
-/// @resolution.construct source="new Client()" parameters=() return=Client kind=class target=Client constructor=default
-/// @resolution.name source=Client target=Client
+function make(): () => Promise<string> {
+/// @type.symbol symbol=make type=() => Function<(), Promise<string>>
+/// @capture.function function=make bindings=0
+/// @resolution.name source=Promise target=async.promise.Promise
 
-@capture("copy")
-/// @type.node source=capture type=capture
-/// @resolution.name source=capture target=decorator.capture.capture
-/// @type.node source="\"copy\"" type="copy"
+    let client = new Client();
+    /// @type.symbol symbol=make.client source=client type=Client
+    /// @resolution.pattern source=client kind=binding target=make.client
+    /// @type.node source="new Client()" type=Client
+    /// @resolution.construct source="new Client()" parameters=() return=Client kind=class target=Client constructor=default
+    /// @resolution.name source=Client target=Client
 
-const load = async () => await client.read();
-/// @type.symbol symbol=load source=load type=Function<(), Promise<string>>
-/// @resolution.pattern source=load kind=binding target=load
-/// @type.symbol symbol=symbol5 source="async () => await client.read()" type=Function<(), Promise<string>>
-/// @type.node source="async () => await client.read()" type=Function<(), Promise<string>>
-/// @generic.instance source="async () => await client.read()" id=Promise<string>
-/// @capture.function function=symbol5 bindings=1
-/// @capture.binding function=symbol5 symbol=client mode=copy type=Client
-/// @capture.directive function=symbol5 default=copy rules=0
-/// @type.node source="await client.read()" type=string
-/// @type.node source=client type=Client
-/// @type.node source=client.read type=(this: Client) => Promise<string>
-/// @type.node source=client.read() type=Promise<string>
-/// @resolution.name source=client target=client
-/// @resolution.member source=client.read receiver=Client type=(this: Client) => Promise<string> kind=symbol target_receiver=Client target=Client.read
-/// @resolution.call source=client.read() parameters=() return=Promise<string> kind=symbol target=Client.read receiver=Client
-/// @resolution.place source=client placement="local" lifetime="static" access="exclusive"
-/// @resolution.access source=client root=client
-/// @generic.instance source=client.read id=Promise<string>
-/// @generic.instance source=client.read() id=Promise<string>
+    @capture("copy")
+    /// @type.node source=capture type=capture
+    /// @resolution.name source=capture target=decorator.capture.capture
+    /// @type.node source="\"copy\"" type="copy"
+
+    const load = async () => await client.read();
+    /// @type.symbol symbol=make.load source=load type=Function<(), Promise<string>>
+    /// @resolution.pattern source=load kind=binding target=make.load
+    /// @type.symbol symbol=make.symbol6 source="async () => await client.read()" type=Function<(), Promise<string>>
+    /// @type.node source="async () => await client.read()" type=Function<(), Promise<string>>
+    /// @generic.instance source="async () => await client.read()" id=Promise<string>
+    /// @capture.function function=make.symbol6 bindings=1
+    /// @capture.binding function=make.symbol6 symbol=client mode=copy type=Client
+    /// @capture.directive function=make.symbol6 default=copy rules=0
+    /// @type.node source="await client.read()" type=string
+    /// @type.node source=client type=Client
+    /// @type.node source=client.read type=(this: Client) => Promise<string>
+    /// @type.node source=client.read() type=Promise<string>
+    /// @resolution.name source=client target=make.client
+    /// @resolution.member source=client.read receiver=Client type=(this: Client) => Promise<string> kind=symbol target_receiver=Client target=Client.read
+    /// @resolution.call source=client.read() parameters=() return=Promise<string> kind=symbol target=Client.read receiver=Client
+    /// @resolution.place source=client placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=client root=make.client
+    /// @generic.instance source=client.read id=Promise<string>
+    /// @generic.instance source=client.read() id=Promise<string>
+
+    return load;
+    /// @type.node source=load type=Function<(), Promise<string>>
+    /// @resolution.name source=load target=make.load
+    /// @resolution.place source=load placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=load root=make.load
+    /// @generic.instance source=load id=Promise<string>
+
+}
 
 /// @generic.instance id=Promise<string> template=async.promise.Promise arguments=(string)
 "#,

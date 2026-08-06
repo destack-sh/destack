@@ -19,9 +19,9 @@ impl WalkState<'_, '_> {
             return;
         }
 
-        // captured bindings are assigned by their owning flow
+        // bindings owned by an outer flow are assigned in that flow's order
         if let Some(function) = self.flow().current_function_symbol()
-            && self.is_captured_symbol_reference(symbol, function)
+            && !self.is_symbol_owned_by_function(symbol, function)
         {
             return;
         }

@@ -79,6 +79,29 @@ impl WalkState<'_, '_> {
                 .is_import_alias(symbol.local_id)
             && symbol != function
             && !self.is_symbol_owned_by_function(symbol, function)
+            && self.is_function_scoped_symbol(symbol)
+    }
+
+    /// Return whether one symbol lives inside some function body.
+    ///
+    /// Module and namespace bindings are static storage, never captures.
+    fn is_function_scoped_symbol(&self, symbol: dir::GlobalSymbolId) -> bool {
+        // start at the scope declaring the symbol
+        let bindings = self.check.module(self.module).binding_table();
+        let symbol = bindings.get_symbol(symbol.local_id);
+        let mut scope = Some(symbol.scope.id);
+
+        // climb to the nearest function scope
+        while let Some(scope_id) = scope {
+            let current = bindings.get_scope_by_id(scope_id);
+            if current.kind == dir::ScopeKind::Function {
+                return true;
+            }
+
+            scope = current.parent.map(|parent| parent.id);
+        }
+
+        false
     }
 
     /// Return whether one symbol is the active lexical receiver.
@@ -89,7 +112,7 @@ impl WalkState<'_, '_> {
     }
 
     /// Return whether one symbol is declared under one function source node.
-    fn is_symbol_owned_by_function(
+    pub(in crate::check) fn is_symbol_owned_by_function(
         &self,
         symbol: dir::GlobalSymbolId,
         function: dir::GlobalSymbolId,

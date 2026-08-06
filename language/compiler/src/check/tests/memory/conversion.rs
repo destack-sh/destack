@@ -1186,7 +1186,7 @@ declare function inspect(value: &readonly string): void;
 inspect("message");
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source="inspect(\"message\")" parameters=(&'frame readonly string) arguments=(provided("message") as &'frame readonly string) return=void kind=symbol target=inspect
-/// @coercion.node source="\"message\"" from="message" adjustments=[{ kind: borrow, target: &'frame readonly string }] origin=implicit
+/// @coercion.node source="\"message\"" from="message" adjustments=[{ kind: widen, target: string }, { kind: borrow, target: &'frame readonly string }] origin=implicit
 "#,
     );
 }
