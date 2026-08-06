@@ -784,6 +784,9 @@ impl BodyState<'_, '_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::BuiltinOperand>> {
         let scalar_families = answer!(self.scalar_families(origin, ty)?);
+        let source = source
+            .try_into_typed::<dir::Expression>()
+            .map_err(|message| CompilerError::Internal { message })?;
         let operand = dir::BuiltinOperand {
             source,
             ty,

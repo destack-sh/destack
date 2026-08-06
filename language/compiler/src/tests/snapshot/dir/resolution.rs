@@ -270,9 +270,10 @@ fn builtin_operand_label(
     builder: &DirSnapshotBuilder<'_>,
     operand: &dir::BuiltinOperand,
 ) -> String {
+    let source_node = operand.source.into_any();
     let source = builder
-        .node_source(operand.source)
-        .unwrap_or_else(|| builder.node_label(operand.source));
+        .node_source(source_node)
+        .unwrap_or_else(|| builder.node_label(source_node));
     let ty = builder.global_type_label(operand.ty);
     let Some(families) = &operand.scalar_families else {
         return format!("{source} as {ty}");
