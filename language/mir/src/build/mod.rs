@@ -1,3 +1,4 @@
+mod constant;
 mod error;
 mod function;
 mod item;
@@ -5,6 +6,7 @@ mod module;
 mod r#type;
 mod variable;
 
+pub use constant::*;
 pub use error::*;
 pub use function::*;
 pub use module::*;

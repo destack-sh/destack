@@ -196,6 +196,11 @@ impl<'a> FunctionBuilder<'a> {
         self.pointer_bits
     }
 
+    /// Return the pointer width in bytes.
+    pub fn pointer_bytes(&self) -> u8 {
+        (self.pointer_bits / 8) as u8
+    }
+
     /// Get a mutable reference to the underlying tree.
     pub fn tree_mut(&mut self) -> &mut Tree {
         self.tree

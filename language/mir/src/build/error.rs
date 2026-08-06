@@ -144,6 +144,16 @@ pub enum BuildError {
         /// The successor block.
         to: LocalNodeId<Block>,
     },
+    /// A constant object was built over a non-struct row.
+    InvalidConstantRow {
+        /// The type the object was built over.
+        row: LocalNodeId<Type>,
+    },
+    /// A constant object field does not match its declared carrier or name.
+    InvalidConstantField {
+        /// The field name, when the row declares one.
+        name: Option<String>,
+    },
 }
 
 impl std::fmt::Display for BuildError {
@@ -271,6 +281,19 @@ impl std::fmt::Display for BuildError {
                     "missing phi predecessor edge from block {from:?} to block {to:?}"
                 )
             }
+            Self::InvalidConstantRow { row } => {
+                write!(
+                    formatter,
+                    "constant object expects a struct row, got {row:?}"
+                )
+            }
+            Self::InvalidConstantField { name } => match name {
+                Some(name) => write!(
+                    formatter,
+                    "constant object field '{name}' does not match its declared carrier"
+                ),
+                None => write!(formatter, "constant object field is unnamed or undeclared"),
+            },
         }
     }
 }
