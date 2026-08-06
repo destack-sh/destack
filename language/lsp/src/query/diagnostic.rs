@@ -387,15 +387,8 @@ impl PushDiagnostics {
             let guard = run.guard();
 
             // wait without blocking the async language server
-            let diagnostics = match tokio::task::spawn_blocking(move || run.wait()).await {
-                Ok(Ok(diagnostics)) => diagnostics,
-                Ok(Err(error)) => {
-                    client
-                        .report_error("diagnostics.read", workspace_error(error))
-                        .await;
-
-                    return;
-                }
+            let outcome = match tokio::task::spawn_blocking(move || run.wait()).await {
+                Ok(outcome) => outcome,
                 Err(error) => {
                     client
                         .report_error("diagnostics.wait", internal_error(error))
@@ -439,19 +432,34 @@ impl PushDiagnostics {
                 .get(&task_root)
                 .cloned()
                 .unwrap_or_default();
-            match publisher.publish(diagnostics, &previous).await {
-                Ok(current) => {
-                    let is_current = tasks
-                        .lock()
-                        .get(&task_root)
-                        .is_some_and(|task| task.id == id);
-                    if is_current {
-                        published.lock().insert(task_root, current);
-                    }
-                }
+            let current = match publisher.publish(outcome.diagnostics, &previous).await {
+                Ok(current) => Some(current),
                 Err(error) => {
                     client.report_error("diagnostics.publish", error).await;
+
+                    None
                 }
+            };
+
+            // discard a publication replaced while it was sent
+            let is_current = tasks
+                .lock()
+                .get(&task_root)
+                .is_some_and(|task| task.id == id);
+            if !is_current {
+                return;
+            }
+
+            // retain files published by the current task
+            if let Some(current) = current {
+                published.lock().insert(task_root, current);
+            }
+
+            // report run failures after publishing every completed diagnostic
+            for failure in outcome.failures {
+                client
+                    .report_error("diagnostics.read", workspace_error(failure))
+                    .await;
             }
         });
         let previous = self

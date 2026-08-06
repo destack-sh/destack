@@ -344,6 +344,27 @@ impl TestServer {
         assert_eq!(params, expected);
     }
 
+    /// Require the user-facing diagnostics published for one document revision.
+    pub(super) async fn assert_diagnostics(
+        &mut self,
+        document: &TestDocument,
+        version: i32,
+        expected: Vec<lsp::Diagnostic>,
+    ) {
+        let mut published = self
+            .receive_notification::<lsp::notification::PublishDiagnostics>()
+            .await;
+        assert_eq!(published.uri, document.uri);
+        assert_eq!(published.version, Some(version));
+
+        // omit the private payload used to resolve later code actions
+        for diagnostic in &mut published.diagnostics {
+            diagnostic.data = None;
+        }
+
+        assert_eq!(published.diagnostics, expected);
+    }
+
     /// Require the server to have sent no further protocol message.
     pub(super) fn assert_no_message(&mut self) {
         match self.socket.next().now_or_never() {

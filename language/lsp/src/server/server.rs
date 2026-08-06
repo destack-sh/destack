@@ -259,10 +259,9 @@ impl DestackLanguageServer {
     ) -> jsonrpc::Result<Vec<FileDiagnostics>> {
         let revisions = run.revisions();
         let guard = run.guard();
-        let diagnostics = tokio::task::spawn_blocking(move || run.wait())
+        let outcome = tokio::task::spawn_blocking(move || run.wait())
             .await
-            .map_err(internal_error)?
-            .map_err(workspace_error)?;
+            .map_err(internal_error)?;
         guard.finish();
 
         // reject any root invalidated while diagnostics were running
@@ -273,7 +272,14 @@ impl DestackLanguageServer {
             }
         }
 
-        Ok(diagnostics)
+        // report run failures without discarding completed diagnostics
+        for failure in outcome.failures {
+            self.client
+                .report_error("diagnostics.read", workspace_error(failure))
+                .await;
+        }
+
+        Ok(outcome.diagnostics)
     }
 
     /// Register file watchers with the client.
