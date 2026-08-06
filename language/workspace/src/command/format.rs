@@ -128,6 +128,7 @@ impl CommandContext<'_> {
         let check = matches!(mode, FormatMode::Check);
         let suppress_output = false;
         let mut command_diagnostics = DiagnosticCollection::new();
+        let mut diagnostic_files = Vec::new();
         let revision = self.revision()?;
 
         // build formatter state
@@ -170,6 +171,9 @@ impl CommandContext<'_> {
 
             let formatted = format_source(file.as_ref(), file.text(), default_formatting)
                 .map_err(|error| CommandError::internal(error.to_string()))?;
+            if !formatted.diagnostics.is_empty() {
+                diagnostic_files.push(file.clone());
+            }
             command_diagnostics.merge_from(&formatted.diagnostics);
             if check_and_collect_errors(
                 &file_for_id,
@@ -181,7 +185,9 @@ impl CommandContext<'_> {
                 report.error_files.push("<eval>".to_string());
                 let payload = report.payload();
 
-                return Ok(CommandOutcome::new(command_diagnostics, 1, 0, 0, 0).with_data(payload));
+                return Ok(CommandOutcome::new(command_diagnostics, 1, 0, 0, 0)
+                    .with_files(diagnostic_files)
+                    .with_data(payload));
             }
 
             if check && file.text() != formatted.text {
@@ -201,9 +207,9 @@ impl CommandContext<'_> {
                 0
             };
 
-            return Ok(
-                CommandOutcome::new(command_diagnostics, exit_code, 0, 0, 0).with_data(payload)
-            );
+            return Ok(CommandOutcome::new(command_diagnostics, exit_code, 0, 0, 0)
+                .with_files(diagnostic_files)
+                .with_data(payload));
         }
 
         // collect file paths to format
@@ -247,6 +253,7 @@ impl CommandContext<'_> {
                     suppress_output,
                     mode,
                     self.output,
+                    &mut diagnostic_files,
                 )?;
                 match result {
                     FormatResult::Unchanged => {}
@@ -279,6 +286,7 @@ impl CommandContext<'_> {
                         suppress_output,
                         mode,
                         self.output,
+                        &mut diagnostic_files,
                     )?;
                     match result {
                         FormatResult::Unchanged => {}
@@ -309,7 +317,9 @@ impl CommandContext<'_> {
 
         let payload = report.payload();
 
-        Ok(CommandOutcome::new(command_diagnostics, exit_code, 0, 0, 0).with_data(payload))
+        Ok(CommandOutcome::new(command_diagnostics, exit_code, 0, 0, 0)
+            .with_files(diagnostic_files)
+            .with_data(payload))
     }
 }
 
@@ -497,6 +507,7 @@ fn format_single_file(
     suppress_output: bool,
     mode: FormatMode,
     output: &mut OutputBuffer,
+    diagnostic_files: &mut Vec<Arc<File>>,
 ) -> CommandResult<FormatResult> {
     // dispatch by file type
     let file_type = FileType::from_path(path).unwrap_or(FileType::Unknown);
@@ -588,6 +599,9 @@ fn format_single_file(
                     return Ok(FormatResult::Error);
                 }
             };
+            if !formatted.diagnostics.is_empty() {
+                diagnostic_files.push(file.clone());
+            }
             command_diagnostics.merge_from(&formatted.diagnostics);
 
             if check_and_collect_errors(

@@ -353,7 +353,7 @@ where
     };
 
     let mut exit_code = compile(&mut watch, &watch_state, WatchCycle::startup()).await;
-    while let Some(cycle) = watch.next_cycle() {
+    while let Some(cycle) = watch.next_cycle().await {
         // refresh sources when the workspace requests a rescan
         if cycle.requires_rescan
             && let Err(error) = refresh_check_watch_sources(args, &mut watch_state)

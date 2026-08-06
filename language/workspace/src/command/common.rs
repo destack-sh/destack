@@ -2,12 +2,17 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use destack_serde::Reflect;
+use futures::StreamExt;
+use futures::channel::mpsc::{Receiver, Sender, channel};
 
 use destack_repository::{Revision, Target, TraceView};
 use destack_source::{FileType, TargetId};
 use serde::{Deserialize, Serialize};
 
 use super::DEFAULT_PROGRESS_INTERVAL;
+
+/// Maximum pending progress event count for one command.
+const PROGRESS_CAPACITY: usize = 1;
 
 /// Command input sources.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -296,20 +301,18 @@ pub struct ProgressEvent {
     pub message: Option<String>,
     /// Optional progress percent between 0 and 100.
     pub percent: Option<u8>,
-    /// Whether this event signals completion.
-    pub done: bool,
 }
 
-/// Progress callback and delivery policy for one command execution.
-#[derive(Clone, Copy)]
-pub struct CommandProgress<'a> {
-    /// Progress callback.
-    notify: &'a (dyn Fn(ProgressEvent) + Sync),
+/// Progress sender for one command execution.
+#[derive(Clone)]
+pub struct CommandProgress {
+    /// Progress event sender.
+    sender: Sender<ProgressEvent>,
     /// Minimum interval between throttled progress events.
     interval: Duration,
 }
 
-impl std::fmt::Debug for CommandProgress<'_> {
+impl std::fmt::Debug for CommandProgress {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("CommandProgress")
@@ -318,13 +321,16 @@ impl std::fmt::Debug for CommandProgress<'_> {
     }
 }
 
-impl<'a> CommandProgress<'a> {
-    /// Create command progress with the default delivery policy.
-    pub fn new(notify: &'a (dyn Fn(ProgressEvent) + Sync)) -> Self {
-        Self {
-            notify,
+impl CommandProgress {
+    /// Create one progress sender and receiver with the default delivery policy.
+    pub fn channel() -> (Self, ProgressEvents) {
+        let (sender, receiver) = channel(PROGRESS_CAPACITY);
+        let progress = Self {
+            sender,
             interval: DEFAULT_PROGRESS_INTERVAL,
-        }
+        };
+
+        (progress, ProgressEvents { receiver })
     }
 
     /// Return progress with a custom throttle interval.
@@ -333,14 +339,28 @@ impl<'a> CommandProgress<'a> {
         self
     }
 
-    /// Emit one progress event.
-    pub fn emit(&self, event: ProgressEvent) {
-        (self.notify)(event);
+    /// Try to queue one progress event without stalling command workers.
+    pub fn try_emit(&self, event: ProgressEvent) -> bool {
+        self.sender.clone().try_send(event).is_ok()
     }
 
     /// Return the progress throttle interval.
     pub fn interval(&self) -> Duration {
         self.interval
+    }
+}
+
+/// Progress events received from one command execution.
+#[derive(Debug)]
+pub struct ProgressEvents {
+    /// Progress event receiver.
+    receiver: Receiver<ProgressEvent>,
+}
+
+impl ProgressEvents {
+    /// Receive the next progress event until the command closes its sender.
+    pub async fn receive(&mut self) -> Option<ProgressEvent> {
+        self.receiver.next().await
     }
 }
 

@@ -4,6 +4,7 @@ use std::sync::Arc;
 use destack_serde::Codec;
 use futures::StreamExt;
 use futures::channel::mpsc::UnboundedReceiver;
+use futures::future::poll_fn;
 
 use super::ServiceError;
 use super::call::{CallState, ServerEvent};
@@ -86,5 +87,10 @@ impl<T> ResponseSender<T> {
     /// Return whether the caller requested cancellation.
     pub fn is_canceled(&self) -> bool {
         self.state.is_canceled()
+    }
+
+    /// Wait until the caller cancels this request.
+    pub async fn canceled(&self) {
+        poll_fn(|context| self.state.poll_canceled(context)).await
     }
 }

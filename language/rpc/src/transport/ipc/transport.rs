@@ -74,7 +74,7 @@ impl IpcTransport {
                             | std::io::ErrorKind::WouldBlock
                             | std::io::ErrorKind::TimedOut
                     ) => {}
-                Err(error) => return Err(error.into()),
+                Err(error) => return Err(TransportError::from_receive(error)),
             }
         }
 

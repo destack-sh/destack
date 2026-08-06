@@ -1,8 +1,10 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::task::{Context, Poll};
 
 use destack_serde::Codec;
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
+use futures::task::AtomicWaker;
 use parking_lot::Mutex;
 
 use super::{MethodId, MethodKind, RequestStream, ResponseSender};
@@ -48,6 +50,7 @@ impl ServerCall {
             is_input_closed: AtomicBool::new(!kind.has_input()),
             is_canceled: AtomicBool::new(false),
             is_complete: AtomicBool::new(false),
+            cancellation_waker: AtomicWaker::new(),
             output_sending: Mutex::new(()),
         });
         let call = Self {
@@ -270,6 +273,8 @@ pub(crate) struct CallState {
     is_canceled: AtomicBool,
     /// Whether a terminal response was sent.
     is_complete: AtomicBool,
+    /// Service task waiting for caller cancellation.
+    cancellation_waker: AtomicWaker,
     /// Serializes output items with terminal completion.
     output_sending: Mutex<()>,
 }
@@ -358,9 +363,15 @@ impl CallState {
 
         self.is_input_closed.store(true, Ordering::Release);
         self.output_window.close();
-        self.events
-            .unbounded_send(ServerEvent::Cancel)
-            .map_err(|_| Status::new(Code::Canceled, "request is no longer active"))
+        self.cancellation_waker.wake();
+
+        if self.kind.has_input() {
+            self.events
+                .unbounded_send(ServerEvent::Cancel)
+                .map_err(|_| Status::new(Code::Canceled, "request is no longer active"))
+        } else {
+            Ok(())
+        }
     }
 
     /// Wake this request after its connection has closed.
@@ -368,6 +379,7 @@ impl CallState {
         self.is_canceled.store(true, Ordering::Release);
         self.output_window.close();
         self.events.close_channel();
+        self.cancellation_waker.wake();
     }
 
     /// Return whether the request sent a terminal response.
@@ -383,6 +395,21 @@ impl CallState {
     /// Return whether the caller requested cancellation.
     pub(super) fn is_canceled(&self) -> bool {
         self.is_canceled.load(Ordering::Acquire)
+    }
+
+    /// Poll until the caller cancels this request.
+    pub(super) fn poll_canceled(&self, context: &mut Context<'_>) -> Poll<()> {
+        if self.is_canceled() {
+            return Poll::Ready(());
+        }
+
+        self.cancellation_waker.register(context.waker());
+
+        if self.is_canceled() {
+            Poll::Ready(())
+        } else {
+            Poll::Pending
+        }
     }
 
     /// Complete the request with one terminal response.

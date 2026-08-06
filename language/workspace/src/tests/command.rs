@@ -1,4 +1,5 @@
 use destack_repository::TraceView;
+use futures::executor::block_on;
 
 use crate::command::{CheckInput, CommandInput, CommandOptions, CommandRevision};
 use crate::tests::harness::TestWorkspace;
@@ -20,10 +21,8 @@ const wrong: string = 1;
             ..CommandOptions::default()
         },
     ));
-    let output = test
-        .workspace
-        .check(&test.roots[0], input, None)
-        .expect("check command failed");
+    let output =
+        block_on(test.workspace.check(&test.roots[0], input, None)).expect("check command failed");
 
     let ids: Vec<&str> = output
         .diagnostics
@@ -60,10 +59,8 @@ const second = sibling;
             ..CommandOptions::default()
         },
     ));
-    let output = test
-        .workspace
-        .check(&test.roots[0], input, None)
-        .expect("check command failed");
+    let output =
+        block_on(test.workspace.check(&test.roots[0], input, None)).expect("check command failed");
 
     // the sibling hint labels the declaring module across files
     let diagnostic = output
@@ -122,10 +119,8 @@ fn test_check_command_lints_selected_module_and_program() {
         },
     ));
     input.trace = Some(TraceView::Detailed);
-    let output = test
-        .workspace
-        .check(&test.roots[0], input, None)
-        .expect("check command failed");
+    let output =
+        block_on(test.workspace.check(&test.roots[0], input, None)).expect("check command failed");
 
     // lint the explicit module even though it is outside the target graph
     let diagnostic_ids = output

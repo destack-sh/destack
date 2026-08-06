@@ -10,6 +10,7 @@ use destack_source::{
     Edit, FileMetadata, FileSystem, OverlayFileSystem, PhysicalFileSystem,
     TemporaryPhysicalFileSystem, Uri,
 };
+use futures::executor::block_on;
 
 use crate::command::{
     CommandInput, CommandOptions, CommandRevision, QueryInput, QueryOutput, RewriteInput,
@@ -287,11 +288,12 @@ impl TestQuery<'_> {
 
     /// Execute this Query.
     pub(super) fn run(self) -> QueryOutput {
-        self.fixture
-            .harness
-            .workspace
-            .query(&self.fixture.harness.roots[0], self.input, None)
-            .expect("run Pattern Query")
+        block_on(self.fixture.harness.workspace.query(
+            &self.fixture.harness.roots[0],
+            self.input,
+            None,
+        ))
+        .expect("run Pattern Query")
     }
 }
 
@@ -327,20 +329,22 @@ impl TestRewrite<'_> {
 
     /// Execute this Rewrite.
     pub(super) fn run(self) -> RewriteOutput {
-        self.fixture
-            .harness
-            .workspace
-            .rewrite(&self.fixture.harness.roots[0], self.input, None)
-            .expect("run Pattern Rewrite")
+        block_on(self.fixture.harness.workspace.rewrite(
+            &self.fixture.harness.roots[0],
+            self.input,
+            None,
+        ))
+        .expect("run Pattern Rewrite")
     }
 
     /// Execute this Rewrite and return its command error.
     pub(super) fn error(self) -> CommandError {
-        self.fixture
-            .harness
-            .workspace
-            .rewrite(&self.fixture.harness.roots[0], self.input, None)
-            .expect_err("reject Pattern Rewrite")
+        block_on(self.fixture.harness.workspace.rewrite(
+            &self.fixture.harness.roots[0],
+            self.input,
+            None,
+        ))
+        .expect_err("reject Pattern Rewrite")
     }
 }
 

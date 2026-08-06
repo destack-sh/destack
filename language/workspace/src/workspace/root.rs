@@ -222,10 +222,23 @@ impl LocalWorkspace {
         let workspace_root = self.workspace_root(root.as_path())?;
         let _write = workspace_root.writes.lock();
 
+        // remove editor state owned by this root
         self.remove_open_files_under(root.as_path());
-        if let Some((_, watch)) = self.watches.remove(root.as_path()) {
-            watch.stop();
+
+        // stop subscriptions that include this root
+        let watches = self
+            .watches
+            .iter()
+            .filter(|entry| entry.value().watches(root.as_path()))
+            .map(|entry| *entry.key())
+            .collect::<Vec<_>>();
+        for watch in watches {
+            if let Some((_, watch)) = self.watches.remove(&watch) {
+                watch.stop();
+            }
         }
+
+        // remove the root after dependent state is gone
         let _session = self.roots.remove(root.as_path());
 
         Ok(())

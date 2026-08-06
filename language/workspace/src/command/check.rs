@@ -90,7 +90,7 @@ impl_command_input_options!(CheckInput {
 });
 impl CommandContext<'_> {
     /// Execute a check command.
-    pub(crate) fn run_check_command(
+    pub(crate) async fn run_check_command(
         &mut self,
         input: &CheckInput,
     ) -> CommandResult<CommandOutcome> {
@@ -121,7 +121,7 @@ impl CommandContext<'_> {
         let artifact_keys = artifact_keys.into_iter().collect::<Vec<_>>();
 
         // complete the requested diagnostic roots
-        self.complete(revision, &artifact_keys)?;
+        self.complete(revision, &artifact_keys).await?;
 
         let diagnostics = self.command_diagnostics(revision, &artifact_keys)?;
         self.apply_diagnostic_suggestions(revision, &diagnostics, fix_options)?;

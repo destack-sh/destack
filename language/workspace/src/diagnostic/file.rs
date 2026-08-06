@@ -6,15 +6,17 @@ use std::sync::Arc;
 use destack_artifact::ArtifactKey;
 use destack_query::Module;
 use destack_repository::Revision;
+use destack_serde::Reflect;
 use destack_session::{ArtifactPriority, ArtifactRun};
 use destack_source::{Diagnostic, File, FileId, Uri};
+use serde::{Deserialize, Serialize};
 
 use crate::RunGuard;
 use crate::diagnostic::Error;
 use crate::workspace::{LocalWorkspace, SessionPin};
 
 /// Selection for one diagnostic read.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum DiagnosticsRequest {
     /// Return diagnostics for every open root.
     All,
@@ -46,6 +48,26 @@ pub struct DiagnosticOutcome {
     pub diagnostics: Vec<FileDiagnostics>,
     /// The run failures.
     pub failures: Vec<Error>,
+}
+
+impl DiagnosticOutcome {
+    /// Return completed diagnostics or every failure from this outcome.
+    pub fn into_result(self) -> Result<Vec<FileDiagnostics>, Error> {
+        let mut failures = self.failures.into_iter();
+        let Some(first) = failures.next() else {
+            return Ok(self.diagnostics);
+        };
+        let Some(second) = failures.next() else {
+            return Err(first);
+        };
+
+        // retain multiple diagnostic failures in the returned error
+        let mut messages = vec![first.to_string(), second.to_string()];
+        messages.extend(failures.map(|failure| failure.to_string()));
+        let detail = messages.join("; ");
+
+        Err(Error::Internal { detail })
+    }
 }
 
 impl FileDiagnostics {
@@ -111,10 +133,10 @@ impl DiagnosticRun {
     }
 
     /// Complete every root and read its exact diagnostics and failures.
-    pub fn wait(self) -> DiagnosticOutcome {
+    pub async fn wait(self) -> DiagnosticOutcome {
         let mut outcome = DiagnosticOutcome::default();
         for read in self.reads {
-            let mut current = read.wait();
+            let mut current = read.wait().await;
             outcome.diagnostics.append(&mut current.diagnostics);
             outcome.failures.append(&mut current.failures);
         }
@@ -166,7 +188,7 @@ impl DiagnosticRead {
     }
 
     /// Complete this root and read its selected diagnostics and failures.
-    fn wait(self) -> DiagnosticOutcome {
+    async fn wait(self) -> DiagnosticOutcome {
         let Self {
             root,
             session,
@@ -180,7 +202,7 @@ impl DiagnosticRead {
 
         // finish every requested phase, then read all completed diagnostics
         let mut outcome = DiagnosticOutcome::default();
-        if let Err(error) = artifact_run.complete() {
+        if let Err(error) = artifact_run.complete().await {
             outcome.failures.push(error.into());
         }
         let diagnostics = match repository.diagnostics_for_keys(revision, &artifact_keys) {
@@ -349,5 +371,13 @@ impl LocalWorkspace {
         root.schedule_background(session.revision(), &artifacts);
 
         Ok(())
+    }
+
+    /// Return exact diagnostics selected by one request.
+    pub async fn diagnose(
+        &self,
+        request: DiagnosticsRequest,
+    ) -> Result<Vec<FileDiagnostics>, Error> {
+        self.start_diagnostics(request)?.wait().await.into_result()
     }
 }

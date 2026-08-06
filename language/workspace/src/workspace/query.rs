@@ -7,6 +7,7 @@ use destack_repository::{Revision, Trace};
 use destack_serde::Reflect;
 use destack_session::{ArtifactPriority, ArtifactRun};
 use destack_source::{File, ProfileId, Span};
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
 use crate::RunGuard;
@@ -99,7 +100,7 @@ pub struct RunQueryResponse {
 
 /// Request to run one semantic query.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct RunQueryRequest {
+pub struct RunQueryInput {
     /// Revision selection for this query.
     pub revision: RevisionPolicy,
     /// The query request.
@@ -158,7 +159,7 @@ impl QueryRun {
     }
 
     /// Wait for ready artifacts and execute the exact query.
-    pub fn wait(self) -> Result<RunQueryResponse, Error> {
+    pub async fn wait(self) -> Result<RunQueryResponse, Error> {
         let QueryRun {
             session,
             request,
@@ -167,34 +168,89 @@ impl QueryRun {
             artifacts,
             diagnostics,
         } = self;
-        let query_trace = trace.clone();
-        let result = (|| {
+        let result = async {
+            // complete diagnostics required by this query
             if let Some(diagnostics) = diagnostics {
-                diagnostics.complete()?;
+                diagnostics.complete().await?;
             }
+
+            // execute against the pinned revision until all lazy artifacts are ready
             let revision = session.revision();
-            let require_artifacts = |artifact_keys: &[ArtifactKey]| {
-                artifacts
-                    .require(artifact_keys)
-                    .map_err(QueryError::artifact)
-            };
-            let response = query_trace.span("query", || {
-                request.execute(
-                    session.repository(),
-                    revision,
-                    &selected_profile_ids,
-                    &require_artifacts,
-                )
-            })?;
+            let mut provided = Vec::new();
+            let response = trace
+                .span_async("query", async {
+                    loop {
+                        // collect artifacts requested by this synchronous execution attempt
+                        let pending = Mutex::new(Vec::new());
+                        let require_artifacts = |artifact_keys: &[ArtifactKey]| {
+                            let missing = artifact_keys
+                                .iter()
+                                .filter(|key| !provided.contains(*key))
+                                .copied()
+                                .collect::<Vec<_>>();
+                            if missing.is_empty() {
+                                return Ok(());
+                            }
+
+                            pending.lock().extend(missing);
+
+                            Err(QueryError::artifact(PendingQueryArtifacts))
+                        };
+
+                        // run until the query completes or requests unavailable artifacts
+                        let response = request.clone().execute(
+                            session.repository(),
+                            revision,
+                            &selected_profile_ids,
+                            &require_artifacts,
+                        );
+
+                        // normalize dependencies discovered throughout the attempt
+                        let mut missing = pending.into_inner();
+                        missing.sort_unstable();
+                        missing.dedup();
+
+                        // return the real query result when execution did not suspend
+                        if missing.is_empty() {
+                            break response;
+                        }
+
+                        // provide missing artifacts before restarting exact query execution
+                        artifacts
+                            .require(&missing)
+                            .await
+                            .map_err(QueryError::artifact)?;
+                        provided.extend(missing);
+                        provided.sort_unstable();
+                        provided.dedup();
+                    }
+                })
+                .await?;
 
             Ok(RunQueryResponse { revision, response })
-        })();
+        }
+        .await;
+
+        // close the run before publishing its complete trace
         drop(artifacts);
         session.session().finish_trace(trace);
 
         result
     }
 }
+
+/// Internal query restart after discovering unprovided artifacts.
+#[derive(Debug)]
+struct PendingQueryArtifacts;
+
+impl std::fmt::Display for PendingQueryArtifacts {
+    /// Format this internal restart signal.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("query requires additional artifacts")
+    }
+}
+
+impl std::error::Error for PendingQueryArtifacts {}
 
 /// Revision selection policy for one query.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -209,7 +265,7 @@ pub enum RevisionPolicy {
 
 impl LocalWorkspace {
     /// Schedule one semantic query for a root.
-    pub fn start_query(&self, root: &Path, request: RunQueryRequest) -> Result<QueryRun, Error> {
+    pub fn start_query(&self, root: &Path, request: RunQueryInput) -> Result<QueryRun, Error> {
         // pin the session selected by the revision policy
         let session = match request.revision {
             // select the latest ref state
@@ -277,11 +333,11 @@ impl LocalWorkspace {
     }
 
     /// Run one semantic query for a root.
-    pub fn run_query(
+    pub async fn run_query(
         &self,
         root: &Path,
-        request: RunQueryRequest,
+        request: RunQueryInput,
     ) -> Result<RunQueryResponse, Error> {
-        self.start_query(root, request)?.wait()
+        self.start_query(root, request)?.wait().await
     }
 }

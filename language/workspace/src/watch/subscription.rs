@@ -1,102 +1,147 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
 
 use crossbeam_channel::{after, select};
 use destack_source::{FileWatchOptions, FileWatchSubscription, FileWatcher};
+use futures::channel::mpsc::{Receiver, Sender, channel};
+use futures::executor::block_on;
+use futures::lock::Mutex;
+use futures::{SinkExt, StreamExt};
 
 use super::batch::{PendingWatchBatch, SourceWatchItem};
-use crate::protocol::WatchBatch;
-use crate::{UpdateBatch, WatchPolicy};
+use crate::{WatchBatch, WatchPolicy};
 
-/// Batch and workspace updates produced by one watch step.
-#[derive(Debug, Clone)]
-pub struct WatchUpdate {
-    /// Watch batch received from the watcher.
-    pub batch: WatchBatch,
-    /// Updates produced by applying the batch.
-    pub updates: UpdateBatch,
-}
+/// Maximum pending batch count for one workspace watch.
+const WATCH_BATCH_CAPACITY: usize = 1;
 
-/// Active watch subscription with batching policy.
+/// Active batched workspace watch.
 #[derive(Debug)]
-pub struct Watch {
-    /// The watcher subscription.
-    subscription: FileWatchSubscription,
-    /// The batching policy.
-    policy: WatchPolicy,
+pub(crate) struct WatchSubscription {
+    /// Watched roots.
+    roots: Vec<PathBuf>,
+    /// Source watcher subscription.
+    source: Arc<FileWatchSubscription>,
+    /// Batches received from the blocking source watcher.
+    batches: Mutex<Receiver<WatchBatch>>,
 }
 
-impl Watch {
+impl WatchSubscription {
     /// Start watching roots with the provided policy.
-    pub fn new(
+    pub(crate) fn new(
         watcher: Arc<dyn FileWatcher>,
         roots: Vec<PathBuf>,
         options: FileWatchOptions,
         policy: WatchPolicy,
     ) -> Self {
-        // start the watcher
-        let subscription = watcher.watch(roots, options);
+        // start the source watcher and bounded batch queue
+        let source = Arc::new(watcher.watch(roots.clone(), options));
+        let (batches, receiver) = channel(WATCH_BATCH_CAPACITY);
+        let batch_source = source.clone();
+
+        // isolate blocking source receives from async workspace consumers
+        std::thread::spawn(move || {
+            Self::forward_batches(batch_source, policy, batches);
+        });
 
         Self {
-            subscription,
+            roots,
+            source,
+            batches: Mutex::new(receiver),
+        }
+    }
+
+    /// Return whether this subscription watches one root.
+    pub(crate) fn watches(&self, root: &Path) -> bool {
+        self.roots.iter().any(|watch_root| watch_root == root)
+    }
+
+    /// Receive the next batch of events.
+    pub(crate) async fn next_batch(&self) -> Option<WatchBatch> {
+        self.batches.lock().await.next().await
+    }
+
+    /// Stop the source watcher.
+    pub(crate) fn stop(&self) {
+        self.source.stop();
+    }
+
+    /// Forward blocking source events into bounded asynchronous batches.
+    fn forward_batches(
+        source: Arc<FileWatchSubscription>,
+        policy: WatchPolicy,
+        mut batches: Sender<WatchBatch>,
+    ) {
+        let mut batcher = WatchBatcher::new(source, policy);
+
+        // preserve backpressure through the bounded async queue
+        while let Some(batch) = batcher.next_batch() {
+            if block_on(batches.send(batch)).is_err() {
+                return;
+            }
+        }
+    }
+}
+
+impl Drop for WatchSubscription {
+    /// Stop the source watcher when its workspace subscription closes.
+    fn drop(&mut self) {
+        self.source.stop();
+    }
+}
+
+/// Blocking source watcher batcher.
+struct WatchBatcher {
+    /// Receiver state for the source subscription.
+    inbox: WatchInbox,
+    /// Workspace batching policy.
+    policy: WatchPolicy,
+}
+
+impl WatchBatcher {
+    /// Create one source watcher batcher.
+    fn new(subscription: Arc<FileWatchSubscription>, policy: WatchPolicy) -> Self {
+        Self {
+            inbox: WatchInbox::new(subscription),
             policy,
         }
     }
 
     /// Receive the next batch of events.
-    pub fn next_batch(&self) -> Option<WatchBatch> {
-        // wait for the first item
-        let mut inbox = WatchInbox::new(&self.subscription);
-        let first_item = inbox.recv()?;
-
-        // initialize the batch with the first item
+    fn next_batch(&mut self) -> Option<WatchBatch> {
+        // wait for the event that opens this batch
+        let first_item = self.inbox.receive()?;
         let started_at = Instant::now();
         let mut batch = PendingWatchBatch::new(started_at);
         batch.push(first_item);
 
-        // continue collecting until the window expires or size is reached
+        // collect until the time window expires or the batch reaches capacity
         let deadline = started_at + self.policy.coalesce_window;
-        // poll channels until an item arrives or both are closed
-        loop {
-            // stop when the batch is at capacity
-            if batch.len() >= self.policy.max_batch_size {
-                break;
-            }
-
-            // receive items until the deadline
-            let Some(item) = inbox.recv_until(deadline) else {
+        while batch.len() < self.policy.max_batch_size {
+            let Some(item) = self.inbox.receive_until(deadline) else {
                 break;
             };
             batch.push(item);
         }
 
-        // finalize timestamps
-        batch.ended_at = Instant::now();
-
-        // return the batch
-        Some(batch.finish())
-    }
-
-    /// Stop the watcher.
-    pub fn stop(&self) {
-        self.subscription.stop();
+        // record the complete collection duration
+        Some(batch.finish(Instant::now()))
     }
 }
 
-/// Receiver state for one watch batch.
-struct WatchInbox<'a> {
-    /// The watcher subscription.
-    subscription: &'a FileWatchSubscription,
-    /// Whether the event channel is closed.
+/// Receiver state for one source watch subscription.
+struct WatchInbox {
+    /// Source watcher subscription.
+    subscription: Arc<FileWatchSubscription>,
+    /// Whether the event receiver is closed.
     events_closed: bool,
-    /// Whether the status channel is closed.
+    /// Whether the status receiver is closed.
     status_closed: bool,
 }
 
-impl<'a> WatchInbox<'a> {
+impl WatchInbox {
     /// Create receiver state for a subscription.
-    fn new(subscription: &'a FileWatchSubscription) -> Self {
+    fn new(subscription: Arc<FileWatchSubscription>) -> Self {
         Self {
             subscription,
             events_closed: false,
@@ -105,28 +150,25 @@ impl<'a> WatchInbox<'a> {
     }
 
     /// Wait for the next watch item.
-    fn recv(&mut self) -> Option<SourceWatchItem> {
+    fn receive(&mut self) -> Option<SourceWatchItem> {
         loop {
-            // stop when both channels are closed
+            // stop when both receivers are closed
             if self.events_closed && self.status_closed {
                 return None;
             }
 
-            // wait on the status channel when events are closed
+            // wait on the remaining receiver
             if self.events_closed {
                 let status = self.subscription.status.recv().ok()?;
 
                 return Some(SourceWatchItem::Status(status));
-            }
-
-            // wait on the events channel when status is closed
-            if self.status_closed {
+            } else if self.status_closed {
                 let event = self.subscription.receiver.recv().ok()?;
 
                 return Some(SourceWatchItem::Event(event));
             }
 
-            // wait for either an event or a status update
+            // wait for either an event or a status change
             let item = select! {
                 recv(self.subscription.receiver) -> message => {
                     match message {
@@ -148,7 +190,6 @@ impl<'a> WatchInbox<'a> {
                 },
             };
 
-            // return the first item we see
             if item.is_some() {
                 return item;
             }
@@ -156,9 +197,9 @@ impl<'a> WatchInbox<'a> {
     }
 
     /// Receive a watch item until the deadline expires.
-    fn recv_until(&mut self, deadline: Instant) -> Option<SourceWatchItem> {
+    fn receive_until(&mut self, deadline: Instant) -> Option<SourceWatchItem> {
         loop {
-            // stop when both channels are closed
+            // stop when both receivers are closed
             if self.events_closed && self.status_closed {
                 return None;
             }
@@ -169,21 +210,18 @@ impl<'a> WatchInbox<'a> {
                 return None;
             }
 
-            // wait on the status channel when events are closed
+            // wait on the remaining receiver
             if self.events_closed {
                 let status = self.subscription.status.recv_timeout(timeout).ok()?;
 
                 return Some(SourceWatchItem::Status(status));
-            }
-
-            // wait on the events channel when status is closed
-            if self.status_closed {
+            } else if self.status_closed {
                 let event = self.subscription.receiver.recv_timeout(timeout).ok()?;
 
                 return Some(SourceWatchItem::Event(event));
             }
 
-            // wait for an item or timeout
+            // wait for either source receiver or the batch deadline
             let timeout_receiver = after(timeout);
             let mut timed_out = false;
             let item = select! {
@@ -211,12 +249,10 @@ impl<'a> WatchInbox<'a> {
                 },
             };
 
-            // return the item we see
             if item.is_some() {
                 return item;
             }
 
-            // stop after a timeout
             if timed_out {
                 return None;
             }

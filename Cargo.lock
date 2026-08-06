@@ -937,6 +937,7 @@ dependencies = [
  "destack_source",
  "destack_webassembly",
  "filetime",
+ "futures",
  "gimli 0.33.0",
  "indexmap",
  "mime_guess",
@@ -1513,7 +1514,6 @@ dependencies = [
 name = "destack_workspace"
 version = "0.55.4"
 dependencies = [
- "base64",
  "crossbeam-channel",
  "dashmap",
  "destack_artifact",
@@ -1530,19 +1530,17 @@ dependencies = [
  "destack_program",
  "destack_query",
  "destack_repository",
+ "destack_rpc",
  "destack_runtime",
  "destack_serde",
  "destack_session",
  "destack_source",
  "destack_vm",
  "fs2",
- "getrandom 0.4.2",
- "httparse",
- "interprocess",
+ "futures",
  "parking_lot",
  "serde",
  "serde_json",
- "sha1",
  "smallvec",
 ]
 

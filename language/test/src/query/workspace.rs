@@ -5,7 +5,8 @@ use std::sync::Arc;
 use destack_query::{QueryRequest, QueryResponse};
 use destack_repository::{Edit, Ref, Repository, Revision, Trace, TraceSnapshot, TraceView};
 use destack_source::Content;
-use destack_workspace::{LocalWorkspace, RevisionPolicy, RunQueryRequest};
+use destack_workspace::{LocalWorkspace, RevisionPolicy, RunQueryInput};
+use futures::executor::block_on;
 use indexmap::IndexMap;
 
 use crate::core::SharedMemoryWorkspace;
@@ -150,15 +151,14 @@ impl QueryWorkspace {
             .local_workspace
             .start_query(
                 &self.root,
-                RunQueryRequest {
+                RunQueryInput {
                     revision: RevisionPolicy::Exact(revision),
                     request,
                 },
             )
             .map_err(|error| format!("query scheduling failed: {error}"))?;
         let trace = run.trace();
-        let response = run
-            .wait()
+        let response = block_on(run.wait())
             .map_err(|error| format!("query execution failed: {error}"))?
             .response;
         let trace = self

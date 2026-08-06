@@ -162,12 +162,19 @@ where
             select_biased! {
                 event = event => {
                     let Some(event) = event else {
-                        return command.await;
+                        let result = command.await;
+                        reporter.stop();
+
+                        return result;
                     };
 
-                    reporter.update_workspace(&event.task, event.message.as_deref(), event.done);
+                    reporter.update_workspace(&event.task, event.message.as_deref());
                 },
-                result = command => return result,
+                result = command => {
+                    reporter.stop();
+
+                    return result;
+                },
             }
         }
     }

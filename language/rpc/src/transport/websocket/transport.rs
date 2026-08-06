@@ -84,7 +84,10 @@ impl Transport for WebSocketTransport {
         let mut reader = self.reader.lock();
 
         loop {
-            let message = reader.read().map_err(TransportError::from)?;
+            let message = reader.read().map_err(|error| match error {
+                WebSocketError::Io(error) => TransportError::from_receive(error),
+                error => TransportError::from(error),
+            })?;
             match message.opcode {
                 OPCODE_BINARY => return Ok(message.payload),
                 OPCODE_CLOSE => {

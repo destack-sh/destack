@@ -232,7 +232,7 @@ where
             .await
         })
         .await;
-    while let Some(cycle) = watch.next_cycle() {
+    while let Some(cycle) = watch.next_cycle().await {
         // refresh sources when the workspace requests a rescan
         if cycle.requires_rescan
             && let Err(error) = refresh_run_watch_state(request, &mut state)

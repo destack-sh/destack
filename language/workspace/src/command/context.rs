@@ -85,6 +85,8 @@ impl<'a> CommandContext<'a> {
         .map_err(|error| {
             CommandError::internal(format!("failed to initialize command session: {error}"))
         })?;
+
+        // enable provider detail before opening the command trace
         session.set_tracing(common.trace.is_some());
         Self::apply_overrides(&session, repository.as_ref(), &common.overrides)?;
         let trace = session.start_trace();
@@ -132,24 +134,26 @@ impl<'a> CommandContext<'a> {
     }
 
     /// Provide artifacts while recording into the command trace.
-    pub(super) fn provide(
+    pub(super) async fn provide(
         &self,
         revision: Revision,
         artifact_keys: &[ArtifactKey],
     ) -> CommandResult<()> {
         self.session
             .provide_traced(revision, artifact_keys, self.trace.clone())
+            .await
             .map_err(|error| error.to_string().into())
     }
 
     /// Complete artifacts through terminal outcomes while recording into the command trace.
-    pub(super) fn complete(
+    pub(super) async fn complete(
         &self,
         revision: Revision,
         artifact_keys: &[ArtifactKey],
     ) -> CommandResult<()> {
         self.session
             .complete_traced(revision, artifact_keys, self.trace.clone())
+            .await
             .map_err(|error| error.to_string().into())
     }
 

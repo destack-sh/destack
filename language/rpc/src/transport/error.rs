@@ -16,6 +16,20 @@ pub enum TransportError {
     Closed,
 }
 
+impl TransportError {
+    /// Convert one transport receive failure, recognizing peer closure.
+    pub(crate) fn from_receive(error: std::io::Error) -> Self {
+        match error.kind() {
+            std::io::ErrorKind::BrokenPipe
+            | std::io::ErrorKind::ConnectionAborted
+            | std::io::ErrorKind::ConnectionReset
+            | std::io::ErrorKind::NotConnected
+            | std::io::ErrorKind::UnexpectedEof => Self::Closed,
+            _ => Self::Io(error),
+        }
+    }
+}
+
 impl std::fmt::Display for TransportError {
     /// Format this transport failure.
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

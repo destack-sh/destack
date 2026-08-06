@@ -96,7 +96,7 @@ pub struct BuildPayload {
 
 impl CommandContext<'_> {
     /// Execute a build command.
-    pub(crate) fn run_build_command(
+    pub(crate) async fn run_build_command(
         &mut self,
         input: &BuildInput,
     ) -> CommandResult<CommandOutcome<BuildPayload>> {
@@ -125,7 +125,7 @@ impl CommandContext<'_> {
         artifact_keys.extend(product_keys.iter().copied());
 
         // provide the requested build roots
-        self.provide(revision, &artifact_keys)?;
+        self.provide(revision, &artifact_keys).await?;
 
         // collect requested artifact refs
         let mut payload = BuildPayload::default();
