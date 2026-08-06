@@ -451,6 +451,8 @@ pub(super) struct ClientCapabilities {
     pub(super) supports_code_action_data: bool,
     /// Whether code action edits can be resolved lazily.
     pub(super) supports_code_action_edit_resolve: bool,
+    /// Whether completion label details are supported.
+    pub(super) supports_completion_label_details: bool,
     /// Whether pull diagnostics are supported.
     pub(super) supports_pull_diagnostics: bool,
     /// Whether diagnostic refresh requests are supported.
@@ -477,6 +479,9 @@ impl TryFrom<&lsp::InitializeParams> for ClientCapabilities {
             .unwrap_or_default();
         let text_document = params.capabilities.text_document.as_ref();
         let code_action = text_document.and_then(|text| text.code_action.as_ref());
+        let completion_item = text_document
+            .and_then(|text| text.completion.as_ref())
+            .and_then(|completion| completion.completion_item.as_ref());
         let workspace = params.capabilities.workspace.as_ref();
 
         // read protocol capabilities used by response conversion
@@ -493,6 +498,9 @@ impl TryFrom<&lsp::InitializeParams> for ClientCapabilities {
         let supports_code_action_edit_resolve = code_action
             .and_then(|capabilities| capabilities.resolve_support.as_ref())
             .is_some_and(|resolve| resolve.properties.iter().any(|property| property == "edit"));
+        let supports_completion_label_details = completion_item
+            .and_then(|completion| completion.label_details_support)
+            .unwrap_or(false);
         let supports_pull_diagnostics = text_document
             .and_then(|text| text.diagnostic.as_ref())
             .is_some();
@@ -506,6 +514,7 @@ impl TryFrom<&lsp::InitializeParams> for ClientCapabilities {
             supports_dynamic_file_watching,
             supports_code_action_data,
             supports_code_action_edit_resolve,
+            supports_completion_label_details,
             supports_pull_diagnostics,
             supports_diagnostic_refresh,
             code_lens_commands: initialization_options.code_lens_commands,

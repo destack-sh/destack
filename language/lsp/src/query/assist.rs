@@ -199,7 +199,16 @@ impl Document {
         &self,
         index: usize,
         item: query::CompletionItem,
+        supports_label_details: bool,
     ) -> jsonrpc::Result<lsp::CompletionItem> {
+        // build compact label details when the client supports them
+        let label_details = if supports_label_details {
+            Self::completion_label_details(&item)
+        } else {
+            None
+        };
+
+        // configure snippet insertion
         let insert_text_format = if item.edit.is_snippet {
             Some(lsp::InsertTextFormat::SNIPPET)
         } else {
@@ -261,6 +270,13 @@ impl Document {
             (None, None)
         };
 
+        // retain descriptions in expanded details for older clients
+        let detail = match (supports_label_details, item.detail, item.description) {
+            (true, detail, _) | (false, detail, None) => detail,
+            (false, Some(detail), Some(description)) => Some(format!("{detail} — {description}")),
+            (false, None, Some(description)) => Some(description),
+        };
+
         // map completion kind
         let kind = match item.kind {
             query::CompletionItemKind::AssociatedConst => lsp::CompletionItemKind::CONSTANT,
@@ -295,8 +311,9 @@ impl Document {
 
         Ok(lsp::CompletionItem {
             label: item.label,
+            label_details,
             kind: Some(kind),
-            detail: item.detail,
+            detail,
             documentation,
             insert_text_format,
             insert_text_mode,
@@ -307,6 +324,56 @@ impl Document {
             additional_text_edits,
             text_edit: Some(text_edit.into()),
             ..Default::default()
+        })
+    }
+
+    /// Build compact LSP label details for one completion item.
+    fn completion_label_details(
+        item: &query::CompletionItem,
+    ) -> Option<lsp::CompletionItemLabelDetails> {
+        let detail = match item.kind {
+            query::CompletionItemKind::Constructor
+            | query::CompletionItemKind::Function
+            | query::CompletionItemKind::Method => {
+                item.detail.as_ref().map(|detail| format!(" {detail}"))
+            }
+            query::CompletionItemKind::AssociatedConst
+            | query::CompletionItemKind::Constant
+            | query::CompletionItemKind::EnumMember
+            | query::CompletionItemKind::Field
+            | query::CompletionItemKind::Property
+            | query::CompletionItemKind::Value
+            | query::CompletionItemKind::ValueParameter
+            | query::CompletionItemKind::Variable => {
+                item.detail.as_ref().map(|detail| format!(": {detail}"))
+            }
+            _ => None,
+        };
+
+        // place declarations and import sources in the secondary label column
+        let description = if let Some(description) = &item.description {
+            Some(description.clone())
+        } else if matches!(
+            item.kind,
+            query::CompletionItemKind::AssociatedType
+                | query::CompletionItemKind::Class
+                | query::CompletionItemKind::Enum
+                | query::CompletionItemKind::Extension
+                | query::CompletionItemKind::Interface
+                | query::CompletionItemKind::Newtype
+                | query::CompletionItemKind::NewtypeInterface
+                | query::CompletionItemKind::Struct
+                | query::CompletionItemKind::TypeAlias
+                | query::CompletionItemKind::TypeParameter
+        ) {
+            item.detail.clone()
+        } else {
+            None
+        };
+
+        (detail.is_some() || description.is_some()).then_some(lsp::CompletionItemLabelDetails {
+            detail,
+            description,
         })
     }
 }

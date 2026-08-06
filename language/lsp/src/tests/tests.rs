@@ -53,6 +53,19 @@ pub(super) struct TestServer {
     next_request_id: i64,
 }
 
+/// The displayed text from one completion item.
+#[derive(Debug, PartialEq, Eq)]
+pub(super) struct CompletionDisplay<'a> {
+    /// The completion label.
+    pub(super) label: &'a str,
+    /// The text displayed after the label.
+    pub(super) label_detail: Option<&'a str>,
+    /// The secondary label description.
+    pub(super) description: Option<&'a str>,
+    /// The expanded completion detail.
+    pub(super) detail: Option<&'a str>,
+}
+
 impl TestServer {
     /// Create one configured language server.
     pub(super) fn new(name: &str) -> Self {
@@ -194,6 +207,59 @@ impl TestServer {
         R: lsp::request::Request,
     {
         self.start_request::<R>(params).await.wait().await
+    }
+
+    /// Return completion items for one document position.
+    pub(super) async fn complete(
+        &mut self,
+        document: &TestDocument,
+        position: lsp::Position,
+    ) -> Vec<lsp::CompletionItem> {
+        let response = self
+            .request::<lsp::request::Completion>(document.completion(position))
+            .await
+            .unwrap();
+
+        match response {
+            Some(lsp::CompletionResponse::Array(items)) => items,
+            Some(lsp::CompletionResponse::List(list)) => list.items,
+            None => Vec::new(),
+        }
+    }
+
+    /// Require one completion and its compact and expanded details.
+    pub(super) async fn assert_completion(
+        &mut self,
+        document: &TestDocument,
+        position: lsp::Position,
+        expected: CompletionDisplay<'_>,
+    ) {
+        let items = self.complete(document, position).await;
+        let matching = items
+            .iter()
+            .filter(|item| item.label == expected.label)
+            .collect::<Vec<_>>();
+        let labels = items
+            .iter()
+            .map(|item| item.label.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            matching.len(),
+            1,
+            "expected one {:?} completion, found labels {labels:?}",
+            expected.label,
+        );
+        let item = matching[0];
+        let label_details = item.label_details.as_ref();
+
+        // compare every displayed detail
+        let actual = CompletionDisplay {
+            label: &item.label,
+            label_detail: label_details.and_then(|details| details.detail.as_deref()),
+            description: label_details.and_then(|details| details.description.as_deref()),
+            detail: item.detail.as_deref(),
+        };
+        assert_eq!(actual, expected);
     }
 
     /// Require one exact typed client request result.

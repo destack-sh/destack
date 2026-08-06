@@ -1,6 +1,6 @@
 use destack_lsp_types as lsp;
 
-use super::tests::{MANIFEST, TestServer, markdown, position, range};
+use super::tests::{CompletionDisplay, MANIFEST, TestServer, markdown, position, range};
 
 /// Function index in the advertised semantic token legend.
 const FUNCTION_TOKEN: u32 = 11;
@@ -203,6 +203,110 @@ const origin: Point = { x: 0,  };
         None => Vec::new(),
     };
     assert_eq!(labels, ["y", "origin", "Point"]);
+}
+
+/// Return declaration, member, and callable details in completion lists.
+#[tokio::test]
+async fn test_return_completion_details() {
+    let source = r#"struct HostErrorContextProcess {
+    kind: "process";
+    syscall?: string;
+    send(code: int32): string { return ""; }
+}
+
+interface Collection {
+    type Item;
+}
+function item<T: Collection>(): T.Item { return todo("item"); }
+
+declare const context: HostErrorContextProcess;
+const syscall = context.syscall;
+const sent = context.send(1);
+"#;
+    let mut server = TestServer::new("completion-details");
+    server.write("destack.json", MANIFEST);
+    let document = server.write("src/main.ds", source);
+    let capabilities = lsp::ClientCapabilities {
+        text_document: Some(lsp::TextDocumentClientCapabilities {
+            completion: Some(lsp::CompletionClientCapabilities {
+                completion_item: Some(lsp::CompletionItemCapability {
+                    label_details_support: Some(true),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    server.initialize(capabilities, None).await.unwrap();
+    server.initialized().await;
+    server.open(&document, 1, source).await;
+    server
+        .assert_notification::<lsp::notification::PublishDiagnostics>(
+            lsp::PublishDiagnosticsParams {
+                uri: document.uri().clone(),
+                diagnostics: Vec::new(),
+                version: Some(1),
+            },
+        )
+        .await;
+
+    // show the exact declaration beside one type completion
+    server
+        .assert_completion(
+            &document,
+            position(11, 46),
+            CompletionDisplay {
+                label: "HostErrorContextProcess",
+                label_detail: None,
+                description: Some("struct HostErrorContextProcess"),
+                detail: Some("struct HostErrorContextProcess"),
+            },
+        )
+        .await;
+
+    // show the exact declaration beside one associated type
+    server
+        .assert_completion(
+            &document,
+            position(9, 38),
+            CompletionDisplay {
+                label: "Item",
+                label_detail: None,
+                description: Some("T.Item"),
+                detail: Some("T.Item"),
+            },
+        )
+        .await;
+
+    // show the exact value type beside one field completion
+    server
+        .assert_completion(
+            &document,
+            position(12, 26),
+            CompletionDisplay {
+                label: "syscall",
+                label_detail: Some(": string | undefined"),
+                description: None,
+                detail: Some("string | undefined"),
+            },
+        )
+        .await;
+
+    // show parameter and return types beside one callable completion
+    server
+        .assert_completion(
+            &document,
+            position(13, 23),
+            CompletionDisplay {
+                label: "send",
+                label_detail: Some(" (code: int32) => string"),
+                description: None,
+                detail: Some("(code: int32) => string"),
+            },
+        )
+        .await;
 }
 
 /// Rename an interface method together with its implementing declaration.

@@ -656,6 +656,9 @@ impl LanguageServer for DestackLanguageServer {
             completion_provider: Some(lsp::CompletionOptions {
                 trigger_characters: Some(vec![".".to_string(), ":".to_string()]),
                 resolve_provider: None,
+                completion_item: Some(lsp::CompletionOptionsCompletionItem {
+                    label_details_support: Some(true),
+                }),
                 ..Default::default()
             }),
             signature_help_provider: Some(lsp::SignatureHelpOptions {
@@ -1514,12 +1517,15 @@ impl LanguageServer for DestackLanguageServer {
         if completions.is_empty() {
             return Ok(None);
         }
+        let supports_label_details = self
+            .client_capabilities()?
+            .supports_completion_label_details;
 
         // build LSP completion items
         let items: Vec<lsp::CompletionItem> = completions
             .into_iter()
             .enumerate()
-            .map(|(index, item)| document.completion_item(index, item))
+            .map(|(index, item)| document.completion_item(index, item, supports_label_details))
             .collect::<jsonrpc::Result<_>>()?;
 
         Ok(Some(lsp::CompletionResponse::List(lsp::CompletionList {
