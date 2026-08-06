@@ -202,8 +202,9 @@ impl ProgressReporter {
                 update_status(&status, &state, &label, detailed, started_at);
             }
             SessionEvent::RunFinished { .. } => {
-                status.disable_steady_tick();
                 stop_ticker.store(true, Ordering::Relaxed);
+                status.disable_steady_tick();
+                status.finish_and_clear();
             }
         })
     }
@@ -211,15 +212,18 @@ impl ProgressReporter {
     /// Update the status line from one workspace progress event.
     pub fn update_workspace(&self, task: &str, message: Option<&str>, done: bool) {
         if done {
-            self.status.disable_steady_tick();
-            self.stop_ticker.store(true, Ordering::Relaxed);
+            self.finish();
+
             return;
         }
 
         // workspace updates share the ticker line's shape
         let styled_label = style_label(&self.label);
         let sep = console::dim(" · ");
-        let mut parts = vec![task.to_string()];
+        let mut parts = Vec::new();
+        if !task.is_empty() && task != self.label {
+            parts.push(task.to_string());
+        }
         if let Some(message) = message {
             parts.push(message.to_string());
         }
@@ -230,8 +234,9 @@ impl ProgressReporter {
 
     /// Finish the progress display.
     pub fn finish(&self) {
-        self.status.finish_and_clear();
         self.stop_ticker.store(true, Ordering::Relaxed);
+        self.status.disable_steady_tick();
+        self.status.finish_and_clear();
     }
 
     /// Finish with a custom message.
@@ -358,6 +363,6 @@ pub fn is_tty() -> bool {
 
 impl Drop for ProgressReporter {
     fn drop(&mut self) {
-        self.stop_ticker.store(true, Ordering::Relaxed);
+        self.finish();
     }
 }
