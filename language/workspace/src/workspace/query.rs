@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
 use destack_query::{Module, QueryError, QueryPosition, QueryRange, QueryRequest, QueryResponse};
-use destack_repository::{RepositoryError, Revision, Trace};
+use destack_repository::{Revision, Trace};
 use destack_serde::Reflect;
 use destack_session::{ArtifactPriority, ArtifactRun};
 use destack_source::{File, ProfileId, Span};
@@ -77,28 +77,7 @@ impl LocalWorkspace {
         let Some(module_id) = module_id else {
             return Ok(None);
         };
-        let module = repository
-            .module(revision, module_id)?
-            .ok_or(RepositoryError::MissingModule { module: module_id })?;
-
-        // select the module package profile
-        let package_id = module.package_id;
-        let package =
-            repository
-                .package(revision, package_id)?
-                .ok_or(RepositoryError::MissingPackage {
-                    package: package_id,
-                })?;
-        let selected = session.selected_target(&package)?;
-        let Some((_, profile_id)) = selected else {
-            return Err(Error::TargetNotSelected {
-                package_id: package.id,
-            });
-        };
-        let module = Module {
-            module_id,
-            profile_id,
-        };
+        let module = session.module(module_id)?;
 
         Ok(Some(QueryFile {
             path,
