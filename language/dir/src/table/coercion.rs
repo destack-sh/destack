@@ -6,7 +6,7 @@ use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{CastOrigin, GlobalNodeIdAny, GlobalTypeId, ScalarLiteral, SegmentView, Type};
+use crate::{CastOrigin, GenericArgumentBinding, GlobalNodeIdAny, GlobalTypeId, SegmentView, Type};
 
 /// Cumulative checked coercions for one DIR module.
 #[derive(Debug, Clone)]
@@ -152,6 +152,13 @@ pub enum CoercionAdjustment {
         /// The carrier type after this adjustment.
         target: GlobalTypeId,
     },
+    /// Materialize one generic callable reference at its selected concrete instance.
+    Instantiate {
+        /// The concrete callable type after this adjustment.
+        target: GlobalTypeId,
+        /// The generic arguments selecting the instance.
+        arguments: Vec<GenericArgumentBinding>,
+    },
 }
 
 /// One selected conversion for a possible union source type.
@@ -223,7 +230,8 @@ impl CoercionAdjustment {
             | Self::Scalar { target }
             | Self::Widen { target }
             | Self::Tuple { target }
-            | Self::Carrier { target } => *target,
+            | Self::Carrier { target }
+            | Self::Instantiate { target, .. } => *target,
         }
     }
 
@@ -238,6 +246,7 @@ impl CoercionAdjustment {
             Self::Widen { .. } => "widen",
             Self::Tuple { .. } => "tuple",
             Self::Carrier { .. } => "carrier",
+            Self::Instantiate { .. } => "instantiate",
         }
     }
 
@@ -255,6 +264,12 @@ impl CoercionAdjustment {
                 *target = map(*target);
                 for case in cases {
                     case.map_type_ids(map);
+                }
+            }
+            Self::Instantiate { target, arguments } => {
+                *target = map(*target);
+                for binding in arguments {
+                    binding.argument = map(binding.argument);
                 }
             }
         }
@@ -299,9 +314,8 @@ impl CoercionAdjustment {
             return Some(Self::Carrier { target: target_id });
         }
 
-        // scalar singletons with distinct carriers select their conversion
+        // scalar singletons are comptime: widening materializes them
         if let Type::Literal(literal) = source
-            && matches!(literal, ScalarLiteral::Integer(_) | ScalarLiteral::Float(_))
             && matches!(target, Type::Primitive(_))
             && literal.widens_to(target)
         {
