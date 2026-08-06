@@ -1,7 +1,7 @@
 use crate::tests::TestSession;
 
 #[test]
-fn test_lower_field_write_rebuilds_aggregate() {
+fn test_rebuild_the_aggregate_on_a_field_write() {
     let session = TestSession::single(
         r#"
 struct Point {

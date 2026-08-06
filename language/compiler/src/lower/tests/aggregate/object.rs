@@ -1,8 +1,8 @@
 use crate::tests::TestSession;
 
-/// Lower an object literal as an instance of its declared row.
+/// Lower an object literal as an instance of its declared class.
 #[test]
-fn test_lower_an_object_literal_to_its_declared_row() {
+fn test_lower_an_object_literal_to_its_declared_class() {
     let session = TestSession::single(
         r#"
 type Point = { x: int32 };
@@ -46,9 +46,9 @@ entry:
     );
 }
 
-/// Lower a recursive row alias to its named managed reference.
+/// Lower a recursive object alias to its named managed reference.
 #[test]
-fn test_lower_a_recursive_row_alias_to_a_named_reference() {
+fn test_lower_a_recursive_object_alias_to_a_named_reference() {
     let session = TestSession::single(
         r#"
 type Selector = {

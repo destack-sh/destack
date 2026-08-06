@@ -245,3 +245,52 @@ entry:
 "#,
     );
 }
+
+#[test]
+fn test_construct_a_tagged_object_literal_into_its_union_carrier() {
+    let session = TestSession::single(
+        r#"
+type Selector =
+    | {
+          kind: "value";
+          value: int32;
+      }
+    | {
+          kind: "flag";
+          flag: boolean;
+      };
+
+function value(chosen: int32): Selector {
+    { kind: "value", value: chosen }
+}
+"#,
+    );
+
+    session.assert_mir_lowered("main.ds", r#"
+@copy
+type Selector = variant<uint8> { 0uint8 = ref<{ kind: void, value: int32 }, managed, mutable>; 1uint8 = ref<{ kind: void, flag: boolean }, managed, mutable>; };
+
+function test.main.value(v0: int32): Selector {
+entry(v0: int32):
+    v1: void = undefined
+    v2: { kind: void, value: int32 } = aggregate (v1, v0)
+    v3: ref<{ kind: void, value: int32 }, managed, mutable> = new.complete v2
+    v4: variant<uint8> { 0uint8 = ref<{ kind: void, value: int32 }, managed, mutable>; 1uint8 = ref<{ kind: void, flag: boolean }, managed, mutable>; } = variant.new 0, v3
+    return v4
+}
+/// @layout.variant name=Selector size=16 align=8
+/// @layout.discriminant owner=Selector kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=Selector index=0 discriminant=0 payload_offset=8
+/// @layout.case owner=Selector index=1 discriminant=1 payload_offset=8
+/// @layout.struct name=type@5 size=4 align=4
+/// @layout.field owner=type@5 index=0 name=kind offset=4 size=0 align=1
+/// @layout.field owner=type@5 index=1 name=value offset=0 size=4 align=4
+/// @layout.struct name=type@9 size=1 align=1
+/// @layout.field owner=type@9 index=0 name=kind offset=0 size=0 align=1
+/// @layout.field owner=type@9 index=1 name=flag offset=0 size=1 align=1
+/// @layout.variant name=type@12 size=16 align=8
+/// @layout.discriminant owner=type@12 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@12 index=0 discriminant=0 payload_offset=8
+/// @layout.case owner=type@12 index=1 discriminant=1 payload_offset=8
+"#);
+}

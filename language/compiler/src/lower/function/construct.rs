@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{FunctionLowerer, GenericInstanceKey};
+use crate::lower::FunctionLowerer;
 
 use crate::{CompilerError, CompilerResult, LowerError};
 
@@ -50,7 +50,12 @@ impl FunctionLowerer<'_, '_, '_> {
             values.push(self.lower_argument(source)?);
         }
 
-        self.lower_class_instance(resolution.return_type, &candidate.constructor, values)
+        self.lower_class_instance(
+            resolution.return_type,
+            &candidate.constructor,
+            &candidate.generic_arguments,
+            values,
+        )
     }
 
     /// Lower one class construction over its evaluated argument values.
@@ -58,6 +63,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         return_type: dir::GlobalTypeId,
         constructor: &dir::ClassConstructor,
+        generic_arguments: &[dir::GenericArgumentBinding],
         arguments: Vec<mir::Value>,
     ) -> CompilerResult<mir::Value> {
         // lower the return form and its class representation
@@ -90,7 +96,12 @@ impl FunctionLowerer<'_, '_, '_> {
         // initialize the storage through an exclusive borrow
         match constructor {
             dir::ClassConstructor::Declared { symbol } => {
-                let key = GenericInstanceKey::non_generic(*symbol);
+                // select the declared instance from the substituted class arguments
+                let bindings = self
+                    .lowerer
+                    .instance_bindings(generic_arguments, &self.type_substitution)?;
+                let instance: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
+                let key = self.generic_instance_key(*symbol, &instance)?;
                 let function = self.function(&key)?;
 
                 // borrow heap references exclusively
@@ -244,11 +255,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let nominal = self.lower_nominal(ty)?;
         let ty = self.lower_type(ty)?;
         let nominal = self.lowerer.nominal(&nominal.key)?;
-        let fields = nominal
-            .fields
-            .iter()
-            .map(|field| field.key)
-            .collect::<Vec<_>>();
+        let fields = nominal.fields.clone();
 
         // gather each property value under its field key
         let mut values = Vec::with_capacity(properties.len());
@@ -262,6 +269,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 .into());
             };
 
+            // key each written value by its property name
             let dir::Key::Name(name) = key else {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
@@ -273,8 +281,9 @@ impl FunctionLowerer<'_, '_, '_> {
             values.push((name.static_key(), *value));
         }
 
-        // collect the field storage types behind the nominal
-        let storage_fields = match self.builder.tree().get(ty) {
+        // collect the field storage types behind the nominal, peeling lifetime applications
+        let (storage, _) = self.builder.tree().split_lifetime_application(ty);
+        let storage_fields = match self.builder.tree().get(storage) {
             mir::Type::Struct { fields, .. } => fields.clone(),
             _ => {
                 return Err(CompilerError::Internal {
@@ -286,7 +295,14 @@ impl FunctionLowerer<'_, '_, '_> {
         // lower the field values in declaration order, eliding void storage
         let mut ordered = Vec::with_capacity(fields.len());
         for (index, field) in fields.into_iter().enumerate() {
-            let Some((_, value)) = values.iter().find(|(key, _)| *key == field) else {
+            let Some((_, value)) = values.iter().find(|(key, _)| *key == field.key) else {
+                // store the undefined case for absent optional fields
+                if field.is_optional {
+                    ordered.push(self.lower_absent_property(storage, index)?);
+
+                    continue;
+                }
+
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
                     construct: "a defaulted struct field".to_string(),
@@ -295,11 +311,11 @@ impl FunctionLowerer<'_, '_, '_> {
             };
 
             // skip singleton literal fields storing no runtime value
-            let storage = storage_fields
+            let field_storage = storage_fields
                 .get(index)
                 .map(|field| self.builder.tree().get(*field).ty);
-            let is_void =
-                storage.is_some_and(|ty| matches!(self.builder.tree().get(ty), mir::Type::Void));
+            let is_void = field_storage
+                .is_some_and(|ty| matches!(self.builder.tree().get(ty), mir::Type::Void));
             let is_literal = matches!(
                 self.source().tree().get(*value),
                 dir::Expression::ScalarLiteral(_)
@@ -308,7 +324,9 @@ impl FunctionLowerer<'_, '_, '_> {
                 continue;
             }
 
-            ordered.push(self.lower_expression(*value)?);
+            // store the written value at the field's own case
+            let value = self.lower_expression(*value)?;
+            ordered.push(self.lower_property_case(storage, index, value)?);
         }
 
         Ok(self.builder.aggregate(ty, ordered))
@@ -346,16 +364,15 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         properties: &[dir::LocalNodeId<dir::Property>],
     ) -> CompilerResult<mir::Value> {
-        // the written expectation names the carrier when reduction hides it
-        let committed = match self.expected_type_id(expression) {
-            Some(expected) => expected,
-            None => self.node_type_id(expression)?,
-        };
-
-        // read the concrete class beneath the committed memory forms
-        let mut class = self.lowerer.reduced_type(committed)?;
-        while let dir::Type::Form(form) = self.lowerer.ty(class)? {
-            class = self.lowerer.reduced_type(form.value)?;
+        // read the class from the written expectation, falling back to the
+        //  literal's own committed object type when the expectation is not
+        //  an object type
+        let own = self.node_type_id(expression)?;
+        let mut committed = self.expected_type_id(expression).unwrap_or(own);
+        let mut class = self.object_class(committed)?;
+        if !matches!(self.lowerer.ty(class)?, dir::Type::Object(_)) && committed != own {
+            committed = own;
+            class = self.object_class(own)?;
         }
         let dir::Type::Object(shape) = self.lowerer.ty(class)? else {
             return Err(LowerError::Unsupported {
@@ -392,7 +409,7 @@ impl FunctionLowerer<'_, '_, '_> {
             written.push((name.static_key(), *value));
         }
 
-        // lower the declared carrier, construction fills its storage row
+        // lower the declared carrier, construction fills its struct storage
         let carrier = self.lower_type(committed)?;
         let (concrete, reference) = match self.builder.tree().get(carrier) {
             mir::Type::Reference { pointee, .. } => (*pointee, Some(carrier)),
@@ -409,6 +426,19 @@ impl FunctionLowerer<'_, '_, '_> {
         for (index, property) in declared.iter().enumerate() {
             match written.iter().find(|(key, _)| *key == property.key) {
                 Some((_, value)) => {
+                    // skip singleton literal properties storing no runtime value
+                    let carrier = self.property_carrier(concrete, index)?;
+                    let is_void = matches!(self.builder.tree().get(carrier), mir::Type::Void);
+                    let is_literal = matches!(
+                        self.source().tree().get(*value),
+                        dir::Expression::ScalarLiteral(_)
+                    );
+                    if is_void && is_literal {
+                        values.push(self.builder.constant(mir::Constant::Undefined, carrier));
+
+                        continue;
+                    }
+
                     let value = self.lower_expression(*value)?;
                     values.push(self.lower_property_case(concrete, index, value)?);
                 }
@@ -430,9 +460,19 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(match reference {
             // allocate managed destinations on the heap
             Some(reference) => self.builder.new_complete(aggregate, reference),
-            // owned destinations hold the row in place
+            // owned destinations hold the struct in place
             None => aggregate,
         })
+    }
+
+    /// Return the class beneath one committed type's memory forms.
+    fn object_class(&mut self, committed: dir::GlobalTypeId) -> CompilerResult<dir::GlobalTypeId> {
+        let mut class = self.lowerer.reduced_type(committed)?;
+        while let dir::Type::Form(form) = self.lowerer.ty(class)? {
+            class = self.lowerer.reduced_type(form.value)?;
+        }
+
+        Ok(class)
     }
 
     /// Inject one written value into its declared property carrier.
@@ -451,6 +491,11 @@ impl FunctionLowerer<'_, '_, '_> {
         };
         if value_type == carrier {
             return Ok(value);
+        }
+
+        // store no value in erased zero-sized carriers such as variant tags
+        if matches!(self.builder.tree().get(carrier), mir::Type::Void) {
+            return Ok(self.builder.constant(mir::Constant::Undefined, carrier));
         }
 
         // widen values into niched nullable carriers as a kind change
@@ -488,8 +533,10 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         // store undefined directly in niched nullable carriers
         let carrier = self.property_carrier(concrete, index)?;
-        if let mir::Type::Reference { .. } | mir::Type::Slice { .. } | mir::Type::Dynamic { .. } =
-            self.builder.tree().get(carrier)
+        if let mir::Type::Reference { .. }
+        | mir::Type::Slice { .. }
+        | mir::Type::Dynamic { .. }
+        | mir::Type::Function { .. } = self.builder.tree().get(carrier)
         {
             return Ok(self.builder.constant(mir::Constant::Undefined, carrier));
         }

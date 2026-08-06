@@ -6,13 +6,13 @@ use super::lower::TypeLowerer;
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl TypeLowerer<'_, '_> {
-    /// Lower one anonymous object row to its struct storage.
+    /// Lower one anonymous object type to its struct storage.
     pub(in crate::lower) fn lower_object_struct(
         &mut self,
         shape: &dir::ShapeType,
         module: ModuleId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        let fields = self.object_row_fields(shape, module)?;
+        let fields = self.object_fields(shape, module)?;
 
         Ok(self.tree.intern_type(mir::Type::Struct {
             fields,
@@ -20,14 +20,14 @@ impl TypeLowerer<'_, '_> {
         }))
     }
 
-    /// Define one declared object row into its reserved alias identity.
-    pub(in crate::lower) fn define_object_row(
+    /// Define one declared object type into its reserved alias identity.
+    pub(in crate::lower) fn define_object_struct(
         &mut self,
         shape: &dir::ShapeType,
         module: ModuleId,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<()> {
-        let fields = self.object_row_fields(shape, module)?;
+        let fields = self.object_fields(shape, module)?;
         self.tree.define_type(
             ty,
             mir::Type::Struct {
@@ -39,8 +39,8 @@ impl TypeLowerer<'_, '_> {
         Ok(())
     }
 
-    /// Lower each written row property into a named field.
-    fn object_row_fields(
+    /// Lower each written property into a named field.
+    fn object_fields(
         &mut self,
         shape: &dir::ShapeType,
         module: ModuleId,
@@ -51,6 +51,7 @@ impl TypeLowerer<'_, '_> {
             .properties(shape.properties)
             .to_vec();
 
+        // intern one named field per written property
         let mut fields = Vec::with_capacity(properties.len());
         for property in &properties {
             let dir::StaticKey::Name(name) = property.key else {
@@ -73,24 +74,31 @@ impl TypeLowerer<'_, '_> {
         Ok(fields)
     }
 
-    /// Lower one row property to its stored carrier.
-    ///
-    /// Absent optional properties store as undefined: reference carriers
-    /// ride their nullability niche, value carriers grow a variant case.
+    /// Lower one object property to its stored carrier.
     pub(in crate::lower) fn lower_property_carrier(
         &mut self,
         property: &dir::TypeProperty,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         let Some(read) = property.access.read() else {
             return Err(CompilerError::Internal {
-                message: "a row property without a read type".to_string(),
+                message: "an object property without a read type".to_string(),
             });
         };
+
+        // widen an optional property so its absent case stores as undefined
         let value = self.lower(read)?;
         if !property.is_optional {
             return Ok(value);
         }
 
+        self.insert_optional_carrier(value)
+    }
+
+    /// Wrap one carrier so absent values store as undefined.
+    pub(in crate::lower) fn insert_optional_carrier(
+        &mut self,
+        value: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         // niche optional reference carriers in their spare values
         let nullability = match self.tree.get(value) {
             mir::Type::Reference { nullability, .. }

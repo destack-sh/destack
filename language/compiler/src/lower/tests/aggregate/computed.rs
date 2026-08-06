@@ -84,10 +84,6 @@ type Holder {
     slice: ref<{ kept: int32 }, managed, mutable>;
 }
 
-type Kept {
-    kept: int32;
-}
-
 function test.main.read(v0: Holder): int32 {
 entry(v0: Holder):
     v1: ref<{ kept: int32 }, managed, mutable> = field.get v0, 0
@@ -100,8 +96,6 @@ entry(v0: Holder):
 /// @layout.field owner=Full index=1 name=dropped offset=0 size=8 align=8
 /// @layout.struct name=Holder size=8 align=8
 /// @layout.field owner=Holder index=0 name=slice offset=0 size=8 align=8
-/// @layout.struct name=Kept size=4 align=4
-/// @layout.field owner=Kept index=0 name=kept offset=0 size=4 align=4
 /// @layout.struct name=type@7 size=4 align=4
 /// @layout.field owner=type@7 index=0 name=kept offset=0 size=4 align=4
 "#,
