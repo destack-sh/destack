@@ -166,13 +166,13 @@ impl ProviderAttempt {
                 "diagnostic package is not tracked in revision: {package_id:?}"
             )));
         };
-        let Some(file) = package.destack_file_id else {
+        let Some(configuration) = package.configuration.as_ref() else {
             return Err(Self::invalid_anchor(format!(
                 "diagnostic package has no destack config file: {package_id:?}"
             )));
         };
 
-        Ok(Span::empty(file))
+        Ok(Span::empty(configuration.file_id))
     }
 
     /// Return one file content id in this revision.

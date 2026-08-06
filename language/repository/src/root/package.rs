@@ -1,12 +1,12 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_source::{FileId, PackageId, TargetId, Uri};
+use destack_source::{PackageId, TargetId, Uri};
 use im::OrdMap;
 use indexmap::IndexMap;
 
 use crate::config::{
-    ConditionGate, ConditionSet, Dependency, ExportKind, Target, Topology, Vendor,
+    ConditionGate, ConditionSet, Dependency, DestackFile, ExportKind, Target, Topology, Vendor,
 };
 
 /// The ownership kind for a package.
@@ -54,10 +54,10 @@ pub struct Package {
     pub exports: IndexMap<String, PackageExport>,
     /// Package topology definition.
     pub topology: Topology,
-    /// The `destack.json` file id when present.
-    pub destack_file_id: Option<FileId>,
     /// The package targets.
     pub targets: IndexMap<TargetId, Target>,
+    /// The effective package configuration when present.
+    pub configuration: Option<Arc<DestackFile>>,
 }
 
 impl Package {

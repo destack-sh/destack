@@ -68,16 +68,16 @@ impl EmbeddedBuiltinPackage {
 
         // read declared build targets from the embedded manifest
         let manifest = BUILTIN_MANIFEST_FILE.file();
-        let source =
-            parse_jsonc_file(&manifest).expect("embedded builtin manifest should parse");
-        let config = DestackFile::from_file(
+        let source = parse_jsonc_file(&manifest).expect("embedded builtin manifest should parse");
+        let configuration = DestackFile::from_file(
             BUILTIN_MANIFEST_FILE.file_id(),
             vec![BUILTIN_MANIFEST_FILE.file_id()],
             PathBuf::from(BUILTIN_MANIFEST_FILE.path),
             source,
         )
         .expect("embedded builtin manifest should build");
-        let targets = config
+        let configuration = Arc::new(configuration);
+        let targets = configuration
             .destack
             .targets
             .iter()
@@ -95,8 +95,8 @@ impl EmbeddedBuiltinPackage {
             vendor: Default::default(),
             exports,
             topology: Default::default(),
-            destack_file_id: Some(BUILTIN_MANIFEST_FILE.file_id()),
             targets,
+            configuration: Some(configuration),
         };
 
         let package = Arc::new(package);

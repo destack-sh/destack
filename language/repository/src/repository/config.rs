@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use destack_source::{FileId, PackageId};
 
+use crate::DestackFile;
 use crate::repository::{Repository, RepositoryError, Revision};
-use crate::{DestackFile, Package};
 
 impl Repository {
     /// Return one inherited destack config by workspace path.
@@ -158,33 +158,19 @@ impl Repository {
         Ok(package_roots)
     }
 
-    /// Return the effective `destack.json` config for one package.
-    pub fn destack_for_package(
-        &self,
-        revision: Revision,
-        package: &Package,
-    ) -> Result<Option<Arc<DestackFile>>, RepositoryError> {
-        let Some(package_path) = package.path.as_ref() else {
-            return Ok(None);
-        };
-
-        let path = package_path.join("destack.json");
-        let config = self.inherited_destack_for_path(revision, &path)?;
-
-        Ok(config.map(Arc::new))
-    }
-
     /// Return the effective `destack.json` config for one package id.
     pub fn destack_for_package_id(
         &self,
         revision: Revision,
         package_id: PackageId,
     ) -> Result<Option<Arc<DestackFile>>, RepositoryError> {
-        let Some(package) = self.package(revision, package_id)? else {
-            return Ok(None);
-        };
+        let package =
+            self.package(revision, package_id)?
+                .ok_or(RepositoryError::MissingPackage {
+                    package: package_id,
+                })?;
 
-        self.destack_for_package(revision, package.as_ref())
+        Ok(package.configuration.clone())
     }
 }
 
