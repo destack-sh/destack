@@ -3,10 +3,12 @@
 import { BinaryReader, BinaryWriter, Json, SerdeError, compareBytes, jsonArray, jsonField, jsonObject, jsonString, nestedBytes } from "../../../protocol/serde.js";
 import type { CastOrigin } from "../tree/cast.js";
 import type { GlobalNodeIdAny } from "../tree/node.js";
+import type { GenericArgumentBinding } from "../type/generic.js";
 import type { GlobalTypeId } from "../type/type.js";
 import type { ModuleId } from "../../source/file/model/module.js";
 import { decodeCastOrigin, encodeCastOrigin, fromJsonCastOrigin, toJsonCastOrigin } from "../tree/cast.js";
 import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, toJsonGlobalNodeIdAny } from "../tree/node.js";
+import { decodeGenericArgumentBinding, encodeGenericArgumentBinding, fromJsonGenericArgumentBinding, toJsonGenericArgumentBinding } from "../type/generic.js";
 import { decodeGlobalTypeId, encodeGlobalTypeId, fromJsonGlobalTypeId, toJsonGlobalTypeId } from "../type/type.js";
 import { decodeModuleId, encodeModuleId, fromJsonModuleId, toJsonModuleId } from "../../source/file/model/module.js";
 
@@ -137,6 +139,14 @@ export type CoercionAdjustment =
           /** The carrier type after this adjustment. */
           readonly target: GlobalTypeId;
       }
+    /** Materialize one generic callable reference at its selected concrete instance. */
+    | {
+          readonly kind: "instantiate";
+          /** The concrete callable type after this adjustment. */
+          readonly target: GlobalTypeId;
+          /** The generic arguments selecting the instance. */
+          readonly arguments: ReadonlyArray<GenericArgumentBinding>;
+      }
 ;
 
 export const CoercionAdjustment = {
@@ -178,6 +188,11 @@ export const CoercionAdjustment = {
     /** Change the value carrier, like `^T` into `&T` or `T[]` into `[T]`. */
     carrier(target: GlobalTypeId): CoercionAdjustment {
         return { kind: "carrier", target };
+    },
+
+    /** Materialize one generic callable reference at its selected concrete instance. */
+    instantiate(target: GlobalTypeId, arguments_: ReadonlyArray<GenericArgumentBinding>): CoercionAdjustment {
+        return { kind: "instantiate", target, arguments: arguments_ };
     },
 
     /** Encode this value. */
@@ -239,6 +254,14 @@ export function encodeCoercionAdjustment(writer: BinaryWriter, value: CoercionAd
         case "carrier":
             writer.writeUnsigned(7);
             encodeGlobalTypeId(writer, value.target);
+            return;
+        case "instantiate":
+            writer.writeUnsigned(8);
+            encodeGlobalTypeId(writer, value.target);
+            writer.writeUnsigned(value.arguments.length);
+            for (const item1 of value.arguments) {
+                encodeGenericArgumentBinding(writer, item1);
+            }
             return;
     }
 
@@ -316,6 +339,16 @@ export function decodeCoercionAdjustment(reader: BinaryReader): CoercionAdjustme
                 target,
             };
         }
+        case 8: {
+            const target = decodeGlobalTypeId(reader);
+            const arguments_ = (() => { const length1 = reader.readNumber(); const items1: Array<GenericArgumentBinding> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGenericArgumentBinding(reader)); } return items1; })();
+
+            return {
+                kind: "instantiate",
+                target,
+                arguments: arguments_,
+            };
+        }
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -364,6 +397,12 @@ export function toJsonCoercionAdjustment(value: CoercionAdjustment): Json {
             return {
                 kind: "carrier",
                 target: toJsonGlobalTypeId(value.target),
+            };
+        case "instantiate":
+            return {
+                kind: "instantiate",
+                target: toJsonGlobalTypeId(value.target),
+                arguments: value.arguments.map((item0) => toJsonGenericArgumentBinding(item0)),
             };
     }
 
@@ -416,6 +455,12 @@ export function fromJsonCoercionAdjustment(value: Json): CoercionAdjustment {
             return {
                 kind,
                 target: fromJsonGlobalTypeId(jsonField(object, "target")),
+            };
+        case "instantiate":
+            return {
+                kind,
+                target: fromJsonGlobalTypeId(jsonField(object, "target")),
+                arguments: jsonArray(jsonField(object, "arguments")).map((item0) => fromJsonGenericArgumentBinding(item0)),
             };
     }
 

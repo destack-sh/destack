@@ -17,7 +17,7 @@ export type TypeItem = {
     /** The kind of type. */
     readonly kind: SymbolKind;
     /** The rendered generic parameters. */
-    readonly detail?: string;
+    readonly generics?: string;
     /** The target source. */
     readonly target: Target;
     /** The resolved type symbol. */
@@ -50,7 +50,7 @@ export const TypeItem = {
 export function encodeTypeItem(writer: BinaryWriter, value: TypeItem): void {
     writer.writeString(value.name);
     encodeSymbolKind(writer, value.kind);
-    writer.writeOption(value.detail, (value2) => {
+    writer.writeOption(value.generics, (value2) => {
         writer.writeString(value2);
     });
     encodeTarget(writer, value.target);
@@ -61,14 +61,14 @@ export function encodeTypeItem(writer: BinaryWriter, value: TypeItem): void {
 export function decodeTypeItem(reader: BinaryReader): TypeItem {
     const name = reader.readString();
     const kind = decodeSymbolKind(reader);
-    const detail = reader.readOption(() => reader.readString());
+    const generics = reader.readOption(() => reader.readString());
     const target = decodeTarget(reader);
     const symbolId = decodeGlobalSymbolId(reader);
 
     return {
         name,
         kind,
-        ...(detail === undefined ? {} : { detail }),
+        ...(generics === undefined ? {} : { generics }),
         target,
         symbolId,
     };
@@ -79,7 +79,7 @@ export function toJsonTypeItem(value: TypeItem): Json {
     return {
         name: value.name,
         kind: toJsonSymbolKind(value.kind),
-        ...(value.detail === undefined ? {} : { detail: value.detail }),
+        ...(value.generics === undefined ? {} : { generics: value.generics }),
         target: toJsonTarget(value.target),
         symbolId: toJsonGlobalSymbolId(value.symbolId),
     };
@@ -92,7 +92,7 @@ export function fromJsonTypeItem(value: Json): TypeItem {
     return {
         name: jsonString(jsonField(object, "name")),
         kind: fromJsonSymbolKind(jsonField(object, "kind")),
-        detail: jsonOptional(object, "detail", (value) => jsonString(value)),
+        generics: jsonOptional(object, "generics", (value) => jsonString(value)),
         target: fromJsonTarget(jsonField(object, "target")),
         symbolId: fromJsonGlobalSymbolId(jsonField(object, "symbolId")),
     };

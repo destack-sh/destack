@@ -8,6 +8,8 @@ import { decodeSectionSlice, encodeSectionSlice, fromJsonSectionSlice, toJsonSec
 export type StaticImage = {
     /** Static bytes. */
     readonly bytes: SectionSlice;
+    /** Image-relative word offsets rebased to the placed range at materialization. */
+    readonly relocations: SectionSlice;
     /** Required byte alignment. */
     readonly alignment: number;
     /** Reserved image word. */
@@ -39,6 +41,7 @@ export const StaticImage = {
 /** Encode one StaticImage. */
 export function encodeStaticImage(writer: BinaryWriter, value: StaticImage): void {
     encodeSectionSlice(writer, value.bytes);
+    encodeSectionSlice(writer, value.relocations);
     writer.writeUnsigned(value.alignment);
     writer.writeUnsigned(value.reserved);
 }
@@ -46,11 +49,13 @@ export function encodeStaticImage(writer: BinaryWriter, value: StaticImage): voi
 /** Decode one StaticImage. */
 export function decodeStaticImage(reader: BinaryReader): StaticImage {
     const bytes = decodeSectionSlice(reader);
+    const relocations = decodeSectionSlice(reader);
     const alignment = reader.readNumber();
     const reserved = reader.readNumber();
 
     return {
         bytes,
+        relocations,
         alignment,
         reserved,
     };
@@ -60,6 +65,7 @@ export function decodeStaticImage(reader: BinaryReader): StaticImage {
 export function toJsonStaticImage(value: StaticImage): Json {
     return {
         bytes: toJsonSectionSlice(value.bytes),
+        relocations: toJsonSectionSlice(value.relocations),
         alignment: value.alignment,
         reserved: value.reserved,
     };
@@ -71,6 +77,7 @@ export function fromJsonStaticImage(value: Json): StaticImage {
 
     return {
         bytes: fromJsonSectionSlice(jsonField(object, "bytes")),
+        relocations: fromJsonSectionSlice(jsonField(object, "relocations")),
         alignment: jsonInteger(jsonField(object, "alignment")),
         reserved: jsonInteger(jsonField(object, "reserved")),
     };

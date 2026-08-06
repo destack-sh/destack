@@ -85,7 +85,7 @@ const artifactMethodResponse: Decoder<artifactPayload.ArtifactPayload> = {
 const artifactMethod: Method<workspaceServiceArtifact.ArtifactRequest, artifactPayload.ArtifactPayload, never, never> = {
     service: 5221210015570525267n,
     method: 10319401099963147929n,
-    fingerprint: 329753968258167329199200741624590312043n,
+    fingerprint: 91527802567125089709222545016789168315n,
     kind: "unary",
     request: artifactMethodRequest,
     response: artifactMethodResponse,
@@ -675,7 +675,7 @@ const runQueryMethodResponse: Decoder<workspaceQuery.RunQueryResponse> = {
 const runQueryMethod: Method<workspaceServiceQuery.RunQueryRequest, workspaceQuery.RunQueryResponse, never, never> = {
     service: 5221210015570525267n,
     method: 3642248314147070001n,
-    fingerprint: 254403769241167144350821702228061877738n,
+    fingerprint: 246863634374682252513945804005116964117n,
     kind: "unary",
     request: runQueryMethodRequest,
     response: runQueryMethodResponse,

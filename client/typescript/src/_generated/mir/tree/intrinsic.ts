@@ -3,7 +3,7 @@
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonString } from "../../../protocol/serde.js";
 
 /** Machine intrinsic operations. */
-export type Intrinsic = "leadingZeroCount" | "trailingZeroCount" | "populationCount" | "byteSwap" | "bitReverse" | "rotateLeft" | "rotateRight" | "addOverflow" | "subOverflow" | "mulOverflow" | "addUnchecked" | "subUnchecked" | "mulUnchecked" | "divUnchecked" | "remUnchecked" | "shlUnchecked" | "shrUnchecked" | "satAdd" | "satSub" | "memcpy" | "memmove" | "memset" | "memcmp" | "prefetchRead" | "prefetchWrite" | "transmute" | "spaceCast" | "pointerByteOffsetFrom" | "volatileLoad" | "volatileStore" | "rawEq" | "sqrt" | "abs" | "fma" | "copySign" | "min" | "max" | "sin" | "cos" | "tan" | "asin" | "acos" | "atan" | "atan2" | "exp" | "exp2" | "log" | "log2" | "log10" | "pow" | "floor" | "ceil" | "trunc" | "round" | "expect" | "blackBox";
+export type Intrinsic = "leadingZeroCount" | "trailingZeroCount" | "populationCount" | "byteSwap" | "bitReverse" | "rotateLeft" | "rotateRight" | "addOverflow" | "subOverflow" | "mulOverflow" | "addUnchecked" | "subUnchecked" | "mulUnchecked" | "divUnchecked" | "remUnchecked" | "shlUnchecked" | "shrUnchecked" | "satAdd" | "satSub" | "memcpy" | "memmove" | "memset" | "memcmp" | "prefetchRead" | "prefetchWrite" | "transmute" | "spaceCast" | "pointerByteOffsetFrom" | "volatileLoad" | "volatileStore" | "rawEq" | "sqrt" | "abs" | "fma" | "copySign" | "min" | "max" | "sin" | "cos" | "tan" | "asin" | "acos" | "atan" | "atan2" | "exp" | "exp2" | "log" | "log2" | "log10" | "pow" | "floor" | "ceil" | "trunc" | "round" | "spinLoop" | "expect" | "blackBox";
 
 export const Intrinsic = {
     /** Encode this value. */
@@ -192,11 +192,14 @@ export function encodeIntrinsic(writer: BinaryWriter, value: Intrinsic): void {
         case "round":
             writer.writeUnsigned(53);
             return;
-        case "expect":
+        case "spinLoop":
             writer.writeUnsigned(54);
             return;
-        case "blackBox":
+        case "expect":
             writer.writeUnsigned(55);
+            return;
+        case "blackBox":
+            writer.writeUnsigned(56);
             return;
     }
 
@@ -317,8 +320,10 @@ export function decodeIntrinsic(reader: BinaryReader): Intrinsic {
         case 53:
             return "round";
         case 54:
-            return "expect";
+            return "spinLoop";
         case 55:
+            return "expect";
+        case 56:
             return "blackBox";
     }
 
@@ -443,6 +448,8 @@ export function fromJsonIntrinsic(value: Json): Intrinsic {
             return "trunc";
         case "round":
             return "round";
+        case "spinLoop":
+            return "spinLoop";
         case "expect":
             return "expect";
         case "blackBox":

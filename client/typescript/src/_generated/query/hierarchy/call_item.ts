@@ -14,8 +14,8 @@ export type CallItem = {
     readonly name: string;
     /** The callable kind. */
     readonly kind: CallItemKind;
-    /** The rendered signature when available. */
-    readonly detail?: string;
+    /** The rendered callable signature when available. */
+    readonly signature?: string;
     /** The target source. */
     readonly target: Target;
     /** The resolved callable symbol. */
@@ -48,7 +48,7 @@ export const CallItem = {
 export function encodeCallItem(writer: BinaryWriter, value: CallItem): void {
     writer.writeString(value.name);
     encodeCallItemKind(writer, value.kind);
-    writer.writeOption(value.detail, (value2) => {
+    writer.writeOption(value.signature, (value2) => {
         writer.writeString(value2);
     });
     encodeTarget(writer, value.target);
@@ -59,14 +59,14 @@ export function encodeCallItem(writer: BinaryWriter, value: CallItem): void {
 export function decodeCallItem(reader: BinaryReader): CallItem {
     const name = reader.readString();
     const kind = decodeCallItemKind(reader);
-    const detail = reader.readOption(() => reader.readString());
+    const signature = reader.readOption(() => reader.readString());
     const target = decodeTarget(reader);
     const symbolId = decodeGlobalSymbolId(reader);
 
     return {
         name,
         kind,
-        ...(detail === undefined ? {} : { detail }),
+        ...(signature === undefined ? {} : { signature }),
         target,
         symbolId,
     };
@@ -77,7 +77,7 @@ export function toJsonCallItem(value: CallItem): Json {
     return {
         name: value.name,
         kind: toJsonCallItemKind(value.kind),
-        ...(value.detail === undefined ? {} : { detail: value.detail }),
+        ...(value.signature === undefined ? {} : { signature: value.signature }),
         target: toJsonTarget(value.target),
         symbolId: toJsonGlobalSymbolId(value.symbolId),
     };
@@ -90,7 +90,7 @@ export function fromJsonCallItem(value: Json): CallItem {
     return {
         name: jsonString(jsonField(object, "name")),
         kind: fromJsonCallItemKind(jsonField(object, "kind")),
-        detail: jsonOptional(object, "detail", (value) => jsonString(value)),
+        signature: jsonOptional(object, "signature", (value) => jsonString(value)),
         target: fromJsonTarget(jsonField(object, "target")),
         symbolId: fromJsonGlobalSymbolId(jsonField(object, "symbolId")),
     };

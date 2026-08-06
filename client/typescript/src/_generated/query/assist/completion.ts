@@ -86,8 +86,12 @@ export type CompletionItem = {
     readonly label: string;
     /** The kind of completion. */
     readonly kind: CompletionItemKind;
-    /** Detail shown alongside the label. */
-    readonly detail?: string;
+    /** The exact text shown directly after the label. */
+    readonly labelSuffix?: string;
+    /** The declaration shown in completion details. */
+    readonly declaration?: string;
+    /** The declaration owner or import source. */
+    readonly description?: string;
     /** Documentation for the item. */
     readonly documentation?: string;
     /** The primary source edit. */
@@ -130,23 +134,29 @@ export const CompletionItem = {
 export function encodeCompletionItem(writer: BinaryWriter, value: CompletionItem): void {
     writer.writeString(value.label);
     encodeCompletionItemKind(writer, value.kind);
-    writer.writeOption(value.detail, (value2) => {
+    writer.writeOption(value.labelSuffix, (value2) => {
         writer.writeString(value2);
     });
-    writer.writeOption(value.documentation, (value3) => {
+    writer.writeOption(value.declaration, (value3) => {
         writer.writeString(value3);
+    });
+    writer.writeOption(value.description, (value4) => {
+        writer.writeString(value4);
+    });
+    writer.writeOption(value.documentation, (value5) => {
+        writer.writeString(value5);
     });
     encodeCompletionEdit(writer, value.edit);
     writer.writeBool(value.preselect);
     writer.writeBool(value.isDeprecated);
     writer.writeUnsigned(value.additionalEdits.length);
-    for (const item7 of value.additionalEdits) {
-        encodePatch(writer, item7);
+    for (const item9 of value.additionalEdits) {
+        encodePatch(writer, item9);
     }
     writer.writeBool(value.isAutoImport);
     writer.writeUnsigned(value.matchPositions.length);
-    for (const item9 of value.matchPositions) {
-        writer.writeUnsigned(item9);
+    for (const item11 of value.matchPositions) {
+        writer.writeUnsigned(item11);
     }
 }
 
@@ -154,19 +164,23 @@ export function encodeCompletionItem(writer: BinaryWriter, value: CompletionItem
 export function decodeCompletionItem(reader: BinaryReader): CompletionItem {
     const label = reader.readString();
     const kind = decodeCompletionItemKind(reader);
-    const detail = reader.readOption(() => reader.readString());
+    const labelSuffix = reader.readOption(() => reader.readString());
+    const declaration = reader.readOption(() => reader.readString());
+    const description = reader.readOption(() => reader.readString());
     const documentation = reader.readOption(() => reader.readString());
     const edit = decodeCompletionEdit(reader);
     const preselect = reader.readBool();
     const isDeprecated = reader.readBool();
-    const additionalEdits = (() => { const length7 = reader.readNumber(); const items7: Array<Patch> = []; for (let index = 0; index < length7; index += 1) { items7.push(decodePatch(reader)); } return items7; })();
+    const additionalEdits = (() => { const length9 = reader.readNumber(); const items9: Array<Patch> = []; for (let index = 0; index < length9; index += 1) { items9.push(decodePatch(reader)); } return items9; })();
     const isAutoImport = reader.readBool();
-    const matchPositions = (() => { const length9 = reader.readNumber(); const items9: Array<number> = []; for (let index = 0; index < length9; index += 1) { items9.push(reader.readNumber()); } return items9; })();
+    const matchPositions = (() => { const length11 = reader.readNumber(); const items11: Array<number> = []; for (let index = 0; index < length11; index += 1) { items11.push(reader.readNumber()); } return items11; })();
 
     return {
         label,
         kind,
-        ...(detail === undefined ? {} : { detail }),
+        ...(labelSuffix === undefined ? {} : { labelSuffix }),
+        ...(declaration === undefined ? {} : { declaration }),
+        ...(description === undefined ? {} : { description }),
         ...(documentation === undefined ? {} : { documentation }),
         edit,
         preselect,
@@ -182,7 +196,9 @@ export function toJsonCompletionItem(value: CompletionItem): Json {
     return {
         label: value.label,
         kind: toJsonCompletionItemKind(value.kind),
-        ...(value.detail === undefined ? {} : { detail: value.detail }),
+        ...(value.labelSuffix === undefined ? {} : { labelSuffix: value.labelSuffix }),
+        ...(value.declaration === undefined ? {} : { declaration: value.declaration }),
+        ...(value.description === undefined ? {} : { description: value.description }),
         ...(value.documentation === undefined ? {} : { documentation: value.documentation }),
         edit: toJsonCompletionEdit(value.edit),
         preselect: value.preselect,
@@ -200,7 +216,9 @@ export function fromJsonCompletionItem(value: Json): CompletionItem {
     return {
         label: jsonString(jsonField(object, "label")),
         kind: fromJsonCompletionItemKind(jsonField(object, "kind")),
-        detail: jsonOptional(object, "detail", (value) => jsonString(value)),
+        labelSuffix: jsonOptional(object, "labelSuffix", (value) => jsonString(value)),
+        declaration: jsonOptional(object, "declaration", (value) => jsonString(value)),
+        description: jsonOptional(object, "description", (value) => jsonString(value)),
         documentation: jsonOptional(object, "documentation", (value) => jsonString(value)),
         edit: fromJsonCompletionEdit(jsonField(object, "edit")),
         preselect: jsonBool(jsonField(object, "preselect")),

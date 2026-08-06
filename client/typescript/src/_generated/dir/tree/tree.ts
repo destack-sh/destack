@@ -115,7 +115,7 @@ export type Tree = {
     readonly aliasNodeIdByNodeId: ReadonlyMap<number, number>;
     /** The decorators attached to nodes. */
     readonly decoratorsByNodeId: ReadonlyMap<number, ReadonlyArray<LocalNodeId>>;
-    /** The normalized documentation attached to nodes. */
+    /** The parsed documentation attached to nodes. */
     readonly documentationByNodeId: SparseNodeMap;
     /** Final source span overrides by node id. */
     readonly sourceSpanByNodeId: SparseNodeMap;

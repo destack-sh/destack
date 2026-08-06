@@ -18,14 +18,14 @@ import { decodeVarianceModifier, encodeVarianceModifier, fromJsonVarianceModifie
 import { decodeGlobalTypeId, encodeGlobalTypeId, fromJsonGlobalTypeId, toJsonGlobalTypeId } from "./type.js";
 import { decodeModuleId, encodeModuleId, fromJsonModuleId, toJsonModuleId } from "../../source/file/model/module.js";
 
-/** One runtime argument bound to its selected parameter slot. */
+/** One selected parameter bound to its runtime argument source. */
 export type ArgumentBinding = {
-    /** The selected parameter position. */
-    readonly parameter: number;
-    /** The selected parameter type after static substitutions. */
-    readonly ty: GlobalTypeId;
-    /** The source argument bound to this parameter. */
-    readonly argument: ArgumentSource;
+    /** The complete parameter type after static substitutions. */
+    readonly parameterType: GlobalTypeId;
+    /** The type accepted from each bound argument source. */
+    readonly argumentType: GlobalTypeId;
+    /** The runtime argument source bound to this parameter. */
+    readonly source: ArgumentSource;
 };
 
 export const ArgumentBinding = {
@@ -52,30 +52,30 @@ export const ArgumentBinding = {
 
 /** Encode one ArgumentBinding. */
 export function encodeArgumentBinding(writer: BinaryWriter, value: ArgumentBinding): void {
-    writer.writeUnsigned(value.parameter);
-    encodeGlobalTypeId(writer, value.ty);
-    encodeArgumentSource(writer, value.argument);
+    encodeGlobalTypeId(writer, value.parameterType);
+    encodeGlobalTypeId(writer, value.argumentType);
+    encodeArgumentSource(writer, value.source);
 }
 
 /** Decode one ArgumentBinding. */
 export function decodeArgumentBinding(reader: BinaryReader): ArgumentBinding {
-    const parameter = reader.readNumber();
-    const ty = decodeGlobalTypeId(reader);
-    const argument = decodeArgumentSource(reader);
+    const parameterType = decodeGlobalTypeId(reader);
+    const argumentType = decodeGlobalTypeId(reader);
+    const source = decodeArgumentSource(reader);
 
     return {
-        parameter,
-        ty,
-        argument,
+        parameterType,
+        argumentType,
+        source,
     };
 }
 
 /** Return one JSON value for one ArgumentBinding. */
 export function toJsonArgumentBinding(value: ArgumentBinding): Json {
     return {
-        parameter: value.parameter,
-        ty: toJsonGlobalTypeId(value.ty),
-        argument: toJsonArgumentSource(value.argument),
+        parameterType: toJsonGlobalTypeId(value.parameterType),
+        argumentType: toJsonGlobalTypeId(value.argumentType),
+        source: toJsonArgumentSource(value.source),
     };
 }
 
@@ -84,9 +84,9 @@ export function fromJsonArgumentBinding(value: Json): ArgumentBinding {
     const object = jsonObject(value);
 
     return {
-        parameter: jsonInteger(jsonField(object, "parameter")),
-        ty: fromJsonGlobalTypeId(jsonField(object, "ty")),
-        argument: fromJsonArgumentSource(jsonField(object, "argument")),
+        parameterType: fromJsonGlobalTypeId(jsonField(object, "parameterType")),
+        argumentType: fromJsonGlobalTypeId(jsonField(object, "argumentType")),
+        source: fromJsonArgumentSource(jsonField(object, "source")),
     };
 }
 

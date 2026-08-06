@@ -12,10 +12,10 @@ export type Comment = {
     readonly anchor: CommentAnchor;
     /** The kind of the comment. */
     readonly kind: CommentKind;
-    /** The newline shape around the comment. */
+    /** The newlines around the comment. */
     readonly newlines: CommentNewlines;
-    /** The structured comment content classification. */
-    readonly content: CommentContent;
+    /** The authored role of the comment. */
+    readonly role: CommentRole;
 };
 
 export const Comment = {
@@ -46,7 +46,7 @@ export function encodeComment(writer: BinaryWriter, value: Comment): void {
     encodeCommentAnchor(writer, value.anchor);
     encodeCommentKind(writer, value.kind);
     encodeCommentNewlines(writer, value.newlines);
-    encodeCommentContent(writer, value.content);
+    encodeCommentRole(writer, value.role);
 }
 
 /** Decode one Comment. */
@@ -55,14 +55,14 @@ export function decodeComment(reader: BinaryReader): Comment {
     const anchor = decodeCommentAnchor(reader);
     const kind = decodeCommentKind(reader);
     const newlines = decodeCommentNewlines(reader);
-    const content = decodeCommentContent(reader);
+    const role = decodeCommentRole(reader);
 
     return {
         span,
         anchor,
         kind,
         newlines,
-        content,
+        role,
     };
 }
 
@@ -73,7 +73,7 @@ export function toJsonComment(value: Comment): Json {
         anchor: toJsonCommentAnchor(value.anchor),
         kind: toJsonCommentKind(value.kind),
         newlines: toJsonCommentNewlines(value.newlines),
-        content: toJsonCommentContent(value.content),
+        role: toJsonCommentRole(value.role),
     };
 }
 
@@ -86,7 +86,7 @@ export function fromJsonComment(value: Json): Comment {
         anchor: fromJsonCommentAnchor(jsonField(object, "anchor")),
         kind: fromJsonCommentKind(jsonField(object, "kind")),
         newlines: fromJsonCommentNewlines(jsonField(object, "newlines")),
-        content: fromJsonCommentContent(jsonField(object, "content")),
+        role: fromJsonCommentRole(jsonField(object, "role")),
     };
 }
 
@@ -234,92 +234,6 @@ export function fromJsonCommentAnchor(value: Json): CommentAnchor {
     throw new SerdeError(`unknown enum variant: ${kind}`);
 }
 
-/** Structured content classification for one comment. */
-export type CommentContent = "none" | "legal" | "jsdoc" | "jsdocLegal";
-
-export const CommentContent = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: CommentContent): void {
-        encodeCommentContent(writer, value);
-    },
-
-    /** Decode one CommentContent. */
-    decode(reader: BinaryReader): CommentContent {
-        return decodeCommentContent(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: CommentContent): Json {
-        return toJsonCommentContent(value);
-    },
-
-    /** Return one CommentContent from one JSON value. */
-    fromJson(value: Json): CommentContent {
-        return fromJsonCommentContent(value);
-    },
-};
-
-/** Encode one CommentContent. */
-export function encodeCommentContent(writer: BinaryWriter, value: CommentContent): void {
-    switch (value) {
-        case "none":
-            writer.writeUnsigned(0);
-            return;
-        case "legal":
-            writer.writeUnsigned(1);
-            return;
-        case "jsdoc":
-            writer.writeUnsigned(2);
-            return;
-        case "jsdocLegal":
-            writer.writeUnsigned(3);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one CommentContent. */
-export function decodeCommentContent(reader: BinaryReader): CommentContent {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0:
-            return "none";
-        case 1:
-            return "legal";
-        case 2:
-            return "jsdoc";
-        case 3:
-            return "jsdocLegal";
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one CommentContent. */
-export function toJsonCommentContent(value: CommentContent): Json {
-    return value;
-}
-
-/** Return one CommentContent from one JSON value. */
-export function fromJsonCommentContent(value: Json): CommentContent {
-    const variant = jsonString(value);
-
-    switch (variant) {
-        case "none":
-            return "none";
-        case "legal":
-            return "legal";
-        case "jsdoc":
-            return "jsdoc";
-        case "jsdocLegal":
-            return "jsdocLegal";
-    }
-
-    throw new SerdeError(`unknown enum variant: ${variant}`);
-}
-
 /** Indicates a line or block comment. */
 export type CommentKind = "line" | "singleLineBlock" | "multiLineBlock";
 
@@ -399,7 +313,7 @@ export function fromJsonCommentKind(value: Json): CommentKind {
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
-/** Newline shape flags captured around one raw comment. */
+/** Newline flags captured around one source comment. */
 export type CommentNewlines = {
     /** Bit flags that describe newline boundaries. */
     readonly bits: number;
@@ -455,4 +369,90 @@ export function fromJsonCommentNewlines(value: Json): CommentNewlines {
     return {
         bits: jsonInteger(jsonField(object, "bits")),
     };
+}
+
+/** The authored intent of one comment. */
+export type CommentRole = "ordinary" | "documentation" | "legal" | "legalDocumentation";
+
+export const CommentRole = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: CommentRole): void {
+        encodeCommentRole(writer, value);
+    },
+
+    /** Decode one CommentRole. */
+    decode(reader: BinaryReader): CommentRole {
+        return decodeCommentRole(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: CommentRole): Json {
+        return toJsonCommentRole(value);
+    },
+
+    /** Return one CommentRole from one JSON value. */
+    fromJson(value: Json): CommentRole {
+        return fromJsonCommentRole(value);
+    },
+};
+
+/** Encode one CommentRole. */
+export function encodeCommentRole(writer: BinaryWriter, value: CommentRole): void {
+    switch (value) {
+        case "ordinary":
+            writer.writeUnsigned(0);
+            return;
+        case "documentation":
+            writer.writeUnsigned(1);
+            return;
+        case "legal":
+            writer.writeUnsigned(2);
+            return;
+        case "legalDocumentation":
+            writer.writeUnsigned(3);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one CommentRole. */
+export function decodeCommentRole(reader: BinaryReader): CommentRole {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0:
+            return "ordinary";
+        case 1:
+            return "documentation";
+        case 2:
+            return "legal";
+        case 3:
+            return "legalDocumentation";
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one CommentRole. */
+export function toJsonCommentRole(value: CommentRole): Json {
+    return value;
+}
+
+/** Return one CommentRole from one JSON value. */
+export function fromJsonCommentRole(value: Json): CommentRole {
+    const variant = jsonString(value);
+
+    switch (variant) {
+        case "ordinary":
+            return "ordinary";
+        case "documentation":
+            return "documentation";
+        case "legal":
+            return "legal";
+        case "legalDocumentation":
+            return "legalDocumentation";
+    }
+
+    throw new SerdeError(`unknown enum variant: ${variant}`);
 }

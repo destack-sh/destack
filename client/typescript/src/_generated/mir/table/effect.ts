@@ -261,8 +261,8 @@ export type FunctionBehavior = {
     readonly panic: PanicBehavior;
     /** Return behavior for this operation. */
     readonly returnBehavior: ReturnBehavior;
-    /** Whether optimization must not duplicate this operation. */
-    readonly mustNotDuplicate: boolean;
+    /** Whether optimization must preserve each execution of this operation. */
+    readonly mustPreserveExecution: boolean;
     /** Whether this operation may allocate storage. */
     readonly allocates: boolean;
     /** Whether this operation may free storage. */
@@ -296,7 +296,7 @@ export function encodeFunctionBehavior(writer: BinaryWriter, value: FunctionBeha
     encodeDeterminism(writer, value.determinism);
     encodePanicBehavior(writer, value.panic);
     encodeReturnBehavior(writer, value.returnBehavior);
-    writer.writeBool(value.mustNotDuplicate);
+    writer.writeBool(value.mustPreserveExecution);
     writer.writeBool(value.allocates);
     writer.writeBool(value.frees);
 }
@@ -306,7 +306,7 @@ export function decodeFunctionBehavior(reader: BinaryReader): FunctionBehavior {
     const determinism = decodeDeterminism(reader);
     const panic = decodePanicBehavior(reader);
     const returnBehavior = decodeReturnBehavior(reader);
-    const mustNotDuplicate = reader.readBool();
+    const mustPreserveExecution = reader.readBool();
     const allocates = reader.readBool();
     const frees = reader.readBool();
 
@@ -314,7 +314,7 @@ export function decodeFunctionBehavior(reader: BinaryReader): FunctionBehavior {
         determinism,
         panic,
         returnBehavior,
-        mustNotDuplicate,
+        mustPreserveExecution,
         allocates,
         frees,
     };
@@ -326,7 +326,7 @@ export function toJsonFunctionBehavior(value: FunctionBehavior): Json {
         determinism: toJsonDeterminism(value.determinism),
         panic: toJsonPanicBehavior(value.panic),
         returnBehavior: toJsonReturnBehavior(value.returnBehavior),
-        mustNotDuplicate: value.mustNotDuplicate,
+        mustPreserveExecution: value.mustPreserveExecution,
         allocates: value.allocates,
         frees: value.frees,
     };
@@ -340,7 +340,7 @@ export function fromJsonFunctionBehavior(value: Json): FunctionBehavior {
         determinism: fromJsonDeterminism(jsonField(object, "determinism")),
         panic: fromJsonPanicBehavior(jsonField(object, "panic")),
         returnBehavior: fromJsonReturnBehavior(jsonField(object, "returnBehavior")),
-        mustNotDuplicate: jsonBool(jsonField(object, "mustNotDuplicate")),
+        mustPreserveExecution: jsonBool(jsonField(object, "mustPreserveExecution")),
         allocates: jsonBool(jsonField(object, "allocates")),
         frees: jsonBool(jsonField(object, "frees")),
     };

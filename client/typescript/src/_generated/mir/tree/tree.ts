@@ -103,6 +103,8 @@ export type Tree = {
     readonly statics: ReadonlyArray<Static>;
     /** Canonical type ids grouped by structural hash or identified symbol. */
     readonly typeIndex: ReadonlyMap<TypeIndexKey, ReadonlyArray<LocalNodeId>>;
+    /** Cycle type ids keyed by canonical serialization. */
+    readonly canonicalIndex: Readonly<Record<string, LocalNodeId>>;
     /** Structural field ids grouped by hash. */
     readonly fieldIndex: ReadonlyMap<bigint, ReadonlyArray<LocalNodeId>>;
     /** Canonical compile-time values grouped by structural hash. */
@@ -325,22 +327,19 @@ export function encodeTree(writer: BinaryWriter, value: Tree): void {
             encodeLocalNodeId(writer, item27);
         }
     }
-    const entries27 = Array.from(value.fieldIndex.entries()).map(([key27, item27]) => {
+    const entries27 = Object.entries(value.canonicalIndex).map(([key27, item27]) => {
         const keyBytes = nestedBytes((writer) => {
-            writer.writeUnsigned(key27);
+            writer.writeString(key27);
         });
         return { key27, item27, keyBytes };
     });
     entries27.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
     writer.writeUnsigned(entries27.length);
     for (const entry27 of entries27) {
-        writer.writeUnsigned(entry27.key27);
-        writer.writeUnsigned(entry27.item27.length);
-        for (const item28 of entry27.item27) {
-            encodeLocalNodeId(writer, item28);
-        }
+        writer.writeString(entry27.key27);
+        encodeLocalNodeId(writer, entry27.item27);
     }
-    const entries28 = Array.from(value.staticIndex.entries()).map(([key28, item28]) => {
+    const entries28 = Array.from(value.fieldIndex.entries()).map(([key28, item28]) => {
         const keyBytes = nestedBytes((writer) => {
             writer.writeUnsigned(key28);
         });
@@ -352,44 +351,59 @@ export function encodeTree(writer: BinaryWriter, value: Tree): void {
         writer.writeUnsigned(entry28.key28);
         writer.writeUnsigned(entry28.item28.length);
         for (const item29 of entry28.item28) {
-            encodeStaticId(writer, item29);
+            encodeLocalNodeId(writer, item29);
         }
     }
-    const entries29 = Array.from(value.lifetimesByType.entries()).map(([key29, item29]) => {
+    const entries29 = Array.from(value.staticIndex.entries()).map(([key29, item29]) => {
         const keyBytes = nestedBytes((writer) => {
-            encodeLocalNodeId(writer, key29);
+            writer.writeUnsigned(key29);
         });
         return { key29, item29, keyBytes };
     });
     entries29.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
     writer.writeUnsigned(entries29.length);
     for (const entry29 of entries29) {
-        encodeLocalNodeId(writer, entry29.key29);
+        writer.writeUnsigned(entry29.key29);
         writer.writeUnsigned(entry29.item29.length);
         for (const item30 of entry29.item29) {
-            encodeLifetimeParameter(writer, item30);
+            encodeStaticId(writer, item30);
+        }
+    }
+    const entries30 = Array.from(value.lifetimesByType.entries()).map(([key30, item30]) => {
+        const keyBytes = nestedBytes((writer) => {
+            encodeLocalNodeId(writer, key30);
+        });
+        return { key30, item30, keyBytes };
+    });
+    entries30.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
+    writer.writeUnsigned(entries30.length);
+    for (const entry30 of entries30) {
+        encodeLocalNodeId(writer, entry30.key30);
+        writer.writeUnsigned(entry30.item30.length);
+        for (const item31 of entry30.item30) {
+            encodeLifetimeParameter(writer, item31);
         }
     }
     writer.writeUnsigned(value.values.length);
-    for (const item30 of value.values) {
-        encodeValue(writer, item30);
+    for (const item31 of value.values) {
+        encodeValue(writer, item31);
     }
     writer.writeUnsigned(value.indices.length);
-    for (const item31 of value.indices) {
-        writer.writeUnsigned(item31);
+    for (const item32 of value.indices) {
+        writer.writeUnsigned(item32);
     }
     writer.writeUnsigned(value.extents.length);
-    for (const item32 of value.extents) {
-        writer.writeUnsigned(item32);
+    for (const item33 of value.extents) {
+        writer.writeUnsigned(item33);
     }
     writer.writeByteSlice(value.flags);
     writer.writeUnsigned(value.switchCases.length);
-    for (const item34 of value.switchCases) {
-        encodeSwitchCase(writer, item34);
+    for (const item35 of value.switchCases) {
+        encodeSwitchCase(writer, item35);
     }
     writer.writeUnsigned(value.tensorImmediates.length);
-    for (const item35 of value.tensorImmediates) {
-        encodeTensorImmediate(writer, item35);
+    for (const item36 of value.tensorImmediates) {
+        encodeTensorImmediate(writer, item36);
     }
 }
 
@@ -422,15 +436,16 @@ export function decodeTree(reader: BinaryReader): Tree {
     const globals = (() => { const length24 = reader.readNumber(); const items24: Array<Global> = []; for (let index = 0; index < length24; index += 1) { items24.push(decodeGlobal(reader)); } return items24; })();
     const statics = (() => { const length25 = reader.readNumber(); const items25: Array<Static> = []; for (let index = 0; index < length25; index += 1) { items25.push(decodeStatic(reader)); } return items25; })();
     const typeIndex = (() => { const length26 = reader.readNumber(); const items26 = new Map<TypeIndexKey, ReadonlyArray<LocalNodeId>>(); for (let index = 0; index < length26; index += 1) { items26.set(decodeTypeIndexKey(reader), (() => { const length28 = reader.readNumber(); const items28: Array<LocalNodeId> = []; for (let index = 0; index < length28; index += 1) { items28.push(decodeLocalNodeId(reader)); } return items28; })()); } return items26; })();
-    const fieldIndex = (() => { const length27 = reader.readNumber(); const items27 = new Map<bigint, ReadonlyArray<LocalNodeId>>(); for (let index = 0; index < length27; index += 1) { items27.set(reader.readUnsigned(), (() => { const length29 = reader.readNumber(); const items29: Array<LocalNodeId> = []; for (let index = 0; index < length29; index += 1) { items29.push(decodeLocalNodeId(reader)); } return items29; })()); } return items27; })();
-    const staticIndex = (() => { const length28 = reader.readNumber(); const items28 = new Map<bigint, ReadonlyArray<StaticId>>(); for (let index = 0; index < length28; index += 1) { items28.set(reader.readUnsigned(), (() => { const length30 = reader.readNumber(); const items30: Array<StaticId> = []; for (let index = 0; index < length30; index += 1) { items30.push(decodeStaticId(reader)); } return items30; })()); } return items28; })();
-    const lifetimesByType = (() => { const length29 = reader.readNumber(); const items29 = new Map<LocalNodeId, ReadonlyArray<LifetimeParameter>>(); for (let index = 0; index < length29; index += 1) { items29.set(decodeLocalNodeId(reader), (() => { const length31 = reader.readNumber(); const items31: Array<LifetimeParameter> = []; for (let index = 0; index < length31; index += 1) { items31.push(decodeLifetimeParameter(reader)); } return items31; })()); } return items29; })();
-    const values = (() => { const length30 = reader.readNumber(); const items30: Array<Value> = []; for (let index = 0; index < length30; index += 1) { items30.push(decodeValue(reader)); } return items30; })();
-    const indices = (() => { const length31 = reader.readNumber(); const items31: Array<number> = []; for (let index = 0; index < length31; index += 1) { items31.push(reader.readNumber()); } return items31; })();
-    const extents = (() => { const length32 = reader.readNumber(); const items32: Array<bigint> = []; for (let index = 0; index < length32; index += 1) { items32.push(reader.readUnsigned()); } return items32; })();
+    const canonicalIndex = (() => { const length27 = reader.readNumber(); const items27: Record<string, LocalNodeId> = {}; for (let index = 0; index < length27; index += 1) { const key = reader.readString(); items27[key] = decodeLocalNodeId(reader); } return items27; })();
+    const fieldIndex = (() => { const length28 = reader.readNumber(); const items28 = new Map<bigint, ReadonlyArray<LocalNodeId>>(); for (let index = 0; index < length28; index += 1) { items28.set(reader.readUnsigned(), (() => { const length30 = reader.readNumber(); const items30: Array<LocalNodeId> = []; for (let index = 0; index < length30; index += 1) { items30.push(decodeLocalNodeId(reader)); } return items30; })()); } return items28; })();
+    const staticIndex = (() => { const length29 = reader.readNumber(); const items29 = new Map<bigint, ReadonlyArray<StaticId>>(); for (let index = 0; index < length29; index += 1) { items29.set(reader.readUnsigned(), (() => { const length31 = reader.readNumber(); const items31: Array<StaticId> = []; for (let index = 0; index < length31; index += 1) { items31.push(decodeStaticId(reader)); } return items31; })()); } return items29; })();
+    const lifetimesByType = (() => { const length30 = reader.readNumber(); const items30 = new Map<LocalNodeId, ReadonlyArray<LifetimeParameter>>(); for (let index = 0; index < length30; index += 1) { items30.set(decodeLocalNodeId(reader), (() => { const length32 = reader.readNumber(); const items32: Array<LifetimeParameter> = []; for (let index = 0; index < length32; index += 1) { items32.push(decodeLifetimeParameter(reader)); } return items32; })()); } return items30; })();
+    const values = (() => { const length31 = reader.readNumber(); const items31: Array<Value> = []; for (let index = 0; index < length31; index += 1) { items31.push(decodeValue(reader)); } return items31; })();
+    const indices = (() => { const length32 = reader.readNumber(); const items32: Array<number> = []; for (let index = 0; index < length32; index += 1) { items32.push(reader.readNumber()); } return items32; })();
+    const extents = (() => { const length33 = reader.readNumber(); const items33: Array<bigint> = []; for (let index = 0; index < length33; index += 1) { items33.push(reader.readUnsigned()); } return items33; })();
     const flags = reader.readByteSlice();
-    const switchCases = (() => { const length34 = reader.readNumber(); const items34: Array<SwitchCase> = []; for (let index = 0; index < length34; index += 1) { items34.push(decodeSwitchCase(reader)); } return items34; })();
-    const tensorImmediates = (() => { const length35 = reader.readNumber(); const items35: Array<TensorImmediate> = []; for (let index = 0; index < length35; index += 1) { items35.push(decodeTensorImmediate(reader)); } return items35; })();
+    const switchCases = (() => { const length35 = reader.readNumber(); const items35: Array<SwitchCase> = []; for (let index = 0; index < length35; index += 1) { items35.push(decodeSwitchCase(reader)); } return items35; })();
+    const tensorImmediates = (() => { const length36 = reader.readNumber(); const items36: Array<TensorImmediate> = []; for (let index = 0; index < length36; index += 1) { items36.push(decodeTensorImmediate(reader)); } return items36; })();
 
     return {
         firstGlobalId,
@@ -460,6 +475,7 @@ export function decodeTree(reader: BinaryReader): Tree {
         globals,
         statics,
         typeIndex,
+        canonicalIndex,
         fieldIndex,
         staticIndex,
         lifetimesByType,
@@ -502,6 +518,7 @@ export function toJsonTree(value: Tree): Json {
         globals: value.globals.map((item0) => toJsonGlobal(item0)),
         statics: value.statics.map((item0) => toJsonStatic(item0)),
         typeIndex: Array.from(value.typeIndex.entries()).map(([key0, item0]) => [toJsonTypeIndexKey(key0), item0.map((item1) => toJsonLocalNodeId(item1))] as const),
+        canonicalIndex: Object.fromEntries(Object.entries(value.canonicalIndex).map(([key0, item0]) => [key0, toJsonLocalNodeId(item0)] as const)),
         fieldIndex: Array.from(value.fieldIndex.entries()).map(([key0, item0]) => [key0.toString(), item0.map((item1) => toJsonLocalNodeId(item1))] as const),
         staticIndex: Array.from(value.staticIndex.entries()).map(([key0, item0]) => [key0.toString(), item0.map((item1) => toJsonStaticId(item1))] as const),
         lifetimesByType: Array.from(value.lifetimesByType.entries()).map(([key0, item0]) => [toJsonLocalNodeId(key0), item0.map((item1) => toJsonLifetimeParameter(item1))] as const),
@@ -546,6 +563,7 @@ export function fromJsonTree(value: Json): Tree {
         globals: jsonArray(jsonField(object, "globals")).map((item0) => fromJsonGlobal(item0)),
         statics: jsonArray(jsonField(object, "statics")).map((item0) => fromJsonStatic(item0)),
         typeIndex: new Map(jsonArray(jsonField(object, "typeIndex")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonTypeIndexKey(key0), jsonArray(item0).map((item1) => fromJsonLocalNodeId(item1))] as const; })),
+        canonicalIndex: Object.fromEntries(Object.entries(jsonObject(jsonField(object, "canonicalIndex"))).map(([key0, item0]) => [key0, fromJsonLocalNodeId(item0)] as const)),
         fieldIndex: new Map(jsonArray(jsonField(object, "fieldIndex")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [jsonBigint(key0), jsonArray(item0).map((item1) => fromJsonLocalNodeId(item1))] as const; })),
         staticIndex: new Map(jsonArray(jsonField(object, "staticIndex")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [jsonBigint(key0), jsonArray(item0).map((item1) => fromJsonStaticId(item1))] as const; })),
         lifetimesByType: new Map(jsonArray(jsonField(object, "lifetimesByType")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonLocalNodeId(key0), jsonArray(item0).map((item1) => fromJsonLifetimeParameter(item1))] as const; })),

@@ -63,6 +63,8 @@ export type Program = {
     readonly info?: ProgramInfo;
     /** Immutable constant storage owned by this program. */
     readonly constants: StaticImage;
+    /** Immortal object storage materialized once per world. */
+    readonly immortals: StaticImage;
     /** Initial shared static storage for each runtime. */
     readonly sharedStatics: StaticImage;
     /** Initial local static storage for each worker. */
@@ -117,14 +119,15 @@ export function encodeProgram(writer: BinaryWriter, value: Program): void {
         encodeProgramInfo(writer, value12);
     });
     encodeStaticImage(writer, value.constants);
+    encodeStaticImage(writer, value.immortals);
     encodeStaticImage(writer, value.sharedStatics);
     encodeStaticImage(writer, value.localStatics);
     bytecodeTreeCode.encodeCode(writer, value.bytecode);
-    writer.writeOption(value.native, (value17) => {
-        nativeCodeCode.encodeCode(writer, value17);
+    writer.writeOption(value.native, (value18) => {
+        nativeCodeCode.encodeCode(writer, value18);
     });
-    writer.writeOption(value.wasm, (value18) => {
-        webassemblyCodeCode.encodeCode(writer, value18);
+    writer.writeOption(value.wasm, (value19) => {
+        webassemblyCodeCode.encodeCode(writer, value19);
     });
     writer.writeByteSlice(value.storage);
 }
@@ -145,6 +148,7 @@ export function decodeProgram(reader: BinaryReader): Program {
     const globals = decodeGlobalTable(reader);
     const info = reader.readOption(() => decodeProgramInfo(reader));
     const constants = decodeStaticImage(reader);
+    const immortals = decodeStaticImage(reader);
     const sharedStatics = decodeStaticImage(reader);
     const localStatics = decodeStaticImage(reader);
     const bytecode = bytecodeTreeCode.decodeCode(reader);
@@ -167,6 +171,7 @@ export function decodeProgram(reader: BinaryReader): Program {
         globals,
         ...(info === undefined ? {} : { info }),
         constants,
+        immortals,
         sharedStatics,
         localStatics,
         bytecode,
@@ -193,6 +198,7 @@ export function toJsonProgram(value: Program): Json {
         globals: toJsonGlobalTable(value.globals),
         ...(value.info === undefined ? {} : { info: toJsonProgramInfo(value.info) }),
         constants: toJsonStaticImage(value.constants),
+        immortals: toJsonStaticImage(value.immortals),
         sharedStatics: toJsonStaticImage(value.sharedStatics),
         localStatics: toJsonStaticImage(value.localStatics),
         bytecode: bytecodeTreeCode.toJsonCode(value.bytecode),
@@ -221,6 +227,7 @@ export function fromJsonProgram(value: Json): Program {
         globals: fromJsonGlobalTable(jsonField(object, "globals")),
         info: jsonOptional(object, "info", (value) => fromJsonProgramInfo(value)),
         constants: fromJsonStaticImage(jsonField(object, "constants")),
+        immortals: fromJsonStaticImage(jsonField(object, "immortals")),
         sharedStatics: fromJsonStaticImage(jsonField(object, "sharedStatics")),
         localStatics: fromJsonStaticImage(jsonField(object, "localStatics")),
         bytecode: bytecodeTreeCode.fromJsonCode(jsonField(object, "bytecode")),

@@ -321,7 +321,7 @@ export function fromJsonFloatType(value: Json): FloatType {
 }
 
 /** Static storage selected by one global declaration. */
-export type GlobalStorage = "constant" | "local" | "shared";
+export type GlobalStorage = "constant" | "immortal" | "local" | "shared";
 
 export const GlobalStorage = {
     /** Encode this value. */
@@ -351,11 +351,14 @@ export function encodeGlobalStorage(writer: BinaryWriter, value: GlobalStorage):
         case "constant":
             writer.writeUnsigned(0);
             return;
-        case "local":
+        case "immortal":
             writer.writeUnsigned(1);
             return;
-        case "shared":
+        case "local":
             writer.writeUnsigned(2);
+            return;
+        case "shared":
+            writer.writeUnsigned(3);
             return;
     }
 
@@ -370,8 +373,10 @@ export function decodeGlobalStorage(reader: BinaryReader): GlobalStorage {
         case 0:
             return "constant";
         case 1:
-            return "local";
+            return "immortal";
         case 2:
+            return "local";
+        case 3:
             return "shared";
     }
 
@@ -390,6 +395,8 @@ export function fromJsonGlobalStorage(value: Json): GlobalStorage {
     switch (variant) {
         case "constant":
             return "constant";
+        case "immortal":
+            return "immortal";
         case "local":
             return "local";
         case "shared":

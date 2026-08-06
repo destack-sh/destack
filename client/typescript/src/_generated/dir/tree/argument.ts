@@ -2,28 +2,14 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonBool, jsonField, jsonObject, jsonOptional, jsonString } from "../../../protocol/serde.js";
 import type { StringId } from "../../core/string.js";
-import type { Name } from "./key.js";
 import type { LocalNodeId } from "./node.js";
 import type { VarianceModifier } from "./property.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../../core/string.js";
-import { decodeName, encodeName, fromJsonName, toJsonName } from "./key.js";
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "./node.js";
 import { decodeVarianceModifier, encodeVarianceModifier, fromJsonVarianceModifier, toJsonVarianceModifier } from "./property.js";
 
-/** An argument to a runtime call or tree construct. */
+/** An argument to a call, sequence literal, or template interpolation. */
 export type Argument =
-    /** Named argument. */
-    | {
-          readonly kind: "named";
-          readonly name: Name;
-          readonly value: LocalNodeId;
-      }
-    /** Labeled argument. */
-    | {
-          readonly kind: "labeled";
-          readonly label: StringId;
-          readonly value: LocalNodeId;
-      }
     /** Positional argument. */
     | {
           readonly kind: "positional";
@@ -32,7 +18,6 @@ export type Argument =
     /** Spread argument. */
     | {
           readonly kind: "spread";
-          readonly label?: StringId;
           readonly value: LocalNodeId;
       }
     /** Elided array element. */
@@ -46,24 +31,14 @@ export type Argument =
 ;
 
 export const Argument = {
-    /** Named argument. */
-    named(name: Name, value: LocalNodeId): Argument {
-        return { kind: "named", name, value };
-    },
-
-    /** Labeled argument. */
-    labeled(label: StringId, value: LocalNodeId): Argument {
-        return { kind: "labeled", label, value };
-    },
-
     /** Positional argument. */
     positional(value: LocalNodeId): Argument {
         return { kind: "positional", value };
     },
 
     /** Spread argument. */
-    spread(label: StringId | undefined, value: LocalNodeId): Argument {
-        return { kind: "spread", label, value };
+    spread(value: LocalNodeId): Argument {
+        return { kind: "spread", value };
     },
 
     /** Elided array element. */
@@ -100,32 +75,19 @@ export const Argument = {
 /** Encode one Argument. */
 export function encodeArgument(writer: BinaryWriter, value: Argument): void {
     switch (value.kind) {
-        case "named":
-            writer.writeUnsigned(0);
-            encodeName(writer, value.name);
-            encodeLocalNodeId(writer, value.value);
-            return;
-        case "labeled":
-            writer.writeUnsigned(1);
-            encodeStringId(writer, value.label);
-            encodeLocalNodeId(writer, value.value);
-            return;
         case "positional":
-            writer.writeUnsigned(2);
+            writer.writeUnsigned(0);
             encodeLocalNodeId(writer, value.value);
             return;
         case "spread":
-            writer.writeUnsigned(3);
-            writer.writeOption(value.label, (value0) => {
-                encodeStringId(writer, value0);
-            });
+            writer.writeUnsigned(1);
             encodeLocalNodeId(writer, value.value);
             return;
         case "elision":
-            writer.writeUnsigned(4);
+            writer.writeUnsigned(2);
             return;
         case "error":
-            writer.writeUnsigned(5);
+            writer.writeUnsigned(3);
             return;
     }
 
@@ -138,26 +100,6 @@ export function decodeArgument(reader: BinaryReader): Argument {
 
     switch (variant) {
         case 0: {
-            const name = decodeName(reader);
-            const value = decodeLocalNodeId(reader);
-
-            return {
-                kind: "named",
-                name,
-                value,
-            };
-        }
-        case 1: {
-            const label = decodeStringId(reader);
-            const value = decodeLocalNodeId(reader);
-
-            return {
-                kind: "labeled",
-                label,
-                value,
-            };
-        }
-        case 2: {
             const value = decodeLocalNodeId(reader);
 
             return {
@@ -165,20 +107,18 @@ export function decodeArgument(reader: BinaryReader): Argument {
                 value,
             };
         }
-        case 3: {
-            const label = reader.readOption(() => decodeStringId(reader));
+        case 1: {
             const value = decodeLocalNodeId(reader);
 
             return {
                 kind: "spread",
-                ...(label === undefined ? {} : { label }),
                 value,
             };
         }
-        case 4: {
+        case 2: {
             return { kind: "elision" };
         }
-        case 5: {
+        case 3: {
             return { kind: "error" };
         }
     }
@@ -189,18 +129,6 @@ export function decodeArgument(reader: BinaryReader): Argument {
 /** Return one JSON value for one Argument. */
 export function toJsonArgument(value: Argument): Json {
     switch (value.kind) {
-        case "named":
-            return {
-                kind: "named",
-                name: toJsonName(value.name),
-                value: toJsonLocalNodeId(value.value),
-            };
-        case "labeled":
-            return {
-                kind: "labeled",
-                label: toJsonStringId(value.label),
-                value: toJsonLocalNodeId(value.value),
-            };
         case "positional":
             return {
                 kind: "positional",
@@ -209,7 +137,6 @@ export function toJsonArgument(value: Argument): Json {
         case "spread":
             return {
                 kind: "spread",
-                ...(value.label === undefined ? {} : { label: toJsonStringId(value.label) }),
                 value: toJsonLocalNodeId(value.value),
             };
         case "elision":
@@ -231,18 +158,6 @@ export function fromJsonArgument(value: Json): Argument {
     const kind = jsonString(jsonField(object, "kind"));
 
     switch (kind) {
-        case "named":
-            return {
-                kind,
-                name: fromJsonName(jsonField(object, "name")),
-                value: fromJsonLocalNodeId(jsonField(object, "value")),
-            };
-        case "labeled":
-            return {
-                kind,
-                label: fromJsonStringId(jsonField(object, "label")),
-                value: fromJsonLocalNodeId(jsonField(object, "value")),
-            };
         case "positional":
             return {
                 kind,
@@ -251,7 +166,6 @@ export function fromJsonArgument(value: Json): Argument {
         case "spread":
             return {
                 kind,
-                label: jsonOptional(object, "label", (value) => fromJsonStringId(value)),
                 value: fromJsonLocalNodeId(jsonField(object, "value")),
             };
         case "elision":

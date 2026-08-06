@@ -3131,7 +3131,7 @@ export function fromJsonStructDefinition(value: Json): StructDefinition {
 export type TaggedKeyDefinition = {
     /** The variant symbol. */
     readonly symbol: GlobalSymbolId;
-    /** The source newtype declaration node. */
+    /** The authored backing arm node. */
     readonly source: GlobalNodeIdAny;
     /** The written backing arm position. */
     readonly index: number;
@@ -3283,7 +3283,7 @@ export function fromJsonTaggedOptionsDefinition(value: Json): TaggedOptionsDefin
 export type TaggedVariantDefinition = {
     /** The variant symbol. */
     readonly symbol: GlobalSymbolId;
-    /** The source newtype declaration node. */
+    /** The authored backing arm node. */
     readonly source: GlobalNodeIdAny;
     /** The derived variant key. */
     readonly key: StaticKey;

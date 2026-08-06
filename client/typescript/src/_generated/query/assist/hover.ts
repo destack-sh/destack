@@ -87,10 +87,10 @@ export function fromJsonHover(value: Json): Hover {
 
 /** Hover content for one declaration. */
 export type HoverItem = {
-    /** The type or signature in code format. */
-    readonly signature: string;
+    /** The declaration rendered as Destack source. */
+    readonly declaration: string;
     /** The distinct type selected at the hovered occurrence. */
-    readonly typeText?: string;
+    readonly selectedType?: string;
     /** The declaration documentation when available. */
     readonly documentation?: string;
     /** The exact declaration target. */
@@ -121,8 +121,8 @@ export const HoverItem = {
 
 /** Encode one HoverItem. */
 export function encodeHoverItem(writer: BinaryWriter, value: HoverItem): void {
-    writer.writeString(value.signature);
-    writer.writeOption(value.typeText, (value1) => {
+    writer.writeString(value.declaration);
+    writer.writeOption(value.selectedType, (value1) => {
         writer.writeString(value1);
     });
     writer.writeOption(value.documentation, (value2) => {
@@ -133,14 +133,14 @@ export function encodeHoverItem(writer: BinaryWriter, value: HoverItem): void {
 
 /** Decode one HoverItem. */
 export function decodeHoverItem(reader: BinaryReader): HoverItem {
-    const signature = reader.readString();
-    const typeText = reader.readOption(() => reader.readString());
+    const declaration = reader.readString();
+    const selectedType = reader.readOption(() => reader.readString());
     const documentation = reader.readOption(() => reader.readString());
     const target = decodeTarget(reader);
 
     return {
-        signature,
-        ...(typeText === undefined ? {} : { typeText }),
+        declaration,
+        ...(selectedType === undefined ? {} : { selectedType }),
         ...(documentation === undefined ? {} : { documentation }),
         target,
     };
@@ -149,8 +149,8 @@ export function decodeHoverItem(reader: BinaryReader): HoverItem {
 /** Return one JSON value for one HoverItem. */
 export function toJsonHoverItem(value: HoverItem): Json {
     return {
-        signature: value.signature,
-        ...(value.typeText === undefined ? {} : { typeText: value.typeText }),
+        declaration: value.declaration,
+        ...(value.selectedType === undefined ? {} : { selectedType: value.selectedType }),
         ...(value.documentation === undefined ? {} : { documentation: value.documentation }),
         target: toJsonTarget(value.target),
     };
@@ -161,8 +161,8 @@ export function fromJsonHoverItem(value: Json): HoverItem {
     const object = jsonObject(value);
 
     return {
-        signature: jsonString(jsonField(object, "signature")),
-        typeText: jsonOptional(object, "typeText", (value) => jsonString(value)),
+        declaration: jsonString(jsonField(object, "declaration")),
+        selectedType: jsonOptional(object, "selectedType", (value) => jsonString(value)),
         documentation: jsonOptional(object, "documentation", (value) => jsonString(value)),
         target: fromJsonTarget(jsonField(object, "target")),
     };

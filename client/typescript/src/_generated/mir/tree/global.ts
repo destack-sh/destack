@@ -132,6 +132,11 @@ export type GlobalInitializer =
           readonly kind: "functionAddress";
           readonly function_address: LocalNodeId;
       }
+    /** Address of one immortal global inside the program. */
+    | {
+          readonly kind: "globalAddress";
+          readonly global_address: LocalNodeId;
+      }
     /** Raw bytes (blobs). */
     | {
           readonly kind: "bytes";
@@ -158,6 +163,11 @@ export const GlobalInitializer = {
     /** Address of one function inside the program. */
     functionAddress(function_address: LocalNodeId): GlobalInitializer {
         return { kind: "functionAddress", function_address };
+    },
+
+    /** Address of one immortal global inside the program. */
+    globalAddress(global_address: LocalNodeId): GlobalInitializer {
+        return { kind: "globalAddress", global_address };
     },
 
     /** Raw bytes (blobs). */
@@ -205,12 +215,16 @@ export function encodeGlobalInitializer(writer: BinaryWriter, value: GlobalIniti
             writer.writeUnsigned(2);
             encodeLocalNodeId(writer, value.function_address);
             return;
-        case "bytes":
+        case "globalAddress":
             writer.writeUnsigned(3);
+            encodeLocalNodeId(writer, value.global_address);
+            return;
+        case "bytes":
+            writer.writeUnsigned(4);
             writer.writeByteSlice(value.bytes);
             return;
         case "aggregate":
-            writer.writeUnsigned(4);
+            writer.writeUnsigned(5);
             writer.writeUnsigned(value.aggregate.length);
             for (const item0 of value.aggregate) {
                 encodeGlobalInitializer(writer, item0);
@@ -240,11 +254,16 @@ export function decodeGlobalInitializer(reader: BinaryReader): GlobalInitializer
             return { kind: "functionAddress", function_address };
         }
         case 3: {
+            const global_address = decodeLocalNodeId(reader);
+
+            return { kind: "globalAddress", global_address };
+        }
+        case 4: {
             const bytes = reader.readByteSlice();
 
             return { kind: "bytes", bytes };
         }
-        case 4: {
+        case 5: {
             const aggregate = (() => { const length0 = reader.readNumber(); const items0: Array<GlobalInitializer> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeGlobalInitializer(reader)); } return items0; })();
 
             return { kind: "aggregate", aggregate };
@@ -270,6 +289,11 @@ export function toJsonGlobalInitializer(value: GlobalInitializer): Json {
             return {
                 kind: "functionAddress",
                 function_address: toJsonLocalNodeId(value.function_address),
+            };
+        case "globalAddress":
+            return {
+                kind: "globalAddress",
+                global_address: toJsonLocalNodeId(value.global_address),
             };
         case "bytes":
             return {
@@ -305,6 +329,11 @@ export function fromJsonGlobalInitializer(value: Json): GlobalInitializer {
             return {
                 kind,
                 function_address: fromJsonLocalNodeId(jsonField(object, "function_address")),
+            };
+        case "globalAddress":
+            return {
+                kind,
+                global_address: fromJsonLocalNodeId(jsonField(object, "global_address")),
             };
         case "bytes":
             return {

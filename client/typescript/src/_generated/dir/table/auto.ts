@@ -230,7 +230,7 @@ export function fromJsonAutoImplementationMember(value: Json): AutoImplementatio
 }
 
 /** Interface whose implementation can be provided by compiler rules. */
-export type AutoInterface = "compare" | "concrete" | "copy" | "clone" | "debug" | "default" | "deserialize" | "dynamicSafe" | "equal" | "float" | "hash" | "integer" | "overwriteStable" | "partialCompare" | "partialEqual" | "serialize" | "sharedSafe" | "unpin" | "zeroable";
+export type AutoInterface = "atomicSafe" | "compare" | "concrete" | "copy" | "clone" | "debug" | "default" | "deserialize" | "dynamicSafe" | "equal" | "float" | "floatDomain" | "hash" | "integer" | "integerDomain" | "overwriteStable" | "partialCompare" | "partialEqual" | "serialize" | "sharedSafe" | "unpin" | "zeroable";
 
 export const AutoInterface = {
     /** Encode this value. */
@@ -257,62 +257,71 @@ export const AutoInterface = {
 /** Encode one AutoInterface. */
 export function encodeAutoInterface(writer: BinaryWriter, value: AutoInterface): void {
     switch (value) {
-        case "compare":
+        case "atomicSafe":
             writer.writeUnsigned(0);
             return;
-        case "concrete":
+        case "compare":
             writer.writeUnsigned(1);
             return;
-        case "copy":
+        case "concrete":
             writer.writeUnsigned(2);
             return;
-        case "clone":
+        case "copy":
             writer.writeUnsigned(3);
             return;
-        case "debug":
+        case "clone":
             writer.writeUnsigned(4);
             return;
-        case "default":
+        case "debug":
             writer.writeUnsigned(5);
             return;
-        case "deserialize":
+        case "default":
             writer.writeUnsigned(6);
             return;
-        case "dynamicSafe":
+        case "deserialize":
             writer.writeUnsigned(7);
             return;
-        case "equal":
+        case "dynamicSafe":
             writer.writeUnsigned(8);
             return;
-        case "float":
+        case "equal":
             writer.writeUnsigned(9);
             return;
-        case "hash":
+        case "float":
             writer.writeUnsigned(10);
             return;
-        case "integer":
+        case "floatDomain":
             writer.writeUnsigned(11);
             return;
-        case "overwriteStable":
+        case "hash":
             writer.writeUnsigned(12);
             return;
-        case "partialCompare":
+        case "integer":
             writer.writeUnsigned(13);
             return;
-        case "partialEqual":
+        case "integerDomain":
             writer.writeUnsigned(14);
             return;
-        case "serialize":
+        case "overwriteStable":
             writer.writeUnsigned(15);
             return;
-        case "sharedSafe":
+        case "partialCompare":
             writer.writeUnsigned(16);
             return;
-        case "unpin":
+        case "partialEqual":
             writer.writeUnsigned(17);
             return;
-        case "zeroable":
+        case "serialize":
             writer.writeUnsigned(18);
+            return;
+        case "sharedSafe":
+            writer.writeUnsigned(19);
+            return;
+        case "unpin":
+            writer.writeUnsigned(20);
+            return;
+        case "zeroable":
+            writer.writeUnsigned(21);
             return;
     }
 
@@ -325,42 +334,48 @@ export function decodeAutoInterface(reader: BinaryReader): AutoInterface {
 
     switch (variant) {
         case 0:
-            return "compare";
+            return "atomicSafe";
         case 1:
-            return "concrete";
+            return "compare";
         case 2:
-            return "copy";
+            return "concrete";
         case 3:
-            return "clone";
+            return "copy";
         case 4:
-            return "debug";
+            return "clone";
         case 5:
-            return "default";
+            return "debug";
         case 6:
-            return "deserialize";
+            return "default";
         case 7:
-            return "dynamicSafe";
+            return "deserialize";
         case 8:
-            return "equal";
+            return "dynamicSafe";
         case 9:
-            return "float";
+            return "equal";
         case 10:
-            return "hash";
+            return "float";
         case 11:
-            return "integer";
+            return "floatDomain";
         case 12:
-            return "overwriteStable";
+            return "hash";
         case 13:
-            return "partialCompare";
+            return "integer";
         case 14:
-            return "partialEqual";
+            return "integerDomain";
         case 15:
-            return "serialize";
+            return "overwriteStable";
         case 16:
-            return "sharedSafe";
+            return "partialCompare";
         case 17:
-            return "unpin";
+            return "partialEqual";
         case 18:
+            return "serialize";
+        case 19:
+            return "sharedSafe";
+        case 20:
+            return "unpin";
+        case 21:
             return "zeroable";
     }
 
@@ -377,6 +392,8 @@ export function fromJsonAutoInterface(value: Json): AutoInterface {
     const variant = jsonString(value);
 
     switch (variant) {
+        case "atomicSafe":
+            return "atomicSafe";
         case "compare":
             return "compare";
         case "concrete":
@@ -397,10 +414,14 @@ export function fromJsonAutoInterface(value: Json): AutoInterface {
             return "equal";
         case "float":
             return "float";
+        case "floatDomain":
+            return "floatDomain";
         case "hash":
             return "hash";
         case "integer":
             return "integer";
+        case "integerDomain":
+            return "integerDomain";
         case "overwriteStable":
             return "overwriteStable";
         case "partialCompare":

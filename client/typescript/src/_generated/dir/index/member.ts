@@ -180,6 +180,8 @@ export function fromJsonMemberEntry(value: Json): MemberEntry {
 export type MemberIndex = {
     /** The members in stable source order. */
     readonly entries: ReadonlyArray<MemberEntry>;
+    /** Member indexes ordered by source node. */
+    readonly bySource: ReadonlyArray<number>;
     /** Member indexes ordered by owner symbol. */
     readonly byOwner: ReadonlyArray<number>;
     /** Member indexes ordered by declaring symbol. */
@@ -216,29 +218,35 @@ export function encodeMemberIndex(writer: BinaryWriter, value: MemberIndex): voi
     for (const item0 of value.entries) {
         encodeMemberEntry(writer, item0);
     }
-    writer.writeUnsigned(value.byOwner.length);
-    for (const item1 of value.byOwner) {
+    writer.writeUnsigned(value.bySource.length);
+    for (const item1 of value.bySource) {
         writer.writeUnsigned(item1);
     }
-    writer.writeUnsigned(value.byDeclaring.length);
-    for (const item2 of value.byDeclaring) {
+    writer.writeUnsigned(value.byOwner.length);
+    for (const item2 of value.byOwner) {
         writer.writeUnsigned(item2);
     }
-    writer.writeUnsigned(value.bySymbol.length);
-    for (const item3 of value.bySymbol) {
+    writer.writeUnsigned(value.byDeclaring.length);
+    for (const item3 of value.byDeclaring) {
         writer.writeUnsigned(item3);
+    }
+    writer.writeUnsigned(value.bySymbol.length);
+    for (const item4 of value.bySymbol) {
+        writer.writeUnsigned(item4);
     }
 }
 
 /** Decode one MemberIndex. */
 export function decodeMemberIndex(reader: BinaryReader): MemberIndex {
     const entries = (() => { const length0 = reader.readNumber(); const items0: Array<MemberEntry> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeMemberEntry(reader)); } return items0; })();
-    const byOwner = (() => { const length1 = reader.readNumber(); const items1: Array<number> = []; for (let index = 0; index < length1; index += 1) { items1.push(reader.readNumber()); } return items1; })();
-    const byDeclaring = (() => { const length2 = reader.readNumber(); const items2: Array<number> = []; for (let index = 0; index < length2; index += 1) { items2.push(reader.readNumber()); } return items2; })();
-    const bySymbol = (() => { const length3 = reader.readNumber(); const items3: Array<number> = []; for (let index = 0; index < length3; index += 1) { items3.push(reader.readNumber()); } return items3; })();
+    const bySource = (() => { const length1 = reader.readNumber(); const items1: Array<number> = []; for (let index = 0; index < length1; index += 1) { items1.push(reader.readNumber()); } return items1; })();
+    const byOwner = (() => { const length2 = reader.readNumber(); const items2: Array<number> = []; for (let index = 0; index < length2; index += 1) { items2.push(reader.readNumber()); } return items2; })();
+    const byDeclaring = (() => { const length3 = reader.readNumber(); const items3: Array<number> = []; for (let index = 0; index < length3; index += 1) { items3.push(reader.readNumber()); } return items3; })();
+    const bySymbol = (() => { const length4 = reader.readNumber(); const items4: Array<number> = []; for (let index = 0; index < length4; index += 1) { items4.push(reader.readNumber()); } return items4; })();
 
     return {
         entries,
+        bySource,
         byOwner,
         byDeclaring,
         bySymbol,
@@ -249,6 +257,7 @@ export function decodeMemberIndex(reader: BinaryReader): MemberIndex {
 export function toJsonMemberIndex(value: MemberIndex): Json {
     return {
         entries: value.entries.map((item0) => toJsonMemberEntry(item0)),
+        bySource: value.bySource.map((item0) => item0),
         byOwner: value.byOwner.map((item0) => item0),
         byDeclaring: value.byDeclaring.map((item0) => item0),
         bySymbol: value.bySymbol.map((item0) => item0),
@@ -261,6 +270,7 @@ export function fromJsonMemberIndex(value: Json): MemberIndex {
 
     return {
         entries: jsonArray(jsonField(object, "entries")).map((item0) => fromJsonMemberEntry(item0)),
+        bySource: jsonArray(jsonField(object, "bySource")).map((item0) => jsonInteger(item0)),
         byOwner: jsonArray(jsonField(object, "byOwner")).map((item0) => jsonInteger(item0)),
         byDeclaring: jsonArray(jsonField(object, "byDeclaring")).map((item0) => jsonInteger(item0)),
         bySymbol: jsonArray(jsonField(object, "bySymbol")).map((item0) => jsonInteger(item0)),
