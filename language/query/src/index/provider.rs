@@ -5,6 +5,7 @@ use destack_artifact::{
     ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactVersion,
     DirChecked, IndexKind, ModuleIndex, ProgramIndex, SourceDependencyKey,
 };
+use destack_core::FxIndexMap;
 use destack_repository::{
     ArtifactReader, ProviderContext, ProviderError, ProviderResult, Repository,
 };
@@ -41,7 +42,7 @@ impl Indexer {
                 module,
                 profile,
                 kind,
-            } => self.collect_module_index(module, profile, kind),
+            } => self.collect_module_index(context, module, profile, kind),
             ArtifactKey::ProgramIndex { profile, kind } => {
                 self.collect_program_index(context, profile, kind)
             }
@@ -55,6 +56,7 @@ impl Indexer {
     /// Collect dependencies for one module index artifact.
     fn collect_module_index(
         &self,
+        context: &dyn ProviderContext,
         module_id: ModuleId,
         profile_id: ProfileId,
         kind: IndexKind,
@@ -67,10 +69,12 @@ impl Indexer {
             dependencies.require(ArtifactKey::dir_bound(module_id, profile_id));
             dependencies.require(ArtifactKey::dir_expanded(module_id, profile_id));
         }
-        // index exports from exported declarations and resolved dependencies
+        // index exports from exported declarations and resolved dependencies,
+        //  reading the import closure's export tables for star surfaces
         else if kind == IndexKind::Exports {
             dependencies.require(ArtifactKey::dir_exported(module_id, profile_id));
             dependencies.require(ArtifactKey::dir_resolved(module_id, profile_id));
+            self.require_star_exports(context, module_id, profile_id, &mut dependencies)?;
         }
         // index checked families over the module's declared and checked DIR
         else {
@@ -83,6 +87,48 @@ impl Indexer {
         }
 
         Ok(dependencies)
+    }
+
+    /// Require the export tables behind one module's star exports.
+    fn require_star_exports(
+        &self,
+        context: &dyn ProviderContext,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+        dependencies: &mut ArtifactDependencySet,
+    ) -> ProviderResult<()> {
+        // follow star edges, requiring each reached module's export tables
+        let artifacts = ArtifactReader::new(self.repository(), context.revision());
+        let mut queue = vec![module_id];
+        let mut visited = Vec::new();
+        while let Some(module) = queue.pop() {
+            if visited.contains(&module) {
+                continue;
+            }
+            visited.push(module);
+            if module != module_id {
+                dependencies.require(ArtifactKey::dir_exported(module, profile_id));
+                dependencies.require(ArtifactKey::dir_resolved(module, profile_id));
+            }
+
+            // a blocked table defers the remaining walk to the next attempt
+            let exported = match artifacts.dir_exported(module, profile_id) {
+                Ok(exported) => exported,
+                Err(ProviderError::Blocked { .. }) => {
+                    dependencies.mark_partial();
+
+                    return Ok(());
+                }
+                Err(error) => return Err(error.into()),
+            };
+            for star in exported.exports.star_exports() {
+                if let Some(target) = star.target {
+                    queue.push(target);
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Collect dependencies for one program index artifact.
@@ -156,8 +202,29 @@ impl Indexer {
                 let resolved = artifacts.dir_resolved(module_id, profile_id)?;
                 let strings = self.repository().string_pool();
 
+                // load the export views behind any star exports
+                let mut closure = FxIndexMap::default();
+                let mut queue: Vec<ModuleId> = exported
+                    .exports
+                    .star_exports()
+                    .filter_map(|star| star.target)
+                    .collect();
+                while let Some(module) = queue.pop() {
+                    if module == module_id || closure.contains_key(&module) {
+                        continue;
+                    }
+                    let dep_exported = artifacts.dir_exported(module, profile_id)?;
+                    let dep_resolved = artifacts.dir_resolved(module, profile_id)?;
+                    for star in dep_exported.exports.star_exports() {
+                        if let Some(target) = star.target {
+                            queue.push(target);
+                        }
+                    }
+                    closure.insert(module, (dep_exported, dep_resolved));
+                }
+
                 ModuleIndex::Exports(ExportIndexer::build(
-                    module_id, &exported, &resolved, strings,
+                    module_id, &exported, &resolved, &closure, strings,
                 )?)
             }
             kind => {

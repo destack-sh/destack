@@ -1240,6 +1240,63 @@ function main(): void {
 @completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
 ```
 
+### Auto import a star re-exported symbol
+
+A name visible only through `export *` still completes with its import patch.
+
+```ds core.ds
+export function greet(): void {}
+```
+
+```ds library.ds
+export * from "./core";
+```
+
+```ds main.ds
+
+^ insertion
+function main(): void {
+    gre;
+    ^^^ prefix
+}
+```
+
+```query completion main.ds#prefix@end include_auto_imports=true
+@completion.item label=greet kind=function replace=main.ds#prefix detail="Auto import from ./core" insert="greet()" auto_import=true matches=0,1,2
+@completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./core\";\n"
+@completion.item label=greet kind=function replace=main.ds#prefix detail="Auto import from ./library" insert="greet()" auto_import=true matches=0,1,2
+@completion.additional_edit item=1 range=main.ds#insertion text="import { greet } from \"./library\";\n"
+```
+
+### Shadow a star re-export with a nearer named export
+
+A re-exporting module's own declaration hides the starred name behind it.
+
+```ds core.ds
+export function greet(): void {}
+```
+
+```ds library.ds
+export * from "./core";
+export function greet(): void {}
+```
+
+```ds main.ds
+
+^ insertion
+function main(): void {
+    gre;
+    ^^^ prefix
+}
+```
+
+```query completion main.ds#prefix@end include_auto_imports=true
+@completion.item label=greet kind=function replace=main.ds#prefix detail="Auto import from ./core" insert="greet()" auto_import=true matches=0,1,2
+@completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./core\";\n"
+@completion.item label=greet kind=function replace=main.ds#prefix detail="Auto import from ./library" insert="greet()" auto_import=true matches=0,1,2
+@completion.additional_edit item=1 range=main.ds#insertion text="import { greet } from \"./library\";\n"
+```
+
 ### Refresh an incomplete completion list
 
 A retriggered request continues the candidate family returned by the incomplete list.
@@ -1943,7 +2000,8 @@ const result = ret;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=returnValue kind=constant replace=main.ds#prefix detail=1 preselect=true matches=0,1,2
+@completion.item label=returnValue kind=constant replace=main.ds#prefix detail=1 matches=0,1,2
+@completion.item label=result kind=constant replace=main.ds#prefix matches=0,1,5
 ```
 
 ## Primitive Types

@@ -1,5 +1,7 @@
+use std::sync::Arc;
+
 use destack_artifact::{DirExported, DirResolved};
-use destack_core::StringPool;
+use destack_core::{FxIndexMap, FxIndexSet, StringPool};
 use destack_dir as dir;
 use destack_repository::{ProviderError, ProviderResult};
 use destack_source::ModuleId;
@@ -12,6 +14,8 @@ pub(in crate::index) struct ExportIndexer<'a> {
     exported: &'a DirExported,
     /// The resolved dependency targets.
     resolved: &'a DirResolved,
+    /// The import closure's exported and resolved views for star surfaces.
+    closure: &'a FxIndexMap<ModuleId, (Arc<DirExported>, Arc<DirResolved>)>,
     /// The shared string pool.
     strings: &'a StringPool,
     /// The collected exports.
@@ -24,18 +28,21 @@ impl<'a> ExportIndexer<'a> {
         module_id: ModuleId,
         exported: &'a DirExported,
         resolved: &'a DirResolved,
+        closure: &'a FxIndexMap<ModuleId, (Arc<DirExported>, Arc<DirResolved>)>,
         strings: &'a StringPool,
     ) -> ProviderResult<dir::ExportIndex> {
         let mut indexer = Self {
             module_id,
             exported,
             resolved,
+            closure,
             strings,
             entries: Vec::new(),
         };
 
-        // collect the exact resolved exports
+        // collect the exact resolved exports, then the names the stars expose
         indexer.collect_exports()?;
+        indexer.collect_star_exports()?;
 
         Ok(dir::ExportIndex::new(indexer.entries))
     }
@@ -49,7 +56,7 @@ impl<'a> ExportIndexer<'a> {
             };
 
             // retain one row per exact overload or namespace target
-            for target in self.export_targets(*export)? {
+            for target in self.export_targets(self.module_id, self.resolved, *export)? {
                 self.entries.push(dir::ExportEntry {
                     name: name.clone(),
                     target,
@@ -58,6 +65,92 @@ impl<'a> ExportIndexer<'a> {
         }
 
         Ok(())
+    }
+
+    /// Collect the entries visible through this module's star exports.
+    fn collect_star_exports(&mut self) -> ProviderResult<()> {
+        // shadow the star surface with this module's own named exports
+        let shadowed = self
+            .exported
+            .exports
+            .export_by_key
+            .keys()
+            .copied()
+            .collect();
+
+        // walk the star edges, collecting each key's declaring modules
+        let mut declared = FxIndexMap::<dir::ExportKey, Vec<ModuleId>>::default();
+        let mut visited = vec![self.module_id];
+        self.collect_star_keys(
+            &self.exported.exports,
+            &shadowed,
+            &mut visited,
+            &mut declared,
+        );
+
+        // index each key the stars expose at its declaring modules
+        for (key, declarers) in declared {
+            let Some(name) = self.export_name(key) else {
+                continue;
+            };
+            for declarer in declarers {
+                let Some((exported, resolved)) = self.closure.get(&declarer) else {
+                    continue;
+                };
+                let Some(export) = exported.exports.export_by_key.get(&key).copied() else {
+                    continue;
+                };
+                for target in self.export_targets(declarer, resolved, export)? {
+                    self.entries.push(dir::ExportEntry {
+                        name: name.clone(),
+                        target,
+                    });
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Collect the keys one export table exposes through its stars.
+    fn collect_star_keys(
+        &self,
+        exports: &dir::ExportTable,
+        shadowed: &FxIndexSet<dir::ExportKey>,
+        visited: &mut Vec<ModuleId>,
+        declared: &mut FxIndexMap<dir::ExportKey, Vec<ModuleId>>,
+    ) {
+        for star in exports.star_exports() {
+            // break star cycles at their first revisit
+            let Some(target) = star.target else {
+                continue;
+            };
+            if visited.contains(&target) {
+                continue;
+            }
+            visited.push(target);
+
+            // look the target's own exports up in the import closure
+            let Some((exported, _)) = self.closure.get(&target) else {
+                continue;
+            };
+
+            // record the target's named keys that no nearer module shadows
+            for (key, _) in exported.exports.exports() {
+                if *key == dir::ExportKey::Default || shadowed.contains(key) {
+                    continue;
+                }
+                let declarers = declared.entry(*key).or_default();
+                if !declarers.contains(&target) {
+                    declarers.push(target);
+                }
+            }
+
+            // shadow the target's deeper stars with its own names
+            let mut deeper = shadowed.clone();
+            deeper.extend(exported.exports.export_by_key.keys().copied());
+            self.collect_star_keys(&exported.exports, &deeper, visited, declared);
+        }
     }
 
     /// Return the source name for one export key.
@@ -72,17 +165,22 @@ impl<'a> ExportIndexer<'a> {
         }
     }
 
-    /// Return every exact target for one named export.
-    fn export_targets(&self, export: dir::NamedExport) -> ProviderResult<Vec<dir::ExportTarget>> {
+    /// Return every exact target for one module's named export.
+    fn export_targets(
+        &self,
+        module_id: ModuleId,
+        resolved: &DirResolved,
+        export: dir::NamedExport,
+    ) -> ProviderResult<Vec<dir::ExportTarget>> {
         match export {
             dir::NamedExport::Local(export) => {
-                let symbol = export.source.into_global(self.module_id);
+                let symbol = export.source.into_global(module_id);
 
                 Ok(vec![dir::ExportTarget::Symbol(symbol)])
             }
             dir::NamedExport::Indirect(export) => {
-                let source = export.item.into_global_any(self.module_id);
-                let reference = self.resolved.references.get(source).ok_or_else(|| {
+                let source = export.item.into_global_any(module_id);
+                let reference = resolved.references.get(source).ok_or_else(|| {
                     ProviderError::internal(format!(
                         "export dependency has no resolved reference: {source:?}"
                     ))
