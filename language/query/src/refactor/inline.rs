@@ -272,7 +272,7 @@ impl ModuleQueryContext<'_> {
         let mut captures = Vec::new();
 
         // collect exact name resolutions inside the initializer
-        for (expression, node) in view.iter_nodes_of_type::<dir::Expression>() {
+        for (expression, node) in view.iter_nodes::<dir::Expression>() {
             let dir::Expression::Identifier { name } = node else {
                 continue;
             };

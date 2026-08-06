@@ -278,7 +278,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         let view = self.module.view()?;
 
         // collect definition-site declaration names
-        for (declaration_id, declaration) in view.iter_nodes_of_type::<dir::Declaration>() {
+        for (declaration_id, declaration) in view.iter_nodes::<dir::Declaration>() {
             if declaration.name().is_none() {
                 continue;
             }
@@ -313,7 +313,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         let view = self.module.view()?;
 
         // collect parameter declarations
-        for (parameter_id, _) in view.iter_nodes_of_type::<dir::Parameter>() {
+        for (parameter_id, _) in view.iter_nodes::<dir::Parameter>() {
             let Some(name_span) = self.main_span(parameter_id.into_any())? else {
                 continue;
             };
@@ -335,7 +335,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         let view = self.module.view()?;
 
         // collect binding patterns
-        for (pattern_id, pattern) in view.iter_nodes_of_type::<dir::Pattern>() {
+        for (pattern_id, pattern) in view.iter_nodes::<dir::Pattern>() {
             if !matches!(pattern, dir::Pattern::Binding { .. }) {
                 continue;
             }
@@ -360,7 +360,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         let view = self.module.view()?;
 
         // collect destructuring names from their exact roles
-        for (field_id, field) in view.iter_nodes_of_type::<dir::PatternField>() {
+        for (field_id, field) in view.iter_nodes::<dir::PatternField>() {
             let dir::PatternField::Named { pattern, .. } = field else {
                 continue;
             };
@@ -517,7 +517,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         let view = self.module.view()?;
 
         // collect labels and visible reference segments
-        for (expression_id, expression) in view.iter_nodes_of_type::<dir::Expression>() {
+        for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
             if self.is_decorator_name(expression_id)? {
                 continue;
             }
@@ -916,7 +916,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         let view = self.module.view()?;
 
         // collect fields, methods, and associated items
-        for (member_id, member) in view.iter_nodes_of_type::<dir::Member>() {
+        for (member_id, member) in view.iter_nodes::<dir::Member>() {
             let Some((token_type, modifiers)) = Self::member_token(member) else {
                 continue;
             };
@@ -980,7 +980,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         let view = self.module.view()?;
 
         // collect interface and shape member declarations
-        for (member_id, member) in view.iter_nodes_of_type::<dir::TypeMember>() {
+        for (member_id, member) in view.iter_nodes::<dir::TypeMember>() {
             let Some((token_type, modifiers)) = self.type_member_token(member_id, member)? else {
                 continue;
             };
@@ -1087,7 +1087,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         let view = self.module.view()?;
 
         // collect enum member declarations
-        for (field_id, _) in view.iter_nodes_of_type::<dir::EnumField>() {
+        for (field_id, _) in view.iter_nodes::<dir::EnumField>() {
             let Some(main_span) = self.main_span(field_id.into_any())? else {
                 continue;
             };
@@ -1110,7 +1110,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         let view = self.module.view()?;
 
         // collect declaration generic parameter names
-        for (_declaration_id, declaration) in view.iter_nodes_of_type::<dir::Declaration>() {
+        for (_declaration_id, declaration) in view.iter_nodes::<dir::Declaration>() {
             let Some(generic_parameters) = declaration.generic_parameters() else {
                 continue;
             };
@@ -1150,7 +1150,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         let view = self.module.view()?;
 
         // visit authored names owned by type reference nodes
-        for (type_id, type_expression) in view.iter_nodes_of_type::<dir::TypeExpression>() {
+        for (type_id, type_expression) in view.iter_nodes::<dir::TypeExpression>() {
             let source_id = view.get_source(type_id);
             if self.module.source_index()?.try_get(source_id).is_none() {
                 continue;
@@ -1217,7 +1217,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         let view = self.module.view()?;
 
         // collect decorator names
-        for (decorator_id, decorator) in view.iter_nodes_of_type::<dir::Decorator>() {
+        for (decorator_id, decorator) in view.iter_nodes::<dir::Decorator>() {
             let name_id = Self::decorator_name_expression(view, decorator);
             let decorator_node = decorator_id.into_any().into_global(self.module.module_id());
             let span = self
@@ -1331,7 +1331,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         let view = self.module.view()?;
 
         // collect imported and exported binding names
-        for (item_id, item) in view.iter_nodes_of_type::<dir::DependencyItem>() {
+        for (item_id, item) in view.iter_nodes::<dir::DependencyItem>() {
             if item.local_string_key().is_none() {
                 continue;
             }

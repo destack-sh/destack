@@ -450,7 +450,7 @@ impl CheckState<'_> {
         let tree = self.module(module).view();
 
         // find elided borrows and type holes written inside the annotation
-        for (id, node) in tree.iter_nodes_of_type::<dir::TypeExpression>() {
+        for (id, node) in tree.iter_nodes::<dir::TypeExpression>() {
             if matches!(
                 node,
                 dir::TypeExpression::BorrowedOf { lifetime: None, .. }
@@ -462,7 +462,7 @@ impl CheckState<'_> {
         }
 
         // find value holes like fixed-array lengths
-        for (id, node) in tree.iter_nodes_of_type::<dir::Expression>() {
+        for (id, node) in tree.iter_nodes::<dir::Expression>() {
             if matches!(node, dir::Expression::Infer { .. })
                 && tree.is_inside(id.into_any(), annotation.into_any())
             {

@@ -269,7 +269,7 @@ impl RenameShorthands {
         let mut shorthand_names = FxHashMap::default();
 
         // index object literal shorthand names
-        for (property_id, property) in view.iter_nodes_of_type::<dir::Property>() {
+        for (property_id, property) in view.iter_nodes::<dir::Property>() {
             let dir::Property::Field {
                 key: dir::Key::Name(name),
                 is_shorthand: true,
@@ -287,7 +287,7 @@ impl RenameShorthands {
         }
 
         // index destructuring shorthand names
-        for (field_id, field) in view.iter_nodes_of_type::<dir::PatternField>() {
+        for (field_id, field) in view.iter_nodes::<dir::PatternField>() {
             let dir::PatternField::Named {
                 name,
                 is_shorthand: true,

@@ -116,7 +116,7 @@ impl ModuleQueryContext<'_> {
         let types = self.types()?;
 
         // inspect inferred binding declarators
-        for (_declarator_id, declarator) in view.iter_nodes_of_type::<dir::Declarator>() {
+        for (_declarator_id, declarator) in view.iter_nodes::<dir::Declarator>() {
             if declarator.ty.is_some() {
                 continue;
             }

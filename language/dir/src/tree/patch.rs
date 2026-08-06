@@ -50,6 +50,11 @@ impl Patch {
     /// Replace one visible root with another visible root.
     #[inline]
     pub fn replace(&mut self, source: LocalNodeIdAny, target: LocalNodeIdAny) {
+        assert_eq!(
+            source.ty, target.ty,
+            "DIR patch cannot replace {source:?} with a different node type {target:?}"
+        );
+
         self.replacement_by_node.insert(source, target);
     }
 

@@ -56,7 +56,7 @@ impl ModuleQueryContext<'_> {
         let mut lenses = Vec::new();
 
         // collect relevant authored declarations
-        for (declaration_id, declaration) in view.iter_nodes_of_type::<dir::Declaration>() {
+        for (declaration_id, declaration) in view.iter_nodes::<dir::Declaration>() {
             let declaration_kind = match declaration {
                 dir::Declaration::Function(function)
                     if function.name.is_some()

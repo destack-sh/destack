@@ -235,7 +235,7 @@ impl ModuleQueryContext<'_> {
         let view = self.view()?;
 
         // collect declaration extents
-        for (declaration_id, declaration) in view.iter_nodes_of_type::<dir::Declaration>() {
+        for (declaration_id, declaration) in view.iter_nodes::<dir::Declaration>() {
             if !Self::declaration_is_foldable(declaration) {
                 continue;
             }
@@ -251,7 +251,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // collect block extents
-        for (block_id, _) in view.iter_nodes_of_type::<dir::Block>() {
+        for (block_id, _) in view.iter_nodes::<dir::Block>() {
             if Self::block_is_function_declaration_body(view, block_id) {
                 continue;
             }
@@ -265,7 +265,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // collect expression containers
-        for (expression_id, expression) in view.iter_nodes_of_type::<dir::Expression>() {
+        for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
             if !matches!(
                 expression,
                 dir::Expression::ArrayExpression { .. }
@@ -288,7 +288,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // collect structural type containers
-        for (type_id, type_expression) in view.iter_nodes_of_type::<dir::TypeExpression>() {
+        for (type_id, type_expression) in view.iter_nodes::<dir::TypeExpression>() {
             if !matches!(
                 type_expression,
                 dir::TypeExpression::Tuple { .. } | dir::TypeExpression::Object { .. }

@@ -45,7 +45,7 @@ impl ModuleQueryContext<'_> {
         let mut links = Vec::new();
 
         // collect import and export path links
-        for (expression_id, expression) in view.iter_nodes_of_type::<dir::Expression>() {
+        for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
             let relation = match expression {
                 dir::Expression::Import { .. } => Some(dir::ModuleRelation::Import),
                 dir::Expression::Export {

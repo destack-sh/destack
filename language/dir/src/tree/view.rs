@@ -18,6 +18,17 @@ pub struct View<'a> {
     patches: &'a [Patch],
 }
 
+/// One visible node and the tree node containing its value.
+#[derive(Debug, Clone, Copy)]
+struct VisibleNode<'a> {
+    /// The node id retained across replacements.
+    id: LocalNodeIdAny,
+    /// The tree containing the visible node value.
+    tree: &'a Tree,
+    /// The node id of the visible value.
+    value_id: LocalNodeIdAny,
+}
+
 impl<'a> View<'a> {
     /// Create an unpatched view over one tree.
     pub fn new(tree: &'a Tree) -> Self {
@@ -351,88 +362,77 @@ impl<'a> View<'a> {
     }
 
     /// Iterate over visible node ids.
-    pub fn iter_node_ids(&self) -> Vec<LocalNodeIdAny> {
-        let mut nodes = Vec::new();
+    pub fn iter_node_ids(&self) -> impl Iterator<Item = LocalNodeIdAny> + '_ {
+        self.iter_visible_nodes().map(|node| node.id)
+    }
 
-        // base ids remain the stable ids for replaced roots
-        for node_id in self.tree.iter_node_ids() {
-            if self.visible_node(node_id).is_none() {
-                continue;
-            }
-
-            let node_type = self.get_node_type(node_id.id);
-            nodes.push(LocalNodeIdAny::new(node_id.id, node_type));
-        }
-
+    /// Iterate over visible nodes.
+    fn iter_visible_nodes(&self) -> impl Iterator<Item = VisibleNode<'a>> + '_ {
         let replacement_targets = self
             .patches()
             .flat_map(|patch| patch.replacement_targets())
             .collect::<IndexSet<_>>();
 
-        // patch ids cover introduced nodes not represented by a base id
-        for patch in self.patches() {
-            for node_id in patch.tree.iter_node_ids() {
-                if replacement_targets.contains(&node_id) {
-                    continue;
-                }
-                if self.visible_node(node_id).is_none() {
-                    continue;
-                }
+        // preserve base ids across visible replacements
+        let base = self.tree.iter_node_ids().filter_map(|id| {
+            let (tree, value_id) = self.visible_node(id)?;
 
-                nodes.push(node_id);
-            }
-        }
+            Some(VisibleNode { id, tree, value_id })
+        });
 
-        nodes
+        // yield introduced patch nodes that do not replace a base id
+        let patches = self
+            .patches()
+            .flat_map(|patch| patch.tree.iter_node_ids())
+            .filter_map(move |id| {
+                if replacement_targets.contains(&id) {
+                    return None;
+                }
+                let (tree, value_id) = self.visible_node(id)?;
+
+                Some(VisibleNode { id, tree, value_id })
+            });
+
+        base.chain(patches)
     }
 
     /// Iterate visible node ids whose source spans belong to one file.
     pub fn iter_node_ids_in_file(&self, file: FileId) -> Vec<LocalNodeIdAny> {
-        self.iter_node_ids()
-            .into_iter()
+        self.iter_visible_nodes()
             .filter(|node| {
-                self.get_span_by_id(node.id)
+                node.tree
+                    .get_span_by_id(node.value_id.id)
                     .is_some_and(|span| span.file == file)
             })
+            .map(|node| node.id)
             .collect()
     }
 
     /// Iterate over visible node ids of a given type.
-    pub fn iter_node_ids_of_type<T>(&self) -> Vec<LocalNodeId<T>>
+    pub fn iter_node_ids_of_type<T>(&self) -> impl Iterator<Item = LocalNodeId<T>> + '_
     where
         T: Node,
         Tree: TreeStore<T>,
     {
         self.iter_node_ids()
-            .into_iter()
             .filter(|node_id| node_id.ty == T::TYPE)
-            .map(|node_id| LocalNodeId::new(node_id.id))
-            .collect()
+            .map(|node_id| LocalNodeId::<T>::new(node_id.id))
     }
 
     /// Iterate over visible nodes of a given type together with their ids.
-    pub fn iter_nodes_of_type<T>(&self) -> Vec<(LocalNodeId<T>, &'a T)>
+    pub fn iter_nodes<T>(&self) -> impl Iterator<Item = (LocalNodeId<T>, &'a T)> + '_
     where
         T: Node + 'a,
         Tree: TreeStore<T>,
     {
-        self.iter_node_ids_of_type::<T>()
-            .into_iter()
-            .map(|node_id| {
-                let node = self.get(LocalNodeId::new(node_id.id));
+        self.iter_visible_nodes()
+            .filter(|node| node.id.ty == T::TYPE)
+            .map(|node| {
+                let id = LocalNodeId::<T>::new(node.id.id);
+                let value = node.tree.get(LocalNodeId::<T>::new(node.value_id.id));
 
-                (node_id, node)
+                (id, value)
             })
-            .collect()
-    }
-
-    /// Iterate over visible node ids of a given type.
-    pub fn iter_nodes<T>(&self) -> Vec<LocalNodeId<T>>
-    where
-        T: Node + 'a,
-        Tree: TreeStore<T>,
-    {
-        self.iter_node_ids_of_type::<T>()
     }
 
     /// Resolve one node id to its visible storage tree and node id.

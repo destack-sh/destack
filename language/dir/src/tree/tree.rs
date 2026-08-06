@@ -605,7 +605,7 @@ impl Tree {
     }
 
     /// Iterate over all nodes of a given type together with their NodeId.
-    pub fn iter_nodes_of_type<'a, T>(&'a self) -> impl Iterator<Item = (LocalNodeId<T>, &'a T)> + 'a
+    pub fn iter_nodes<'a, T>(&'a self) -> impl Iterator<Item = (LocalNodeId<T>, &'a T)> + 'a
     where
         T: Node + 'a,
         Self: TreeStore<T>,
@@ -624,16 +624,6 @@ impl Tree {
             })
     }
 
-    /// Iterate all node ids of one type.
-    #[inline]
-    pub fn iter_nodes<'a, T>(&'a self) -> impl Iterator<Item = LocalNodeId<T>> + 'a
-    where
-        T: Node + 'a,
-        Self: TreeStore<T>,
-    {
-        self.iter_node_ids_of_type::<T>().into_iter()
-    }
-
     /// Iterate over all nodes ids.
     pub fn iter_node_ids(&self) -> impl Iterator<Item = LocalNodeIdAny> + '_ {
         self.node_index_by_node_id
@@ -645,7 +635,7 @@ impl Tree {
     }
 
     /// Iterate over all nodes ids of a given type.
-    pub fn iter_node_ids_of_type<T>(&self) -> Vec<LocalNodeId<T>>
+    pub fn iter_node_ids_of_type<T>(&self) -> impl Iterator<Item = LocalNodeId<T>> + '_
     where
         T: Node,
         Self: TreeStore<T>,
@@ -661,7 +651,6 @@ impl Tree {
                     None
                 }
             })
-            .collect()
     }
 
     /// Get the parent node id for a node id.
@@ -1165,7 +1154,7 @@ impl Tree {
 mod tests {
     use destack_source::{FileId, ModuleId, PackageId, Span};
 
-    use crate::{Decorator, DecoratorPosition, Expression, Tree, TypeExpression, View};
+    use crate::{Decorator, DecoratorPosition, Expression, Patch, Tree, TypeExpression, View};
 
     fn test_module_id() -> ModuleId {
         ModuleId::new(PackageId::new(1), 1)
@@ -1187,6 +1176,39 @@ mod tests {
             view.get_node_id_by_source_id(expression.id),
             Some(expression.into_any())
         );
+    }
+
+    /// Iterate replacements and introduced nodes exactly once.
+    #[test]
+    fn test_view_iterates_visible_nodes() {
+        let mut tree = Tree::new(test_module_id());
+        let replaced = tree.insert(Expression::Error, test_span(0));
+        let deleted = tree.insert(Expression::Debugger, test_span(1));
+        tree.index_parents(&[replaced, deleted]);
+
+        // replace one base root, delete another, and introduce one patch root
+        let mut patch = Patch::new(&tree, "test");
+        let replacement = patch.tree.insert(Expression::Debugger, test_span(2));
+        let introduced = patch.tree.insert(Expression::Error, test_span(3));
+        patch.tree.index_parents(&[replacement, introduced]);
+        patch.replace(replaced.into_any(), replacement.into_any());
+        patch.delete(deleted.into_any());
+
+        // replace the introduced root in a later patch
+        let mut next_patch = Patch::new(&patch.tree, "next");
+        let next_replacement = next_patch.tree.insert(Expression::Debugger, test_span(4));
+        next_patch.tree.index_parents(&[next_replacement]);
+        next_patch.replace(introduced.into_any(), next_replacement.into_any());
+        let patches = [patch, next_patch];
+        let view = View::with_patches(&tree, &patches);
+
+        // retain replacement source ids and yield each visible value once
+        let nodes = view.iter_nodes::<Expression>().collect::<Vec<_>>();
+        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes[0].0, replaced);
+        assert!(matches!(nodes[0].1, Expression::Debugger));
+        assert_eq!(nodes[1].0, introduced);
+        assert!(matches!(nodes[1].1, Expression::Debugger));
     }
 
     #[test]

@@ -16,7 +16,7 @@ pub(super) struct RelationIndex {
 impl RelationIndex {
     /// Index visible children in two linear passes.
     pub(super) fn new(candidate: dir::View<'_>) -> Self {
-        let nodes = candidate.iter_node_ids();
+        let nodes = candidate.iter_node_ids().collect::<Vec<_>>();
         let slot_count = candidate.next_global_id() as usize + 1;
         let mut counts = vec![0_u32; slot_count];
 

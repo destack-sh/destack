@@ -114,7 +114,7 @@ pub fn rename_files(
         let source_path = renamed_source_path.as_deref().or(source_path.as_deref());
 
         // visit authored import and re-export specifiers
-        for (expression_id, expression) in view.iter_nodes_of_type::<dir::Expression>() {
+        for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
             let (text, relation) = match expression {
                 dir::Expression::Import { target, .. } => (*target, dir::ModuleRelation::Import),
                 dir::Expression::Export {
