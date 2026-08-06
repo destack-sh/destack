@@ -395,6 +395,8 @@ impl BodyState<'_, '_> {
         };
 
         // register the declared bounds and predicates with the candidate
+        // NOTE: coherence forbids overlapping implementations, so the solver
+        //  can defer the sole candidate's constraints to settle
         if let Some(template) = template {
             let constraints =
                 self.substitute_application_constraints(origin, template, &substitution)?;

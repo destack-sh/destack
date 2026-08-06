@@ -336,8 +336,10 @@ impl CheckState<'_> {
                 constraint.target,
             )?;
 
-            // try to prove rigid arguments through their declared bounds
+            // try to prove rigid arguments through their declared bounds,
+            //  only for relations transitive through an upper bound
             if satisfied.is_ready_false()
+                && constraint.relation == Relation::Satisfies
                 && let dir::Type::Parameter(parameter) = self.ty(constraint.source)?
                 && let Some(declared) = self
                     .generic_parameter(parameter)

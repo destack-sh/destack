@@ -2357,3 +2357,60 @@ struct Mixed<'a> {
 "#,
     );
 }
+
+#[test]
+fn test_where_equality_rejects_a_bounded_parameter_argument() {
+    let session = TestSession::single(
+        r#"
+function requireExact<T>(value: T): void where T == int32 {}
+
+function forward<U: int32>(value: U): void {
+    requireExact<U>(value);
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function requireExact<T>(value: T): void where T == int32 {}
+
+function forward<U: int32>(value: U): void {
+    requireExact<U>(value);
+}
+
+=== checked ===
+function requireExact<T>(value: T): void where T == int32 {}
+/// @generic.template symbol=requireExact parameters=(T)
+/// @type.symbol symbol=requireExact source="function requireExact<T>(value: T): void where T == int32 {}" type=<T>(T) => void
+/// @type.symbol symbol=requireExact.T source=T type=T
+/// @type.symbol symbol=requireExact.value source="value: T" type=T
+/// @resolution.name source=T target=requireExact.T
+/// @resolution.name source=T target=requireExact.T
+
+function forward<U: int32>(value: U): void {
+/// @generic.template symbol=forward parameters=(U: int32)
+/// @type.symbol symbol=forward type=<U: int32>(U) => void
+/// @type.symbol symbol=forward.U source="U: int32" type=U
+/// @type.symbol symbol=forward.value source="value: U" type=U
+/// @resolution.name source=U target=forward.U
+
+    requireExact<U>(value);
+    /// @resolution.name source=requireExact target=requireExact
+    /// @resolution.call source=requireExact<U>(value) parameters=(U) arguments=(provided(value) as U) return=void kind=symbol target=requireExact instance=requireExact<U>
+    /// @generic.instance source=requireExact<U>(value) id=requireExact<U>
+    /// @resolution.name source=U target=forward.U
+    /// @resolution.name source=value target=forward.value
+
+}
+
+/// @generic.instance id=requireExact<U> template=requireExact arguments=(U)
+"#,
+        r#"
+/// @diagnostic.error id=equality-requirement-not-satisfied message="equality requirement 'U == int32' is not satisfied"
+/// @diagnostic.label line=5 column=5 span="requireExact<U>(value)" line_source="requireExact<U>(value);"
+"#,
+    );
+}
