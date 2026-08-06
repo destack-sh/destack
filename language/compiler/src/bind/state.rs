@@ -281,12 +281,22 @@ impl<'a> BindState<'a> {
         key: dir::StaticKey,
         modifiers: BindingModifiers,
     ) -> dir::LocalSymbolId {
+        // module statics hoist for resolution, local bindings rebind in order
+        let scope = self.bindings.get_scope_by_id(self.current_scope_id()).kind;
+        let is_static_scope = matches!(
+            scope,
+            dir::ScopeKind::Module | dir::ScopeKind::Global | dir::ScopeKind::Namespace
+        );
+        let visibility = match modifiers.kind {
+            dir::SymbolKind::Variable if is_static_scope => dir::SymbolVisibility::Scope,
+            _ => dir::SymbolVisibility::Forward,
+        };
         let symbol_id = self.insert_symbol(
             dir::SymbolRole::Local,
             modifiers.kind,
             Some(key),
             modifiers.export,
-            dir::SymbolVisibility::Forward,
+            visibility,
         );
 
         // retain source modifiers on the durable symbol
