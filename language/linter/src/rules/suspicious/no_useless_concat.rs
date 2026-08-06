@@ -54,7 +54,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         if !is_left_string || !is_right_string {
             continue;
         }
-        let string_add = dir::LanguageMember::named(dir::LanguageItem::String, "add");
+        let string_add = dir::LanguageItem::String.member("add");
         if module.operator_language_member(expression)? != Some(string_add) {
             continue;
         }

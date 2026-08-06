@@ -33,10 +33,10 @@ function identity(value: int32): int32 {
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let result = dir::LanguageItem::Result;
-    let unwrap = dir::LanguageMember::named(result, "unwrap");
-    let unwrap_err = dir::LanguageMember::named(result, "unwrapErr");
-    let ok = dir::LanguageMember::named(result, "ok");
-    let err = dir::LanguageMember::named(result, "err");
+    let unwrap = result.member("unwrap");
+    let unwrap_err = result.member("unwrapErr");
+    let ok = result.member("ok");
+    let err = result.member("err");
     let mut output = LintOutput::default();
 
     // inspect selected zero-argument unwrap calls

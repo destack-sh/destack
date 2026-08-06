@@ -49,8 +49,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
         // require optional first-element behavior from the canonical Array member
         let consumer = module.language_member(expression)?;
-        let at = dir::LanguageMember::named(dir::LanguageItem::Array, "at");
-        let first = dir::LanguageMember::named(dir::LanguageItem::Array, "first");
+        let at = dir::LanguageItem::Array.member("at");
+        let first = dir::LanguageItem::Array.member("first");
         let is_first = if consumer == Some(at) {
             let [argument] = arguments.as_slice() else {
                 continue;
@@ -83,7 +83,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let dir::Expression::Member { .. } = view.get(*filter_member) else {
             continue;
         };
-        let filter_language_member = dir::LanguageMember::named(dir::LanguageItem::Array, "filter");
+        let filter_language_member = dir::LanguageItem::Array.member("filter");
         if module.language_member(*filter)? != Some(filter_language_member) {
             continue;
         }

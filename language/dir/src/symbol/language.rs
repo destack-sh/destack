@@ -12,15 +12,6 @@ pub struct LanguageMember {
     pub key: StaticKey,
 }
 
-impl LanguageMember {
-    /// Create one named member of a canonical language item.
-    pub fn named(owner: LanguageItem, name: &str) -> Self {
-        let key = StaticKey::Name(StringId::for_text(name));
-
-        Self { owner, key }
-    }
-}
-
 /// The declaration kind expected for one language item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum LanguageItemKind {
@@ -103,6 +94,13 @@ macro_rules! define_language_items {
         }
 
         impl LanguageItem {
+            /// Create one named member of this language item.
+            pub fn member(self, name: &str) -> LanguageMember {
+                let key = StaticKey::Name(StringId::for_text(name));
+
+                LanguageMember { owner: self, key }
+            }
+
             /// Return the language library module path where this item is defined.
             pub fn module(&self) -> &'static str {
                 match self {
