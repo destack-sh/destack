@@ -154,7 +154,7 @@ diagnostic unresolved-reference main.ds#range
 
 ## Diagnostic Suggestions
 
-### [ignored] Apply an automatic name correction
+### Apply an automatic name correction
 
 An unambiguous case correction is safe to apply directly.
 
@@ -171,7 +171,7 @@ diagnostic unresolved-reference main.ds#range
 @code_actions.patch action=0 range=main.ds#range text=value
 ```
 
-### [ignored] Offer a correction that requires review
+### Offer a correction that requires review
 
 A transposed name remains available without becoming the preferred action.
 
