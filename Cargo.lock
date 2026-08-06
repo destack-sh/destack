@@ -1117,6 +1117,7 @@ dependencies = [
  "destack_session",
  "destack_source",
  "destack_unicode",
+ "futures",
  "serde_json",
 ]
 

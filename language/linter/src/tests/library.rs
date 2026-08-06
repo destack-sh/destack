@@ -4,6 +4,7 @@ use destack_artifact::ArtifactKey;
 use destack_repository::Ref;
 use destack_session::Session;
 use destack_source::TargetId;
+use futures::executor::block_on;
 
 use super::session::{render_diagnostics, shared_repository};
 
@@ -36,7 +37,7 @@ fn test_lint_library() {
         None,
     )
     .expect("library lint session should open");
-    let result = session.provide(*revision, &keys);
+    let result = block_on(session.provide(*revision, &keys));
 
     // collect every compiler and linter diagnostic together
     let diagnostics = repository

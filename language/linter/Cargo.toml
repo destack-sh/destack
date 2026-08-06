@@ -22,7 +22,11 @@ destack_unicode = { workspace = true }
 destack_repository = { path = "../repository", default-features = false }
 
 [dev-dependencies]
+# language
 destack_session = { workspace = true, features = ["native"] }
+
+# general
+futures = { workspace = true, features = ["executor"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
 
 [lints]

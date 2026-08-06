@@ -18,6 +18,7 @@ use destack_source::{
     PackageId, PrintOptions, ProfileId, TargetId, Uri, apply_file_patch, format_diff,
     print_diagnostics,
 };
+use futures::executor::block_on;
 use serde_json::{Map, Value, json};
 
 use crate::{Fixability, Lint, LintCheck, LintScope, LintTier, MirModule};
@@ -163,7 +164,7 @@ impl TestSession {
         )
         .expect("lint test session should open");
         let key = artifact(module.id, profile, target);
-        if let Err(error) = session.require(revision, key) {
+        if let Err(error) = block_on(session.require(revision, key)) {
             let diagnostics = repository
                 .diagnostics(revision, None)
                 .expect("lint test diagnostics should be readable");
@@ -455,7 +456,7 @@ pub(super) fn shared_repository() -> &'static (Arc<Repository>, Revision) {
             Arc::new(MemoryFileSystem::new()),
             Arc::new(MemoryBlobStore::new()),
         )
-        .with_execution(Execution::Inline);
+        .with_execution(Execution::Cooperative);
         let repository = Repository::new(root, host, settings, layout)
             .with_artifact_store(Arc::new(NullArtifactStore::new()));
         let repository = Arc::new(repository);
