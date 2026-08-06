@@ -52,14 +52,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         match &assignment.write {
             // value = x
-            dir::WriteResolution::Binding { symbol, .. } => {
-                let local = self.place_base(symbol.local_id)?;
-
-                Ok(Place {
-                    root: PlaceRoot::Local(local),
-                    path: Vec::new(),
-                })
-            }
+            dir::WriteResolution::Binding { symbol, .. } => self.binding_place(symbol.local_id),
             // value.field = x
             dir::WriteResolution::Member(resolution) => {
                 let dir::OperationResolution::One(access) = resolution else {
@@ -162,12 +155,8 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::Expression::Identifier { .. } => {
                 let node = expression.into_global_any(self.source);
                 let symbol = self.lowerer.resolved_symbol(node)?;
-                let local = self.place_base(symbol.local_id)?;
 
-                Ok(Place {
-                    root: PlaceRoot::Local(local),
-                    path: Vec::new(),
-                })
+                self.binding_place(symbol.local_id)
             }
             ref other => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -177,18 +166,27 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Return the mutable local behind one place base symbol.
-    fn place_base(
-        &self,
-        symbol: dir::LocalSymbolId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Local>> {
-        let Some(Binding::Local(local)) = self.values.get(&symbol).copied() else {
-            return Err(CompilerError::Internal {
-                message: "a write through a binding without a mutable local".to_string(),
-            });
-        };
-
-        Ok(local)
+    /// Return the place behind one binding symbol.
+    fn binding_place(&self, symbol: dir::LocalSymbolId) -> CompilerResult<Place> {
+        match self.values.get(&symbol).copied() {
+            // mutable locals root their own place
+            Some(Binding::Local(local)) => Ok(Place {
+                root: PlaceRoot::Local(local),
+                path: Vec::new(),
+            }),
+            // captured bindings live behind their frame reference
+            Some(Binding::Captured { frame, field, ty }) => Ok(Place {
+                root: PlaceRoot::Reference {
+                    value: frame,
+                    access: mir::Access::Mutable,
+                },
+                path: vec![PlaceProjection { field, ty }],
+            }),
+            // pure values and unbound symbols have no writable home
+            Some(Binding::Value(_)) | None => Err(CompilerError::Internal {
+                message: "a write through a binding without a mutable home".to_string(),
+            }),
+        }
     }
 
     /// Project one field address through an aggregate reference.
@@ -300,10 +298,10 @@ impl FunctionLowerer<'_, '_, '_> {
         // load the aggregate at every level above the written field
         let mut loaded = vec![self.builder.local_get(local)];
         for projection in &path[..path.len() - 1] {
-            let inner = self
+            let level = self
                 .builder
                 .field_get(loaded[loaded.len() - 1], projection.field);
-            loaded.push(inner);
+            loaded.push(level);
         }
 
         // rebuild each level bottom-up around the written value

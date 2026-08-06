@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::lower::ModuleLowerer;
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::{CompilerError, CompilerResult};
 
 impl ModuleLowerer<'_> {
     /// Return the type of one symbol.
@@ -26,7 +26,7 @@ impl ModuleLowerer<'_> {
         Ok(bindings.get_symbol(symbol.local_id).name())
     }
 
-    /// Return the module-qualified lexical path of one named symbol.
+    /// Return the module-qualified lexical path of one symbol.
     pub(in crate::lower) fn symbol_path(
         &self,
         symbol: dir::GlobalSymbolId,
@@ -35,14 +35,11 @@ impl ModuleLowerer<'_> {
         let local_path = state.bindings.symbol_path(symbol.local_id);
         let mut names = Vec::with_capacity(local_path.symbols().len());
         for symbol in local_path.symbols() {
-            let Some(name) = state.bindings.get_symbol(*symbol).name() else {
-                return Err(LowerError::Unsupported {
-                    anchor: self.module.into(),
-                    construct: "a callable declared inside an unnamed scope".to_string(),
-                }
-                .into());
-            };
-            names.push(self.strings.get(name));
+            // synthesize stable names for anonymous segments such as closures
+            match state.bindings.get_symbol(*symbol).name() {
+                Some(name) => names.push(self.strings.get(name).to_string()),
+                None => names.push(Self::closure_segment(&state.bindings, *symbol)),
+            }
         }
 
         Ok(format!("{}.{}", state.path, names.join(".")))
@@ -97,9 +94,30 @@ impl ModuleLowerer<'_> {
             return Ok(false);
         };
 
+        // a template without parameters declares nothing to instantiate
         let generics = &self.state(module)?.generics;
         let template = generics.get_template(template);
 
         Ok(!template.parameters.is_empty())
+    }
+
+    /// Synthesize the ordinal path segment of one anonymous symbol under its owner.
+    fn closure_segment(bindings: &dir::BindingTable<'_>, symbol: dir::LocalSymbolId) -> String {
+        // count the earlier anonymous same-role siblings in declaration order
+        let owner = bindings.symbol_owner(symbol);
+        let role = bindings.get_symbol(symbol).role;
+        let mut ordinal = 0;
+        for candidate in bindings.symbol_ids() {
+            let record = bindings.get_symbol(candidate);
+            if candidate.id < symbol.id
+                && record.name().is_none()
+                && record.role == role
+                && bindings.symbol_owner(candidate) == owner
+            {
+                ordinal += 1;
+            }
+        }
+
+        format!("closure#{ordinal}")
     }
 }

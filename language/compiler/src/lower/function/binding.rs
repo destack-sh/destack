@@ -40,6 +40,11 @@ impl FunctionLowerer<'_, '_, '_> {
             };
             let value = self.lower_expression(value)?;
 
+            // give lifted bindings their frame home ahead of local storage
+            if self.bind_lifted(symbol, value)? {
+                continue;
+            }
+
             // keep immutable bindings as pure values; give mutable ones a local
             let binding = match mutability {
                 dir::Mutability::Immutable => Binding::Value(value),
