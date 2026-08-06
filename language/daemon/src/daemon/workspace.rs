@@ -7,7 +7,7 @@ use destack_repository::{
 };
 use destack_session::SessionEventHandler;
 use destack_source::{FileSystem, FileWatcher};
-use destack_workspace::{LocalWorkspace, RootLease};
+use destack_workspace::LocalWorkspace;
 use parking_lot::Mutex;
 
 use crate::DaemonError;
@@ -17,8 +17,6 @@ use crate::DaemonError;
 pub struct OpenedWorkspace {
     /// Live workspace facade.
     pub(super) workspace: Arc<LocalWorkspace>,
-    /// Root handle counter shared by protocol clients.
-    root_lease: Arc<RootLease>,
 }
 
 impl OpenedWorkspace {
@@ -41,18 +39,12 @@ impl OpenedWorkspace {
 
         Ok(Self {
             workspace: Arc::new(workspace),
-            root_lease: Arc::new(RootLease::default()),
         })
     }
 
     /// Return the local workspace.
     pub fn workspace(&self) -> Arc<LocalWorkspace> {
         self.workspace.clone()
-    }
-
-    /// Return the shared root handle counter.
-    pub fn root_lease(&self) -> Arc<RootLease> {
-        self.root_lease.clone()
     }
 }
 

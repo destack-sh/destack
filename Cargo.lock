@@ -973,13 +973,21 @@ dependencies = [
 name = "destack_daemon"
 version = "0.55.4"
 dependencies = [
+ "base64",
  "destack_artifact",
+ "destack_core",
  "destack_query",
  "destack_repository",
+ "destack_rpc",
+ "destack_serde",
  "destack_session",
  "destack_source",
  "destack_workspace",
+ "fs2",
+ "getrandom 0.4.2",
  "parking_lot",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
