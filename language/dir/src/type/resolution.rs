@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AdjustedReceiver, ArgumentBinding, ArgumentSource, BinaryOperator, ClassConstructor,
-    DynamicDispatch, GenericArgumentBinding, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId,
-    MemberReceiver, MemberSpace, Predicate, Projection, ProjectionResolution, ScalarFamilySet,
-    ScalarLiteral, StaticKey, StringId, UnaryOperator,
+    DynamicDispatch, Expression, GenericArgumentBinding, GlobalNodeId, GlobalNodeIdAny,
+    GlobalSymbolId, GlobalTypeId, MemberReceiver, MemberSpace, Predicate, Projection,
+    ProjectionResolution, ScalarFamilySet, ScalarLiteral, StaticKey, StringId, UnaryOperator,
 };
 
 /// One operation or the operations selected for every runtime union arm.
@@ -1022,7 +1022,7 @@ pub enum OperatorTarget<T> {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct BuiltinOperand {
     /// The expression supplying the operand value.
-    pub source: GlobalNodeIdAny,
+    pub source: GlobalNodeId<Expression>,
     /// The type accepted by the builtin operation.
     pub ty: GlobalTypeId,
     /// The selected scalar families when the operation uses scalar behavior.
@@ -1103,8 +1103,40 @@ impl OperatorApplication {
         }
     }
 
+    /// Return the checked builtin unary operation.
+    pub fn builtin_unary(&self) -> Option<(UnaryOperator, &BuiltinOperand)> {
+        match self {
+            Self::Unary {
+                operator,
+                target: OperatorTarget::Builtin(operand),
+                ..
+            } => Some((*operator, operand)),
+            Self::Binary { .. }
+            | Self::Unary {
+                target: OperatorTarget::Call(_),
+                ..
+            } => None,
+        }
+    }
+
+    /// Return the checked builtin binary operation.
+    pub fn builtin_binary(&self) -> Option<(BinaryOperator, &[BuiltinOperand; 2])> {
+        match self {
+            Self::Binary {
+                operator,
+                target: OperatorTarget::Builtin(operands),
+                ..
+            } => Some((*operator, operands)),
+            Self::Unary { .. }
+            | Self::Binary {
+                target: OperatorTarget::Call(_),
+                ..
+            } => None,
+        }
+    }
+
     /// Return the checked builtin operand supplied by one expression.
-    pub fn builtin_operand(&self, source: GlobalNodeIdAny) -> Option<&BuiltinOperand> {
+    pub fn builtin_operand(&self, source: GlobalNodeId<Expression>) -> Option<&BuiltinOperand> {
         self.builtin_operands()?
             .iter()
             .find(|operand| operand.source == source)
@@ -1176,8 +1208,24 @@ impl OperationResolution<OperatorApplication> {
         }
     }
 
+    /// Return the single checked builtin unary operation.
+    pub fn builtin_unary(&self) -> Option<(UnaryOperator, &BuiltinOperand)> {
+        match self {
+            Self::One(application) => application.builtin_unary(),
+            Self::Union { .. } => None,
+        }
+    }
+
+    /// Return the single checked builtin binary operation.
+    pub fn builtin_binary(&self) -> Option<(BinaryOperator, &[BuiltinOperand; 2])> {
+        match self {
+            Self::One(application) => application.builtin_binary(),
+            Self::Union { .. } => None,
+        }
+    }
+
     /// Return the checked builtin operand supplied by one expression.
-    pub fn builtin_operand(&self, source: GlobalNodeIdAny) -> Option<&BuiltinOperand> {
+    pub fn builtin_operand(&self, source: GlobalNodeId<Expression>) -> Option<&BuiltinOperand> {
         self.builtin_operands()?
             .iter()
             .find(|operand| operand.source == source)
