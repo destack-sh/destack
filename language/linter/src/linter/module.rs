@@ -26,23 +26,15 @@ impl Linter {
             return Ok(dependencies);
         }
 
-        // require checking before resolving source controls
+        // resolve selected module implementations
+        let lints = self.resolve_lints(context, target.package_id())?;
+        if !lints.has_modules() {
+            return Ok(dependencies);
+        }
+
+        // require checked controls for every selected module lint
         dependencies.require(ArtifactKey::dir_declared(module, profile));
         dependencies.require(ArtifactKey::dir_checked(module, profile));
-        let artifacts = self.artifact_reader(context);
-        let checked = match artifacts.dir_checked(module, profile) {
-            Ok(checked) => checked,
-            Err(ProviderError::Blocked { .. }) => {
-                dependencies.mark_partial();
-
-                return Ok(dependencies);
-            }
-            Err(error) => return Err(error),
-        };
-        let control_tables = [checked.controls.clone()];
-        let controls = DiagnosticControlIndex::new(control_tables.iter().map(Arc::as_ref))
-            .map_err(|error| ProviderError::internal(error.to_string()))?;
-        let lints = self.resolve_lints(context, target.package_id(), &controls)?;
 
         // require this module's checked DIR
         if lints.has_dir_modules() {
@@ -52,14 +44,14 @@ impl Linter {
                 return Ok(dependencies);
             };
 
-            // read the module graph, requiring the root edges first so a
-            //  blocked read schedules the graph
+            // read the root edges before walking the reachable graph
             let graph_key = ArtifactKey::module_graph(profile);
             dependencies.require_projection(graph_key, ArtifactProjectionKey::ModuleEdges(module));
             let mut roots = environment.globals.clone();
             roots.push(module);
             roots.sort_unstable();
             roots.dedup();
+            let artifacts = self.artifact_reader(context);
             let graph = match artifacts.module_graph_reader(profile) {
                 Ok(graph) => graph,
                 Err(ProviderError::Blocked { .. }) => {
@@ -102,13 +94,19 @@ impl Linter {
             return Ok(ModuleLinted.into());
         }
 
-        // resolve controls before deciding whether any lint executes
+        // skip checked controls when no module implementation is selected
+        let mut lints = self.resolve_lints(context, target.package_id())?;
+        if !lints.has_modules() {
+            return Ok(ModuleLinted.into());
+        }
+
+        // activate selected lints from checked source controls
         let artifacts = self.artifact_reader(context);
         let checked = artifacts.dir_checked(module, profile)?;
         let control_tables = [checked.controls.clone()];
         let controls = DiagnosticControlIndex::new(control_tables.iter().map(Arc::as_ref))
             .map_err(|error| ProviderError::internal(error.to_string()))?;
-        let lints = self.resolve_lints(context, target.package_id(), &controls)?;
+        lints.retain_active(&controls);
 
         // run DIR and MIR module lints
         self.lint_dir_module(context, &lints, &controls, module, profile)?;

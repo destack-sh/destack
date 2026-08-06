@@ -1,9 +1,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use destack_artifact::{
-    ArtifactDependencySet, ArtifactFailure, DiagnosticControlIndex, DiagnosticLike,
-};
+use destack_artifact::{ArtifactDependencySet, ArtifactFailure, DiagnosticLike};
 use destack_repository::{
     ArtifactReader, LinterOptions, Module, ProviderContext, ProviderError, Repository, Revision,
 };
@@ -55,12 +53,11 @@ impl Linter {
         artifacts.restrict(dependencies)
     }
 
-    /// Resolve the lints scheduled by one package and its checked source controls.
+    /// Resolve the lints selected by one package.
     pub(super) fn resolve_lints(
         &self,
         context: &dyn ProviderContext,
         package: PackageId,
-        controls: &DiagnosticControlIndex<'_>,
     ) -> Result<LintSet, ProviderError> {
         let revision = context.revision();
         let config = self
@@ -69,7 +66,7 @@ impl Linter {
             .map_err(|error| ProviderError::internal(error.to_string()))?;
         let defaults = LinterOptions::default();
         let options = config.as_ref().map_or(&defaults, |config| &config.linter);
-        let lints = LintSet::resolve(package, options, self.lints.clone(), controls);
+        let lints = LintSet::resolve(package, options, self.lints.clone());
 
         Ok(lints)
     }

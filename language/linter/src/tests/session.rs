@@ -20,7 +20,7 @@ use destack_source::{
 };
 use serde_json::{Map, Value, json};
 
-use crate::{Fixability, LINTS, Lint, LintCheck, LintScope, LintTier, MirModule};
+use crate::{Fixability, Lint, LintCheck, LintScope, LintTier, MirModule};
 
 const SOURCE_PATH: &str = "main.ds";
 const TARGET_NAME: &str = "native";
@@ -416,21 +416,16 @@ fn render_diagnostics_with(
 
 /// Build a configuration that enables only the selected lint.
 fn lint_configuration(selected: &Lint) -> String {
-    let rules = LINTS
-        .iter()
-        .map(|lint| {
-            let level = if lint.id == selected.id {
-                "warning"
-            } else {
-                "off"
-            };
-
-            (lint.id.to_string(), Value::String(level.to_string()))
-        })
-        .collect::<Map<_, _>>();
+    let rules = [(
+        selected.id.to_string(),
+        Value::String("warning".to_string()),
+    )]
+    .into_iter()
+    .collect::<Map<_, _>>();
     let configuration = json!({
         "name": "@test/app",
         "linter": {
+            "only": [selected.id],
             "rules": rules,
         },
     });

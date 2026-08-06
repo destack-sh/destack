@@ -8,25 +8,20 @@ use destack_source::{DiagnosticSeverity, PackageId};
 use super::{DirModuleCheck, DirProgramCheck, Lint, LintCheck, MirModuleCheck, MirProgramCheck};
 use crate::LinterError;
 
-/// Lints scheduled for one module or program.
+/// Lints selected for one module or program.
 #[derive(Debug)]
 pub(crate) struct LintSet {
     /// The lint registry.
     registry: Arc<[Lint]>,
-    /// The scheduled lint indices and configured severities.
-    scheduled: Box<[(usize, Option<DiagnosticSeverity>)]>,
+    /// The selected lint indices and configured severities.
+    selected: Vec<(usize, Option<DiagnosticSeverity>)>,
     /// Configuration errors found while resolving this set.
     errors: Box<[LinterError]>,
 }
 
 impl LintSet {
-    /// Resolve the lints scheduled by one package configuration and its source controls.
-    pub(crate) fn resolve(
-        package: PackageId,
-        options: &LinterOptions,
-        lints: Arc<[Lint]>,
-        controls: &DiagnosticControlIndex<'_>,
-    ) -> Self {
+    /// Resolve the lints selected by one package configuration.
+    pub(crate) fn resolve(package: PackageId, options: &LinterOptions, lints: Arc<[Lint]>) -> Self {
         let mut levels = lints
             .iter()
             .map(|lint| lint.default_level)
@@ -56,21 +51,16 @@ impl LintSet {
             levels[index] = *level;
         }
 
-        // schedule configured or source-activated lints
-        let mut scheduled = Vec::new();
+        // select implementations independently of checked source controls
+        let mut selected_lints = Vec::new();
         for (index, (level, is_selected)) in levels.into_iter().zip(selected).enumerate() {
             let severity = match level {
                 LintLevel::Off => None,
                 LintLevel::Warning => Some(DiagnosticSeverity::Warning),
                 LintLevel::Error => Some(DiagnosticSeverity::Error),
             };
-            let diagnostic = StringId::for_text(lints[index].id.as_ref());
-            let is_activated = controls
-                .iter()
-                .any(|(_, table)| table.activates(diagnostic));
-            let is_scheduled = is_selected && (severity.is_some() || is_activated);
-            if options.enabled && is_scheduled {
-                scheduled.push((index, severity));
+            if options.enabled && is_selected {
+                selected_lints.push((index, severity));
             }
         }
 
@@ -85,9 +75,21 @@ impl LintSet {
 
         Self {
             registry: lints,
-            scheduled: scheduled.into_boxed_slice(),
+            selected: selected_lints,
             errors: errors.into_boxed_slice(),
         }
+    }
+
+    /// Retain lints enabled by configuration or checked source controls.
+    pub(crate) fn retain_active(&mut self, controls: &DiagnosticControlIndex<'_>) {
+        self.selected.retain(|(index, severity)| {
+            let diagnostic = StringId::for_text(self.registry[*index].id.as_ref());
+            let is_activated = controls
+                .iter()
+                .any(|(_, table)| table.activates(diagnostic));
+
+            severity.is_some() || is_activated
+        });
     }
 
     /// Return configuration errors found while resolving this set.
@@ -155,14 +157,19 @@ impl LintSet {
         self.mir_programs().next().is_some()
     }
 
+    /// Return whether this set contains module lints.
+    pub(crate) fn has_modules(&self) -> bool {
+        self.has_dir_modules() || self.has_mir_modules()
+    }
+
     /// Return whether this set contains program lints.
     pub(crate) fn has_programs(&self) -> bool {
         self.has_dir_programs() || self.has_mir_programs()
     }
 
-    /// Iterate scheduled lints and configured severities.
+    /// Iterate selected lints and configured severities.
     fn iter(&self) -> impl Iterator<Item = (&Lint, Option<DiagnosticSeverity>)> {
-        self.scheduled
+        self.selected
             .iter()
             .map(|(index, severity)| (&self.registry[*index], *severity))
     }

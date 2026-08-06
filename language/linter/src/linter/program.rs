@@ -101,7 +101,12 @@ impl Linter {
         let revision = context.revision();
         let mut dependencies = ArtifactDependencySet::default();
         self.observe_configuration(context, target.package_id(), &mut dependencies)?;
+        let lints = self.resolve_lints(context, target.package_id())?;
+        if !lints.has_programs() {
+            return Ok(dependencies);
+        }
 
+        // collect target roots for selected program implementations
         let roots = self
             .repository
             .modules_for_target(revision, target)
@@ -110,8 +115,7 @@ impl Linter {
             return Ok(dependencies);
         }
 
-        // read the module graph, requiring the root edges first so a
-        //  blocked read schedules the graph
+        // read the root edges before walking the reachable graph
         let graph_key = ArtifactKey::module_graph(profile);
         for root in roots.iter().copied() {
             dependencies.require_projection(graph_key, ArtifactProjectionKey::ModuleEdges(root));
@@ -134,8 +138,7 @@ impl Linter {
         }
         let mut required = program_modules.iter().copied().collect::<FxIndexSet<_>>();
 
-        // collect checked controls from package-owned code modules
-        let mut control_tables = Vec::new();
+        // require checked controls from package-owned code modules
         for module in program_modules.iter().copied() {
             if module.package_id != target.package_id() {
                 continue;
@@ -145,23 +148,7 @@ impl Linter {
             if repository_module.is_code() {
                 dependencies.require(ArtifactKey::dir_declared(module, profile));
                 dependencies.require(ArtifactKey::dir_checked(module, profile));
-                let checked = match artifacts.dir_checked(module, profile) {
-                    Ok(checked) => checked,
-                    Err(ProviderError::Blocked { .. }) => {
-                        dependencies.mark_partial();
-
-                        return Ok(dependencies);
-                    }
-                    Err(error) => return Err(error),
-                };
-                control_tables.push(checked.controls.clone());
             }
-        }
-        let controls = DiagnosticControlIndex::new(control_tables.iter().map(Arc::as_ref))
-            .map_err(|error| ProviderError::internal(error.to_string()))?;
-        let lints = self.resolve_lints(context, target.package_id(), &controls)?;
-        if !lints.has_programs() {
-            return Ok(dependencies);
         }
 
         // require checked DIR for DIR program lints
@@ -212,6 +199,13 @@ impl Linter {
     ) -> Result<ArtifactPayload, ProviderError> {
         let revision = context.revision();
 
+        // reject configuration before loading program artifacts
+        let mut lints = self.resolve_lints(context, target.package_id())?;
+        self.reject_invalid_lints(context, &lints)?;
+        if !lints.has_programs() {
+            return Ok(ProgramLinted.into());
+        }
+
         // load the target program
         let artifacts = self.artifact_reader(context);
         let Some(program) = LintProgram::load(
@@ -238,8 +232,7 @@ impl Linter {
         }
         let controls = DiagnosticControlIndex::new(control_tables.iter().map(Arc::as_ref))
             .map_err(|error| ProviderError::internal(error.to_string()))?;
-        let lints = self.resolve_lints(context, target.package_id(), &controls)?;
-        self.reject_invalid_lints(context, &lints)?;
+        lints.retain_active(&controls);
         if !lints.has_programs() {
             return Ok(ProgramLinted.into());
         }
