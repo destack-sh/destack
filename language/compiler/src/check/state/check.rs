@@ -103,6 +103,8 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) functions: FxIndexMap<dir::GlobalSymbolId, FunctionBody>,
     /// Lambda bodies keyed by their value expression.
     pub(in crate::check) lambdas: FxIndexMap<dir::GlobalNodeIdAny, FunctionBody>,
+    /// The inference variable standing for each local symbol type until it commits.
+    pub(in crate::check) symbol_variables: FxIndexMap<dir::GlobalSymbolId, dir::TypeVariableId>,
     /// Catch result holes keyed by their catch node.
     pub(in crate::check) catch_results: FxIndexMap<dir::GlobalNodeIdAny, dir::GlobalTypeId>,
     /// Try propagation targets keyed by their fallible source node.
@@ -200,6 +202,7 @@ impl<'a> CheckState<'a> {
 
             functions: FxIndexMap::default(),
             lambdas: FxIndexMap::default(),
+            symbol_variables: FxIndexMap::default(),
             catch_results: FxIndexMap::default(),
             try_propagations: FxIndexMap::default(),
             control_results: FxIndexMap::default(),

@@ -2,7 +2,7 @@ use destack_artifact::{
     DiagnosticAnchor, DiagnosticBuilder, DiagnosticControlIndex, DiagnosticControlLevel,
     DiagnosticControlTable, DiagnosticRecord,
 };
-use destack_core::{FxIndexSet, StringId, StringPool};
+use destack_core::{StringId, StringPool};
 
 use crate::check::{CheckError, CheckState, CheckWarning};
 use crate::{CompilerError, CompilerResult};
@@ -22,23 +22,17 @@ impl CheckState<'_> {
             warnings.append(&mut self.module_mut(module).warnings);
         }
 
-        // unfinished constraints stayed parked on dependencies forever
-        let mut unresolved_origins = Vec::new();
-        for (id, constraint) in self.solver.constraints.iter() {
-            if self.solver.constraints.is_complete(id) {
-                continue;
-            }
-
-            unresolved_origins.push(constraint.cause());
-        }
-
-        // report each unsolved anchor once
-        let mut reported = FxIndexSet::default();
-        for cause in unresolved_origins {
-            let origin = self.solver.cause(cause).origin;
-            let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-            if self.is_own_module(module) && reported.insert((module, anchor.clone())) {
-                errors.push(CheckError::CannotInferType { anchor, module }.into());
+        // reject unsettled constraints outside declarations
+        if !self.is_declaration() {
+            for (id, constraint) in self.solver.constraints.iter() {
+                if !self.solver.constraints.is_complete(id) {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "checked write found the unsettled constraint {:?} at {:?}",
+                            id, constraint.origin,
+                        ),
+                    });
+                }
             }
         }
 

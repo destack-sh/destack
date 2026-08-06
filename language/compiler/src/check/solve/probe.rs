@@ -45,6 +45,8 @@ pub(in crate::check) struct ProbeMark {
     declaration_types: usize,
     /// The binding type count before the probe.
     binding_types: usize,
+    /// The symbol variable count before the probe.
+    symbol_variables: usize,
     /// The reduced type count before the probe.
     reduced_heads: usize,
     /// The reduced type graph count before the probe.
@@ -211,7 +213,6 @@ impl CheckState<'_> {
 
                 self.solver.variable(root)?.state.is_open()
             }
-            Dependency::SymbolType(symbol) => self.symbol_type_maybe(symbol).is_none(),
             Dependency::NodeType(node) => !self.node_types.contains_key(&node),
         };
 
@@ -418,7 +419,7 @@ impl CheckState<'_> {
                 Dependency::Variable(variable) if !mark.solver.contains_variable(variable) => {}
 
                 // retain dependencies owned by the enclosing check
-                Dependency::Variable(_) | Dependency::SymbolType(_) | Dependency::NodeType(_) => {
+                Dependency::Variable(_) | Dependency::NodeType(_) => {
                     if !external.contains(&dependency) {
                         external.push(dependency);
                     }
@@ -457,6 +458,7 @@ impl CheckState<'_> {
             node_types: self.node_types.len(),
             declaration_types: self.declaration_types.len(),
             binding_types: self.binding_types.len(),
+            symbol_variables: self.symbol_variables.len(),
             reduced_heads: self.reduced_heads.len(),
             reduced_graphs: self.reduced_graphs.len(),
             decisions: self.decisions.count(),
@@ -473,6 +475,7 @@ impl CheckState<'_> {
             node_types,
             declaration_types,
             binding_types,
+            symbol_variables,
             reduced_heads,
             reduced_graphs,
             decisions,
@@ -486,6 +489,7 @@ impl CheckState<'_> {
             node_types,
             declaration_types,
             binding_types,
+            symbol_variables,
             reduced_heads,
             reduced_graphs,
             decisions,
@@ -521,6 +525,7 @@ impl CheckState<'_> {
         node_types: usize,
         declaration_types: usize,
         binding_types: usize,
+        symbol_variables: usize,
         reduced_heads: usize,
         reduced_graphs: usize,
         decisions: usize,
@@ -536,6 +541,9 @@ impl CheckState<'_> {
         }
         while self.binding_types.len() > binding_types {
             self.binding_types.pop();
+        }
+        while self.symbol_variables.len() > symbol_variables {
+            self.symbol_variables.pop();
         }
         while self.reduced_heads.len() > reduced_heads {
             self.reduced_heads.pop();

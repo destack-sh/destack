@@ -414,6 +414,11 @@ impl Solver {
         self.queue.complete(task);
     }
 
+    /// Return whether one task already finished.
+    pub(in crate::check) fn is_finished_task(&self, task: &Task) -> bool {
+        self.queue.is_finished(task)
+    }
+
     /// Park one task until a dependency changes.
     pub(in crate::check) fn wait_for(&mut self, dependency: Dependency, task: Task) {
         self.queue.park(&task);

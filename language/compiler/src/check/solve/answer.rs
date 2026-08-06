@@ -15,8 +15,6 @@ pub(in crate::check) enum Answer<T> {
 pub(in crate::check) enum Dependency {
     /// A variable was solved.
     Variable(dir::TypeVariableId),
-    /// A symbol type was written.
-    SymbolType(dir::GlobalSymbolId),
     /// A source node type was written.
     NodeType(dir::GlobalNodeIdAny),
 }

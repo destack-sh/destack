@@ -287,3 +287,45 @@ class Connection {
 "#,
     );
 }
+
+#[test]
+fn test_unannotated_field_reports_and_binds_the_error_type() {
+    // assert a bare field reports its missing annotation and settles
+    //  as the error type, leaving the checked write intact
+    let session = TestSession::single(
+        r#"
+class Foo {
+    like
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+class Foo {
+    like;
+}
+
+=== checked ===
+class Foo {
+/// @type.symbol symbol=Foo type=Foo
+/// @definition.class symbol=Foo
+/// @definition.field symbol=Foo.like source=like key=like type=<error>
+
+    like
+    /// @type.symbol symbol=Foo.like source=like type=<error>
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
+/// @diagnostic.label line=3 column=5 span="like" line_source="like"
+/// @diagnostic.help message="annotate the type explicitly"
+/// @diagnostic.error id=missing-type-annotation message="missing type annotation"
+/// @diagnostic.label line=3 column=5 span="like" line_source="like"
+"#,
+    );
+}

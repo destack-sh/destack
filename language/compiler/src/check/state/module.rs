@@ -13,7 +13,8 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Answer, Capture, Cause, CauseKind, CheckError, CheckState, CheckWarning, Constraint,
-    Dependency, FlowPoint, FlowPointId, FlowSite, Origin, Relation, StaticPresence,
+    Dependency, FlowPoint, FlowPointId, FlowSite, Origin, Relation, StaticPresence, VariableRole,
+    Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -646,9 +647,7 @@ impl CheckState<'_> {
         }
 
         self.declaration_types.insert(symbol, ty);
-        for waiter in self.solver.wake(Dependency::SymbolType(symbol)) {
-            self.queue_task(waiter);
-        }
+        self.solve_symbol_variable(symbol, ty)?;
 
         Ok(())
     }
@@ -680,8 +679,31 @@ impl CheckState<'_> {
         }
 
         self.binding_types.insert(symbol, ty);
-        for waiter in self.solver.wake(Dependency::SymbolType(symbol)) {
-            self.queue_task(waiter);
+        self.solve_symbol_variable(symbol, ty)?;
+
+        Ok(())
+    }
+
+    /// Solve one symbol's variable with its committed type, waking parked consumers.
+    fn solve_symbol_variable(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let Some(variable) = self.symbol_variables.get(&symbol).copied() else {
+            return Ok(());
+        };
+        if !self.solver.variable(variable)?.state.is_open() {
+            return Ok(());
+        }
+
+        // solve closed types; open types only wake
+        if self.type_variables(ty)?.is_empty() {
+            self.commit_solution(variable, ty)?;
+        } else {
+            for waiter in self.solver.wake(Dependency::Variable(variable)) {
+                self.queue_task(waiter);
+            }
         }
 
         Ok(())
@@ -775,7 +797,29 @@ impl CheckState<'_> {
             });
         }
 
-        Ok(Answer::pending([Dependency::SymbolType(symbol)]))
+        // park on the symbol's variable until its type commits
+        let variable = self.symbol_variable(symbol);
+
+        Ok(Answer::pending([Dependency::Variable(variable)]))
+    }
+
+    /// Return the variable standing for one local symbol's type, allocating it once.
+    pub(in crate::check) fn symbol_variable(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> dir::TypeVariableId {
+        if let Some(variable) = self.symbol_variables.get(&symbol) {
+            return *variable;
+        }
+
+        let variable = self.allocate_variable(
+            Origin::Symbol(symbol),
+            Widening::Never,
+            VariableRole::Symbol { symbol },
+        );
+        self.symbol_variables.insert(symbol, variable);
+
+        variable
     }
 
     /// Return one symbol's type, canonicalizing written types on read.

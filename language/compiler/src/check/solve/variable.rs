@@ -28,6 +28,11 @@ pub(in crate::check) enum VariableRole {
         /// The kind's constraint.
         constraint: Option<dir::GlobalTypeId>,
     },
+    /// Cell standing for one local symbol's type until it commits.
+    Symbol {
+        /// The awaited symbol.
+        symbol: dir::GlobalSymbolId,
+    },
 }
 
 impl VariableRole {
@@ -39,11 +44,23 @@ impl VariableRole {
         )
     }
 
+    /// Return the local symbol this variable stands for.
+    pub(in crate::check) fn symbol(self) -> Option<dir::GlobalSymbolId> {
+        match self {
+            Self::Symbol { symbol } => Some(symbol),
+            _ => None,
+        }
+    }
+
     /// Return the declared parameter this variable instantiates.
     pub(in crate::check) fn parameter(self) -> Option<dir::GlobalGenericParameterId> {
         match self {
             Self::Instantiation { parameter } => Some(parameter),
-            Self::Regular | Self::Parameter | Self::Return | Self::Memory { .. } => None,
+            Self::Regular
+            | Self::Parameter
+            | Self::Return
+            | Self::Memory { .. }
+            | Self::Symbol { .. } => None,
         }
     }
 }

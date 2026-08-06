@@ -142,10 +142,20 @@ impl CheckState<'_> {
         for index in 0..self.solver.variable_count() {
             let variable = dir::TypeVariableId(index as u32);
             let state = *self.solver.variable(variable)?;
-            if state.state.is_open() {
-                let origin = self.solver.origin(state.origin);
-                unresolved.push((variable, origin.module()));
+            if !state.state.is_open() {
+                continue;
             }
+
+            // skip symbols that already committed a type
+            if let Some(symbol) = self.solver.variable_role(variable)?.symbol()
+                && self.symbol_type_maybe(symbol).is_some()
+            {
+                continue;
+            }
+
+            // collect the failed root with its module
+            let origin = self.solver.origin(state.origin);
+            unresolved.push((variable, origin.module()));
         }
 
         let groups = self.unresolved_variable_groups()?;
@@ -187,8 +197,19 @@ impl CheckState<'_> {
             if !self.solver.variable(variable)?.state.is_open() {
                 continue;
             }
+
+            // poison the symbol standing behind the variable
             let error = self.intern_type(dir::Type::Error)?;
-            self.commit_error_solution(variable, error)?;
+            if let Some(symbol) = self.solver.variable_role(variable)?.symbol()
+                && self.symbol_type_maybe(symbol).is_none()
+            {
+                self.bind_symbol_type(symbol, error)?;
+            }
+
+            // close whatever the binding left open
+            if self.solver.variable(variable)?.state.is_open() {
+                self.commit_error_solution(variable, error)?;
+            }
         }
 
         // error completion wakes every task parked on unresolved inference
@@ -196,26 +217,26 @@ impl CheckState<'_> {
             self.drain_tasks()?;
         }
 
-        // retain unresolved symbol dependencies from parked tasks
-        let parked = self.solver.drain_waiters();
-        let mut symbols = FxIndexMap::default();
-        for (dependency, _) in parked {
-            match dependency {
-                Dependency::Variable(_) => {}
-                Dependency::SymbolType(symbol) => {
-                    symbols.entry(Origin::Symbol(symbol)).or_insert(None);
-                }
-                Dependency::NodeType(node) => {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "node checking did not publish a type: {}",
-                            self.node_label(node)
-                        ),
-                    });
-                }
+        // require total quiescence
+        for (dependency, tasks) in self.solver.drain_waiters() {
+            // skip ghost registrations left by multi dependency tasks
+            let is_blocked = tasks.iter().any(|task| !self.solver.is_finished_task(task));
+            if !is_blocked || !self.is_dependency_pending(dependency)? {
+                continue;
             }
+
+            return Err(match dependency {
+                Dependency::NodeType(node) => CompilerError::Internal {
+                    message: format!(
+                        "node checking did not publish a type: {}",
+                        self.node_label(node)
+                    ),
+                },
+                dependency => CompilerError::Internal {
+                    message: format!("settling left parked tasks on {dependency:?}"),
+                },
+            });
         }
-        self.report_inference_failures(symbols)?;
 
         Ok(())
     }

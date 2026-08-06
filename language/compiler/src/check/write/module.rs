@@ -4,7 +4,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::check::{Answer, CheckError, CheckState, Decision, Origin, VarianceState};
+use crate::check::{Answer, CheckState, Decision, Origin, VarianceState};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -828,17 +828,13 @@ impl CheckState<'_> {
                     self.close_type(solution, failed_applications, sealed)?
                 }
                 None => {
-                    // report written unsolved variables in clean modules as
-                    //  missed checks; declarations leave them to inference
-                    let origin = self.solver.variable(variable)?.origin;
-                    let origin = self.solver.origin(origin);
-                    let module = origin.module();
-                    if !self.is_declaration()
-                        && self.is_own_module(module)
-                        && self.module(module).diagnostics.is_empty()
-                    {
-                        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-                        self.report(module, CheckError::CannotInferType { anchor, module });
+                    // reject unsolved variables outside declarations
+                    if !self.is_declaration() {
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "checked write sealed the unsolved variable {variable:?}"
+                            ),
+                        });
                     }
 
                     self.intern_type(dir::Type::Error)?

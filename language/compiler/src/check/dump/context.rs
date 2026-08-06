@@ -122,7 +122,6 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     pub(in crate::check) fn dependency_label(&self, dependency: Dependency) -> String {
         match dependency {
             Dependency::Variable(variable) => self.variable_label(variable),
-            Dependency::SymbolType(symbol) => self.symbol_label(symbol),
             Dependency::NodeType(node) => self.node_label(node),
         }
     }
