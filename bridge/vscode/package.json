@@ -175,6 +175,7 @@
         ],
         "semanticTokenScopes": [
             {
+                "language": "destack-ds",
                 "scopes": {
                     "namespace": [
                         "entity.name.namespace.ds"
