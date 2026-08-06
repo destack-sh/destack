@@ -10,7 +10,7 @@ use destack_repository::{Revision, Trace, TraceReport, TraceView};
 use destack_source::{FileId, PatchSet, TextRange, Uri, WATCHABLE_FILE_TYPES};
 use destack_workspace::{
     DiagnosticRun, DiagnosticsRequest, FileDiagnostics, FileEdit, FileOperation, LocalWorkspace,
-    QueryFile, QueryRun, ReloadReason, ReloadRequest, RevisionPolicy, RunQueryRequest,
+    QueryFile, QueryRun, ReloadReason, ReloadRequest, RevisionPolicy, RunQueryInput,
     RunQueryResponse, Workspace,
 };
 use serde_json::to_value;
@@ -94,7 +94,7 @@ impl DestackLanguageServer {
         let method = request.method();
         let workspace = self.workspace(path)?;
         let root = workspace.root(path).map_err(workspace_error)?;
-        let request = RunQueryRequest { revision, request };
+        let request = RunQueryInput { revision, request };
         let run = self.start_query(workspace.as_ref(), &root, request)?;
 
         self.wait_query(workspace, root, method, run).await
@@ -139,7 +139,7 @@ impl DestackLanguageServer {
         let method = request.method();
         let workspace = self.workspace(&file.path)?;
         let root = workspace.root(&file.path).map_err(workspace_error)?;
-        let request = RunQueryRequest {
+        let request = RunQueryInput {
             revision: RevisionPolicy::Current(file.revision),
             request,
         };
@@ -153,7 +153,7 @@ impl DestackLanguageServer {
         &self,
         workspace: &LocalWorkspace,
         root: &Path,
-        request: RunQueryRequest,
+        request: RunQueryInput,
     ) -> jsonrpc::Result<QueryRun> {
         let is_tracing = self.client.trace_level() == lsp::TraceValue::Verbose;
         let session = workspace.session(root).map_err(workspace_error)?;
@@ -175,11 +175,11 @@ impl DestackLanguageServer {
         let revision = run.revision();
         let trace = run.trace();
         let guard = run.guard();
-        let response = tokio::task::spawn_blocking(move || run.wait()).await;
+        let response = run.wait().await;
         guard.finish();
         self.report_query_trace(workspace.as_ref(), revision, method, trace)
             .await?;
-        let response = response.map_err(internal_error)?.map_err(workspace_error)?;
+        let response = response.map_err(workspace_error)?;
 
         // reject results invalidated while the query was running
         let current = workspace.revision(&root).map_err(workspace_error)?;
@@ -259,9 +259,7 @@ impl DestackLanguageServer {
     ) -> jsonrpc::Result<Vec<FileDiagnostics>> {
         let revisions = run.revisions();
         let guard = run.guard();
-        let outcome = tokio::task::spawn_blocking(move || run.wait())
-            .await
-            .map_err(internal_error)?;
+        let outcome = run.wait().await;
         guard.finish();
 
         // reject any root invalidated while diagnostics were running

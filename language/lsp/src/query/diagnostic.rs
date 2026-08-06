@@ -386,17 +386,8 @@ impl PushDiagnostics {
             let revisions = run.revisions();
             let guard = run.guard();
 
-            // wait without blocking the async language server
-            let outcome = match tokio::task::spawn_blocking(move || run.wait()).await {
-                Ok(outcome) => outcome,
-                Err(error) => {
-                    client
-                        .report_error("diagnostics.wait", internal_error(error))
-                        .await;
-
-                    return;
-                }
-            };
+            // wait cooperatively for the scheduled diagnostics
+            let outcome = run.wait().await;
             guard.finish();
 
             // reject a publication replaced by a newer task
