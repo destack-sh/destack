@@ -60,12 +60,20 @@ export declare function convert<U, T, comptime N: int>(value: Vector<T, N>): Vec
 
 /// Load `N` contiguous values from `source`.
 export function load<T, comptime N: int>(source: &readonly [T]): Vector<T, N> {
-    todo("vector.load")
+    let result = splat<T, N>(source[0]);
+
+    for (let lane: usize = 1; lane < N; lane += 1) {
+        result = insert(result, lane as uint32, source[lane]);
+    }
+
+    result
 }
 
 /// Store `value` into `destination`.
 export function store<T, comptime N: int>(destination: &exclusive [T], value: Vector<T, N>): void {
-    todo("vector.store");
+    for (let lane: usize = 0; lane < N; lane += 1) {
+        destination[lane] = extract(value, lane as uint32);
+    }
 }
 
 /// Return a lane mask for equality.

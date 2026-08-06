@@ -83,12 +83,12 @@ export extension<T: Numeric> of Matrix2<T>
 
     /// Return the identity matrix.
     static identity(): Matrix2<T> {
-        todo("Matrix2.identity")
+        Matrix2 { m00: T.one(), m01: T.zero(), m10: T.zero(), m11: T.one() }
     }
 
     /// Return the zero matrix.
     static zero(): Matrix2<T> {
-        todo("Matrix2.zero")
+        Matrix2 { m00: T.zero(), m01: T.zero(), m10: T.zero(), m11: T.zero() }
     }
 
     /// Create a matrix from rows.
@@ -148,7 +148,14 @@ export extension<T: Numeric> of Matrix2<T>
 export extension<T: Float> of Matrix2<T> {
     /// Return the inverse matrix.
     inverse(): Matrix2<T> {
-        todo("Matrix2.inverse")
+        let scale = T.one() / this.determinant();
+
+        Matrix2 {
+            m00: this.m11 * scale,
+            m01: -this.m01 * scale,
+            m10: -this.m10 * scale,
+            m11: this.m00 * scale,
+        }
     }
 }
 
@@ -162,12 +169,20 @@ export extension<T: Numeric> of Matrix3<T>
 
     /// Return the identity matrix.
     static identity(): Matrix3<T> {
-        todo("Matrix3.identity")
+        Matrix3 {
+            x: Vector3 { x: T.one(), y: T.zero(), z: T.zero() },
+            y: Vector3 { x: T.zero(), y: T.one(), z: T.zero() },
+            z: Vector3 { x: T.zero(), y: T.zero(), z: T.one() },
+        }
     }
 
     /// Return the zero matrix.
     static zero(): Matrix3<T> {
-        todo("Matrix3.zero")
+        Matrix3 {
+            x: Vector3.zero(),
+            y: Vector3.zero(),
+            z: Vector3.zero(),
+        }
     }
 
     /// Create a matrix from rows.
@@ -177,49 +192,91 @@ export extension<T: Numeric> of Matrix3<T>
 
     /// Return a two-dimensional scale matrix.
     static scale(scale: Vector2<T>): Matrix3<T> {
-        todo("Matrix3.scale")
+        Matrix3 {
+            x: Vector3 { x: scale.x, y: T.zero(), z: T.zero() },
+            y: Vector3 { x: T.zero(), y: scale.y, z: T.zero() },
+            z: Vector3 { x: T.zero(), y: T.zero(), z: T.one() },
+        }
     }
 
     /// Return a two-dimensional translation matrix.
     static translation(offset: Vector2<T>): Matrix3<T> {
-        todo("Matrix3.translation")
+        Matrix3 {
+            x: Vector3 { x: T.one(), y: T.zero(), z: offset.x },
+            y: Vector3 { x: T.zero(), y: T.one(), z: offset.y },
+            z: Vector3 { x: T.zero(), y: T.zero(), z: T.one() },
+        }
     }
 
     /// Return the determinant.
     determinant(): T {
-        todo("Matrix3.determinant")
+        this.x.dot(this.y.cross(this.z))
     }
 
     /// Return the transposed matrix.
     transpose(): Matrix3<T> {
-        todo("Matrix3.transpose")
+        Matrix3 {
+            x: Vector3 { x: this.x.x, y: this.y.x, z: this.z.x },
+            y: Vector3 { x: this.x.y, y: this.y.y, z: this.z.y },
+            z: Vector3 { x: this.x.z, y: this.y.z, z: this.z.z },
+        }
     }
 
     /// Add `other`.
     add(other: Matrix3<T>): this.Output {
-        todo("Matrix3.add")
+        Matrix3 { x: this.x + other.x, y: this.y + other.y, z: this.z + other.z }
     }
 
     /// Subtract `other`.
     subtract(other: Matrix3<T>): this.Output {
-        todo("Matrix3.subtract")
+        Matrix3 { x: this.x - other.x, y: this.y - other.y, z: this.z - other.z }
     }
 
     /// Multiply by `other`.
     multiply(other: Matrix3<T>): this.Output {
-        todo("Matrix3.multiply")
+        let columns = other.transpose();
+
+        Matrix3 {
+            x: Vector3 {
+                x: this.x.dot(columns.x),
+                y: this.x.dot(columns.y),
+                z: this.x.dot(columns.z),
+            },
+            y: Vector3 {
+                x: this.y.dot(columns.x),
+                y: this.y.dot(columns.y),
+                z: this.y.dot(columns.z),
+            },
+            z: Vector3 {
+                x: this.z.dot(columns.x),
+                y: this.z.dot(columns.y),
+                z: this.z.dot(columns.z),
+            },
+        }
     }
 
     /// Transform `vector`.
     transform(vector: Vector3<T>): Vector3<T> {
-        todo("Matrix3.transform")
+        Vector3 {
+            x: this.x.dot(vector),
+            y: this.y.dot(vector),
+            z: this.z.dot(vector),
+        }
     }
 }
 
 export extension<T: Float> of Matrix3<T> {
     /// Return the inverse matrix.
     inverse(): Matrix3<T> {
-        todo("Matrix3.inverse")
+        let cofactors = Matrix3 {
+            x: this.y.cross(this.z),
+            y: this.z.cross(this.x),
+            z: this.x.cross(this.y),
+        };
+        let scale = T.one() / this.x.dot(cofactors.x);
+        let adjugate = cofactors.transpose();
+
+        Matrix3 { x: adjugate.x * scale, y: adjugate.y * scale, z: adjugate.z * scale }
     }
 }
 
@@ -233,12 +290,22 @@ export extension<T: Numeric> of Matrix4<T>
 
     /// Return the identity matrix.
     static identity(): Matrix4<T> {
-        todo("Matrix4.identity")
+        Matrix4 {
+            x: Vector4 { x: T.one(), y: T.zero(), z: T.zero(), w: T.zero() },
+            y: Vector4 { x: T.zero(), y: T.one(), z: T.zero(), w: T.zero() },
+            z: Vector4 { x: T.zero(), y: T.zero(), z: T.one(), w: T.zero() },
+            w: Vector4 { x: T.zero(), y: T.zero(), z: T.zero(), w: T.one() },
+        }
     }
 
     /// Return the zero matrix.
     static zero(): Matrix4<T> {
-        todo("Matrix4.zero")
+        Matrix4 {
+            x: Vector4.zero(),
+            y: Vector4.zero(),
+            z: Vector4.zero(),
+            w: Vector4.zero(),
+        }
     }
 
     /// Create a matrix from rows.
@@ -248,73 +315,219 @@ export extension<T: Numeric> of Matrix4<T>
 
     /// Return a three-dimensional scale matrix.
     static scale(scale: Vector3<T>): Matrix4<T> {
-        todo("Matrix4.scale")
+        Matrix4 {
+            x: Vector4 { x: scale.x, y: T.zero(), z: T.zero(), w: T.zero() },
+            y: Vector4 { x: T.zero(), y: scale.y, z: T.zero(), w: T.zero() },
+            z: Vector4 { x: T.zero(), y: T.zero(), z: scale.z, w: T.zero() },
+            w: Vector4 { x: T.zero(), y: T.zero(), z: T.zero(), w: T.one() },
+        }
     }
 
     /// Return a three-dimensional translation matrix.
     static translation(offset: Vector3<T>): Matrix4<T> {
-        todo("Matrix4.translation")
+        Matrix4 {
+            x: Vector4 { x: T.one(), y: T.zero(), z: T.zero(), w: offset.x },
+            y: Vector4 { x: T.zero(), y: T.one(), z: T.zero(), w: offset.y },
+            z: Vector4 { x: T.zero(), y: T.zero(), z: T.one(), w: offset.z },
+            w: Vector4 { x: T.zero(), y: T.zero(), z: T.zero(), w: T.one() },
+        }
     }
 
     /// Return a perspective projection matrix.
     static perspective(fovY: T, aspect: T, near: T, far: T): Matrix4<T> {
-        todo("Matrix4.perspective")
+        let height = T.one() / (fovY / 2).tan();
+        let width = height / aspect;
+        let depth = far / (near - far);
+
+        Matrix4 {
+            x: Vector4 { x: width, y: T.zero(), z: T.zero(), w: T.zero() },
+            y: Vector4 { x: T.zero(), y: height, z: T.zero(), w: T.zero() },
+            z: Vector4 { x: T.zero(), y: T.zero(), z: depth, w: depth * near },
+            w: Vector4 { x: T.zero(), y: T.zero(), z: -T.one(), w: T.zero() },
+        }
     }
 
     /// Return an orthographic projection matrix.
     static orthographic(left: T, right: T, bottom: T, top: T, near: T, far: T): Matrix4<T> {
-        todo("Matrix4.orthographic")
+        let width = right - left;
+        let height = top - bottom;
+        let depth = near - far;
+
+        Matrix4 {
+            x: Vector4 { x: 2 / width, y: T.zero(), z: T.zero(), w: -(left + right) / width },
+            y: Vector4 { x: T.zero(), y: 2 / height, z: T.zero(), w: -(bottom + top) / height },
+            z: Vector4 { x: T.zero(), y: T.zero(), z: T.one() / depth, w: near / depth },
+            w: Vector4 { x: T.zero(), y: T.zero(), z: T.zero(), w: T.one() },
+        }
     }
 
     /// Return a view matrix looking from `eye` toward `target`.
     static lookAt(eye: Vector3<T>, target: Vector3<T>, up: Vector3<T>): Matrix4<T> {
-        todo("Matrix4.lookAt")
+        let ahead = (target - eye).normalized();
+        let right = ahead.cross(up).normalized();
+        let above = right.cross(ahead);
+
+        Matrix4 {
+            x: Vector4 { x: right.x, y: right.y, z: right.z, w: -right.dot(eye) },
+            y: Vector4 { x: above.x, y: above.y, z: above.z, w: -above.dot(eye) },
+            z: Vector4 { x: -ahead.x, y: -ahead.y, z: -ahead.z, w: ahead.dot(eye) },
+            w: Vector4 { x: T.zero(), y: T.zero(), z: T.zero(), w: T.one() },
+        }
     }
 
     /// Return the determinant.
     determinant(): T {
-        todo("Matrix4.determinant")
+        let zw = this.z.z * this.w.w - this.z.w * this.w.z;
+        let yw = this.z.y * this.w.w - this.z.w * this.w.y;
+        let yz = this.z.y * this.w.z - this.z.z * this.w.y;
+        let xw = this.z.x * this.w.w - this.z.w * this.w.x;
+        let xz = this.z.x * this.w.z - this.z.z * this.w.x;
+        let xy = this.z.x * this.w.y - this.z.y * this.w.x;
+
+        this.x.x * (this.y.y * zw - this.y.z * yw + this.y.w * yz)
+            - this.x.y * (this.y.x * zw - this.y.z * xw + this.y.w * xz)
+            + this.x.z * (this.y.x * yw - this.y.y * xw + this.y.w * xy)
+            - this.x.w * (this.y.x * yz - this.y.y * xz + this.y.z * xy)
     }
 
     /// Return the transposed matrix.
     transpose(): Matrix4<T> {
-        todo("Matrix4.transpose")
+        Matrix4 {
+            x: Vector4 { x: this.x.x, y: this.y.x, z: this.z.x, w: this.w.x },
+            y: Vector4 { x: this.x.y, y: this.y.y, z: this.z.y, w: this.w.y },
+            z: Vector4 { x: this.x.z, y: this.y.z, z: this.z.z, w: this.w.z },
+            w: Vector4 { x: this.x.w, y: this.y.w, z: this.z.w, w: this.w.w },
+        }
     }
 
     /// Add `other`.
     add(other: Matrix4<T>): this.Output {
-        todo("Matrix4.add")
+        Matrix4 {
+            x: this.x + other.x,
+            y: this.y + other.y,
+            z: this.z + other.z,
+            w: this.w + other.w,
+        }
     }
 
     /// Subtract `other`.
     subtract(other: Matrix4<T>): this.Output {
-        todo("Matrix4.subtract")
+        Matrix4 {
+            x: this.x - other.x,
+            y: this.y - other.y,
+            z: this.z - other.z,
+            w: this.w - other.w,
+        }
     }
 
     /// Multiply by `other`.
     multiply(other: Matrix4<T>): this.Output {
-        todo("Matrix4.multiply")
+        let columns = other.transpose();
+
+        Matrix4 {
+            x: Vector4 {
+                x: this.x.dot(columns.x),
+                y: this.x.dot(columns.y),
+                z: this.x.dot(columns.z),
+                w: this.x.dot(columns.w),
+            },
+            y: Vector4 {
+                x: this.y.dot(columns.x),
+                y: this.y.dot(columns.y),
+                z: this.y.dot(columns.z),
+                w: this.y.dot(columns.w),
+            },
+            z: Vector4 {
+                x: this.z.dot(columns.x),
+                y: this.z.dot(columns.y),
+                z: this.z.dot(columns.z),
+                w: this.z.dot(columns.w),
+            },
+            w: Vector4 {
+                x: this.w.dot(columns.x),
+                y: this.w.dot(columns.y),
+                z: this.w.dot(columns.z),
+                w: this.w.dot(columns.w),
+            },
+        }
     }
 
     /// Transform `vector`.
     transform(vector: Vector4<T>): Vector4<T> {
-        todo("Matrix4.transform")
+        Vector4 {
+            x: this.x.dot(vector),
+            y: this.y.dot(vector),
+            z: this.z.dot(vector),
+            w: this.w.dot(vector),
+        }
     }
 
     /// Transform `point` with affine coordinates.
     transformPoint(point: Vector3<T>): Vector3<T> {
-        todo("Matrix4.transformPoint")
+        Vector3 {
+            x: this.x.x * point.x + this.x.y * point.y + this.x.z * point.z + this.x.w,
+            y: this.y.x * point.x + this.y.y * point.y + this.y.z * point.z + this.y.w,
+            z: this.z.x * point.x + this.z.y * point.y + this.z.z * point.z + this.z.w,
+        }
     }
 
     /// Transform `direction` without translation.
     transformDirection(direction: Vector3<T>): Vector3<T> {
-        todo("Matrix4.transformDirection")
+        Vector3 {
+            x: this.x.x * direction.x + this.x.y * direction.y + this.x.z * direction.z,
+            y: this.y.x * direction.x + this.y.y * direction.y + this.y.z * direction.z,
+            z: this.z.x * direction.x + this.z.y * direction.y + this.z.z * direction.z,
+        }
     }
 }
 
 export extension<T: Float> of Matrix4<T> {
     /// Return the inverse matrix.
     inverse(): Matrix4<T> {
-        todo("Matrix4.inverse")
+        let topXY = this.x.x * this.y.y - this.x.y * this.y.x;
+        let topXZ = this.x.x * this.y.z - this.x.z * this.y.x;
+        let topXW = this.x.x * this.y.w - this.x.w * this.y.x;
+        let topYZ = this.x.y * this.y.z - this.x.z * this.y.y;
+        let topYW = this.x.y * this.y.w - this.x.w * this.y.y;
+        let topZW = this.x.z * this.y.w - this.x.w * this.y.z;
+
+        let bottomXY = this.z.x * this.w.y - this.z.y * this.w.x;
+        let bottomXZ = this.z.x * this.w.z - this.z.z * this.w.x;
+        let bottomXW = this.z.x * this.w.w - this.z.w * this.w.x;
+        let bottomYZ = this.z.y * this.w.z - this.z.z * this.w.y;
+        let bottomYW = this.z.y * this.w.w - this.z.w * this.w.y;
+        let bottomZW = this.z.z * this.w.w - this.z.w * this.w.z;
+
+        let scale = T.one()
+            / (topXY * bottomZW - topXZ * bottomYW + topXW * bottomYZ + topYZ * bottomXW
+                - topYW * bottomXZ
+                + topZW * bottomXY);
+
+        Matrix4 {
+            x: Vector4 {
+                x: (this.y.y * bottomZW - this.y.z * bottomYW + this.y.w * bottomYZ) * scale,
+                y: (this.x.z * bottomYW - this.x.y * bottomZW - this.x.w * bottomYZ) * scale,
+                z: (this.w.y * topZW - this.w.z * topYW + this.w.w * topYZ) * scale,
+                w: (this.z.z * topYW - this.z.y * topZW - this.z.w * topYZ) * scale,
+            },
+            y: Vector4 {
+                x: (this.y.z * bottomXW - this.y.x * bottomZW - this.y.w * bottomXZ) * scale,
+                y: (this.x.x * bottomZW - this.x.z * bottomXW + this.x.w * bottomXZ) * scale,
+                z: (this.w.z * topXW - this.w.x * topZW - this.w.w * topXZ) * scale,
+                w: (this.z.x * topZW - this.z.z * topXW + this.z.w * topXZ) * scale,
+            },
+            z: Vector4 {
+                x: (this.y.x * bottomYW - this.y.y * bottomXW + this.y.w * bottomXY) * scale,
+                y: (this.x.y * bottomXW - this.x.x * bottomYW - this.x.w * bottomXY) * scale,
+                z: (this.w.x * topYW - this.w.y * topXW + this.w.w * topXY) * scale,
+                w: (this.z.y * topXW - this.z.x * topYW - this.z.w * topXY) * scale,
+            },
+            w: Vector4 {
+                x: (this.y.y * bottomXZ - this.y.x * bottomYZ - this.y.z * bottomXY) * scale,
+                y: (this.x.x * bottomYZ - this.x.y * bottomXZ + this.x.z * bottomXY) * scale,
+                z: (this.w.y * topXZ - this.w.x * topYZ - this.w.z * topXY) * scale,
+                w: (this.z.x * topYZ - this.z.y * topXZ + this.z.z * topXY) * scale,
+            },
+        }
     }
 }

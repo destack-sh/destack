@@ -111,22 +111,31 @@ export extension<T: Numeric> of Vector2<T>
 
     /// Return the componentwise minimum with `other`.
     min(other: Vector2<T>): Vector2<T> {
-        todo("Vector2.min")
+        Vector2 {
+            x: this.x < other.x ? this.x : other.x,
+            y: this.y < other.y ? this.y : other.y,
+        }
     }
 
     /// Return the componentwise maximum with `other`.
     max(other: Vector2<T>): Vector2<T> {
-        todo("Vector2.max")
+        Vector2 {
+            x: this.x > other.x ? this.x : other.x,
+            y: this.y > other.y ? this.y : other.y,
+        }
     }
 
     /// Clamp each component between `minimum` and `maximum`.
     clamp(minimum: Vector2<T>, maximum: Vector2<T>): Vector2<T> {
-        todo("Vector2.clamp")
+        this.max(minimum).min(maximum)
     }
 
     /// Return the componentwise absolute value.
     abs(): Vector2<T> {
-        todo("Vector2.abs")
+        Vector2 {
+            x: this.x < T.zero() ? -this.x : this.x,
+            y: this.y < T.zero() ? -this.y : this.y,
+        }
     }
 
     /// Add `other`.
@@ -168,12 +177,14 @@ export extension<T: Float> of Vector2<T> {
 
     /// Return the angle to `other` in radians.
     angleTo(other: Vector2<T>): T {
-        todo("Vector2.angleTo")
+        let lengths = (this.lengthSquared() * other.lengthSquared()).sqrt();
+
+        (this.dot(other) / lengths).min(T.one()).max(-T.one()).acos()
     }
 
     /// Return the signed angle to `other` in radians.
     signedAngleTo(other: Vector2<T>): T {
-        todo("Vector2.signedAngleTo")
+        (this.x * other.y - this.y * other.x).atan2(this.dot(other))
     }
 
     /// Return the normalized vector.
@@ -185,42 +196,84 @@ export extension<T: Float> of Vector2<T> {
 
     /// Return a normalized vector, or zero when the length is zero.
     normalizedOrZero(): Vector2<T> {
-        todo("Vector2.normalizedOrZero")
+        let length = this.length();
+
+        if (length == T.zero()) {
+            return Vector2.zero();
+        }
+
+        Vector2 {
+            x: this.x / length,
+            y: this.y / length,
+        }
     }
 
     /// Return this vector limited to `length`.
     limitLength(length: T): Vector2<T> {
-        todo("Vector2.limitLength")
+        let current = this.length();
+
+        let scale = current > length ? length / current : T.one();
+
+        Vector2 {
+            x: this.x * scale,
+            y: this.y * scale,
+        }
     }
 
     /// Linearly interpolate toward `other`.
     lerp(other: Vector2<T>, weight: T): Vector2<T> {
-        todo("Vector2.lerp")
+        Vector2 {
+            x: this.x + (other.x - this.x) * weight,
+            y: this.y + (other.y - this.y) * weight,
+        }
     }
 
     /// Spherically interpolate toward `other`.
     slerp(other: Vector2<T>, weight: T): Vector2<T> {
-        todo("Vector2.slerp")
+        let angle = this.angleTo(other);
+        let sin = angle.sin();
+
+        if (sin == T.zero()) {
+            return this.lerp(other, weight);
+        }
+
+        let from = ((T.one() - weight) * angle).sin() / sin;
+        let to = (weight * angle).sin() / sin;
+
+        Vector2 {
+            x: this.x * from + other.x * to,
+            y: this.y * from + other.y * to,
+        }
     }
 
     /// Return this vector projected onto `normal`.
     project(normal: Vector2<T>): Vector2<T> {
-        todo("Vector2.project")
+        let scale = this.dot(normal);
+
+        Vector2 {
+            x: normal.x * scale,
+            y: normal.y * scale,
+        }
     }
 
     /// Return this vector reflected around `normal`.
     reflect(normal: Vector2<T>): Vector2<T> {
-        todo("Vector2.reflect")
+        let scale = this.dot(normal) * 2;
+
+        Vector2 {
+            x: this.x - normal.x * scale,
+            y: this.y - normal.y * scale,
+        }
     }
 
     /// Return whether this vector is approximately unit length.
     isNormalized(): boolean {
-        todo("Vector2.isNormalized")
+        (this.lengthSquared() - T.one()).abs() <= T.one()
     }
 
     /// Return whether all components are finite.
     isFinite(): boolean {
-        todo("Vector2.isFinite")
+        this.x.isFinite() && this.y.isFinite()
     }
 }
 
@@ -279,22 +332,34 @@ export extension<T: Numeric> of Vector3<T>
 
     /// Return the componentwise minimum with `other`.
     min(other: Vector3<T>): Vector3<T> {
-        todo("Vector3.min")
+        Vector3 {
+            x: this.x < other.x ? this.x : other.x,
+            y: this.y < other.y ? this.y : other.y,
+            z: this.z < other.z ? this.z : other.z,
+        }
     }
 
     /// Return the componentwise maximum with `other`.
     max(other: Vector3<T>): Vector3<T> {
-        todo("Vector3.max")
+        Vector3 {
+            x: this.x > other.x ? this.x : other.x,
+            y: this.y > other.y ? this.y : other.y,
+            z: this.z > other.z ? this.z : other.z,
+        }
     }
 
     /// Clamp each component between `minimum` and `maximum`.
     clamp(minimum: Vector3<T>, maximum: Vector3<T>): Vector3<T> {
-        todo("Vector3.clamp")
+        this.max(minimum).min(maximum)
     }
 
     /// Return the componentwise absolute value.
     abs(): Vector3<T> {
-        todo("Vector3.abs")
+        Vector3 {
+            x: this.x < T.zero() ? -this.x : this.x,
+            y: this.y < T.zero() ? -this.y : this.y,
+            z: this.z < T.zero() ? -this.z : this.z,
+        }
     }
 
     /// Add `other`.
@@ -336,12 +401,16 @@ export extension<T: Float> of Vector3<T> {
 
     /// Return the angle to `other` in radians.
     angleTo(other: Vector3<T>): T {
-        todo("Vector3.angleTo")
+        let lengths = (this.lengthSquared() * other.lengthSquared()).sqrt();
+
+        (this.dot(other) / lengths).min(T.one()).max(-T.one()).acos()
     }
 
     /// Return the signed angle to `other` around `axis` in radians.
     signedAngleTo(other: Vector3<T>, axis: Vector3<T>): T {
-        todo("Vector3.signedAngleTo")
+        let angle = this.angleTo(other);
+
+        axis.dot(this.cross(other)) < T.zero() ? -angle : angle
     }
 
     /// Return the normalized vector.
@@ -353,47 +422,101 @@ export extension<T: Float> of Vector3<T> {
 
     /// Return a normalized vector, or zero when the length is zero.
     normalizedOrZero(): Vector3<T> {
-        todo("Vector3.normalizedOrZero")
+        let length = this.length();
+
+        if (length == T.zero()) {
+            return Vector3.zero();
+        }
+
+        Vector3 {
+            x: this.x / length,
+            y: this.y / length,
+            z: this.z / length,
+        }
     }
 
     /// Return this vector limited to `length`.
     limitLength(length: T): Vector3<T> {
-        todo("Vector3.limitLength")
+        let current = this.length();
+
+        let scale = current > length ? length / current : T.one();
+
+        Vector3 {
+            x: this.x * scale,
+            y: this.y * scale,
+            z: this.z * scale,
+        }
     }
 
     /// Linearly interpolate toward `other`.
     lerp(other: Vector3<T>, weight: T): Vector3<T> {
-        todo("Vector3.lerp")
+        Vector3 {
+            x: this.x + (other.x - this.x) * weight,
+            y: this.y + (other.y - this.y) * weight,
+            z: this.z + (other.z - this.z) * weight,
+        }
     }
 
     /// Spherically interpolate toward `other`.
     slerp(other: Vector3<T>, weight: T): Vector3<T> {
-        todo("Vector3.slerp")
+        let angle = this.angleTo(other);
+        let sin = angle.sin();
+
+        if (sin == T.zero()) {
+            return this.lerp(other, weight);
+        }
+
+        let from = ((T.one() - weight) * angle).sin() / sin;
+        let to = (weight * angle).sin() / sin;
+
+        Vector3 {
+            x: this.x * from + other.x * to,
+            y: this.y * from + other.y * to,
+            z: this.z * from + other.z * to,
+        }
     }
 
     /// Return this vector projected onto `normal`.
     project(normal: Vector3<T>): Vector3<T> {
-        todo("Vector3.project")
+        let scale = this.dot(normal);
+
+        Vector3 {
+            x: normal.x * scale,
+            y: normal.y * scale,
+            z: normal.z * scale,
+        }
     }
 
     /// Return this vector projected onto a plane.
     projectOnPlane(normal: Vector3<T>): Vector3<T> {
-        todo("Vector3.projectOnPlane")
+        let scale = this.dot(normal);
+
+        Vector3 {
+            x: this.x - normal.x * scale,
+            y: this.y - normal.y * scale,
+            z: this.z - normal.z * scale,
+        }
     }
 
     /// Return this vector reflected around `normal`.
     reflect(normal: Vector3<T>): Vector3<T> {
-        todo("Vector3.reflect")
+        let scale = this.dot(normal) * 2;
+
+        Vector3 {
+            x: this.x - normal.x * scale,
+            y: this.y - normal.y * scale,
+            z: this.z - normal.z * scale,
+        }
     }
 
     /// Return whether this vector is approximately unit length.
     isNormalized(): boolean {
-        todo("Vector3.isNormalized")
+        (this.lengthSquared() - T.one()).abs() <= T.one()
     }
 
     /// Return whether all components are finite.
     isFinite(): boolean {
-        todo("Vector3.isFinite")
+        this.x.isFinite() && this.y.isFinite() && this.z.isFinite()
     }
 }
 
@@ -444,22 +567,37 @@ export extension<T: Numeric> of Vector4<T>
 
     /// Return the componentwise minimum with `other`.
     min(other: Vector4<T>): Vector4<T> {
-        todo("Vector4.min")
+        Vector4 {
+            x: this.x < other.x ? this.x : other.x,
+            y: this.y < other.y ? this.y : other.y,
+            z: this.z < other.z ? this.z : other.z,
+            w: this.w < other.w ? this.w : other.w,
+        }
     }
 
     /// Return the componentwise maximum with `other`.
     max(other: Vector4<T>): Vector4<T> {
-        todo("Vector4.max")
+        Vector4 {
+            x: this.x > other.x ? this.x : other.x,
+            y: this.y > other.y ? this.y : other.y,
+            z: this.z > other.z ? this.z : other.z,
+            w: this.w > other.w ? this.w : other.w,
+        }
     }
 
     /// Clamp each component between `minimum` and `maximum`.
     clamp(minimum: Vector4<T>, maximum: Vector4<T>): Vector4<T> {
-        todo("Vector4.clamp")
+        this.max(minimum).min(maximum)
     }
 
     /// Return the componentwise absolute value.
     abs(): Vector4<T> {
-        todo("Vector4.abs")
+        Vector4 {
+            x: this.x < T.zero() ? -this.x : this.x,
+            y: this.y < T.zero() ? -this.y : this.y,
+            z: this.z < T.zero() ? -this.z : this.z,
+            w: this.w < T.zero() ? -this.w : this.w,
+        }
     }
 
     /// Add `other`.
@@ -521,7 +659,9 @@ export extension<T: Float> of Vector4<T> {
 
     /// Return the angle to `other` in radians.
     angleTo(other: Vector4<T>): T {
-        todo("Vector4.angleTo")
+        let lengths = (this.lengthSquared() * other.lengthSquared()).sqrt();
+
+        (this.dot(other) / lengths).min(T.one()).max(-T.one()).acos()
     }
 
     /// Return the normalized vector.
@@ -538,36 +678,75 @@ export extension<T: Float> of Vector4<T> {
 
     /// Return a normalized vector, or zero when the length is zero.
     normalizedOrZero(): Vector4<T> {
-        todo("Vector4.normalizedOrZero")
+        let length = this.length();
+
+        if (length == T.zero()) {
+            return Vector4.zero();
+        }
+
+        Vector4 {
+            x: this.x / length,
+            y: this.y / length,
+            z: this.z / length,
+            w: this.w / length,
+        }
     }
 
     /// Return this vector limited to `length`.
     limitLength(length: T): Vector4<T> {
-        todo("Vector4.limitLength")
+        let current = this.length();
+
+        let scale = current > length ? length / current : T.one();
+
+        Vector4 {
+            x: this.x * scale,
+            y: this.y * scale,
+            z: this.z * scale,
+            w: this.w * scale,
+        }
     }
 
     /// Linearly interpolate toward `other`.
     lerp(other: Vector4<T>, weight: T): Vector4<T> {
-        todo("Vector4.lerp")
+        Vector4 {
+            x: this.x + (other.x - this.x) * weight,
+            y: this.y + (other.y - this.y) * weight,
+            z: this.z + (other.z - this.z) * weight,
+            w: this.w + (other.w - this.w) * weight,
+        }
     }
 
     /// Return this vector projected onto `normal`.
     project(normal: Vector4<T>): Vector4<T> {
-        todo("Vector4.project")
+        let scale = this.dot(normal);
+
+        Vector4 {
+            x: normal.x * scale,
+            y: normal.y * scale,
+            z: normal.z * scale,
+            w: normal.w * scale,
+        }
     }
 
     /// Return this vector reflected around `normal`.
     reflect(normal: Vector4<T>): Vector4<T> {
-        todo("Vector4.reflect")
+        let scale = this.dot(normal) * 2;
+
+        Vector4 {
+            x: this.x - normal.x * scale,
+            y: this.y - normal.y * scale,
+            z: this.z - normal.z * scale,
+            w: this.w - normal.w * scale,
+        }
     }
 
     /// Return whether this vector is approximately unit length.
     isNormalized(): boolean {
-        todo("Vector4.isNormalized")
+        (this.lengthSquared() - T.one()).abs() <= T.one()
     }
 
     /// Return whether all components are finite.
     isFinite(): boolean {
-        todo("Vector4.isFinite")
+        this.x.isFinite() && this.y.isFinite() && this.z.isFinite() && this.w.isFinite()
     }
 }

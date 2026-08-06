@@ -90,72 +90,88 @@ export extension<T: Float> of Complex<T>
 
     /// Return the multiplicative inverse.
     inverse(): Complex<T> {
-        todo("Complex.inverse")
+        let scale = T.one() / this.magnitudeSquared();
+
+        Complex { real: this.real * scale, imaginary: -this.imaginary * scale }
     }
 
     /// Return this value divided by its magnitude.
     normalized(): Complex<T> {
-        todo("Complex.normalized")
+        let magnitude = this.magnitude();
+
+        Complex { real: this.real / magnitude, imaginary: this.imaginary / magnitude }
     }
 
     /// Return the complex exponential.
     exp(): Complex<T> {
-        todo("Complex.exp")
+        Complex.polar(this.real.exp(), this.imaginary)
     }
 
     /// Return the natural logarithm.
     log(): Complex<T> {
-        todo("Complex.log")
+        Complex { real: this.magnitude().log(), imaginary: this.phase() }
     }
 
     /// Return the square root.
     sqrt(): Complex<T> {
-        todo("Complex.sqrt")
+        Complex.polar(this.magnitude().sqrt(), this.phase() / 2)
     }
 
     /// Raise this value to `exponent`.
     power(exponent: Complex<T>): Complex<T> {
-        todo("Complex.power")
+        this.log().multiply(exponent).exp()
     }
 
     /// Return the complex sine.
     sin(): Complex<T> {
-        todo("Complex.sin")
+        Complex {
+            real: this.real.sin() * this.imaginary.cosh(),
+            imaginary: this.real.cos() * this.imaginary.sinh(),
+        }
     }
 
     /// Return the complex cosine.
     cos(): Complex<T> {
-        todo("Complex.cos")
+        Complex {
+            real: this.real.cos() * this.imaginary.cosh(),
+            imaginary: -(this.real.sin() * this.imaginary.sinh()),
+        }
     }
 
     /// Return the complex tangent.
     tan(): Complex<T> {
-        todo("Complex.tan")
+        this.sin().divide(this.cos())
     }
 
     /// Return the hyperbolic sine.
     sinh(): Complex<T> {
-        todo("Complex.sinh")
+        Complex {
+            real: this.real.sinh() * this.imaginary.cos(),
+            imaginary: this.real.cosh() * this.imaginary.sin(),
+        }
     }
 
     /// Return the hyperbolic cosine.
     cosh(): Complex<T> {
-        todo("Complex.cosh")
+        Complex {
+            real: this.real.cosh() * this.imaginary.cos(),
+            imaginary: this.real.sinh() * this.imaginary.sin(),
+        }
     }
 
     /// Return the hyperbolic tangent.
     tanh(): Complex<T> {
-        todo("Complex.tanh")
+        this.sinh().divide(this.cosh())
     }
 
     /// Return whether both components are finite.
     isFinite(): boolean {
-        todo("Complex.isFinite")
+        this.real.isFinite() && this.imaginary.isFinite()
     }
 
     /// Return whether either component is NaN.
     isNaN(): boolean {
-        todo("Complex.isNaN")
+        this.real.isNaN() || this.imaginary.isNaN()
     }
 
     /// Add `other`.
