@@ -429,7 +429,7 @@ fn run_entry_module(
     // load the linked Program
     let artifacts = repository.artifact_reader(revision);
     let program = artifacts
-        .program(target_id.package_id(), target_id)
+        .read::<Program>((target_id.package_id(), target_id))
         .map_err(|error| error.to_string())?;
 
     // runtime launch

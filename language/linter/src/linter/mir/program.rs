@@ -47,7 +47,7 @@ impl MirProgram {
 
         let strings = repository.string_pool().clone();
         let mir = Mir::load(artifacts, profile, target, &modules, strings)?;
-        let analysis = artifacts.program_analysis(profile, target)?;
+        let analysis = artifacts.read::<ProgramAnalysis>((profile, target))?;
 
         Ok(Self {
             program,

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{DiagnosticAnchor, MirLowered};
+use destack_artifact::{DiagnosticAnchor, MirLowered, MirVerified};
 use destack_core::StringPool;
 use destack_mir as mir;
 use destack_repository::{ArtifactReader, ProfileId, ProviderError};
@@ -41,8 +41,8 @@ impl MirModule {
         module: ModuleId,
         strings: Arc<StringPool>,
     ) -> Result<Self, ProviderError> {
-        artifacts.mir_verified(module, profile, target)?;
-        let lowered = artifacts.mir_lowered(module, profile, target)?;
+        artifacts.read::<MirVerified>((module, profile, target))?;
+        let lowered = artifacts.read::<MirLowered>((module, profile, target))?;
 
         Ok(Self::new(module, lowered, strings))
     }

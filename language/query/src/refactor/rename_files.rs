@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
 use std::path::PathBuf;
 
-use destack_artifact::ArtifactKey;
+use destack_artifact::{ArtifactKey, DirExpanded, DirImported, DirParsed};
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, Repository, Revision};
 use destack_serde::Reflect;
@@ -90,9 +90,9 @@ pub fn rename_files(
             .module(revision, module_id)?
             .ok_or_else(|| QueryError::missing(format!("repository module {module_id:?}")))?;
         let artifacts = ArtifactReader::new(repository, revision);
-        let parsed = artifacts.dir_parsed(module_id)?;
-        let imported = artifacts.dir_imported(module_id, selected.profile_id)?;
-        let expanded = artifacts.dir_expanded(module_id, selected.profile_id)?;
+        let parsed = artifacts.read::<DirParsed>(module_id)?;
+        let imported = artifacts.read::<DirImported>((module_id, selected.profile_id))?;
+        let expanded = artifacts.read::<DirExpanded>((module_id, selected.profile_id))?;
         let view = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
         let source_index = &parsed.tree.source_index;
         let module_table = expanded.module_table(&imported);

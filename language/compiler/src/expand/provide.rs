@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirExpanded};
+use destack_artifact::{
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirBound, DirExpanded, DirParsed,
+};
 use destack_dir as dir;
 use destack_repository::{ProfileId, ProviderContext};
 use destack_source::ModuleId;
@@ -32,9 +34,11 @@ impl Compiler {
     ) -> CompilerResult<ArtifactPayload> {
         // load provider inputs
         let artifacts = self.artifact_reader(context);
-        let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
+        let parsed = artifacts
+            .read::<DirParsed>(module)
+            .map_err(CompilerError::from)?;
         let bound = artifacts
-            .dir_bound(module, profile)
+            .read::<DirBound>((module, profile))
             .map_err(CompilerError::from)?;
 
         // TODO #Incomplete: implement proper expansion

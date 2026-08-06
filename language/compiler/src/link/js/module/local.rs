@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use crate::emit::js;
+use destack_artifact::{DirBound, DirExpanded, DirExported};
 use destack_core::{StringId, StringPool};
 use destack_dir as dir;
 use destack_repository::{ProviderContext, Target};
@@ -295,7 +296,7 @@ impl JsLinker<'_> {
     ) -> LinkResult<(dir::GlobalSymbolId, String)> {
         let source_bound = self
             .artifacts
-            .dir_bound(module_id, profile_id)
+            .read::<DirBound>((module_id, profile_id))
             .map_err(|error| LinkError::Internal {
                 anchor: (package_id).into(),
                 package: package_id,
@@ -303,7 +304,7 @@ impl JsLinker<'_> {
                     "missing bound DIR for same-output import rewrite module {module_id:?}: {error:?}",
                 ),
             })?;
-        let source_expanded = self.artifacts.dir_expanded(module_id, profile_id).map_err(
+        let source_expanded = self.artifacts.read::<DirExpanded>((module_id, profile_id)).map_err(
             |error| LinkError::Internal {
                 anchor: (package_id).into(),
                 package: package_id,
@@ -352,7 +353,7 @@ impl JsLinker<'_> {
         // load the source module for the exported symbol
         let source_bound = self
             .artifacts
-            .dir_bound(symbol_id.module_id, profile_id)
+            .read::<DirBound>((symbol_id.module_id, profile_id))
             .map_err(|error| LinkError::Internal {
                 anchor: (package_id).into(),
                 package: package_id,
@@ -362,7 +363,7 @@ impl JsLinker<'_> {
             })?;
         let source_expanded = self
             .artifacts
-            .dir_expanded(symbol_id.module_id, profile_id)
+            .read::<DirExpanded>((symbol_id.module_id, profile_id))
             .map_err(|error| LinkError::Internal {
                 anchor: (package_id).into(),
                 package: package_id,
@@ -537,7 +538,7 @@ impl JsLinker<'_> {
     ) -> LinkResult<js::LocalNodeId<js::Expression>> {
         let target_directory = self
             .artifacts
-            .dir_exported(target_module, profile_id)
+            .read::<DirExported>((target_module, profile_id))
             .map_err(|error| LinkError::Internal {
                 anchor: (package_id).into(),
                 package: package_id,

@@ -1,7 +1,10 @@
 use std::mem;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, DirParsed};
+use destack_artifact::{
+    ArtifactKey, DirBound, DirChecked, DirDeclared, DirExpanded, DirExported, DirParsed,
+    DirResolved, EnvironmentBound,
+};
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_pattern::{Matcher, ModuleContext, Pattern, PatternMatch, ProgramContext};
@@ -48,7 +51,7 @@ impl PatternSelection {
         // match every physical source file independently
         for module in modules.iter().copied() {
             let parsed = artifacts
-                .dir_parsed(module)
+                .read::<DirParsed>(module)
                 .map_err(|error| error.to_string())?;
             let view = dir::View::new(&parsed.tree);
             let matcher = Matcher::new(pattern, view);
@@ -165,7 +168,7 @@ impl CommandContext<'_> {
                 .module_graph_reader(profile)
                 .map_err(|error| error.to_string())?;
             let global = artifacts
-                .environment_bound(profile)
+                .read::<EnvironmentBound>(profile)
                 .map_err(|error| error.to_string())?;
             let mut walk_roots = roots.to_vec();
             walk_roots.extend(global.implicit_modules());
@@ -199,25 +202,25 @@ impl CommandContext<'_> {
             .into_iter()
             .map(|module| {
                 let parsed = artifacts
-                    .dir_parsed(module)
+                    .read::<DirParsed>(module)
                     .map_err(|error| error.to_string())?;
                 let bound = artifacts
-                    .dir_bound(module, profile)
+                    .read::<DirBound>((module, profile))
                     .map_err(|error| error.to_string())?;
                 let expanded = artifacts
-                    .dir_expanded(module, profile)
+                    .read::<DirExpanded>((module, profile))
                     .map_err(|error| error.to_string())?;
                 let exported = artifacts
-                    .dir_exported(module, profile)
+                    .read::<DirExported>((module, profile))
                     .map_err(|error| error.to_string())?;
                 let resolved = artifacts
-                    .dir_resolved(module, profile)
+                    .read::<DirResolved>((module, profile))
                     .map_err(|error| error.to_string())?;
                 let declared = artifacts
-                    .dir_declared(module, profile)
+                    .read::<DirDeclared>((module, profile))
                     .map_err(|error| error.to_string())?;
                 let checked = artifacts
-                    .dir_checked(module, profile)
+                    .read::<DirChecked>((module, profile))
                     .map_err(|error| error.to_string())?;
 
                 ModuleContext::new(

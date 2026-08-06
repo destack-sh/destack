@@ -946,13 +946,13 @@ impl CheckState<'_> {
         // a referenced module's declared artifact depends on its bound tables
         let bound = self
             .artifacts
-            .dir_bound_content(module, self.profile)
+            .read_content::<DirBound>((module, self.profile))
             .unwrap_or_else(|error| {
                 unreachable!("referenced module {module:?} has no bound artifact: {error}")
             });
         let expanded = self
             .artifacts
-            .dir_expanded_content(module, self.profile)
+            .read_content::<DirExpanded>((module, self.profile))
             .unwrap_or_else(|error| {
                 unreachable!("referenced module {module:?} has no expanded artifact: {error}")
             });

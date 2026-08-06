@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, Asset, Code, Output};
+use destack_artifact::{
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, Asset, Code, DirResolved, MirOptimized,
+    Output,
+};
 use destack_repository::{ProfileId, ProviderContext};
 use destack_source::{ModuleId, TargetId};
 
@@ -186,10 +189,10 @@ impl Compiler {
         // preserve optimized MIR and its direct module dependencies
         let artifacts = self.artifact_reader(context);
         let mir = artifacts
-            .mir_optimized(module, profile, target)
+            .read::<MirOptimized>((module, profile, target))
             .map_err(CompilerError::from)?;
         let resolved = artifacts
-            .dir_resolved(module, profile)
+            .read::<DirResolved>((module, profile))
             .map_err(CompilerError::from)?;
         let modules = resolved
             .target_modules()

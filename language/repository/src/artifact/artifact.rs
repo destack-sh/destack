@@ -8,7 +8,7 @@ use crate::{ArtifactBase, ArtifactBindingState, ArtifactResolution};
 use destack_artifact::{
     ArtifactBinding, ArtifactBindingId, ArtifactBindingPin, ArtifactDependency, ArtifactFailure,
     ArtifactFlush, ArtifactKey, ArtifactOutcome, ArtifactPayload, ArtifactRecord, ArtifactSidecar,
-    ArtifactVersion, DeclarationReference, DiagnosticRecord,
+    ArtifactVersion, DeclarationReference, DiagnosticRecord, DirBound, DirParsed,
 };
 use destack_dir::LocalSymbolId;
 use destack_source::{
@@ -739,7 +739,7 @@ impl Repository {
         // resolve the declaration's local symbol row
         let bound_key = ArtifactKey::dir_bound(module, profile);
         let bound_version = self.artifact_version(revision, &bound_key).ok()??;
-        let bound = self.artifact_table().dir_bound(&bound_version)?;
+        let bound = self.artifact_table().artifact::<DirBound>(&bound_version)?;
         let row = bound
             .bindings
             .get_symbol_maybe(LocalSymbolId { id: symbol })?;
@@ -748,7 +748,9 @@ impl Repository {
         // resolve the declaration's span in the parsed tree
         let parsed_key = ArtifactKey::dir_parsed(module);
         let parsed_version = self.artifact_version(revision, &parsed_key).ok()??;
-        let parsed = self.artifact_table().dir_parsed(&parsed_version)?;
+        let parsed = self
+            .artifact_table()
+            .artifact::<DirParsed>(&parsed_version)?;
         let span = parsed.tree.get_main_span_by_id(declaration.local_id.id)?;
         let content = self.file(revision, span.file).ok()??.content_id();
 

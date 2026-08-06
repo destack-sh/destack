@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, DiagnosticControlIndex, ModuleLinted,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, DiagnosticControlIndex, DirChecked,
+    EnvironmentBound, ModuleLinted,
 };
 use destack_repository::{ProfileId, ProviderContext, ProviderError};
 use destack_source::{ModuleId, TargetId};
@@ -72,7 +73,7 @@ impl Linter {
 
         // activate selected lints from checked source controls
         let artifacts = self.artifact_reader(context);
-        let checked = artifacts.dir_checked(module, profile)?;
+        let checked = artifacts.read::<DirChecked>((module, profile))?;
         let control_tables = [checked.controls.clone()];
         let controls = DiagnosticControlIndex::new(control_tables.iter().map(Arc::as_ref))
             .map_err(|error| ProviderError::internal(error.to_string()))?;
@@ -101,7 +102,7 @@ impl Linter {
         // load this module's checked DIR
         let revision = context.revision();
         let artifacts = self.artifact_reader(context);
-        let environment = artifacts.environment_bound(profile)?;
+        let environment = artifacts.read::<EnvironmentBound>(profile)?;
         let dir = Dir::load(
             self.repository.as_ref(),
             revision,

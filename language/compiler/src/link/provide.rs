@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, Bundle, Output};
+use destack_program::Object;
 use destack_repository::{ArtifactReader, ProviderContext, ProviderError, RepositoryError, Target};
 use destack_source::{ModuleId, PackageId, ProductId, TargetId};
 
@@ -98,7 +99,7 @@ impl Compiler {
         // walk the object dependency graph from the target roots
         while let Some(&module) = modules.get(index) {
             dependencies.require(ArtifactKey::object(module, target));
-            match artifacts.object(module, target) {
+            match artifacts.read::<Object>((module, target)) {
                 Ok(object) => {
                     for dependency in object.dependencies() {
                         if discovered.insert(*dependency) {
@@ -145,7 +146,7 @@ impl Compiler {
         // load the complete object dependency graph in stable breadth-first order
         while let Some(&module) = modules.get(index) {
             let object = artifacts
-                .object(module, target)
+                .read::<Object>((module, target))
                 .map_err(CompilerError::from)?;
             for dependency in object.dependencies() {
                 if discovered.insert(*dependency) {

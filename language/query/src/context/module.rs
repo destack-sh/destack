@@ -138,7 +138,7 @@ impl<'a> ModuleQueryContext<'a> {
         self.read_artifact(
             ArtifactKey::dir_parsed(self.module_id),
             &self.parsed,
-            |reader| reader.dir_parsed(self.module_id),
+            |reader| reader.read::<DirParsed>(self.module_id),
         )
     }
 
@@ -147,7 +147,7 @@ impl<'a> ModuleQueryContext<'a> {
         self.read_artifact(
             ArtifactKey::dir_bound(self.module_id, self.profile_id),
             &self.bound,
-            |reader| reader.dir_bound(self.module_id, self.profile_id),
+            |reader| reader.read::<DirBound>((self.module_id, self.profile_id)),
         )
     }
 
@@ -156,7 +156,7 @@ impl<'a> ModuleQueryContext<'a> {
         self.read_artifact(
             ArtifactKey::dir_imported(self.module_id, self.profile_id),
             &self.imported,
-            |reader| reader.dir_imported(self.module_id, self.profile_id),
+            |reader| reader.read::<DirImported>((self.module_id, self.profile_id)),
         )
     }
 
@@ -165,7 +165,7 @@ impl<'a> ModuleQueryContext<'a> {
         self.read_artifact(
             ArtifactKey::dir_expanded(self.module_id, self.profile_id),
             &self.expanded,
-            |reader| reader.dir_expanded(self.module_id, self.profile_id),
+            |reader| reader.read::<DirExpanded>((self.module_id, self.profile_id)),
         )
     }
 
@@ -174,7 +174,7 @@ impl<'a> ModuleQueryContext<'a> {
         self.read_artifact(
             ArtifactKey::dir_declared(self.module_id, self.profile_id),
             &self.declared,
-            |reader| reader.dir_declared(self.module_id, self.profile_id),
+            |reader| reader.read::<DirDeclared>((self.module_id, self.profile_id)),
         )
     }
 
@@ -183,7 +183,7 @@ impl<'a> ModuleQueryContext<'a> {
         self.read_artifact(
             ArtifactKey::dir_checked(self.module_id, self.profile_id),
             &self.checked,
-            |reader| reader.dir_checked(self.module_id, self.profile_id),
+            |reader| reader.read::<DirChecked>((self.module_id, self.profile_id)),
         )
     }
 
@@ -291,7 +291,7 @@ impl<'a> ModuleQueryContext<'a> {
         self.read_artifact(
             ArtifactKey::dir_resolved(self.module_id, self.profile_id),
             &self.resolved,
-            |reader| reader.dir_resolved(self.module_id, self.profile_id),
+            |reader| reader.read::<DirResolved>((self.module_id, self.profile_id)),
         )
     }
 

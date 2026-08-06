@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey, ArtifactSidecar,
-    EnvironmentDeclared,
+    DirDeclared, DirResolved, EnvironmentBound, EnvironmentDeclared,
 };
 use destack_dir as dir;
 use destack_repository::{ProfileId, ProviderContext, ProviderError};
@@ -26,7 +26,7 @@ fn referenced_modules(
     module: ModuleId,
     profile: ProfileId,
 ) -> CompilerResult<Option<ReferencedModules>> {
-    let resolved = match artifacts.dir_resolved(module, profile) {
+    let resolved = match artifacts.read::<DirResolved>((module, profile)) {
         Ok(resolved) => resolved,
         Err(ProviderError::Blocked { .. }) => return Ok(None),
         Err(error) => return Err(error.into()),
@@ -93,7 +93,7 @@ impl Compiler {
     ) -> CompilerResult<ArtifactPayload> {
         let artifacts = self.artifact_reader(context);
         let global = artifacts
-            .environment_bound_content(profile)
+            .read_content::<EnvironmentBound>(profile)
             .map_err(CompilerError::from)?;
         let environment = self.environment(context.revision())?;
         let repository_module = self.module(context.revision(), module)?;
@@ -195,10 +195,10 @@ impl Compiler {
     ) -> CompilerResult<ArtifactPayload> {
         let artifacts = self.artifact_reader(context);
         let global = artifacts
-            .environment_bound_content(profile)
+            .read_content::<EnvironmentBound>(profile)
             .map_err(CompilerError::from)?;
         let declared_environment = artifacts
-            .environment_declared(profile)
+            .read::<EnvironmentDeclared>(profile)
             .map_err(CompilerError::from)?;
         let environment = self.environment(context.revision())?;
         let repository_module = self.module(context.revision(), module)?;
@@ -266,7 +266,7 @@ impl Compiler {
 
         // implicit module declarations back every index
         let artifacts = self.artifact_reader(context);
-        let environment = match artifacts.environment_bound_content(profile) {
+        let environment = match artifacts.read_content::<EnvironmentBound>(profile) {
             Ok(environment) => environment,
             Err(destack_repository::ProviderError::Blocked { .. }) => return Ok(dependencies),
             Err(error) => return Err(error.into()),
@@ -289,14 +289,14 @@ impl Compiler {
     ) -> CompilerResult<ArtifactPayload> {
         let artifacts = self.artifact_reader(context);
         let bound = artifacts
-            .environment_bound_content(profile)
+            .read_content::<EnvironmentBound>(profile)
             .map_err(CompilerError::from)?;
 
         // union each implicit module's declared indexes
         let mut environment = EnvironmentDeclared::default();
         for module in bound.implicit_modules() {
             let declared = artifacts
-                .dir_declared(module, profile)
+                .read::<DirDeclared>((module, profile))
                 .map_err(CompilerError::from)?;
             let types = declared.types.clone();
             for (symbol, definition) in declared.definitions.iter_definitions() {

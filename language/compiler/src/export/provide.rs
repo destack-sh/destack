@@ -1,7 +1,10 @@
 use std::iter;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactSidecar};
+use destack_artifact::{
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactSidecar, DirBound, DirExpanded,
+    DirImported, DirParsed,
+};
 use destack_dir as dir;
 use destack_repository::{ProfileId, ProviderContext};
 use destack_source::{Content, ModuleId};
@@ -37,15 +40,17 @@ impl Compiler {
         let profile_id = profile;
         let profile_state = self.profile(context.revision(), profile_id)?;
         let artifacts = self.artifact_reader(context);
-        let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
+        let parsed = artifacts
+            .read::<DirParsed>(module)
+            .map_err(CompilerError::from)?;
         let bound = artifacts
-            .dir_bound(module, profile_id)
+            .read::<DirBound>((module, profile_id))
             .map_err(CompilerError::from)?;
         let imported = artifacts
-            .dir_imported(module, profile_id)
+            .read::<DirImported>((module, profile_id))
             .map_err(CompilerError::from)?;
         let expanded = artifacts
-            .dir_expanded(module, profile_id)
+            .read::<DirExpanded>((module, profile_id))
             .map_err(CompilerError::from)?;
         let module = self.module(context.revision(), module)?;
         let package = self.package(context.revision(), module.package_id)?;

@@ -6,8 +6,8 @@ use std::{env, thread};
 
 use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion, BuildId, DirBound, DirChecked,
-    DirDeclared, DirExpanded, DirExported, DirImported, DirParsed, DirResolved, MemoryBlobStore,
-    ModuleGraph, NullArtifactStore,
+    DirDeclared, DirExpanded, DirExported, DirImported, DirParsed, DirResolved, EnvironmentBound,
+    MemoryBlobStore, MirLowered, ModuleGraph, NullArtifactStore,
 };
 use destack_dir as dir;
 use destack_mir::{FormatOptions, Formatter};
@@ -397,7 +397,7 @@ impl TestSession {
             .unwrap_or_else(|error| panic!("test MIR artifact failed: {error}"));
 
         self.artifacts()
-            .mir_lowered(&version)
+            .artifact::<MirLowered>(&version)
             .unwrap_or_else(|| panic!("test MIR artifact should exist"))
     }
 
@@ -421,7 +421,7 @@ impl TestSession {
                 self.diagnostic_snapshot(key)
             ),
         };
-        let Some(lowered) = self.artifacts().mir_lowered(&version) else {
+        let Some(lowered) = self.artifacts().artifact::<MirLowered>(&version) else {
             panic!(
                 "test MIR artifact should exist\n{}",
                 self.diagnostic_snapshot(key)
@@ -1094,7 +1094,7 @@ impl TestSession {
         let version = self.require_artifact(key);
 
         self.artifacts()
-            .dir_parsed(&version)
+            .artifact::<DirParsed>(&version)
             .expect("test parsed artifact should exist")
     }
 
@@ -1104,7 +1104,7 @@ impl TestSession {
         let version = self.require_artifact(key);
 
         self.artifacts()
-            .dir_bound(&version)
+            .artifact::<DirBound>(&version)
             .expect("test bound artifact should exist")
     }
 
@@ -1114,7 +1114,7 @@ impl TestSession {
         let version = self.require_artifact(key);
 
         self.artifacts()
-            .dir_imported(&version)
+            .artifact::<DirImported>(&version)
             .expect("test imported artifact should exist")
     }
 
@@ -1124,7 +1124,7 @@ impl TestSession {
         let version = self.require_artifact(key);
 
         self.artifacts()
-            .dir_expanded(&version)
+            .artifact::<DirExpanded>(&version)
             .expect("test expanded artifact should exist")
     }
 
@@ -1134,7 +1134,7 @@ impl TestSession {
         let version = self.require_artifact(key);
 
         self.artifacts()
-            .dir_exported(&version)
+            .artifact::<DirExported>(&version)
             .expect("test exported artifact should exist")
     }
 
@@ -1144,7 +1144,7 @@ impl TestSession {
         let version = self.require_artifact(key);
 
         self.artifacts()
-            .dir_resolved(&version)
+            .artifact::<DirResolved>(&version)
             .expect("test resolved artifact should exist")
     }
 
@@ -1159,7 +1159,7 @@ impl TestSession {
         let version = self.require_artifact(key);
 
         self.artifacts()
-            .dir_checked(&version)
+            .artifact::<DirChecked>(&version)
             .expect("test checked module should exist")
     }
 
@@ -1169,7 +1169,7 @@ impl TestSession {
         let version = self.require_artifact(key);
 
         self.artifacts()
-            .dir_declared(&version)
+            .artifact::<DirDeclared>(&version)
             .expect("test declared module should exist")
     }
 
@@ -1365,10 +1365,10 @@ impl TestSession {
         let reader = self.repository.artifact_reader(self.revision);
         for module_id in builtins {
             let bound = reader
-                .dir_bound(module_id, entry.profile)
+                .read::<DirBound>((module_id, entry.profile))
                 .expect("test builtin bound artifact should exist");
             let expanded = reader
-                .dir_expanded(module_id, entry.profile)
+                .read::<DirExpanded>((module_id, entry.profile))
                 .expect("test builtin expanded artifact should exist");
 
             artifacts.push((bound, expanded));
@@ -1397,13 +1397,13 @@ impl TestSession {
                     self.require_artifact(ArtifactKey::dir_bound(module_id, entry.profile));
                 let bound = self
                     .artifacts()
-                    .dir_bound(&bound_version)
+                    .artifact::<DirBound>(&bound_version)
                     .expect("test external bound artifact should exist");
                 let expanded_version =
                     self.require_artifact(ArtifactKey::dir_expanded(module_id, entry.profile));
                 let expanded = self
                     .artifacts()
-                    .dir_expanded(&expanded_version)
+                    .artifact::<DirExpanded>(&expanded_version)
                     .expect("test external expanded artifact should exist");
                 let declared = self.dir_declared_module(module_id, entry.profile);
                 let checked = self.dir_checked_module(module_id, entry.profile);
@@ -1440,7 +1440,7 @@ impl TestSession {
 
         // include the modules behind the bound environment's name surface
         let reader = self.repository.artifact_reader(self.revision);
-        if let Ok(environment) = reader.environment_bound_content(entry.profile) {
+        if let Ok(environment) = reader.read_content::<EnvironmentBound>(entry.profile) {
             let language = environment.language.items_by_symbol.keys().copied();
             let builtins = environment.language.symbols.values().copied();
             for symbol in language.chain(builtins) {
@@ -1486,7 +1486,7 @@ impl TestSession {
     pub(crate) fn module_graph(&self, profile: ProfileId) -> Arc<ModuleGraph> {
         let version = self.require_artifact(ArtifactKey::module_graph(profile));
         self.artifacts()
-            .module_graph(&version)
+            .artifact::<ModuleGraph>(&version)
             .expect("test module graph should exist")
     }
 

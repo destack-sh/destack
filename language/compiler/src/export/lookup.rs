@@ -168,7 +168,7 @@ impl ExportResolver {
         self.table_loads += 1;
 
         let exported = artifacts
-            .dir_exported_content(module, self.profile)
+            .read_content::<DirExported>((module, self.profile))
             .map_err(CompilerError::from)?;
         self.modules.insert(module, exported.clone());
 

@@ -2,7 +2,8 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, MirAnalyzed, ProgramAnalysis,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, MirAnalyzed, MirElaborated,
+    ProgramAnalysis,
 };
 use destack_mir as mir;
 use destack_repository::{ProfileId, ProviderContext};
@@ -35,7 +36,7 @@ impl Compiler {
     ) -> CompilerResult<ArtifactPayload> {
         let artifacts = self.artifact_reader(context);
         let elaborated = artifacts
-            .mir_elaborated(module, profile, target)
+            .read::<MirElaborated>((module, profile, target))
             .map_err(CompilerError::from)?;
 
         // summarize the elaborated tree's linkable references
@@ -101,7 +102,7 @@ impl Compiler {
         let mut roots: Vec<mir::Symbol> = Vec::new();
         for module in modules {
             let analyzed = artifacts
-                .mir_analyzed(module, profile, target)
+                .read::<MirAnalyzed>((module, profile, target))
                 .map_err(CompilerError::from)?;
             if root_modules.contains(&module) {
                 for (symbol, node) in analyzed.links.nodes() {

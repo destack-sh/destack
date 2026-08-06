@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactPayload,
-    ArtifactProjectionFingerprint, ArtifactProjectionKey, InherentExtension, ModuleGraph,
-    SourceDependencyKey,
+    ArtifactProjectionFingerprint, ArtifactProjectionKey, DirResolved, InherentExtension,
+    ModuleGraph, SourceDependencyKey,
 };
 use destack_repository::{ArtifactReader, ProfileId, ProviderContext};
 use destack_source::ModuleId;
@@ -162,7 +162,7 @@ impl Compiler {
         let graph = self
             .repository
             .artifact_table()
-            .module_graph(&base.version)
+            .artifact::<ModuleGraph>(&base.version)
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("module graph base is missing: {:?}", base.version),
             })?;
@@ -321,7 +321,7 @@ impl Compiler {
         inherent: &mut Vec<InherentExtension>,
     ) -> CompilerResult<()> {
         let resolved = artifacts
-            .dir_resolved_projection(module, profile, ArtifactProjectionKey::ImportEdges)
+            .read_projection::<DirResolved>((module, profile), ArtifactProjectionKey::ImportEdges)
             .map_err(CompilerError::from)?;
 
         for (symbol, target) in resolved.extensions.targets() {
@@ -345,7 +345,7 @@ impl Compiler {
         modules: &FxHashSet<ModuleId>,
     ) -> CompilerResult<Arc<[ModuleId]>> {
         let resolved = artifacts
-            .dir_resolved_projection(module, profile, ArtifactProjectionKey::ImportEdges)
+            .read_projection::<DirResolved>((module, profile), ArtifactProjectionKey::ImportEdges)
             .map_err(CompilerError::from)?;
 
         // collect the defining modules of resolved targets

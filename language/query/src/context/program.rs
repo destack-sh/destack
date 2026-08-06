@@ -188,7 +188,7 @@ impl<'a> ProgramQueryContext<'a> {
         let environment = self.environment_bound.get_or_init(|| {
             let artifacts = ArtifactReader::new(self.repository(), self.revision());
 
-            artifacts.environment_bound(self.profile_id())
+            artifacts.read::<EnvironmentBound>(self.profile_id())
         });
 
         match environment {
@@ -401,7 +401,7 @@ impl<'a> ProgramQueryContext<'a> {
         let index = self.program_indexes[kind.ordinal()].get_or_init(|| {
             let artifacts = ArtifactReader::new(self.repository(), self.revision());
 
-            artifacts.program_index(self.profile_id(), kind)
+            artifacts.read::<ProgramIndex>((self.profile_id(), kind))
         });
 
         match index {
@@ -426,7 +426,7 @@ impl<'a> ProgramQueryContext<'a> {
         let index = module_indexes[ordinal][kind_ordinal].get_or_init(|| {
             let artifacts = ArtifactReader::new(self.repository(), self.revision());
 
-            artifacts.module_index(module_id, self.profile_id(), kind)
+            artifacts.read::<ModuleIndex>((module_id, self.profile_id(), kind))
         });
 
         match index {

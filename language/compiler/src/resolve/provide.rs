@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey, ArtifactSidecar,
+    DirBound, DirExpanded, DirExported, DirImported, DirParsed, EnvironmentBound,
 };
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProviderContext, ProviderError};
@@ -38,18 +39,20 @@ impl Compiler {
     ) -> CompilerResult<ArtifactPayload> {
         // load provider inputs
         let artifacts = self.artifact_reader(context);
-        let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
+        let parsed = artifacts
+            .read::<DirParsed>(module)
+            .map_err(CompilerError::from)?;
         let bound = artifacts
-            .dir_bound(module, profile)
+            .read::<DirBound>((module, profile))
             .map_err(CompilerError::from)?;
         let imported = artifacts
-            .dir_imported(module, profile)
+            .read::<DirImported>((module, profile))
             .map_err(CompilerError::from)?;
         let expanded = artifacts
-            .dir_expanded(module, profile)
+            .read::<DirExpanded>((module, profile))
             .map_err(CompilerError::from)?;
         let environment = artifacts
-            .environment_bound(profile)
+            .read::<EnvironmentBound>(profile)
             .map_err(CompilerError::from)?;
 
         // build expanded resolve inputs
@@ -125,7 +128,7 @@ impl Compiler {
             );
 
             // follow re-export edges through exports that are already built
-            match artifacts.dir_exported_content(module, profile) {
+            match artifacts.read_content::<DirExported>((module, profile)) {
                 Ok(exported) => frontier.extend(exported.reexport_modules()),
                 Err(ProviderError::Blocked { .. }) => dependencies.mark_partial(),
                 Err(error) => return Err(CompilerError::from(error)),

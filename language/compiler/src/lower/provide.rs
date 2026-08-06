@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey, DirBound,
+    DirChecked, DirDeclared, DirExpanded, DirMaterialized, DirParsed,
 };
 use destack_core::FxIndexMap;
 use destack_repository::{ProfileId, ProviderContext, ProviderError};
@@ -102,21 +103,23 @@ impl Compiler {
 
         // load provider inputs
         let artifacts = self.artifact_reader(context);
-        let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
+        let parsed = artifacts
+            .read::<DirParsed>(module)
+            .map_err(CompilerError::from)?;
         let bound = artifacts
-            .dir_bound(module, profile)
+            .read::<DirBound>((module, profile))
             .map_err(CompilerError::from)?;
         let expanded = artifacts
-            .dir_expanded(module, profile)
+            .read::<DirExpanded>((module, profile))
             .map_err(CompilerError::from)?;
         let declared = artifacts
-            .dir_declared(module, profile)
+            .read::<DirDeclared>((module, profile))
             .map_err(CompilerError::from)?;
         let checked = artifacts
-            .dir_checked(module, profile)
+            .read::<DirChecked>((module, profile))
             .map_err(CompilerError::from)?;
         let materialized = artifacts
-            .dir_materialized(module, profile)
+            .read::<DirMaterialized>((module, profile))
             .map_err(CompilerError::from)?;
 
         // resolve this module's import closure
@@ -134,22 +137,22 @@ impl Compiler {
 
             // load the bound and checked state of every reachable module
             let parsed = artifacts
-                .dir_parsed(reachable)
+                .read::<DirParsed>(reachable)
                 .map_err(CompilerError::from)?;
             let bound = artifacts
-                .dir_bound(reachable, profile)
+                .read::<DirBound>((reachable, profile))
                 .map_err(CompilerError::from)?;
             let expanded = artifacts
-                .dir_expanded(reachable, profile)
+                .read::<DirExpanded>((reachable, profile))
                 .map_err(CompilerError::from)?;
             let declared = artifacts
-                .dir_declared(reachable, profile)
+                .read::<DirDeclared>((reachable, profile))
                 .map_err(CompilerError::from)?;
             let checked = artifacts
-                .dir_checked(reachable, profile)
+                .read::<DirChecked>((reachable, profile))
                 .map_err(CompilerError::from)?;
             let materialized = artifacts
-                .dir_materialized(reachable, profile)
+                .read::<DirMaterialized>((reachable, profile))
                 .map_err(CompilerError::from)?;
             let path = self.module_symbol_path(context, reachable)?;
             modules.insert(

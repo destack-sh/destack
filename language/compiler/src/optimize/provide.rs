@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, MirOptimized, ProgramAnalysis,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, MirAnalyzed, MirElaborated, MirOptimized,
+    ProgramAnalysis,
 };
 use destack_mir as mir;
 use destack_mir::AnalysisOptions;
@@ -88,7 +89,7 @@ impl Compiler {
         // load provider inputs
         let artifacts = self.artifact_reader(context);
         let elaborated = artifacts
-            .mir_elaborated(module, profile, *target)
+            .read::<MirElaborated>((module, profile, *target))
             .map_err(CompilerError::from)?;
         let mut optimized = MirOptimized {
             tree: elaborated.tree.clone(),
@@ -105,11 +106,11 @@ impl Compiler {
         // load analysis for the optimization program scope
         let program_analysis = if level.uses_program_analysis() {
             artifacts
-                .program_analysis(profile, *target)
+                .read::<ProgramAnalysis>((profile, *target))
                 .map_err(CompilerError::from)?
         } else {
             let analyzed = artifacts
-                .mir_analyzed(module, profile, *target)
+                .read::<MirAnalyzed>((module, profile, *target))
                 .map_err(CompilerError::from)?;
             Arc::new(module_scoped_analysis(&analyzed.links))
         };

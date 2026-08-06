@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::DirResolved;
+use destack_artifact::{ArtifactProjectionKey, DirBound, DirDeclared, DirExpanded, DirResolved};
 use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -47,7 +47,7 @@ impl CheckState<'_> {
         // read the resolve stage directly, it never depends on declared modules
         let resolved = self
             .artifacts
-            .dir_resolved_content(module, self.profile)
+            .read_content::<DirResolved>((module, self.profile))
             .map_err(CompilerError::from)?;
         self.external_resolved.insert(module, Arc::clone(&resolved));
 
@@ -205,21 +205,21 @@ impl CheckState<'_> {
     ) -> CompilerResult<CheckExternalModuleState> {
         let bound = self
             .artifacts
-            .dir_bound_content(module, self.profile)
+            .read_content::<DirBound>((module, self.profile))
             .map_err(CompilerError::from)?;
         let expanded = self
             .artifacts
-            .dir_expanded_content(module, self.profile)
+            .read_content::<DirExpanded>((module, self.profile))
             .map_err(CompilerError::from)?;
         let resolved = self
             .artifacts
-            .dir_resolved_content(module, self.profile)
+            .read_content::<DirResolved>((module, self.profile))
             .map_err(CompilerError::from)?;
 
         // read the module's sealed declared module
         let declared = self
             .artifacts
-            .dir_declared_projected(module, self.profile)
+            .read_projection::<DirDeclared>((module, self.profile), ArtifactProjectionKey::Declared)
             .map_err(CompilerError::from)?;
 
         Ok(CheckExternalModuleState {

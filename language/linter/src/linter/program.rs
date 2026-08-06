@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey,
-    DiagnosticControlIndex, ProgramLinted,
+    DiagnosticControlIndex, DirChecked, EnvironmentBound, ProgramLinted,
 };
 use destack_core::FxIndexSet;
 use destack_repository::{
@@ -227,7 +227,7 @@ impl Linter {
                 continue;
             }
 
-            let checked = artifacts.dir_checked(module, profile)?;
+            let checked = artifacts.read::<DirChecked>((module, profile))?;
             control_tables.push(checked.controls.clone());
         }
         let controls = DiagnosticControlIndex::new(control_tables.iter().map(Arc::as_ref))
@@ -260,7 +260,7 @@ impl Linter {
         let revision = context.revision();
         let artifacts = self.artifact_reader(context);
         let profile = program.profile.id();
-        let environment = artifacts.environment_bound(profile)?;
+        let environment = artifacts.read::<EnvironmentBound>(profile)?;
         let graph = artifacts.module_graph_reader(profile)?;
         let mut roots = program.roots.to_vec();
         roots.extend(environment.globals.iter().copied());
