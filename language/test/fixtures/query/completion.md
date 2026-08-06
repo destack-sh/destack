@@ -409,7 +409,7 @@ function read(box: Box<string>): string {
 A blanket extension appears when its receiver constraint is satisfied.
 
 ```ds main.ds
-interface Named {}
+newtype interface Named {}
 
 struct User implements Named {}
 
@@ -429,12 +429,12 @@ function display(user: User): string {
 @completion.item label=displayName kind=method replace=main.ds#prefix detail="() => string" insert="displayName()" preselect=true matches=0,1,2
 ```
 
-### [ignored] Omit an inapplicable blanket extension
+### Omit an inapplicable blanket extension
 
 A constrained blanket extension does not appear for a receiver outside its bound.
 
 ```ds main.ds
-interface Named {}
+newtype interface Named {}
 
 struct User {}
 
@@ -2057,12 +2057,12 @@ const result = UserI;
 @completion.item label=UserId kind=constructor replace=main.ds#prefix detail="(int32) => UserId" insert="UserId(${1})$0" snippet=true preselect=true matches=0,1,2,3,4
 ```
 
-### [ignored] Update blanket extension completion after conformance changes
+### Update blanket extension completion after conformance changes
 
 Blanket extension completion follows the receiver's current interface conformance.
 
 ```ds main.ds
-interface Named {}
+newtype interface Named {}
 
 struct User implements Named {}
 
