@@ -1,128 +1,290 @@
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use anyhow::Result;
+use destack_rpc::MethodKind;
 
 use crate::generate::core::write_text;
-use crate::generate::schema::Schema;
+use crate::generate::schema::{Schema, Type};
 
-use super::codec::property_access;
-use super::operation::WorkspaceRequestOperation;
+use super::codec::{render_decode_type, render_encode_type};
+use super::item::render_type;
+use super::operation::WorkspaceOperation;
+use super::path::TypeNames;
 use super::text::{GENERATED_HEADER, Text};
 
-pub(super) fn generate_protocol_workspace_client(root: &Path, schema: &Schema) -> Result<()> {
-    let content = render_protocol_workspace_client(schema)?;
+/// Generate the typed workspace RPC client.
+pub(super) fn generate_workspace_client(root: &Path, schema: &Schema) -> Result<()> {
+    let content = render_workspace_client(schema)?;
 
     write_text(
         root,
-        "client/typescript/src/_generated/protocol/workspace/client.ts",
+        "client/typescript/src/_generated/workspace/client.ts",
         content,
     )
 }
 
-/// Render the exact TypeScript workspace protocol client.
-fn render_protocol_workspace_client(schema: &Schema) -> Result<String> {
+/// Render one complete workspace RPC client.
+fn render_workspace_client(schema: &Schema) -> Result<String> {
+    let operations = WorkspaceOperation::all(schema)?;
+    let keys = operation_keys(&operations)?;
+    let names = TypeNames::namespaced(schema, &keys);
     let mut text = Text::new();
     text.line(GENERATED_HEADER);
     text.blank();
-    text.line("import type { ProtocolError } from \"../error.js\";");
-    text.line("import { WorkspaceRequest } from \"../request.js\";");
-    text.line("import type { WorkspaceResponse } from \"../response.js\";");
-    text.line("import type { RootId } from \"../root.js\";");
-    text.line("import type { Connection } from \"../../../protocol/connection/index.js\";");
-    text.blank();
-    text.line("type Request<K extends WorkspaceRequest[\"kind\"]> = Extract<WorkspaceRequest, { readonly kind: K }>;");
-    text.line("type Response<K extends WorkspaceResponse[\"kind\"]> = Extract<WorkspaceResponse, { readonly kind: K }>;");
+    text.line("import type { Call, Encoder, Decoder, Method, RequestValue, RpcResponse } from \"../../rpc/index.js\";");
+    text.line("import { Connection } from \"../../rpc/index.js\";");
+    render_type_imports(schema, &keys, &names, &mut text);
     text.blank();
 
-    render_workspace_client_class(schema, &mut text)?;
-    render_workspace_client_response_functions(&mut text);
+    render_service(schema, &mut text);
+    for operation in &operations {
+        render_method(schema, operation, &names, &mut text);
+    }
+    render_client(schema, &operations, &names, &mut text);
 
     Ok(text.finish())
 }
 
-/// Render the exact workspace client class.
-fn render_workspace_client_class(schema: &Schema, text: &mut Text) -> Result<()> {
-    text.doc("Exact workspace protocol client for one opened root.", "");
-    text.line("export class WorkspaceClient {");
-    text.line("    readonly #connection: Connection;");
-    text.line("    readonly #handle: RootId;");
-    text.blank();
-    text.doc("Create one exact workspace protocol client.", "    ");
-    text.line("    constructor(connection: Connection, handle: RootId) {");
-    text.line("        this.#connection = connection;");
-    text.line("        this.#handle = handle;");
-    text.line("    }");
-    text.blank();
-    text.doc("Return the backing protocol connection.", "    ");
-    text.line("    connection(): Connection {");
-    text.line("        return this.#connection;");
-    text.line("    }");
-    text.blank();
-    text.doc("Return the opened root handle.", "    ");
-    text.line("    handle(): RootId {");
-    text.line("        return this.#handle;");
-    text.line("    }");
-    text.blank();
+/// Return all named type keys used by service methods.
+fn operation_keys(operations: &[WorkspaceOperation]) -> Result<Vec<String>> {
+    let mut keys = BTreeSet::new();
 
-    for operation in WorkspaceRequestOperation::all(schema)? {
-        render_workspace_request_method(text, &operation);
+    for operation in operations {
+        operation.visit_keys(&mut |key| {
+            keys.insert(key.to_string());
+        })?;
     }
-    text.line("}");
-    text.blank();
 
-    Ok(())
+    Ok(keys.into_iter().collect())
 }
 
-/// Render one exact workspace request method.
-fn render_workspace_request_method(text: &mut Text, operation: &WorkspaceRequestOperation) {
-    let parameters = operation
-        .parameters
-        .iter()
-        .map(|parameter| format!("{}: {}", parameter.name, parameter.ty))
-        .collect::<Vec<_>>()
-        .join(", ");
+/// Render namespace imports for every referenced value module.
+fn render_type_imports(schema: &Schema, keys: &[String], names: &TypeNames, text: &mut Text) {
+    let mut imports = BTreeMap::new();
 
-    text.doc(&operation.doc, "    ");
-    text.line(format!(
-        "    async {}({parameters}): Promise<{}> {{",
-        operation.method, operation.output
-    ));
-    text.line(format!(
-        "        const response = await this.#connection.request({});",
-        operation.request
-    ));
-    text.blank();
-    let response = format!("expectResponse(response, {:?})", operation.response_kind);
-    let value = property_access(&response, &operation.response_field);
+    for key in keys {
+        let path = schema.module_path(key);
+        let Some(namespace) = names.module(key) else {
+            continue;
+        };
+        imports.insert(client_import_path(path.slash_path()), namespace.to_string());
+    }
+    for (path, namespace) in imports {
+        text.line(format!("import * as {namespace} from \"{path}\";"));
+    }
+}
 
-    text.line(format!("        return {value};"));
-    text.line("    }");
+/// Return an import path from the generated workspace client.
+fn client_import_path(target: String) -> String {
+    if let Some(target) = target.strip_prefix("workspace/") {
+        format!("./{target}.js")
+    } else {
+        format!("../{target}.js")
+    }
+}
+
+/// Render the stable workspace service identifier.
+fn render_service(schema: &Schema, text: &mut Text) {
+    text.doc("Stable workspace RPC service identifier.", "");
+    text.line(format!(
+        "export const workspaceService = {}n;",
+        schema.service.id().0
+    ));
     text.blank();
 }
 
-/// Render exact workspace response functions.
-fn render_workspace_client_response_functions(text: &mut Text) {
+/// Render one typed method descriptor and its codecs.
+fn render_method(
+    schema: &Schema,
+    operation: &WorkspaceOperation,
+    names: &TypeNames,
+    text: &mut Text,
+) {
+    let request = render_type(schema, names, &operation.request);
+    let response = render_type(schema, names, &operation.response);
+    let input = operation
+        .input
+        .as_ref()
+        .map(|ty| render_type(schema, names, ty))
+        .unwrap_or_else(|| "never".to_string());
+    let output = operation
+        .output
+        .as_ref()
+        .map(|ty| render_type(schema, names, ty))
+        .unwrap_or_else(|| "never".to_string());
+    let constant = format!("{}Method", operation.method);
+
+    render_encoder(schema, names, &operation.request, &constant, text);
+    render_decoder(schema, names, &operation.response, &constant, text);
+    if let Some(input) = &operation.input {
+        render_input_encoder(schema, names, input, &constant, text);
+    }
+    if let Some(output) = &operation.output {
+        render_output_decoder(schema, names, output, &constant, text);
+    }
+
     text.doc(
-        "Return one response variant or throw its protocol error.",
+        &format!("Descriptor for the {} RPC method.", operation.method),
         "",
     );
-    text.line("function expectResponse<K extends WorkspaceResponse[\"kind\"]>(");
-    text.line("    response: WorkspaceResponse,");
-    text.line("    kind: K,");
-    text.line("): Response<K> {");
-    text.line("    if (response.kind === kind) {");
-    text.line("        return response as Response<K>;");
+    text.line(format!(
+        "const {constant}: Method<{request}, {response}, {input}, {output}> = {{"
+    ));
+    text.line(format!("    service: {}n,", schema.service.id().0));
+    text.line(format!("    method: {}n,", operation.id.0));
+    text.line(format!("    fingerprint: {}n,", operation.fingerprint));
+    text.line(format!("    kind: {:?},", method_kind(operation.kind)));
+    text.line(format!("    request: {constant}Request,"));
+    text.line(format!("    response: {constant}Response,"));
+    if operation.input.is_some() {
+        text.line(format!("    input: {constant}Input,"));
+    }
+    if operation.output.is_some() {
+        text.line(format!("    output: {constant}Output,"));
+    }
+    text.line("};");
+    text.blank();
+}
+
+/// Render one request encoder.
+fn render_encoder(schema: &Schema, names: &TypeNames, ty: &Type, name: &str, text: &mut Text) {
+    let rendered = render_type(schema, names, ty);
+    text.line(format!("const {name}Request: Encoder<{rendered}> = {{"));
+    text.line(format!("    encode(writer, value: {rendered}): void {{"));
+    render_encode_type(schema, names, text, ty, "value", "        ", 0);
+    text.line("    },");
+    text.line("};");
+    text.blank();
+}
+
+/// Render one response decoder.
+fn render_decoder(schema: &Schema, names: &TypeNames, ty: &Type, name: &str, text: &mut Text) {
+    let rendered = render_type(schema, names, ty);
+    let decode = render_decode_type(schema, names, ty, "reader", 0);
+    text.line(format!("const {name}Response: Decoder<{rendered}> = {{"));
+    text.line(format!("    decode(reader): {rendered} {{"));
+    text.line(format!("        return {decode};"));
+    text.line("    },");
+    text.line("};");
+    text.blank();
+}
+
+/// Render one caller stream encoder.
+fn render_input_encoder(
+    schema: &Schema,
+    names: &TypeNames,
+    ty: &Type,
+    name: &str,
+    text: &mut Text,
+) {
+    let rendered = render_type(schema, names, ty);
+    text.line(format!("const {name}Input: Encoder<{rendered}> = {{"));
+    text.line(format!("    encode(writer, value: {rendered}): void {{"));
+    render_encode_type(schema, names, text, ty, "value", "        ", 0);
+    text.line("    },");
+    text.line("};");
+    text.blank();
+}
+
+/// Render one service stream decoder.
+fn render_output_decoder(
+    schema: &Schema,
+    names: &TypeNames,
+    ty: &Type,
+    name: &str,
+    text: &mut Text,
+) {
+    let rendered = render_type(schema, names, ty);
+    let decode = render_decode_type(schema, names, ty, "reader", 0);
+    text.line(format!("const {name}Output: Decoder<{rendered}> = {{"));
+    text.line(format!("    decode(reader): {rendered} {{"));
+    text.line(format!("        return {decode};"));
+    text.line("    },");
+    text.line("};");
+    text.blank();
+}
+
+/// Render the generated workspace client class.
+fn render_client(
+    schema: &Schema,
+    operations: &[WorkspaceOperation],
+    names: &TypeNames,
+    text: &mut Text,
+) {
+    text.doc("Typed client for the Destack workspace service.", "");
+    text.line("export class WorkspaceClient {");
+    text.line("    readonly #connection: Connection;");
+    text.blank();
+    text.doc(
+        "Create a workspace client over one negotiated connection.",
+        "    ",
+    );
+    text.line("    constructor(connection: Connection) {");
+    text.line("        this.#connection = connection;");
+    for operation in operations {
+        text.line(format!(
+            "        connection.bind({}Method);",
+            operation.method
+        ));
+    }
     text.line("    }");
     text.blank();
-    text.line("    if (response.kind === \"error\") {");
-    text.line("        throw protocolError(response.error);");
+
+    for operation in operations {
+        render_client_method(schema, operation, names, text);
+    }
+    text.line("}");
+}
+
+/// Render one typed workspace client method.
+fn render_client_method(
+    schema: &Schema,
+    operation: &WorkspaceOperation,
+    names: &TypeNames,
+    text: &mut Text,
+) {
+    let request = render_type(schema, names, &operation.request);
+    let response = render_type(schema, names, &operation.response);
+    let method = &operation.method;
+    let descriptor = format!("{method}Method");
+    text.doc(&format!("Call the {} workspace operation.", method), "    ");
+
+    if operation.kind == MethodKind::Unary {
+        text.line(format!(
+            "    {method}(request: RequestValue<{request}>): Promise<RpcResponse<{response}>> {{"
+        ));
+        text.line(format!(
+            "        return this.#connection.call({descriptor}, request);"
+        ));
+    } else {
+        let input = operation
+            .input
+            .as_ref()
+            .map(|ty| render_type(schema, names, ty))
+            .unwrap_or_else(|| "never".to_string());
+        let output = operation
+            .output
+            .as_ref()
+            .map(|ty| render_type(schema, names, ty))
+            .unwrap_or_else(|| "never".to_string());
+        text.line(format!(
+            "    {method}(request: RequestValue<{request}>): Call<{response}, {input}, {output}> {{"
+        ));
+        text.line(format!(
+            "        return this.#connection.start({descriptor}, request);"
+        ));
+    }
     text.line("    }");
     text.blank();
-    text.line("    throw new Error(`expected ${kind} response, got ${response.kind}`);");
-    text.line("}");
-    text.blank();
-    text.doc("Convert one protocol error into a JavaScript error.", "");
-    text.line("function protocolError(error: ProtocolError): Error {");
-    text.line("    return new Error(`${error.code}: ${error.message}`);");
-    text.line("}");
+}
+
+/// Return the serialized method kind label.
+fn method_kind(kind: MethodKind) -> &'static str {
+    match kind {
+        MethodKind::Unary => "unary",
+        MethodKind::ServerStreaming => "serverStreaming",
+        MethodKind::ClientStreaming => "clientStreaming",
+        MethodKind::BidirectionalStreaming => "bidirectionalStreaming",
+    }
 }

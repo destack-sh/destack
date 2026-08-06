@@ -10,68 +10,101 @@ import { decodeDiagnosticReference, encodeDiagnosticReference, fromJsonDiagnosti
 import { decodeApplicability, encodeApplicability, fromJsonApplicability, toJsonApplicability } from "../../source/diagnostic/suggestion.js";
 import { decodePatchSet, encodePatchSet, fromJsonPatchSet, toJsonPatchSet } from "../../source/edit/edit.js";
 
-/** Request code actions for a range in a document. */
-export type CodeActionsRequest = {
-    /** The queried range. */
-    readonly range: QueryRange;
-    /** The code action context. */
-    readonly context: CodeActionContext;
+/** One source edit offered by the editor. */
+export type CodeAction = {
+    /** The title shown in the UI. */
+    readonly title: string;
+    /** The kind of action. */
+    readonly kind: CodeActionKind;
+    /** Edits to apply. */
+    readonly patches: PatchSet;
+    /** Applicability of a diagnostic suggestion. */
+    readonly applicability?: Applicability;
+    /** Whether this is the preferred action for its diagnostics. */
+    readonly isPreferred: boolean;
+    /** The exact diagnostics addressed by this action. */
+    readonly diagnostics: ReadonlyArray<DiagnosticReference>;
 };
 
-export const CodeActionsRequest = {
+export const CodeAction = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: CodeActionsRequest): void {
-        encodeCodeActionsRequest(writer, value);
+    encode(writer: BinaryWriter, value: CodeAction): void {
+        encodeCodeAction(writer, value);
     },
 
-    /** Decode one CodeActionsRequest. */
-    decode(reader: BinaryReader): CodeActionsRequest {
-        return decodeCodeActionsRequest(reader);
+    /** Decode one CodeAction. */
+    decode(reader: BinaryReader): CodeAction {
+        return decodeCodeAction(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: CodeActionsRequest): Json {
-        return toJsonCodeActionsRequest(value);
+    toJson(value: CodeAction): Json {
+        return toJsonCodeAction(value);
     },
 
-    /** Return one CodeActionsRequest from one JSON value. */
-    fromJson(value: Json): CodeActionsRequest {
-        return fromJsonCodeActionsRequest(value);
+    /** Return one CodeAction from one JSON value. */
+    fromJson(value: Json): CodeAction {
+        return fromJsonCodeAction(value);
     },
 };
 
-/** Encode one CodeActionsRequest. */
-export function encodeCodeActionsRequest(writer: BinaryWriter, value: CodeActionsRequest): void {
-    encodeQueryRange(writer, value.range);
-    encodeCodeActionContext(writer, value.context);
+/** Encode one CodeAction. */
+export function encodeCodeAction(writer: BinaryWriter, value: CodeAction): void {
+    writer.writeString(value.title);
+    encodeCodeActionKind(writer, value.kind);
+    encodePatchSet(writer, value.patches);
+    writer.writeOption(value.applicability, (value3) => {
+        encodeApplicability(writer, value3);
+    });
+    writer.writeBool(value.isPreferred);
+    writer.writeUnsigned(value.diagnostics.length);
+    for (const item5 of value.diagnostics) {
+        encodeDiagnosticReference(writer, item5);
+    }
 }
 
-/** Decode one CodeActionsRequest. */
-export function decodeCodeActionsRequest(reader: BinaryReader): CodeActionsRequest {
-    const range = decodeQueryRange(reader);
-    const context = decodeCodeActionContext(reader);
+/** Decode one CodeAction. */
+export function decodeCodeAction(reader: BinaryReader): CodeAction {
+    const title = reader.readString();
+    const kind = decodeCodeActionKind(reader);
+    const patches = decodePatchSet(reader);
+    const applicability = reader.readOption(() => decodeApplicability(reader));
+    const isPreferred = reader.readBool();
+    const diagnostics = (() => { const length5 = reader.readNumber(); const items5: Array<DiagnosticReference> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeDiagnosticReference(reader)); } return items5; })();
 
     return {
-        range,
-        context,
+        title,
+        kind,
+        patches,
+        ...(applicability === undefined ? {} : { applicability }),
+        isPreferred,
+        diagnostics,
     };
 }
 
-/** Return one JSON value for one CodeActionsRequest. */
-export function toJsonCodeActionsRequest(value: CodeActionsRequest): Json {
+/** Return one JSON value for one CodeAction. */
+export function toJsonCodeAction(value: CodeAction): Json {
     return {
-        range: toJsonQueryRange(value.range),
-        context: toJsonCodeActionContext(value.context),
+        title: value.title,
+        kind: toJsonCodeActionKind(value.kind),
+        patches: toJsonPatchSet(value.patches),
+        ...(value.applicability === undefined ? {} : { applicability: toJsonApplicability(value.applicability) }),
+        isPreferred: value.isPreferred,
+        diagnostics: value.diagnostics.map((item0) => toJsonDiagnosticReference(item0)),
     };
 }
 
-/** Return one CodeActionsRequest from one JSON value. */
-export function fromJsonCodeActionsRequest(value: Json): CodeActionsRequest {
+/** Return one CodeAction from one JSON value. */
+export function fromJsonCodeAction(value: Json): CodeAction {
     const object = jsonObject(value);
 
     return {
-        range: fromJsonQueryRange(jsonField(object, "range")),
-        context: fromJsonCodeActionContext(jsonField(object, "context")),
+        title: jsonString(jsonField(object, "title")),
+        kind: fromJsonCodeActionKind(jsonField(object, "kind")),
+        patches: fromJsonPatchSet(jsonField(object, "patches")),
+        applicability: jsonOptional(object, "applicability", (value) => fromJsonApplicability(value)),
+        isPreferred: jsonBool(jsonField(object, "isPreferred")),
+        diagnostics: jsonArray(jsonField(object, "diagnostics")).map((item0) => fromJsonDiagnosticReference(item0)),
     };
 }
 
@@ -227,6 +260,71 @@ export function fromJsonCodeActionKind(value: Json): CodeActionKind {
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
+/** Request code actions for a range in a document. */
+export type CodeActionsRequest = {
+    /** The queried range. */
+    readonly range: QueryRange;
+    /** The code action context. */
+    readonly context: CodeActionContext;
+};
+
+export const CodeActionsRequest = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: CodeActionsRequest): void {
+        encodeCodeActionsRequest(writer, value);
+    },
+
+    /** Decode one CodeActionsRequest. */
+    decode(reader: BinaryReader): CodeActionsRequest {
+        return decodeCodeActionsRequest(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: CodeActionsRequest): Json {
+        return toJsonCodeActionsRequest(value);
+    },
+
+    /** Return one CodeActionsRequest from one JSON value. */
+    fromJson(value: Json): CodeActionsRequest {
+        return fromJsonCodeActionsRequest(value);
+    },
+};
+
+/** Encode one CodeActionsRequest. */
+export function encodeCodeActionsRequest(writer: BinaryWriter, value: CodeActionsRequest): void {
+    encodeQueryRange(writer, value.range);
+    encodeCodeActionContext(writer, value.context);
+}
+
+/** Decode one CodeActionsRequest. */
+export function decodeCodeActionsRequest(reader: BinaryReader): CodeActionsRequest {
+    const range = decodeQueryRange(reader);
+    const context = decodeCodeActionContext(reader);
+
+    return {
+        range,
+        context,
+    };
+}
+
+/** Return one JSON value for one CodeActionsRequest. */
+export function toJsonCodeActionsRequest(value: CodeActionsRequest): Json {
+    return {
+        range: toJsonQueryRange(value.range),
+        context: toJsonCodeActionContext(value.context),
+    };
+}
+
+/** Return one CodeActionsRequest from one JSON value. */
+export function fromJsonCodeActionsRequest(value: Json): CodeActionsRequest {
+    const object = jsonObject(value);
+
+    return {
+        range: fromJsonQueryRange(jsonField(object, "range")),
+        context: fromJsonCodeActionContext(jsonField(object, "context")),
+    };
+}
+
 /** Response payload for code actions queries. */
 export type CodeActionsResponse = {
     /** Code actions. */
@@ -285,103 +383,5 @@ export function fromJsonCodeActionsResponse(value: Json): CodeActionsResponse {
 
     return {
         actions: jsonArray(jsonField(object, "actions")).map((item0) => fromJsonCodeAction(item0)),
-    };
-}
-
-/** One source edit offered by the editor. */
-export type CodeAction = {
-    /** The title shown in the UI. */
-    readonly title: string;
-    /** The kind of action. */
-    readonly kind: CodeActionKind;
-    /** Edits to apply. */
-    readonly patches: PatchSet;
-    /** Applicability of a diagnostic suggestion. */
-    readonly applicability?: Applicability;
-    /** Whether this is the preferred action for its diagnostics. */
-    readonly isPreferred: boolean;
-    /** The exact diagnostics addressed by this action. */
-    readonly diagnostics: ReadonlyArray<DiagnosticReference>;
-};
-
-export const CodeAction = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: CodeAction): void {
-        encodeCodeAction(writer, value);
-    },
-
-    /** Decode one CodeAction. */
-    decode(reader: BinaryReader): CodeAction {
-        return decodeCodeAction(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: CodeAction): Json {
-        return toJsonCodeAction(value);
-    },
-
-    /** Return one CodeAction from one JSON value. */
-    fromJson(value: Json): CodeAction {
-        return fromJsonCodeAction(value);
-    },
-};
-
-/** Encode one CodeAction. */
-export function encodeCodeAction(writer: BinaryWriter, value: CodeAction): void {
-    writer.writeString(value.title);
-    encodeCodeActionKind(writer, value.kind);
-    encodePatchSet(writer, value.patches);
-    writer.writeOption(value.applicability, (value3) => {
-        encodeApplicability(writer, value3);
-    });
-    writer.writeBool(value.isPreferred);
-    writer.writeUnsigned(value.diagnostics.length);
-    for (const item5 of value.diagnostics) {
-        encodeDiagnosticReference(writer, item5);
-    }
-}
-
-/** Decode one CodeAction. */
-export function decodeCodeAction(reader: BinaryReader): CodeAction {
-    const title = reader.readString();
-    const kind = decodeCodeActionKind(reader);
-    const patches = decodePatchSet(reader);
-    const applicability = reader.readOption(() => decodeApplicability(reader));
-    const isPreferred = reader.readBool();
-    const diagnostics = (() => { const length5 = reader.readNumber(); const items5: Array<DiagnosticReference> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeDiagnosticReference(reader)); } return items5; })();
-
-    return {
-        title,
-        kind,
-        patches,
-        ...(applicability === undefined ? {} : { applicability }),
-        isPreferred,
-        diagnostics,
-    };
-}
-
-/** Return one JSON value for one CodeAction. */
-export function toJsonCodeAction(value: CodeAction): Json {
-    return {
-        title: value.title,
-        kind: toJsonCodeActionKind(value.kind),
-        patches: toJsonPatchSet(value.patches),
-        ...(value.applicability === undefined ? {} : { applicability: toJsonApplicability(value.applicability) }),
-        isPreferred: value.isPreferred,
-        diagnostics: value.diagnostics.map((item0) => toJsonDiagnosticReference(item0)),
-    };
-}
-
-/** Return one CodeAction from one JSON value. */
-export function fromJsonCodeAction(value: Json): CodeAction {
-    const object = jsonObject(value);
-
-    return {
-        title: jsonString(jsonField(object, "title")),
-        kind: fromJsonCodeActionKind(jsonField(object, "kind")),
-        patches: fromJsonPatchSet(jsonField(object, "patches")),
-        applicability: jsonOptional(object, "applicability", (value) => fromJsonApplicability(value)),
-        isPreferred: jsonBool(jsonField(object, "isPreferred")),
-        diagnostics: jsonArray(jsonField(object, "diagnostics")).map((item0) => fromJsonDiagnosticReference(item0)),
     };
 }

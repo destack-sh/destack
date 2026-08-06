@@ -10,64 +10,6 @@ import { decodeSymbolKind, encodeSymbolKind, fromJsonSymbolKind, toJsonSymbolKin
 import { decodeTarget, encodeTarget, fromJsonTarget, toJsonTarget } from "../protocol/target.js";
 import { decodeQueryPosition, encodeQueryPosition, fromJsonQueryPosition, toJsonQueryPosition } from "../protocol/target.js";
 
-/** Request the type item at a cursor position. */
-export type TypeItemRequest = {
-    /** The queried position. */
-    readonly position: QueryPosition;
-};
-
-export const TypeItemRequest = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: TypeItemRequest): void {
-        encodeTypeItemRequest(writer, value);
-    },
-
-    /** Decode one TypeItemRequest. */
-    decode(reader: BinaryReader): TypeItemRequest {
-        return decodeTypeItemRequest(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: TypeItemRequest): Json {
-        return toJsonTypeItemRequest(value);
-    },
-
-    /** Return one TypeItemRequest from one JSON value. */
-    fromJson(value: Json): TypeItemRequest {
-        return fromJsonTypeItemRequest(value);
-    },
-};
-
-/** Encode one TypeItemRequest. */
-export function encodeTypeItemRequest(writer: BinaryWriter, value: TypeItemRequest): void {
-    encodeQueryPosition(writer, value.position);
-}
-
-/** Decode one TypeItemRequest. */
-export function decodeTypeItemRequest(reader: BinaryReader): TypeItemRequest {
-    const position = decodeQueryPosition(reader);
-
-    return {
-        position,
-    };
-}
-
-/** Return one JSON value for one TypeItemRequest. */
-export function toJsonTypeItemRequest(value: TypeItemRequest): Json {
-    return {
-        position: toJsonQueryPosition(value.position),
-    };
-}
-
-/** Return one TypeItemRequest from one JSON value. */
-export function fromJsonTypeItemRequest(value: Json): TypeItemRequest {
-    const object = jsonObject(value);
-
-    return {
-        position: fromJsonQueryPosition(jsonField(object, "position")),
-    };
-}
-
 /** An item in the type hierarchy. */
 export type TypeItem = {
     /** The name of the type. */
@@ -153,6 +95,64 @@ export function fromJsonTypeItem(value: Json): TypeItem {
         detail: jsonOptional(object, "detail", (value) => jsonString(value)),
         target: fromJsonTarget(jsonField(object, "target")),
         symbolId: fromJsonGlobalSymbolId(jsonField(object, "symbolId")),
+    };
+}
+
+/** Request the type item at a cursor position. */
+export type TypeItemRequest = {
+    /** The queried position. */
+    readonly position: QueryPosition;
+};
+
+export const TypeItemRequest = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: TypeItemRequest): void {
+        encodeTypeItemRequest(writer, value);
+    },
+
+    /** Decode one TypeItemRequest. */
+    decode(reader: BinaryReader): TypeItemRequest {
+        return decodeTypeItemRequest(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: TypeItemRequest): Json {
+        return toJsonTypeItemRequest(value);
+    },
+
+    /** Return one TypeItemRequest from one JSON value. */
+    fromJson(value: Json): TypeItemRequest {
+        return fromJsonTypeItemRequest(value);
+    },
+};
+
+/** Encode one TypeItemRequest. */
+export function encodeTypeItemRequest(writer: BinaryWriter, value: TypeItemRequest): void {
+    encodeQueryPosition(writer, value.position);
+}
+
+/** Decode one TypeItemRequest. */
+export function decodeTypeItemRequest(reader: BinaryReader): TypeItemRequest {
+    const position = decodeQueryPosition(reader);
+
+    return {
+        position,
+    };
+}
+
+/** Return one JSON value for one TypeItemRequest. */
+export function toJsonTypeItemRequest(value: TypeItemRequest): Json {
+    return {
+        position: toJsonQueryPosition(value.position),
+    };
+}
+
+/** Return one TypeItemRequest from one JSON value. */
+export function fromJsonTypeItemRequest(value: Json): TypeItemRequest {
+    const object = jsonObject(value);
+
+    return {
+        position: fromJsonQueryPosition(jsonField(object, "position")),
     };
 }
 

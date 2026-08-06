@@ -63,6 +63,20 @@ impl TypeNames {
         Self { modules }
     }
 
+    /// Return namespace-qualified names for an out-of-module generated file.
+    pub(super) fn namespaced(schema: &Schema, keys: &[String]) -> Self {
+        let modules = keys
+            .iter()
+            .map(|key| {
+                let path = schema.module_path(key);
+
+                (key.clone(), module_namespace(path))
+            })
+            .collect();
+
+        Self { modules }
+    }
+
     /// Return one visible TypeScript type name.
     pub(super) fn ty(&self, ty: &Type) -> String {
         match ty {
@@ -108,7 +122,7 @@ impl TypeNames {
     }
 
     /// Return this imported item module namespace when needed.
-    fn module(&self, key: &str) -> Option<&str> {
+    pub(super) fn module(&self, key: &str) -> Option<&str> {
         self.modules.get(key).map(String::as_str)
     }
 }

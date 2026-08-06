@@ -1,223 +1,231 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
 
-import { RemoteWorkspaceServer } from "@destack/language-napi";
-import {
-  memoryFiles,
-  memoryRoot,
-} from "../dist/workspace/memory.js";
-import {
-  openWorkspace,
-  type Json,
-  type Workspace,
-} from "../dist/index.js";
+import type { CheckInput } from "../dist/_generated/workspace/command/check.js";
+import type { InfoInput } from "../dist/_generated/workspace/command/info.js";
+import type { Json, Workspace } from "../dist/index.js";
+import { openWorkspace } from "../dist/index.js";
+import { memoryFiles, memoryRoot } from "../dist/workspace/memory.js";
 
 /** One client workspace test project. */
 type Project = {
-  /** Typed `destack.json` content. */
-  readonly config: Json;
-  /** Repository relative text files. */
-  readonly files: Readonly<Record<string, string>>;
+    /** Typed `destack.json` content. */
+    readonly config: Json;
+    /** Repository relative text files. */
+    readonly files: Readonly<Record<string, string>>;
 };
 
-/** One opened test workspace. */
-type OpenedWorkspace = {
-  /** The workspace under test. */
-  readonly workspace: Workspace;
-  /** Close the workspace and release owned resources. */
-  close(): Promise<void> | void;
-};
-
-/** One workspace backend used by integration tests. */
-type TestWorkspace = {
-  /** Human-readable backend name. */
-  readonly name: string;
-  /** Open one project with this backend. */
-  open(project: Project): Promise<OpenedWorkspace>;
-};
-
-for (const workspace of workspaces()) {
-  test(`check accepts a clean ${workspace.name} workspace`, async () => {
-    const opened = await workspace.open({
-      config: {
-        name: "@test/app",
-      },
-      files: {},
+test("generated RPC client exchanges workspace values through N-API", async () => {
+    const workspace = await openProject({
+        config: { name: "@test/app" },
+        files: {},
     });
 
     try {
-      // run the real check command through the opened workspace
-      const output = await opened.workspace.check({
-        inputs: [
-          {
-            kind: "inline",
-            name: "input.ds",
+        // roundtrip nested content and its bigint identity through generated serde codecs
+        const stored = await workspace.client.store({
+            content: { kind: "text", content: "export const value = 1;\n" },
+        });
+        const loaded = await workspace.client.load({ content: stored.value });
+
+        expect(loaded.value).toEqual({
+            kind: "text",
             content: "export const value = 1;\n",
-            fileType: "destack",
-          },
-        ],
-      });
-
-      expect(output.success).toBe(true);
-      expect(output.diagnostics).toEqual([]);
+        });
     } finally {
-      await opened.close();
+        workspace.connection.close();
     }
-  });
-}
+});
 
-for (const workspace of workspaces()) {
-  test(`format returns formatted content from a ${workspace.name} workspace`, async () => {
-    const opened = await workspace.open({
-      config: {
-        name: "@test/app",
-      },
-      files: {},
+test("server stream terminates with its command response", async () => {
+    const workspace = await openProject({
+        config: { name: "@test/app" },
+        files: {},
     });
 
     try {
-      // store content through the same workspace used by the formatter
-      const content = await opened.workspace.store("export  const value=1;\n");
+        const call = workspace.client.info({
+            root: workspace.root,
+            input: infoInput(),
+        });
+        const progress = [];
+        for await (const event of call) {
+            progress.push(event);
+        }
+        const response = await call.response();
 
-      // format the stored content through the opened workspace
-      const output = await opened.workspace.format({
-        source: {
-          content,
-          fileType: "destack",
-          name: "input.ds",
-        },
-      });
-
-      expect(output.success).toBe(true);
-      expect(output.data.formatted).toBe("export const value = 1;\n");
+        expect(response.value.success).toBe(true);
+        expect(response.value.diagnostics).toEqual([]);
+        expect(response.value.data.workspace.root).toBe("/workspace");
+        expect(progress).toEqual([]);
     } finally {
-      await opened.close();
+        workspace.connection.close();
     }
-  });
-}
+});
+
+test("compiler work advances through cooperative N-API polls", async () => {
+    const workspace = await openProject({
+        config: {
+            name: "@test/app",
+            targets: { default: { entry: ["main.ds"] } },
+            defaultTarget: "default",
+        },
+        files: { "main.ds": "export const value: int32 = 1;\n" },
+    });
+
+    try {
+        const call = workspace.client.check({
+            root: workspace.root,
+            input: checkInput(),
+        });
+        const progress = [];
+        for await (const event of call) {
+            progress.push(event);
+        }
+        const response = await call.response();
+
+        expect(response.value.success).toBe(true);
+        expect(response.value.diagnostics).toEqual([]);
+        expect(progress.length).toBeGreaterThan(0);
+    } finally {
+        workspace.connection.close();
+    }
+});
+
+test("compiler rechecks an edited workspace revision incrementally", async () => {
+    const workspace = await openProject({
+        config: {
+            name: "@test/app",
+            targets: { default: { entry: ["main.ds", "util.ds"] } },
+            defaultTarget: "default",
+        },
+        files: {
+            "main.ds": "export const value: int32 = 1;\n",
+            "util.ds": "export const helper: int32 = 1;\n",
+        },
+    });
+
+    try {
+        const before = await workspace.client.readRevision({ root: workspace.root });
+        const firstCall = workspace.client.check({
+            root: workspace.root,
+            input: { ...checkInput(), trace: "detailed" },
+        });
+        for await (const _event of firstCall) {
+            // drain progress until the terminal response
+        }
+        const first = await firstCall.response();
+        const commit = await workspace.client.applySourceUpdate({
+            root: workspace.root,
+            update: {
+                base: before.value,
+                edits: [
+                    {
+                        kind: "setText",
+                        path: "main.ds",
+                        text: "export const value: int32 = 2;\n",
+                    },
+                ],
+            },
+        });
+
+        const secondCall = workspace.client.check({
+            root: workspace.root,
+            input: { ...checkInput(), trace: "detailed" },
+        });
+        for await (const _event of secondCall) {
+            // drain progress until the terminal response
+        }
+        const second = await secondCall.response();
+        const after = await workspace.client.readRevision({ root: workspace.root });
+        const firstTrace = first.value.trace;
+        const secondTrace = second.value.trace;
+
+        expect(first.value.success).toBe(true);
+        expect(second.value.success).toBe(true);
+        expect(commit.value.before).toEqual(before.value);
+        expect(commit.value.after).toEqual(after.value);
+        expect(secondTrace?.stats.built).toBeGreaterThan(0n);
+        expect(secondTrace?.stats.built).toBeLessThan(firstTrace?.stats.built ?? 0n);
+    } finally {
+        workspace.connection.close();
+    }
+});
 
 test("memory workspace inputs normalize config and files", () => {
-  const workspace = {
-    memory: {
-      root: "/project",
-      config: {
-        name: "@test/app",
-      },
-      files: {
-        "src/index.ds": "export const value = 1;\n",
-        "asset.bin": [1, 2, 3],
-      },
-    },
-  };
+    const workspace = {
+        memory: {
+            root: "/project",
+            config: { name: "@test/app" },
+            files: {
+                "src/index.ds": "export const value = 1;\n",
+                "asset.bin": [1, 2, 3],
+            },
+        },
+    };
 
-  // build the exact file payload sent to local native workspace servers
-  const files = memoryFiles(workspace);
+    const files = memoryFiles(workspace);
 
-  expect(memoryRoot(workspace)).toBe("/project");
-  expect(files).toEqual([
-    {
-      path: "destack.json",
-      text: "{\"name\":\"@test/app\"}\n",
-    },
-    {
-      path: "src/index.ds",
-      text: "export const value = 1;\n",
-    },
-    {
-      path: "asset.bin",
-      bytes: new Uint8Array([1, 2, 3]),
-    },
-  ]);
+    expect(memoryRoot(workspace)).toBe("/project");
+    expect(files).toEqual([
+        { path: "destack.json", text: "{\"name\":\"@test/app\"}\n" },
+        { path: "src/index.ds", text: "export const value = 1;\n" },
+        { path: "asset.bin", bytes: new Uint8Array([1, 2, 3]) },
+    ]);
 });
 
 test("memory workspace inputs reject ambiguous files", () => {
-  const workspace = {
-    memory: {
-      files: [
-        {
-          path: "src/index.ds",
-          text: "export const value = 1;\n",
-          bytes: new Uint8Array([1]),
+    const workspace = {
+        memory: {
+            files: [
+                {
+                    path: "src/index.ds",
+                    text: "export const value = 1;\n",
+                    bytes: new Uint8Array([1]),
+                },
+            ],
         },
-      ],
-    },
-  };
+    };
 
-  // a file cannot be both text and bytes
-  expect(() => memoryFiles(workspace)).toThrow("text and bytes");
+    expect(() => memoryFiles(workspace)).toThrow("text and bytes");
 });
 
-/** Return client workspaces used by integration tests. */
-function workspaces(): readonly TestWorkspace[] {
-  return [
-    {
-      name: "local",
-      open: openLocalWorkspace,
-    },
-    {
-      name: "remote",
-      open: openRemoteWorkspace,
-    },
-  ];
-}
-
-/** Open one embedded local workspace. */
-async function openLocalWorkspace(project: Project): Promise<OpenedWorkspace> {
-  const workspace = await openWorkspace({
-    memory: {
-      config: project.config,
-      files: project.files,
-    },
-  });
-
-  return {
-    workspace,
-    close: () => workspace.close(),
-  };
-}
-
-/** Open one remote workspace through an in-process protocol server. */
-async function openRemoteWorkspace(project: Project): Promise<OpenedWorkspace> {
-  const root = writeProject(project);
-  const server = RemoteWorkspaceServer.open(root);
-
-  try {
-    const workspace = await openWorkspace({
-      url: server.url(),
-      workspace: root,
+/** Open one in-memory project through the native in-process RPC session. */
+async function openProject(project: Project): Promise<Workspace> {
+    return openWorkspace({
+        memory: {
+            config: project.config,
+            files: project.files,
+        },
     });
-
-    return {
-      workspace,
-      close: async () => {
-        try {
-          await workspace.close();
-        } finally {
-          server.close();
-          rmSync(root, { recursive: true, force: true });
-        }
-      },
-    };
-  } catch (error) {
-    server.close();
-    rmSync(root, { recursive: true, force: true });
-    throw error;
-  }
 }
 
-/** Write one project tree to a temporary directory. */
-function writeProject(project: Project): string {
-  const root = mkdtempSync(join(tmpdir(), "destack-client-project-"));
-  const config = `${JSON.stringify(project.config)}\n`;
-  writeFileSync(join(root, "destack.json"), config, "utf8");
+/** Return one exact workspace information input. */
+function infoInput(): InfoInput {
+    return {
+        revision: { kind: "current" },
+        inputs: [],
+        configInputs: false,
+        env: [],
+        overrides: [],
+        watch: false,
+        dryRun: true,
+        all: false,
+    };
+}
 
-  for (const [path, text] of Object.entries(project.files)) {
-    const file = join(root, path);
-    mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(file, text);
-  }
-
-  return root;
+/** Return one exact workspace check input. */
+function checkInput(): CheckInput {
+    return {
+        revision: { kind: "current" },
+        inputs: [],
+        configInputs: true,
+        env: [],
+        overrides: [],
+        watch: false,
+        dryRun: true,
+        lint: false,
+        fix: false,
+        unsafeFixes: false,
+        diff: false,
+    };
 }

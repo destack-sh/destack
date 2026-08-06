@@ -4,67 +4,6 @@ import { BinaryReader, BinaryWriter, Json, jsonArray, jsonField, jsonObject, jso
 import type { PatchSet } from "../../source/edit/edit.js";
 import { decodePatchSet, encodePatchSet, fromJsonPatchSet, toJsonPatchSet } from "../../source/edit/edit.js";
 
-/** Request payload for file rename edits. */
-export type RenameFilesRequest = {
-    /** The file rename entries to apply. */
-    readonly renames: ReadonlyArray<FileRename>;
-};
-
-export const RenameFilesRequest = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: RenameFilesRequest): void {
-        encodeRenameFilesRequest(writer, value);
-    },
-
-    /** Decode one RenameFilesRequest. */
-    decode(reader: BinaryReader): RenameFilesRequest {
-        return decodeRenameFilesRequest(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: RenameFilesRequest): Json {
-        return toJsonRenameFilesRequest(value);
-    },
-
-    /** Return one RenameFilesRequest from one JSON value. */
-    fromJson(value: Json): RenameFilesRequest {
-        return fromJsonRenameFilesRequest(value);
-    },
-};
-
-/** Encode one RenameFilesRequest. */
-export function encodeRenameFilesRequest(writer: BinaryWriter, value: RenameFilesRequest): void {
-    writer.writeUnsigned(value.renames.length);
-    for (const item0 of value.renames) {
-        encodeFileRename(writer, item0);
-    }
-}
-
-/** Decode one RenameFilesRequest. */
-export function decodeRenameFilesRequest(reader: BinaryReader): RenameFilesRequest {
-    const renames = (() => { const length0 = reader.readNumber(); const items0: Array<FileRename> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeFileRename(reader)); } return items0; })();
-
-    return {
-        renames,
-    };
-}
-
-/** Return one JSON value for one RenameFilesRequest. */
-export function toJsonRenameFilesRequest(value: RenameFilesRequest): Json {
-    return {
-        renames: value.renames.map((item0) => toJsonFileRename(item0)),
-    };
-}
-
-/** Return one RenameFilesRequest from one JSON value. */
-export function fromJsonRenameFilesRequest(value: Json): RenameFilesRequest {
-    const object = jsonObject(value);
-
-    return {
-        renames: jsonArray(jsonField(object, "renames")).map((item0) => fromJsonFileRename(item0)),
-    };
-}
-
 /** One source file or directory rename. */
 export type FileRename = {
     /** The old path before the rename. */
@@ -127,6 +66,67 @@ export function fromJsonFileRename(value: Json): FileRename {
     return {
         oldPath: jsonString(jsonField(object, "oldPath")),
         newPath: jsonString(jsonField(object, "newPath")),
+    };
+}
+
+/** Request payload for file rename edits. */
+export type RenameFilesRequest = {
+    /** The file rename entries to apply. */
+    readonly renames: ReadonlyArray<FileRename>;
+};
+
+export const RenameFilesRequest = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: RenameFilesRequest): void {
+        encodeRenameFilesRequest(writer, value);
+    },
+
+    /** Decode one RenameFilesRequest. */
+    decode(reader: BinaryReader): RenameFilesRequest {
+        return decodeRenameFilesRequest(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: RenameFilesRequest): Json {
+        return toJsonRenameFilesRequest(value);
+    },
+
+    /** Return one RenameFilesRequest from one JSON value. */
+    fromJson(value: Json): RenameFilesRequest {
+        return fromJsonRenameFilesRequest(value);
+    },
+};
+
+/** Encode one RenameFilesRequest. */
+export function encodeRenameFilesRequest(writer: BinaryWriter, value: RenameFilesRequest): void {
+    writer.writeUnsigned(value.renames.length);
+    for (const item0 of value.renames) {
+        encodeFileRename(writer, item0);
+    }
+}
+
+/** Decode one RenameFilesRequest. */
+export function decodeRenameFilesRequest(reader: BinaryReader): RenameFilesRequest {
+    const renames = (() => { const length0 = reader.readNumber(); const items0: Array<FileRename> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeFileRename(reader)); } return items0; })();
+
+    return {
+        renames,
+    };
+}
+
+/** Return one JSON value for one RenameFilesRequest. */
+export function toJsonRenameFilesRequest(value: RenameFilesRequest): Json {
+    return {
+        renames: value.renames.map((item0) => toJsonFileRename(item0)),
+    };
+}
+
+/** Return one RenameFilesRequest from one JSON value. */
+export function fromJsonRenameFilesRequest(value: Json): RenameFilesRequest {
+    const object = jsonObject(value);
+
+    return {
+        renames: jsonArray(jsonField(object, "renames")).map((item0) => fromJsonFileRename(item0)),
     };
 }
 

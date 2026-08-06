@@ -8,132 +8,6 @@ import { decodeModule, encodeModule, fromJsonModule, toJsonModule } from "../pro
 import { decodeFileId, encodeFileId, fromJsonFileId, toJsonFileId } from "../../source/file/model/file.js";
 import { decodeSpan, encodeSpan, fromJsonSpan, toJsonSpan } from "../../source/file/model/span.js";
 
-/** Request code lenses for a document. */
-export type CodeLensesRequest = {
-    /** The queried module profile. */
-    readonly module: Module;
-    /** The queried source file. */
-    readonly fileId: FileId;
-};
-
-export const CodeLensesRequest = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: CodeLensesRequest): void {
-        encodeCodeLensesRequest(writer, value);
-    },
-
-    /** Decode one CodeLensesRequest. */
-    decode(reader: BinaryReader): CodeLensesRequest {
-        return decodeCodeLensesRequest(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: CodeLensesRequest): Json {
-        return toJsonCodeLensesRequest(value);
-    },
-
-    /** Return one CodeLensesRequest from one JSON value. */
-    fromJson(value: Json): CodeLensesRequest {
-        return fromJsonCodeLensesRequest(value);
-    },
-};
-
-/** Encode one CodeLensesRequest. */
-export function encodeCodeLensesRequest(writer: BinaryWriter, value: CodeLensesRequest): void {
-    encodeModule(writer, value.module);
-    encodeFileId(writer, value.fileId);
-}
-
-/** Decode one CodeLensesRequest. */
-export function decodeCodeLensesRequest(reader: BinaryReader): CodeLensesRequest {
-    const module_ = decodeModule(reader);
-    const fileId = decodeFileId(reader);
-
-    return {
-        module: module_,
-        fileId,
-    };
-}
-
-/** Return one JSON value for one CodeLensesRequest. */
-export function toJsonCodeLensesRequest(value: CodeLensesRequest): Json {
-    return {
-        module: toJsonModule(value.module),
-        fileId: toJsonFileId(value.fileId),
-    };
-}
-
-/** Return one CodeLensesRequest from one JSON value. */
-export function fromJsonCodeLensesRequest(value: Json): CodeLensesRequest {
-    const object = jsonObject(value);
-
-    return {
-        module: fromJsonModule(jsonField(object, "module")),
-        fileId: fromJsonFileId(jsonField(object, "fileId")),
-    };
-}
-
-/** Response payload for code lenses queries. */
-export type CodeLensesResponse = {
-    /** Code lenses. */
-    readonly lenses: ReadonlyArray<CodeLens>;
-};
-
-export const CodeLensesResponse = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: CodeLensesResponse): void {
-        encodeCodeLensesResponse(writer, value);
-    },
-
-    /** Decode one CodeLensesResponse. */
-    decode(reader: BinaryReader): CodeLensesResponse {
-        return decodeCodeLensesResponse(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: CodeLensesResponse): Json {
-        return toJsonCodeLensesResponse(value);
-    },
-
-    /** Return one CodeLensesResponse from one JSON value. */
-    fromJson(value: Json): CodeLensesResponse {
-        return fromJsonCodeLensesResponse(value);
-    },
-};
-
-/** Encode one CodeLensesResponse. */
-export function encodeCodeLensesResponse(writer: BinaryWriter, value: CodeLensesResponse): void {
-    writer.writeUnsigned(value.lenses.length);
-    for (const item0 of value.lenses) {
-        encodeCodeLens(writer, item0);
-    }
-}
-
-/** Decode one CodeLensesResponse. */
-export function decodeCodeLensesResponse(reader: BinaryReader): CodeLensesResponse {
-    const lenses = (() => { const length0 = reader.readNumber(); const items0: Array<CodeLens> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeCodeLens(reader)); } return items0; })();
-
-    return {
-        lenses,
-    };
-}
-
-/** Return one JSON value for one CodeLensesResponse. */
-export function toJsonCodeLensesResponse(value: CodeLensesResponse): Json {
-    return {
-        lenses: value.lenses.map((item0) => toJsonCodeLens(item0)),
-    };
-}
-
-/** Return one CodeLensesResponse from one JSON value. */
-export function fromJsonCodeLensesResponse(value: Json): CodeLensesResponse {
-    const object = jsonObject(value);
-
-    return {
-        lenses: jsonArray(jsonField(object, "lenses")).map((item0) => fromJsonCodeLens(item0)),
-    };
-}
-
 /** One declaration action shown beside its source. */
 export type CodeLens = {
     /** The range this lens applies to. */
@@ -326,4 +200,130 @@ export function fromJsonCodeLensAction(value: Json): CodeLensAction {
     }
 
     throw new SerdeError(`unknown enum variant: ${kind}`);
+}
+
+/** Request code lenses for a document. */
+export type CodeLensesRequest = {
+    /** The queried module profile. */
+    readonly module: Module;
+    /** The queried source file. */
+    readonly fileId: FileId;
+};
+
+export const CodeLensesRequest = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: CodeLensesRequest): void {
+        encodeCodeLensesRequest(writer, value);
+    },
+
+    /** Decode one CodeLensesRequest. */
+    decode(reader: BinaryReader): CodeLensesRequest {
+        return decodeCodeLensesRequest(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: CodeLensesRequest): Json {
+        return toJsonCodeLensesRequest(value);
+    },
+
+    /** Return one CodeLensesRequest from one JSON value. */
+    fromJson(value: Json): CodeLensesRequest {
+        return fromJsonCodeLensesRequest(value);
+    },
+};
+
+/** Encode one CodeLensesRequest. */
+export function encodeCodeLensesRequest(writer: BinaryWriter, value: CodeLensesRequest): void {
+    encodeModule(writer, value.module);
+    encodeFileId(writer, value.fileId);
+}
+
+/** Decode one CodeLensesRequest. */
+export function decodeCodeLensesRequest(reader: BinaryReader): CodeLensesRequest {
+    const module_ = decodeModule(reader);
+    const fileId = decodeFileId(reader);
+
+    return {
+        module: module_,
+        fileId,
+    };
+}
+
+/** Return one JSON value for one CodeLensesRequest. */
+export function toJsonCodeLensesRequest(value: CodeLensesRequest): Json {
+    return {
+        module: toJsonModule(value.module),
+        fileId: toJsonFileId(value.fileId),
+    };
+}
+
+/** Return one CodeLensesRequest from one JSON value. */
+export function fromJsonCodeLensesRequest(value: Json): CodeLensesRequest {
+    const object = jsonObject(value);
+
+    return {
+        module: fromJsonModule(jsonField(object, "module")),
+        fileId: fromJsonFileId(jsonField(object, "fileId")),
+    };
+}
+
+/** Response payload for code lenses queries. */
+export type CodeLensesResponse = {
+    /** Code lenses. */
+    readonly lenses: ReadonlyArray<CodeLens>;
+};
+
+export const CodeLensesResponse = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: CodeLensesResponse): void {
+        encodeCodeLensesResponse(writer, value);
+    },
+
+    /** Decode one CodeLensesResponse. */
+    decode(reader: BinaryReader): CodeLensesResponse {
+        return decodeCodeLensesResponse(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: CodeLensesResponse): Json {
+        return toJsonCodeLensesResponse(value);
+    },
+
+    /** Return one CodeLensesResponse from one JSON value. */
+    fromJson(value: Json): CodeLensesResponse {
+        return fromJsonCodeLensesResponse(value);
+    },
+};
+
+/** Encode one CodeLensesResponse. */
+export function encodeCodeLensesResponse(writer: BinaryWriter, value: CodeLensesResponse): void {
+    writer.writeUnsigned(value.lenses.length);
+    for (const item0 of value.lenses) {
+        encodeCodeLens(writer, item0);
+    }
+}
+
+/** Decode one CodeLensesResponse. */
+export function decodeCodeLensesResponse(reader: BinaryReader): CodeLensesResponse {
+    const lenses = (() => { const length0 = reader.readNumber(); const items0: Array<CodeLens> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeCodeLens(reader)); } return items0; })();
+
+    return {
+        lenses,
+    };
+}
+
+/** Return one JSON value for one CodeLensesResponse. */
+export function toJsonCodeLensesResponse(value: CodeLensesResponse): Json {
+    return {
+        lenses: value.lenses.map((item0) => toJsonCodeLens(item0)),
+    };
+}
+
+/** Return one CodeLensesResponse from one JSON value. */
+export function fromJsonCodeLensesResponse(value: Json): CodeLensesResponse {
+    const object = jsonObject(value);
+
+    return {
+        lenses: jsonArray(jsonField(object, "lenses")).map((item0) => fromJsonCodeLens(item0)),
+    };
 }

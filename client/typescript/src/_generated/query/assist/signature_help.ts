@@ -4,6 +4,83 @@ import { BinaryReader, BinaryWriter, Json, jsonArray, jsonField, jsonInteger, js
 import type { QueryPosition } from "../protocol/target.js";
 import { decodeQueryPosition, encodeQueryPosition, fromJsonQueryPosition, toJsonQueryPosition } from "../protocol/target.js";
 
+/** Signature help for one selected call. */
+export type SignatureHelp = {
+    /** The statically selected callable signatures. */
+    readonly signatures: ReadonlyArray<SignatureItem>;
+    /** The active signature ordinal. */
+    readonly activeSignature: number;
+    /** The active parameter ordinal when recorded by checking. */
+    readonly activeParameter?: number;
+};
+
+export const SignatureHelp = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: SignatureHelp): void {
+        encodeSignatureHelp(writer, value);
+    },
+
+    /** Decode one SignatureHelp. */
+    decode(reader: BinaryReader): SignatureHelp {
+        return decodeSignatureHelp(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: SignatureHelp): Json {
+        return toJsonSignatureHelp(value);
+    },
+
+    /** Return one SignatureHelp from one JSON value. */
+    fromJson(value: Json): SignatureHelp {
+        return fromJsonSignatureHelp(value);
+    },
+};
+
+/** Encode one SignatureHelp. */
+export function encodeSignatureHelp(writer: BinaryWriter, value: SignatureHelp): void {
+    writer.writeUnsigned(value.signatures.length);
+    for (const item0 of value.signatures) {
+        encodeSignatureItem(writer, item0);
+    }
+    writer.writeUnsigned(value.activeSignature);
+    writer.writeOption(value.activeParameter, (value2) => {
+        writer.writeUnsigned(value2);
+    });
+}
+
+/** Decode one SignatureHelp. */
+export function decodeSignatureHelp(reader: BinaryReader): SignatureHelp {
+    const signatures = (() => { const length0 = reader.readNumber(); const items0: Array<SignatureItem> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeSignatureItem(reader)); } return items0; })();
+    const activeSignature = reader.readNumber();
+    const activeParameter = reader.readOption(() => reader.readNumber());
+
+    return {
+        signatures,
+        activeSignature,
+        ...(activeParameter === undefined ? {} : { activeParameter }),
+    };
+}
+
+/** Return one JSON value for one SignatureHelp. */
+export function toJsonSignatureHelp(value: SignatureHelp): Json {
+    return {
+        signatures: value.signatures.map((item0) => toJsonSignatureItem(item0)),
+        activeSignature: value.activeSignature,
+        ...(value.activeParameter === undefined ? {} : { activeParameter: value.activeParameter }),
+    };
+}
+
+/** Return one SignatureHelp from one JSON value. */
+export function fromJsonSignatureHelp(value: Json): SignatureHelp {
+    const object = jsonObject(value);
+
+    return {
+        signatures: jsonArray(jsonField(object, "signatures")).map((item0) => fromJsonSignatureItem(item0)),
+        activeSignature: jsonInteger(jsonField(object, "activeSignature")),
+        activeParameter: jsonOptional(object, "activeParameter", (value) => jsonInteger(value)),
+    };
+}
+
 /** Request signature help at a cursor position. */
 export type SignatureHelpRequest = {
     /** The queried position. */
@@ -119,83 +196,6 @@ export function fromJsonSignatureHelpResponse(value: Json): SignatureHelpRespons
 
     return {
         help: jsonOptional(object, "help", (value) => fromJsonSignatureHelp(value)),
-    };
-}
-
-/** Signature help for one selected call. */
-export type SignatureHelp = {
-    /** The statically selected callable signatures. */
-    readonly signatures: ReadonlyArray<SignatureItem>;
-    /** The active signature ordinal. */
-    readonly activeSignature: number;
-    /** The active parameter ordinal when recorded by checking. */
-    readonly activeParameter?: number;
-};
-
-export const SignatureHelp = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: SignatureHelp): void {
-        encodeSignatureHelp(writer, value);
-    },
-
-    /** Decode one SignatureHelp. */
-    decode(reader: BinaryReader): SignatureHelp {
-        return decodeSignatureHelp(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: SignatureHelp): Json {
-        return toJsonSignatureHelp(value);
-    },
-
-    /** Return one SignatureHelp from one JSON value. */
-    fromJson(value: Json): SignatureHelp {
-        return fromJsonSignatureHelp(value);
-    },
-};
-
-/** Encode one SignatureHelp. */
-export function encodeSignatureHelp(writer: BinaryWriter, value: SignatureHelp): void {
-    writer.writeUnsigned(value.signatures.length);
-    for (const item0 of value.signatures) {
-        encodeSignatureItem(writer, item0);
-    }
-    writer.writeUnsigned(value.activeSignature);
-    writer.writeOption(value.activeParameter, (value2) => {
-        writer.writeUnsigned(value2);
-    });
-}
-
-/** Decode one SignatureHelp. */
-export function decodeSignatureHelp(reader: BinaryReader): SignatureHelp {
-    const signatures = (() => { const length0 = reader.readNumber(); const items0: Array<SignatureItem> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeSignatureItem(reader)); } return items0; })();
-    const activeSignature = reader.readNumber();
-    const activeParameter = reader.readOption(() => reader.readNumber());
-
-    return {
-        signatures,
-        activeSignature,
-        ...(activeParameter === undefined ? {} : { activeParameter }),
-    };
-}
-
-/** Return one JSON value for one SignatureHelp. */
-export function toJsonSignatureHelp(value: SignatureHelp): Json {
-    return {
-        signatures: value.signatures.map((item0) => toJsonSignatureItem(item0)),
-        activeSignature: value.activeSignature,
-        ...(value.activeParameter === undefined ? {} : { activeParameter: value.activeParameter }),
-    };
-}
-
-/** Return one SignatureHelp from one JSON value. */
-export function fromJsonSignatureHelp(value: Json): SignatureHelp {
-    const object = jsonObject(value);
-
-    return {
-        signatures: jsonArray(jsonField(object, "signatures")).map((item0) => fromJsonSignatureItem(item0)),
-        activeSignature: jsonInteger(jsonField(object, "activeSignature")),
-        activeParameter: jsonOptional(object, "activeParameter", (value) => jsonInteger(value)),
     };
 }
 

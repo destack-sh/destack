@@ -1,85 +1,115 @@
-import { EmbeddedTransport, Connection } from "./protocol/connection/index.js";
+import { workspaceService } from "./_generated/workspace/client.js";
+import { Connection, EmbeddedTransport, type EmbeddedSession } from "./rpc/index.js";
 import {
-  RemoteWorkspace,
-  type Workspace,
-  type WorkspaceLocation,
-} from "./protocol/workspace.js";
-import {
-  isMemoryWorkspaceOptions,
-  memoryFiles,
-  memoryRoot,
-  type MemoryWorkspaceOptions,
+    isMemoryWorkspaceOptions,
+    memoryFiles,
+    memoryRoot,
+    type MemoryWorkspaceOptions,
 } from "./workspace/memory.js";
+import { Workspace } from "./workspace/workspace.js";
 
-/** Options for opening a local NAPI workspace. */
-export type PathWorkspaceOptions = WorkspaceLocation;
+/** Options for opening one physical native workspace. */
+export type PathWorkspaceOptions = {
+    /** Physical workspace path. */
+    readonly workspace: string;
+    /** Root to open, defaulting to the workspace path. */
+    readonly root?: string;
+};
 
-/** Options for opening a local NAPI workspace. */
+/** Options for opening one native workspace. */
 export type NapiWorkspaceOptions = PathWorkspaceOptions | MemoryWorkspaceOptions;
 
-/** Native NAPI module shape consumed by embedded workspace transport. */
+/** Native N-API module shape consumed by this client. */
 type NapiModule = {
-  readonly LocalWorkspaceServer: {
-    readonly open: (workspace: string) => LocalWorkspaceServer;
-    readonly memory: (
-      root: string,
-      files: readonly NapiMemoryFile[],
-    ) => LocalWorkspaceServer;
-  };
+    /** In-process workspace RPC session constructor. */
+    readonly WorkspaceSession: {
+        /** Open one physical workspace. */
+        readonly open: (workspace: string) => NativeSession;
+        /** Open one in-memory workspace. */
+        readonly memory: (root: string, files: readonly NapiMemoryFile[]) => NativeSession;
+    };
 };
 
-/** Memory file shape accepted by the generated NAPI binding. */
+/** In-memory file shape accepted by N-API. */
 type NapiMemoryFile = {
-  /** Repository relative file path. */
-  readonly path: string;
-  /** UTF-8 text content. */
-  readonly text?: string;
-  /** Binary content. */
-  readonly bytes?: readonly number[];
+    /** Repository relative file path. */
+    readonly path: string;
+    /** UTF-8 text content. */
+    readonly text?: string;
+    /** Binary content. */
+    readonly bytes?: readonly number[];
 };
 
-/** Native local workspace server. */
-type LocalWorkspaceServer = {
-  readonly dispatch: (bytes: readonly number[]) => readonly unknown[];
+/** Native session using N-API byte arrays. */
+type NativeSession = {
+    /** Dispatch one RPC message. */
+    readonly dispatch: (bytes: readonly number[]) => readonly unknown[];
+    /** Poll ready RPC calls. */
+    readonly poll: () => readonly unknown[];
+    /** Return whether a cooperative RPC call requested another poll. */
+    readonly isReady: () => boolean;
+    /** Register a callback invoked when a cooperative call becomes ready. */
+    readonly onReady: (wake: () => void) => void;
+    /** Close this session. */
+    readonly close: () => void;
 };
 
-/** Open a workspace backed by the native Node backend. */
-export async function openNapiWorkspace(
-  options: NapiWorkspaceOptions,
-): Promise<Workspace> {
-  const napi =
-    (await import("@destack/language-napi")) as unknown as NapiModule;
+/** Open a workspace backed by the native Node host. */
+export async function openNapiWorkspace(options: NapiWorkspaceOptions): Promise<Workspace> {
+    const napi = (await import("@destack/language-napi")) as unknown as NapiModule;
+    const isMemory = isMemoryWorkspaceOptions(options);
+    const workspace = isMemory ? memoryRoot(options) : options.workspace;
+    const root = isMemory ? workspace : (options.root ?? workspace);
+    const native = isMemory
+        ? napi.WorkspaceSession.memory(workspace, napiMemoryFiles(options))
+        : napi.WorkspaceSession.open(workspace);
+    const transport = new EmbeddedTransport(new NapiSession(native));
+    const connection = new Connection(transport);
+    await connection.handshake([workspaceService]);
 
-  const server = isMemoryWorkspaceOptions(options)
-    ? napi.LocalWorkspaceServer.memory(memoryRoot(options), napiMemoryFiles(options))
-    : napi.LocalWorkspaceServer.open(options.workspace);
-  const transport = new EmbeddedTransport(new NapiServer(server));
-  const connection = new Connection(transport);
-  const workspace = isMemoryWorkspaceOptions(options) ? memoryRoot(options) : options.workspace;
-
-  return RemoteWorkspace.open({ ...options, workspace, connection });
+    return Workspace.open(connection, workspace, root);
 }
 
-/** Embedded server adapter for NAPI native objects. */
-class NapiServer {
-  readonly #server: LocalWorkspaceServer;
+/** Adapter between N-API arrays and the generic embedded transport. */
+class NapiSession implements EmbeddedSession {
+    readonly #session: NativeSession;
 
-  /** Create one NAPI server adapter. */
-  constructor(server: LocalWorkspaceServer) {
-    this.#server = server;
-  }
+    /** Create one N-API session adapter. */
+    constructor(session: NativeSession) {
+        this.#session = session;
+    }
 
-  /** Dispatch one encoded protocol frame. */
-  dispatch(bytes: Uint8Array): readonly unknown[] {
-    return this.#server.dispatch(Array.from(bytes));
-  }
+    /** Dispatch one complete inbound RPC message. */
+    dispatch(bytes: Uint8Array): readonly unknown[] {
+        return this.#session.dispatch(Array.from(bytes));
+    }
+
+    /** Poll cooperatively ready RPC calls. */
+    poll(): readonly unknown[] {
+        return this.#session.poll();
+    }
+
+    /** Return whether a cooperative RPC call requested another poll. */
+    isReady(): boolean {
+        return this.#session.isReady();
+    }
+
+    /** Register a callback invoked when a cooperative call becomes ready. */
+    onReady(wake: () => void): void {
+        this.#session.onReady(wake);
+    }
+
+    /** Close this native session. */
+    close(): void {
+        this.#session.close();
+    }
 }
 
-/** Return memory files in the shape accepted by NAPI. */
+/** Return memory files in the shape accepted by N-API. */
 function napiMemoryFiles(options: MemoryWorkspaceOptions): readonly NapiMemoryFile[] {
-  return memoryFiles(options).map((file) => ({
-    path: file.path,
-    text: file.text,
-    bytes: file.bytes === undefined ? undefined : Array.from(file.bytes),
-  }));
+    return memoryFiles(options).map((file) => ({
+        path: file.path,
+        text: file.text,
+        bytes: file.bytes === undefined ? undefined : Array.from(file.bytes),
+    }));
 }

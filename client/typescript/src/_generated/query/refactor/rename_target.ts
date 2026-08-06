@@ -8,6 +8,81 @@ import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJ
 import { decodeTarget, encodeTarget, fromJsonTarget, toJsonTarget } from "../protocol/target.js";
 import { decodeQueryPosition, encodeQueryPosition, fromJsonQueryPosition, toJsonQueryPosition } from "../protocol/target.js";
 
+/** Target of a rename query. */
+export type RenameTarget = {
+    /** The rename source. */
+    readonly target: Target;
+    /** The resolved rename symbols. */
+    readonly symbols: ReadonlyArray<GlobalSymbolId>;
+    /** The current name. */
+    readonly placeholder: string;
+};
+
+export const RenameTarget = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: RenameTarget): void {
+        encodeRenameTarget(writer, value);
+    },
+
+    /** Decode one RenameTarget. */
+    decode(reader: BinaryReader): RenameTarget {
+        return decodeRenameTarget(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: RenameTarget): Json {
+        return toJsonRenameTarget(value);
+    },
+
+    /** Return one RenameTarget from one JSON value. */
+    fromJson(value: Json): RenameTarget {
+        return fromJsonRenameTarget(value);
+    },
+};
+
+/** Encode one RenameTarget. */
+export function encodeRenameTarget(writer: BinaryWriter, value: RenameTarget): void {
+    encodeTarget(writer, value.target);
+    writer.writeUnsigned(value.symbols.length);
+    for (const item1 of value.symbols) {
+        encodeGlobalSymbolId(writer, item1);
+    }
+    writer.writeString(value.placeholder);
+}
+
+/** Decode one RenameTarget. */
+export function decodeRenameTarget(reader: BinaryReader): RenameTarget {
+    const target = decodeTarget(reader);
+    const symbols = (() => { const length1 = reader.readNumber(); const items1: Array<GlobalSymbolId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGlobalSymbolId(reader)); } return items1; })();
+    const placeholder = reader.readString();
+
+    return {
+        target,
+        symbols,
+        placeholder,
+    };
+}
+
+/** Return one JSON value for one RenameTarget. */
+export function toJsonRenameTarget(value: RenameTarget): Json {
+    return {
+        target: toJsonTarget(value.target),
+        symbols: value.symbols.map((item0) => toJsonGlobalSymbolId(item0)),
+        placeholder: value.placeholder,
+    };
+}
+
+/** Return one RenameTarget from one JSON value. */
+export function fromJsonRenameTarget(value: Json): RenameTarget {
+    const object = jsonObject(value);
+
+    return {
+        target: fromJsonTarget(jsonField(object, "target")),
+        symbols: jsonArray(jsonField(object, "symbols")).map((item0) => fromJsonGlobalSymbolId(item0)),
+        placeholder: jsonString(jsonField(object, "placeholder")),
+    };
+}
+
 /** Request the rename target at a cursor position. */
 export type RenameTargetRequest = {
     /** The queried position. */
@@ -123,80 +198,5 @@ export function fromJsonRenameTargetResponse(value: Json): RenameTargetResponse 
 
     return {
         target: jsonOptional(object, "target", (value) => fromJsonRenameTarget(value)),
-    };
-}
-
-/** Target of a rename query. */
-export type RenameTarget = {
-    /** The rename source. */
-    readonly target: Target;
-    /** The resolved rename symbols. */
-    readonly symbols: ReadonlyArray<GlobalSymbolId>;
-    /** The current name. */
-    readonly placeholder: string;
-};
-
-export const RenameTarget = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: RenameTarget): void {
-        encodeRenameTarget(writer, value);
-    },
-
-    /** Decode one RenameTarget. */
-    decode(reader: BinaryReader): RenameTarget {
-        return decodeRenameTarget(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: RenameTarget): Json {
-        return toJsonRenameTarget(value);
-    },
-
-    /** Return one RenameTarget from one JSON value. */
-    fromJson(value: Json): RenameTarget {
-        return fromJsonRenameTarget(value);
-    },
-};
-
-/** Encode one RenameTarget. */
-export function encodeRenameTarget(writer: BinaryWriter, value: RenameTarget): void {
-    encodeTarget(writer, value.target);
-    writer.writeUnsigned(value.symbols.length);
-    for (const item1 of value.symbols) {
-        encodeGlobalSymbolId(writer, item1);
-    }
-    writer.writeString(value.placeholder);
-}
-
-/** Decode one RenameTarget. */
-export function decodeRenameTarget(reader: BinaryReader): RenameTarget {
-    const target = decodeTarget(reader);
-    const symbols = (() => { const length1 = reader.readNumber(); const items1: Array<GlobalSymbolId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGlobalSymbolId(reader)); } return items1; })();
-    const placeholder = reader.readString();
-
-    return {
-        target,
-        symbols,
-        placeholder,
-    };
-}
-
-/** Return one JSON value for one RenameTarget. */
-export function toJsonRenameTarget(value: RenameTarget): Json {
-    return {
-        target: toJsonTarget(value.target),
-        symbols: value.symbols.map((item0) => toJsonGlobalSymbolId(item0)),
-        placeholder: value.placeholder,
-    };
-}
-
-/** Return one RenameTarget from one JSON value. */
-export function fromJsonRenameTarget(value: Json): RenameTarget {
-    const object = jsonObject(value);
-
-    return {
-        target: fromJsonTarget(jsonField(object, "target")),
-        symbols: jsonArray(jsonField(object, "symbols")).map((item0) => fromJsonGlobalSymbolId(item0)),
-        placeholder: jsonString(jsonField(object, "placeholder")),
     };
 }

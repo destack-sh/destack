@@ -1,5 +1,5 @@
 export {
-    LocalWorkspaceServer,
+    WorkspaceSession,
     type InitOutput,
     type SyncInitInput,
     version,

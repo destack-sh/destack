@@ -69,71 +69,6 @@ export function fromJsonTextChange(value: Json): TextChange {
     };
 }
 
-/** One text range expressed in UTF-16 positions. */
-export type TextRange = {
-    /** Start position. */
-    readonly start: TextPosition;
-    /** End position. */
-    readonly end: TextPosition;
-};
-
-export const TextRange = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: TextRange): void {
-        encodeTextRange(writer, value);
-    },
-
-    /** Decode one TextRange. */
-    decode(reader: BinaryReader): TextRange {
-        return decodeTextRange(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: TextRange): Json {
-        return toJsonTextRange(value);
-    },
-
-    /** Return one TextRange from one JSON value. */
-    fromJson(value: Json): TextRange {
-        return fromJsonTextRange(value);
-    },
-};
-
-/** Encode one TextRange. */
-export function encodeTextRange(writer: BinaryWriter, value: TextRange): void {
-    encodeTextPosition(writer, value.start);
-    encodeTextPosition(writer, value.end);
-}
-
-/** Decode one TextRange. */
-export function decodeTextRange(reader: BinaryReader): TextRange {
-    const start = decodeTextPosition(reader);
-    const end = decodeTextPosition(reader);
-
-    return {
-        start,
-        end,
-    };
-}
-
-/** Return one JSON value for one TextRange. */
-export function toJsonTextRange(value: TextRange): Json {
-    return {
-        start: toJsonTextPosition(value.start),
-        end: toJsonTextPosition(value.end),
-    };
-}
-
-/** Return one TextRange from one JSON value. */
-export function fromJsonTextRange(value: Json): TextRange {
-    const object = jsonObject(value);
-
-    return {
-        start: fromJsonTextPosition(jsonField(object, "start")),
-        end: fromJsonTextPosition(jsonField(object, "end")),
-    };
-}
-
 /** One zero-based UTF-16 text position. */
 export type TextPosition = {
     /** Zero-based line number. */
@@ -196,5 +131,70 @@ export function fromJsonTextPosition(value: Json): TextPosition {
     return {
         line: jsonInteger(jsonField(object, "line")),
         character: jsonInteger(jsonField(object, "character")),
+    };
+}
+
+/** One text range expressed in UTF-16 positions. */
+export type TextRange = {
+    /** Start position. */
+    readonly start: TextPosition;
+    /** End position. */
+    readonly end: TextPosition;
+};
+
+export const TextRange = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: TextRange): void {
+        encodeTextRange(writer, value);
+    },
+
+    /** Decode one TextRange. */
+    decode(reader: BinaryReader): TextRange {
+        return decodeTextRange(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: TextRange): Json {
+        return toJsonTextRange(value);
+    },
+
+    /** Return one TextRange from one JSON value. */
+    fromJson(value: Json): TextRange {
+        return fromJsonTextRange(value);
+    },
+};
+
+/** Encode one TextRange. */
+export function encodeTextRange(writer: BinaryWriter, value: TextRange): void {
+    encodeTextPosition(writer, value.start);
+    encodeTextPosition(writer, value.end);
+}
+
+/** Decode one TextRange. */
+export function decodeTextRange(reader: BinaryReader): TextRange {
+    const start = decodeTextPosition(reader);
+    const end = decodeTextPosition(reader);
+
+    return {
+        start,
+        end,
+    };
+}
+
+/** Return one JSON value for one TextRange. */
+export function toJsonTextRange(value: TextRange): Json {
+    return {
+        start: toJsonTextPosition(value.start),
+        end: toJsonTextPosition(value.end),
+    };
+}
+
+/** Return one TextRange from one JSON value. */
+export function fromJsonTextRange(value: Json): TextRange {
+    const object = jsonObject(value);
+
+    return {
+        start: fromJsonTextPosition(jsonField(object, "start")),
+        end: fromJsonTextPosition(jsonField(object, "end")),
     };
 }

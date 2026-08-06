@@ -2,6 +2,71 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, bytesFromJson, bytesToJson, jsonArray, jsonField, jsonInteger, jsonObject, jsonString } from "../../../protocol/serde.js";
 
+/** One byte range in source text. */
+export type ByteRange = {
+    /** Inclusive start byte offset. */
+    readonly start: number;
+    /** Exclusive end byte offset. */
+    readonly end: number;
+};
+
+export const ByteRange = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: ByteRange): void {
+        encodeByteRange(writer, value);
+    },
+
+    /** Decode one ByteRange. */
+    decode(reader: BinaryReader): ByteRange {
+        return decodeByteRange(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: ByteRange): Json {
+        return toJsonByteRange(value);
+    },
+
+    /** Return one ByteRange from one JSON value. */
+    fromJson(value: Json): ByteRange {
+        return fromJsonByteRange(value);
+    },
+};
+
+/** Encode one ByteRange. */
+export function encodeByteRange(writer: BinaryWriter, value: ByteRange): void {
+    writer.writeUnsigned(value.start);
+    writer.writeUnsigned(value.end);
+}
+
+/** Decode one ByteRange. */
+export function decodeByteRange(reader: BinaryReader): ByteRange {
+    const start = reader.readNumber();
+    const end = reader.readNumber();
+
+    return {
+        start,
+        end,
+    };
+}
+
+/** Return one JSON value for one ByteRange. */
+export function toJsonByteRange(value: ByteRange): Json {
+    return {
+        start: value.start,
+        end: value.end,
+    };
+}
+
+/** Return one ByteRange from one JSON value. */
+export function fromJsonByteRange(value: Json): ByteRange {
+    const object = jsonObject(value);
+
+    return {
+        start: jsonInteger(jsonField(object, "start")),
+        end: jsonInteger(jsonField(object, "end")),
+    };
+}
+
 /** One source file mutation. */
 export type Edit =
     /** Replace or create one text file. */
@@ -323,70 +388,5 @@ export function fromJsonTextPatch(value: Json): TextPatch {
     return {
         range: fromJsonByteRange(jsonField(object, "range")),
         text: jsonString(jsonField(object, "text")),
-    };
-}
-
-/** One byte range in source text. */
-export type ByteRange = {
-    /** Inclusive start byte offset. */
-    readonly start: number;
-    /** Exclusive end byte offset. */
-    readonly end: number;
-};
-
-export const ByteRange = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: ByteRange): void {
-        encodeByteRange(writer, value);
-    },
-
-    /** Decode one ByteRange. */
-    decode(reader: BinaryReader): ByteRange {
-        return decodeByteRange(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: ByteRange): Json {
-        return toJsonByteRange(value);
-    },
-
-    /** Return one ByteRange from one JSON value. */
-    fromJson(value: Json): ByteRange {
-        return fromJsonByteRange(value);
-    },
-};
-
-/** Encode one ByteRange. */
-export function encodeByteRange(writer: BinaryWriter, value: ByteRange): void {
-    writer.writeUnsigned(value.start);
-    writer.writeUnsigned(value.end);
-}
-
-/** Decode one ByteRange. */
-export function decodeByteRange(reader: BinaryReader): ByteRange {
-    const start = reader.readNumber();
-    const end = reader.readNumber();
-
-    return {
-        start,
-        end,
-    };
-}
-
-/** Return one JSON value for one ByteRange. */
-export function toJsonByteRange(value: ByteRange): Json {
-    return {
-        start: value.start,
-        end: value.end,
-    };
-}
-
-/** Return one ByteRange from one JSON value. */
-export function fromJsonByteRange(value: Json): ByteRange {
-    const object = jsonObject(value);
-
-    return {
-        start: jsonInteger(jsonField(object, "start")),
-        end: jsonInteger(jsonField(object, "end")),
     };
 }

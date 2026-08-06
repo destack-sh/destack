@@ -1,11 +1,11 @@
 import initializeWasm, {
-    LocalWorkspaceServer,
+    WorkspaceSession,
     initSync as initializeWasmSync,
     initializeBuild,
     version,
 } from "./dist/destack_wasm.js";
 
-export { LocalWorkspaceServer, version };
+export { WorkspaceSession, version };
 
 /** Initialize the WebAssembly module from its exact bytes. */
 export default function initialize(moduleOrPath) {

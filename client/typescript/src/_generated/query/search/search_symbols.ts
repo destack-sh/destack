@@ -8,6 +8,94 @@ import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJ
 import { decodeSymbolKind, encodeSymbolKind, fromJsonSymbolKind, toJsonSymbolKind } from "../document/outline.js";
 import { decodeTarget, encodeTarget, fromJsonTarget, toJsonTarget } from "../protocol/target.js";
 
+/** One symbol search result. */
+export type SearchSymbol = {
+    /** The symbol's name. */
+    readonly name: string;
+    /** The kind of symbol. */
+    readonly kind: SymbolKind;
+    /** The exact symbol identity. */
+    readonly symbolId: GlobalSymbolId;
+    /** The symbol source target. */
+    readonly target: Target;
+    /** The containing declaration name. */
+    readonly container?: string;
+};
+
+export const SearchSymbol = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: SearchSymbol): void {
+        encodeSearchSymbol(writer, value);
+    },
+
+    /** Decode one SearchSymbol. */
+    decode(reader: BinaryReader): SearchSymbol {
+        return decodeSearchSymbol(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: SearchSymbol): Json {
+        return toJsonSearchSymbol(value);
+    },
+
+    /** Return one SearchSymbol from one JSON value. */
+    fromJson(value: Json): SearchSymbol {
+        return fromJsonSearchSymbol(value);
+    },
+};
+
+/** Encode one SearchSymbol. */
+export function encodeSearchSymbol(writer: BinaryWriter, value: SearchSymbol): void {
+    writer.writeString(value.name);
+    encodeSymbolKind(writer, value.kind);
+    encodeGlobalSymbolId(writer, value.symbolId);
+    encodeTarget(writer, value.target);
+    writer.writeOption(value.container, (value4) => {
+        writer.writeString(value4);
+    });
+}
+
+/** Decode one SearchSymbol. */
+export function decodeSearchSymbol(reader: BinaryReader): SearchSymbol {
+    const name = reader.readString();
+    const kind = decodeSymbolKind(reader);
+    const symbolId = decodeGlobalSymbolId(reader);
+    const target = decodeTarget(reader);
+    const container = reader.readOption(() => reader.readString());
+
+    return {
+        name,
+        kind,
+        symbolId,
+        target,
+        ...(container === undefined ? {} : { container }),
+    };
+}
+
+/** Return one JSON value for one SearchSymbol. */
+export function toJsonSearchSymbol(value: SearchSymbol): Json {
+    return {
+        name: value.name,
+        kind: toJsonSymbolKind(value.kind),
+        symbolId: toJsonGlobalSymbolId(value.symbolId),
+        target: toJsonTarget(value.target),
+        ...(value.container === undefined ? {} : { container: value.container }),
+    };
+}
+
+/** Return one SearchSymbol from one JSON value. */
+export function fromJsonSearchSymbol(value: Json): SearchSymbol {
+    const object = jsonObject(value);
+
+    return {
+        name: jsonString(jsonField(object, "name")),
+        kind: fromJsonSymbolKind(jsonField(object, "kind")),
+        symbolId: fromJsonGlobalSymbolId(jsonField(object, "symbolId")),
+        target: fromJsonTarget(jsonField(object, "target")),
+        container: jsonOptional(object, "container", (value) => jsonString(value)),
+    };
+}
+
 /** Request symbol search for a query string. */
 export type SearchSymbolsRequest = {
     /** The search query string. */
@@ -131,93 +219,5 @@ export function fromJsonSearchSymbolsResponse(value: Json): SearchSymbolsRespons
 
     return {
         symbols: jsonArray(jsonField(object, "symbols")).map((item0) => fromJsonSearchSymbol(item0)),
-    };
-}
-
-/** One symbol search result. */
-export type SearchSymbol = {
-    /** The symbol's name. */
-    readonly name: string;
-    /** The kind of symbol. */
-    readonly kind: SymbolKind;
-    /** The exact symbol identity. */
-    readonly symbolId: GlobalSymbolId;
-    /** The symbol source target. */
-    readonly target: Target;
-    /** The containing declaration name. */
-    readonly container?: string;
-};
-
-export const SearchSymbol = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: SearchSymbol): void {
-        encodeSearchSymbol(writer, value);
-    },
-
-    /** Decode one SearchSymbol. */
-    decode(reader: BinaryReader): SearchSymbol {
-        return decodeSearchSymbol(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: SearchSymbol): Json {
-        return toJsonSearchSymbol(value);
-    },
-
-    /** Return one SearchSymbol from one JSON value. */
-    fromJson(value: Json): SearchSymbol {
-        return fromJsonSearchSymbol(value);
-    },
-};
-
-/** Encode one SearchSymbol. */
-export function encodeSearchSymbol(writer: BinaryWriter, value: SearchSymbol): void {
-    writer.writeString(value.name);
-    encodeSymbolKind(writer, value.kind);
-    encodeGlobalSymbolId(writer, value.symbolId);
-    encodeTarget(writer, value.target);
-    writer.writeOption(value.container, (value4) => {
-        writer.writeString(value4);
-    });
-}
-
-/** Decode one SearchSymbol. */
-export function decodeSearchSymbol(reader: BinaryReader): SearchSymbol {
-    const name = reader.readString();
-    const kind = decodeSymbolKind(reader);
-    const symbolId = decodeGlobalSymbolId(reader);
-    const target = decodeTarget(reader);
-    const container = reader.readOption(() => reader.readString());
-
-    return {
-        name,
-        kind,
-        symbolId,
-        target,
-        ...(container === undefined ? {} : { container }),
-    };
-}
-
-/** Return one JSON value for one SearchSymbol. */
-export function toJsonSearchSymbol(value: SearchSymbol): Json {
-    return {
-        name: value.name,
-        kind: toJsonSymbolKind(value.kind),
-        symbolId: toJsonGlobalSymbolId(value.symbolId),
-        target: toJsonTarget(value.target),
-        ...(value.container === undefined ? {} : { container: value.container }),
-    };
-}
-
-/** Return one SearchSymbol from one JSON value. */
-export function fromJsonSearchSymbol(value: Json): SearchSymbol {
-    const object = jsonObject(value);
-
-    return {
-        name: jsonString(jsonField(object, "name")),
-        kind: fromJsonSymbolKind(jsonField(object, "kind")),
-        symbolId: fromJsonGlobalSymbolId(jsonField(object, "symbolId")),
-        target: fromJsonTarget(jsonField(object, "target")),
-        container: jsonOptional(object, "container", (value) => jsonString(value)),
     };
 }

@@ -73,6 +73,165 @@ export function fromJsonOutlineRequest(value: Json): OutlineRequest {
     };
 }
 
+/** Response from one outline query. */
+export type OutlineResponse = {
+    /** The top-level source symbols. */
+    readonly symbols: ReadonlyArray<OutlineSymbol>;
+};
+
+export const OutlineResponse = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: OutlineResponse): void {
+        encodeOutlineResponse(writer, value);
+    },
+
+    /** Decode one OutlineResponse. */
+    decode(reader: BinaryReader): OutlineResponse {
+        return decodeOutlineResponse(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: OutlineResponse): Json {
+        return toJsonOutlineResponse(value);
+    },
+
+    /** Return one OutlineResponse from one JSON value. */
+    fromJson(value: Json): OutlineResponse {
+        return fromJsonOutlineResponse(value);
+    },
+};
+
+/** Encode one OutlineResponse. */
+export function encodeOutlineResponse(writer: BinaryWriter, value: OutlineResponse): void {
+    writer.writeUnsigned(value.symbols.length);
+    for (const item0 of value.symbols) {
+        encodeOutlineSymbol(writer, item0);
+    }
+}
+
+/** Decode one OutlineResponse. */
+export function decodeOutlineResponse(reader: BinaryReader): OutlineResponse {
+    const symbols = (() => { const length0 = reader.readNumber(); const items0: Array<OutlineSymbol> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeOutlineSymbol(reader)); } return items0; })();
+
+    return {
+        symbols,
+    };
+}
+
+/** Return one JSON value for one OutlineResponse. */
+export function toJsonOutlineResponse(value: OutlineResponse): Json {
+    return {
+        symbols: value.symbols.map((item0) => toJsonOutlineSymbol(item0)),
+    };
+}
+
+/** Return one OutlineResponse from one JSON value. */
+export function fromJsonOutlineResponse(value: Json): OutlineResponse {
+    const object = jsonObject(value);
+
+    return {
+        symbols: jsonArray(jsonField(object, "symbols")).map((item0) => fromJsonOutlineSymbol(item0)),
+    };
+}
+
+/** One symbol in a source-file outline. */
+export type OutlineSymbol = {
+    /** The symbol name. */
+    readonly name: string;
+    /** The signature, type, or value shown beside the name. */
+    readonly detail?: string;
+    /** The symbol kind. */
+    readonly kind: SymbolKind;
+    /** The complete declaration range. */
+    readonly range: Span;
+    /** The range selected when navigating to the symbol. */
+    readonly selectionRange: Span;
+    /** The symbols declared directly inside this symbol. */
+    readonly children: ReadonlyArray<OutlineSymbol>;
+};
+
+export const OutlineSymbol = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: OutlineSymbol): void {
+        encodeOutlineSymbol(writer, value);
+    },
+
+    /** Decode one OutlineSymbol. */
+    decode(reader: BinaryReader): OutlineSymbol {
+        return decodeOutlineSymbol(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: OutlineSymbol): Json {
+        return toJsonOutlineSymbol(value);
+    },
+
+    /** Return one OutlineSymbol from one JSON value. */
+    fromJson(value: Json): OutlineSymbol {
+        return fromJsonOutlineSymbol(value);
+    },
+};
+
+/** Encode one OutlineSymbol. */
+export function encodeOutlineSymbol(writer: BinaryWriter, value: OutlineSymbol): void {
+    writer.writeString(value.name);
+    writer.writeOption(value.detail, (value1) => {
+        writer.writeString(value1);
+    });
+    encodeSymbolKind(writer, value.kind);
+    encodeSpan(writer, value.range);
+    encodeSpan(writer, value.selectionRange);
+    writer.writeUnsigned(value.children.length);
+    for (const item5 of value.children) {
+        encodeOutlineSymbol(writer, item5);
+    }
+}
+
+/** Decode one OutlineSymbol. */
+export function decodeOutlineSymbol(reader: BinaryReader): OutlineSymbol {
+    const name = reader.readString();
+    const detail = reader.readOption(() => reader.readString());
+    const kind = decodeSymbolKind(reader);
+    const range = decodeSpan(reader);
+    const selectionRange = decodeSpan(reader);
+    const children = (() => { const length5 = reader.readNumber(); const items5: Array<OutlineSymbol> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeOutlineSymbol(reader)); } return items5; })();
+
+    return {
+        name,
+        ...(detail === undefined ? {} : { detail }),
+        kind,
+        range,
+        selectionRange,
+        children,
+    };
+}
+
+/** Return one JSON value for one OutlineSymbol. */
+export function toJsonOutlineSymbol(value: OutlineSymbol): Json {
+    return {
+        name: value.name,
+        ...(value.detail === undefined ? {} : { detail: value.detail }),
+        kind: toJsonSymbolKind(value.kind),
+        range: toJsonSpan(value.range),
+        selectionRange: toJsonSpan(value.selectionRange),
+        children: value.children.map((item0) => toJsonOutlineSymbol(item0)),
+    };
+}
+
+/** Return one OutlineSymbol from one JSON value. */
+export function fromJsonOutlineSymbol(value: Json): OutlineSymbol {
+    const object = jsonObject(value);
+
+    return {
+        name: jsonString(jsonField(object, "name")),
+        detail: jsonOptional(object, "detail", (value) => jsonString(value)),
+        kind: fromJsonSymbolKind(jsonField(object, "kind")),
+        range: fromJsonSpan(jsonField(object, "range")),
+        selectionRange: fromJsonSpan(jsonField(object, "selectionRange")),
+        children: jsonArray(jsonField(object, "children")).map((item0) => fromJsonOutlineSymbol(item0)),
+    };
+}
+
 /** An editor-facing declaration kind. */
 export type SymbolKind = "associatedConst" | "associatedType" | "class" | "constant" | "constructor" | "enum" | "enumMember" | "extension" | "field" | "function" | "interface" | "method" | "module" | "namespace" | "newtype" | "newtypeInterface" | "property" | "struct" | "typeAlias" | "variable";
 
@@ -269,163 +428,4 @@ export function fromJsonSymbolKind(value: Json): SymbolKind {
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);
-}
-
-/** Response from one outline query. */
-export type OutlineResponse = {
-    /** The top-level source symbols. */
-    readonly symbols: ReadonlyArray<OutlineSymbol>;
-};
-
-export const OutlineResponse = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: OutlineResponse): void {
-        encodeOutlineResponse(writer, value);
-    },
-
-    /** Decode one OutlineResponse. */
-    decode(reader: BinaryReader): OutlineResponse {
-        return decodeOutlineResponse(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: OutlineResponse): Json {
-        return toJsonOutlineResponse(value);
-    },
-
-    /** Return one OutlineResponse from one JSON value. */
-    fromJson(value: Json): OutlineResponse {
-        return fromJsonOutlineResponse(value);
-    },
-};
-
-/** Encode one OutlineResponse. */
-export function encodeOutlineResponse(writer: BinaryWriter, value: OutlineResponse): void {
-    writer.writeUnsigned(value.symbols.length);
-    for (const item0 of value.symbols) {
-        encodeOutlineSymbol(writer, item0);
-    }
-}
-
-/** Decode one OutlineResponse. */
-export function decodeOutlineResponse(reader: BinaryReader): OutlineResponse {
-    const symbols = (() => { const length0 = reader.readNumber(); const items0: Array<OutlineSymbol> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeOutlineSymbol(reader)); } return items0; })();
-
-    return {
-        symbols,
-    };
-}
-
-/** Return one JSON value for one OutlineResponse. */
-export function toJsonOutlineResponse(value: OutlineResponse): Json {
-    return {
-        symbols: value.symbols.map((item0) => toJsonOutlineSymbol(item0)),
-    };
-}
-
-/** Return one OutlineResponse from one JSON value. */
-export function fromJsonOutlineResponse(value: Json): OutlineResponse {
-    const object = jsonObject(value);
-
-    return {
-        symbols: jsonArray(jsonField(object, "symbols")).map((item0) => fromJsonOutlineSymbol(item0)),
-    };
-}
-
-/** One symbol in a source-file outline. */
-export type OutlineSymbol = {
-    /** The symbol name. */
-    readonly name: string;
-    /** The signature, type, or value shown beside the name. */
-    readonly detail?: string;
-    /** The symbol kind. */
-    readonly kind: SymbolKind;
-    /** The complete declaration range. */
-    readonly range: Span;
-    /** The range selected when navigating to the symbol. */
-    readonly selectionRange: Span;
-    /** The symbols declared directly inside this symbol. */
-    readonly children: ReadonlyArray<OutlineSymbol>;
-};
-
-export const OutlineSymbol = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: OutlineSymbol): void {
-        encodeOutlineSymbol(writer, value);
-    },
-
-    /** Decode one OutlineSymbol. */
-    decode(reader: BinaryReader): OutlineSymbol {
-        return decodeOutlineSymbol(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: OutlineSymbol): Json {
-        return toJsonOutlineSymbol(value);
-    },
-
-    /** Return one OutlineSymbol from one JSON value. */
-    fromJson(value: Json): OutlineSymbol {
-        return fromJsonOutlineSymbol(value);
-    },
-};
-
-/** Encode one OutlineSymbol. */
-export function encodeOutlineSymbol(writer: BinaryWriter, value: OutlineSymbol): void {
-    writer.writeString(value.name);
-    writer.writeOption(value.detail, (value1) => {
-        writer.writeString(value1);
-    });
-    encodeSymbolKind(writer, value.kind);
-    encodeSpan(writer, value.range);
-    encodeSpan(writer, value.selectionRange);
-    writer.writeUnsigned(value.children.length);
-    for (const item5 of value.children) {
-        encodeOutlineSymbol(writer, item5);
-    }
-}
-
-/** Decode one OutlineSymbol. */
-export function decodeOutlineSymbol(reader: BinaryReader): OutlineSymbol {
-    const name = reader.readString();
-    const detail = reader.readOption(() => reader.readString());
-    const kind = decodeSymbolKind(reader);
-    const range = decodeSpan(reader);
-    const selectionRange = decodeSpan(reader);
-    const children = (() => { const length5 = reader.readNumber(); const items5: Array<OutlineSymbol> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeOutlineSymbol(reader)); } return items5; })();
-
-    return {
-        name,
-        ...(detail === undefined ? {} : { detail }),
-        kind,
-        range,
-        selectionRange,
-        children,
-    };
-}
-
-/** Return one JSON value for one OutlineSymbol. */
-export function toJsonOutlineSymbol(value: OutlineSymbol): Json {
-    return {
-        name: value.name,
-        ...(value.detail === undefined ? {} : { detail: value.detail }),
-        kind: toJsonSymbolKind(value.kind),
-        range: toJsonSpan(value.range),
-        selectionRange: toJsonSpan(value.selectionRange),
-        children: value.children.map((item0) => toJsonOutlineSymbol(item0)),
-    };
-}
-
-/** Return one OutlineSymbol from one JSON value. */
-export function fromJsonOutlineSymbol(value: Json): OutlineSymbol {
-    const object = jsonObject(value);
-
-    return {
-        name: jsonString(jsonField(object, "name")),
-        detail: jsonOptional(object, "detail", (value) => jsonString(value)),
-        kind: fromJsonSymbolKind(jsonField(object, "kind")),
-        range: fromJsonSpan(jsonField(object, "range")),
-        selectionRange: fromJsonSpan(jsonField(object, "selectionRange")),
-        children: jsonArray(jsonField(object, "children")).map((item0) => fromJsonOutlineSymbol(item0)),
-    };
 }

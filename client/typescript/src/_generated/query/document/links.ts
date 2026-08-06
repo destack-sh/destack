@@ -8,6 +8,71 @@ import { decodeModule, encodeModule, fromJsonModule, toJsonModule } from "../pro
 import { decodeFileId, encodeFileId, fromJsonFileId, toJsonFileId } from "../../source/file/model/file.js";
 import { decodeSpan, encodeSpan, fromJsonSpan, toJsonSpan } from "../../source/file/model/span.js";
 
+/** A clickable link in a module. */
+export type Link = {
+    /** The range of the link in the module. */
+    readonly range: Span;
+    /** The resolved target source file. */
+    readonly target: FileId;
+};
+
+export const Link = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: Link): void {
+        encodeLink(writer, value);
+    },
+
+    /** Decode one Link. */
+    decode(reader: BinaryReader): Link {
+        return decodeLink(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: Link): Json {
+        return toJsonLink(value);
+    },
+
+    /** Return one Link from one JSON value. */
+    fromJson(value: Json): Link {
+        return fromJsonLink(value);
+    },
+};
+
+/** Encode one Link. */
+export function encodeLink(writer: BinaryWriter, value: Link): void {
+    encodeSpan(writer, value.range);
+    encodeFileId(writer, value.target);
+}
+
+/** Decode one Link. */
+export function decodeLink(reader: BinaryReader): Link {
+    const range = decodeSpan(reader);
+    const target = decodeFileId(reader);
+
+    return {
+        range,
+        target,
+    };
+}
+
+/** Return one JSON value for one Link. */
+export function toJsonLink(value: Link): Json {
+    return {
+        range: toJsonSpan(value.range),
+        target: toJsonFileId(value.target),
+    };
+}
+
+/** Return one Link from one JSON value. */
+export function fromJsonLink(value: Json): Link {
+    const object = jsonObject(value);
+
+    return {
+        range: fromJsonSpan(jsonField(object, "range")),
+        target: fromJsonFileId(jsonField(object, "target")),
+    };
+}
+
 /** Request links for one source file. */
 export type LinksRequest = {
     /** The queried module profile. */
@@ -131,70 +196,5 @@ export function fromJsonLinksResponse(value: Json): LinksResponse {
 
     return {
         links: jsonArray(jsonField(object, "links")).map((item0) => fromJsonLink(item0)),
-    };
-}
-
-/** A clickable link in a module. */
-export type Link = {
-    /** The range of the link in the module. */
-    readonly range: Span;
-    /** The resolved target source file. */
-    readonly target: FileId;
-};
-
-export const Link = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: Link): void {
-        encodeLink(writer, value);
-    },
-
-    /** Decode one Link. */
-    decode(reader: BinaryReader): Link {
-        return decodeLink(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: Link): Json {
-        return toJsonLink(value);
-    },
-
-    /** Return one Link from one JSON value. */
-    fromJson(value: Json): Link {
-        return fromJsonLink(value);
-    },
-};
-
-/** Encode one Link. */
-export function encodeLink(writer: BinaryWriter, value: Link): void {
-    encodeSpan(writer, value.range);
-    encodeFileId(writer, value.target);
-}
-
-/** Decode one Link. */
-export function decodeLink(reader: BinaryReader): Link {
-    const range = decodeSpan(reader);
-    const target = decodeFileId(reader);
-
-    return {
-        range,
-        target,
-    };
-}
-
-/** Return one JSON value for one Link. */
-export function toJsonLink(value: Link): Json {
-    return {
-        range: toJsonSpan(value.range),
-        target: toJsonFileId(value.target),
-    };
-}
-
-/** Return one Link from one JSON value. */
-export function fromJsonLink(value: Json): Link {
-    const object = jsonObject(value);
-
-    return {
-        range: fromJsonSpan(jsonField(object, "range")),
-        target: fromJsonFileId(jsonField(object, "target")),
     };
 }

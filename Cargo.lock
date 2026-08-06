@@ -901,6 +901,7 @@ name = "destack_client_generate"
 version = "0.55.4"
 dependencies = [
  "anyhow",
+ "destack_rpc",
  "destack_serde",
  "destack_workspace",
 ]
@@ -1215,6 +1216,7 @@ dependencies = [
 name = "destack_napi"
 version = "0.55.4"
 dependencies = [
+ "destack_rpc",
  "destack_source",
  "destack_workspace",
  "napi",
@@ -1503,6 +1505,7 @@ name = "destack_wasm"
 version = "0.55.4"
 dependencies = [
  "destack_artifact",
+ "destack_rpc",
  "destack_source",
  "destack_workspace",
  "js-sys",
