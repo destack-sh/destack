@@ -1252,6 +1252,7 @@ dependencies = [
  "destack_repository",
  "destack_session",
  "destack_source",
+ "futures",
 ]
 
 [[package]]

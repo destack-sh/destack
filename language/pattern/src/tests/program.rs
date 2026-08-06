@@ -9,6 +9,7 @@ use destack_repository::{
 };
 use destack_session::Session;
 use destack_source::{File, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
+use futures::executor::block_on;
 
 use crate::{ModuleContext, ProgramContext};
 
@@ -216,9 +217,7 @@ impl TestProgram {
             None,
         )
         .expect("create checked test session");
-        session
-            .provide(revision, &keys)
-            .expect("provide checked test artifacts");
+        block_on(session.provide(revision, &keys)).expect("provide checked test artifacts");
 
         session
             .revision(session.head())
