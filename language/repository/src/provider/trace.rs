@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, VecDeque};
+use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -250,6 +251,19 @@ impl Trace {
 
         let started = self.clock.now();
         let value = work();
+        self.record_span(name, started, TraceSpanKind::Breakdown);
+
+        value
+    }
+
+    /// Record one timed operation-level span around a future.
+    pub async fn span_async<T>(&self, name: &'static str, work: impl Future<Output = T>) -> T {
+        if !self.is_enabled {
+            return work.await;
+        }
+
+        let started = self.clock.now();
+        let value = work.await;
         self.record_span(name, started, TraceSpanKind::Breakdown);
 
         value

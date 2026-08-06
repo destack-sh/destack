@@ -7,6 +7,7 @@ use destack_repository::{
     TraceSnapshot, TraceView, open_repository,
 };
 use destack_source::{Edit, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
+use futures::executor::block_on;
 
 use crate::{Change, Commit, PreparedCommit, Session, SessionError};
 
@@ -53,7 +54,7 @@ impl TestSession {
         worker_count: usize,
     ) -> Result<Self, SessionError> {
         let execution = if worker_count == 1 {
-            Execution::Inline
+            Execution::Cooperative
         } else {
             Execution::Threaded
         };
@@ -177,9 +178,7 @@ impl TestSession {
         let module = self.module_id(path, revision);
         let profile = self.profile_id(revision, module, target);
         let key = ArtifactKey::dir_checked(module, profile);
-        let version = self
-            .session
-            .require(revision, key)
+        let version = block_on(self.session.require(revision, key))
             .expect("test artifact should be required");
         let trace = self.trace();
 

@@ -69,6 +69,7 @@ destack_workspace = { workspace = true, features = ["native"] }
 
 # general
 clap = { workspace = true, features = ["derive"] }
+futures = { workspace = true, features = ["executor"] }
 pulldown-cmark = { workspace = true }
 rayon = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

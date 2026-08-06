@@ -3,6 +3,7 @@ use std::sync::{Arc, Weak};
 
 use destack_artifact::ArtifactKey;
 use destack_repository::{Revision, Trace};
+use futures::task::AtomicWaker;
 use parking_lot::Mutex;
 
 use super::executor::Executor;
@@ -115,31 +116,34 @@ impl ArtifactRun {
     }
 
     /// Wait until this run's initial roots have ready payloads.
-    pub fn wait_ready(&self) -> Result<(), SessionError> {
+    pub async fn wait_ready(&self) -> Result<(), SessionError> {
         self.executor
             .wait_for_run(&self.state, ArtifactRunGoal::Ready)
+            .await
     }
 
     /// Require additional roots through this artifact run.
-    pub fn require(&self, artifact_keys: &[ArtifactKey]) -> Result<(), SessionError> {
-        self.executor.require(&self.state, artifact_keys)
+    pub async fn require(&self, artifact_keys: &[ArtifactKey]) -> Result<(), SessionError> {
+        self.executor.require(&self.state, artifact_keys).await
     }
 
     /// Wait for this artifact run to finish.
-    pub fn wait(mut self) -> Result<(), SessionError> {
+    pub async fn wait(mut self) -> Result<(), SessionError> {
         let result = self
             .executor
-            .wait_for_run(&self.state, ArtifactRunGoal::Ready);
+            .wait_for_run(&self.state, ArtifactRunGoal::Ready)
+            .await;
         self.finish();
 
         result
     }
 
     /// Complete this artifact run through every terminal root outcome.
-    pub fn complete(mut self) -> Result<(), SessionError> {
+    pub async fn complete(mut self) -> Result<(), SessionError> {
         let result = self
             .executor
-            .wait_for_run(&self.state, ArtifactRunGoal::Terminal);
+            .wait_for_run(&self.state, ArtifactRunGoal::Terminal)
+            .await;
         self.finish();
 
         result
@@ -228,6 +232,8 @@ pub(super) struct ArtifactRunState {
     trace: Arc<Trace>,
     /// Whether this run owns and publishes its trace.
     owns_trace: bool,
+    /// Cooperative waiter for scheduler changes affecting this run.
+    waker: AtomicWaker,
 }
 
 impl ArtifactRunState {
@@ -251,6 +257,7 @@ impl ArtifactRunState {
             is_finished: AtomicBool::new(false),
             trace,
             owns_trace,
+            waker: AtomicWaker::new(),
         }
     }
 
@@ -335,5 +342,15 @@ impl ArtifactRunState {
     /// Return the first infrastructure error for this run.
     pub(super) fn error(&self) -> Option<SessionError> {
         self.error.lock().clone()
+    }
+
+    /// Register one cooperative waiter for this run.
+    pub(super) fn register(&self, waker: &std::task::Waker) {
+        self.waker.register(waker);
+    }
+
+    /// Wake the cooperative waiter after scheduler state changes.
+    pub(super) fn wake(&self) {
+        self.waker.wake();
     }
 }

@@ -16,8 +16,6 @@ const PRIORITY_COUNT: usize = 2;
 pub(super) struct Scheduler {
     /// Scheduler state guarded by the queue lock.
     state: Mutex<SchedulerState>,
-    /// Notification for task graph and artifact outcome changes.
-    changed: Condvar,
     /// Notification for newly claimable work, watched only by workers.
     ready: Condvar,
 }
@@ -35,8 +33,6 @@ struct SchedulerState {
     ready: [[VecDeque<Task>; ArtifactStage::ALL.len()]; PRIORITY_COUNT],
     /// Tasks currently owned by workers.
     running: usize,
-    /// Scheduler change counter for missed wakeup avoidance.
-    epoch: u64,
     /// Whether workers should stop after current work.
     is_shutdown: bool,
 }
@@ -93,8 +89,7 @@ impl Scheduler {
     pub(super) fn remove_run(&self, run_id: ArtifactRunId) {
         let mut state = self.state.lock();
         state.remove_run(run_id);
-        state.advance();
-        self.changed.notify_all();
+        state.wake_runs();
         self.ready.notify_all();
     }
 
@@ -104,8 +99,7 @@ impl Scheduler {
         for task in tasks {
             state.enqueue(*task, run);
         }
-        state.advance();
-        self.changed.notify_all();
+        state.wake_runs();
         self.wake_ready(&mut state);
     }
 
@@ -146,40 +140,6 @@ impl Scheduler {
         }
     }
 
-    /// Wait until a caller condition is satisfied.
-    pub(super) fn wait_until<T>(
-        &self,
-        mut condition: impl FnMut() -> Result<Option<T>, SessionError>,
-    ) -> Result<T, SessionError> {
-        loop {
-            let state = self.state.lock();
-            let epoch = state.epoch;
-            if state.is_shutdown {
-                return Err(SessionError::Internal {
-                    detail: "session executor shut down while waiting for artifact run".to_string(),
-                });
-            }
-            drop(state);
-
-            if let Some(value) = condition()? {
-                return Ok(value);
-            }
-
-            let mut state = self.state.lock();
-
-            // wait only while no scheduler change has happened
-            while !state.is_shutdown && state.epoch == epoch {
-                self.changed.wait(&mut state);
-            }
-
-            if state.is_shutdown {
-                return Err(SessionError::Internal {
-                    detail: "session executor shut down while waiting for artifact run".to_string(),
-                });
-            }
-        }
-    }
-
     /// Put one running task into dependency wait state.
     pub(super) fn wait_on(
         &self,
@@ -189,8 +149,7 @@ impl Scheduler {
     ) -> Result<(), SessionError> {
         let mut state = self.state.lock();
         state.wait_on(task, dependencies, pending_set)?;
-        state.advance();
-        self.changed.notify_all();
+        state.wake_runs();
         self.wake_ready(&mut state);
 
         Ok(())
@@ -200,8 +159,7 @@ impl Scheduler {
     pub(super) fn mark_done(&self, task: Task) {
         let mut state = self.state.lock();
         state.mark_done(task);
-        state.advance();
-        self.changed.notify_all();
+        state.wake_runs();
         self.wake_ready(&mut state);
     }
 
@@ -209,8 +167,7 @@ impl Scheduler {
     pub(super) fn abort(&self, task: Task, error: SessionError) {
         let mut state = self.state.lock();
         state.abort(task, error);
-        state.advance();
-        self.changed.notify_all();
+        state.wake_runs();
         self.ready.notify_all();
     }
 
@@ -223,8 +180,7 @@ impl Scheduler {
     pub(super) fn shutdown(&self) {
         let mut state = self.state.lock();
         state.is_shutdown = true;
-        state.advance();
-        self.changed.notify_all();
+        state.wake_runs();
         self.ready.notify_all();
     }
 
@@ -253,8 +209,7 @@ impl Scheduler {
                 .cloned();
             let Some(run) = run else {
                 state.mark_done(task);
-                state.advance();
-                self.changed.notify_all();
+                state.wake_runs();
 
                 continue;
             };
@@ -267,7 +222,7 @@ impl Scheduler {
             entry.active_run = Some(run.id());
             state.running += 1;
             let pending_set = entry.pending_set.take();
-            state.advance();
+            state.wake_runs();
 
             return Some((run, task, pending_set));
         }
@@ -277,9 +232,11 @@ impl Scheduler {
 }
 
 impl SchedulerState {
-    /// Advance the scheduler change counter.
-    fn advance(&mut self) {
-        self.epoch = self.epoch.wrapping_add(1);
+    /// Wake every run after scheduler state changes.
+    fn wake_runs(&self) {
+        for run in self.runs.values() {
+            run.wake();
+        }
     }
 
     /// Remove one run and work that has no remaining consumer.

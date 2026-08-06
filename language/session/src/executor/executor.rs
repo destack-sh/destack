@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::task::{Context, Poll};
 use std::thread::{Builder, JoinHandle};
 
 use destack_artifact::{ArtifactFlush, ArtifactKey, ArtifactOutcome, ArtifactVersion};
@@ -68,7 +69,7 @@ impl Executor {
     }
 
     /// Provide root artifacts for one immutable revision.
-    pub(crate) fn provide(
+    pub(crate) async fn provide(
         self: &Arc<Self>,
         revision: Revision,
         artifact_keys: &[ArtifactKey],
@@ -88,10 +89,11 @@ impl Executor {
 
         self.schedule(revision, &pending, ArtifactPriority::Foreground)
             .wait()
+            .await
     }
 
     /// Provide root artifacts while recording into an existing operation trace.
-    pub(crate) fn provide_traced(
+    pub(crate) async fn provide_traced(
         self: &Arc<Self>,
         revision: Revision,
         artifact_keys: &[ArtifactKey],
@@ -105,10 +107,11 @@ impl Executor {
             false,
         )
         .wait()
+        .await
     }
 
     /// Complete root artifacts while recording into an existing operation trace.
-    pub(crate) fn complete_traced(
+    pub(crate) async fn complete_traced(
         self: &Arc<Self>,
         revision: Revision,
         artifact_keys: &[ArtifactKey],
@@ -122,6 +125,7 @@ impl Executor {
             false,
         )
         .complete()
+        .await
     }
 
     /// Schedule root artifacts for one immutable revision.
@@ -178,19 +182,19 @@ impl Executor {
         let clock = self.state.repository().host().clock();
         let workers = match self.execution {
             Execution::Threaded => self.workers.len(),
-            Execution::Inline => 1,
+            Execution::Cooperative => 1,
         };
 
         Trace::new(clock, workers, self.state.is_tracing())
     }
 
     /// Require one artifact version for an immutable revision.
-    pub(crate) fn require_version(
+    pub(crate) async fn require_version(
         self: &Arc<Self>,
         revision: Revision,
         artifact_key: ArtifactKey,
     ) -> Result<ArtifactVersion, SessionError> {
-        self.provide(revision, &[artifact_key])?;
+        self.provide(revision, &[artifact_key]).await?;
 
         let Some(version) = self
             .state
@@ -217,56 +221,22 @@ impl Executor {
         }
     }
 
-    /// Drive one run on the calling thread until its roots are terminal.
-    fn run_inline(
-        &self,
-        run: &ArtifactRunState,
-        tasks: &[Task],
-        goal: ArtifactRunGoal,
-    ) -> Result<(), SessionError> {
-        let worker = Worker {
-            index: 0,
-            state: self.state.clone(),
-            scheduler: self.scheduler.clone(),
-        };
-
-        loop {
-            if let Some(error) = run.error() {
-                return Err(error);
-            }
-
-            // cancelled runs have no queued work in an inline executor
-            if run.is_cancelled() {
-                return Err(SessionError::Cancelled);
-            }
-
-            if self.roots_satisfy(tasks, goal)? {
-                return Ok(());
-            }
-
-            let Some((claimed_run, task, pending_set)) = self.scheduler.claim_ready() else {
-                return Err(SessionError::Internal {
-                    detail: "session inline executor stalled with unfinished roots".to_string(),
-                });
-            };
-
-            if let Err(error) = worker.provide_task(claimed_run.as_ref(), task, pending_set) {
-                self.scheduler.abort(task, error);
-            }
-        }
-    }
-
-    /// Wait until one run's roots are terminal or aborted.
-    pub(super) fn wait_for_run(
+    /// Wait cooperatively until one run's roots are terminal or aborted.
+    pub(super) async fn wait_for_run(
         &self,
         run: &ArtifactRunState,
         goal: ArtifactRunGoal,
     ) -> Result<(), SessionError> {
-        self.wait_for_tasks(run, run.roots(), goal)
+        run.trace()
+            .span_async(
+                "run.await",
+                std::future::poll_fn(|context| self.poll_run(run, run.roots(), goal, context)),
+            )
+            .await
     }
 
     /// Require additional roots through one active run.
-    pub(super) fn require(
+    pub(super) async fn require(
         &self,
         run: &ArtifactRunState,
         artifact_keys: &[ArtifactKey],
@@ -286,44 +256,63 @@ impl Executor {
         // attach exact roots to this run before waiting for their payloads
         self.scheduler.enqueue_roots(&tasks, run.id());
 
-        self.wait_for_tasks(run, &tasks, ArtifactRunGoal::Ready)
+        run.trace()
+            .span_async(
+                "run.await",
+                std::future::poll_fn(|context| {
+                    self.poll_run(run, &tasks, ArtifactRunGoal::Ready, context)
+                }),
+            )
+            .await
     }
 
-    /// Wait until one task slice reaches the requested outcome.
-    fn wait_for_tasks(
+    /// Poll one task slice toward the requested outcome.
+    fn poll_run(
         &self,
         run: &ArtifactRunState,
         tasks: &[Task],
         goal: ArtifactRunGoal,
-    ) -> Result<(), SessionError> {
-        let trace = run.trace();
-
-        trace.span("run.await", || match self.execution {
-            Execution::Inline => self.run_inline(run, tasks, goal),
-            Execution::Threaded => self.scheduler.wait_until(|| {
-                if let Some(error) = run.error() {
-                    return Err(error);
-                }
-
-                // let already running providers leave the cancelled run trace
-                if run.is_cancelled() {
-                    let is_executing = self.scheduler.is_run_executing(run.id());
-                    return Ok((!is_executing).then_some(()));
-                }
-
-                if self.roots_satisfy(tasks, goal)? {
-                    return Ok(Some(()));
-                }
-
-                Ok(None)
-            }),
-        })?;
-
-        if run.is_cancelled() {
-            Err(SessionError::Cancelled)
-        } else {
-            Ok(())
+        context: &mut Context<'_>,
+    ) -> Poll<Result<(), SessionError>> {
+        // register before reading state so concurrent worker changes cannot be missed
+        run.register(context.waker());
+        if let Some(error) = run.error() {
+            return Poll::Ready(Err(error));
         }
+        if run.is_cancelled() {
+            let is_executing = self.scheduler.is_run_executing(run.id());
+            if self.execution == Execution::Threaded && is_executing {
+                return Poll::Pending;
+            }
+
+            return Poll::Ready(Err(SessionError::Cancelled));
+        }
+        match self.roots_satisfy(tasks, goal) {
+            Ok(true) => return Poll::Ready(Ok(())),
+            Ok(false) => {}
+            Err(error) => return Poll::Ready(Err(error)),
+        }
+
+        // threaded workers wake the registered run after scheduler changes
+        if self.execution == Execution::Threaded {
+            return Poll::Pending;
+        }
+
+        // execute one artifact task before yielding to the cooperative host
+        let Some((claimed_run, task, pending_set)) = self.scheduler.claim_ready() else {
+            return Poll::Ready(Err(SessionError::Internal {
+                detail: "cooperative session stalled with unfinished roots".to_string(),
+            }));
+        };
+        let worker = Worker {
+            index: 0,
+            state: self.state.clone(),
+            scheduler: self.scheduler.clone(),
+        };
+        worker.run_task(claimed_run, task, pending_set);
+        context.waker().wake_by_ref();
+
+        Poll::Pending
     }
 
     /// Cancel one artifact run and detach its queued work.
@@ -403,12 +392,12 @@ impl Session {
     }
 
     /// Provide one root artifact slice for an immutable revision.
-    pub fn provide(
+    pub async fn provide(
         &self,
         revision: Revision,
         artifact_keys: &[ArtifactKey],
     ) -> Result<(), SessionError> {
-        self.executor.provide(revision, artifact_keys)
+        self.executor.provide(revision, artifact_keys).await
     }
 
     /// Schedule root artifacts for one immutable revision.
@@ -440,17 +429,19 @@ impl Session {
     }
 
     /// Provide root artifacts while recording into an existing operation trace.
-    pub fn provide_traced(
+    pub async fn provide_traced(
         &self,
         revision: Revision,
         artifact_keys: &[ArtifactKey],
         trace: Arc<Trace>,
     ) -> Result<(), SessionError> {
-        self.executor.provide_traced(revision, artifact_keys, trace)
+        self.executor
+            .provide_traced(revision, artifact_keys, trace)
+            .await
     }
 
     /// Complete root artifacts while recording into an existing operation trace.
-    pub fn complete_traced(
+    pub async fn complete_traced(
         &self,
         revision: Revision,
         artifact_keys: &[ArtifactKey],
@@ -458,15 +449,16 @@ impl Session {
     ) -> Result<(), SessionError> {
         self.executor
             .complete_traced(revision, artifact_keys, trace)
+            .await
     }
 
     /// Require one root artifact for an immutable revision.
-    pub fn require(
+    pub async fn require(
         &self,
         revision: Revision,
         artifact_key: ArtifactKey,
     ) -> Result<ArtifactVersion, SessionError> {
-        self.executor.require_version(revision, artifact_key)
+        self.executor.require_version(revision, artifact_key).await
     }
 
     /// Persist queued artifact records for this session repository.

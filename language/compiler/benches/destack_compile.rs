@@ -7,6 +7,7 @@ use destack_repository::{
 };
 use destack_session::Session;
 use destack_source::{FileSystem, FileType, ModuleId, PhysicalFileSystem, TargetId, glob};
+use futures::executor::block_on;
 use pprof::ProfilerGuard;
 use pprof::flamegraph::Options as FlamegraphOptions;
 use std::fs;
@@ -226,8 +227,7 @@ fn run_compile(session: &Session, modules: &[ModuleId], mode: CompileMode) {
     let revision = session
         .revision(session.head())
         .unwrap_or_else(|error| panic!("failed to read benchmark revision: {error}"));
-    session
-        .provide(revision, &artifact_keys)
+    block_on(session.provide(revision, &artifact_keys))
         .unwrap_or_else(|error| panic!("failed to provide benchmark artifacts: {error}"));
 }
 

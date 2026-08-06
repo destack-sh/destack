@@ -17,6 +17,7 @@ use destack_repository::{
 };
 use destack_session::{Session, SessionError};
 use destack_source::{Content, MemoryFileSystem, ModuleId, ProfileId, TargetId};
+use futures::executor::block_on;
 
 use crate::tests::snapshot::{
     DirRows, DirSnapshotBuilder, assert_snapshot, render_diagnostics, render_source_diagnostics,
@@ -1195,13 +1196,13 @@ impl TestSession {
             .ok()
             .and_then(|value| value.parse::<u128>().ok())
         else {
-            let result = self.session.require(self.revision, key);
+            let result = block_on(self.session.require(self.revision, key));
             self.merge_profile();
 
             return result;
         };
         let started = std::time::Instant::now();
-        let result = self.session.require(self.revision, key);
+        let result = block_on(self.session.require(self.revision, key));
         self.merge_profile();
 
         // print the run trace when it exceeds the requested threshold
@@ -1219,7 +1220,7 @@ impl TestSession {
     ) -> Result<(), SessionError> {
         let keys = keys.into_iter().collect::<Vec<_>>();
 
-        self.session.provide(self.revision, &keys)
+        block_on(self.session.provide(self.revision, &keys))
     }
 
     /// Return the detailed artifact trace for this test session.
@@ -1632,9 +1633,7 @@ fn shared_repository_revision() -> &'static (Arc<Repository>, Revision) {
             .module_ids()
             .map(|module| ArtifactKey::dir_checked(module, profile))
             .collect::<Vec<_>>();
-        session
-            .provide(revision, &keys)
-            .expect("library warmup should check");
+        block_on(session.provide(revision, &keys)).expect("library warmup should check");
 
         (repository, revision)
     })
@@ -1654,7 +1653,7 @@ fn cold_repository_revision() -> (Arc<Repository>, Revision) {
     );
     // run providers inline when the test uses one worker
     let execution = match test_worker_count() {
-        1 => Execution::Inline,
+        1 => Execution::Cooperative,
         _ => Execution::Threaded,
     };
     let host = Host::new(

@@ -60,6 +60,7 @@ clap = { workspace = true }
 criterion = { workspace = true }
 destack_formatter = { workspace = true }
 destack_session = { workspace = true, features = ["native"] }
+futures = { workspace = true, features = ["executor"] }
 pprof = { workspace = true }
 tracing-subscriber = { workspace = true }
 
