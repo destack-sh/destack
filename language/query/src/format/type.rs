@@ -195,16 +195,15 @@ impl Formatter<'_, '_, '_> {
         Ok(text)
     }
 
-    /// Format one borrowed form from its solved lifetime and access.
+    /// Format one borrowed form.
     fn borrowed_form(&self, borrow: dir::BorrowFormId, value: &str) -> QueryResult<String> {
         let borrow = *self.types()?.borrow_form(borrow);
         let lifetime = self.borrow_lifetime(borrow.lifetime)?;
-        let access = self.borrow_access(borrow.access)?;
 
-        Ok(format!("&{lifetime}{access}{value}"))
+        self.borrow_access(borrow.access, &lifetime, value)
     }
 
-    /// Format one solved borrow lifetime.
+    /// Format one borrow lifetime.
     fn borrow_lifetime(&self, type_id: dir::GlobalTypeId) -> QueryResult<String> {
         self.query
             .read_type(type_id, |type_value, module| match type_value {
@@ -227,19 +226,53 @@ impl Formatter<'_, '_, '_> {
             })
     }
 
-    /// Format one solved borrow access.
-    fn borrow_access(&self, type_id: dir::GlobalTypeId) -> QueryResult<&'static str> {
-        self.query
-            .read_type(type_id, |type_value, _| match type_value {
-                dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Mutable)) => Ok(""),
+    /// Apply one borrow access to a borrowed type.
+    fn borrow_access(
+        &self,
+        type_id: dir::GlobalTypeId,
+        lifetime: &str,
+        value: &str,
+    ) -> QueryResult<String> {
+        self.read_type(type_id, |type_value, formatter| {
+            match type_value {
+                // render concrete access with its source modifier
+                dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Mutable)) => {
+                    Ok(format!("&{lifetime}{value}"))
+                }
                 dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)) => {
-                    Ok("readonly ")
+                    Ok(format!("&{lifetime}readonly {value}"))
                 }
                 dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Exclusive)) => {
-                    Ok("exclusive ")
+                    Ok(format!("&{lifetime}exclusive {value}"))
                 }
+
+                // retain generic access through its canonical language form
+                dir::Type::Parameter(parameter) => {
+                    let parameter_binding = formatter
+                        .module
+                        .generics()?
+                        .get_parameter(parameter.local_id);
+                    if parameter_binding.memory_parameter() != Some(dir::MemoryParameter::Access) {
+                        return Err(QueryError::invalid(format!("borrow access: {type_id:?}")));
+                    }
+
+                    let borrowed = format!("&{lifetime}{value}");
+                    let access = formatter.generic_parameter_type(*parameter)?;
+                    let symbol = formatter
+                        .query
+                        .environment_bound()?
+                        .language
+                        .symbol(dir::LanguageItem::WithAccess)
+                        .ok_or(QueryError::missing("WithAccess language item"))?;
+                    let with_access = formatter.symbol(symbol)?;
+
+                    Ok(format!("{with_access}<{borrowed}, {access}>"))
+                }
+
+                // reject invalid checked borrow access
                 _ => Err(QueryError::invalid(format!("borrow access: {type_id:?}"))),
-            })
+            }
+        })
     }
 
     /// Format one concrete placement form.

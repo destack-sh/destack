@@ -226,6 +226,27 @@ function read(point: Point): void {
 @completion.item label=borrow kind=method replace=main.ds#cursor detail="() => WithAccess<&'a Point, A>" documentation="Borrow this value as itself." insert="borrow()"
 ```
 
+### Complete through generic borrow access
+
+Member completion traverses a borrowed receiver with generic access.
+
+```ds main.ds
+struct Box<Value> {
+    value: Value;
+}
+
+extension<Value, comptime A: Access = "readonly"> of Box<Value> {
+    read(this: WithAccess<&Box<Value>, A>): Value {
+        return this.val;
+                    ^^^ prefix
+    }
+}
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=value kind=field replace=main.ds#prefix detail=Value preselect=true matches=0,1,2
+```
+
 ### Complete a structural field
 
 Structural field completion shows the field type.
