@@ -228,18 +228,8 @@
           "name": null,
           "labels": {}
         },
-        "conditions": {
-          "modes": [],
-          "roles": [],
-          "features": [],
-          "tags": [],
-          "target": null,
-          "product": null,
-          "stage": null,
-          "platform": null,
-          "host": null,
-          "runtime": null
-        },
+        "profile": "full",
+        "linkage": "portable",
         "mode": "strict",
         "worker": {
           "limit": null,
@@ -260,6 +250,7 @@
           "payload": "resultsOnly"
         },
         "heap": {
+          "memoryMapSizeBytes": 4398046511104,
           "memoryLimitBytes": null,
           "growthPercent": 100,
           "local": {
@@ -337,6 +328,7 @@
       "$ref": "#/$defs/LinterOptions",
       "default": {
         "enabled": true,
+        "only": [],
         "rules": {}
       }
     },
@@ -504,7 +496,7 @@
         {
           "description": "Reflect-derived schema material.",
           "type": "string",
-          "const": "schema"
+          "const": "reflect"
         },
         {
           "description": "Simulation scenario or model material.",
@@ -1360,7 +1352,7 @@
       }
     },
     "DiagnosticPolicy": {
-      "description": "Diagnostic policy for allow/warn/deny enforcement.",
+      "description": "Diagnostic policy selected by a compiler profile.",
       "oneOf": [
         {
           "description": "Allow without diagnostics.",
@@ -1762,21 +1754,15 @@
             "labels": {}
           }
         },
-        "conditions": {
-          "description": "Active source graph conditions for runtime policy selection.",
-          "$ref": "#/$defs/ConditionSet",
-          "default": {
-            "modes": [],
-            "roles": [],
-            "features": [],
-            "tags": [],
-            "target": null,
-            "product": null,
-            "stage": null,
-            "platform": null,
-            "host": null,
-            "runtime": null
-          }
+        "profile": {
+          "description": "Build distribution profile.",
+          "$ref": "#/$defs/BuildProfile",
+          "default": "full"
+        },
+        "linkage": {
+          "description": "Build payload linkage.",
+          "$ref": "#/$defs/BuildLinkage",
+          "default": "portable"
         },
         "mode": {
           "description": "Execution mode for scheduling and effect handling.",
@@ -1821,6 +1807,7 @@
           "description": "Runtime heap configuration.",
           "$ref": "#/$defs/HeapOptions",
           "default": {
+            "memoryMapSizeBytes": 4398046511104,
             "memoryLimitBytes": null,
             "growthPercent": 100,
             "local": {
@@ -1914,230 +1901,43 @@
         }
       }
     },
-    "ConditionSet": {
-      "description": "Active source graph and runtime selection conditions.",
-      "type": "object",
-      "properties": {
-        "modes": {
-          "description": "Active source graph modes.",
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "roles": {
-          "description": "Active source graph roles.",
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "features": {
-          "description": "Active optional features.",
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "tags": {
-          "description": "Active source graph tags.",
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "target": {
-          "description": "Active build target.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "product": {
-          "description": "Active product.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "stage": {
-          "description": "Active package release stage.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "platform": {
-          "description": "Active target platform.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Platform"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "host": {
-          "description": "Active host environment.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Host"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "runtime": {
-          "description": "Active runtime.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Runtime"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        }
-      }
-    },
-    "Platform": {
-      "description": "Operating system component of a target.",
+    "BuildProfile": {
+      "description": "Build distribution profile.",
       "oneOf": [
         {
-          "description": "Unknown operating system.",
+          "description": "Full Destack build.",
           "type": "string",
-          "const": "unknown"
+          "const": "full"
         },
         {
-          "description": "Windows.",
+          "description": "Smaller Destack build with optional services omitted when possible.",
           "type": "string",
-          "const": "windows"
+          "const": "minimal"
         },
         {
-          "description": "macOS.",
-          "type": "string",
-          "const": "macos"
-        },
-        {
-          "description": "Linux.",
-          "type": "string",
-          "const": "linux"
-        },
-        {
-          "description": "FreeBSD.",
-          "type": "string",
-          "const": "freebsd"
-        },
-        {
-          "description": "OpenBSD.",
-          "type": "string",
-          "const": "openbsd"
-        },
-        {
-          "description": "NetBSD.",
-          "type": "string",
-          "const": "netbsd"
-        },
-        {
-          "description": "DragonFly BSD.",
-          "type": "string",
-          "const": "dragonfly"
-        },
-        {
-          "description": "Solaris.",
-          "type": "string",
-          "const": "solaris"
-        },
-        {
-          "description": "Illumos.",
-          "type": "string",
-          "const": "illumos"
-        },
-        {
-          "description": "Haiku.",
-          "type": "string",
-          "const": "haiku"
-        },
-        {
-          "description": "Fuchsia.",
-          "type": "string",
-          "const": "fuchsia"
-        },
-        {
-          "description": "Redox.",
-          "type": "string",
-          "const": "redox"
-        },
-        {
-          "description": "Hermit.",
-          "type": "string",
-          "const": "hermit"
-        },
-        {
-          "description": "No operating system.",
-          "type": "string",
-          "const": "none"
-        }
-      ]
-    },
-    "Host": {
-      "description": "Host environment that provides target imports and ambient effects.",
-      "oneOf": [
-        {
-          "description": "Native host environment.",
-          "type": "string",
-          "const": "native"
-        },
-        {
-          "description": "Browser host environment.",
-          "type": "string",
-          "const": "browser"
-        },
-        {
-          "description": "WASI host environment.",
-          "type": "string",
-          "const": "wasi"
-        },
-        {
-          "description": "Emscripten host environment.",
-          "type": "string",
-          "const": "emscripten"
-        },
-        {
-          "description": "Freestanding target without host imports.",
+          "description": "Freestanding output without the normal Destack runtime contract.",
           "type": "string",
           "const": "freestanding"
         }
       ]
     },
-    "Runtime": {
-      "description": "Semantic runtime contract for compiled code.",
+    "BuildLinkage": {
+      "description": "Build payload linkage.",
       "oneOf": [
         {
-          "description": "Destack native runtime.",
+          "description": "Ship a portable Destack payload consumed by a runtime.",
           "type": "string",
-          "const": "destack"
+          "const": "portable"
         },
         {
-          "description": "JavaScript host runtime.",
+          "description": "Link the build payload into the produced platform binary.",
           "type": "string",
-          "const": "js"
+          "const": "static"
+        },
+        {
+          "description": "Ship the build payload as a dynamic library.",
+          "type": "string",
+          "const": "dynamic"
         }
       ]
     },
@@ -2310,6 +2110,13 @@
       "description": "Runtime heap configuration.",
       "type": "object",
       "properties": {
+        "memoryMapSizeBytes": {
+          "description": "Virtual byte capacity reserved for the World memory map.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0,
+          "default": 4398046511104
+        },
         "memoryLimitBytes": {
           "description": "Soft memory limit inherited by local and shared heap collectors.",
           "type": [
@@ -2893,6 +2700,14 @@
           "type": "boolean",
           "default": true
         },
+        "only": {
+          "description": "Lint ids selected exclusively.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
         "rules": {
           "description": "Explicit levels keyed by lint id.",
           "type": "object",
@@ -2937,7 +2752,7 @@
           "default": []
         },
         "entrypoint": {
-          "description": "User callable launched by executable products.",
+          "description": "User callable launched by this target.",
           "anyOf": [
             {
               "$ref": "#/$defs/Entrypoint"
@@ -2980,10 +2795,54 @@
             "rules": []
           }
         },
-        "emit": {
-          "description": "Emitted artifact family (js, ts, wasm, native).",
-          "$ref": "#/$defs/EmitFormat",
-          "default": "js"
+        "output": {
+          "description": "Output produced by this target.",
+          "$ref": "#/$defs/Output",
+          "default": "bundle"
+        },
+        "code": {
+          "description": "Executable representations included in a Program artifact.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Code"
+          },
+          "default": []
+        },
+        "architecture": {
+          "description": "Target architecture.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetArch"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "vendor": {
+          "description": "Target vendor.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetVendor"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "abi": {
+          "description": "Target application binary interface.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetAbi"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "platform": {
           "description": "Target operating system.",
@@ -3035,14 +2894,25 @@
             }
           }
         },
-        "output": {
-          "description": "Output paths and metadata options.",
-          "$ref": "#/$defs/TargetOutputOptions",
+        "destination": {
+          "description": "Filesystem output destination.",
+          "$ref": "#/$defs/Destination",
           "default": {
             "directory": "dist",
-            "file": null,
-            "sourceMap": null
+            "file": null
           }
+        },
+        "sourceMap": {
+          "description": "Source map emission mode.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceMapMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "js": {
           "description": "JavaScript output configuration.",
@@ -3077,7 +2947,6 @@
               "banner": null,
               "footer": null,
               "generatedCode": null,
-              "sourceMap": null,
               "sourceMapExcludeSources": false,
               "sourceMapDebugIds": false
             },
@@ -3095,9 +2964,6 @@
           "$ref": "#/$defs/TargetNativeOptions",
           "default": {
             "output": "executable",
-            "arch": null,
-            "vendor": null,
-            "abi": null,
             "cpu": null,
             "cpuFeatures": [],
             "sysroot": null,
@@ -3127,18 +2993,8 @@
               "name": null,
               "labels": {}
             },
-            "conditions": {
-              "modes": [],
-              "roles": [],
-              "features": [],
-              "tags": [],
-              "target": null,
-              "product": null,
-              "stage": null,
-              "platform": null,
-              "host": null,
-              "runtime": null
-            },
+            "profile": "full",
+            "linkage": "portable",
             "mode": "strict",
             "worker": {
               "limit": null,
@@ -3159,6 +3015,7 @@
               "payload": "resultsOnly"
             },
             "heap": {
+              "memoryMapSizeBytes": 4398046511104,
               "memoryLimitBytes": null,
               "growthPercent": 100,
               "local": {
@@ -3224,7 +3081,7 @@
       }
     },
     "Entrypoint": {
-      "description": "User callable launched by executable Destack products.",
+      "description": "User callable launched by a Destack target.",
       "type": "object",
       "properties": {
         "module": {
@@ -3241,28 +3098,342 @@
         "export"
       ]
     },
-    "EmitFormat": {
-      "description": "Emitted artifact family for a build target.",
+    "Output": {
+      "description": "Artifact produced by one build target.",
       "oneOf": [
         {
-          "description": "JavaScript (.js).",
+          "description": "Linked JavaScript files and resources.",
           "type": "string",
-          "const": "js"
+          "const": "bundle"
         },
         {
-          "description": "TypeScript (.ts).",
+          "description": "One Destack Program.",
           "type": "string",
-          "const": "ts"
+          "const": "program"
+        }
+      ]
+    },
+    "Code": {
+      "description": "Executable representation included in one Program.",
+      "oneOf": [
+        {
+          "description": "Destack bytecode.",
+          "type": "string",
+          "const": "bytecode"
         },
         {
-          "description": "WebAssembly (.wasm).",
-          "type": "string",
-          "const": "wasm"
-        },
-        {
-          "description": "Native binary.",
+          "description": "Native machine code.",
           "type": "string",
           "const": "native"
+        },
+        {
+          "description": "WebAssembly.",
+          "type": "string",
+          "const": "wasm"
+        }
+      ]
+    },
+    "TargetArch": {
+      "description": "CPU architecture for native targets.",
+      "oneOf": [
+        {
+          "description": "x86_64.",
+          "type": "string",
+          "const": "x86_64"
+        },
+        {
+          "description": "x86.",
+          "type": "string",
+          "const": "x86"
+        },
+        {
+          "description": "AArch64.",
+          "type": "string",
+          "const": "aarch64"
+        },
+        {
+          "description": "ARMv7.",
+          "type": "string",
+          "const": "armv7"
+        },
+        {
+          "description": "ARMv6.",
+          "type": "string",
+          "const": "armv6"
+        },
+        {
+          "description": "RISC-V 64-bit.",
+          "type": "string",
+          "const": "riscv64"
+        },
+        {
+          "description": "RISC-V 32-bit.",
+          "type": "string",
+          "const": "riscv32"
+        },
+        {
+          "description": "PowerPC 64-bit.",
+          "type": "string",
+          "const": "powerpc64"
+        },
+        {
+          "description": "PowerPC 64-bit little-endian.",
+          "type": "string",
+          "const": "powerpc64le"
+        },
+        {
+          "description": "s390x.",
+          "type": "string",
+          "const": "s390x"
+        },
+        {
+          "description": "MIPS64.",
+          "type": "string",
+          "const": "mips64"
+        },
+        {
+          "description": "MIPS64 little-endian.",
+          "type": "string",
+          "const": "mips64el"
+        },
+        {
+          "description": "LoongArch64.",
+          "type": "string",
+          "const": "loongarch64"
+        },
+        {
+          "description": "WebAssembly 32-bit.",
+          "type": "string",
+          "const": "wasm32"
+        },
+        {
+          "description": "WebAssembly 64-bit.",
+          "type": "string",
+          "const": "wasm64"
+        },
+        {
+          "description": "Other architecture.",
+          "type": "object",
+          "properties": {
+            "other": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "other"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "TargetVendor": {
+      "description": "Target vendor for native targets.",
+      "oneOf": [
+        {
+          "description": "Unknown vendor.",
+          "type": "string",
+          "const": "unknown"
+        },
+        {
+          "description": "Apple.",
+          "type": "string",
+          "const": "apple"
+        },
+        {
+          "description": "PC.",
+          "type": "string",
+          "const": "pc"
+        },
+        {
+          "description": "IBM.",
+          "type": "string",
+          "const": "ibm"
+        },
+        {
+          "description": "Nintendo.",
+          "type": "string",
+          "const": "nintendo"
+        },
+        {
+          "description": "Other vendor.",
+          "type": "object",
+          "properties": {
+            "other": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "other"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "TargetAbi": {
+      "description": "Target ABI flavor.",
+      "oneOf": [
+        {
+          "description": "GNU environment.",
+          "type": "string",
+          "const": "gnu"
+        },
+        {
+          "description": "Musl environment.",
+          "type": "string",
+          "const": "musl"
+        },
+        {
+          "description": "MSVC environment.",
+          "type": "string",
+          "const": "msvc"
+        },
+        {
+          "description": "GNU + LLVM environment.",
+          "type": "string",
+          "const": "gnullvm"
+        },
+        {
+          "description": "EABI.",
+          "type": "string",
+          "const": "eabi"
+        },
+        {
+          "description": "EABI with hard-float.",
+          "type": "string",
+          "const": "eabihf"
+        },
+        {
+          "description": "Musl + EABI.",
+          "type": "string",
+          "const": "musleabi"
+        },
+        {
+          "description": "Musl + EABI hard-float.",
+          "type": "string",
+          "const": "musleabihf"
+        },
+        {
+          "description": "Other environment.",
+          "type": "object",
+          "properties": {
+            "other": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "other"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Platform": {
+      "description": "Operating system component of a target.",
+      "oneOf": [
+        {
+          "description": "Unknown operating system.",
+          "type": "string",
+          "const": "unknown"
+        },
+        {
+          "description": "Windows.",
+          "type": "string",
+          "const": "windows"
+        },
+        {
+          "description": "macOS.",
+          "type": "string",
+          "const": "macos"
+        },
+        {
+          "description": "Linux.",
+          "type": "string",
+          "const": "linux"
+        },
+        {
+          "description": "FreeBSD.",
+          "type": "string",
+          "const": "freebsd"
+        },
+        {
+          "description": "OpenBSD.",
+          "type": "string",
+          "const": "openbsd"
+        },
+        {
+          "description": "NetBSD.",
+          "type": "string",
+          "const": "netbsd"
+        },
+        {
+          "description": "DragonFly BSD.",
+          "type": "string",
+          "const": "dragonfly"
+        },
+        {
+          "description": "Solaris.",
+          "type": "string",
+          "const": "solaris"
+        },
+        {
+          "description": "Illumos.",
+          "type": "string",
+          "const": "illumos"
+        },
+        {
+          "description": "Haiku.",
+          "type": "string",
+          "const": "haiku"
+        },
+        {
+          "description": "Fuchsia.",
+          "type": "string",
+          "const": "fuchsia"
+        },
+        {
+          "description": "Redox.",
+          "type": "string",
+          "const": "redox"
+        },
+        {
+          "description": "Hermit.",
+          "type": "string",
+          "const": "hermit"
+        },
+        {
+          "description": "No operating system.",
+          "type": "string",
+          "const": "none"
+        }
+      ]
+    },
+    "Host": {
+      "description": "Host environment that provides target imports and ambient effects.",
+      "oneOf": [
+        {
+          "description": "Native host environment.",
+          "type": "string",
+          "const": "native"
+        },
+        {
+          "description": "Browser host environment.",
+          "type": "string",
+          "const": "browser"
+        },
+        {
+          "description": "WASI host environment.",
+          "type": "string",
+          "const": "wasi"
+        },
+        {
+          "description": "Emscripten host environment.",
+          "type": "string",
+          "const": "emscripten"
+        },
+        {
+          "description": "Freestanding target without host imports.",
+          "type": "string",
+          "const": "freestanding"
         }
       ]
     },
@@ -3382,27 +3553,27 @@
       "description": "Optimization level for builds.",
       "oneOf": [
         {
-          "description": "No optimization (O0).",
+          "description": "Debug build level with no optimization.",
           "type": "string",
           "const": "o0"
         },
         {
-          "description": "Basic optimization (O1).",
+          "description": "Fast local optimization level.",
           "type": "string",
           "const": "o1"
         },
         {
-          "description": "Standard optimization (O2).",
+          "description": "Standard release optimization level.",
           "type": "string",
           "const": "o2"
         },
         {
-          "description": "Aggressive optimization (O3).",
+          "description": "Aggressive release optimization level.",
           "type": "string",
           "const": "o3"
         },
         {
-          "description": "Maximal optimization (O4).",
+          "description": "Maximum Destack optimization level.",
           "type": "string",
           "const": "o4"
         }
@@ -3479,32 +3650,20 @@
         }
       ]
     },
-    "TargetOutputOptions": {
-      "description": "Target output paths and metadata options.",
+    "Destination": {
+      "description": "Filesystem destination for one target output.",
       "type": "object",
       "properties": {
         "directory": {
-          "description": "Output directory for this target.",
+          "description": "Output directory.",
           "type": "string",
           "default": "dist"
         },
         "file": {
-          "description": "Output file for single-file targets.",
+          "description": "Output file for one-file outputs.",
           "type": [
             "string",
             "null"
-          ],
-          "default": null
-        },
-        "sourceMap": {
-          "description": "Source map emission mode.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/SourceMapMode"
-            },
-            {
-              "type": "null"
-            }
           ],
           "default": null
         }
@@ -3611,7 +3770,6 @@
             "banner": null,
             "footer": null,
             "generatedCode": null,
-            "sourceMap": null,
             "sourceMapExcludeSources": false,
             "sourceMapDebugIds": false
           }
@@ -3822,18 +3980,6 @@
           ],
           "default": null
         },
-        "sourceMap": {
-          "description": "Source map emission mode for JavaScript output.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/SourceMapMode"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
         "sourceMapExcludeSources": {
           "description": "Whether to omit source contents from source maps.",
           "type": "boolean",
@@ -3943,42 +4089,6 @@
           "$ref": "#/$defs/NativeOutputKind",
           "default": "executable"
         },
-        "arch": {
-          "description": "Target architecture for native codegen.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetArch"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "vendor": {
-          "description": "Target vendor for native codegen.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetVendor"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "abi": {
-          "description": "Target ABI for native codegen.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetAbi"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
         "cpu": {
           "description": "CPU name for native codegen.",
           "type": [
@@ -4046,200 +4156,6 @@
           "description": "Emit one shared or dynamic library.",
           "type": "string",
           "const": "sharedLibrary"
-        }
-      ]
-    },
-    "TargetArch": {
-      "description": "CPU architecture for native targets.",
-      "oneOf": [
-        {
-          "description": "x86_64.",
-          "type": "string",
-          "const": "x86_64"
-        },
-        {
-          "description": "x86.",
-          "type": "string",
-          "const": "x86"
-        },
-        {
-          "description": "AArch64.",
-          "type": "string",
-          "const": "aarch64"
-        },
-        {
-          "description": "ARMv7.",
-          "type": "string",
-          "const": "armv7"
-        },
-        {
-          "description": "ARMv6.",
-          "type": "string",
-          "const": "armv6"
-        },
-        {
-          "description": "RISC-V 64-bit.",
-          "type": "string",
-          "const": "riscv64"
-        },
-        {
-          "description": "RISC-V 32-bit.",
-          "type": "string",
-          "const": "riscv32"
-        },
-        {
-          "description": "PowerPC 64-bit.",
-          "type": "string",
-          "const": "powerpc64"
-        },
-        {
-          "description": "PowerPC 64-bit little-endian.",
-          "type": "string",
-          "const": "powerpc64le"
-        },
-        {
-          "description": "s390x.",
-          "type": "string",
-          "const": "s390x"
-        },
-        {
-          "description": "MIPS64.",
-          "type": "string",
-          "const": "mips64"
-        },
-        {
-          "description": "MIPS64 little-endian.",
-          "type": "string",
-          "const": "mips64el"
-        },
-        {
-          "description": "LoongArch64.",
-          "type": "string",
-          "const": "loongarch64"
-        },
-        {
-          "description": "WebAssembly 32-bit.",
-          "type": "string",
-          "const": "wasm32"
-        },
-        {
-          "description": "WebAssembly 64-bit.",
-          "type": "string",
-          "const": "wasm64"
-        },
-        {
-          "description": "Other architecture.",
-          "type": "object",
-          "properties": {
-            "other": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "other"
-          ],
-          "additionalProperties": false
-        }
-      ]
-    },
-    "TargetVendor": {
-      "description": "Target vendor for native targets.",
-      "oneOf": [
-        {
-          "description": "Unknown vendor.",
-          "type": "string",
-          "const": "unknown"
-        },
-        {
-          "description": "Apple.",
-          "type": "string",
-          "const": "apple"
-        },
-        {
-          "description": "PC.",
-          "type": "string",
-          "const": "pc"
-        },
-        {
-          "description": "IBM.",
-          "type": "string",
-          "const": "ibm"
-        },
-        {
-          "description": "Nintendo.",
-          "type": "string",
-          "const": "nintendo"
-        },
-        {
-          "description": "Other vendor.",
-          "type": "object",
-          "properties": {
-            "other": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "other"
-          ],
-          "additionalProperties": false
-        }
-      ]
-    },
-    "TargetAbi": {
-      "description": "Target ABI flavor.",
-      "oneOf": [
-        {
-          "description": "GNU environment.",
-          "type": "string",
-          "const": "gnu"
-        },
-        {
-          "description": "Musl environment.",
-          "type": "string",
-          "const": "musl"
-        },
-        {
-          "description": "MSVC environment.",
-          "type": "string",
-          "const": "msvc"
-        },
-        {
-          "description": "GNU + LLVM environment.",
-          "type": "string",
-          "const": "gnullvm"
-        },
-        {
-          "description": "EABI.",
-          "type": "string",
-          "const": "eabi"
-        },
-        {
-          "description": "EABI with hard-float.",
-          "type": "string",
-          "const": "eabihf"
-        },
-        {
-          "description": "Musl + EABI.",
-          "type": "string",
-          "const": "musleabi"
-        },
-        {
-          "description": "Musl + EABI hard-float.",
-          "type": "string",
-          "const": "musleabihf"
-        },
-        {
-          "description": "Other environment.",
-          "type": "object",
-          "properties": {
-            "other": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "other"
-          ],
-          "additionalProperties": false
         }
       ]
     },
@@ -5169,14 +5085,6 @@
             "type": "string"
           },
           "default": []
-        },
-        "tree": {
-          "description": "Default tree tag builder provider.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
         },
         "globals": {
           "description": "Global provider modules for this profile.",

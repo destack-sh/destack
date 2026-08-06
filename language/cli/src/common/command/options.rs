@@ -142,7 +142,16 @@ fn linter_override_value(args: &LinterOptionsArgs) -> Option<Value> {
     let mut object: Map<String, Value> = Map::new();
     let mut rules: Map<String, Value> = Map::new();
 
-    // rule selection
+    // select and enable the requested rules
+    if !args.only.is_empty() {
+        object.insert("only".to_string(), json!(args.only));
+
+        for rule in &args.only {
+            rules.insert(rule.clone(), json!("warning"));
+        }
+    }
+
+    // apply explicit levels
     for rule in &args.allow {
         rules.insert(rule.clone(), json!("off"));
     }

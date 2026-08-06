@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 pub struct LinterOptions {
     /// Whether linting is enabled.
     pub enabled: bool,
+    /// Lint ids selected exclusively.
+    pub only: Vec<String>,
     /// Explicit levels keyed by lint id.
     pub rules: IndexMap<String, LintLevel>,
 }
@@ -17,6 +19,7 @@ impl Default for LinterOptions {
     fn default() -> Self {
         Self {
             enabled: true,
+            only: Vec::new(),
             rules: IndexMap::new(),
         }
     }

@@ -71,21 +71,21 @@ impl Linter {
         let options = config.as_ref().map_or(&defaults, |config| &config.linter);
         let lints = LintSet::resolve(package, options, self.lints.clone(), controls);
 
-        match lints {
-            Ok(lints) => Ok(lints),
-            Err(error) => self.reject(context, error),
-        }
+        Ok(lints)
     }
 
-    /// Emit one source error and reject the current lint artifact.
-    pub(super) fn reject<T>(
+    /// Reject one lint set containing invalid configuration.
+    pub(super) fn reject_invalid_lints(
         &self,
         context: &dyn ProviderContext,
-        diagnostic: impl DiagnosticLike,
-    ) -> Result<T, ProviderError> {
-        context
-            .emit(&diagnostic)
-            .map_err(|error| ProviderError::internal(error.to_string()))?;
+        lints: &LintSet,
+    ) -> Result<(), ProviderError> {
+        if lints.errors().is_empty() {
+            return Ok(());
+        }
+
+        // emit every independent configuration error
+        self.emit(context, lints.errors().iter().cloned())?;
 
         Err(ProviderError::failed(ArtifactFailure::diagnostics()))
     }

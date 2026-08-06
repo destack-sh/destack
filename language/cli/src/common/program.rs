@@ -89,6 +89,14 @@ impl From<LineEndingArg> for LineEnding {
 /// Arguments for configuring linter options.
 #[derive(Args, Debug, Clone, Default)]
 pub struct LinterOptionsArgs {
+    /// Run only these lint rules.
+    #[arg(
+        long = "only",
+        value_name = "RULE",
+        conflicts_with_all = ["allow", "warn", "deny"]
+    )]
+    pub only: Vec<String>,
+
     /// Disable specific lint rules.
     #[arg(long = "allow", value_name = "RULE")]
     pub allow: Vec<String>,

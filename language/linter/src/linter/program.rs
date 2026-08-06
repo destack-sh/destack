@@ -239,6 +239,7 @@ impl Linter {
         let controls = DiagnosticControlIndex::new(control_tables.iter().map(Arc::as_ref))
             .map_err(|error| ProviderError::internal(error.to_string()))?;
         let lints = self.resolve_lints(context, target.package_id(), &controls)?;
+        self.reject_invalid_lints(context, &lints)?;
         if !lints.has_programs() {
             return Ok(ProgramLinted.into());
         }

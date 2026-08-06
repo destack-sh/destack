@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{DiagnosticAnchor, DiagnosticControlIndex};
-use destack_core::StringId;
+use destack_core::{FxIndexSet, StringId};
 use destack_repository::{LintLevel, LinterOptions};
 use destack_source::{DiagnosticSeverity, PackageId};
 
@@ -15,6 +15,8 @@ pub(crate) struct LintSet {
     registry: Arc<[Lint]>,
     /// The scheduled lint indices and configured severities.
     scheduled: Box<[(usize, Option<DiagnosticSeverity>)]>,
+    /// Configuration errors found while resolving this set.
+    errors: Box<[LinterError]>,
 }
 
 impl LintSet {
@@ -24,28 +26,39 @@ impl LintSet {
         options: &LinterOptions,
         lints: Arc<[Lint]>,
         controls: &DiagnosticControlIndex<'_>,
-    ) -> Result<Self, LinterError> {
+    ) -> Self {
         let mut levels = lints
             .iter()
             .map(|lint| lint.default_level)
             .collect::<Vec<_>>();
+        let mut selected = vec![options.only.is_empty(); lints.len()];
+        let mut unknown = FxIndexSet::default();
+
+        // resolve each exclusive selection by exact lint id
+        for id in &options.only {
+            let Some(index) = lints.iter().position(|lint| lint.id.as_ref() == id) else {
+                unknown.insert(id.clone());
+
+                continue;
+            };
+
+            selected[index] = true;
+        }
 
         // resolve each sparse override by exact lint id
         for (id, level) in &options.rules {
-            let index = lints
-                .iter()
-                .position(|lint| lint.id.as_ref() == id)
-                .ok_or_else(|| LinterError::UnknownConfiguredLint {
-                    anchor: DiagnosticAnchor::Package(package),
-                    lint: id.clone(),
-                })?;
+            let Some(index) = lints.iter().position(|lint| lint.id.as_ref() == id) else {
+                unknown.insert(id.clone());
+
+                continue;
+            };
 
             levels[index] = *level;
         }
 
         // schedule configured or source-activated lints
         let mut scheduled = Vec::new();
-        for (index, level) in levels.into_iter().enumerate() {
+        for (index, (level, is_selected)) in levels.into_iter().zip(selected).enumerate() {
             let severity = match level {
                 LintLevel::Off => None,
                 LintLevel::Warning => Some(DiagnosticSeverity::Warning),
@@ -55,16 +68,31 @@ impl LintSet {
             let is_activated = controls
                 .iter()
                 .any(|(_, table)| table.activates(diagnostic));
-            let is_scheduled = severity.is_some() || is_activated;
+            let is_scheduled = is_selected && (severity.is_some() || is_activated);
             if options.enabled && is_scheduled {
                 scheduled.push((index, severity));
             }
         }
 
-        Ok(Self {
+        // report each unknown id once in configuration order
+        let errors = unknown
+            .into_iter()
+            .map(|lint| LinterError::UnknownConfiguredLint {
+                anchor: DiagnosticAnchor::Package(package),
+                lint,
+            })
+            .collect::<Vec<_>>();
+
+        Self {
             registry: lints,
             scheduled: scheduled.into_boxed_slice(),
-        })
+            errors: errors.into_boxed_slice(),
+        }
+    }
+
+    /// Return configuration errors found while resolving this set.
+    pub(crate) fn errors(&self) -> &[LinterError] {
+        &self.errors
     }
 
     /// Iterate checked DIR module lints.
