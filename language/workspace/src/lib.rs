@@ -17,7 +17,9 @@ pub use artifact::*;
 pub use client::*;
 pub use command::*;
 pub use destack_artifact::ArtifactPayload;
-pub use diagnostic::{DiagnosticRun, DiagnosticsRequest, Error, FileDiagnostics};
+pub use diagnostic::{
+    DiagnosticOutcome, DiagnosticRun, DiagnosticsRequest, Error, FileDiagnostics,
+};
 pub use file::{Commit, FileImage, FileOperation, FileUpdate, SourceUpdate, UpdateKind};
 pub use payload::*;
 pub use protocol::*;

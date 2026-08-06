@@ -643,7 +643,21 @@ impl Workspace for LocalWorkspace {
     }
 
     fn diagnose(&self, request: DiagnosticsRequest) -> Result<Vec<FileDiagnostics>, Error> {
-        LocalWorkspace::diagnose(self, request)
+        let outcome = self.start_diagnostics(request)?.wait();
+        let mut failures = outcome.failures.into_iter();
+        let Some(first) = failures.next() else {
+            return Ok(outcome.diagnostics);
+        };
+        let Some(second) = failures.next() else {
+            return Err(first);
+        };
+
+        // retain multiple diagnostic failures in the returned error
+        let mut messages = vec![first.to_string(), second.to_string()];
+        messages.extend(failures.map(|failure| failure.to_string()));
+        let detail = messages.join("; ");
+
+        Err(Error::Internal { detail })
     }
 
     fn artifact(&self, root: &Path, artifact: ArtifactReference) -> Result<ArtifactPayload, Error> {

@@ -121,18 +121,27 @@ impl SessionPin {
         Ok(profile_ids)
     }
 
-    /// Return checked DIR artifacts for selected modules.
+    /// Return DIR diagnostic artifacts for selected modules.
     pub(crate) fn diagnostic_artifacts(
         &self,
         modules: &[ModuleId],
     ) -> Result<Vec<ArtifactKey>, Error> {
         let mut artifacts = Vec::new();
 
-        // check selected authored modules in their package profile
+        // request each DIR phase through check for selected authored modules
         for (target_id, profile_id) in self.selected_targets()? {
             for module_id in modules.iter().copied() {
                 if module_id.package_id == target_id.package_id() {
-                    // TODO #Broken: should request module_linted but that is not ready yet
+                    artifacts.extend([
+                        ArtifactKey::dir_parsed(module_id),
+                        ArtifactKey::dir_bound(module_id, profile_id),
+                        ArtifactKey::dir_imported(module_id, profile_id),
+                        ArtifactKey::dir_expanded(module_id, profile_id),
+                        ArtifactKey::dir_exported(module_id, profile_id),
+                        ArtifactKey::dir_resolved(module_id, profile_id),
+                        ArtifactKey::dir_declared(module_id, profile_id),
+                    ]);
+
                     artifacts.push(ArtifactKey::dir_checked(module_id, profile_id));
                 }
             }

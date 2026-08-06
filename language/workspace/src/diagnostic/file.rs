@@ -38,6 +38,15 @@ pub struct FileDiagnostics {
     pub diagnostics: Vec<Diagnostic>,
 }
 
+/// Diagnostics and failures from one completed diagnostic run.
+#[derive(Debug, Default)]
+pub struct DiagnosticOutcome {
+    /// The completed diagnostics.
+    pub diagnostics: Vec<FileDiagnostics>,
+    /// The run failures.
+    pub failures: Vec<Error>,
+}
+
 impl FileDiagnostics {
     /// Read diagnostics for one exact file.
     fn read(
@@ -100,14 +109,16 @@ impl DiagnosticRun {
         RunGuard::new(cancellations)
     }
 
-    /// Complete every root and read its exact diagnostics.
-    pub fn wait(self) -> Result<Vec<FileDiagnostics>, Error> {
-        let mut diagnostics = Vec::new();
+    /// Complete every root and read its exact diagnostics and failures.
+    pub fn wait(self) -> DiagnosticOutcome {
+        let mut outcome = DiagnosticOutcome::default();
         for read in self.reads {
-            diagnostics.extend(read.wait()?);
+            let mut current = read.wait();
+            outcome.diagnostics.append(&mut current.diagnostics);
+            outcome.failures.append(&mut current.failures);
         }
 
-        Ok(diagnostics)
+        outcome
     }
 }
 
@@ -153,8 +164,8 @@ impl DiagnosticRead {
         })
     }
 
-    /// Complete this root and read its selected diagnostics.
-    fn wait(self) -> Result<Vec<FileDiagnostics>, Error> {
+    /// Complete this root and read its selected diagnostics and failures.
+    fn wait(self) -> DiagnosticOutcome {
         let Self {
             root,
             session,
@@ -166,9 +177,19 @@ impl DiagnosticRead {
         let revision = session.revision();
         let repository = session.repository();
 
-        // complete and read only the selected diagnostic roots
-        artifact_run.complete()?;
-        let diagnostics = repository.diagnostics_for_keys(revision, &artifact_keys)?;
+        // finish every requested phase, then read all completed diagnostics
+        let mut outcome = DiagnosticOutcome::default();
+        if let Err(error) = artifact_run.complete() {
+            outcome.failures.push(error.into());
+        }
+        let diagnostics = match repository.diagnostics_for_keys(revision, &artifact_keys) {
+            Ok(diagnostics) => diagnostics,
+            Err(error) => {
+                outcome.failures.push(error.into());
+
+                return outcome;
+            }
+        };
         let mut diagnostics_by_file = diagnostics.group_by_file();
 
         // include selected open files even when they have no diagnostics
@@ -179,25 +200,35 @@ impl DiagnosticRead {
         // retain only the requested file when this is a file read
         if let DiagnosticSelection::File(file_id) = selection {
             let diagnostics = diagnostics_by_file.remove(&file_id).unwrap_or_default();
-            let file = FileDiagnostics::read(&session, &open_files, file_id, diagnostics)?;
+            match FileDiagnostics::read(&session, &open_files, file_id, diagnostics) {
+                Ok(file) => outcome.diagnostics.push(file),
+                Err(error) => outcome.failures.push(error),
+            }
 
-            return Ok(vec![file]);
+            return outcome;
         }
 
         // build stable root diagnostics
-        let mut diagnostics = Vec::new();
         for (file_id, file_diagnostics) in diagnostics_by_file {
-            let file = FileDiagnostics::read(&session, &open_files, file_id, file_diagnostics)?;
+            let file = match FileDiagnostics::read(&session, &open_files, file_id, file_diagnostics)
+            {
+                Ok(file) => file,
+                Err(error) => {
+                    outcome.failures.push(error);
+
+                    continue;
+                }
+            };
             let belongs_to_root = file
                 .file
                 .path
                 .as_deref()
                 .is_some_and(|path| path.starts_with(&root));
             if belongs_to_root || open_files.contains_key(&file_id) {
-                diagnostics.push(file);
+                outcome.diagnostics.push(file);
             }
         }
-        diagnostics.sort_by(|left, right| {
+        outcome.diagnostics.sort_by(|left, right| {
             let paths = left.file.path.cmp(&right.file.path);
             if paths != Ordering::Equal {
                 return paths;
@@ -206,7 +237,7 @@ impl DiagnosticRead {
             left.uri.to_string().cmp(&right.uri.to_string())
         });
 
-        Ok(diagnostics)
+        outcome
     }
 }
 
@@ -312,10 +343,5 @@ impl LocalWorkspace {
         root.schedule_background(session.revision(), &artifacts);
 
         Ok(())
-    }
-
-    /// Return exact diagnostics selected by one request.
-    pub fn diagnose(&self, request: DiagnosticsRequest) -> Result<Vec<FileDiagnostics>, Error> {
-        self.start_diagnostics(request)?.wait()
     }
 }
