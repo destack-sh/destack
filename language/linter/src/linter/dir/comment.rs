@@ -34,12 +34,14 @@ pub struct CommentLine<'a> {
     pub content: Span,
     /// The authored content text.
     pub text: &'a str,
+    /// The horizontal spacing after this line's comment decoration.
+    pub spacing: Option<Span>,
     /// The zero-based physical source line.
     pub line: u32,
     /// The visual source width through this comment line.
     pub width: u32,
-    /// The content indentation after the conventional separator.
-    pub indentation: u32,
+    /// The visual indentation after the conventional separator.
+    pub indentation_width: u32,
 }
 
 /// One prose sentence retained from a logical comment block.
@@ -49,6 +51,8 @@ pub struct CommentSentence<'a> {
     pub span: Span,
     /// The physical line where the sentence begins.
     pub start_line: CommentLine<'a>,
+    /// The physical line where the sentence ends.
+    pub end_line: CommentLine<'a>,
     /// The initial prose character when its casing is conventional.
     pub initial: Option<(Span, char)>,
     /// The authored sentence ending.
@@ -78,6 +82,8 @@ pub enum CommentSentenceEnding {
 struct SentenceBuilder<'a> {
     /// The physical line where the sentence begins.
     start_line: CommentLine<'a>,
+    /// The physical line containing the latest sentence character.
+    end_line: CommentLine<'a>,
     /// The first authored character.
     start: u32,
     /// The final authored character or delimiter.
@@ -421,6 +427,7 @@ impl<'a> CommentBlock<'a> {
                     });
                 *current = Some(SentenceBuilder {
                     start_line: line,
+                    end_line: line,
                     start: span.start,
                     end: span.end,
                     punctuation_position: span.end,
@@ -433,6 +440,7 @@ impl<'a> CommentBlock<'a> {
                 continue;
             };
             sentence.end = span.end;
+            sentence.end_line = line;
 
             // ignore casing and punctuation inside inline source
             if character == '`' {
@@ -556,6 +564,7 @@ impl<'a> SentenceBuilder<'a> {
         CommentSentence {
             span: Span::new(self.start_line.span.file, self.start, self.end),
             start_line: self.start_line,
+            end_line: self.end_line,
             initial: self.initial,
             ending,
             is_annotation: self.is_annotation,
@@ -604,7 +613,7 @@ impl<'a> CommentLine<'a> {
                     "comment content {content:?} is outside its source file"
                 ))
             })?;
-            let (content, text, indentation) =
+            let (content, text, spacing, indentation_width) =
                 Self::trim_decoration(content, text, comment, line == first_line, first_column);
             let width = Self::source_width(file, source_line.start, span.end)?;
             lines.push(Self {
@@ -613,9 +622,10 @@ impl<'a> CommentLine<'a> {
                 span,
                 content,
                 text,
+                spacing,
                 line,
                 width,
-                indentation,
+                indentation_width,
             });
         }
 
@@ -683,7 +693,7 @@ impl<'a> CommentLine<'a> {
         comment: dir::Comment,
         is_first_line: bool,
         block_column: u32,
-    ) -> (Span, &'a str, u32) {
+    ) -> (Span, &'a str, Option<Span>, u32) {
         let mut start = content.start;
         let mut has_decoration = is_first_line || comment.is_line();
 
@@ -701,21 +711,36 @@ impl<'a> CommentLine<'a> {
             }
         }
 
-        // strip one conventional separator before measuring content indentation
-        if has_decoration && text.starts_with(' ') {
-            text = &text[1..];
-            start += 1;
-        }
-        let indentation_bytes = text.len() - text.trim_start_matches([' ', '\t']).len();
-        let indentation = Self::display_width(&text[..indentation_bytes]);
-        text = &text[indentation_bytes..];
-        start += indentation_bytes as u32;
+        // retain exact decoration spacing and measure additional indentation
+        let spacing_start = start;
+        let spacing_bytes = text.len() - text.trim_start_matches([' ', '\t']).len();
+        let spacing_text = &text[..spacing_bytes];
+        let indentation_text = if has_decoration {
+            spacing_text.strip_prefix(' ').unwrap_or(spacing_text)
+        } else {
+            spacing_text
+        };
+        let indentation_width = Self::display_width(indentation_text);
+        let spacing = has_decoration.then(|| {
+            Span::new(
+                content.file,
+                spacing_start,
+                spacing_start + spacing_bytes as u32,
+            )
+        });
+        text = &text[spacing_bytes..];
+        start += spacing_bytes as u32;
 
         // exclude trailing horizontal whitespace from prose analysis
         let trimmed = text.trim_end_matches([' ', '\t']);
         let end = start + trimmed.len() as u32;
 
-        (Span::new(content.file, start, end), trimmed, indentation)
+        (
+            Span::new(content.file, start, end),
+            trimmed,
+            spacing,
+            indentation_width,
+        )
     }
 
     /// Return the visual width from a physical line start through a comment.
@@ -745,6 +770,241 @@ impl<'a> CommentLine<'a> {
         }
 
         width
+    }
+
+    /// Return whether this physical line uses a line-comment delimiter.
+    pub fn is_line_comment(self) -> bool {
+        self.comment.is_line()
+    }
+
+    /// Return whether this comment begins after only horizontal whitespace.
+    fn is_leading(self) -> Result<bool, ProviderError> {
+        let source_line = self.file.get_line_span(self.line).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "source file {:?} has no line {}",
+                self.file.id, self.line
+            ))
+        })?;
+        let leading_span = Span::new(self.span.file, source_line.start, self.span.start);
+        let leading = self.file.get_span_str(leading_span).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "comment prefix {leading_span:?} is outside its source file"
+            ))
+        })?;
+
+        Ok(leading.bytes().all(|byte| matches!(byte, b' ' | b'\t')))
+    }
+
+    /// Return whether this line uses exactly the requested decoration spacing.
+    pub fn has_spacing(self, expected: &str) -> Result<bool, ProviderError> {
+        let Some(spacing) = self.spacing else {
+            return Ok(true);
+        };
+        let authored = self.file.get_span_str(spacing).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "comment spacing {spacing:?} is outside its source file"
+            ))
+        })?;
+
+        Ok(authored == expected)
+    }
+
+    /// Return whether decorated content follows one conventional separator.
+    pub fn has_separator(self) -> Result<bool, ProviderError> {
+        let Some(spacing) = self.spacing else {
+            return Ok(true);
+        };
+        let authored = self.file.get_span_str(spacing).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "comment spacing {spacing:?} is outside its source file"
+            ))
+        })?;
+
+        Ok(self.text.is_empty() || authored.starts_with(' '))
+    }
+
+    /// Return a line break before one source position with canonical comment spacing.
+    pub fn break_before(
+        self,
+        position: u32,
+        empty_lines: usize,
+        spaces: usize,
+    ) -> Result<Option<(Span, String)>, ProviderError> {
+        if !self.comment.is_line() || !self.is_leading()? {
+            return Ok(None);
+        }
+        if position < self.content.start || position > self.content.end {
+            return Err(ProviderError::internal(format!(
+                "comment break position {position} is outside {:?}",
+                self.content
+            )));
+        }
+        let leading = Span::new(self.content.file, self.content.start, position);
+        let leading = self.file.get_span_str(leading).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "comment break position {position} is outside its source file"
+            ))
+        })?;
+        let whitespace = leading.len() - leading.trim_end_matches([' ', '\t']).len();
+        let span = Span::new(self.content.file, position - whitespace as u32, position);
+        let prefix = self.prefix(spaces)?;
+        let blank = self.prefix(0)?;
+        let mut replacement = String::new();
+
+        // insert the requested empty comment lines before the continued prose
+        for _ in 0..empty_lines {
+            replacement.push('\n');
+            replacement.push_str(&blank);
+        }
+        replacement.push('\n');
+        replacement.push_str(&prefix);
+
+        Ok(Some((span, replacement)))
+    }
+
+    /// Return an empty comment line inserted before this physical line.
+    pub fn blank_before(self) -> Result<Option<(Span, String)>, ProviderError> {
+        if !self.comment.is_line() || !self.is_leading()? {
+            return Ok(None);
+        }
+        let source_line = self.file.get_line_span(self.line).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "source file {:?} has no line {}",
+                self.file.id, self.line
+            ))
+        })?;
+        let prefix = self.prefix(0)?;
+        let replacement = format!("{prefix}\n");
+        let span = Span::at(self.span.file, source_line.start, 0);
+
+        Ok(Some((span, replacement)))
+    }
+
+    /// Return source replacements that wrap this line before a visual column limit.
+    pub fn wrap(
+        self,
+        maximum_width: u32,
+        first_spacing: usize,
+        continuation_spacing: usize,
+    ) -> Result<Option<Vec<(Span, String)>>, ProviderError> {
+        let is_plain_prose = matches!(
+            self.content_role(),
+            CommentLineContent::Prose { start: 0, .. }
+        );
+        if !self.comment.is_line()
+            || !is_plain_prose
+            || self.text.contains('\t')
+            || !self.is_leading()?
+        {
+            return Ok(None);
+        }
+        let first_prefix = self.prefix(first_spacing)?;
+        let continuation_prefix = self.prefix(continuation_spacing)?;
+        let first_width = Self::display_width(&first_prefix);
+        let continuation_width = Self::display_width(&continuation_prefix);
+        let Some(mut available) = maximum_width.checked_sub(first_width) else {
+            return Ok(None);
+        };
+        let Some(continuation_width) = maximum_width.checked_sub(continuation_width) else {
+            return Ok(None);
+        };
+        let replacement = format!("\n{continuation_prefix}");
+        let mut start = 0;
+        let mut patches = Vec::new();
+
+        // split every remaining overlong segment at its final fitting whitespace run
+        while Self::display_width(&self.text[start..]) > available {
+            let Some((break_start, break_end)) =
+                Self::wrapping_break(&self.text[start..], available)
+            else {
+                return Ok(None);
+            };
+            let break_start = start + break_start;
+            let break_end = start + break_end;
+            let span = self.content.subspan(break_start..break_end);
+            patches.push((span, replacement.clone()));
+            start = break_end;
+            available = continuation_width;
+        }
+
+        Ok((!patches.is_empty()).then_some(patches))
+    }
+
+    /// Return the final fitting whitespace run in one prospective comment line.
+    fn wrapping_break(source: &str, maximum_width: u32) -> Option<(usize, usize)> {
+        let mut run = None;
+        let mut candidate = None;
+        let mut width = 0;
+        let mut is_inline_code = false;
+        let mut bracket_depth = 0;
+        let mut link_depth = 0;
+        let mut previous = None;
+
+        // retain complete whitespace runs outside inline source and links
+        for (index, character) in source.char_indices() {
+            if character == '`' {
+                is_inline_code = !is_inline_code;
+            } else if !is_inline_code && link_depth > 0 && character == '(' {
+                link_depth += 1;
+            } else if !is_inline_code && link_depth > 0 && character == ')' {
+                link_depth -= 1;
+            } else if !is_inline_code && character == '[' {
+                bracket_depth += 1;
+            } else if !is_inline_code && bracket_depth > 0 && character == ']' {
+                bracket_depth -= 1;
+            } else if !is_inline_code && character == '(' && previous == Some(']') {
+                link_depth = 1;
+            }
+            let is_protected = is_inline_code || bracket_depth > 0 || link_depth > 0;
+
+            // begin one eligible whitespace run inside the available width
+            if character.is_whitespace() && !is_protected {
+                if run.is_none() {
+                    if width > maximum_width {
+                        break;
+                    }
+                    run = Some(index);
+                }
+            }
+            // retain the completed run as the latest wrapping candidate
+            else if let Some(start) = run.take() {
+                if start > 0 {
+                    candidate = Some((start, index));
+                }
+            }
+
+            width += u32::from(character.terminal_display_width());
+            previous = Some(character);
+        }
+
+        candidate
+    }
+
+    /// Return the physical source prefix through canonical decoration spacing.
+    fn prefix(self, spaces: usize) -> Result<String, ProviderError> {
+        let spacing = self.spacing.ok_or_else(|| {
+            ProviderError::internal(format!(
+                "comment line {:?} has no decorated prefix",
+                self.span
+            ))
+        })?;
+        let source_line = self.file.get_line_span(self.line).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "source file {:?} has no line {}",
+                self.file.id, self.line
+            ))
+        })?;
+        let prefix_span = Span::new(self.span.file, source_line.start, spacing.start);
+        let prefix = self.file.get_span_str(prefix_span).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "comment prefix {prefix_span:?} is outside its source file"
+            ))
+        })?;
+        let mut canonical = String::with_capacity(prefix.len() + spaces);
+        canonical.push_str(prefix);
+        canonical.extend(std::iter::repeat_n(' ', spaces));
+
+        Ok(canonical)
     }
 
     /// Classify this line as prose or Markdown structure.
@@ -852,7 +1112,7 @@ impl<'a> CommentLine<'a> {
 
     /// Return whether this line is an indented code block line.
     pub fn is_indented_code(self) -> bool {
-        self.indentation >= TAB_WIDTH
+        self.indentation_width >= TAB_WIDTH
     }
 
     /// Return whether this complete line is Markdown outside prose.
@@ -867,60 +1127,16 @@ impl<'a> CommentLine<'a> {
     pub fn is_unbreakable(self) -> bool {
         !self.text.is_empty() && self.text.split_whitespace().count() == 1
     }
-
-    /// Return one source replacement that wraps this line before a column limit.
-    pub fn wrap(self, maximum_width: u32) -> Option<(Span, String)> {
-        let is_plain_prose = matches!(
-            self.content_role(),
-            CommentLineContent::Prose { start: 0, .. }
-        );
-        if !self.comment.is_line()
-            || !is_plain_prose
-            || self.indentation != 0
-            || self.text.contains('\t')
-        {
-            return None;
-        }
-        let source_line = self.file.get_line_span(self.line)?;
-        let leading_span = Span::new(self.span.file, source_line.start, self.span.start);
-        let leading = self.file.get_span_str(leading_span)?;
-        if !leading.trim().is_empty() {
-            return None;
-        }
-        let prefix_span = Span::new(self.span.file, source_line.start, self.content.start);
-        let prefix = self.file.get_span_str(prefix_span)?;
-        let prefix_width = Self::display_width(prefix);
-        let content_width = maximum_width.checked_sub(prefix_width)?;
-        let mut width = 0;
-        let mut whitespace = None;
-
-        // select the last whitespace run that fits before the limit
-        for (index, character) in self.text.char_indices() {
-            if character.is_whitespace() && width <= content_width {
-                whitespace = Some(index);
-            }
-            width += u32::from(character.terminal_display_width());
-            if width > content_width {
-                break;
-            }
-        }
-        let start = whitespace?;
-        let end = start
-            + self.text[start..]
-                .bytes()
-                .take_while(|byte| byte.is_ascii_whitespace())
-                .count();
-        if start == 0 || end == self.text.len() {
-            return None;
-        }
-        let span = self.content.subspan(start..end);
-        let replacement = format!("\n{prefix}");
-
-        Some((span, replacement))
-    }
 }
 
 impl CommentSentence<'_> {
+    /// Return whether this sentence continues onto the given physical line.
+    pub fn continues_on(self, line: CommentLine<'_>) -> bool {
+        line.span.file == self.span.file
+            && line.line > self.start_line.line
+            && line.line <= self.end_line.line
+    }
+
     /// Return the initial prose character when its word uses conventional casing.
     fn initial(source: &str, start: Span) -> Option<(Span, char)> {
         // preserve complete source addresses
