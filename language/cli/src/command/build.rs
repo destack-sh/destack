@@ -1,7 +1,9 @@
+use std::time::Instant;
+
 use destack_workspace::{BuildInput, BuildOutputs, CommandRevision};
 
 use crate::common::{
-    CommandOptionsBuilder, CommandResult, DiagnosticCommandSummary, DiagnosticFormat,
+    CommandOptionsBuilder, CommandResult, CommandSummary, DiagnosticFormat,
     FormatOptions, InputArgs, InputSource, ProgramArgs, ReportArgs, TargetArgs,
     WatchCompileContext, WatchCompileReason, WatchCycle, WorkspaceWatch, command_data_json,
     command_error, command_inputs_from_sources, emit_watch_compile_report,
@@ -52,6 +54,8 @@ pub fn run(args: &BuildArgs) -> i32 {
 
 /// Run a single build command.
 fn run_build(args: &BuildArgs) -> i32 {
+    let started_at = Instant::now();
+
     // build command inputs when explicitly provided
     let inputs = if args.input.has_input() {
         let sources = match args.input.to_sources() {
@@ -124,10 +128,11 @@ fn run_build(args: &BuildArgs) -> i32 {
         &json_format_options,
         &text_format_options,
         None,
-        Some(DiagnosticCommandSummary {
+        Some(CommandSummary {
             verb: "Built",
             modules: result.response.module_count,
             targets: result.response.target_count,
+            duration: started_at.elapsed(),
         }),
         data.clone(),
     );

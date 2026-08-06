@@ -1,5 +1,6 @@
 use std::io::Write;
 use std::path::Path;
+use std::time::Duration;
 
 use destack_workspace::{
     CommandMessagePayload, CommandOutputChunk, CommandProgress, Message, MessageKind, OutputStream,
@@ -53,15 +54,17 @@ pub(crate) fn run_workspace_command_or_report(
         .map_err(|error| report_error(command, report_args, &error.to_string()))
 }
 
-/// Shared summary metadata for diagnostic commands.
+/// Shared metadata for one command completion summary.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct DiagnosticCommandSummary<'a> {
+pub(crate) struct CommandSummary<'a> {
     /// Verb used for the final summary.
     pub(crate) verb: &'a str,
     /// Number of modules processed.
     pub(crate) modules: usize,
     /// Number of targets processed.
     pub(crate) targets: usize,
+    /// Complete command wall time.
+    pub(crate) duration: Duration,
 }
 
 /// Run a workspace command that returns a required typed payload.
@@ -153,7 +156,7 @@ pub(crate) fn finish_diagnostic_command(
     json_format_options: &FormatOptions,
     text_format_options: &FormatOptions,
     line_writer: Option<&LineWriter>,
-    summary: Option<DiagnosticCommandSummary<'_>>,
+    summary: Option<CommandSummary<'_>>,
     data: Option<Value>,
 ) -> i32 {
     // emit workspace output only for text mode
@@ -199,7 +202,7 @@ pub(crate) fn finish_diagnostic_command(
     if matches!(text_format_options.format, DiagnosticFormat::Text)
         && let Some(summary) = summary
     {
-        print_diagnostic_command_summary(
+        print_command_summary(
             &summary,
             format_result.error_count,
             format_result.warning_count,
@@ -409,11 +412,11 @@ pub(crate) fn emit_workspace_messages(messages: &[Message]) {
     }
 }
 
-/// Print a compact diagnostic command summary.
+/// Print a compact command completion summary.
 /// Clean runs lead with a green check, failing runs with a red cross
 /// and the error count; counts of one drop their noise words.
-fn print_diagnostic_command_summary(
-    summary: &DiagnosticCommandSummary<'_>,
+fn print_command_summary(
+    summary: &CommandSummary<'_>,
     errors: usize,
     warnings: usize,
     line_writer: Option<&LineWriter>,
@@ -444,6 +447,7 @@ fn print_diagnostic_command_summary(
             console::Stream::Stderr,
         ));
     }
+    parts.push(console::dim(&console::format_duration(summary.duration)));
 
     let line = format!("{status} {}", parts.join(" · "));
     if let Some(line_writer) = line_writer {

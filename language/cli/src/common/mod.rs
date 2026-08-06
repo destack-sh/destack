@@ -13,7 +13,7 @@ pub mod watch;
 mod command;
 
 pub(crate) use command::{
-    CommandOptionsBuilder, CommandResult, DiagnosticCommandSummary, WatchCompileContext,
+    CommandOptionsBuilder, CommandResult, CommandSummary, WatchCompileContext,
     WatchCycle, WorkspaceWatch, command_error, emit_watch_compile_report,
     emit_workspace_text_output, finish_diagnostic_command, finish_run_command,
     finish_workspace_message_command, overrides_from_program, run_workspace_command,

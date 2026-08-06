@@ -1,6 +1,8 @@
+use std::time::Instant;
+
 use crate::common::format::{DiagnosticFormat, FormatOptions};
 use crate::common::{
-    CommandOptionsBuilder, CommandResult, DiagnosticCommandSummary, InputArgs, InputSource,
+    CommandOptionsBuilder, CommandResult, CommandSummary, InputArgs, InputSource,
     ProgramArgs, ProgressMode, ProgressReporter, ReportArgs, WatchCompileContext,
     WatchCompileReason, WatchCycle, WorkspaceWatch, command_data_json, command_error,
     command_inputs_from_sources, emit_watch_compile_report, emit_workspace_text_output,
@@ -19,6 +21,8 @@ struct CheckWatchState {
 
 /// Execution context shared across check command paths.
 struct CheckExecutionContext {
+    /// The command start.
+    started_at: Instant,
     /// Output formatting options.
     format_options: FormatOptions,
     /// Progress reporter for interactive output.
@@ -382,6 +386,7 @@ impl CheckExecutionContext {
         };
 
         Ok(Self {
+            started_at: Instant::now(),
             format_options,
             progress_reporter,
         })
@@ -417,15 +422,16 @@ impl CheckExecutionContext {
         &self,
         args: &CheckArgs,
         result: &CommandResult,
-    ) -> Option<DiagnosticCommandSummary<'static>> {
+    ) -> Option<CommandSummary<'static>> {
         if !matches!(args.format, Format::Text) {
             return None;
         }
 
-        Some(DiagnosticCommandSummary {
+        Some(CommandSummary {
             verb: "Checked",
             modules: result.response.module_count,
             targets: 0,
+            duration: self.started_at.elapsed(),
         })
     }
 }
