@@ -92,6 +92,7 @@ match extracted {
 - Generally, methods that _could_ be methods _should_ be methods - if we have a top level function like `foo(definition: &Definition) -> bool` we should probably just make that `Definition.foo`
 - Often, when we're tempted to add a matrix of methods like "x_for_y", the more pristine factoring is to back up and (re)align state and logic construction flows in a more natural way.
 - When a method mutates state it should be obvious by name and signature, and ideally we want to return mutated state / take the mutator instead of mutating internally when possible (e.g. `resolve_x` should return the resolved thing, not mutate an internal resolver cache and return void). This isn't always possible, and performance matters a lot, but when we can have both it's much preferred.
+- Whenever we have a large sequence of _anything_ (e.g. fields in a struct, variants in an enum, methods in a type, etc.), it's good to figure out how to group them logically and how to delineate conceptual boundaries (e.g., with blank lines, sometimes preceded with a line comment, always symmetrically across all "groups"). 
 
 ### Boundaries
 
@@ -221,6 +222,7 @@ else {
 - Have sympathy for the real hardware and underlying machinery that must actually execute whatever we write down, and usually that happens in roughly the same way we wrote it, since compilers can't be that smart (because most modern languages are very liberal).
 - Hardware awareness and full stack understanding are especially important on targets we do not fully control, like when we codegen to JS or write something to the web, or some foreign graphics API - how does it _actually_ execute? Which low level operations does what we're doing map to, and what do we really need? 
 - Working bottoms up - which bits and cycles do we _really_ need to spend - is the only true way to bound the lower end of performance, and often a great way of demystifying a system and getting order of magnitude improvements.
+- Specifically, we must keep in mind the actual [napkin math](https://github.com/sirupsen/napkin-math) for any operation we must perform, both upfront without asking / being asked and _especially_ when discussing performance matters we must do the bottoms up calculation - how much data, where and how, how long *should* this take, roughly? It's the only serious way to get within the right order of magnitude. 
 
 ### Dependencies
 
@@ -250,9 +252,9 @@ else {
 - Ideally, you should format code _before_ running it (via tests or otherwise), so we don't compile twice.
 - (Most directories have a `just fmt` or equivalent command, see the context. But only format the stuff in scope, not across other crates / packages.)
 
-## Rust-y
+## Rust-y / TS++
 
-- This also applies to other RUst-like languages (like Rust side of our own Destack / TS++ language)
+- (This also applies to other Rust-like languages (like Rust side of our own Destack / TS++ language))
 - Comments/documentation goes before _all_ attributes (like `#[inline]`, `#[derive]`, etc.)
 - No `crate::X` within functions, prefer relative references (again, imports at the top)
 - Place imports at the top, prefer `use std::time::Instant` patterns
