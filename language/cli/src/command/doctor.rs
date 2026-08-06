@@ -25,7 +25,7 @@ pub struct DoctorArgs {
 }
 
 /// Show environment and workspace diagnostics.
-pub fn run(args: &DoctorArgs) -> i32 {
+pub async fn run(args: &DoctorArgs) -> i32 {
     if let Some(code) = ensure_no_watch_or_dev("doctor", &args.program, &args.report) {
         return code;
     }
@@ -40,13 +40,14 @@ pub fn run(args: &DoctorArgs) -> i32 {
         ..(CommandRevision::Current, common).into()
     };
 
-    run_workspace_payload_command_or_report::<DoctorPayload, _, _>(
+    run_workspace_payload_command_or_report::<DoctorPayload, _, _, _>(
         "doctor",
         &args.report,
         &args.program,
-        |workspace, root, _| {
+        async |workspace, root, _| {
             let result = workspace
                 .doctor(root, request, None)
+                .await
                 .map_err(command_error)?;
 
             CommandResult::from_output(result)
@@ -125,4 +126,5 @@ pub fn run(args: &DoctorArgs) -> i32 {
             }
         },
     )
+    .await
 }

@@ -20,7 +20,7 @@ pub struct TestArgs {
 }
 
 /// Run tests.
-pub fn run(args: &TestArgs) -> i32 {
+pub async fn run(args: &TestArgs) -> i32 {
     if let Some(code) = ensure_no_watch_or_dev("test", &args.program, &args.report) {
         return code;
     }
@@ -39,14 +39,17 @@ pub fn run(args: &TestArgs) -> i32 {
         "test",
         &args.report,
         &args.program,
-        |workspace, root, progress| {
+        async |workspace, root, progress| {
             let result = workspace
                 .test(root, request, progress)
+                .await
                 .map_err(command_error)?;
 
             CommandResult::from_output(result)
         },
-    ) {
+    )
+    .await
+    {
         Ok(result) => result,
         Err(code) => return code,
     };

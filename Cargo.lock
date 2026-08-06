@@ -1093,6 +1093,7 @@ dependencies = [
  "destack_source",
  "destack_vm",
  "destack_workspace",
+ "futures",
  "indicatif",
  "schemars",
  "serde",

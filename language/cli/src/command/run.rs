@@ -1,3 +1,4 @@
+use std::ops::AsyncFnMut;
 use std::path::Path;
 
 use crate::common::{
@@ -96,7 +97,7 @@ struct PreparedRunWatch {
 }
 
 /// Compile and run a source entry.
-pub fn run(args: &RunArgs) -> i32 {
+pub async fn run(args: &RunArgs) -> i32 {
     run_with_request(RunRequest {
         command_name: "run",
         input: args.input.clone(),
@@ -108,15 +109,16 @@ pub fn run(args: &RunArgs) -> i32 {
         args: args.args.clone(),
         mode: RunSourceMode::Program,
     })
+    .await
 }
 
 /// Compile and run a source entry with shared execution logic.
-pub(crate) fn run_with_request(request: RunRequest) -> i32 {
+pub(crate) async fn run_with_request(request: RunRequest) -> i32 {
     let command_name = request.command_name;
 
     // run watch mode when requested
     if request.program.watch {
-        return run_watch(&request);
+        return run_watch(&request).await;
     }
 
     // reject unsupported watch or dev flags
@@ -124,11 +126,11 @@ pub(crate) fn run_with_request(request: RunRequest) -> i32 {
         return code;
     }
 
-    run_program(&request)
+    run_program(&request).await
 }
 
 /// Run a single execution request.
-fn run_program(request: &RunRequest) -> i32 {
+async fn run_program(request: &RunRequest) -> i32 {
     // prepare workspace execution
     let prepared = match prepare_run_execution(request) {
         Ok(prepared) => prepared,
@@ -136,7 +138,7 @@ fn run_program(request: &RunRequest) -> i32 {
     };
 
     // execute the workspace command
-    let result = match execute_run_command(request, &prepared) {
+    let result = match execute_run_command(request, &prepared).await {
         Ok(result) => result,
         Err(code) => return code,
     };
@@ -145,13 +147,13 @@ fn run_program(request: &RunRequest) -> i32 {
 }
 
 /// Compile and run a source file in watch mode.
-fn run_watch(request: &RunRequest) -> i32 {
+async fn run_watch(request: &RunRequest) -> i32 {
     // run with default watch settings
-    run_watch_with_options(request, WatchPolicy::default(), || {}, |_, _, _| {}, false)
+    run_watch_with_options(request, WatchPolicy::default(), || {}, |_, _, _| {}, false).await
 }
 
 /// Compile and run a source file in watch mode with injected options.
-pub(crate) fn run_watch_with_options<StartFn, ObserveFn>(
+pub(crate) async fn run_watch_with_options<StartFn, ObserveFn>(
     request: &RunRequest,
     watch_policy: WatchPolicy,
     on_start: StartFn,
@@ -167,15 +169,16 @@ where
         watch_policy,
         on_start,
         on_compile,
-        |request, workspace, root, sources, reporter, cycle| {
-            compile_and_run_workspace(request, workspace, root, sources, reporter, cycle)
+        async |request, workspace, root, sources, reporter, cycle| {
+            compile_and_run_workspace(request, workspace, root, sources, reporter, cycle).await
         },
         is_one_shot,
     )
+    .await
 }
 
 /// Compile and run a source file in watch mode with an injected runner.
-pub(crate) fn run_watch_with_driver<StartFn, ObserveFn, CompileFn>(
+pub(crate) async fn run_watch_with_driver<StartFn, ObserveFn, CompileFn>(
     request: &RunRequest,
     watch_policy: WatchPolicy,
     on_start: StartFn,
@@ -186,12 +189,12 @@ pub(crate) fn run_watch_with_driver<StartFn, ObserveFn, CompileFn>(
 where
     StartFn: FnOnce(),
     ObserveFn: FnMut(WatchCompileReason, bool, bool),
-    CompileFn: FnMut(
-        &RunRequest,
-        &dyn Workspace,
-        &Path,
-        &[InputSource],
-        &mut Option<WatchReporter>,
+    for<'a> CompileFn: AsyncFnMut(
+        &'a RunRequest,
+        &'a dyn Workspace,
+        &'a Path,
+        &'a [InputSource],
+        &'a mut Option<WatchReporter>,
         WatchCycle,
     ) -> i32,
 {
@@ -216,13 +219,19 @@ where
 
     on_start();
 
-    let mut run_cycle = |watch: &mut WorkspaceWatch, state: &RunWatchState, cycle: WatchCycle| {
-        watch.run_command(|workspace, root, reporter| {
-            compile(request, workspace, root, &state.sources, reporter, cycle)
+    let mut exit_code = watch
+        .run_command(async |workspace, root, reporter| {
+            compile(
+                request,
+                workspace,
+                root,
+                &state.sources,
+                reporter,
+                WatchCycle::startup(),
+            )
+            .await
         })
-    };
-
-    let mut exit_code = run_cycle(&mut watch, &state, WatchCycle::startup());
+        .await;
     while let Some(cycle) = watch.next_cycle() {
         // refresh sources when the workspace requests a rescan
         if cycle.requires_rescan
@@ -232,7 +241,11 @@ where
             continue;
         }
 
-        exit_code = run_cycle(&mut watch, &state, cycle);
+        exit_code = watch
+            .run_command(async |workspace, root, reporter| {
+                compile(request, workspace, root, &state.sources, reporter, cycle).await
+            })
+            .await;
         on_compile(cycle.reason, cycle.updated, cycle.requires_rescan);
         if is_one_shot {
             break;
@@ -245,7 +258,7 @@ where
 
 /// Compile the entry module and run the program through the workspace.
 #[allow(clippy::too_many_arguments)]
-fn compile_and_run_workspace(
+async fn compile_and_run_workspace(
     request: &RunRequest,
     workspace: &dyn Workspace,
     root: &Path,
@@ -266,7 +279,7 @@ fn compile_and_run_workspace(
     };
 
     // execute the workspace command
-    let result = match workspace.run(root, run_request, None) {
+    let result = match workspace.run(root, run_request, None).await {
         Ok(result) => match CommandResult::from_output(result) {
             Ok(result) => result,
             Err(error) => {
@@ -344,21 +357,23 @@ fn prepare_run_execution(request: &RunRequest) -> Result<PreparedRunCommand, i32
 }
 
 /// Execute a prepared run command through the workspace.
-fn execute_run_command(
+async fn execute_run_command(
     request: &RunRequest,
     prepared: &PreparedRunCommand,
 ) -> Result<CommandResult, i32> {
     run_workspace_command(
         &request.program,
-        |workspace, root, progress| {
+        async |workspace, root, progress| {
             let result = workspace
                 .run(root, prepared.request.clone(), progress)
+                .await
                 .map_err(command_error)?;
 
             CommandResult::from_output(result)
         },
         None,
     )
+    .await
     .map_err(|error| report_error(request.command_name, &request.report, &error.to_string()))
 }
 

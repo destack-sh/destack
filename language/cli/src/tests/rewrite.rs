@@ -6,7 +6,7 @@ use crate::app::{Cli, Command};
 use crate::command::rewrite::{RewriteArgs, run as run_rewrite};
 use crate::common::ReportArgs;
 
-use super::tests::{TestProgram, assert_success, input_args_from_path};
+use super::tests::{TestProgram, assert_success, execute, input_args_from_path};
 
 /// Parse rewrite patterns, replacements, files, and output mode compositionally.
 #[test]
@@ -62,7 +62,7 @@ fn test_rewrite_source_file() {
         report: ReportArgs::default(),
     };
 
-    let code = run_rewrite(&args);
+    let code = execute(run_rewrite(&args));
 
     assert_success(code);
     assert_eq!(
@@ -93,7 +93,7 @@ fn test_check_rewrite_source_file() {
         report: ReportArgs::default(),
     };
 
-    let code = run_rewrite(&args);
+    let code = execute(run_rewrite(&args));
 
     assert_eq!(code, 1);
     assert_eq!(

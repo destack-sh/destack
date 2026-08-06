@@ -1,7 +1,7 @@
 use crate::command::build::{BuildArgs, run};
 use crate::common::{ReportArgs, TargetArgs};
 
-use super::tests::{TestProgram, assert_success, input_args_from_path};
+use super::tests::{TestProgram, assert_success, execute, input_args_from_path};
 
 /// Builds a single source file in dry run mode.
 #[test]
@@ -20,7 +20,7 @@ fn test_build_dry_run_single_file() {
     };
 
     // run the build command
-    let code = run(&args);
+    let code = execute(run(&args));
 
     // assert the build succeeded
     assert_success(code);

@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::fmt;
+use std::ops::AsyncFnOnce;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -154,11 +155,11 @@ impl WorkspaceWatch {
     }
 
     /// Run one workspace command with the active watch context.
-    pub(crate) fn run_command<RunFn>(&mut self, run: RunFn) -> i32
+    pub(crate) async fn run_command<Run>(&mut self, run: Run) -> i32
     where
-        RunFn: FnOnce(&dyn Workspace, &Path, &mut Option<WatchReporter>) -> i32,
+        for<'a> Run: AsyncFnOnce(&'a dyn Workspace, &'a Path, &'a mut Option<WatchReporter>) -> i32,
     {
-        run(self.workspace.as_ref(), &self.root, &mut self.reporter)
+        run(self.workspace.as_ref(), &self.root, &mut self.reporter).await
     }
 
     /// Receive the next watch cycle that should rerun the command.

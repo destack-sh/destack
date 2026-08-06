@@ -54,7 +54,7 @@ pub struct EvalArgs {
 }
 
 /// Evaluate inline code.
-pub fn run(args: &EvalArgs) -> i32 {
+pub async fn run(args: &EvalArgs) -> i32 {
     // validate mutually exclusive input sources
     if args.code.is_some() && args.eval.is_some() {
         return report_error("eval", &args.report, "use either CODE or --eval, not both");
@@ -108,5 +108,5 @@ pub fn run(args: &EvalArgs) -> i32 {
         mode: RunSourceMode::Eval { print: args.print },
     };
 
-    run_with_request(request)
+    run_with_request(request).await
 }

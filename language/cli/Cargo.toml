@@ -45,6 +45,7 @@ destack_workspace = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 clap_complete = { workspace = true }
 console = { workspace = true }
+futures = { workspace = true, features = ["async-await", "executor"] }
 indicatif = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -1,6 +1,7 @@
 use std::ffi::OsString;
 
 use clap::FromArgMatches;
+use futures::executor::block_on;
 
 use crate::app::{Cli, Command, HelpMode, build_command};
 use crate::console;
@@ -45,7 +46,7 @@ pub fn run(default_command: DefaultCommand) -> i32 {
     cli.console.apply();
 
     // dispatch the resolved command
-    cli.command.run()
+    block_on(cli.command.run())
 }
 
 /// Normalize argv with an optional default subcommand.

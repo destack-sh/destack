@@ -35,7 +35,7 @@ pub struct FmtArgs {
 }
 
 /// Format source files.
-pub fn run(args: &FmtArgs) -> i32 {
+pub async fn run(args: &FmtArgs) -> i32 {
     if let Some(code) = ensure_no_watch_or_dev("fmt", &args.program, &args.report) {
         return code;
     }
@@ -58,7 +58,7 @@ pub fn run(args: &FmtArgs) -> i32 {
         "fmt",
         &args.report,
         &args.program,
-        |workspace, root, progress| {
+        async |workspace, root, progress| {
             let source = match eval {
                 Some(content) => {
                     let content = workspace
@@ -80,11 +80,14 @@ pub fn run(args: &FmtArgs) -> i32 {
             };
             let result = workspace
                 .format(root, request, progress)
+                .await
                 .map_err(command_error)?;
 
             CommandResult::from_output(result)
         },
-    ) {
+    )
+    .await
+    {
         Ok(result) => result,
         Err(code) => return code,
     };

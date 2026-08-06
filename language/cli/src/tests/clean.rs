@@ -1,4 +1,4 @@
-use super::tests::{TestProgram, assert_success};
+use super::tests::{TestProgram, assert_success, execute};
 use crate::command::clean::{CleanArgs, run};
 use crate::common::ReportArgs;
 use destack_source::FileSystem;
@@ -28,7 +28,7 @@ fn test_clean_removes_out_dir() {
     };
 
     // run clean
-    let code = run(&args);
+    let code = execute(run(&args));
 
     // assert output directory removed
     assert_success(code);

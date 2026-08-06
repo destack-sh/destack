@@ -6,7 +6,7 @@ use crate::common::{
 use destack_source::FileSystem;
 use destack_workspace::{CommandRevision, FormatInput, FormatMode, FormatPayload, FormatSource};
 
-use super::tests::{TestProgram, assert_exit, assert_success};
+use super::tests::{TestProgram, assert_exit, assert_success, execute};
 
 /// Formats destack files and updates them on disk.
 #[test]
@@ -25,7 +25,7 @@ fn test_fmt_formats_destack_file() {
     };
 
     // run the formatter
-    let code = run(&args);
+    let code = execute(run(&args));
 
     // assert the file was updated
     assert_success(code);
@@ -53,7 +53,7 @@ fn test_fmt_default_scan_includes_destack() {
     };
 
     // run the formatter
-    let code = run(&args);
+    let code = execute(run(&args));
 
     // assert the file was updated from directory scan
     assert_success(code);
@@ -83,7 +83,7 @@ fn test_fmt_default_scan_honors_gitignore() {
     };
 
     // run the formatter
-    let code = run(&args);
+    let code = execute(run(&args));
 
     // assert the regular source is formatted
     assert_success(code);
@@ -118,7 +118,7 @@ fn test_fmt_check_mode_returns_nonzero_on_change() {
     };
 
     // run the formatter
-    let code = run(&args);
+    let code = execute(run(&args));
 
     // assert check mode fails and does not mutate the file
     assert_exit(code, 1);
@@ -147,7 +147,7 @@ fn test_fmt_formats_valid_files_when_other_files_error() {
     };
 
     // run the formatter
-    let code = run(&args);
+    let code = execute(run(&args));
 
     // assert the command fails due to the broken file
     assert_exit(code, 1);
@@ -186,17 +186,18 @@ fn test_fmt_payload_includes_changed_and_error_files() {
     };
 
     // run the workspace command directly so we can inspect payload data
-    let result = run_workspace_command(
+    let result = execute(run_workspace_command(
         &program.program_args(),
-        |workspace, root, _| {
+        async |workspace, root, _| {
             let result = workspace
                 .format(root, request, None)
+                .await
                 .map_err(command_error)?;
 
             CommandResult::from_output(result)
         },
         None,
-    )
+    ))
     .expect("format command should return a response");
 
     // parse and decode the format payload

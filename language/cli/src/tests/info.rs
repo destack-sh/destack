@@ -1,7 +1,7 @@
 use crate::command::info::{InfoArgs, run};
 use crate::common::ReportArgs;
 
-use super::tests::{TestProgram, assert_success};
+use super::tests::{TestProgram, assert_success, execute};
 use serde_json::json;
 
 /// Shows workspace info with a config present.
@@ -23,7 +23,7 @@ fn test_info_with_destack_config() {
     };
 
     // run the info command
-    let code = run(&args);
+    let code = execute(run(&args));
 
     // assert the command succeeded
     assert_success(code);

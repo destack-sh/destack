@@ -112,7 +112,7 @@ impl RewriteArgs {
 }
 
 /// Rewrite source files with a structural pattern.
-pub fn run(args: &RewriteArgs) -> i32 {
+pub async fn run(args: &RewriteArgs) -> i32 {
     let mut args = args.clone();
     match args.input.take_directory_root() {
         Ok(Some(root)) => {
@@ -158,14 +158,17 @@ pub fn run(args: &RewriteArgs) -> i32 {
         "rewrite",
         &args.report,
         &args.program,
-        |workspace, root, progress| {
+        async |workspace, root, progress| {
             let output = workspace
                 .rewrite(root, request, progress)
+                .await
                 .map_err(command_error)?;
 
             CommandResult::from_output(output)
         },
-    ) {
+    )
+    .await
+    {
         Ok(result) => result,
         Err(code) => return code,
     };

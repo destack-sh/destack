@@ -20,7 +20,7 @@ pub struct SettingsArgs {
 }
 
 /// Show resolved machine and workspace settings.
-pub fn run(args: &SettingsArgs) -> i32 {
+pub async fn run(args: &SettingsArgs) -> i32 {
     if let Some(code) = ensure_no_watch_or_dev("settings", &args.program, &args.report) {
         return code;
     }
@@ -34,13 +34,14 @@ pub fn run(args: &SettingsArgs) -> i32 {
         ..(CommandRevision::Current, common).into()
     };
 
-    run_workspace_payload_command_or_report::<SettingsPayload, _, _>(
+    run_workspace_payload_command_or_report::<SettingsPayload, _, _, _>(
         "settings",
         &args.report,
         &args.program,
-        |workspace, root, _| {
+        async |workspace, root, _| {
             let result = workspace
                 .settings(root, request, None)
+                .await
                 .map_err(command_error)?;
 
             CommandResult::from_output(result)
@@ -64,4 +65,5 @@ pub fn run(args: &SettingsArgs) -> i32 {
             console::info(&format!("offline: {}", payload.network.offline));
         },
     )
+    .await
 }
