@@ -85,7 +85,8 @@ impl EmbeddedBuiltinPackage {
             .collect();
         let package = Package {
             id,
-            kind: PackageKind::Builtin,
+            kind: PackageKind::Embedded,
+            is_builtin: true,
             uri: Uri::from_string(BUILTIN_PACKAGE_URI),
             path: None,
             name: Some(BUILTIN_PACKAGE_NAME.to_string()),
@@ -675,7 +676,8 @@ mod tests {
         );
 
         assert_eq!(package.id, test.repository.embedded_builtin().package_id());
-        assert_eq!(package.kind, PackageKind::Builtin);
+        assert_eq!(package.kind, PackageKind::Declared);
+        assert!(package.is_builtin);
         assert_eq!(package.uri, Uri::from_string("destack://"));
         assert_eq!(package.path, Some(PathBuf::new()));
         assert_eq!(

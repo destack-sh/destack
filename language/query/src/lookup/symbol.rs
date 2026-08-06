@@ -1,5 +1,4 @@
 use destack_dir as dir;
-use destack_repository::PackageKind;
 use destack_source::Span;
 
 use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
@@ -42,7 +41,7 @@ impl ProgramQueryContext<'_> {
                 package: package_id,
             })?;
 
-        Ok(package.kind == PackageKind::Builtin)
+        Ok(package.is_builtin)
     }
 
     /// Return every canonical symbol reached by dependency bindings.

@@ -12,8 +12,8 @@ use crate::config::{
 /// The ownership kind for a package.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PackageKind {
-    /// Canonical builtin language package.
-    Builtin,
+    /// Embedded package shipped with the compiler.
+    Embedded,
     /// Declared package rooted by authored workspace config.
     Declared,
     /// Package captured because another package depends on it.
@@ -36,6 +36,8 @@ pub struct Package {
     pub id: PackageId,
     /// The ownership kind.
     pub kind: PackageKind,
+    /// Whether this is the canonical builtin language package.
+    pub is_builtin: bool,
     /// The package uri.
     pub uri: Uri,
     /// The package directory when filesystem backed.
