@@ -2,6 +2,7 @@ mod attribute;
 mod binding;
 mod block;
 mod call;
+mod canonical;
 mod constant;
 mod convert;
 mod edge;

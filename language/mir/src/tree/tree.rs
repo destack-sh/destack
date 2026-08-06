@@ -74,6 +74,8 @@ pub struct Tree {
 
     /// Canonical type ids grouped by structural hash or identified symbol.
     pub(crate) type_index: HashMap<TypeIndexKey, SmallVec<[TypeId; 1]>>,
+    /// Cycle type ids keyed by canonical serialization.
+    pub(crate) canonical_index: HashMap<String, TypeId>,
     /// Structural field ids grouped by hash.
     pub(crate) field_index: HashMap<u64, SmallVec<[LocalNodeId<Field>; 1]>>,
     /// Canonical compile-time values grouped by structural hash.
@@ -158,6 +160,7 @@ impl Tree {
             globals: Arena::new(),
             statics: Arena::new(),
             type_index: HashMap::new(),
+            canonical_index: HashMap::new(),
             field_index: HashMap::new(),
             static_index: HashMap::new(),
             lifetimes_by_type: HashMap::new(),

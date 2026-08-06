@@ -1202,3 +1202,72 @@ pub struct TypeDeclaration {
 impl Node for TypeDeclaration {
     const TYPE: NodeType = NodeType::TypeDeclaration;
 }
+
+impl Type {
+    /// Apply one mapping to every direct child type id of this type.
+    pub fn map_child_type_ids(&mut self, map: &mut impl FnMut(TypeId) -> TypeId) {
+        match self {
+            Type::Reference { pointee, .. } | Type::Pointer { pointee, .. } => {
+                *pointee = map(*pointee);
+            }
+            Type::Atomic { value } | Type::Uninit { value } | Type::ManuallyDrop { value } => {
+                *value = map(*value);
+            }
+            Type::Dynamic { constraint, .. } => {
+                *constraint = map(*constraint);
+            }
+            Type::FixedArray { element, .. }
+            | Type::Slice { element, .. }
+            | Type::Vector { element, .. }
+            | Type::Tensor { element, .. }
+            | Type::TensorView { element, .. } => {
+                *element = map(*element);
+            }
+            Type::Tuple { elements, copy: _ } => {
+                for element in elements {
+                    *element = map(*element);
+                }
+            }
+            Type::Newtype { inner, .. } => {
+                *inner = map(*inner);
+            }
+            Type::Variant {
+                discriminant,
+                cases,
+                copy: _,
+            } => {
+                *discriminant = map(*discriminant);
+                for case in cases {
+                    case.ty = map(case.ty);
+                }
+            }
+            Type::FunctionSignature {
+                parameters, result, ..
+            } => {
+                for parameter in parameters {
+                    parameter.ty = map(parameter.ty);
+                }
+                *result = map(*result);
+            }
+            Type::FunctionPointer { signature } | Type::Function { signature, .. } => {
+                *signature = map(*signature);
+            }
+            Type::Application { base, .. } => {
+                *base = map(*base);
+            }
+            // struct children are field nodes, paired by their consumers
+            Type::Struct { .. } => {}
+            Type::Error
+            | Type::Never
+            | Type::Void
+            | Type::Boolean
+            | Type::Character
+            | Type::Int { .. }
+            | Type::Isize
+            | Type::Usize
+            | Type::Float { .. }
+            | Type::TypeDescriptor
+            | Type::TypeId => {}
+        }
+    }
+}

@@ -89,6 +89,33 @@ impl Tree {
         id
     }
 
+    /// Return the type interned under one canonical cycle key, when one exists.
+    pub fn canonical_type(&self, key: &str) -> Option<TypeId> {
+        self.canonical_index.get(key).copied()
+    }
+
+    /// Register one type under its canonical cycle key, keeping the first.
+    pub fn register_canonical(&mut self, key: String, id: TypeId) {
+        self.canonical_index.entry(key).or_insert(id);
+    }
+
+    /// Return the identified type declared under one symbol, when one exists.
+    pub fn identified_type(&self, symbol: Symbol) -> Option<TypeId> {
+        let key = TypeIndexKey::Identified(symbol);
+
+        self.type_index
+            .get(&key)
+            .and_then(|ids| ids.first())
+            .copied()
+    }
+
+    /// Return whether one identified type still awaits its definition.
+    pub fn type_is_reserved(&self, id: TypeId) -> bool {
+        let local_id = self.node_local_id(id.id);
+
+        matches!(self.types.get(local_id), TypeEntry::Reserved { .. })
+    }
+
     /// Define one reserved identified type exactly once.
     pub fn define_type(&mut self, id: TypeId, ty: Type) {
         let local_id = self.node_local_id(id.id);
