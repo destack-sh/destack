@@ -1462,6 +1462,7 @@ dependencies = [
 name = "destack_wasm"
 version = "0.55.4"
 dependencies = [
+ "destack_artifact",
  "destack_source",
  "destack_workspace",
  "js-sys",

@@ -3,7 +3,7 @@ use std::{fmt, io};
 
 const BUILD_ID_BYTES: usize = 16;
 
-static CURRENT_BUILD_ID: OnceLock<BuildId> = OnceLock::new();
+pub(super) static CURRENT_BUILD_ID: OnceLock<BuildId> = OnceLock::new();
 
 /// The Destack build that produces derived artifacts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
