@@ -199,7 +199,7 @@ pub fn run(args: &RewriteArgs) -> i32 {
         return exit_code;
     }
     args.print_result(&payload, exit_code);
-    result.emit_timings();
+    result.emit_timings(None);
 
     exit_code
 }

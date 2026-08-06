@@ -402,7 +402,7 @@ pub fn run(args: &QueryArgs) -> i32 {
         return exit_code;
     }
     if exit_code != 0 {
-        result.emit_timings();
+        result.emit_timings(None);
         return exit_code;
     }
 
@@ -412,7 +412,7 @@ pub fn run(args: &QueryArgs) -> i32 {
         Err(error) => return report_error("query", &args.report, &error),
     };
     console::write(&output);
-    result.emit_timings();
+    result.emit_timings(None);
 
     exit_code
 }

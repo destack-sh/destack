@@ -2,11 +2,11 @@ use std::time::Instant;
 
 use crate::common::format::{DiagnosticFormat, FormatOptions};
 use crate::common::{
-    CommandOptionsBuilder, CommandResult, CommandSummary, InputArgs, InputSource,
-    ProgramArgs, ProgressMode, ProgressReporter, ReportArgs, WatchCompileContext,
-    WatchCompileReason, WatchCycle, WorkspaceWatch, command_data_json, command_error,
-    command_inputs_from_sources, emit_watch_compile_report, emit_workspace_text_output,
-    finish_diagnostic_command, is_tty, report_error, run_workspace_command, watch_error,
+    CommandOptionsBuilder, CommandResult, CommandSummary, InputArgs, InputSource, ProgramArgs,
+    ProgressMode, ProgressReporter, ReportArgs, WatchCompileContext, WatchCompileReason,
+    WatchCycle, WorkspaceWatch, command_data_json, command_error, command_inputs_from_sources,
+    emit_watch_compile_report, emit_workspace_text_output, finish_diagnostic_command, is_tty,
+    report_error, run_workspace_command, watch_error,
 };
 use crate::console;
 use crate::diagnostic::ConsoleResult;
@@ -145,7 +145,7 @@ pub fn run_with_command(args: &CheckArgs, command_name: &str) -> i32 {
         return code;
     }
 
-    let context = match CheckExecutionContext::new(args) {
+    let context = match CheckExecutionContext::new(args, command_name) {
         Ok(context) => context,
         Err(error) => return report_error(command_name, &args.report, &error.to_string()),
     };
@@ -194,23 +194,17 @@ fn run_check(args: &CheckArgs, command_name: &str, context: &CheckExecutionConte
         Ok(data) => data,
         Err(code) => return code,
     };
-    let exit_code = finish_diagnostic_command(
+    let summary = context.summary(args, &result);
+    finish_diagnostic_command(
         command_name,
         &args.report,
         &result,
         &context.json_format_options(),
         &context.format_options,
         context.line_writer().as_ref(),
-        context.summary(args, &result),
-        data.clone(),
-    );
-
-    // show where the check spent its time in text mode
-    if !args.report.is_json() {
-        result.emit_timings();
-    }
-
-    exit_code
+        summary,
+        data,
+    )
 }
 
 /// Run check in watch mode with incremental updates.
@@ -375,8 +369,8 @@ where
 
 impl CheckExecutionContext {
     /// Build the shared execution context for a check command.
-    fn new(args: &CheckArgs) -> ConsoleResult<Self> {
-        let progress_reporter = ProgressReporter::with_label(progress_mode(args), "check")?;
+    fn new(args: &CheckArgs, command_name: &str) -> ConsoleResult<Self> {
+        let progress_reporter = ProgressReporter::with_label(progress_mode(args), command_name)?;
         let format_options = FormatOptions {
             format: args.format.into(),
             quiet: args.quiet,
@@ -418,11 +412,7 @@ impl CheckExecutionContext {
     }
 
     /// Build the summary metadata for text output.
-    fn summary(
-        &self,
-        args: &CheckArgs,
-        result: &CommandResult,
-    ) -> Option<CommandSummary<'static>> {
+    fn summary(&self, args: &CheckArgs, result: &CommandResult) -> Option<CommandSummary<'static>> {
         if !matches!(args.format, Format::Text) {
             return None;
         }

@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use destack_source::{DiagnosticCollection, File, FileId};
 use destack_workspace::{CommandError, CommandOutput, Error, FileImage, JsonValue, Output};
@@ -55,16 +56,16 @@ impl CommandResult {
     }
 
     /// Emit the command trace when one was requested.
-    pub(crate) fn emit_timings(&self) {
+    pub(crate) fn emit_timings(&self, command_duration: Option<Duration>) {
         let Some(trace) = self.response.trace.as_ref() else {
             return;
         };
-        let timings = console::render_timings(trace);
+        let timings = console::render_timings(trace, command_duration);
         if timings.is_empty() {
             return;
         }
 
-        console::write_line(&format!("\n{timings}"));
+        eprintln!("\n{timings}");
     }
 }
 

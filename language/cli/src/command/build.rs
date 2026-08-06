@@ -3,12 +3,12 @@ use std::time::Instant;
 use destack_workspace::{BuildInput, BuildOutputs, CommandRevision};
 
 use crate::common::{
-    CommandOptionsBuilder, CommandResult, CommandSummary, DiagnosticFormat,
-    FormatOptions, InputArgs, InputSource, ProgramArgs, ReportArgs, TargetArgs,
-    WatchCompileContext, WatchCompileReason, WatchCycle, WorkspaceWatch, command_data_json,
-    command_error, command_inputs_from_sources, emit_watch_compile_report,
-    emit_workspace_text_output, finish_diagnostic_command, report_error,
-    run_workspace_command_or_report, target_overrides_from_args, watch_error,
+    CommandOptionsBuilder, CommandResult, CommandSummary, DiagnosticFormat, FormatOptions,
+    InputArgs, InputSource, ProgramArgs, ReportArgs, TargetArgs, WatchCompileContext,
+    WatchCompileReason, WatchCycle, WorkspaceWatch, command_data_json, command_error,
+    command_inputs_from_sources, emit_watch_compile_report, emit_workspace_text_output,
+    finish_diagnostic_command, report_error, run_workspace_command_or_report,
+    target_overrides_from_args, watch_error,
 };
 use crate::diagnostic::ConsoleResult;
 use clap::Args;
@@ -121,28 +121,22 @@ fn run_build(args: &BuildArgs) -> i32 {
         format: DiagnosticFormat::Text,
         ..FormatOptions::default()
     };
-    let exit_code = finish_diagnostic_command(
+    let summary = CommandSummary {
+        verb: "Built",
+        modules: result.response.module_count,
+        targets: result.response.target_count,
+        duration: started_at.elapsed(),
+    };
+    finish_diagnostic_command(
         "build",
         &args.report,
         &result,
         &json_format_options,
         &text_format_options,
         None,
-        Some(CommandSummary {
-            verb: "Built",
-            modules: result.response.module_count,
-            targets: result.response.target_count,
-            duration: started_at.elapsed(),
-        }),
-        data.clone(),
-    );
-
-    // show where the build spent its time in text mode
-    if !args.report.is_json() {
-        result.emit_timings();
-    }
-
-    exit_code
+        Some(summary),
+        data,
+    )
 }
 
 /// Compile source files and produce output in watch mode.

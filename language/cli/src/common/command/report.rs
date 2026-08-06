@@ -120,7 +120,7 @@ where
 
     // otherwise render the payload in text mode
     text_report(exit_code, payload);
-    result.emit_timings();
+    result.emit_timings(None);
     exit_code
 }
 
@@ -198,7 +198,27 @@ pub(crate) fn finish_diagnostic_command(
         line_writer,
     );
 
-    // emit a compact command summary after text diagnostics
+    // keep warning threshold failures loud in text mode
+    if format_result.max_warnings_exceeded {
+        let warning = format!(
+            "warning count ({}) exceeds --max-warnings ({})",
+            format_result.warning_count,
+            text_format_options.max_warnings.unwrap_or(0)
+        );
+        let warning = console::yellow(&warning);
+
+        // print above an active progress line when present
+        if let Some(line_writer) = line_writer {
+            line_writer(&warning);
+        } else {
+            eprintln!("{warning}");
+        }
+    }
+
+    // render requested timings before the final command status
+    result.emit_timings(summary.map(|summary| summary.duration));
+
+    // finish text diagnostics with the compact command status
     if matches!(text_format_options.format, DiagnosticFormat::Text)
         && let Some(summary) = summary
     {
@@ -206,17 +226,12 @@ pub(crate) fn finish_diagnostic_command(
             &summary,
             format_result.error_count,
             format_result.warning_count,
+            format_result.max_warnings_exceeded,
             line_writer,
         );
     }
 
-    // keep warning threshold failures loud in text mode
     if format_result.max_warnings_exceeded {
-        console::warn(&format!(
-            "warning count ({}) exceeds --max-warnings ({})",
-            format_result.warning_count,
-            text_format_options.max_warnings.unwrap_or(0)
-        ));
         return 1;
     }
 
@@ -263,7 +278,7 @@ pub(crate) fn finish_run_command(
             None,
         );
         if format_result.exit_code() != 0 {
-            result.emit_timings();
+            result.emit_timings(None);
             return format_result.exit_code();
         }
     }
@@ -305,7 +320,7 @@ pub(crate) fn finish_run_command(
         console::warn(&format!("process exited with code {exit_code}"));
     }
     if !report_args.is_json() {
-        result.emit_timings();
+        result.emit_timings(None);
     }
 
     exit_code
@@ -324,7 +339,7 @@ pub(crate) fn finish_workspace_message_command(
             &result.response.messages,
             &result.response.output,
         );
-        result.emit_timings();
+        result.emit_timings(None);
         return result.response.exit_code;
     }
 
@@ -419,9 +434,10 @@ fn print_command_summary(
     summary: &CommandSummary<'_>,
     errors: usize,
     warnings: usize,
+    is_warning_limit_exceeded: bool,
     line_writer: Option<&LineWriter>,
 ) {
-    let status = if errors > 0 {
+    let status = if errors > 0 || is_warning_limit_exceeded {
         console::red("✗")
     } else if warnings > 0 {
         console::color_for_stream("✓", "33", console::Stream::Stderr)
@@ -429,11 +445,13 @@ fn print_command_summary(
         console::green("✓")
     };
 
-    let mut parts = vec![console::bold(&format!(
+    let command = format!(
         "{} {}",
         summary.verb.to_lowercase(),
         pluralize(summary.modules, "module")
-    ))];
+    );
+    let command = console::style_for_stream(&command, &["1"], console::Stream::Stderr);
+    let mut parts = vec![command];
     if summary.targets > 1 {
         parts.push(pluralize(summary.targets, "target"));
     }
@@ -447,7 +465,9 @@ fn print_command_summary(
             console::Stream::Stderr,
         ));
     }
-    parts.push(console::dim(&console::format_duration(summary.duration)));
+    let duration = console::format_duration(summary.duration);
+    let duration = console::style_for_stream(&duration, &["2"], console::Stream::Stderr);
+    parts.push(duration);
 
     let line = format!("{status} {}", parts.join(" · "));
     if let Some(line_writer) = line_writer {

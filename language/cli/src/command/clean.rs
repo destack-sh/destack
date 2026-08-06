@@ -141,7 +141,7 @@ fn run_clean(args: &CleanArgs) -> i32 {
         console::warn(&format!("clean exited with code {exit_code}"));
     }
     if !args.report.is_json() {
-        result.emit_timings();
+        result.emit_timings(None);
     }
 
     exit_code

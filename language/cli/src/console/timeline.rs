@@ -1,132 +1,138 @@
+use std::time::Duration;
+
 use destack_repository::{
     TraceSnapshot, TraceTimelineOptions, render_trace_duration, render_trace_timeline,
+    trace_stage_color,
 };
 
-use super::console::{Stream, color, color_enabled, dim};
+use super::console::{Stream, color_enabled, color_for_stream, format_duration, style_for_stream};
 
 /// The drawn width of one timeline lane in cells.
 const LANE_WIDTH: usize = 72;
+/// The number of phase entries rendered per legend row.
+const PHASES_PER_ROW: usize = 4;
 
-/// The number of slowest artifacts listed under the timeline.
-const SLOWEST_COUNT: usize = 8;
-/// Prefix identifying command-local timing spans.
-const COMMAND_SPAN_PREFIX: &str = "command.";
-
-/// Render command phases and artifact execution as one timing report.
-pub fn render_timings(report: &TraceSnapshot) -> String {
-    let mut output = String::from("command\n");
-
-    // render command-local phases in execution order
-    for span in &report.spans {
-        if let Some(name) = span.name.strip_prefix(COMMAND_SPAN_PREFIX) {
-            let micros = span.micros;
-            output.push_str(&format!("  {name:<24} {}\n", render_trace_duration(micros)));
-        }
-    }
-    output.push_str(&format!(
-        "  {:<24} {}\n",
-        "total",
-        render_trace_duration(report.total_micros)
-    ));
-
-    // render aggregate artifact work when the command requested any artifacts
-    let stats = &report.stats;
-    let artifact_count =
-        stats.built + stats.memory_cached + stats.store_cached + stats.parked + stats.failed;
-    if artifact_count > 0 {
-        output.push('\n');
-        output.push_str("artifacts\n  ");
-        output.push_str(&render_stage_summary(report));
-        output.push('\n');
-    }
-
-    // append the detailed worker timeline
+/// Render artifact execution and its compact timing totals.
+pub fn render_timings(report: &TraceSnapshot, command_duration: Option<Duration>) -> String {
+    let work_micros = report.stages.iter().map(|stage| stage.micros).sum::<u64>();
+    let phase_work = render_phase_work(report, work_micros);
     let timeline = render_timeline(report);
+    let mut output = String::new();
+
+    // render aggregate work by toolchain phase
+    if !phase_work.is_empty() {
+        output.push_str(&phase_work);
+        output.push('\n');
+    }
+
+    // render artifact work across executor workers
     if !timeline.is_empty() {
         if !output.is_empty() {
             output.push('\n');
         }
+        output.push_str("work by worker\n");
         output.push_str(&timeline);
+        output.push('\n');
     }
+
+    // collect the complete CLI command when its caller owns that clock
+    let mut timings = Vec::new();
+    if let Some(command_duration) = command_duration {
+        let command = format_duration(command_duration);
+
+        timings.push(format!("{command} command"));
+    }
+
+    // collect workspace wall time and summed parallel work
+    let workspace = render_trace_duration(report.total_micros);
+    timings.push(format!("{workspace} workspace"));
+    if work_micros > 0 {
+        let work = render_trace_duration(work_micros);
+
+        timings.push(format!("{work} work"));
+    }
+
+    // collect concurrency and worker capacity
+    if work_micros > 0 && report.total_micros > 0 && report.workers > 0 {
+        let concurrency = work_micros as f64 / report.total_micros as f64;
+
+        timings.push(format!("{concurrency:.2}× concurrency"));
+        timings.push(format!("{} workers", report.workers));
+    }
+
+    // render the compact timing totals last
+    output.push_str("timings · ");
+    output.push_str(&timings.join(" · "));
 
     output.trim_end().to_string()
 }
 
-/// Render the one-line stage summary of one build trace.
-///
-/// Example:
-/// ```text
-/// parse 450ms · check 6.1s · lower 320ms · emit 95ms (wall 2.1s, 8 workers)
-/// ```
-pub fn render_stage_summary(report: &TraceSnapshot) -> String {
-    // a run without provider work was served from cache
-    if report.stages.is_empty() {
-        return dim("all artifacts cached").to_string();
+/// Render total artifact work as one proportional phase bar.
+fn render_phase_work(report: &TraceSnapshot, total_micros: u64) -> String {
+    if total_micros == 0 {
+        return String::new();
     }
 
-    let colored = color_enabled(Stream::Stdout);
-    let stages = report
+    // sample the midpoint of each cell against cumulative phase work
+    let mut cells = Vec::with_capacity(LANE_WIDTH);
+    let mut stage_index = 0;
+    let mut stage_end = report.stages[0].micros;
+    for cell in 0..LANE_WIDTH {
+        let position =
+            ((cell as u128 * 2 + 1) * total_micros as u128 / (LANE_WIDTH as u128 * 2)) as u64;
+        while position >= stage_end && stage_index + 1 < report.stages.len() {
+            stage_index += 1;
+            stage_end += report.stages[stage_index].micros;
+        }
+        cells.push(stage_index);
+    }
+
+    // render adjacent cells of one phase as a single color run
+    let mut bar = String::new();
+    let mut first = 0;
+    while first < cells.len() {
+        let stage_index = cells[first];
+        let mut end = first + 1;
+        while end < cells.len() && cells[end] == stage_index {
+            end += 1;
+        }
+        let blocks = "█".repeat(end - first);
+        let stage = &report.stages[stage_index];
+        let blocks = color_for_stream(&blocks, trace_stage_color(&stage.name), Stream::Stderr);
+        bar.push_str(&blocks);
+        first = end;
+    }
+
+    // render exact durations below the proportional bar
+    let entries = report
         .stages
         .iter()
         .map(|stage| {
-            let entry = format!("{} {}", stage.name, render_trace_duration(stage.micros));
-            if colored {
-                color(&entry, stage_color(&stage.name))
-            } else {
-                entry
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(&dim(" · "));
+            let marker = color_for_stream("█", trace_stage_color(&stage.name), Stream::Stderr);
+            let duration = render_trace_duration(stage.micros);
 
-    format!(
-        "{stages} {}",
-        dim(&format!(
-            "(wall {}, {} {})",
-            render_trace_duration(report.total_micros),
-            report.workers,
-            if report.workers == 1 {
-                "worker"
-            } else {
-                "workers"
-            }
-        ))
-    )
+            format!("{marker} {} {duration}", stage.name)
+        })
+        .collect::<Vec<_>>();
+    let separator = style_for_stream(" · ", &["2"], Stream::Stderr);
+    let legend = entries
+        .chunks(PHASES_PER_ROW)
+        .map(|entries| format!("  {}", entries.join(&separator)))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let total = render_trace_duration(total_micros);
+
+    format!("work by phase · {total}\n▕{bar}▏\n{legend}")
 }
 
 /// Render the per-worker timeline of one detailed build trace.
-/// Each worker draws one lane; every cell shows the artifact kind that
-/// owned most of its slice of wall time. Color encodes artifact kind
-/// when available; plain output only marks busy and idle cells.
+///
+/// Each worker draws one lane, and every cell shows the artifact kind that owned most of its slice.
+/// Color encodes its toolchain phase when available; plain output only marks busy and idle cells.
 pub fn render_timeline(report: &TraceSnapshot) -> String {
     let options = TraceTimelineOptions::new()
-        .with_color(color_enabled(Stream::Stdout))
-        .with_width(LANE_WIDTH)
-        .with_parallelism(true)
-        .with_slow_attempts(SLOWEST_COUNT);
+        .with_color(color_enabled(Stream::Stderr))
+        .with_width(LANE_WIDTH);
 
     render_trace_timeline(report, options)
-}
-
-/// Return the 256-color code of one stage display name, matching the
-/// lead artifact kind drawn in the timeline.
-fn stage_color(stage: &str) -> &'static str {
-    if stage.starts_with("emit") {
-        return "38;5;114";
-    }
-
-    match stage {
-        "parse" => "38;5;75",
-        "bind" => "38;5;80",
-        "macro" => "38;5;115",
-        "resolve" => "38;5;79",
-        "graph" => "38;5;147",
-        "check" => "38;5;170",
-        "lower" => "38;5;208",
-        "link" => "38;5;84",
-        "lint" => "38;5;228",
-        "query" => "38;5;147",
-        "init" => "38;5;245",
-        _ => "38;5;250",
-    }
 }

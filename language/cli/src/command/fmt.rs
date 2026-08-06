@@ -96,7 +96,7 @@ pub fn run(args: &FmtArgs) -> i32 {
             &result.response.messages,
             &result.response.output,
         );
-        result.emit_timings();
+        result.emit_timings(None);
         return result.response.exit_code;
     }
 
