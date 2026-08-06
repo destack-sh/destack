@@ -322,9 +322,9 @@ impl Parser {
         start: &ParseStart,
         context: ParameterContext,
     ) -> ParserResult<Option<LocalNodeId<Parameter>>> {
-        if !self.peek_this_parameter() {
+        let Some(name_range) = self.this_parameter_range() else {
             return Ok(None);
-        }
+        };
 
         let this_id = self.strings.intern("this");
         let declared_type = self.parse_parameter_type(context, TypeStops::default())?;
@@ -337,41 +337,35 @@ impl Parser {
             },
             self.range_since(start),
         );
-        let main_range = self.tree.get_range(declared_type);
-        self.tree.set_main_range(parameter_id, main_range);
+        self.tree.set_main_range(parameter_id, name_range);
 
         Ok(Some(parameter_id))
     }
 
-    /// Return whether the current token starts a receiver shorthand.
-    pub(super) fn peek_this_parameter(&self) -> bool {
+    /// Return the `this` token range for a receiver shorthand.
+    fn this_parameter_range(&self) -> Option<ByteRange> {
         // this
         if self.peek_keyword() == Some(Keyword::This) {
-            return self.peek_next_token_type() != TokenType::Colon;
+            return (self.peek_next_token_type() != TokenType::Colon)
+                .then(|| self.peek_token().range());
         }
 
         // readonly this
         if self.peek_keyword() == Some(Keyword::Readonly) {
-            return self.peek_next_keyword() == Some(Keyword::This);
+            return (self.peek_next_keyword() == Some(Keyword::This))
+                .then(|| self.peek_token_at(1).range());
         }
 
-        // &this, &readonly this, &exclusive this
-        if self.peek_is(TokenType::ElementwiseAnd) {
-            return self.peek_reference_operator_followed_by_this();
+        // reference shorthand
+        if !matches!(
+            self.peek_token_type(),
+            TokenType::ElementwiseAnd | TokenType::ElementwiseXor
+        ) {
+            return None;
         }
 
-        // ^this
-        if self.peek_is(TokenType::ElementwiseXor) {
-            return self.peek_reference_operator_followed_by_this();
-        }
-
-        false
-    }
-
-    /// Return whether a receiver reference operator is followed by `this`.
-    fn peek_reference_operator_followed_by_this(&self) -> bool {
         if self.peek_keyword_at(1) == Some(Keyword::This) {
-            return true;
+            return Some(self.peek_token_at(1).range());
         }
 
         let has_access_modifier = matches!(
@@ -379,10 +373,11 @@ impl Parser {
             Some(Keyword::Readonly | Keyword::Const | Keyword::Exclusive)
         );
         if has_access_modifier {
-            return self.peek_keyword_at(2) == Some(Keyword::This);
+            return (self.peek_keyword_at(2) == Some(Keyword::This))
+                .then(|| self.peek_token_at(2).range());
         }
 
-        false
+        None
     }
 
     /// Parse one parameter pattern or named binding.
@@ -569,14 +564,10 @@ impl Parser {
 
     /// Return whether one receiver parameter came from shorthand syntax.
     fn is_implicit_this_parameter(&self, this_parameter: LocalNodeId<Parameter>) -> bool {
-        let Parameter::Named {
-            declared_type: Some(declared_type),
-            ..
-        } = self.tree.get(this_parameter)
-        else {
-            return false;
-        };
+        let type_region = NodeSpanType::Region(NodeSpanRegion::Type);
 
-        self.tree.get_main_range(this_parameter) == Some(self.tree.get_range(*declared_type))
+        self.tree
+            .get_side_range(this_parameter, type_region)
+            .is_none()
     }
 }

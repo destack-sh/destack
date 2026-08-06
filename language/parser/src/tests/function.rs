@@ -521,6 +521,8 @@ fn test_parse_function_type_with_borrowed_this_parameter() {
                 let this_parameter = function.this_parameter.expect("expected this parameter");
                 assert_node!(parser.tree, this_parameter, Parameter::Named { name, declared_type, .. } => {
                     assert_string!(parser, *name, "this");
+                    let name_range = parser.tree.get_main_range(this_parameter).unwrap();
+                    assert_eq!(parser.range_str(name_range), "this");
                     assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::BorrowedOf { mutability, target_type, .. } => {
                         assert_eq!(*mutability, Some(Mutability::Immutable));
                         assert_node!(parser.tree, *target_type, TypeExpression::This);
