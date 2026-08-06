@@ -386,7 +386,6 @@ declare const value: Grid.Cell.Value;
 }
 
 #[test]
-#[ignore = "static member lookup does not project implemented-interface associated types"]
 fn test_resolve_an_implemented_associated_type_through_the_class() {
     let session = TestSession::single(
         r#"
@@ -444,8 +443,66 @@ class Message<T extends string> implements Envelope<T> {}
 type EventLabel = Message<"orders">.Label<"created">;
 /// @type.symbol symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" type=Message<"orders">.Label<"created"> reduced="orders:created"
 /// @definition.type symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" value=Message<"orders">.Label<"created"> reduced="orders:created"
-/// @resolution.name source=Message target=Message
 /// @resolution.name source="Message<\"orders\">.Label<\"created\">" target=Envelope.Label
+/// @resolution.name source=Message target=Message
+
+/// @generic.instance id="Message<\"orders\">" template=Message arguments=("orders")
+"#,
+    );
+}
+
+#[test]
+fn test_resolve_an_imported_implemented_associated_type() {
+    let session = TestSession::builder()
+        .module(
+            "envelope.ds",
+            r#"
+export interface Envelope<T extends string> {
+    type Label<U extends string> = `${T}:${U}`;
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { Envelope } from "./envelope.ds";
+
+class Message<T extends string> implements Envelope<T> {}
+
+type EventLabel = Message<"orders">.Label<"created">;
+"#,
+        )
+        .build();
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Envelope } from "./envelope.ds";
+
+class Message<in out T: string> implements Envelope<T> {}
+
+type EventLabel = Message<"orders">.Label<"created">;
+
+=== checked ===
+import { Envelope } from "./envelope.ds";
+
+class Message<T extends string> implements Envelope<T> {}
+/// @generic.template symbol=Message parameters=(in out T: string)
+/// @type.symbol symbol=Message source="class Message<T extends string> implements Envelope<T> {}" type=Message
+/// @definition.class symbol=Message source="class Message<T extends string> implements Envelope<T> {}" template=(in out T: string)
+/// @definition.where symbol=Message source=Envelope<T> relation=satisfies left=this right=envelope.Envelope<T>
+/// @definition.implements symbol=Message source=Envelope<T> target=envelope.Envelope<T>
+/// @type.symbol symbol=Message.T source="T extends string" type=T
+/// @resolution.name source=Envelope target=envelope.Envelope
+/// @resolution.name source=T target=Message.T
+
+type EventLabel = Message<"orders">.Label<"created">;
+/// @type.symbol symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" type=Message<"orders">.Label<"created"> reduced="orders:created"
+/// @definition.type symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" value=Message<"orders">.Label<"created"> reduced="orders:created"
+/// @resolution.name source="Message<\"orders\">.Label<\"created\">" target=envelope.Envelope.Label
+/// @resolution.name source=Message target=Message
 
 /// @generic.instance id="Message<\"orders\">" template=Message arguments=("orders")
 "#,

@@ -490,7 +490,7 @@ impl CheckState<'_> {
                     qualifier = blocked!(
                         id,
                         self.body()
-                            .projection_qualifier(origin, peeled, member.key)?
+                            .select_associated_qualifier(origin, peeled, member.key)?
                     );
                 }
 

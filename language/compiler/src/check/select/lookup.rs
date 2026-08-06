@@ -711,15 +711,17 @@ impl BodyState<'_, '_> {
             self.import_external_module(instance.symbol.module_id)?;
         }
 
-        // search inherent members before extensions
+        // search inherent members first
         let inherent =
             answer!(self.lookup_inherent_symbol_member(origin, receiver, &instance, space, key)?);
-        match inherent {
-            MemberLookup::Found(_)
-            | MemberLookup::Field(_)
-            | MemberLookup::Union(_)
-            | MemberLookup::Intersection(_) => return Ok(Answer::Ready(inherent)),
-            MemberLookup::Missing => {}
+        if inherent.is_found() {
+            return Ok(Answer::Ready(inherent));
+        }
+
+        // search associated members before extensions
+        let associated = answer!(self.lookup_associated_member(origin, receiver, space, key)?);
+        if associated.is_found() {
+            return Ok(Answer::Ready(associated));
         }
 
         match extensions {
@@ -755,6 +757,33 @@ impl BodyState<'_, '_> {
             }
             ExtensionFilter::Inherent => Ok(Answer::Ready(MemberLookup::Missing)),
         }
+    }
+
+    /// Look up one associated member through its uniquely declaring interface.
+    fn lookup_associated_member(
+        &mut self,
+        origin: Origin,
+        receiver: dir::GlobalTypeId,
+        space: dir::MemberSpace,
+        key: dir::StaticKey,
+    ) -> CompilerResult<Answer<MemberLookup>> {
+        if space != dir::MemberSpace::Static {
+            return Ok(Answer::Ready(MemberLookup::Missing));
+        }
+        let Some(qualifier) = answer!(self.select_associated_qualifier(origin, receiver, key)?)
+        else {
+            return Ok(Answer::Ready(MemberLookup::Missing));
+        };
+
+        // search the interface application selected for this projection
+        let (module, qualifier) = self.nominal_application(qualifier)?;
+        let arguments = self.type_ids(module, qualifier.arguments)?;
+        let qualifier = ApparentInstance {
+            symbol: qualifier.symbol,
+            arguments: arguments.iter().copied().collect(),
+        };
+
+        self.lookup_inherent_symbol_member(origin, receiver, &qualifier, space, key)
     }
 
     /// Look up one inherent static member on a declaration reference.
@@ -881,8 +910,8 @@ impl BodyState<'_, '_> {
             };
             let symbol = declared.symbol;
 
-            // value-less associated types project through the receiver, and
-            //  defaults stay conformance-only behind rigid owners
+            // project value-less associated types through the receiver while keeping
+            // defaults conformance-only behind rigid owners
             let is_associated = matches!(member, dir::DefinitionMember::AssociatedType(_));
             let is_rigid = self.is_rigid_projection_owner(receiver)?;
             let ty = match declared.ty {
@@ -951,7 +980,7 @@ impl BodyState<'_, '_> {
                 arguments: arguments.iter().copied().collect(),
             };
             let lookup = answer!(
-                self.lookup_inherent_symbol_member(origin, receiver, &heritage, space, key)?
+                self.lookup_inherent_symbol_member(origin, receiver, &heritage, space, key,)?
             );
             match lookup {
                 MemberLookup::Missing => continue,

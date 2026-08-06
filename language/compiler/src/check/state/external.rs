@@ -67,6 +67,8 @@ impl CheckState<'_> {
         if !self.external_modules.contains_key(&module) {
             let external = self.import_external_module_state(module)?;
 
+            self.generics
+                .index_template_symbols(module, external.generics.iter_templates());
             self.external_modules.insert(module, external);
         }
 

@@ -24,7 +24,7 @@ pub(in crate::check) struct InducedParameterSite {
     pub(in crate::check) ty: dir::GlobalTypeId,
 }
 
-/// Generic declaration index over working generic segments.
+/// Generic declaration indexes for the active check.
 #[derive(Debug)]
 pub(in crate::check) struct GenericIndex {
     /// Template ids keyed by declaring source node.
@@ -88,6 +88,22 @@ impl GenericIndex {
         self.templates_by_symbol.insert(symbol, id);
     }
 
+    /// Index template symbols loaded for one module.
+    pub(in crate::check) fn index_template_symbols<'a>(
+        &mut self,
+        module: ModuleId,
+        templates: impl Iterator<Item = (dir::LocalGenericTemplateId, &'a dir::GenericTemplate)>,
+    ) {
+        for (local, template) in templates {
+            let Some(symbol) = template.symbol else {
+                continue;
+            };
+            let id = local.into_global(module);
+
+            self.index_template_symbol(symbol, id);
+        }
+    }
+
     /// Index one declared parameter by its declaring symbol.
     pub(in crate::check) fn index_parameter(
         &mut self,
@@ -121,36 +137,17 @@ impl GenericIndex {
 }
 
 impl CheckState<'_> {
-    /// Return one symbol's generic template, reading the walk index
-    /// over committed definitions.
+    /// Return one symbol's generic template.
     pub(in crate::check) fn symbol_template(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<GenericTemplateId>> {
-        if let Some(template) = self.generics.template_by_symbol(symbol) {
-            return Ok(Some(template));
+        // load foreign templates before lookup
+        if !self.is_own_module(symbol.module_id) {
+            self.import_external_module(symbol.module_id)?;
         }
 
-        // read the declared template from a committed definition
-        let template = self
-            .definition(symbol)?
-            .and_then(|definition| definition.template());
-        if let Some(template) = template {
-            return Ok(Some(template.into_global(symbol.module_id)));
-        }
-
-        // read the template of a declared-stage signature
-        let is_declared_stage = self
-            .module_maybe(symbol.module_id)
-            .is_some_and(|module| module.declared.is_some());
-        if is_declared_stage
-            && let Some(ty) = self.symbol_type_maybe(symbol)
-            && let Some(head) = self.signature_head(ty)?
-        {
-            return Ok(head.template);
-        }
-
-        Ok(None)
+        Ok(self.loaded_symbol_template(symbol))
     }
 
     /// Return one symbol's already loaded template, without importing.
@@ -158,13 +155,7 @@ impl CheckState<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Option<GenericTemplateId> {
-        if let Some(template) = self.generics.template_by_symbol(symbol) {
-            return Some(template);
-        }
-
-        let template = self.definition_maybe(symbol)?.template()?;
-
-        Some(template.into_global(symbol.module_id))
+        self.generics.template_by_symbol(symbol)
     }
 
     /// Return one generic template, reading working segments over external tables.

@@ -1608,12 +1608,18 @@ impl BodyState<'_, '_> {
         // prefer the implementer's declared associated type
         let declared = members.iter().find_map(|declared| match declared {
             dir::DefinitionMember::AssociatedType(associated) if associated.key == member.key => {
-                associated.value
+                associated.value.map(|value| (associated, value))
             }
             _ => None,
         });
-        if let Some(value) = declared {
-            let value = self.substitute_type(value, substitution)?;
+        if let Some((declared, value)) = declared {
+            let value = self.project_associated_value(
+                origin.module(),
+                member,
+                declared.symbol,
+                value,
+                substitution,
+            )?;
 
             return Ok(Answer::Ready(Some(value)));
         }
@@ -1638,7 +1644,27 @@ impl BodyState<'_, '_> {
             MemberLookup::Field(field) => field.read_type(self),
             MemberLookup::Found(candidates) => match candidates.as_slice() {
                 [candidate] => {
-                    if let Some(written) = candidate.value_type {
+                    if candidate.value_type.is_some() {
+                        let written = self.static_value(candidate.symbol).ok_or_else(|| {
+                            CompilerError::Internal {
+                                message: format!(
+                                    "associated member {:?} lost its declared value",
+                                    candidate.symbol,
+                                ),
+                            }
+                        })?;
+                        let substitution = TypeSubstitution {
+                            bindings: candidate.generic_arguments.iter().copied().collect(),
+                            receiver: Some(member.owner),
+                        };
+                        let written = self.project_associated_value(
+                            module,
+                            member,
+                            candidate.symbol,
+                            written,
+                            &substitution,
+                        )?;
+
                         return Ok(Some(written));
                     }
                     if let Some(value) = candidate.value {
@@ -1687,7 +1713,7 @@ impl BodyState<'_, '_> {
     /// Project one interface default through a qualified owner.
     fn project_default_member(
         &mut self,
-        _origin: Origin,
+        origin: Origin,
         member: &dir::MemberType,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         if self.is_rigid_projection_owner(member.owner)? {
@@ -1699,8 +1725,9 @@ impl BodyState<'_, '_> {
         let Some((interface_module, interface)) = self.nominal_application_maybe(qualifier)? else {
             return Ok(Answer::Ready(None));
         };
+
         // select the declared interface default
-        let value = match self.definition(interface.symbol)? {
+        let associated = match self.definition(interface.symbol)? {
             Some(dir::Definition::Interface(definition)) => {
                 definition
                     .members
@@ -1709,21 +1736,48 @@ impl BodyState<'_, '_> {
                         dir::DefinitionMember::AssociatedType(associated)
                             if associated.key == member.key =>
                         {
-                            associated.value
+                            associated.value.map(|value| (associated.symbol, value))
                         }
                         _ => None,
                     })
             }
             _ => None,
         };
-        let Some(value) = value else {
+        let Some((symbol, value)) = associated else {
             return Ok(Answer::Ready(None));
         };
         let substitution =
             self.qualified_instance_substitution(interface_module, &interface, member.owner)?;
-        let value = self.substitute_type(value, &substitution)?;
+        let value =
+            self.project_associated_value(origin.module(), member, symbol, value, &substitution)?;
 
         Ok(Answer::Ready(Some(value)))
+    }
+
+    /// Project one associated value through its owner and applied arguments.
+    fn project_associated_value(
+        &mut self,
+        module: ModuleId,
+        member: &dir::MemberType,
+        symbol: dir::GlobalSymbolId,
+        value: dir::GlobalTypeId,
+        owner_substitution: &TypeSubstitution,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // substitute owner parameters inside applied member arguments
+        let arguments = self.type_ids(module, member.arguments)?;
+        let mut arguments = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(arguments);
+        for argument in &mut arguments {
+            *argument = self.substitute_type(*argument, owner_substitution)?;
+        }
+
+        // extend the owner substitution with the member's own parameters
+        let bindings = self.symbol_generic_argument_bindings(symbol, &arguments)?;
+        let mut substitution = owner_substitution.clone();
+        for binding in bindings {
+            substitution.bind(binding.parameter, binding.argument)?;
+        }
+
+        self.substitute_type(value, &substitution)
     }
 
     /// Return whether associated defaults remain overridable beneath one owner.
@@ -1737,8 +1791,8 @@ impl BodyState<'_, '_> {
         Ok(is_rigid)
     }
 
-    /// Return the unique interface application declaring one projected member.
-    pub(in crate::check) fn projection_qualifier(
+    /// Select the unique interface application declaring one associated member.
+    pub(in crate::check) fn select_associated_qualifier(
         &mut self,
         origin: Origin,
         owner: dir::GlobalTypeId,

@@ -218,12 +218,8 @@ impl<'a> CheckState<'a> {
         let module = self.module_id;
 
         // index declared templates by their declaring symbol
-        for (local_id, template) in declared.generics.iter_templates() {
-            let id = local_id.into_global(module);
-            if let Some(symbol) = template.symbol {
-                self.generics.index_template_symbol(symbol, id);
-            }
-        }
+        self.generics
+            .index_template_symbols(module, declared.generics.iter_templates());
 
         // index declared parameters by their declaring symbol
         for (local_id, binding) in declared.generics.iter_parameters() {
