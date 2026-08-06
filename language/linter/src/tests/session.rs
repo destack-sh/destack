@@ -15,11 +15,12 @@ use destack_session::Session;
 use destack_source::{
     Applicability, Content, DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity,
     DiagnosticTarget, DiffOptions, File, FileId, FilePatch, FileType, MemoryFileSystem, ModuleId,
-    PackageId, PrintOptions, TargetId, Uri, apply_file_patch, format_diff, print_diagnostics,
+    PackageId, PrintOptions, ProfileId, TargetId, Uri, apply_file_patch, format_diff,
+    print_diagnostics,
 };
 use serde_json::{Map, Value, json};
 
-use crate::{Fixability, LINTS, Lint, LintCheck, LintScope, MirModule};
+use crate::{Fixability, LINTS, Lint, LintCheck, LintScope, LintTier, MirModule};
 
 const SOURCE_PATH: &str = "main.ds";
 const TARGET_NAME: &str = "native";
@@ -38,6 +39,14 @@ impl TestSession {
     /// Assert the canonical reported and accepted examples for one lint.
     #[track_caller]
     pub(crate) fn assert_example(lint: &'static Lint) {
+        match lint.check.tier() {
+            LintTier::Dir => Self::assert_dir_example(lint),
+            LintTier::Mir => Self::assert_mir_example_sources(lint),
+        }
+    }
+
+    /// Assert the reported behavior and accepted replacement of one DIR lint example.
+    fn assert_dir_example(lint: &'static Lint) {
         let reported = Self::dir(lint, lint.example.reported());
         let [diagnostic] = reported.diagnostics.diagnostics.as_slice() else {
             panic!(
@@ -80,8 +89,32 @@ impl TestSession {
         accepted.assert_no_diagnostics();
     }
 
+    /// Assert that one MIR lint's documentation examples pass check.
+    fn assert_mir_example_sources(lint: &'static Lint) {
+        for source in [lint.example.reported(), lint.example.accepted()] {
+            let checked = Self::source(lint, source, |module, profile, _| {
+                ArtifactKey::dir_checked(module, profile)
+            });
+            checked.assert_no_diagnostics();
+        }
+    }
+
     /// Run one isolated checked DIR lint fixture.
     pub(crate) fn dir(lint: &'static Lint, source: &str) -> Self {
+        Self::source(lint, source, |module, profile, target| {
+            match lint.check.scope() {
+                LintScope::Module => ArtifactKey::module_linted(module, profile, target),
+                LintScope::Program => ArtifactKey::program_linted(profile, target),
+            }
+        })
+    }
+
+    /// Run one source fixture through the selected artifact.
+    fn source(
+        lint: &'static Lint,
+        source: &str,
+        artifact: impl FnOnce(ModuleId, ProfileId, TargetId) -> ArtifactKey,
+    ) -> Self {
         let (repository, base) = shared_repository();
         let configuration = lint_configuration(lint);
         let edits = [
@@ -129,10 +162,7 @@ impl TestSession {
             None,
         )
         .expect("lint test session should open");
-        let key = match lint.check.scope() {
-            LintScope::Module => ArtifactKey::module_linted(module.id, profile, target),
-            LintScope::Program => ArtifactKey::program_linted(profile, target),
-        };
+        let key = artifact(module.id, profile, target);
         if let Err(error) = session.require(revision, key) {
             let diagnostics = repository
                 .diagnostics(revision, None)
