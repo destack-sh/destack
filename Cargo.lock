@@ -1115,6 +1115,7 @@ dependencies = [
  "destack_repository",
  "destack_session",
  "destack_source",
+ "destack_unicode",
  "serde_json",
 ]
 
