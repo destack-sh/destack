@@ -140,6 +140,19 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 Ok(CoercionValue::Runtime(value))
             }
+            dir::CoercionAdjustment::Instantiate { target, arguments } => {
+                // materialize the reference at its selected concrete instance
+                let CoercionValue::Expression(expression) = value else {
+                    return Err(CompilerError::Internal {
+                        message: "an instantiate coercion of a lowered value".to_string(),
+                    });
+                };
+                let node = expression.into_global_any(self.source);
+                let symbol = self.lowerer.resolved_symbol(node)?;
+                let value = self.lower_instantiated_value(symbol, *target, arguments)?;
+
+                Ok(CoercionValue::Runtime(value))
+            }
             adjustment => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: format!("an implicit {} coercion", adjustment.as_str()),
@@ -172,6 +185,10 @@ impl FunctionLowerer<'_, '_, '_> {
                 let symbol = self.lowerer.resolved_symbol(node)?;
                 match self.values.get(&symbol.local_id).copied() {
                     Some(Binding::Local(local)) => Ok(self.builder.local_addr(local, target)),
+                    // borrow captured bindings at their frame field
+                    Some(Binding::Captured { frame, field, .. }) => {
+                        Ok(self.builder.field_addr(frame, field, target))
+                    }
                     // give borrowed parameters a frame home on first borrow
                     Some(Binding::Value(value)) => {
                         let ty = self.lowerer.symbol_type(symbol)?;
@@ -549,13 +566,20 @@ impl FunctionLowerer<'_, '_, '_> {
                 match self.values.get(&symbol.local_id).copied() {
                     Some(Binding::Value(value)) => Ok(value),
                     Some(Binding::Local(local)) => Ok(self.builder.local_get(local)),
+                    // load captured bindings through their frame field
+                    Some(Binding::Captured { frame, field, ty }) => {
+                        let address =
+                            self.emit_field_address(frame, field, ty, mir::Access::Mutable);
+
+                        Ok(self.builder.load(address, ty))
+                    }
                     // load module constants through their globals
                     None => {
                         if let Some(global) = self.module_constant_global(symbol)? {
                             return Ok(self.builder.load_global(global));
                         }
                         // materialize callable declarations as function values
-                        if let Some(value) = self.lower_function_value(expression, symbol)? {
+                        if let Some(value) = self.lower_function_value(expression, symbol, None)? {
                             return Ok(value);
                         }
 
@@ -571,6 +595,27 @@ impl FunctionLowerer<'_, '_, '_> {
             // 1
             dir::Expression::ScalarLiteral(literal) => {
                 self.lower_scalar_literal(expression, literal)
+            }
+
+            // (value) => value * 2
+            dir::Expression::Declaration(declaration) => {
+                let node = declaration.into_global_any(self.source);
+                let Some(symbol) = self.lowerer.symbol_declared_at(node)? else {
+                    return Err(CompilerError::Internal {
+                        message: "a declaration expression without a symbol".to_string(),
+                    });
+                };
+
+                // bind the declared closure over its captured environment
+                let environment = self.capture_environment(symbol)?;
+                match self.lower_function_value(expression, symbol, environment)? {
+                    Some(value) => Ok(value),
+                    None => Err(LowerError::Unsupported {
+                        anchor: self.lowerer.module.into(),
+                        construct: "a non-callable declaration expression".to_string(),
+                    }
+                    .into()),
+                }
             }
 
             // a + b
@@ -740,7 +785,21 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::Expression::Call { .. } => {
                 let value = self.lower_call(expression)?;
 
-                value.ok_or_else(|| CompilerError::Internal {
+                // return the value the call produced
+                if let Some(value) = value {
+                    return Ok(value);
+                }
+
+                // yield one dead uninit value behind a diverging call's sealed block
+                let ty = self.node_type_id(expression)?;
+                if matches!(self.lowerer.ty(ty)?, dir::Type::Never) {
+                    let never = self.lower_type(ty)?;
+
+                    return Ok(self.builder.constant(mir::Constant::Uninit, never));
+                }
+
+                // reject void calls in value position
+                Err(CompilerError::Internal {
                     message: "a void call used as a value".to_string(),
                 })
             }
@@ -768,10 +827,8 @@ impl FunctionLowerer<'_, '_, '_> {
             None => {}
         }
 
-        // skip local constants and non-constant symbols
-        if symbol.module_id == self.lowerer.module
-            || self.lowerer.module_constant(symbol)?.is_none()
-        {
+        // skip local constants and non-binding symbols
+        if symbol.module_id == self.lowerer.module || !self.lowerer.is_module_binding(symbol)? {
             return Ok(None);
         }
 
