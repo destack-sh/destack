@@ -85,6 +85,7 @@ impl<'a> CommandContext<'a> {
         .map_err(|error| {
             CommandError::internal(format!("failed to initialize command session: {error}"))
         })?;
+        session.set_tracing(common.trace.is_some());
         Self::apply_overrides(&session, repository.as_ref(), &common.overrides)?;
         let trace = session.start_trace();
 
