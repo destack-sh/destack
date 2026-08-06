@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use clap::{Args, ValueEnum};
@@ -242,12 +242,57 @@ impl ProgramArgs {
 
     /// Return the effective working directory for these arguments.
     pub fn effective_cwd(&self) -> ConsoleResult<PathBuf> {
-        if let Some(cwd) = self.cwd.clone() {
-            return Ok(cwd);
+        // resolve the process directory once
+        let process = std::env::current_dir()
+            .map_err(|error| ConsoleError::message(format!("failed to read cwd: {error}")))?;
+
+        // use the process directory when no override exists
+        let Some(cwd) = self.cwd.as_deref() else {
+            return Ok(process);
+        };
+
+        // preserve explicit absolute paths
+        if cwd.is_absolute() {
+            return Ok(cwd.to_path_buf());
         }
 
-        std::env::current_dir()
-            .map_err(|error| ConsoleError::message(format!("failed to read cwd: {error}")))
+        Ok(process.join(cwd))
+    }
+
+    /// Return the explicit manifest path resolved against the working directory.
+    pub fn manifest_path(&self) -> ConsoleResult<Option<PathBuf>> {
+        self.manifest
+            .as_deref()
+            .map(|path| self.resolve_path(path))
+            .transpose()
+    }
+
+    /// Return the source path used to discover the workspace root.
+    fn workspace_path(&self) -> ConsoleResult<PathBuf> {
+        // prefer an explicit workspace
+        if let Some(workspace) = self.workspace.as_deref() {
+            return self.resolve_path(workspace);
+        }
+
+        // discover from an explicit manifest
+        if let Some(manifest) = self.manifest_path()? {
+            return Ok(manifest);
+        }
+
+        self.effective_cwd()
+    }
+
+    /// Resolve one command path against the working directory.
+    fn resolve_path(&self, path: &Path) -> ConsoleResult<PathBuf> {
+        // preserve explicit absolute paths
+        if path.is_absolute() {
+            return Ok(path.to_path_buf());
+        }
+
+        // resolve relative paths from the command directory
+        let cwd = self.effective_cwd()?;
+
+        Ok(cwd.join(path))
     }
 
     /// Build manifest overrides from explicit CLI options.
@@ -272,7 +317,7 @@ impl ProgramArgs {
         fs_override: Option<Arc<dyn FileSystem>>,
     ) -> ConsoleResult<Arc<Repository>> {
         let cwd = self.effective_cwd()?;
-        let workspace_root = self.workspace.clone().unwrap_or_else(|| cwd.clone());
+        let workspace_path = self.workspace_path()?;
         let has_fs_override = fs_override.is_some();
         let fs: Arc<dyn FileSystem> = fs_override.unwrap_or_else(|| {
             let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
@@ -305,7 +350,7 @@ impl ProgramArgs {
             ConsoleError::message(format!("failed to identify Destack build: {error}"))
         })?;
         let host = Host::new(build_id, environment, fs.clone(), blob_store);
-        let repository = open_repository(workspace_root, host, settings, layout_override)
+        let repository = open_repository(workspace_path, host, settings, layout_override)
             .map_err(|error| ConsoleError::message(format!("failed to open workspace: {error}")))?;
 
         let repository = Arc::new(repository);
@@ -328,11 +373,7 @@ impl ProgramArgs {
         file_watcher: Option<Arc<dyn FileWatcher>>,
     ) -> ConsoleResult<(Arc<dyn Workspace>, Vec<PathBuf>)> {
         let repository = self.open_repository()?;
-        let roots = vec![
-            self.workspace
-                .clone()
-                .unwrap_or_else(|| repository.path().to_path_buf()),
-        ];
+        let roots = vec![repository.path().to_path_buf()];
         let workspace = LocalWorkspace::new(
             repository,
             None,

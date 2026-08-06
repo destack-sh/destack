@@ -24,7 +24,7 @@ impl CommandOptionsBuilder {
             inputs: Vec::new(),
             config_inputs: false,
             cwd: Some(program.effective_cwd()?),
-            manifest: program.manifest.clone(),
+            manifest: program.manifest_path()?,
             target: None,
             target_overrides: None,
             profile: None,
