@@ -14,7 +14,7 @@ pub struct TraceTimelineOptions {
     pub width: usize,
     /// The number of slow non-parked attempts to list below the chart.
     pub slow_attempts: usize,
-    /// Whether to report work, span, and the artifact critical path.
+    /// Whether to report work, span, utilization, and the artifact critical path.
     pub parallelism: bool,
 }
 
@@ -56,7 +56,7 @@ impl TraceTimelineOptions {
         self
     }
 
-    /// Set whether to report work, span, and the artifact critical path.
+    /// Set whether to report work, span, utilization, and the artifact critical path.
     pub fn with_parallelism(mut self, parallelism: bool) -> Self {
         self.parallelism = parallelism;
 
@@ -69,14 +69,26 @@ pub fn render_trace_timeline(trace: &TraceSnapshot, options: TraceTimelineOption
     if trace.attempts.is_empty() || trace.total_micros == 0 {
         return String::new();
     }
+    let Some((work_start, work_end)) = work_range(trace) else {
+        return String::new();
+    };
 
     let width = options.width.max(1);
+    let work_micros = work_end - work_start;
     let kinds = TimelineKind::from_trace(trace);
     let mut output = String::new();
 
     // render one lane per worker
     for worker in 0..trace.workers {
-        let lane = timeline_lane(trace, worker, &kinds, width, options.use_color);
+        let lane = timeline_lane(
+            trace,
+            worker,
+            &kinds,
+            work_start,
+            work_micros,
+            width,
+            options.use_color,
+        );
 
         output.push_str(&format!("worker {worker:>2} ▕{lane}▏\n"));
     }
@@ -85,14 +97,14 @@ pub fn render_trace_timeline(trace: &TraceSnapshot, options: TraceTimelineOption
     output.push_str(&dim(
         &format!(
             "          0{:>width$}\n",
-            render_trace_duration(trace.total_micros),
+            render_trace_duration(work_micros),
             width = width,
         ),
         options.use_color,
     ));
     output.push_str(&timeline_legend(&kinds, options.use_color));
 
-    // render work, span, and the dependency critical path when requested
+    // render aggregate parallelism when requested
     if options.parallelism {
         output.push_str(&render_parallelism(trace, options.use_color));
     }
@@ -105,7 +117,7 @@ pub fn render_trace_timeline(trace: &TraceSnapshot, options: TraceTimelineOption
     output
 }
 
-/// Render work, span, and the artifact dependency critical path.
+/// Render aggregate work, span, and worker utilization.
 fn render_parallelism(trace: &TraceSnapshot, use_color: bool) -> String {
     let parallelism = &trace.parallelism;
     if parallelism.work_micros == 0 {
@@ -138,27 +150,40 @@ fn render_parallelism(trace: &TraceSnapshot, use_color: bool) -> String {
         utilization,
         render_trace_duration(parallelism.bound_gap_micros),
     );
+    output.push_str(&render_critical_path(trace, use_color));
+
+    output
+}
+
+/// Render the artifact dependency critical path.
+fn render_critical_path(trace: &TraceSnapshot, use_color: bool) -> String {
+    let parallelism = &trace.parallelism;
     if parallelism.critical_path.is_empty() {
-        return output;
+        return String::new();
     }
 
-    output.push_str(&format!(
+    let mut output = format!(
         "\n{} {} across {} artifacts\n",
         bold("critical path", use_color),
         render_trace_duration(parallelism.span_micros),
         parallelism.critical_path.len(),
-    ));
+    );
 
     // render artifacts from earliest dependency to final dependent
     for artifact in &parallelism.critical_path {
-        let name = paint(
-            &format!("{:<24}", artifact.name),
-            trace_artifact_color(&artifact.name),
-            use_color,
-        );
-        let label = artifact.label.as_deref().unwrap_or("");
+        let name = if artifact.label.is_some() {
+            format!("{:<24}", artifact.name)
+        } else {
+            artifact.name.clone()
+        };
+        let name = paint(&name, trace_stage_color(&artifact.stage), use_color);
+        let label = artifact
+            .label
+            .as_deref()
+            .map(|label| format!(" {label}"))
+            .unwrap_or_default();
         output.push_str(&format!(
-            "  work {:>9}  span {:>9}  fan-in {:>3}  fan-out {:>3}  {name} {label}\n",
+            "  work {:>9}  span {:>9}  fan-in {:>3}  fan-out {:>3}  {name}{label}\n",
             render_trace_duration(artifact.work_micros),
             render_trace_duration(artifact.cumulative_micros),
             artifact.dependencies,
@@ -196,6 +221,8 @@ pub fn render_trace_duration(micros: u64) -> String {
 struct TimelineKind {
     /// The artifact kind name.
     name: String,
+    /// The toolchain phase name.
+    stage: String,
     /// The summed work time across the trace.
     micros: u64,
 }
@@ -211,6 +238,7 @@ impl TimelineKind {
                 Some(kind) => kind.micros += artifact.work_micros,
                 None => kinds.push(Self {
                     name: artifact.name.clone(),
+                    stage: artifact.stage.clone(),
                     micros: artifact.work_micros,
                 }),
             }
@@ -225,10 +253,12 @@ fn timeline_lane(
     trace: &TraceSnapshot,
     worker: usize,
     kinds: &[TimelineKind],
+    work_start: u64,
+    work_micros: u64,
     width: usize,
     use_color: bool,
 ) -> String {
-    let cell_micros = trace.total_micros.div_ceil(width as u64).max(1);
+    let cell_micros = work_micros.div_ceil(width as u64).max(1);
     let mut busy = vec![vec![0u64; kinds.len()]; width];
 
     // accumulate work overlap per artifact kind and fixed-width cell
@@ -246,8 +276,9 @@ fn timeline_lane(
             .iter()
             .filter(|span| span.kind == TraceSpanKind::Work)
         {
-            let end = span.start_micros + span.micros.max(1);
-            let first = (span.start_micros / cell_micros) as usize;
+            let span_start = span.start_micros - work_start;
+            let end = span_start + span.micros.max(1);
+            let first = (span_start / cell_micros) as usize;
             let last = ((end - 1) / cell_micros) as usize;
 
             for (cell, lanes) in busy
@@ -258,9 +289,7 @@ fn timeline_lane(
             {
                 let cell_start = cell as u64 * cell_micros;
                 let cell_end = cell_start + cell_micros;
-                let overlap = end
-                    .min(cell_end)
-                    .saturating_sub(span.start_micros.max(cell_start));
+                let overlap = end.min(cell_end).saturating_sub(span_start.max(cell_start));
 
                 lanes[kind] += overlap;
             }
@@ -280,6 +309,23 @@ fn timeline_lane(
         .collect::<Vec<_>>();
 
     timeline_runs(&cells, kinds, use_color)
+}
+
+/// Return the first and final artifact work offsets in one trace.
+fn work_range(trace: &TraceSnapshot) -> Option<(u64, u64)> {
+    let spans = trace
+        .attempts
+        .iter()
+        .flat_map(|attempt| &attempt.spans)
+        .filter(|span| span.kind == TraceSpanKind::Work);
+    let mut start = None::<u64>;
+    let mut end = 0;
+    for span in spans {
+        start = Some(start.map_or(span.start_micros, |start| start.min(span.start_micros)));
+        end = end.max(span.start_micros + span.micros.max(1));
+    }
+
+    start.map(|start| (start, end))
 }
 
 /// Render coalesced timeline cell runs.
@@ -311,7 +357,7 @@ fn paint_timeline_run(
     use_color: bool,
 ) -> String {
     match kind {
-        Some(kind) => paint(run, trace_artifact_color(&kinds[kind].name), use_color),
+        Some(kind) => paint(run, trace_stage_color(&kinds[kind].stage), use_color),
         None => dim(run, use_color),
     }
 }
@@ -336,7 +382,7 @@ fn timeline_legend(kinds: &[TimelineKind], use_color: bool) -> String {
     let entries = entries
         .into_iter()
         .map(|kind| {
-            let block = paint("█", trace_artifact_color(&kind.name), use_color);
+            let block = paint("█", trace_stage_color(&kind.stage), use_color);
             let work = dim(&compact_duration(kind.micros), use_color);
 
             format!("{block} {} {work}", kind.name)
@@ -367,7 +413,7 @@ fn slow_attempts(trace: &TraceSnapshot, options: TraceTimelineOptions) -> String
     let mut output = String::new();
     output.push_str(&format!(
         "\n{}\n",
-        bold("slowest attempts:", options.use_color)
+        bold("slowest attempts", options.use_color)
     ));
 
     // render bounded slow attempt rows
@@ -380,10 +426,14 @@ fn slow_attempts(trace: &TraceSnapshot, options: TraceTimelineOptions) -> String
 
 /// Render one slow artifact attempt row.
 fn slow_attempt(artifact: &ArtifactAttemptSnapshot, use_color: bool) -> String {
-    let label = artifact.label.as_deref().unwrap_or("");
+    let label = artifact
+        .label
+        .as_deref()
+        .map(|label| format!(" {label}"))
+        .unwrap_or_default();
     let name = paint(
         &format!("{:<24}", artifact.name),
-        trace_artifact_color(&artifact.name),
+        trace_stage_color(&artifact.stage),
         use_color,
     );
     let target = artifact
@@ -393,7 +443,7 @@ fn slow_attempt(artifact: &ArtifactAttemptSnapshot, use_color: bool) -> String {
         .unwrap_or_default();
 
     format!(
-        "  work {:>9}  latency {:>9}  {name} {label}{target}\n",
+        "  work {:>9}  latency {:>9}  {name}{label}{target}\n",
         render_trace_duration(artifact.work_micros),
         render_trace_duration(artifact.latency_micros),
     )
@@ -418,29 +468,20 @@ fn paint(text: &str, code: &str, enabled: bool) -> String {
     format!("\x1b[{code}m{text}\x1b[0m")
 }
 
-/// Return the shared 256-color code of one traced artifact kind.
-pub fn trace_artifact_color(name: &str) -> &'static str {
-    match name {
-        "dir.parse" => "38;5;39",
-        "data" => "38;5;69",
-        "dir.bind" => "38;5;45",
-        "dir.import" => "38;5;49",
-        "dir.expand" => "38;5;118",
-        "dir.export" => "38;5;220",
-        "dir.resolve" => "38;5;166",
-        "module.index" | "component.graph" => "38;5;141",
-        "dir.declare.component" => "38;5;196",
-        "dir.check.component" => "38;5;201",
-        "dir.check" => "38;5;93",
-        "dir.materialize" => "38;5;177",
-        "mir.lower" => "38;5;208",
-        "mir.verify" => "38;5;209",
-        "mir.optimize" => "38;5;214",
-        "module.emit" => "38;5;114",
-        "package.link" => "38;5;84",
-        "module.lint" | "program.lint" => "38;5;228",
-        "workspace.index" => "38;5;147",
-        "environment" | "dependency.index" => "38;5;245",
+/// Return the shared 256-color code of one toolchain phase.
+pub fn trace_stage_color(stage: &str) -> &'static str {
+    match stage {
+        "init" => "38;5;245",
+        "parse" => "38;5;75",
+        "bind" => "38;5;80",
+        "macro" => "38;5;115",
+        "resolve" => "38;5;79",
+        "graph" | "index" => "38;5;147",
+        "check" => "38;5;170",
+        "lower" => "38;5;208",
+        "emit" => "38;5;114",
+        "link" => "38;5;84",
+        "lint" => "38;5;228",
         _ => "38;5;250",
     }
 }

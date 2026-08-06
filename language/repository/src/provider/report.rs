@@ -3,7 +3,7 @@ use std::fmt::Write;
 
 use super::{
     ArtifactAttemptSnapshot, TraceSnapshot, TraceSpanKind, TraceTimeSnapshot, TraceTimelineOptions,
-    render_trace_timeline, trace_artifact_color,
+    render_trace_timeline, trace_stage_color,
 };
 
 /// The timeline width of one single-trace page.
@@ -149,7 +149,7 @@ impl TraceReport {
         let mut table = TextTable::new("stage work (sum across workers)", self.use_color);
         for stage in &stages {
             table = table.row(vec![
-                Cell::colored(&stage.name, stage_color(&stage.name)),
+                Cell::colored(&stage.name, trace_stage_color(&stage.name)),
                 Cell::new(format!("{} ms", millis(stage.micros))),
                 Cell::left(bar(stage.micros, largest)),
             ]);
@@ -213,8 +213,8 @@ impl TraceReport {
                 table = table.row(vec![
                     Cell::colored(millis(attempt.work_micros), "38;5;250"),
                     Cell::colored(millis(attempt.latency_micros), "38;5;245"),
-                    Cell::colored(&attempt.stage, stage_color(&attempt.stage)),
-                    Cell::colored(&attempt.name, trace_artifact_color(&attempt.name)),
+                    Cell::colored(&attempt.stage, trace_stage_color(&attempt.stage)),
+                    Cell::colored(&attempt.name, trace_stage_color(&attempt.stage)),
                     Cell::new(subject),
                     Cell::colored(&attempt.outcome, outcome_color(&attempt.outcome)),
                     Cell::new(render_attempt_work(attempt)),
@@ -349,7 +349,7 @@ impl TraceReport {
                     .iter()
                     .find(|stage| stage.name == *name)
                     .map_or(0, |stage| stage.micros);
-                cells.push(Cell::colored(millis(micros), stage_color(name)));
+                cells.push(Cell::colored(millis(micros), trace_stage_color(name)));
             }
             table = table.row(cells);
         }
@@ -405,8 +405,8 @@ impl TraceReport {
             for attempt in attempts.into_iter().take(self.slow_attempt_limit) {
                 table = table.row(vec![
                     Cell::new(&row.name),
-                    Cell::colored(&attempt.stage, stage_color(&attempt.stage)),
-                    Cell::colored(&attempt.name, trace_artifact_color(&attempt.name)),
+                    Cell::colored(&attempt.stage, trace_stage_color(&attempt.stage)),
+                    Cell::colored(&attempt.name, trace_stage_color(&attempt.stage)),
                     Cell::new(attempt.label.as_deref().unwrap_or_default()),
                     Cell::colored(&attempt.outcome, outcome_color(&attempt.outcome)),
                     Cell::colored(millis(attempt.work_micros), "38;5;250"),
@@ -672,7 +672,7 @@ fn stage_header(first: &str, names: &[String]) -> Vec<Cell> {
     header.extend(
         names
             .iter()
-            .map(|name| Cell::colored(format!("{name} ms"), stage_color(name))),
+            .map(|name| Cell::colored(format!("{name} ms"), trace_stage_color(name))),
     );
 
     header
@@ -702,27 +702,6 @@ fn paint(text: &str, code: &str, is_enabled: bool) -> String {
     }
 
     format!("\x1b[{code}m{text}\x1b[0m")
-}
-
-/// Return the ANSI color of one toolchain stage.
-fn stage_color(stage: &str) -> &'static str {
-    if stage.starts_with("emit") {
-        return "38;5;114";
-    }
-
-    match stage {
-        "parse" => "38;5;75",
-        "bind" => "38;5;80",
-        "macro" => "38;5;115",
-        "resolve" => "38;5;79",
-        "graph" | "query" => "38;5;147",
-        "check" => "38;5;170",
-        "lower" => "38;5;208",
-        "link" => "38;5;84",
-        "lint" => "38;5;228",
-        "init" => "38;5;245",
-        _ => "38;5;250",
-    }
 }
 
 /// Return the ANSI color of one named span.
