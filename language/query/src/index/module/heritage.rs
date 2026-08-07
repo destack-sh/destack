@@ -88,7 +88,8 @@ impl<'context, 'index> HeritageIndexer<'context, 'index> {
         self.push_heritage(
             derived_symbol,
             declaration_symbol,
-            heritage,
+            heritage.source,
+            heritage.ty,
             dir::HeritageKind::Extends,
         )
     }
@@ -98,14 +99,15 @@ impl<'context, 'index> HeritageIndexer<'context, 'index> {
         &mut self,
         derived_symbol: dir::GlobalSymbolId,
         declaration_symbol: dir::GlobalSymbolId,
-        implementations: &[dir::NominalHeritage],
+        implementations: &[dir::NominalConformance],
     ) -> ProviderResult<()> {
         // emit each implemented interface edge
         for implementation in implementations {
             self.push_heritage(
                 derived_symbol,
                 declaration_symbol,
-                implementation,
+                implementation.source,
+                implementation.interface,
                 dir::HeritageKind::Implements,
             )?;
         }
@@ -118,30 +120,28 @@ impl<'context, 'index> HeritageIndexer<'context, 'index> {
         &mut self,
         derived_symbol: dir::GlobalSymbolId,
         declaration_symbol: dir::GlobalSymbolId,
-        heritage: &dir::NominalHeritage,
+        source: dir::GlobalNodeIdAny,
+        ty: dir::GlobalTypeId,
         kind: dir::HeritageKind,
     ) -> ProviderResult<()> {
         // require every indexed relation to retain its editor source
         let span = self
             .module
             .view()
-            .get_span_by_id(heritage.source.local_id.id)
+            .get_span_by_id(source.local_id.id)
             .ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "heritage source has no authored span: {:?}",
-                    heritage.source
-                ))
+                ProviderError::internal(format!("heritage source has no authored span: {source:?}"))
             })?;
 
-        let base = self.heritage_base(heritage.ty)?;
+        let base = self.heritage_base(ty)?;
 
         // emit heritage edge row
         self.entries.push(dir::HeritageEntry {
             derived: derived_symbol,
             declaration: declaration_symbol,
             base,
-            source: heritage.source,
-            ty: heritage.ty,
+            source,
+            ty,
             span,
             kind,
         });
