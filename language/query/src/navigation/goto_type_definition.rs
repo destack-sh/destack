@@ -26,11 +26,11 @@ impl ModuleQueryContext<'_> {
     /// Find the type definition of the symbol at one position.
     pub fn goto_type_definition(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Vec<NavigationTarget>> {
-        let occurrence = self.symbol_at_offset(query, file_id, offset)?;
+        let occurrence = self.symbol_at_offset(program, file_id, offset)?;
         let (span, symbols, type_id) = if let Some(occurrence) = occurrence {
             (occurrence.span, occurrence.symbols, occurrence.type_id)
         } else if let Some(occurrence) = self.type_at_offset(file_id, offset)? {
@@ -46,8 +46,8 @@ impl ModuleQueryContext<'_> {
 
         // resolve nominal declarations and checked result types for every exact target
         for symbol in symbols {
-            for canonical in query.canonical_symbols(symbol)? {
-                let module = query.module(canonical.module_id)?;
+            for canonical in program.canonical_symbols(symbol)? {
+                let module = program.module(canonical.module_id)?;
                 let declaration = module.bindings()?.get_symbol(canonical.local_id);
                 if declaration.kind.is_type_definition() {
                     definitions.push(canonical);
@@ -62,7 +62,7 @@ impl ModuleQueryContext<'_> {
                         .ok_or(QueryError::missing(format!(
                             "type definition type: {canonical:?}"
                         )))?;
-                let mut type_symbols = module.type_definition_symbols(query, type_id)?;
+                let mut type_symbols = module.type_definition_symbols(program, type_id)?;
                 definitions.append(&mut type_symbols);
             }
         }
@@ -71,7 +71,7 @@ impl ModuleQueryContext<'_> {
         if definitions.is_empty()
             && let Some(type_id) = type_id
         {
-            definitions.extend(self.type_definition_symbols(query, type_id)?);
+            definitions.extend(self.type_definition_symbols(program, type_id)?);
         }
         definitions.sort_unstable();
         definitions.dedup();
@@ -79,8 +79,8 @@ impl ModuleQueryContext<'_> {
         // build every exact nominal target reached through the checked type
         let mut targets = Vec::new();
         for definition in definitions {
-            for definition in query.canonical_symbols(definition)? {
-                let module = query.module(definition.module_id)?;
+            for definition in program.canonical_symbols(definition)? {
+                let module = program.module(definition.module_id)?;
                 let symbol = module.bindings()?.get_symbol(definition.local_id);
                 if !symbol.kind.is_type_definition() {
                     return Err(QueryError::invalid(format!(
@@ -88,7 +88,7 @@ impl ModuleQueryContext<'_> {
                     )));
                 }
 
-                targets.push(module.navigation_target(query, definition, origin)?);
+                targets.push(module.navigation_target(program, definition, origin)?);
             }
         }
 
@@ -100,10 +100,10 @@ impl ModuleQueryContext<'_> {
     /// Return nominal declarations beneath checked type forms.
     fn type_definition_symbols(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         type_id: dir::GlobalTypeId,
     ) -> QueryResult<Vec<dir::GlobalSymbolId>> {
-        let (mut symbols, nested) = query.read_type(type_id, |type_value, module| {
+        let (mut symbols, nested) = program.read_type(type_id, |type_value, module| {
             let selected = match type_value {
                 dir::Type::Reference(reference) => (vec![reference.symbol], Vec::new()),
                 dir::Type::Application(application) => (vec![application.symbol], Vec::new()),
@@ -111,7 +111,7 @@ impl ModuleQueryContext<'_> {
                     let Some(item) = primitive.representation_item() else {
                         return Ok((Vec::new(), Vec::new()));
                     };
-                    let symbol = query.environment_bound()?.language.symbol(item).ok_or(
+                    let symbol = program.environment_bound()?.language.symbol(item).ok_or(
                         QueryError::missing(format!("primitive language item: {item:?}")),
                     )?;
 
@@ -134,7 +134,7 @@ impl ModuleQueryContext<'_> {
 
         // descend through transparent checked type forms
         for nested_type_id in nested {
-            symbols.extend(self.type_definition_symbols(query, nested_type_id)?);
+            symbols.extend(self.type_definition_symbols(program, nested_type_id)?);
         }
 
         Ok(symbols)

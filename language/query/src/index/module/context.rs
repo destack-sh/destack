@@ -32,7 +32,7 @@ pub(in crate::index) struct ModuleIndexContext<'a> {
 }
 
 impl<'a> ModuleIndexContext<'a> {
-    /// Build semantic index read state from exact DIR artifacts.
+    /// Build module index read state from exact DIR artifacts.
     pub(in crate::index) fn new(
         strings: &'a StringPool,
         module_id: ModuleId,

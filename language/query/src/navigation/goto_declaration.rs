@@ -25,11 +25,11 @@ impl ModuleQueryContext<'_> {
     /// Find the declaration of the symbol at one position.
     pub fn goto_declaration(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Vec<NavigationTarget>> {
-        let Some(occurrence) = self.declaration_at_offset(query, file_id, offset)? else {
+        let Some(occurrence) = self.declaration_at_offset(program, file_id, offset)? else {
             return Ok(Vec::new());
         };
         let origin = QueryRange {
@@ -40,8 +40,8 @@ impl ModuleQueryContext<'_> {
         // collect each exact declaration target
         let mut targets = Vec::new();
         for symbol_id in occurrence.symbols {
-            let module = query.module(symbol_id.module_id)?;
-            let target = module.navigation_target(query, symbol_id, origin)?;
+            let module = program.module(symbol_id.module_id)?;
+            let target = module.navigation_target(program, symbol_id, origin)?;
 
             targets.push(target);
         }

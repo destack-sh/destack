@@ -300,6 +300,14 @@ impl<'a> ProgramQueryContext<'a> {
         }
     }
 
+    /// Return one module reference index.
+    pub(crate) fn reference_index(&self, module_id: ModuleId) -> QueryResult<&dir::ReferenceIndex> {
+        match self.module_index(module_id, IndexKind::References)? {
+            ModuleIndex::References(index) => Ok(index),
+            index => Err(Self::unexpected_module_index(IndexKind::References, index)),
+        }
+    }
+
     /// Return one module export index selected by a program ordinal.
     pub(crate) fn export_index_at(
         &self,

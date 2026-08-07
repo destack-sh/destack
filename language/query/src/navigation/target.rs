@@ -19,19 +19,19 @@ impl ModuleQueryContext<'_> {
     /// Build one source target from an exact declaration symbol.
     pub(crate) fn symbol_target(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Target> {
         let span = self
-            .symbol_local_declaration_span(query, symbol_id)?
+            .symbol_local_declaration_span(program, symbol_id)?
             .ok_or(QueryError::missing(format!(
                 "declaration target: {symbol_id:?}"
             )))?;
-        let selection_span =
-            self.symbol_local_definition_span(query, symbol_id)?
-                .ok_or(QueryError::missing(format!(
-                    "declaration selection: {symbol_id:?}"
-                )))?;
+        let selection_span = self
+            .symbol_local_definition_span(program, symbol_id)?
+            .ok_or(QueryError::missing(format!(
+                "declaration selection: {symbol_id:?}"
+            )))?;
 
         Target::new(self.module(), span).with_selection_span(selection_span)
     }
@@ -39,11 +39,11 @@ impl ModuleQueryContext<'_> {
     /// Build one navigation target from an exact declaration symbol.
     pub(crate) fn navigation_target(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
         origin: QueryRange,
     ) -> QueryResult<NavigationTarget> {
-        let target = self.symbol_target(query, symbol_id)?;
+        let target = self.symbol_target(program, symbol_id)?;
 
         Ok(NavigationTarget {
             origin,

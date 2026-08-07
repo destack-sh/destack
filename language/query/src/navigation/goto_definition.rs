@@ -25,11 +25,11 @@ impl ModuleQueryContext<'_> {
     /// Find the definition of the symbol at one position.
     pub fn goto_definition(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Vec<NavigationTarget>> {
-        let Some(occurrence) = self.symbol_at_offset(query, file_id, offset)? else {
+        let Some(occurrence) = self.symbol_at_offset(program, file_id, offset)? else {
             return Ok(Vec::new());
         };
         let origin = QueryRange {
@@ -40,10 +40,10 @@ impl ModuleQueryContext<'_> {
         // collect each exact definition target
         let mut targets = Vec::new();
         for symbol_id in occurrence.symbols {
-            for symbol_id in query.canonical_symbols(symbol_id)? {
-                let module = query.module(symbol_id.module_id)?;
+            for symbol_id in program.canonical_symbols(symbol_id)? {
+                let module = program.module(symbol_id.module_id)?;
 
-                targets.push(module.navigation_target(query, symbol_id, origin)?);
+                targets.push(module.navigation_target(program, symbol_id, origin)?);
             }
         }
 

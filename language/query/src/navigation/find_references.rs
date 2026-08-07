@@ -43,7 +43,7 @@ impl ModuleQueryContext<'_> {
         offset: u32,
         include_declaration: bool,
     ) -> QueryResult<Vec<ReferenceOccurrence>> {
-        // read the exact local alias or final semantic identities at the cursor
+        // read the exact local alias or final checked identities at the cursor
         let Some(occurrence) = self.reference_at_offset(program, file_id, offset)? else {
             return Ok(Vec::new());
         };

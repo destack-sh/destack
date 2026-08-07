@@ -110,7 +110,7 @@ impl<'a> SymbolIndexer<'a> {
             ))
         })?;
 
-        // transcribe the declaration row
+        // record the declaration row
         let name = self.strings.get(name_id).to_string();
         let container = self.symbol_container_name(symbol_id);
         let global_symbol = symbol_id.into_global(self.module_id);

@@ -38,12 +38,12 @@ impl ModuleQueryContext<'_> {
     /// Return the recorded symbol occurrence at an authored span.
     pub(crate) fn symbol_at_offset(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<SymbolOccurrence>> {
         self.occurrence_at_offset(file_id, offset, |view, node_id, span, offset| {
-            self.symbol_occurrence(query, view, node_id, span, offset)
+            self.symbol_occurrence(program, view, node_id, span, offset)
         })
     }
 
@@ -66,32 +66,36 @@ impl ModuleQueryContext<'_> {
     /// Return the recorded declaration occurrence at an authored span.
     pub(crate) fn declaration_at_offset(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<SymbolOccurrence>> {
         self.occurrence_at_offset(file_id, offset, |view, node_id, span, offset| {
-            self.declaration_occurrence(query, view, node_id, span, offset)
+            self.declaration_occurrence(program, view, node_id, span, offset)
         })
     }
 
     /// Return the identity used by a reference search at an authored span.
     pub(crate) fn reference_at_offset(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<SymbolOccurrence>> {
         self.occurrence_at_offset(file_id, offset, |view, node_id, span, offset| {
             // explicit import aliases retain their local declaration identity
-            let declaration = self.declaration_occurrence(query, view, node_id, span, offset)?;
+            let declaration = self.declaration_occurrence(program, view, node_id, span, offset)?;
             let is_local_alias = match declaration.as_ref().and_then(SymbolOccurrence::symbol) {
                 Some(symbol) => self.is_local_import_alias(symbol)?,
                 None => false,
             };
             let is_definition_member = match declaration.as_ref().and_then(SymbolOccurrence::symbol)
             {
-                Some(symbol) => self.definition_member(query, symbol)?.is_some(),
+                Some(symbol) => {
+                    let module = program.module(symbol.module_id)?;
+
+                    module.definition_member(program, symbol)?.is_some()
+                }
                 None => false,
             };
             if is_local_alias || is_definition_member {
@@ -99,7 +103,7 @@ impl ModuleQueryContext<'_> {
             }
 
             // all other occurrences use their final checked targets
-            self.symbol_occurrence(query, view, node_id, span, offset)
+            self.symbol_occurrence(program, view, node_id, span, offset)
         })
     }
 
@@ -197,14 +201,14 @@ impl ModuleQueryContext<'_> {
     /// Return the occurrence introduced by one authored binding.
     fn binding_occurrence(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         node_id: dir::LocalNodeIdAny,
         span: Span,
     ) -> QueryResult<Option<SymbolOccurrence>> {
         let source = node_id.into_global(self.module_id());
         let symbols = match self.node_symbol(node_id)? {
             Some(symbol) => vec![symbol.into_global(self.module_id())],
-            None => query
+            None => program
                 .member_index(self.module_id())?
                 .source_entries(source)
                 .filter_map(|member| member.symbol)
@@ -221,7 +225,7 @@ impl ModuleQueryContext<'_> {
             let is_symbol_named = if symbol.name().is_some() {
                 true
             } else {
-                self.definition_member(query, *symbol_id)?
+                self.definition_member(program, *symbol_id)?
                     .is_some_and(|(_, _, member)| member.is_named())
             };
             if is_symbol_named {
@@ -244,7 +248,7 @@ impl ModuleQueryContext<'_> {
     /// Return declaration symbols for one DIR node at its authored span.
     fn declaration_occurrence(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         view: dir::View<'_>,
         node_id: dir::LocalNodeIdAny,
         span: Span,
@@ -260,13 +264,13 @@ impl ModuleQueryContext<'_> {
         let source = node_id.into_global(self.module_id());
 
         // definition members retain their declaration identity at their exact source
-        if query
+        if program
             .member_index(self.module_id())?
             .source_entries(source)
             .next()
             .is_some()
         {
-            return self.binding_occurrence(query, node_id, span);
+            return self.binding_occurrence(program, node_id, span);
         }
 
         // select only recorded identities for qualified type path segments
@@ -313,7 +317,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // declaration nodes read their recorded binding
-        self.binding_occurrence(query, node_id, span)
+        self.binding_occurrence(program, node_id, span)
     }
 
     /// Return the first authored name span for one reference node.
@@ -353,7 +357,7 @@ impl ModuleQueryContext<'_> {
     /// Return the recorded symbols for one DIR node at its authored span.
     fn symbol_occurrence(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         view: dir::View<'_>,
         node_id: dir::LocalNodeIdAny,
         span: Span,
@@ -369,13 +373,13 @@ impl ModuleQueryContext<'_> {
         let global_node_id = node_id.into_global(self.module_id());
 
         // definition members retain their declaration identity at their exact source
-        if query
+        if program
             .member_index(self.module_id())?
             .source_entries(global_node_id)
             .next()
             .is_some()
         {
-            return self.binding_occurrence(query, node_id, span);
+            return self.binding_occurrence(program, node_id, span);
         }
 
         // select only recorded identities for qualified type path segments
@@ -437,7 +441,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // declarations read only their recorded binding
-        self.binding_occurrence(query, node_id, span)
+        self.binding_occurrence(program, node_id, span)
     }
 
     /// Return the checked member selected by one authored string subscript key.

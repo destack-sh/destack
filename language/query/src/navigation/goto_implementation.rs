@@ -31,6 +31,7 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Vec<NavigationTarget>> {
+        // FUGU #Incomplete: index MemberConformance for implementations and overrides
         let Some(symbol) = self.symbol_at_offset(program, file_id, offset)? else {
             return Ok(Vec::new());
         };

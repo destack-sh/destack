@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, btree_map};
 use destack_dir as dir;
 use destack_serde::Reflect;
 use destack_source::{FileId, FilePatch, Patch, PatchSet, Span};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
 use crate::source::is_simple_identifier;
@@ -45,12 +45,18 @@ impl ModuleQueryContext<'_> {
         let Some(selection) = self.resolve_rename_target(program, file_id, offset)? else {
             return Ok(None);
         };
-        let symbols = &selection.symbols;
 
         // reject no-op names
         if selection.placeholder == new_name {
             return Ok(None);
         }
+
+        // require every shared occurrence to name only this rename group
+        if !selection.is_unambiguous(program)? {
+            return Ok(None);
+        }
+
+        let symbols = &selection.symbols;
 
         // collect the complete indexed occurrence set
         let occurrences = self.collect_symbol_rename_occurrences(
@@ -79,6 +85,41 @@ pub(crate) struct RenameSelection {
 }
 
 impl RenameSelection {
+    /// Return whether every indexed occurrence selects only this rename group.
+    fn is_unambiguous(&self, program: &ProgramQueryContext<'_>) -> QueryResult<bool> {
+        let mut occurrences_by_module = FxHashMap::default();
+
+        // collect exact indexed occurrences of every selected declaration
+        for symbol in &self.symbols {
+            for reference in program.symbol_program_references(*symbol)? {
+                occurrences_by_module
+                    .entry(reference.module.module_id)
+                    .or_insert_with(FxHashSet::default)
+                    .insert((reference.entry.source, reference.entry.span));
+            }
+        }
+
+        // require the complete indexed target group at every occurrence
+        for (module_id, occurrences) in occurrences_by_module {
+            let references = program.reference_index(module_id)?;
+            for reference in references.target_references() {
+                let occurrence = (reference.source, reference.span);
+                if !occurrences.contains(&occurrence) {
+                    continue;
+                }
+
+                // compare final declarations after following imports
+                for target in program.canonical_symbols(reference.symbol)? {
+                    if self.symbols.binary_search(&target).is_err() {
+                        return Ok(false);
+                    }
+                }
+            }
+        }
+
+        Ok(true)
+    }
+
     /// Build exact file edits from indexed occurrences.
     fn edits(
         &self,
@@ -96,8 +137,8 @@ impl RenameSelection {
             let authored_name = module.source_text(occurrence.span)?;
             if authored_name != self.placeholder {
                 return Err(QueryError::conflict(format!(
-                    "rename occurrence text: {:?}",
-                    occurrence.span
+                    "rename occurrence text: {:?}, expected={:?}, found={authored_name:?}",
+                    occurrence.span, self.placeholder
                 )));
             }
 
@@ -294,11 +335,12 @@ impl ModuleQueryContext<'_> {
     /// Resolve the symbol targeted by rename at a file offset.
     pub(crate) fn resolve_rename_target(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<RenameSelection>> {
-        let Some(occurrence) = self.reference_at_offset(query, file_id, offset)? else {
+        // FUGU #Incomplete: expand method groups through MemberConformance
+        let Some(occurrence) = self.reference_at_offset(program, file_id, offset)? else {
             return Ok(None);
         };
 
@@ -318,20 +360,39 @@ impl ModuleQueryContext<'_> {
         // resolve every canonical declaration in the selected overload set
         let mut symbols = Vec::new();
         for symbol in &occurrence.symbols {
-            symbols.extend(query.canonical_symbols(*symbol)?);
+            symbols.extend(program.canonical_symbols(*symbol)?);
         }
         symbols.sort();
         symbols.dedup();
         let Some(first) = symbols.first().copied() else {
             return Ok(None);
         };
-        let Some(placeholder) = query.symbol_name(first)? else {
+
+        // structural shape keys have no declaration identity at their accesses
+        let module = program.module(first.module_id)?;
+        let symbol = module.bindings()?.get_symbol(first.local_id);
+        let is_structural_member = symbol
+            .declaration
+            .is_some_and(|source| source.local_id.ty == dir::NodeType::TypeMember)
+            && module.definition_member(program, first)?.is_none();
+        if is_structural_member {
+            return Ok(None);
+        }
+
+        let Some(placeholder) = program.symbol_name(first)? else {
             return Ok(None);
         };
 
+        // expand named functions to their complete lexical overload family
+        let overloads = program.function_overloads(first)?;
+        if symbols.len() > 1 && symbols != overloads {
+            return Ok(None);
+        }
+        let symbols = overloads;
+
         // require one stable authored name across the rename group
         for symbol in &symbols[1..] {
-            let Some(name) = query.symbol_name(*symbol)? else {
+            let Some(name) = program.symbol_name(*symbol)? else {
                 return Ok(None);
             };
             if name != placeholder {
@@ -415,5 +476,43 @@ impl ModuleQueryContext<'_> {
         occurrences.dedup();
 
         Ok(occurrences)
+    }
+}
+
+impl ProgramQueryContext<'_> {
+    /// Return every function declaration sharing one lexical binding.
+    fn function_overloads(
+        &self,
+        symbol_id: dir::GlobalSymbolId,
+    ) -> QueryResult<Vec<dir::GlobalSymbolId>> {
+        let module = self.module(symbol_id.module_id)?;
+        let bindings = module.bindings()?;
+        let symbol = bindings.get_symbol(symbol_id.local_id);
+        if symbol.kind != dir::SymbolKind::Function {
+            return Ok(vec![symbol_id]);
+        }
+        let Some(key) = symbol.key else {
+            return Err(QueryError::missing(format!(
+                "function overload key: {symbol_id:?}"
+            )));
+        };
+
+        // retain every function bound by the same key in the same scope
+        let mut overloads = Vec::new();
+        bindings
+            .get_scope(symbol.scope)
+            .for_symbols_by_key(key, |overload| {
+                if bindings.get_symbol(overload).kind == dir::SymbolKind::Function {
+                    overloads.push(overload.into_global(symbol_id.module_id));
+                }
+            });
+        overloads.sort();
+        if overloads.is_empty() {
+            return Err(QueryError::missing(format!(
+                "function overloads: {symbol_id:?}"
+            )));
+        }
+
+        Ok(overloads)
     }
 }

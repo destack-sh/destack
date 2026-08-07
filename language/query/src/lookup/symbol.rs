@@ -29,7 +29,7 @@ impl ModuleQueryContext<'_> {
     /// Return the exact definition member carried by one indexed symbol.
     pub(crate) fn definition_member<'a>(
         &'a self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         symbol: dir::GlobalSymbolId,
     ) -> QueryResult<
         Option<(
@@ -46,7 +46,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // select the declaring definition through the persisted member index
-        let Some(entry) = query.member_index(self.module_id())?.symbol_entry(symbol) else {
+        let Some(entry) = program.member_index(self.module_id())?.symbol_entry(symbol) else {
             return Ok(None);
         };
         let declaring = entry.declaring;
@@ -215,7 +215,7 @@ impl ModuleQueryContext<'_> {
     /// Return the local definition span of a symbol without canonical expansion.
     pub(crate) fn symbol_local_definition_span(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<Span>> {
         if symbol_id.module_id != self.module_id() {
@@ -243,7 +243,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // read member selections from their exact definition source
-        if let Some((_, _, member)) = self.definition_member(query, symbol_id)? {
+        if let Some((_, _, member)) = self.definition_member(program, symbol_id)? {
             let source = member.source();
             let span = self
                 .node_selection_span(self.view()?, source.local_id)?
@@ -260,7 +260,7 @@ impl ModuleQueryContext<'_> {
     /// Return the local declaration span of a symbol without canonical expansion.
     pub(crate) fn symbol_local_declaration_span(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<Span>> {
         if symbol_id.module_id != self.module_id() {
@@ -276,7 +276,7 @@ impl ModuleQueryContext<'_> {
         let source = match symbol.declaration {
             Some(declaration) => declaration.local_id,
             None => {
-                let Some((_, _, member)) = self.definition_member(query, symbol_id)? else {
+                let Some((_, _, member)) = self.definition_member(program, symbol_id)? else {
                     return Ok(None);
                 };
 

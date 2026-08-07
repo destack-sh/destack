@@ -98,6 +98,7 @@ impl Indexer {
         })?;
         module_ids.sort_unstable();
         module_ids.dedup();
+
         // require every module's index of this family
         let mut dependencies = ArtifactDependencySet::default();
         for module in &module_ids {
@@ -178,7 +179,12 @@ impl Indexer {
                     IndexKind::Decorators => {
                         ModuleIndex::Decorators(DecoratorIndexer::build(&module))
                     }
-                    IndexKind::Symbols | IndexKind::Exports => unreachable!(),
+                    IndexKind::Symbols | IndexKind::Exports => {
+                        return Err(ProviderError::internal(format!(
+                            "checked module index kind: {kind:?}"
+                        ))
+                        .into());
+                    }
                 }
             }
         };
@@ -186,7 +192,7 @@ impl Indexer {
         Ok(ArtifactPayload::ModuleIndex(Arc::new(payload)))
     }
 
-    /// Read semantic DIR state for one module index row.
+    /// Read checked DIR for one module index row.
     fn module_index_context<'a>(
         &'a self,
         artifacts: &ArtifactReader<'_>,

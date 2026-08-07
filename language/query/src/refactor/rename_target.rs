@@ -34,11 +34,11 @@ impl ModuleQueryContext<'_> {
     /// Return the rename target at the given position.
     pub fn rename_target(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<RenameTarget>> {
-        let Some(selection) = self.resolve_rename_target(query, file_id, offset)? else {
+        let Some(selection) = self.resolve_rename_target(program, file_id, offset)? else {
             return Ok(None);
         };
         let target = Target::new(self.module(), selection.occurrence.span);

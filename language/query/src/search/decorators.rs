@@ -66,7 +66,7 @@ impl ProgramQueryContext<'_> {
     ) -> QueryResult<Vec<DecoratorItem>> {
         let mut decorators = Vec::new();
 
-        // transcribe exact indexed decorator occurrences in the requested scope
+        // collect indexed decorator occurrences in the requested scope
         for (profile_id, entry) in self.search_decorator_candidates(name)? {
             let query_module = Module {
                 module_id: entry.decorator.module_id,

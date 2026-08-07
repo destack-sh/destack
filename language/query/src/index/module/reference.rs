@@ -34,7 +34,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
             selected_sources: FxHashSet::default(),
         };
 
-        // select the final targets before transcribing ordinary resolutions
+        // select final targets before indexing ordinary resolutions
         indexer.collect_selected_targets()?;
         indexer.collect_resolutions()?;
         indexer.collect_declaration_references()?;
@@ -48,6 +48,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
 
     /// Collect targets selected after name and member lookup.
     fn collect_selected_targets(&mut self) -> ProviderResult<()> {
+        // FUGU #Incomplete: object fields need exact checked member selections
         // record explicit generic selections
         for (source, resolution) in self.module.resolutions().instantiation_entries() {
             let sources = self.instantiation_sources(source)?;
@@ -120,7 +121,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
                 continue;
             }
 
-            // final call, construction, and instantiation selections replace inner resolutions
+            // final call, construction, and instantiation selections replace nested resolutions
             if self.selected_sources.contains(&source) {
                 continue;
             }
@@ -207,9 +208,10 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
 
     /// Collect explicit imported-name occurrences from dependency references.
     fn collect_dependencies(&mut self) -> ProviderResult<()> {
+        // FUGU #Incomplete: DIR must retain namespace and public re-export alias identities
         let imported_name = NodeSpanType::Region(NodeSpanRegion::Type);
 
-        // transcribe each concrete dependency target with an authored remote name
+        // record each concrete dependency target with an authored remote name
         for (source, reference) in &self.module.resolved().references.target_by_node {
             if source.local_id.ty != dir::NodeType::DependencyItem {
                 continue;
@@ -331,10 +333,8 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
             return Ok(());
         }
 
-        // skip references without an authored main span
-        let Some(span) = self.reference_span(source, source_id, target)? else {
-            return Ok(());
-        };
+        // require one authored span for every recorded source reference
+        let span = self.reference_span(source, source_id, target)?;
 
         self.push_at(target, source, span);
 
@@ -387,10 +387,19 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
         source: dir::GlobalNodeIdAny,
         source_id: u32,
         target: dir::GlobalSymbolId,
-    ) -> ProviderResult<Option<Span>> {
+    ) -> ProviderResult<Span> {
         // final selections replace projected prefix bindings
         if self.selected_sources.contains(&source) {
-            return Ok(self.module.source_index().get_main(source_id));
+            return self
+                .module
+                .source_index()
+                .get_main(source_id)
+                .ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "selected reference {source:?} has no authored main span"
+                    ))
+                    .into()
+                });
         }
 
         // projected type paths bind the final namespace prefix, not the final source segment
@@ -425,10 +434,18 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
                 ))
             })?;
 
-            return Ok(Some(span));
+            return Ok(span);
         }
 
-        Ok(self.module.source_index().get_main(source_id))
+        self.module
+            .source_index()
+            .get_main(source_id)
+            .ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "reference {source:?} to {target:?} has no authored main span"
+                ))
+                .into()
+            })
     }
 
     /// Return the lexical root span of one qualified type path.

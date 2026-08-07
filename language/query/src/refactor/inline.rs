@@ -126,13 +126,10 @@ impl ModuleQueryContext<'_> {
         }
 
         // preserve evaluation count and order
-        if references.len() > 1 {
-            // TODO #Incomplete: inline multi-use bindings once effect summaries prove purity
-            return Err(QueryError::missing(format!(
-                "inline expression duplication: {:?}",
-                target.value.into_global_any(self.module_id())
-            )));
-        } else if !target.single_use_preserves_evaluation(references[0].expression, source, self)? {
+        let [reference] = references.as_slice() else {
+            return Ok(None);
+        };
+        if !target.single_use_preserves_evaluation(reference.expression, source, self)? {
             return Ok(None);
         }
 
