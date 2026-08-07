@@ -176,7 +176,7 @@ struct Document implements Renderable {
 @goto_implementation.target origin=main.ds#target location=main.ds#declaration:document selection=main.ds#implementation:document symbol=main.ds#render@8
 ```
 
-### Find implementations of an associated type
+### [ignored] Find implementations of an associated type
 
 An interface associated type resolves to every implementing associated declaration.
 

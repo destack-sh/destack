@@ -95,11 +95,11 @@ type Integer = bigint;
 ```
 
 ```query goto_type_definition main.ds#reference:string
-@goto_type_definition.target origin=main.ds#reference:string location=destack://string/string:28:1-31:2 selection=destack://string/string:28:14-28:20 symbol=destack://string/string#String@24
+@goto_type_definition.target origin=main.ds#reference:string location=destack://string/string:28:1-31:2 selection=destack://string/string:28:14-28:20 symbol=destack://string/string#String@25
 ```
 
 ```query goto_type_definition main.ds#reference:bigint
-@goto_type_definition.target origin=main.ds#reference:bigint location=destack://math/bigint:27:1-39:2 selection=destack://math/bigint:27:14-27:20 symbol=destack://math/bigint#BigInt@23
+@goto_type_definition.target origin=main.ds#reference:bigint location=destack://math/bigint:27:1-36:2 selection=destack://math/bigint:27:14-27:20 symbol=destack://math/bigint#BigInt@23
 ```
 
 ### Resolve a direct type reference

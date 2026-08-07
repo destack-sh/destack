@@ -308,13 +308,13 @@ const second = Color.Red;
 @find_references.reference location=main.ds#second_reference symbol=main.ds#Red@2
 ```
 
-### [ignored] Find tagged variant occurrences
+### Find tagged variant occurrences
 
 Tagged construction and patterns belong to their variant declaration.
 
 ```ds main.ds
 @derive(Tagged)
-newtype Status = Ok<string> | Error<int32>;
+newtype Status = Ok<string> | Err<int32>;
                  ^^ declaration
 
 const status = Status.Ok({ value: "ready" });
@@ -323,14 +323,14 @@ const status = Status.Ok({ value: "ready" });
 const message = match (status) {
     Status.Ok(value) => value
            ^^ pattern_reference
-    Status.Error(code) => ""
+    Status.Err(code) => ""
 };
 ```
 
 ```query find_references main.ds#construction_reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#Ok@3
-@find_references.reference location=main.ds#construction_reference symbol=main.ds#Ok@3
-@find_references.reference location=main.ds#pattern_reference symbol=main.ds#Ok@3
+@find_references.reference location=main.ds#declaration symbol=main.ds#Ok@6
+@find_references.reference location=main.ds#construction_reference symbol=main.ds#Ok@6
+@find_references.reference location=main.ds#pattern_reference symbol=main.ds#Ok@6
 ```
 
 ## Nominal Types
@@ -529,7 +529,7 @@ function choose(value: boolean): int32 {
 A tag function includes ordinary and tagged-template calls.
 
 ```ds main.ds
-function sql(parts: string[], ...values: int32): string {
+function sql(parts: string[], ...values: int32[]): string {
          ^^^ declaration
     return "";
 }

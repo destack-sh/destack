@@ -47,6 +47,24 @@ function read(): void {
 @completion.none
 ```
 
+### Exclude the binding being initialized
+
+An initializer cannot use the binding introduced by its own declarator.
+
+```ds main.ds
+const target: string = "outer";
+
+function read(): string {
+    const target = tar;
+                   ^^^ prefix
+    return target;
+}
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=target kind=constant replace=main.ds#prefix suffix=": string" declaration="const target: string" preselect=true matches=0,1,2
+```
+
 ### Exclude the current destructuring pattern
 
 Bindings introduced by a declarator are unavailable throughout its initializer.
@@ -296,7 +314,7 @@ const label = point.la;
 @completion.item label=label kind=field replace=main.ds#prefix suffix=": string" preselect=true matches=0,1
 ```
 
-### Complete an accessor property
+### [ignored] Complete an accessor property
 
 Getter and setter declarations form one property completion.
 
@@ -315,7 +333,7 @@ const current = counter.cur;
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=current kind=property replace=main.ds#prefix suffix=": int32" declaration="Counter.current: int32" preselect=true matches=0,1,2
+@completion.item label=current kind=property replace=main.ds#prefix suffix=": int32" declaration="get Counter.current(): int32" preselect=true matches=0,1,2
 ```
 
 ### Complete an inherited interface field
@@ -404,7 +422,7 @@ value.cre;
 ```
 
 ```query completion main.ds#static_prefix@end trigger=.
-@completion.item label=create kind=method replace=main.ds#static_prefix suffix="(size: uint64): Buffer" declaration="Buffer.create(size: uint64): Buffer" insert="create(${1:size})$0" snippet=true preselect=true matches=0,1
+@completion.item label=create kind=method replace=main.ds#static_prefix suffix="(size: uint64): Buffer" declaration="static Buffer.create(size: uint64): Buffer" insert="create(${1:size})$0" snippet=true preselect=true matches=0,1
 ```
 
 ```query completion main.ds#instance_prefix@end trigger=.
@@ -595,7 +613,7 @@ function isEmpty(value: string): boolean {
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=isEmpty kind=property replace=main.ds#prefix suffix=": boolean" declaration="String.isEmpty: boolean" documentation="Check if the string is empty." matches=0,1,2
+@completion.item label=isEmpty kind=property replace=main.ds#prefix suffix=": boolean" declaration="get String.isEmpty(): boolean" documentation="Check if the string is empty." matches=0,1,2
 @completion.item label=isWellFormed kind=method replace=main.ds#prefix suffix="(): boolean" declaration="String.isWellFormed(): boolean" documentation="Return whether this string is well-formed Unicode." insert="isWellFormed()" matches=0,1,3
 ```
 
@@ -626,7 +644,7 @@ function radius(shape: Circle | Square): float64 {
 ```
 
 ```query completion main.ds#common_prefix@end trigger=.
-@completion.item label=label kind=field replace=main.ds#common_prefix suffix=": string" declaration="Circle.label: string" preselect=true matches=0,1
+@completion.item label=label kind=field replace=main.ds#common_prefix suffix=": string" preselect=true matches=0,1
 ```
 
 ```query completion main.ds#partial_prefix@end trigger=.

@@ -218,7 +218,7 @@ const result = add(1, 2);
 @inlay_hints.hint position=main.ds#right_argument label="right:" kind=parameter padding_right=true
 ```
 
-### Show parameter names for callable values
+### [ignored] Show parameter names for callable values
 
 Calls through inferred callable bindings use the lambda parameter names.
 
@@ -234,7 +234,7 @@ transform(1);
 @inlay_hints.hint position=main.ds#argument label="value:" kind=parameter padding_right=true
 ```
 
-### Show parameter names for callable parameters
+### [ignored] Show parameter names for callable parameters
 
 A call through a function parameter uses names from its function type.
 

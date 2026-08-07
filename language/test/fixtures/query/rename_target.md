@@ -281,9 +281,9 @@ const point = { horizontal };
 
 ## Overloads
 
-### Resolve the matching overload at a call
+### Resolve an overload family at a call
 
-Rename preparation identifies the overload that accepts the call.
+Rename preparation identifies every declaration that shares the called function name.
 
 ```ds main.ds
 function parse(value: int32): int32 {
@@ -299,7 +299,7 @@ const value = parse(1);
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=parse location=main.ds#reference symbol=main.ds#parse@1
+@rename_target.target placeholder=parse location=main.ds#reference symbols=main.ds#parse@1,main.ds#parse@3
 ```
 
 ## Construction
@@ -347,7 +347,7 @@ function choose(): int32 {
 A tagged-template tag is the same rename target as an ordinary call.
 
 ```ds main.ds
-function sql(parts: string[], ...values: int32): string {
+function sql(parts: string[], ...values: int32[]): string {
     return "";
 }
 
@@ -609,7 +609,7 @@ class User {
 @rename_target.none
 ```
 
-### [ignored] Reject a union member shared by unrelated declarations
+### Reject a union member shared by unrelated declarations
 
 A shared occurrence with multiple member identities has no unambiguous rename target.
 

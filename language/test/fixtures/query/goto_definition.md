@@ -815,7 +815,7 @@ function choose(): int32 {
 A tagged template resolves its tag like an ordinary call.
 
 ```ds main.ds
-function sql(parts: string[], ...values: int32): string {
+function sql(parts: string[], ...values: int32[]): string {
 ^ declaration:sql:start
          ^^^ definition:sql
     return "";

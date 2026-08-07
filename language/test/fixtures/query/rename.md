@@ -196,9 +196,9 @@ function read(counter: Counter): int32 {
 }
 ```
 
-### [ignored] Rename a structural field
+### Reject a structural field rename
 
-A structural field declaration and its accesses share one rename identity.
+Structural fields have no declaration identity shared by every compatible shape.
 
 ```ds main.ds
 type Counter = {
@@ -212,16 +212,7 @@ function read(counter: Counter): int32 {
 ```
 
 ```query rename main.ds#target new_name=value
-```
-
-```ds main.ds after
-type Counter = {
-    value: int32,
-};
-
-function read(counter: Counter): int32 {
-    return counter.value;
-}
+@rename.none
 ```
 
 ## Imported Functions
@@ -630,20 +621,20 @@ enum Color {
 const color = Color.Crimson;
 ```
 
-### [ignored] Rename a tagged variant
+### Rename a tagged variant
 
 Renaming a tagged variant updates its declaration, construction, and pattern occurrences.
 
 ```ds main.ds
 @derive(Tagged)
-newtype Status = Ok<string> | Error<int32>;
+newtype Status = Ok<string> | Err<int32>;
                  ^^ target
 
 const status = Status.Ok({ value: "ready" });
 
 const message = match (status) {
     Status.Ok(value) => value
-    Status.Error(code) => ""
+    Status.Err(code) => ""
 };
 ```
 
@@ -652,19 +643,19 @@ const message = match (status) {
 
 ```ds main.ds after
 @derive(Tagged)
-newtype Status = Ready<string> | Error<int32>;
+newtype Status = Ready<string> | Err<int32>;
 
 const status = Status.Ready({ value: "ready" });
 
 const message = match (status) {
     Status.Ready(value) => value
-    Status.Error(code) => ""
+    Status.Err(code) => ""
 };
 ```
 
 ## Overloads
 
-### [ignored] Rename an overload family
+### Rename an overload family
 
 Renaming one overload updates every declaration and call in its overload family.
 
@@ -993,7 +984,7 @@ function start(): void {}
 Tagged templates and ordinary calls share the function identity.
 
 ```ds main.ds
-function sql(parts: string[], ...values: int32): string {
+function sql(parts: string[], ...values: int32[]): string {
          ^^^ target
     return "";
 }
@@ -1006,7 +997,7 @@ const text = sql([""], 2);
 ```
 
 ```ds main.ds after
-function execute(parts: string[], ...values: int32): string {
+function execute(parts: string[], ...values: int32[]): string {
     return "";
 }
 
@@ -1200,7 +1191,7 @@ const result = value;
 @rename.none
 ```
 
-### [ignored] Reject a rename shared by unrelated union members
+### Reject a rename shared by unrelated union members
 
 Renaming one declaration cannot rewrite an occurrence that also belongs to another declaration.
 
