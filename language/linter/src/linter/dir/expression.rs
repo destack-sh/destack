@@ -4,21 +4,60 @@ use destack_repository::ProviderError;
 use super::DirModule;
 
 impl DirModule<'_> {
-    /// Return authored expression text grouped for use as a postfix operand.
-    pub fn postfix_source(
+    /// Iterate expressions with a checked call resolution.
+    pub fn call_expressions(
+        &self,
+    ) -> impl Iterator<Item = Result<dir::LocalNodeId<dir::Expression>, ProviderError>> + '_ {
+        self.resolutions.call_entries().map(|(node, _)| {
+            if node.module_id != self.id {
+                return Err(ProviderError::internal(format!(
+                    "call resolution {node:?} belongs to another module"
+                )));
+            }
+
+            node.local_id
+                .try_into_typed::<dir::Expression>()
+                .map_err(ProviderError::internal)
+        })
+    }
+
+    /// Iterate expressions with a checked operator resolution.
+    pub fn operator_expressions(
+        &self,
+    ) -> impl Iterator<Item = Result<dir::LocalNodeId<dir::Expression>, ProviderError>> + '_ {
+        self.resolutions
+            .operator_entries()
+            .filter(|(node, _)| node.local_id.ty == dir::NodeType::Expression)
+            .map(|(node, _)| {
+                if node.module_id != self.id {
+                    return Err(ProviderError::internal(format!(
+                        "operator resolution {node:?} belongs to another module"
+                    )));
+                }
+
+                node.local_id
+                    .try_into_typed::<dir::Expression>()
+                    .map_err(ProviderError::internal)
+            })
+    }
+
+    /// Return authored expression text grouped for one operator precedence.
+    pub fn operand_source(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
+        precedence: dir::OperatorPrecedence,
     ) -> Result<String, ProviderError> {
-        let span = self.source_extent(expression.into_any())?;
-        let source = self.source(span)?;
-        let is_parenthesized = self.source_parentheses(expression.into_any()).is_some();
+        let extent = self.source_extent(expression.into_any())?;
+        let parentheses = self.source_parentheses(expression.into_any());
 
-        // retain existing grouping or add the grouping required by postfix precedence
-        let source = if is_parenthesized
-            || self.view().get(expression).precedence() >= dir::OperatorPrecedence::Postfix
-        {
-            source.to_string()
+        // retain existing grouping or add the grouping required by the operator
+        let source = if let Some(parentheses) = parentheses {
+            self.source(parentheses)?.to_string()
+        } else if self.view().get(expression).precedence() >= precedence {
+            self.source(extent)?.to_string()
         } else {
+            let source = self.source(extent)?;
+
             format!("({source})")
         };
 
@@ -30,20 +69,9 @@ impl DirModule<'_> {
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Result<String, ProviderError> {
-        let span = self.source_extent(expression.into_any())?;
-        let source = self.source(span)?;
-        let is_parenthesized = self.source_parentheses(expression.into_any()).is_some();
+        let source = self.operand_source(expression, dir::OperatorPrecedence::Prefix)?;
 
-        // retain existing grouping or add the grouping required by prefix precedence
-        let source = if is_parenthesized
-            || self.view().get(expression).precedence() >= dir::OperatorPrecedence::Prefix
-        {
-            format!("!{source}")
-        } else {
-            format!("!({source})")
-        };
-
-        Ok(source)
+        Ok(format!("!{source}"))
     }
 
     /// Return the unique symbol selected directly by one checked expression.
@@ -94,6 +122,14 @@ impl DirModule<'_> {
         let global = node.into_global_any(self.id);
 
         self.resolutions.access_resolution(global)
+    }
+
+    /// Return whether one checked expression can be evaluated without observable effects.
+    pub fn is_repeatable_expression(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<bool, ProviderError> {
+        self.is_repeated_expression(expression, expression)
     }
 
     /// Return whether two checked expressions repeat one deterministic computation.
@@ -262,6 +298,28 @@ impl DirModule<'_> {
         };
 
         Ok(Some(resolution))
+    }
+
+    /// Return one checked compiler-defined unary operation.
+    pub fn builtin_unary(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<(dir::UnaryOperator, &dir::BuiltinOperand)>, ProviderError> {
+        let resolution = self.operator_resolution(expression.into_any())?;
+        let operation = resolution.and_then(dir::OperatorResolution::builtin_unary);
+
+        Ok(operation)
+    }
+
+    /// Return one checked compiler-defined binary operation.
+    pub fn builtin_binary(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<(dir::BinaryOperator, &[dir::BuiltinOperand; 2])>, ProviderError> {
+        let resolution = self.operator_resolution(expression.into_any())?;
+        let operation = resolution.and_then(dir::OperatorResolution::builtin_binary);
+
+        Ok(operation)
     }
 
     /// Return the call resolution selected for one checked expression.
