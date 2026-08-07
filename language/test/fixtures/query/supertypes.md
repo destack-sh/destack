@@ -169,7 +169,7 @@ extension of UserId implements Display {}
 
 ## Generics
 
-### Include generic declaration details
+### Include generic parameters
 
 Hierarchy items display the generic parameters of their declarations.
 
@@ -182,7 +182,7 @@ struct Box<Value> implements Container<Value> {}
 ```
 
 ```query supertypes main.ds#box
-@supertypes.item name=Container kind=newtype_interface detail="<Value>" location=main.ds:1:1-1:38 selection=main.ds#name symbol=main.ds#Container@1
+@supertypes.item name=Container kind=newtype_interface generics="<Value>" location=main.ds:1:1-1:38 selection=main.ds#name symbol=main.ds#Container@1
 ```
 
 ## Modules

@@ -17,7 +17,7 @@ function source(): void {
 ```
 
 ```query outgoing_calls main.ds#source
-@outgoing_calls.call index=0 name=target kind=function detail="target(): void" location=main.ds:1:1-1:27 selection=main.ds#target symbol=main.ds#target@1
+@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=main.ds:1:1-1:27 selection=main.ds#target symbol=main.ds#target@1
 @outgoing_calls.site call=0 range=main.ds#call
 ```
 
@@ -43,9 +43,9 @@ function source(): void {
 ```
 
 ```query outgoing_calls main.ds#source
-@outgoing_calls.call index=0 name=second kind=function detail="second(): void" location=main.ds:2:1-2:27 selection=main.ds#second symbol=main.ds#second@2
+@outgoing_calls.call index=0 name=second kind=function signature="second(): void" location=main.ds:2:1-2:27 selection=main.ds#second symbol=main.ds#second@2
 @outgoing_calls.site call=0 range=main.ds#second_call
-@outgoing_calls.call index=1 name=first kind=function detail="first(): void" location=main.ds:1:1-1:26 selection=main.ds#first symbol=main.ds#first@1
+@outgoing_calls.call index=1 name=first kind=function signature="first(): void" location=main.ds:1:1-1:26 selection=main.ds#first symbol=main.ds#first@1
 @outgoing_calls.site call=1 range=main.ds#first_call
 ```
 
@@ -70,7 +70,7 @@ function source(): void {
 ```
 
 ```query outgoing_calls main.ds#source
-@outgoing_calls.call index=0 name=target kind=function detail="target(): void" location=main.ds#declaration selection=main.ds#target symbol=main.ds#target@1
+@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=main.ds#declaration selection=main.ds#target symbol=main.ds#target@1
 @outgoing_calls.site call=0 range=main.ds#first_call
 @outgoing_calls.site call=0 range=main.ds#second_call
 ```
@@ -97,7 +97,7 @@ function source(): void {
 ```
 
 ```query outgoing_calls main.ds#source
-@outgoing_calls.call index=0 name=target kind=function detail="target(): void" location=library.ds:1:1-1:34 selection=library.ds#target symbol=library.ds#target@1
+@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=library.ds:1:1-1:34 selection=library.ds#target symbol=library.ds#target@1
 @outgoing_calls.site call=0 range=main.ds#call
 ```
 
@@ -121,7 +121,7 @@ function source(): void {
 ```
 
 ```query outgoing_calls main.ds#source
-@outgoing_calls.call index=0 name=target kind=function detail="target(): void" location=library.ds:1:1-1:34 selection=library.ds#target symbol=library.ds#target@1
+@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=library.ds:1:1-1:34 selection=library.ds#target symbol=library.ds#target@1
 @outgoing_calls.site call=0 range=main.ds#call
 ```
 
@@ -149,7 +149,7 @@ function source(): void {
 ```
 
 ```query outgoing_calls main.ds#source
-@outgoing_calls.call index=0 name=target kind=function detail="target(): void" location=library.ds:1:1-1:34 selection=library.ds#target symbol=library.ds#target@1
+@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=library.ds:1:1-1:34 selection=library.ds#target symbol=library.ds#target@1
 @outgoing_calls.site call=0 range=main.ds#call
 ```
 
@@ -168,7 +168,7 @@ function recurse(): void {
 ```
 
 ```query outgoing_calls main.ds#recurse
-@outgoing_calls.call index=0 name=recurse kind=function detail="recurse(): void" location=main.ds:1:1-3:2 selection=main.ds#recurse symbol=main.ds#recurse@1
+@outgoing_calls.call index=0 name=recurse kind=function signature="recurse(): void" location=main.ds:1:1-3:2 selection=main.ds#recurse symbol=main.ds#recurse@1
 @outgoing_calls.site call=0 range=main.ds#call
 ```
 
@@ -192,7 +192,7 @@ function start(service: Service): void {
 ```
 
 ```query outgoing_calls main.ds#source
-@outgoing_calls.call index=0 name=run kind=method detail="Service.run(): void" location=main.ds:2:5-2:19 selection=main.ds#target symbol=main.ds#run@2
+@outgoing_calls.call index=0 name=run kind=method signature="Service.run(): void" location=main.ds:2:5-2:19 selection=main.ds#target symbol=main.ds#run@2
 @outgoing_calls.site call=0 range=main.ds#call
 ```
 
@@ -223,9 +223,9 @@ function caller(): void {
 ```
 
 ```query outgoing_calls main.ds#caller
-@outgoing_calls.call index=0 name=parse kind=function detail="parse(value: int32): int32" location=main.ds:1:1-3:2 selection=main.ds#integer_name symbol=main.ds#parse@1
+@outgoing_calls.call index=0 name=parse kind=function signature="parse(value: int32): int32" location=main.ds:1:1-3:2 selection=main.ds#integer_name symbol=main.ds#parse@1
 @outgoing_calls.site call=0 range=main.ds#integer_call
-@outgoing_calls.call index=1 name=parse kind=function detail="parse(value: string): string" location=main.ds:5:1-7:2 selection=main.ds#string_name symbol=main.ds#parse@3
+@outgoing_calls.call index=1 name=parse kind=function signature="parse(value: string): string" location=main.ds:5:1-7:2 selection=main.ds#string_name symbol=main.ds#parse@3
 @outgoing_calls.site call=1 range=main.ds#string_call
 ```
 
@@ -251,7 +251,7 @@ function caller(): string {
 ```
 
 ```query outgoing_calls main.ds#caller
-@outgoing_calls.call index=0 name=identity kind=function detail="identity<T>(value: T): T" location=main.ds#declaration selection=main.ds#name symbol=main.ds#identity@1
+@outgoing_calls.call index=0 name=identity kind=function signature="identity<T>(value: T): T" location=main.ds#declaration selection=main.ds#name symbol=main.ds#identity@1
 @outgoing_calls.site call=0 range=main.ds#call
 ```
 
@@ -279,7 +279,7 @@ function caller(calculator: Calculator): int32 {
 ```
 
 ```query outgoing_calls main.ds#caller
-@outgoing_calls.call index=0 name=add kind=method detail="Calculator.add(left: int32, right: int32): int32" location=main.ds:4:5-6:6 selection=main.ds#name symbol=main.ds#add@3
+@outgoing_calls.call index=0 name=add kind=method signature="Calculator.add(left: int32, right: int32): int32" location=main.ds:4:5-6:6 selection=main.ds#name symbol=main.ds#add@3
 @outgoing_calls.site call=0 range=main.ds#call
 ```
 
@@ -303,7 +303,7 @@ function create(): User {
 ```
 
 ```query outgoing_calls main.ds#caller
-@outgoing_calls.call index=0 name=constructor kind=constructor detail="User.constructor(name: string)" location=main.ds:2:5-2:33 selection=main.ds#name symbol=main.ds#symbol@2
+@outgoing_calls.call index=0 name=constructor kind=constructor signature="User.constructor(name: string)" location=main.ds:2:5-2:33 selection=main.ds#name symbol=main.ds#symbol@2
 @outgoing_calls.site call=0 range=main.ds#call
 ```
 
@@ -324,7 +324,7 @@ function create(): User {
 ```
 
 ```query outgoing_calls main.ds#caller
-@outgoing_calls.call index=0 name=User kind=constructor detail="User()" location=main.ds#declaration selection=main.ds#name symbol=main.ds#User@1
+@outgoing_calls.call index=0 name=User kind=constructor signature="User()" location=main.ds#declaration selection=main.ds#name symbol=main.ds#User@1
 @outgoing_calls.site call=0 range=main.ds#call
 ```
 
@@ -345,7 +345,7 @@ function create(): UserId {
 ```
 
 ```query outgoing_calls main.ds#caller
-@outgoing_calls.call index=0 name=UserId kind=constructor detail="UserId(string): UserId" location=main.ds#declaration selection=main.ds#name symbol=main.ds#UserId@1
+@outgoing_calls.call index=0 name=UserId kind=constructor signature="UserId(string): UserId" location=main.ds#declaration selection=main.ds#name symbol=main.ds#UserId@1
 @outgoing_calls.site call=0 range=main.ds#call
 ```
 
@@ -367,7 +367,7 @@ function create(): Status {
 ```
 
 ```query outgoing_calls main.ds#caller
-@outgoing_calls.call index=0 name=Ok kind=constructor detail="Status.Ok({ value: string }): Status" location=main.ds#declaration selection=main.ds#name symbol=main.ds#Ok@3
+@outgoing_calls.call index=0 name=Ok kind=constructor signature="Status.Ok({ value: string }): Status" location=main.ds#declaration selection=main.ds#name symbol=main.ds#Ok@3
 @outgoing_calls.site call=0 range=main.ds#call
 ```
 
@@ -391,7 +391,7 @@ class Service {
 ```
 
 ```query outgoing_calls main.ds#caller
-@outgoing_calls.call index=0 name=target kind=function detail="target(): void" location=main.ds:1:1-1:27 selection=main.ds#target symbol=main.ds#target@1
+@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=main.ds:1:1-1:27 selection=main.ds#target symbol=main.ds#target@1
 @outgoing_calls.site call=0 range=main.ds#call
 ```
 
@@ -413,7 +413,7 @@ class Service {
 ```
 
 ```query outgoing_calls main.ds#caller
-@outgoing_calls.call index=0 name=target kind=function detail="target(): void" location=main.ds:1:1-1:27 selection=main.ds#target symbol=main.ds#target@1
+@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=main.ds:1:1-1:27 selection=main.ds#target symbol=main.ds#target@1
 @outgoing_calls.site call=0 range=main.ds#call
 ```
 
@@ -482,7 +482,7 @@ function outer(): void {
 ```
 
 ```query outgoing_calls main.ds#inner
-@outgoing_calls.call index=0 name=target kind=function detail="target(): void" location=main.ds#declaration selection=main.ds#target symbol=main.ds#target@1
+@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=main.ds#declaration selection=main.ds#target symbol=main.ds#target@1
 @outgoing_calls.site call=0 range=main.ds#call
 ```
 
@@ -511,9 +511,9 @@ function start(service: Alpha | Beta): void {
 ```
 
 ```query outgoing_calls main.ds#caller
-@outgoing_calls.call index=0 name=run kind=method detail="Alpha.run(): void" location=main.ds:2:5-2:19 selection=main.ds#alpha symbol=main.ds#run@2
+@outgoing_calls.call index=0 name=run kind=method signature="Alpha.run(): void" location=main.ds:2:5-2:19 selection=main.ds#alpha symbol=main.ds#run@2
 @outgoing_calls.site call=0 range=main.ds#call
-@outgoing_calls.call index=1 name=run kind=method detail="Beta.run(): void" location=main.ds:6:5-6:19 selection=main.ds#beta symbol=main.ds#run@5
+@outgoing_calls.call index=1 name=run kind=method signature="Beta.run(): void" location=main.ds:6:5-6:19 selection=main.ds#beta symbol=main.ds#run@5
 @outgoing_calls.site call=1 range=main.ds#call
 ```
 
@@ -554,7 +554,7 @@ function source(): void {
 ```
 
 ```query outgoing_calls main.ds#source
-@outgoing_calls.call index=0 name=first kind=function detail="first(): void" location=main.ds#declaration:first selection=main.ds#name:first symbol=main.ds#first@1
+@outgoing_calls.call index=0 name=first kind=function signature="first(): void" location=main.ds#declaration:first selection=main.ds#name:first symbol=main.ds#first@1
 @outgoing_calls.site call=0 range=main.ds#call
 ```
 
@@ -574,6 +574,6 @@ function source(): void {
 ```
 
 ```query outgoing_calls main.ds#source
-@outgoing_calls.call index=0 name=second kind=function detail="second(): void" location=main.ds#declaration:second selection=main.ds#name:second symbol=main.ds#second@2
+@outgoing_calls.call index=0 name=second kind=function signature="second(): void" location=main.ds#declaration:second selection=main.ds#name:second symbol=main.ds#second@2
 @outgoing_calls.site call=0 range=main.ds#call
 ```

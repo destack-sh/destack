@@ -117,7 +117,7 @@ extension of UserId implements Display {}
 
 ## Generics
 
-### Include generic declaration details
+### Include generic parameters
 
 Generic subtype items display the parameters of their declarations.
 
@@ -130,7 +130,7 @@ struct Box<Value> implements Container<Value> {}
 ```
 
 ```query subtypes main.ds#container
-@subtypes.item name=Box kind=struct detail="<Value>" location=main.ds:3:1-3:49 selection=main.ds#box symbol=main.ds#Box@3
+@subtypes.item name=Box kind=struct generics="<Value>" location=main.ds:3:1-3:49 selection=main.ds#box symbol=main.ds#Box@3
 ```
 
 ## Modules

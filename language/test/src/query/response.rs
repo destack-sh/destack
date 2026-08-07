@@ -385,7 +385,8 @@ fn completion_rows(
                 .field("label", &item.label)
                 .field("kind", enum_name(item.kind))
                 .field("replace", run.format_span(item.edit.span)?)
-                .optional("detail", item.detail.as_deref())
+                .optional("suffix", item.label_suffix.as_deref())
+                .optional("declaration", item.declaration.as_deref())
                 .optional("description", item.description.as_deref())
                 .optional("documentation", item.documentation.as_deref())
                 .optional(
@@ -430,8 +431,8 @@ fn hover_rows(run: &QueryRun<'_>, hover: &Hover) -> Result<Vec<QueryRow>, String
         rows.push(
             QueryRow::new("hover.item")
                 .field("index", index.to_string())
-                .field("signature", &item.signature)
-                .optional("type", item.type_text.as_deref())
+                .field("declaration", &item.declaration)
+                .optional("type", item.selected_type.as_deref())
                 .optional("documentation", item.documentation.as_deref())
                 .with_target(run, &item.target)?
                 .field("range", run.format_span(hover.range)?),
@@ -834,7 +835,7 @@ fn call_item_row(
         .optional("index", index.map(|index| index.to_string()))
         .field("name", &item.name)
         .field("kind", enum_name(item.kind))
-        .optional("detail", item.detail.as_deref())
+        .optional("signature", item.signature.as_deref())
         .with_target(run, &item.target)?
         .field(
             "symbol",
@@ -862,7 +863,7 @@ fn type_item_row(run: &QueryRun<'_>, noun: &str, item: &TypeItem) -> Result<Quer
     Ok(QueryRow::new(noun)
         .field("name", &item.name)
         .field("kind", enum_name(item.kind))
-        .optional("detail", item.detail.as_deref())
+        .optional("generics", item.generics.as_deref())
         .with_target(run, &item.target)?
         .field(
             "symbol",

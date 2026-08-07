@@ -15,11 +15,11 @@ callee();
 ```
 
 ```query call_item main.ds#name
-@call_item.item name=callee kind=function detail="callee(): void" location=main.ds#declaration selection=main.ds#name symbol=main.ds#callee@1
+@call_item.item name=callee kind=function signature="callee(): void" location=main.ds#declaration selection=main.ds#name symbol=main.ds#callee@1
 ```
 
 ```query call_item main.ds#call
-@call_item.item name=callee kind=function detail="callee(): void" location=main.ds#declaration selection=main.ds#name symbol=main.ds#callee@1
+@call_item.item name=callee kind=function signature="callee(): void" location=main.ds#declaration selection=main.ds#name symbol=main.ds#callee@1
 ```
 
 ## Methods
@@ -41,11 +41,11 @@ service.run();
 ```
 
 ```query call_item main.ds#name
-@call_item.item name=run kind=method detail="Service.run(): void" location=main.ds#declaration selection=main.ds#name symbol=main.ds#run@2
+@call_item.item name=run kind=method signature="Service.run(): void" location=main.ds#declaration selection=main.ds#name symbol=main.ds#run@2
 ```
 
 ```query call_item main.ds#call
-@call_item.item name=run kind=method detail="Service.run(): void" location=main.ds#declaration selection=main.ds#name symbol=main.ds#run@2
+@call_item.item name=run kind=method signature="Service.run(): void" location=main.ds#declaration selection=main.ds#name symbol=main.ds#run@2
 ```
 
 ## Imports
@@ -71,15 +71,15 @@ localTarget();
 ```
 
 ```query call_item main.ds#imported_name
-@call_item.item name=target kind=function detail="target(): void" location=library.ds#declaration selection=library.ds#name symbol=library.ds#target@1
+@call_item.item name=target kind=function signature="target(): void" location=library.ds#declaration selection=library.ds#name symbol=library.ds#target@1
 ```
 
 ```query call_item main.ds#local_name
-@call_item.item name=target kind=function detail="target(): void" location=library.ds#declaration selection=library.ds#name symbol=library.ds#target@1
+@call_item.item name=target kind=function signature="target(): void" location=library.ds#declaration selection=library.ds#name symbol=library.ds#target@1
 ```
 
 ```query call_item main.ds#call
-@call_item.item name=target kind=function detail="target(): void" location=library.ds#declaration selection=library.ds#name symbol=library.ds#target@1
+@call_item.item name=target kind=function signature="target(): void" location=library.ds#declaration selection=library.ds#name symbol=library.ds#target@1
 ```
 
 ## Overloads
@@ -110,11 +110,11 @@ const stringValue = parse("ok");
 ```
 
 ```query call_item main.ds#integer_call
-@call_item.item name=parse kind=function detail="parse(value: int32): int32" location=main.ds#integer_declaration selection=main.ds#integer_name symbol=main.ds#parse@1
+@call_item.item name=parse kind=function signature="parse(value: int32): int32" location=main.ds#integer_declaration selection=main.ds#integer_name symbol=main.ds#parse@1
 ```
 
 ```query call_item main.ds#string_call
-@call_item.item name=parse kind=function detail="parse(value: string): string" location=main.ds#string_declaration selection=main.ds#string_name symbol=main.ds#parse@3
+@call_item.item name=parse kind=function signature="parse(value: string): string" location=main.ds#string_declaration selection=main.ds#string_name symbol=main.ds#parse@3
 ```
 
 ## Generic Functions
@@ -136,11 +136,11 @@ const result = identity<string>("value");
 ```
 
 ```query call_item main.ds#name
-@call_item.item name=identity kind=function detail="identity<T>(value: T): T" location=main.ds#declaration selection=main.ds#name symbol=main.ds#identity@1
+@call_item.item name=identity kind=function signature="identity<T>(value: T): T" location=main.ds#declaration selection=main.ds#name symbol=main.ds#identity@1
 ```
 
 ```query call_item main.ds#call
-@call_item.item name=identity kind=function detail="identity<T>(value: T): T" location=main.ds#declaration selection=main.ds#name symbol=main.ds#identity@1
+@call_item.item name=identity kind=function signature="identity<T>(value: T): T" location=main.ds#declaration selection=main.ds#name symbol=main.ds#identity@1
 ```
 
 ## Extensions
@@ -167,11 +167,11 @@ calculator.add(1, 2);
 ```
 
 ```query call_item main.ds#name
-@call_item.item name=add kind=method detail="Calculator.add(left: int32, right: int32): int32" location=main.ds#declaration selection=main.ds#name symbol=main.ds#add@3
+@call_item.item name=add kind=method signature="Calculator.add(left: int32, right: int32): int32" location=main.ds#declaration selection=main.ds#name symbol=main.ds#add@3
 ```
 
 ```query call_item main.ds#call
-@call_item.item name=add kind=method detail="Calculator.add(left: int32, right: int32): int32" location=main.ds#declaration selection=main.ds#name symbol=main.ds#add@3
+@call_item.item name=add kind=method signature="Calculator.add(left: int32, right: int32): int32" location=main.ds#declaration selection=main.ds#name symbol=main.ds#add@3
 ```
 
 ## Class Constructors
@@ -193,11 +193,11 @@ const user = new User("Ada");
 ```
 
 ```query call_item main.ds#name
-@call_item.item name=constructor kind=constructor detail="User.constructor(name: string)" location=main.ds#declaration selection=main.ds#name symbol=main.ds#symbol@2
+@call_item.item name=constructor kind=constructor signature="User.constructor(name: string)" location=main.ds#declaration selection=main.ds#name symbol=main.ds#symbol@2
 ```
 
 ```query call_item main.ds#call
-@call_item.item name=constructor kind=constructor detail="User.constructor(name: string)" location=main.ds#declaration selection=main.ds#name symbol=main.ds#symbol@2
+@call_item.item name=constructor kind=constructor signature="User.constructor(name: string)" location=main.ds#declaration selection=main.ds#name symbol=main.ds#symbol@2
 ```
 
 ### Return the class item for a default constructor
@@ -214,11 +214,11 @@ const user = new User();
 ```
 
 ```query call_item main.ds#name
-@call_item.item name=User kind=constructor detail="User()" location=main.ds#declaration selection=main.ds#name symbol=main.ds#User@1
+@call_item.item name=User kind=constructor signature="User()" location=main.ds#declaration selection=main.ds#name symbol=main.ds#User@1
 ```
 
 ```query call_item main.ds#call
-@call_item.item name=User kind=constructor detail="User()" location=main.ds#declaration selection=main.ds#name symbol=main.ds#User@1
+@call_item.item name=User kind=constructor signature="User()" location=main.ds#declaration selection=main.ds#name symbol=main.ds#User@1
 ```
 
 ## Newtype Constructors
@@ -234,7 +234,7 @@ newtype UserId = string;
 ```
 
 ```query call_item main.ds#name
-@call_item.item name=UserId kind=constructor detail="UserId(string): UserId" location=main.ds#declaration selection=main.ds#name symbol=main.ds#UserId@1
+@call_item.item name=UserId kind=constructor signature="UserId(string): UserId" location=main.ds#declaration selection=main.ds#name symbol=main.ds#UserId@1
 ```
 
 ### Return a newtype constructor from its construction
@@ -251,7 +251,7 @@ const userId = UserId("user-1");
 ```
 
 ```query call_item main.ds#call
-@call_item.item name=UserId kind=constructor detail="UserId(string): UserId" location=main.ds#declaration selection=main.ds#name symbol=main.ds#UserId@1
+@call_item.item name=UserId kind=constructor signature="UserId(string): UserId" location=main.ds#declaration selection=main.ds#name symbol=main.ds#UserId@1
 ```
 
 ## Tagged Variant Constructors
@@ -268,7 +268,7 @@ newtype Status = Ok<string>;
 ```
 
 ```query call_item main.ds#name
-@call_item.item name=Ok kind=constructor detail="Status.Ok({ value: string }): Status" location=main.ds#declaration selection=main.ds#name symbol=main.ds#Ok@2
+@call_item.item name=Ok kind=constructor signature="Status.Ok({ value: string }): Status" location=main.ds#declaration selection=main.ds#name symbol=main.ds#Ok@2
 ```
 
 ### Return a tagged variant constructor from its construction
@@ -286,7 +286,7 @@ const status = Status.Ok({ value: "ready" });
 ```
 
 ```query call_item main.ds#call
-@call_item.item name=Ok kind=constructor detail="Status.Ok({ value: string }): Status" location=main.ds#declaration selection=main.ds#name symbol=main.ds#Ok@3
+@call_item.item name=Ok kind=constructor signature="Status.Ok({ value: string }): Status" location=main.ds#declaration selection=main.ds#name symbol=main.ds#Ok@3
 ```
 
 ## Indirect Calls
@@ -382,7 +382,7 @@ first();
 ```
 
 ```query call_item main.ds#call
-@call_item.item name=first kind=function detail="first(): void" location=main.ds#declaration:first selection=main.ds#name:first symbol=main.ds#first@1
+@call_item.item name=first kind=function signature="first(): void" location=main.ds#declaration:first selection=main.ds#name:first symbol=main.ds#first@1
 ```
 
 ```ds main.ds change
@@ -399,5 +399,5 @@ second();
 ```
 
 ```query call_item main.ds#call
-@call_item.item name=second kind=function detail="second(): void" location=main.ds#declaration:second selection=main.ds#name:second symbol=main.ds#second@2
+@call_item.item name=second kind=function signature="second(): void" location=main.ds#declaration:second selection=main.ds#name:second symbol=main.ds#second@2
 ```

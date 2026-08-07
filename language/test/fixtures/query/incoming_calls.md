@@ -17,7 +17,7 @@ function caller(): void {
 ```
 
 ```query incoming_calls main.ds#callee
-@incoming_calls.call index=0 name=caller kind=function detail="caller(): void" location=main.ds:3:1-5:2 selection=main.ds#caller symbol=main.ds#caller@2
+@incoming_calls.call index=0 name=caller kind=function signature="caller(): void" location=main.ds:3:1-5:2 selection=main.ds#caller symbol=main.ds#caller@2
 @incoming_calls.site call=0 range=main.ds#call
 ```
 
@@ -41,7 +41,7 @@ function caller(): void {
 ```
 
 ```query incoming_calls main.ds#callee
-@incoming_calls.call index=0 name=caller kind=function detail="caller(): void" location=main.ds:3:1-6:2 selection=main.ds#caller symbol=main.ds#caller@2
+@incoming_calls.call index=0 name=caller kind=function signature="caller(): void" location=main.ds:3:1-6:2 selection=main.ds#caller symbol=main.ds#caller@2
 @incoming_calls.site call=0 range=main.ds#first_call
 @incoming_calls.site call=0 range=main.ds#second_call
 ```
@@ -70,9 +70,9 @@ function second(): void {
 ```
 
 ```query incoming_calls main.ds#callee
-@incoming_calls.call index=0 name=first kind=function detail="first(): void" location=main.ds:3:1-5:2 selection=main.ds#first symbol=main.ds#first@2
+@incoming_calls.call index=0 name=first kind=function signature="first(): void" location=main.ds:3:1-5:2 selection=main.ds#first symbol=main.ds#first@2
 @incoming_calls.site call=0 range=main.ds#first_call
-@incoming_calls.call index=1 name=second kind=function detail="second(): void" location=main.ds:7:1-9:2 selection=main.ds#second symbol=main.ds#second@3
+@incoming_calls.call index=1 name=second kind=function signature="second(): void" location=main.ds:7:1-9:2 selection=main.ds#second symbol=main.ds#second@3
 @incoming_calls.site call=1 range=main.ds#second_call
 ```
 
@@ -98,7 +98,7 @@ function caller(): void {
 ```
 
 ```query incoming_calls library.ds#callee
-@incoming_calls.call index=0 name=caller kind=function detail="caller(): void" location=main.ds:3:1-5:2 selection=main.ds#caller symbol=main.ds#caller@2
+@incoming_calls.call index=0 name=caller kind=function signature="caller(): void" location=main.ds:3:1-5:2 selection=main.ds#caller symbol=main.ds#caller@2
 @incoming_calls.site call=0 range=main.ds#call
 ```
 
@@ -126,7 +126,7 @@ function caller(): void {
 ```
 
 ```query incoming_calls library.ds#callee
-@incoming_calls.call index=0 name=caller kind=function detail="caller(): void" location=main.ds:3:1-5:2 selection=main.ds#caller symbol=main.ds#caller@2
+@incoming_calls.call index=0 name=caller kind=function signature="caller(): void" location=main.ds:3:1-5:2 selection=main.ds#caller symbol=main.ds#caller@2
 @incoming_calls.site call=0 range=main.ds#call
 ```
 
@@ -145,7 +145,7 @@ function recurse(): void {
 ```
 
 ```query incoming_calls main.ds#recurse
-@incoming_calls.call index=0 name=recurse kind=function detail="recurse(): void" location=main.ds:1:1-3:2 selection=main.ds#recurse symbol=main.ds#recurse@1
+@incoming_calls.call index=0 name=recurse kind=function signature="recurse(): void" location=main.ds:1:1-3:2 selection=main.ds#recurse symbol=main.ds#recurse@1
 @incoming_calls.site call=0 range=main.ds#call
 ```
 
@@ -169,7 +169,7 @@ function start(service: Service): void {
 ```
 
 ```query incoming_calls main.ds#target
-@incoming_calls.call index=0 name=start kind=function detail="start(service: Service): void" location=main.ds:5:1-7:2 selection=main.ds#source symbol=main.ds#start@4
+@incoming_calls.call index=0 name=start kind=function signature="start(service: Service): void" location=main.ds:5:1-7:2 selection=main.ds#source symbol=main.ds#start@4
 @incoming_calls.site call=0 range=main.ds#call
 ```
 
@@ -200,12 +200,12 @@ function caller(): void {
 ```
 
 ```query incoming_calls main.ds#integer_call
-@incoming_calls.call index=0 name=caller kind=function detail="caller(): void" location=main.ds:9:1-12:2 selection=main.ds#caller symbol=main.ds#caller@5
+@incoming_calls.call index=0 name=caller kind=function signature="caller(): void" location=main.ds:9:1-12:2 selection=main.ds#caller symbol=main.ds#caller@5
 @incoming_calls.site call=0 range=main.ds#integer_call
 ```
 
 ```query incoming_calls main.ds#string_call
-@incoming_calls.call index=0 name=caller kind=function detail="caller(): void" location=main.ds:9:1-12:2 selection=main.ds#caller symbol=main.ds#caller@5
+@incoming_calls.call index=0 name=caller kind=function signature="caller(): void" location=main.ds:9:1-12:2 selection=main.ds#caller symbol=main.ds#caller@5
 @incoming_calls.site call=0 range=main.ds#string_call
 ```
 
@@ -233,7 +233,7 @@ function caller(calculator: Calculator): int32 {
 ```
 
 ```query incoming_calls main.ds#name
-@incoming_calls.call index=0 name=caller kind=function detail="caller(calculator: Calculator): int32" location=main.ds:9:1-11:2 selection=main.ds#caller symbol=main.ds#caller@7
+@incoming_calls.call index=0 name=caller kind=function signature="caller(calculator: Calculator): int32" location=main.ds:9:1-11:2 selection=main.ds#caller symbol=main.ds#caller@7
 @incoming_calls.site call=0 range=main.ds#call
 ```
 
@@ -257,7 +257,7 @@ function create(): User {
 ```
 
 ```query incoming_calls main.ds#name
-@incoming_calls.call index=0 name=create kind=function detail="create(): User" location=main.ds:5:1-7:2 selection=main.ds#caller symbol=main.ds#create@5
+@incoming_calls.call index=0 name=create kind=function signature="create(): User" location=main.ds:5:1-7:2 selection=main.ds#caller symbol=main.ds#create@5
 @incoming_calls.site call=0 range=main.ds#call
 ```
 
@@ -277,7 +277,7 @@ function create(): User {
 ```
 
 ```query incoming_calls main.ds#name
-@incoming_calls.call index=0 name=create kind=function detail="create(): User" location=main.ds:3:1-5:2 selection=main.ds#caller symbol=main.ds#create@2
+@incoming_calls.call index=0 name=create kind=function signature="create(): User" location=main.ds:3:1-5:2 selection=main.ds#caller symbol=main.ds#create@2
 @incoming_calls.site call=0 range=main.ds#call
 ```
 
@@ -297,7 +297,7 @@ function create(): UserId {
 ```
 
 ```query incoming_calls main.ds#name
-@incoming_calls.call index=0 name=create kind=function detail="create(): UserId" location=main.ds:3:1-5:2 selection=main.ds#caller symbol=main.ds#create@2
+@incoming_calls.call index=0 name=create kind=function signature="create(): UserId" location=main.ds:3:1-5:2 selection=main.ds#caller symbol=main.ds#create@2
 @incoming_calls.site call=0 range=main.ds#call
 ```
 
@@ -319,7 +319,7 @@ function create(): Status {
 ```
 
 ```query incoming_calls main.ds#variant_call
-@incoming_calls.call index=0 name=create kind=function detail="create(): Status" location=main.ds:4:1-6:2 selection=main.ds#caller symbol=main.ds#create@2
+@incoming_calls.call index=0 name=create kind=function signature="create(): Status" location=main.ds:4:1-6:2 selection=main.ds#caller symbol=main.ds#create@2
 @incoming_calls.site call=0 range=main.ds#call
 ```
 
@@ -343,7 +343,7 @@ class Service {
 ```
 
 ```query incoming_calls main.ds#target
-@incoming_calls.call index=0 name=run kind=method detail="Service.run(): void" location=main.ds:4:5-6:6 selection=main.ds#caller symbol=main.ds#run@3
+@incoming_calls.call index=0 name=run kind=method signature="Service.run(): void" location=main.ds:4:5-6:6 selection=main.ds#caller symbol=main.ds#run@3
 @incoming_calls.site call=0 range=main.ds#call
 ```
 
@@ -365,7 +365,7 @@ class Service {
 ```
 
 ```query incoming_calls main.ds#target
-@incoming_calls.call index=0 name=constructor kind=constructor detail="Service.constructor()" location=main.ds:4:5-6:6 selection=main.ds#caller symbol=main.ds#symbol@3
+@incoming_calls.call index=0 name=constructor kind=constructor signature="Service.constructor()" location=main.ds:4:5-6:6 selection=main.ds#caller symbol=main.ds#symbol@3
 @incoming_calls.site call=0 range=main.ds#call
 ```
 
@@ -450,12 +450,12 @@ function start(service: Alpha | Beta): void {
 ```
 
 ```query incoming_calls main.ds#alpha
-@incoming_calls.call index=0 name=start kind=function detail="start(service: Alpha | Beta): void" location=main.ds:9:1-11:2 selection=main.ds#caller symbol=main.ds#start@7
+@incoming_calls.call index=0 name=start kind=function signature="start(service: Alpha | Beta): void" location=main.ds:9:1-11:2 selection=main.ds#caller symbol=main.ds#start@7
 @incoming_calls.site call=0 range=main.ds#call
 ```
 
 ```query incoming_calls main.ds#beta
-@incoming_calls.call index=0 name=start kind=function detail="start(service: Alpha | Beta): void" location=main.ds:9:1-11:2 selection=main.ds#caller symbol=main.ds#start@7
+@incoming_calls.call index=0 name=start kind=function signature="start(service: Alpha | Beta): void" location=main.ds:9:1-11:2 selection=main.ds#caller symbol=main.ds#start@7
 @incoming_calls.site call=0 range=main.ds#call
 ```
 
@@ -507,6 +507,6 @@ function caller(): void {
 ```
 
 ```query incoming_calls main.ds#callee
-@incoming_calls.call index=0 name=caller kind=function detail="caller(): void" location=main.ds#declaration:caller selection=main.ds#caller symbol=main.ds#caller@2
+@incoming_calls.call index=0 name=caller kind=function signature="caller(): void" location=main.ds#declaration:caller selection=main.ds#caller symbol=main.ds#caller@2
 @incoming_calls.site call=0 range=main.ds#call
 ```
