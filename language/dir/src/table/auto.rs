@@ -239,16 +239,6 @@ pub struct AutoDerivedImplementation {
     pub members: Vec<AutoImplementationMember>,
 }
 
-impl AutoDerivedImplementation {
-    /// Map every type id embedded in this implementation.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.target = map(self.target);
-        for member in &mut self.members {
-            member.map_type_ids(map);
-        }
-    }
-}
-
 /// Member generated for one auto-derived implementation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct AutoImplementationMember {
@@ -258,13 +248,6 @@ pub struct AutoImplementationMember {
     pub symbol: GlobalSymbolId,
     /// The generated member type.
     pub ty: GlobalTypeId,
-}
-
-impl AutoImplementationMember {
-    /// Map every type id embedded in this member.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.ty = map(self.ty);
-    }
 }
 
 /// Cumulative auto-derived implementations for one DIR module.
@@ -395,15 +378,5 @@ impl AutoSegment {
     /// Return whether this segment has no implementations or conformances.
     pub fn is_empty(&self) -> bool {
         self.implementations.is_empty() && self.conformances.is_empty()
-    }
-
-    /// Map every type id embedded in this segment.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        for conformance in &mut self.conformances {
-            conformance.target = map(conformance.target);
-        }
-        for implementation in &mut self.implementations {
-            implementation.map_type_ids(map);
-        }
     }
 }

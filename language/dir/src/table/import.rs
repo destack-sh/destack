@@ -117,7 +117,7 @@ impl ImportTable {
     }
 }
 
-/// Resolution of one local import binding.
+/// Decision of one local import binding.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ImportResolution {
     /// One exact imported target.

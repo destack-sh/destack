@@ -1,4 +1,3 @@
-use std::mem;
 use std::sync::Arc;
 
 use destack_core::FxIndexMap as IndexMap;
@@ -209,14 +208,6 @@ impl Coercion {
     pub fn target(&self) -> GlobalTypeId {
         self.adjustments[self.adjustments.len() - 1].target()
     }
-
-    /// Map every type id in this coercion.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.source = map(self.source);
-        for adjustment in &mut self.adjustments {
-            adjustment.map_type_ids(map);
-        }
-    }
 }
 
 impl CoercionAdjustment {
@@ -247,31 +238,6 @@ impl CoercionAdjustment {
             Self::Tuple { .. } => "tuple",
             Self::Carrier { .. } => "carrier",
             Self::Instantiate { .. } => "instantiate",
-        }
-    }
-
-    /// Map every type id in this adjustment.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Borrow { target }
-            | Self::Read { target }
-            | Self::Existential { target }
-            | Self::Scalar { target }
-            | Self::Widen { target }
-            | Self::Tuple { target }
-            | Self::Carrier { target } => *target = map(*target),
-            Self::Union { target, cases } => {
-                *target = map(*target);
-                for case in cases {
-                    case.map_type_ids(map);
-                }
-            }
-            Self::Instantiate { target, arguments } => {
-                *target = map(*target);
-                for binding in arguments {
-                    binding.argument = map(binding.argument);
-                }
-            }
         }
     }
 
@@ -333,17 +299,6 @@ impl CoercionAdjustment {
     }
 }
 
-impl CoercionCase {
-    /// Map every type id in this source case.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.source = map(self.source);
-        self.target = map(self.target);
-        for adjustment in &mut self.adjustments {
-            adjustment.map_type_ids(map);
-        }
-    }
-}
-
 /// Coercions added by one DIR phase.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct CoercionSegment {
@@ -397,19 +352,6 @@ impl CoercionSegment {
         self.coercions
             .iter()
             .map(|(node_id, coercion)| (*node_id, coercion))
-    }
-
-    /// Map every type id embedded in this segment.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        let coercions = mem::take(&mut self.coercions);
-        for (node_id, mut coercion) in coercions {
-            coercion.map_type_ids(map);
-            let previous = self.coercions.insert(node_id, coercion);
-            assert!(
-                previous.is_none(),
-                "type mapping produced duplicate coercions for node {node_id:?}"
-            );
-        }
     }
 
     /// Return whether this segment has no coercions.

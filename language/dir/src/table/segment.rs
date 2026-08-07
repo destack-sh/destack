@@ -43,6 +43,14 @@ impl<'a, T> SegmentView<'a, T> {
         }
     }
 
+    /// Reborrow this view without cloning its committed segments.
+    pub fn reborrow(&self) -> SegmentView<'_, T> {
+        SegmentView {
+            base: SegmentBase::Borrowed(self.base.as_slice()),
+            tail: self.tail,
+        }
+    }
+
     /// Iterate segments in phase order.
     pub fn iter(&self) -> SegmentIter<'_, T> {
         SegmentIter {

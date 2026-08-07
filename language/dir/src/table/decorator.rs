@@ -6,9 +6,9 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, Argument, ArgumentBinding, Decorator, Expression, GlobalNodeId, GlobalNodeIdAny,
-    GlobalStaticId, GlobalSymbolId, GlobalTypeId, LanguageItem, LocalNodeId, NewtypeSelection,
-    SegmentView,
+    Arena, Argument, ArgumentBinding, Decorator, Expression, GenericArgument, GlobalNodeId,
+    GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId, LanguageItem, LocalNodeId,
+    NewtypeSelection, SegmentView,
 };
 
 /// Cumulative decorator applications for one DIR module.
@@ -133,6 +133,8 @@ pub struct DecoratorSegment {
     pub(crate) applications: Arena<DecoratorApplication>,
     /// Decorator applications attached to each owner.
     pub(crate) applications_by_owner: IndexMap<GlobalNodeIdAny, Vec<LocalDecoratorId>>,
+    /// Declared decorator uses awaiting selection and evaluation.
+    pub(crate) uses: Vec<DecoratorUse>,
 }
 
 impl DecoratorSegment {
@@ -143,6 +145,7 @@ impl DecoratorSegment {
             first_application_id: 0,
             applications: Arena::new(),
             applications_by_owner: IndexMap::default(),
+            uses: Vec::new(),
         }
     }
 
@@ -153,6 +156,7 @@ impl DecoratorSegment {
             first_application_id: base.application_count(),
             applications: Arena::new(),
             applications_by_owner: IndexMap::default(),
+            uses: Vec::new(),
         }
     }
 
@@ -168,6 +172,16 @@ impl DecoratorSegment {
             .push(application_id);
 
         application_id
+    }
+
+    /// Insert one declared decorator use.
+    pub fn insert_use(&mut self, decorator_use: DecoratorUse) {
+        self.uses.push(decorator_use);
+    }
+
+    /// Iterate declared decorator uses.
+    pub fn iter_uses(&self) -> impl Iterator<Item = &DecoratorUse> + '_ {
+        self.uses.iter()
     }
 
     /// Iterate decorator applications owned by this segment.
@@ -212,13 +226,6 @@ impl DecoratorSegment {
         self.applications.is_empty()
     }
 
-    /// Apply one mapping to every type id stored in this segment.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        for application in self.applications.iter_mut() {
-            application.map_type_ids(map);
-        }
-    }
-
     /// Get an application owned by this table segment.
     pub(crate) fn get_local_application(
         &self,
@@ -250,6 +257,23 @@ impl LocalDecoratorId {
     }
 }
 
+/// Declared decorator use awaiting selection and evaluation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct DecoratorUse {
+    /// The decorator node.
+    pub source: GlobalNodeId<Decorator>,
+    /// The node decorated by this use.
+    pub owner: GlobalNodeIdAny,
+    /// The decorator target expression.
+    pub target: GlobalNodeId<Expression>,
+    /// The resolved decorator symbol.
+    pub symbol: GlobalSymbolId,
+    /// The explicit generic arguments.
+    pub generic_arguments: Vec<LocalNodeId<GenericArgument>>,
+    /// The decorator application arguments.
+    pub arguments: Vec<LocalNodeId<Argument>>,
+}
+
 /// Checked decorator application attached to one owner node.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct DecoratorApplication {
@@ -265,13 +289,6 @@ pub struct DecoratorApplication {
     pub value: GlobalStaticId,
 }
 
-impl DecoratorApplication {
-    /// Apply one mapping to every type id stored in this application.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.resolution.map_type_ids(map);
-    }
-}
-
 /// Checked resolution of one decorator application.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct DecoratorResolution {
@@ -281,14 +298,6 @@ pub struct DecoratorResolution {
     pub selection: DecoratorSelection,
     /// The nominal decorator value type.
     pub ty: GlobalTypeId,
-}
-
-impl DecoratorResolution {
-    /// Apply one mapping to every type id stored in this resolution.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.selection.map_type_ids(map);
-        self.ty = map(self.ty);
-    }
 }
 
 /// Resolved decorator declaration.
@@ -335,25 +344,6 @@ pub enum DecoratorSelection {
     },
 }
 
-impl DecoratorSelection {
-    /// Apply one mapping to every type id stored in this selection.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Newtype { newtype, arguments } => {
-                newtype.map_type_ids(map);
-                for argument in arguments {
-                    argument.map_type_ids(map);
-                }
-            }
-            Self::Derive { providers } => {
-                for provider in providers {
-                    provider.map_type_ids(map);
-                }
-            }
-        }
-    }
-}
-
 /// One provider selected by a compiler-owned derive decorator.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct DeriveProvider {
@@ -363,12 +353,4 @@ pub struct DeriveProvider {
     pub newtype: NewtypeSelection,
     /// The instantiated provider type.
     pub ty: GlobalTypeId,
-}
-
-impl DeriveProvider {
-    /// Apply one mapping to every type id stored in this provider.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.newtype.map_type_ids(map);
-        self.ty = map(self.ty);
-    }
 }

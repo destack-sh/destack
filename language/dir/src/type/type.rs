@@ -383,6 +383,64 @@ impl Type {
         }
     }
 
+    /// Collect every module id this row mentions directly.
+    ///
+    /// List and pool contents live in the segment and are scanned there;
+    /// this visits only ids embedded in the row itself.
+    pub fn referenced_modules(&self, collect: &mut impl FnMut(ModuleId)) {
+        match self {
+            // parameter and symbol heads
+            Self::Erased(parameter) | Self::Parameter(parameter) => collect(parameter.module_id),
+            Self::Reference(reference) => collect(reference.symbol.module_id),
+            Self::Application(application) => collect(application.symbol.module_id),
+            Self::Variant(variant) => {
+                collect(variant.owner.module_id);
+                collect(variant.variant.module_id);
+            }
+            Self::Static(value) => collect(value.module_id),
+
+            // wrapped value heads
+            Self::Form(form) => collect(form.value.module_id),
+            Self::Dynamic(dynamic) => collect(dynamic.constraint.module_id),
+            Self::Array(array) => collect(array.element.module_id),
+            Self::FixedArray(array) => {
+                collect(array.element.module_id);
+                collect(array.count.module_id);
+            }
+            Self::Slice(slice) => collect(slice.element.module_id),
+            Self::Function(function) => collect(function.signature.module_id),
+            Self::FunctionPointer(function) => collect(function.signature.module_id),
+
+            // list and pool heads scan through the segment
+            Self::Object(_)
+            | Self::Shape(_)
+            | Self::Tuple(_)
+            | Self::Union(_)
+            | Self::Intersection(_)
+            | Self::Member(_)
+            | Self::Refined(_)
+            | Self::Operation(_)
+            | Self::FunctionSignature(_) => {}
+
+            // idless leaves
+            Self::Error
+            | Self::Variable(_)
+            | Self::Never
+            | Self::Any
+            | Self::Unknown
+            | Self::Void
+            | Self::Null
+            | Self::Undefined
+            | Self::Primitive(_)
+            | Self::Literal(_)
+            | Self::Key(_)
+            | Self::Memory(_)
+            | Self::Intrinsic
+            | Self::Range(_)
+            | Self::This => {}
+        }
+    }
+
     /// Whether the type is an error.
     pub fn is_error(&self) -> bool {
         matches!(self, Self::Error)
@@ -1058,6 +1116,58 @@ pub enum TypeOperation {
 }
 
 impl TypeOperation {
+    /// Collect every module id this operation mentions directly.
+    pub fn referenced_modules(&self, collect: &mut impl FnMut(ModuleId)) {
+        match self {
+            Self::StringMapping { target, .. } => collect(target.module_id),
+            Self::Conditional(conditional) => {
+                collect(conditional.left.module_id);
+                collect(conditional.right.module_id);
+                collect(conditional.then_type.module_id);
+                collect(conditional.else_type.module_id);
+            }
+            Self::Narrow(narrow) => {
+                collect(narrow.source.module_id);
+                collect(narrow.target.module_id);
+            }
+            Self::Mapped(mapped) => {
+                collect(mapped.parameter.parameter.module_id);
+                collect(mapped.parameter.constraint.module_id);
+                if let Some(remap) = mapped.parameter.key_remap {
+                    collect(remap.module_id);
+                }
+                if let Some(modifiers) = mapped.parameter.modifiers_type {
+                    collect(modifiers.module_id);
+                }
+                collect(mapped.value.module_id);
+            }
+            Self::Index(index) => {
+                collect(index.left.module_id);
+                collect(index.index.module_id);
+            }
+            Self::TemplateLiteral(_) => {}
+            Self::Infer(infer) => {
+                if let Some(symbol) = infer.symbol {
+                    collect(symbol.module_id);
+                }
+                if let Some(constraint) = infer.constraint {
+                    collect(constraint.module_id);
+                }
+            }
+            Self::TypeOf(_) => {}
+            Self::KeyOf(unary) | Self::NoInfer(unary) | Self::Awaited(unary) => {
+                collect(unary.target.module_id);
+            }
+            Self::TryOutput { value } => collect(value.module_id),
+            Self::TryResidual { value } => collect(value.module_id),
+            Self::StaticBinary(binary) => {
+                collect(binary.left.module_id);
+                collect(binary.right.module_id);
+            }
+            Self::StaticUnary(unary) => collect(unary.target.module_id),
+        }
+    }
+
     /// Return the structural flags this operation contributes to its type.
     pub fn own_flags(&self) -> TypeFlags {
         match self {
@@ -2219,18 +2329,6 @@ pub enum PropertyAccess {
 }
 
 impl PropertyAccess {
-    /// Apply one mapping to every type id stored in this property access.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        *self = match *self {
-            Self::Read(type_id) => Self::Read(map(type_id)),
-            Self::Write(type_id) => Self::Write(map(type_id)),
-            Self::ReadWrite { read, write } => Self::ReadWrite {
-                read: map(read),
-                write: map(write),
-            },
-        };
-    }
-
     /// Return the value type produced by a read.
     pub fn read(self) -> Option<GlobalTypeId> {
         match self {

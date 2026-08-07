@@ -2,9 +2,9 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Access, Call, CallResolution, Dereference, DereferenceResolution, FieldResolution,
-    GenericArgumentBinding, GlobalSymbolId, GlobalTypeId, MemberAccess, MemberResolution,
-    OperationResolution, ScalarLiteral, StaticKey, Subscript, SubscriptResolution, VariantCase,
+    Access, Call, CallDecision, Dereference, DereferenceResolution, FieldResolution,
+    GenericArgumentBinding, GlobalSymbolId, GlobalTypeId, MemberAccess, MemberDecision,
+    OperationResolution, ScalarLiteral, StaticKey, Subscript, SubscriptDecision, VariantCase,
 };
 
 /// Value projection selected during checking.
@@ -237,52 +237,6 @@ impl Projection {
             Self::Dereference(read) => read.ty,
         }
     }
-
-    /// Apply one mapping to every type id stored in this projection.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Field(field) => field.map_type_ids(map),
-            Self::Absent { ty } => *ty = map(*ty),
-            Self::Subscript(read) => {
-                read.map_type_ids(map);
-            }
-            Self::Call(call) => {
-                call.map_type_ids(map);
-            }
-            Self::Member(access) => {
-                access.map_type_ids(map);
-            }
-            Self::ObjectRest { fields, ty } => {
-                for field in fields {
-                    field.projection.map_type_ids(map);
-                }
-                *ty = map(*ty);
-            }
-            Self::SliceLength { ty } | Self::DynamicPayload { ty } | Self::DynamicType { ty } => {
-                *ty = map(*ty)
-            }
-            Self::VariantTag { carrier, ty, .. } => {
-                *carrier = map(*carrier);
-                *ty = map(*ty);
-            }
-            Self::VariantPayload { backing, ty, .. } => {
-                *backing = map(*backing);
-                *ty = map(*ty);
-            }
-            Self::NewtypePayload {
-                generic_arguments,
-                ty,
-                ..
-            } => {
-                for argument in generic_arguments {
-                    argument.map_type_ids(map);
-                }
-                *ty = map(*ty);
-            }
-            Self::Borrow { ty, .. } | Self::Move { ty, .. } | Self::Copy { ty } => *ty = map(*ty),
-            Self::Dereference(read) => read.map_type_ids(map),
-        }
-    }
 }
 
 impl OperationResolution<Projection> {
@@ -293,24 +247,11 @@ impl OperationResolution<Projection> {
             Self::Union { ty, .. } => *ty,
         }
     }
-
-    /// Apply one mapping to every type id stored in this resolution.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::One(projection) => projection.map_type_ids(map),
-            Self::Union { arms, ty } => {
-                for projection in arms {
-                    projection.map_type_ids(map);
-                }
-                *ty = map(*ty);
-            }
-        }
-    }
 }
 
-impl From<CallResolution> for ProjectionResolution {
+impl From<CallDecision> for ProjectionResolution {
     /// Convert one call resolution into the corresponding projection resolution.
-    fn from(resolution: CallResolution) -> Self {
+    fn from(resolution: CallDecision) -> Self {
         match resolution {
             OperationResolution::One(call) => Self::One(Projection::Call(Box::new(call))),
             OperationResolution::Union { arms, ty } => {
@@ -325,9 +266,9 @@ impl From<CallResolution> for ProjectionResolution {
     }
 }
 
-impl From<SubscriptResolution> for ProjectionResolution {
+impl From<SubscriptDecision> for ProjectionResolution {
     /// Convert one subscript resolution into the corresponding projection resolution.
-    fn from(resolution: SubscriptResolution) -> Self {
+    fn from(resolution: SubscriptDecision) -> Self {
         match resolution {
             OperationResolution::One(subscript) => {
                 Self::One(Projection::Subscript(Box::new(subscript)))
@@ -360,9 +301,9 @@ impl From<DereferenceResolution> for ProjectionResolution {
     }
 }
 
-impl From<MemberResolution> for ProjectionResolution {
+impl From<MemberDecision> for ProjectionResolution {
     /// Convert one member resolution into the corresponding projection resolution.
-    fn from(resolution: MemberResolution) -> Self {
+    fn from(resolution: MemberDecision) -> Self {
         match resolution {
             OperationResolution::One(access) => Self::One(Projection::Member(Box::new(access))),
             OperationResolution::Union { arms, ty } => Self::Union {

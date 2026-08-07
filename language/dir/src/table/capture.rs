@@ -228,16 +228,6 @@ impl CaptureSegment {
         self.frames.is_empty() && self.capture_by_function.is_empty()
     }
 
-    /// Apply one mapping to every type id stored in this segment.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        for frame in self.frames.iter_mut() {
-            frame.map_type_ids(map);
-        }
-        for capture in self.capture_by_function.values_mut() {
-            capture.map_type_ids(map);
-        }
-    }
-
     /// Return whether this segment contains the given capture frame id.
     fn contains_frame_id(&self, frame_id: LocalCaptureFrameId) -> bool {
         frame_id.0 >= self.first_frame_id && frame_id.0 < self.frame_count()
@@ -267,16 +257,6 @@ pub struct CaptureFrame {
     pub ty: GlobalTypeId,
     /// The fields in lexical order.
     pub fields: Vec<CaptureFrameField>,
-}
-
-impl CaptureFrame {
-    /// Apply one mapping to every type id stored in this frame.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.ty = map(self.ty);
-        for field in &mut self.fields {
-            field.ty = map(field.ty);
-        }
-    }
 }
 
 /// One binding stored in a capture frame.
@@ -381,16 +361,6 @@ pub enum CapturedBinding {
 }
 
 impl CapturedBinding {
-    /// Apply one mapping to every type id stored in this binding.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Manage { ty, .. }
-            | Self::Borrow { ty, .. }
-            | Self::Copy { ty, .. }
-            | Self::Move { ty, .. } => *ty = map(*ty),
-        }
-    }
-
     /// Return the captured symbol.
     pub fn symbol(self) -> GlobalSymbolId {
         match self {
@@ -441,13 +411,6 @@ pub struct CapturedReceiver {
     pub ty: GlobalTypeId,
 }
 
-impl CapturedReceiver {
-    /// Apply one mapping to every type id stored in this receiver.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.ty = map(self.ty);
-    }
-}
-
 /// Captures for a function declaration.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Reflect)]
 pub struct Capture {
@@ -459,16 +422,4 @@ pub struct Capture {
     pub this: Option<CapturedReceiver>,
     /// The capture directive applied to this function.
     pub directive: Option<CaptureDirective>,
-}
-
-impl Capture {
-    /// Apply one mapping to every type id stored in this capture.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        for capture in &mut self.captures {
-            capture.map_type_ids(map);
-        }
-        if let Some(this) = &mut self.this {
-            this.map_type_ids(map);
-        }
-    }
 }

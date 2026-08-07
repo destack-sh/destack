@@ -111,35 +111,6 @@ impl StaticTerm {
             _ => None,
         }
     }
-
-    /// Apply one mapping to every type id stored in this static value.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::ScalarLiteral { .. } => {}
-            Self::Type { ty } => *ty = map(*ty),
-            Self::Array { elements } | Self::Tuple { elements } => {
-                for element in elements {
-                    element.map_type_ids(map);
-                }
-            }
-            Self::FixedArray { value, .. } => value.map_type_ids(map),
-            Self::Newtype { ty, value } => {
-                *ty = map(*ty);
-                value.map_type_ids(map);
-            }
-            Self::Object { properties } => {
-                for property in properties {
-                    property.map_type_ids(map);
-                }
-            }
-            Self::Struct { ty, properties } => {
-                *ty = map(*ty);
-                for property in properties {
-                    property.map_type_ids(map);
-                }
-            }
-        }
-    }
 }
 
 /// Static object property in a checked static context.
@@ -174,15 +145,6 @@ impl StaticProperty {
         match self {
             Self::Field { key, value } => Some((*key, value)),
             Self::Method { .. } | Self::Spread { .. } => None,
-        }
-    }
-
-    /// Apply one mapping to every type id stored in this property.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Field { value, .. } | Self::Spread { value } => value.map_type_ids(map),
-            // method signatures reference source nodes, not checked type ids
-            Self::Method { body, .. } => body.map_type_ids(map),
         }
     }
 }

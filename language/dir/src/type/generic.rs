@@ -243,14 +243,6 @@ pub struct WherePredicate {
     pub right: GlobalTypeId,
 }
 
-impl WherePredicate {
-    /// Apply one mapping to every type id stored in this predicate.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.left = map(self.left);
-        self.right = map(self.right);
-    }
-}
-
 /// One declaration-side generic parameter.
 ///
 /// Examples:
@@ -264,6 +256,8 @@ pub struct GenericParameterBinding {
     pub template: LocalGenericTemplateId,
     /// The source node that declares or induces this parameter.
     pub source: GlobalNodeIdAny,
+    /// The declaring parameter symbol, absent on induced parameters.
+    pub symbol: Option<GlobalSymbolId>,
     /// The canonical type denoting this parameter.
     pub ty: GlobalTypeId,
     /// The parameter key.
@@ -285,18 +279,6 @@ pub struct GenericParameterBinding {
 }
 
 impl GenericParameterBinding {
-    /// Apply one mapping to every type id stored in this binding.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.ty = map(self.ty);
-        if let Some(constraint) = &mut self.constraint {
-            *constraint = map(*constraint);
-        }
-
-        if let Some(default) = &mut self.default {
-            *default = map(*default);
-        }
-    }
-
     /// Return whether arguments must solve to singleton values.
     pub fn is_comptime(&self) -> bool {
         !matches!(self.kind, GenericParameterKind::Type)
@@ -353,11 +335,6 @@ impl GenericArgumentBinding {
     pub fn values(bindings: &[Self]) -> impl Iterator<Item = GlobalTypeId> + '_ {
         bindings.iter().map(|binding| binding.argument)
     }
-
-    /// Apply one mapping to every type id stored in this binding.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.argument = map(self.argument);
-    }
 }
 
 /// One runtime argument bound to its selected parameter slot.
@@ -380,12 +357,6 @@ impl ArgumentBinding {
             ArgumentSource::Static(_) | ArgumentSource::Write | ArgumentSource::Omitted => false,
         }
     }
-
-    /// Apply one mapping to every type id stored in this binding.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.ty = map(self.ty);
-        self.argument.map_type_ids(map);
-    }
 }
 
 /// Source argument bound to one selected parameter slot.
@@ -401,14 +372,4 @@ pub enum ArgumentSource {
     Omitted,
     /// Remaining source arguments were supplied to a rest parameter.
     Rest(Vec<GlobalNodeIdAny>),
-}
-
-impl ArgumentSource {
-    /// Apply one mapping to every type id stored in this argument source.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Static(ty) => *ty = map(*ty),
-            Self::Provided(_) | Self::Write | Self::Omitted | Self::Rest(_) => {}
-        }
-    }
 }

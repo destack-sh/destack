@@ -1,4 +1,3 @@
-use std::mem;
 use std::sync::Arc;
 
 use destack_core::FxIndexMap as IndexMap;
@@ -7,8 +6,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    GlobalGenericTemplateId, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, NameResolution,
-    PropertyAccess, SegmentView, StaticKey,
+    DefinitionMember, FunctionRole, GlobalGenericTemplateId, GlobalNodeIdAny, GlobalSymbolId,
+    GlobalTypeId, NameResolution, PropertyAccess, SegmentView, StaticKey,
 };
 
 /// Cumulative member bindings for one DIR module.
@@ -54,6 +53,17 @@ impl<'a> MemberTable<'a> {
             module_id,
             segments,
         }
+    }
+
+    /// Return the member bindings stored for one subject.
+    pub fn subject_bindings(&self, subject: &MemberSubject) -> Option<&[MemberBinding]> {
+        for segment in self.segments.iter().rev() {
+            if let Some(bindings) = segment.subject_bindings(subject) {
+                return Some(bindings);
+            }
+        }
+
+        None
     }
 
     /// Create a member table by appending a borrowed tail segment.
@@ -108,8 +118,6 @@ pub struct MemberSegment {
 pub struct MemberMark {
     /// The recorded site count.
     subjects: usize,
-    /// The recorded subject count.
-    bindings: usize,
 }
 
 impl MemberSegment {
@@ -135,6 +143,11 @@ impl MemberSegment {
         }
     }
 
+    /// Return the member bindings stored for one subject.
+    pub fn subject_bindings(&self, subject: &MemberSubject) -> Option<&[MemberBinding]> {
+        self.bindings.get(subject).map(Vec::as_slice)
+    }
+
     /// Set the member bindings stored for one lookup subject.
     pub fn set_bindings(&mut self, subject: MemberSubject, bindings: Vec<MemberBinding>) {
         self.bindings.insert(subject, bindings);
@@ -151,14 +164,12 @@ impl MemberSegment {
     pub fn mark(&self) -> MemberMark {
         MemberMark {
             subjects: self.subjects.len(),
-            bindings: self.bindings.len(),
         }
     }
 
     /// Truncate this segment to a previous rollback position.
     pub fn truncate_to(&mut self, mark: MemberMark) {
         self.subjects.truncate(mark.subjects);
-        self.bindings.truncate(mark.bindings);
     }
 
     /// Return the lookup subject selected at one source site.
@@ -183,32 +194,6 @@ impl MemberSegment {
     /// Return whether this segment has no member bindings.
     pub fn is_empty(&self) -> bool {
         self.subjects.is_empty() && self.bindings.is_empty()
-    }
-
-    /// Apply one mapping to every type id stored in this segment.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        // map subjects attached to source sites
-        for subject in self.subjects.values_mut() {
-            subject.map_type_ids(map);
-        }
-
-        // rebuild bindings under their mapped subjects
-        let bindings = mem::take(&mut self.bindings);
-        for (mut subject, mut members) in bindings {
-            subject.map_type_ids(map);
-            for member in &mut members {
-                member.map_type_ids(map);
-            }
-
-            if let Some(recorded) = self.bindings.get(&subject) {
-                assert_eq!(
-                    recorded, &members,
-                    "mapped member subjects have different bindings"
-                );
-            } else {
-                self.bindings.insert(subject, members);
-            }
-        }
     }
 }
 
@@ -251,13 +236,6 @@ impl MemberSubject {
         self.key_type = key_type;
 
         self
-    }
-
-    /// Apply one mapping to every type id stored in this subject.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.receiver = map(self.receiver);
-        self.target = map(self.target);
-        self.key_type = map(self.key_type);
     }
 }
 
@@ -330,14 +308,6 @@ impl MemberBinding {
             Some(NameResolution::from_symbols(symbols))
         }
     }
-
-    /// Apply one mapping to every type id stored in this binding.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.access.map_type_ids(map);
-        for declaration in &mut self.declarations {
-            declaration.map_type_ids(map);
-        }
-    }
 }
 
 /// One declaration contributing to a checked member binding.
@@ -345,16 +315,73 @@ impl MemberBinding {
 pub struct MemberDeclaration {
     /// The selected declaration symbol.
     pub symbol: GlobalSymbolId,
+    /// The declaration that exposed this member, through heritage.
+    pub owner: GlobalSymbolId,
     /// The declaration family that exposed this member.
     pub origin: MemberOrigin,
+    /// How the member behaves at a use site.
+    pub role: MemberRole,
     /// The substituted callable type, when callable.
     pub callable_type: Option<GlobalTypeId>,
 }
 
-impl MemberDeclaration {
-    /// Apply one mapping to every type id stored in this declaration.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.callable_type = self.callable_type.map(map);
+/// How one declaration member behaves at a use site.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum MemberRole {
+    /// Field members use regular assignability and project their own type.
+    Field,
+    /// Method members use receiver-free method assignability.
+    Method,
+    /// Getter members project their return type.
+    Getter,
+    /// Setter members accept their first parameter type.
+    Setter,
+    /// Associated members use regular assignability.
+    Associated,
+    /// Variant values select one unit case.
+    VariantValue,
+    /// Variant constructors accept one payload value.
+    VariantConstructor,
+}
+
+impl MemberRole {
+    /// Return whether this role selects a callable declaration.
+    pub fn is_callable(self) -> bool {
+        matches!(
+            self,
+            Self::Method | Self::Getter | Self::Setter | Self::VariantConstructor
+        )
+    }
+
+    /// Return the use-site role of one definition member.
+    pub fn from_definition(member: &DefinitionMember) -> Option<Self> {
+        match member {
+            DefinitionMember::Field(_) => Some(Self::Field),
+            DefinitionMember::Method(method) if method.role == Some(FunctionRole::Getter) => {
+                Some(Self::Getter)
+            }
+            DefinitionMember::Method(method) if method.role == Some(FunctionRole::Setter) => {
+                Some(Self::Setter)
+            }
+            DefinitionMember::Method(_) => Some(Self::Method),
+            DefinitionMember::AssociatedType(_) | DefinitionMember::AssociatedConst(_) => {
+                Some(Self::Associated)
+            }
+            DefinitionMember::EnumVariant(_) => Some(Self::VariantValue),
+            DefinitionMember::TaggedKey(_) => Some(Self::VariantValue),
+            DefinitionMember::TaggedVariant(variant) if variant.argument.is_some() => {
+                Some(Self::VariantConstructor)
+            }
+            DefinitionMember::TaggedVariant(_) => Some(Self::VariantValue),
+            DefinitionMember::CallSignature(_)
+            | DefinitionMember::ConstructSignature(_)
+            | DefinitionMember::IndexSignature(_) => None,
+        }
+    }
+
+    /// Return whether this role can be read by member access.
+    pub fn is_readable(self) -> bool {
+        !matches!(self, Self::Setter)
     }
 }
 

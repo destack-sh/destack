@@ -14,20 +14,13 @@ use crate::{
 /// super.render() // declaration: the enclosing class, ty: its superclass type
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct ReceiverResolution {
+pub struct ReceiverDecision {
     /// The receiver syntax kind.
     pub kind: ReceiverKind,
     /// The declaration that introduces the receiver.
     pub declaration: GlobalSymbolId,
     /// The receiver type after inference.
     pub ty: GlobalTypeId,
-}
-
-impl ReceiverResolution {
-    /// Apply one mapping to every type id stored in this resolution.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.ty = map(self.ty);
-    }
 }
 
 /// Receiver syntax resolved by contextual lookup.
@@ -85,14 +78,6 @@ impl AdjustedReceiver {
     pub fn prepend(&mut self, adjustment: ReceiverAdjustment) {
         self.adjustments.insert(0, adjustment);
     }
-
-    /// Apply one mapping to every type id stored in this receiver.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.source = map(self.source);
-        for adjustment in &mut self.adjustments {
-            adjustment.map_type_ids(map);
-        }
-    }
 }
 
 /// Receiver selected for one member access.
@@ -149,14 +134,6 @@ impl MemberReceiver {
             Self::Dynamic(dispatch) => dispatch.receiver.prepend(adjustment),
         }
     }
-
-    /// Apply one mapping to every type id stored in this receiver.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Direct(receiver) => receiver.map_type_ids(map),
-            Self::Dynamic(dispatch) => dispatch.map_type_ids(map),
-        }
-    }
 }
 
 /// Erased receiver selected for dynamic dispatch.
@@ -166,14 +143,6 @@ pub struct DynamicDispatch {
     pub receiver: AdjustedReceiver,
     /// The interface constraint declaring the dispatch member.
     pub constraint: GlobalTypeId,
-}
-
-impl DynamicDispatch {
-    /// Apply one mapping to every type id stored in this dispatch.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.receiver.map_type_ids(map);
-        self.constraint = map(self.constraint);
-    }
 }
 
 /// One implicit transformation applied before receiver selection.
@@ -226,28 +195,6 @@ impl ReceiverAdjustment {
             | Self::NewtypePayload { ty, .. }
             | Self::VariantPayload { ty, .. } => *ty,
             Self::Dereference(dereference) => dereference.ty,
-        }
-    }
-
-    /// Apply one mapping to every type id stored in this adjustment.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Borrow { ty } => *ty = map(*ty),
-            Self::Dereference(resolution) => resolution.map_type_ids(map),
-            Self::NewtypePayload {
-                generic_arguments,
-                ty,
-                ..
-            } => {
-                for argument in generic_arguments {
-                    argument.map_type_ids(map);
-                }
-                *ty = map(*ty);
-            }
-            Self::VariantPayload { backing, ty, .. } => {
-                *backing = map(*backing);
-                *ty = map(*ty);
-            }
         }
     }
 }

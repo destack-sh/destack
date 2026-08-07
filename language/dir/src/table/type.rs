@@ -7,7 +7,7 @@ use rustc_hash::{FxHashMap, FxHasher};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use destack_core::{Arena, PoolId, StringId, ValuePool};
+use destack_core::{Arena, PoolId, StringId, ValueInterner, ValuePool};
 use destack_source::ModuleId;
 
 use crate::{
@@ -594,28 +594,15 @@ pub struct TypeSegment {
     pub(crate) strings: ListPool<StringId>,
 
     /// The interned type operation payloads.
-    pub(crate) operations: ValuePool<TypeOperationId, TypeOperation>,
+    pub(crate) operations: ValuePool<TypeOperation>,
     /// The interned function signature payloads.
-    pub(crate) signatures: ValuePool<FunctionSignatureId, FunctionSignatureType>,
+    pub(crate) signatures: ValuePool<FunctionSignatureType>,
     /// The interned member projection payloads.
-    pub(crate) members: ValuePool<MemberTypeId, MemberType>,
+    pub(crate) members: ValuePool<MemberType>,
     /// The interned refined application payloads.
-    pub(crate) refinements: ValuePool<RefinedTypeId, RefinedType>,
+    pub(crate) refinements: ValuePool<RefinedType>,
     /// The interned borrow form payloads.
-    pub(crate) borrows: ValuePool<BorrowFormId, BorrowForm>,
-
-    /// The intern index from value hash to owned type slots.
-    #[serde(skip)]
-    index: FxHashMap<u64, SmallVec<[LocalTypeId; 1]>>,
-    /// The value hash per owned type, parallel to `types`.
-    #[serde(skip)]
-    hashes: Vec<u64>,
-    /// The sealed segment beneath this tail, interning reuses its types.
-    #[serde(skip)]
-    sealed: Option<Arc<TypeSegment>>,
-    /// The intern index over the sealed segment's types.
-    #[serde(skip)]
-    sealed_index: FxHashMap<u64, SmallVec<[LocalTypeId; 1]>>,
+    pub(crate) borrows: ValuePool<BorrowForm>,
 
     /// Effective checked type by node.
     pub(crate) node_types: IndexMap<GlobalNodeIdAny, GlobalTypeId>,
@@ -680,10 +667,6 @@ impl TypeSegment {
             members: ValuePool::new(0),
             refinements: ValuePool::new(0),
             borrows: ValuePool::new(0),
-            index: FxHashMap::default(),
-            hashes: Vec::new(),
-            sealed: None,
-            sealed_index: FxHashMap::default(),
             node_types: IndexMap::default(),
             expected_types: IndexMap::default(),
             symbol_types: IndexMap::default(),
@@ -709,10 +692,6 @@ impl TypeSegment {
             members: ValuePool::new(base.members.count()),
             refinements: ValuePool::new(base.refinements.count()),
             borrows: ValuePool::new(base.borrows.count()),
-            index: FxHashMap::default(),
-            hashes: Vec::new(),
-            sealed: None,
-            sealed_index: FxHashMap::default(),
             node_types: IndexMap::default(),
             expected_types: IndexMap::default(),
             symbol_types: IndexMap::default(),
@@ -720,67 +699,14 @@ impl TypeSegment {
         }
     }
 
-    /// Create an empty tail whose interning reuses one sealed segment's types.
-    pub fn from_sealed_base(base: Arc<TypeSegment>) -> Self {
-        let mut tail = Self::from_base(&base);
-
-        // index the sealed types so identical structures reuse their ids
-        let mut sealed_index = FxHashMap::<u64, SmallVec<[LocalTypeId; 1]>>::default();
-        for (slot, ty) in base.types.iter().enumerate() {
-            let id = LocalTypeId::new(base.first_type_id + slot as u32);
-            sealed_index.entry(fx_hash(ty)).or_default().push(id);
-        }
-        tail.sealed = Some(base);
-        tail.sealed_index = sealed_index;
-
-        tail
-    }
-
-    /// Intern one type whose payload lists are already interned.
-    /// The caller supplies the joined structural flags of every child type.
-    pub fn intern_type(&mut self, ty: Type, child_flags: TypeFlags) -> LocalTypeId {
-        // probe the sealed segment beneath this tail first
-        let hash = fx_hash(&ty);
-        if let Some(sealed) = &self.sealed
-            && let Some(slots) = self.sealed_index.get(&hash)
-        {
-            for slot in slots {
-                if sealed.get_type_maybe(*slot).as_ref() == Some(&ty) {
-                    return *slot;
-                }
-            }
-        }
-
-        // probe the index for an existing structural hit
-        if let Some(slots) = self.index.get(&hash) {
-            for slot in slots {
-                if self.owned_type(*slot) == &ty {
-                    return *slot;
-                }
-            }
-        }
-
-        // allocate and index the new slot
+    /// Allocate one type row without probing for duplicates.
+    fn allocate_type(&mut self, ty: Type, child_flags: TypeFlags) -> LocalTypeId {
         let type_id = LocalTypeId::new(self.type_count());
         let flags = ty.own_flags() | child_flags;
         self.types.allocate(ty);
         self.flags.allocate(flags);
-        self.hashes.push(hash);
-        self.index.entry(hash).or_default().push(type_id);
 
         type_id
-    }
-
-    /// Intern one type operation payload.
-    pub fn intern_operation(&mut self, operation: TypeOperation) -> TypeOperationId {
-        // reuse what the sealed segment beneath this tail already interned
-        if let Some(sealed) = &self.sealed
-            && let Some(id) = sealed.operations.find(&operation)
-        {
-            return id;
-        }
-
-        self.operations.intern(operation)
     }
 
     /// Return the number of operations owned up to and including this segment.
@@ -793,18 +719,6 @@ impl TypeSegment {
         self.operations.get(id)
     }
 
-    /// Intern one function signature payload.
-    pub fn intern_signature(&mut self, signature: FunctionSignatureType) -> FunctionSignatureId {
-        // reuse what the sealed segment beneath this tail already interned
-        if let Some(sealed) = &self.sealed
-            && let Some(id) = sealed.signatures.find(&signature)
-        {
-            return id;
-        }
-
-        self.signatures.intern(signature)
-    }
-
     /// Return the number of signatures owned up to and including this segment.
     pub fn signature_count(&self) -> u32 {
         self.signatures.count()
@@ -813,18 +727,6 @@ impl TypeSegment {
     /// Return one signature payload, when owned by this segment.
     pub fn signature(&self, id: FunctionSignatureId) -> Option<&FunctionSignatureType> {
         self.signatures.get(id)
-    }
-
-    /// Intern one member projection payload.
-    pub fn intern_member(&mut self, member: MemberType) -> MemberTypeId {
-        // reuse what the sealed segment beneath this tail already interned
-        if let Some(sealed) = &self.sealed
-            && let Some(id) = sealed.members.find(&member)
-        {
-            return id;
-        }
-
-        self.members.intern(member)
     }
 
     /// Return the number of members owned up to and including this segment.
@@ -837,18 +739,6 @@ impl TypeSegment {
         self.members.get(id)
     }
 
-    /// Intern one refined application payload.
-    pub fn intern_refined(&mut self, refined: RefinedType) -> RefinedTypeId {
-        // reuse what the sealed segment beneath this tail already interned
-        if let Some(sealed) = &self.sealed
-            && let Some(id) = sealed.refinements.find(&refined)
-        {
-            return id;
-        }
-
-        self.refinements.intern(refined)
-    }
-
     /// Return the number of refined payloads owned up to and including this segment.
     pub fn refined_count(&self) -> u32 {
         self.refinements.count()
@@ -857,18 +747,6 @@ impl TypeSegment {
     /// Return one refined payload, when owned by this segment.
     pub fn refined(&self, id: RefinedTypeId) -> Option<&RefinedType> {
         self.refinements.get(id)
-    }
-
-    /// Intern one borrow form payload.
-    pub fn intern_borrow(&mut self, borrow: BorrowForm) -> BorrowFormId {
-        // reuse what the sealed segment beneath this tail already interned
-        if let Some(sealed) = &self.sealed
-            && let Some(id) = sealed.borrows.find(&borrow)
-        {
-            return id;
-        }
-
-        self.borrows.intern(borrow)
     }
 
     /// Return the number of borrows owned up to and including this segment.
@@ -881,81 +759,16 @@ impl TypeSegment {
         self.borrows.get(id)
     }
 
-    /// Intern one type id list.
-    pub fn intern_type_ids(&mut self, values: &[GlobalTypeId]) -> TypeListId {
-        // reuse what the sealed segment beneath this tail already interned
-        if let Some(sealed) = &self.sealed
-            && let Some(list) = sealed.type_ids.find(values)
-        {
-            return list;
-        }
-
-        self.type_ids.intern(values)
-    }
-
-    /// Intern one tuple element list.
-    pub fn intern_elements(&mut self, values: &[TypeElement]) -> TypeListId {
-        // reuse what the sealed segment beneath this tail already interned
-        if let Some(sealed) = &self.sealed
-            && let Some(list) = sealed.elements.find(values)
-        {
-            return list;
-        }
-
-        self.elements.intern(values)
-    }
-
-    /// Intern one shape property list.
-    pub fn intern_properties(&mut self, values: &[TypeProperty]) -> TypeListId {
-        // reuse what the sealed segment beneath this tail already interned
-        if let Some(sealed) = &self.sealed
-            && let Some(list) = sealed.properties.find(values)
-        {
-            return list;
-        }
-
-        self.properties.intern(values)
-    }
-
-    /// Intern one function parameter list.
-    pub fn intern_parameters(&mut self, values: &[FunctionParameterType]) -> TypeListId {
-        // reuse what the sealed segment beneath this tail already interned
-        if let Some(sealed) = &self.sealed
-            && let Some(list) = sealed.parameters.find(values)
-        {
-            return list;
-        }
-
-        self.parameters.intern(values)
-    }
-
-    /// Intern one index signature list.
-    pub fn intern_index_signatures(&mut self, values: &[TypeIndexSignature]) -> TypeListId {
-        // reuse what the sealed segment beneath this tail already interned
-        if let Some(sealed) = &self.sealed
-            && let Some(list) = sealed.index_signatures.find(values)
-        {
-            return list;
-        }
-
-        self.index_signatures.intern(values)
-    }
-
-    /// Intern one string list.
-    pub fn intern_strings(&mut self, values: &[StringId]) -> TypeListId {
-        // reuse what the sealed segment beneath this tail already interned
-        if let Some(sealed) = &self.sealed
-            && let Some(list) = sealed.strings.find(values)
-        {
-            return list;
-        }
-
-        self.strings.intern(values)
-    }
-
     /// Iterate effective checked types keyed by DIR node.
     pub fn node_types(&self) -> impl Iterator<Item = (GlobalNodeIdAny, GlobalTypeId)> + '_ {
         self.node_types
+            .iter()
+            .map(|(node_id, type_id)| (*node_id, *type_id))
+    }
+
+    /// Iterate contextual expected types keyed by DIR node.
+    pub fn expected_types(&self) -> impl Iterator<Item = (GlobalNodeIdAny, GlobalTypeId)> + '_ {
+        self.expected_types
             .iter()
             .map(|(node_id, type_id)| (*node_id, *type_id))
     }
@@ -1110,37 +923,6 @@ impl TypeSegment {
         }
     }
 
-    /// Drop every type and list interned after one mark.
-    pub fn truncate_to(&mut self, mark: TypeMark) {
-        // unindex the dropped type slots
-        let keep = mark.types.saturating_sub(self.first_type_id) as usize;
-        for slot in keep..self.types.len() {
-            let hash = self.hashes[slot];
-            let type_id = LocalTypeId::new(self.first_type_id + slot as u32);
-            if let Some(slots) = self.index.get_mut(&hash) {
-                slots.retain(|entry| *entry != type_id);
-            }
-        }
-
-        // drop the type slots and their lists
-        self.types.truncate(keep);
-        self.flags.truncate(keep);
-        self.hashes.truncate(keep);
-        self.type_ids.truncate_to(mark.type_ids);
-        self.elements.truncate_to(mark.elements);
-        self.properties.truncate_to(mark.properties);
-        self.parameters.truncate_to(mark.parameters);
-        self.index_signatures.truncate_to(mark.index_signatures);
-        self.strings.truncate_to(mark.strings);
-
-        // drop the payload slots
-        self.operations.truncate_to(mark.operations);
-        self.signatures.truncate_to(mark.signatures);
-        self.members.truncate_to(mark.members);
-        self.refinements.truncate_to(mark.refinements);
-        self.borrows.truncate_to(mark.borrows);
-    }
-
     /// Return the number of entries in this table.
     pub fn len(&self) -> u32 {
         self.type_count()
@@ -1173,11 +955,14 @@ pub(crate) struct ListPool<T> {
     first: u32,
     /// The stored list elements.
     elements: Arena<T>,
+}
+
+/// Intern bookkeeping growing one list pool.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct ListInterner {
     /// The intern index from list hash to owned list ids.
-    #[serde(skip)]
     index: FxHashMap<u64, SmallVec<[TypeListId; 1]>>,
     /// The intern log of owned list ids, in allocation order.
-    #[serde(skip)]
     log: Vec<(u64, TypeListId)>,
 }
 
@@ -1187,8 +972,6 @@ impl<T> ListPool<T> {
         Self {
             first,
             elements: Arena::new(),
-            index: FxHashMap::default(),
-            log: Vec::new(),
         }
     }
 
@@ -1214,9 +997,39 @@ impl<T> ListPool<T> {
     fn element_count(&self) -> u32 {
         self.first + self.elements.len() as u32
     }
+}
+
+impl ListInterner {
+    /// Intern one list into the pool.
+    fn intern<T: Copy + Eq + Hash>(&mut self, pool: &mut ListPool<T>, values: &[T]) -> TypeListId {
+        // canonicalize the empty list without touching storage
+        if values.is_empty() {
+            return TypeListId::EMPTY;
+        }
+
+        // probe the index for an existing content hit
+        let hash = fx_hash(&values);
+        if let Some(lists) = self.index.get(&hash) {
+            for list in lists {
+                if pool.get(*list) == values {
+                    return *list;
+                }
+            }
+        }
+
+        // append and index the new list
+        let list = TypeListId::new(pool.element_count(), values.len() as u32);
+        for value in values {
+            pool.elements.allocate(*value);
+        }
+        self.index.entry(hash).or_default().push(list);
+        self.log.push((hash, list));
+
+        list
+    }
 
     /// Drop every list interned after one cumulative count.
-    fn truncate_to(&mut self, count: u32) {
+    fn truncate<T>(&mut self, pool: &mut ListPool<T>, count: u32) {
         // unindex the dropped lists
         while let Some((hash, list)) = self.log.last().copied() {
             if list.start < count {
@@ -1229,55 +1042,8 @@ impl<T> ListPool<T> {
         }
 
         // drop the elements
-        let keep = count.saturating_sub(self.first) as usize;
-        self.elements.truncate(keep);
-    }
-}
-
-impl<T: Copy + Eq + Hash> ListPool<T> {
-    /// Find one already-interned list without allocating.
-    fn find(&self, values: &[T]) -> Option<TypeListId> {
-        // canonicalize the empty list without touching storage
-        if values.is_empty() {
-            return Some(TypeListId::EMPTY);
-        }
-
-        // probe the index for an existing content hit
-        let hash = fx_hash(&values);
-        let lists = self.index.get(&hash)?;
-
-        lists
-            .iter()
-            .find(|list| self.get(**list) == values)
-            .copied()
-    }
-
-    /// Intern one list.
-    fn intern(&mut self, values: &[T]) -> TypeListId {
-        // canonicalize the empty list without touching storage
-        if values.is_empty() {
-            return TypeListId::EMPTY;
-        }
-
-        // probe the index for an existing content hit
-        let hash = fx_hash(&values);
-        if let Some(lists) = self.index.get(&hash) {
-            for list in lists {
-                if self.get(*list) == values {
-                    return *list;
-                }
-            }
-        }
-
-        // append and index the new list
-        let list = TypeListId::new(self.element_count(), values.len() as u32);
-        for value in values {
-            self.elements.allocate(*value);
-        }
-        self.index.entry(hash).or_default().push(list);
-        self.log.push((hash, list));
-
-        list
+        let keep = count.saturating_sub(pool.first) as usize;
+        pool.elements.truncate(keep);
     }
 }
 
@@ -1287,4 +1053,264 @@ fn fx_hash(value: &impl Hash) -> u64 {
     value.hash(&mut hasher);
 
     hasher.finish()
+}
+
+/// One growing type segment interning over committed bases.
+#[derive(Debug, Clone)]
+pub struct TypeTail {
+    /// The rows built by this pass.
+    segment: TypeSegment,
+    /// The intern index from value hash to owned type slots.
+    index: FxHashMap<u64, SmallVec<[LocalTypeId; 1]>>,
+    /// The value hash per owned type, parallel to the segment's types.
+    hashes: Vec<u64>,
+    /// The committed segments beneath this tail.
+    committed: Vec<Arc<TypeSegment>>,
+    /// The intern index over the committed segments' types.
+    committed_index: FxHashMap<u64, SmallVec<[LocalTypeId; 1]>>,
+    /// Intern bookkeeping per list pool.
+    type_ids: ListInterner,
+    elements: ListInterner,
+    properties: ListInterner,
+    parameters: ListInterner,
+    index_signatures: ListInterner,
+    strings: ListInterner,
+    /// Intern bookkeeping per payload pool.
+    operations: ValueInterner<TypeOperationId>,
+    signatures: ValueInterner<FunctionSignatureId>,
+    members: ValueInterner<MemberTypeId>,
+    refinements: ValueInterner<RefinedTypeId>,
+    borrows: ValueInterner<BorrowFormId>,
+}
+
+impl std::ops::Deref for TypeTail {
+    type Target = TypeSegment;
+
+    fn deref(&self) -> &TypeSegment {
+        &self.segment
+    }
+}
+
+impl std::ops::DerefMut for TypeTail {
+    fn deref_mut(&mut self) -> &mut TypeSegment {
+        &mut self.segment
+    }
+}
+
+impl TypeTail {
+    /// Create an empty tail over one fresh module segment.
+    pub fn new(module_id: ModuleId) -> Self {
+        Self::wrap(TypeSegment::new(module_id), Vec::new())
+    }
+
+    /// Create an empty tail continuing one open base segment.
+    pub fn from_base(base: &TypeSegment) -> Self {
+        Self::wrap(TypeSegment::from_base(base), Vec::new())
+    }
+
+    /// Create an empty tail whose interning reuses one committed segment's types.
+    pub fn over_base(base: Arc<TypeSegment>) -> Self {
+        Self::over(vec![base])
+    }
+
+    /// Create an empty tail whose interning reuses stacked committed segments' types.
+    pub fn over(bases: Vec<Arc<TypeSegment>>) -> Self {
+        let last = bases
+            .last()
+            .expect("committed tail requires at least one base");
+        let mut tail = Self::wrap(TypeSegment::from_base(last), bases);
+
+        // index the committed types so identical structures reuse their ids
+        for base in &tail.committed {
+            for (slot, ty) in base.types.iter().enumerate() {
+                let id = LocalTypeId::new(base.first_type_id + slot as u32);
+                tail.committed_index
+                    .entry(fx_hash(ty))
+                    .or_default()
+                    .push(id);
+            }
+        }
+
+        tail
+    }
+
+    /// Return one owned row structurally equal to the type, when interned.
+    pub fn find_type(&self, ty: &Type) -> Option<LocalTypeId> {
+        let hash = fx_hash(ty);
+        let slots = self.index.get(&hash)?;
+
+        slots
+            .iter()
+            .find(|slot| self.segment.owned_type(**slot) == ty)
+            .copied()
+    }
+
+    /// Overwrite one owned row with its resolved content.
+    pub fn resolve_row(&mut self, id: LocalTypeId, ty: Type, flags: TypeFlags) {
+        let slot = id.0 - self.segment.first_type_id;
+        *self.segment.types.get_mut(slot) = ty;
+        *self.segment.flags.get_mut(slot) = flags;
+    }
+
+    /// Finish this tail into its pure row segment.
+    pub fn finish(self) -> TypeSegment {
+        self.segment
+    }
+
+    /// Wrap one segment with empty intern bookkeeping.
+    fn wrap(segment: TypeSegment, committed: Vec<Arc<TypeSegment>>) -> Self {
+        Self {
+            segment,
+            index: FxHashMap::default(),
+            hashes: Vec::new(),
+            committed,
+            committed_index: FxHashMap::default(),
+            type_ids: ListInterner::default(),
+            elements: ListInterner::default(),
+            properties: ListInterner::default(),
+            parameters: ListInterner::default(),
+            index_signatures: ListInterner::default(),
+            strings: ListInterner::default(),
+            operations: ValueInterner::new(),
+            signatures: ValueInterner::new(),
+            members: ValueInterner::new(),
+            refinements: ValueInterner::new(),
+            borrows: ValueInterner::new(),
+        }
+    }
+
+    /// Intern one type whose payload lists are already interned.
+    /// The caller supplies the joined structural flags of every child type.
+    pub fn intern_type(&mut self, ty: Type, child_flags: TypeFlags) -> LocalTypeId {
+        // probe the committed segments beneath this tail first
+        let hash = fx_hash(&ty);
+        if let Some(slots) = self.committed_index.get(&hash) {
+            for slot in slots {
+                let committed = self
+                    .committed
+                    .iter()
+                    .find_map(|base| base.get_type_maybe(*slot));
+                if committed.as_ref() == Some(&ty) {
+                    return *slot;
+                }
+            }
+        }
+
+        // probe the index for an existing structural hit
+        if let Some(slots) = self.index.get(&hash) {
+            for slot in slots {
+                if self.segment.owned_type(*slot) == &ty {
+                    return *slot;
+                }
+            }
+        }
+
+        // allocate and index the new slot
+        let type_id = self.segment.allocate_type(ty, child_flags);
+        self.hashes.push(hash);
+        self.index.entry(hash).or_default().push(type_id);
+
+        type_id
+    }
+
+    /// Intern one type operation payload.
+    pub fn intern_operation(&mut self, operation: TypeOperation) -> TypeOperationId {
+        self.operations
+            .intern(&mut self.segment.operations, operation)
+    }
+
+    /// Intern one function signature payload.
+    pub fn intern_signature(&mut self, signature: FunctionSignatureType) -> FunctionSignatureId {
+        self.signatures
+            .intern(&mut self.segment.signatures, signature)
+    }
+
+    /// Intern one member projection payload.
+    pub fn intern_member(&mut self, member: MemberType) -> MemberTypeId {
+        self.members.intern(&mut self.segment.members, member)
+    }
+
+    /// Intern one refined application payload.
+    pub fn intern_refined(&mut self, refined: RefinedType) -> RefinedTypeId {
+        self.refinements
+            .intern(&mut self.segment.refinements, refined)
+    }
+
+    /// Intern one borrow form payload.
+    pub fn intern_borrow(&mut self, borrow: BorrowForm) -> BorrowFormId {
+        self.borrows.intern(&mut self.segment.borrows, borrow)
+    }
+
+    /// Intern one type id list.
+    pub fn intern_type_ids(&mut self, values: &[GlobalTypeId]) -> TypeListId {
+        self.type_ids.intern(&mut self.segment.type_ids, values)
+    }
+
+    /// Intern one tuple element list.
+    pub fn intern_elements(&mut self, values: &[TypeElement]) -> TypeListId {
+        self.elements.intern(&mut self.segment.elements, values)
+    }
+
+    /// Intern one shape property list.
+    pub fn intern_properties(&mut self, values: &[TypeProperty]) -> TypeListId {
+        self.properties.intern(&mut self.segment.properties, values)
+    }
+
+    /// Intern one function parameter list.
+    pub fn intern_parameters(&mut self, values: &[FunctionParameterType]) -> TypeListId {
+        self.parameters.intern(&mut self.segment.parameters, values)
+    }
+
+    /// Intern one index signature list.
+    pub fn intern_index_signatures(&mut self, values: &[TypeIndexSignature]) -> TypeListId {
+        self.index_signatures
+            .intern(&mut self.segment.index_signatures, values)
+    }
+
+    /// Intern one string list.
+    pub fn intern_strings(&mut self, values: &[StringId]) -> TypeListId {
+        self.strings.intern(&mut self.segment.strings, values)
+    }
+
+    /// Drop every type and list interned after one mark.
+    pub fn truncate_to(&mut self, mark: TypeMark) {
+        // unindex the dropped type slots
+        let keep = mark.types.saturating_sub(self.segment.first_type_id) as usize;
+        for slot in keep..self.segment.types.len() {
+            let hash = self.hashes[slot];
+            let type_id = LocalTypeId::new(self.segment.first_type_id + slot as u32);
+            if let Some(slots) = self.index.get_mut(&hash) {
+                slots.retain(|entry| *entry != type_id);
+            }
+        }
+
+        // drop the type slots and their lists
+        self.segment.types.truncate(keep);
+        self.segment.flags.truncate(keep);
+        self.hashes.truncate(keep);
+        self.type_ids
+            .truncate(&mut self.segment.type_ids, mark.type_ids);
+        self.elements
+            .truncate(&mut self.segment.elements, mark.elements);
+        self.properties
+            .truncate(&mut self.segment.properties, mark.properties);
+        self.parameters
+            .truncate(&mut self.segment.parameters, mark.parameters);
+        self.index_signatures
+            .truncate(&mut self.segment.index_signatures, mark.index_signatures);
+        self.strings
+            .truncate(&mut self.segment.strings, mark.strings);
+
+        // drop the payload slots
+        self.operations
+            .truncate(&mut self.segment.operations, mark.operations);
+        self.signatures
+            .truncate(&mut self.segment.signatures, mark.signatures);
+        self.members
+            .truncate(&mut self.segment.members, mark.members);
+        self.refinements
+            .truncate(&mut self.segment.refinements, mark.refinements);
+        self.borrows
+            .truncate(&mut self.segment.borrows, mark.borrows);
+    }
 }

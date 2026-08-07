@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, GenericParameterBinding, GenericTemplate, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId,
+    Arena, GenericParameterBinding, GenericTemplate, GlobalNodeIdAny, GlobalSymbolId,
     LocalGenericParameterId, LocalGenericTemplateId, LocalScopeId, SegmentView, VarianceModifier,
 };
 
@@ -118,6 +118,17 @@ impl<'a> GenericTable<'a> {
         for (template_id, template) in self.iter_templates() {
             if template.symbol == Some(symbol) {
                 return Some(template_id);
+            }
+        }
+
+        None
+    }
+
+    /// Return the generic parameter declared by one symbol.
+    pub fn parameter_by_symbol(&self, symbol: GlobalSymbolId) -> Option<LocalGenericParameterId> {
+        for (parameter_id, parameter) in self.iter_parameters() {
+            if parameter.symbol == Some(symbol) {
+                return Some(parameter_id);
             }
         }
 
@@ -346,21 +357,6 @@ impl GenericSegment {
     /// Return whether this segment has no entries.
     pub fn is_empty(&self) -> bool {
         self.templates.is_empty() && self.parameters.is_empty()
-    }
-
-    /// Apply one mapping to every type id stored in this segment.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        // map template predicates
-        for template in self.templates.iter_mut() {
-            for predicate in &mut template.predicates {
-                predicate.map_type_ids(map);
-            }
-        }
-
-        // map parameter types
-        for parameter in self.parameters.iter_mut() {
-            parameter.map_type_ids(map);
-        }
     }
 
     /// Get a generic template owned by this table segment.

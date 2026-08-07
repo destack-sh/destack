@@ -277,13 +277,6 @@ impl DefinitionSegment {
     pub fn is_empty(&self) -> bool {
         self.definitions.is_empty()
     }
-
-    /// Apply one mapping to every type id stored in this segment.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        for definition in self.definitions.values_mut() {
-            definition.map_type_ids(map);
-        }
-    }
 }
 
 /// Checked declaration data for one symbol.
@@ -430,81 +423,12 @@ impl Definition {
             Self::Extension(_) => None,
         }
     }
-
-    /// Apply one mapping to every type id stored in this definition.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        // map the definition's own type values
-        match self {
-            Self::TypeAlias(definition) => definition.value = map(definition.value),
-            Self::Struct(definition) => map_heritages(&mut definition.implements, map),
-            Self::Class(definition) => {
-                if let Some(extends) = &mut definition.extends {
-                    extends.ty = map(extends.ty);
-                }
-                map_heritages(&mut definition.implements, map);
-                for constructor in &mut definition.constructors {
-                    constructor.ty = map(constructor.ty);
-                }
-            }
-            Self::Interface(definition) => map_heritages(&mut definition.extends, map),
-            Self::Enum(definition) => map_heritages(&mut definition.implements, map),
-            Self::Newtype(definition) => {
-                definition.backing = map(definition.backing);
-                for constructor in &mut definition.constructors {
-                    constructor.backing = map(constructor.backing);
-                    constructor.ty = map(constructor.ty);
-                }
-            }
-            Self::Extension(definition) => {
-                match &mut definition.target {
-                    ExtensionTarget::Rooted { ty, .. } | ExtensionTarget::Blanket { ty, .. } => {
-                        *ty = map(*ty);
-                    }
-                }
-                map_heritages(&mut definition.implements, map);
-            }
-        }
-
-        // map every member's type values
-        for member in self.members_mut() {
-            match member {
-                DefinitionMember::AssociatedType(member) => {
-                    if let Some(constraint) = &mut member.constraint {
-                        *constraint = map(*constraint);
-                    }
-                    if let Some(value) = &mut member.value {
-                        *value = map(*value);
-                    }
-                }
-                DefinitionMember::CallSignature(member)
-                | DefinitionMember::ConstructSignature(member) => member.ty = map(member.ty),
-                DefinitionMember::IndexSignature(member) => {
-                    member.key_type = map(member.key_type);
-                    member.value_type = map(member.value_type);
-                }
-                DefinitionMember::TaggedVariant(member) => {
-                    member.backing = map(member.backing);
-                    if let Some(argument) = &mut member.argument {
-                        *argument = map(*argument);
-                    }
-                }
-                DefinitionMember::Field(_)
-                | DefinitionMember::Method(_)
-                | DefinitionMember::AssociatedConst(_)
-                | DefinitionMember::EnumVariant(_)
-                | DefinitionMember::TaggedKey(_) => {}
-            }
-        }
-    }
 }
 
 /// Apply one type id mapping to a heritage list.
-fn map_heritages(
-    heritages: &mut [NominalHeritage],
-    map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId,
-) {
+fn visit_heritages(heritages: &[NominalHeritage], visit: &mut impl FnMut(GlobalTypeId)) {
     for heritage in heritages {
-        heritage.ty = map(heritage.ty);
+        visit(heritage.ty);
     }
 }
 

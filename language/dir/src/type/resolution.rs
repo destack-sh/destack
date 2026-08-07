@@ -100,26 +100,19 @@ impl NameResolution {
 /// Box<int32>        // symbol: Box, arguments: (int32)
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct InstantiationResolution {
+pub struct InstantiationDecision {
     /// The generic declaration being applied.
     pub symbol: GlobalSymbolId,
     /// The complete selected generic argument bindings.
     pub generic_arguments: Vec<GenericArgumentBinding>,
 }
 
-impl InstantiationResolution {
+impl InstantiationDecision {
     /// Create an instantiation resolution.
     pub fn new(symbol: GlobalSymbolId, generic_arguments: Vec<GenericArgumentBinding>) -> Self {
         Self {
             symbol,
             generic_arguments,
-        }
-    }
-
-    /// Apply one mapping to every type id stored in this resolution.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        for argument in &mut self.generic_arguments {
-            argument.map_type_ids(map);
         }
     }
 }
@@ -181,15 +174,6 @@ pub struct FieldResolution {
     pub ty: GlobalTypeId,
 }
 
-impl FieldResolution {
-    /// Apply one mapping to every type id stored in this resolution.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.receiver.map_type_ids(map);
-        self.target.map_type_ids(map);
-        self.ty = map(self.ty);
-    }
-}
-
 /// One computed structural index selected during checking.
 ///
 /// Examples:
@@ -205,14 +189,6 @@ pub struct IndexResolution {
     pub key_type: GlobalTypeId,
     /// The selected structural storage.
     pub target: IndexTarget,
-}
-
-impl IndexResolution {
-    /// Apply one mapping to every type id stored in this resolution.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.receiver.map_type_ids(map);
-        self.key_type = map(self.key_type);
-    }
 }
 
 /// Structural storage selected by one computed index.
@@ -273,13 +249,6 @@ impl FieldTarget {
             Self::Structural { key, .. } | Self::Member { key, .. } => key,
         }
     }
-
-    /// Apply one mapping to every type id stored in this target.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        if let Self::Structural { owner, .. } = self {
-            *owner = map(*owner);
-        }
-    }
 }
 
 /// One tagged union case selected during checking.
@@ -317,7 +286,7 @@ pub struct MemberAccess {
 }
 
 /// Member access selected at a usage site.
-pub type MemberResolution = OperationResolution<MemberAccess>;
+pub type MemberDecision = OperationResolution<MemberAccess>;
 
 impl MemberAccess {
     /// Create a member access.
@@ -327,13 +296,6 @@ impl MemberAccess {
             target,
             ty,
         }
-    }
-
-    /// Apply one mapping to every type id stored in this access.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.receiver = map(self.receiver);
-        self.target.map_type_ids(map);
-        self.ty = map(self.ty);
     }
 }
 
@@ -383,19 +345,6 @@ impl OperationResolution<MemberAccess> {
                 }
 
                 key
-            }
-        }
-    }
-
-    /// Apply one mapping to every type id stored in this resolution.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::One(access) => access.map_type_ids(map),
-            Self::Union { arms, ty } => {
-                for access in arms {
-                    access.map_type_ids(map);
-                }
-                *ty = map(*ty);
             }
         }
     }
@@ -520,22 +469,6 @@ impl MemberTarget {
             }
         }
     }
-
-    /// Apply one mapping to every type id stored in this target.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Projection { projection, .. } => projection.map_type_ids(map),
-            Self::Field(field) => field.map_type_ids(map),
-            Self::Call(call) => call.map_type_ids(map),
-            Self::Index(index) => index.map_type_ids(map),
-            Self::Symbol(candidate) => candidate.map_type_ids(map),
-            Self::Existential(targets) | Self::Intersection(targets) => {
-                for target in targets {
-                    target.map_type_ids(map);
-                }
-            }
-        }
-    }
 }
 
 /// One member candidate after receiver lookup.
@@ -564,20 +497,6 @@ pub struct MemberCandidate {
     pub generic_arguments: Vec<GenericArgumentBinding>,
 }
 
-impl MemberCandidate {
-    /// Apply one mapping to every type id stored in this candidate.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.receiver.map_type_ids(map);
-        self.access_type = map(self.access_type);
-        if let Some(callable_type) = &mut self.callable_type {
-            *callable_type = map(*callable_type);
-        }
-        for argument in &mut self.generic_arguments {
-            argument.map_type_ids(map);
-        }
-    }
-}
-
 /// Callable selected at a call site.
 ///
 /// Examples:
@@ -597,7 +516,7 @@ pub struct Call {
 }
 
 /// Callable selected at a call site.
-pub type CallResolution = OperationResolution<Call>;
+pub type CallDecision = OperationResolution<Call>;
 
 impl Call {
     /// Return the selected parameter types bound to one argument source.
@@ -607,16 +526,6 @@ impl Call {
             .filter(|binding| binding.argument == source)
             .map(|binding| binding.ty)
             .collect()
-    }
-
-    /// Apply one mapping to every type id stored in this call.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.target.map_type_ids(map);
-        self.callable_type = map(self.callable_type);
-        for argument in &mut self.arguments {
-            argument.map_type_ids(map);
-        }
-        self.return_type = map(self.return_type);
     }
 }
 
@@ -672,19 +581,6 @@ impl OperationResolution<Call> {
                 .collect(),
         }
     }
-
-    /// Apply one mapping to every type id stored in this resolution.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::One(call) => call.map_type_ids(map),
-            Self::Union { arms, ty } => {
-                for call in arms {
-                    call.map_type_ids(map);
-                }
-                *ty = map(*ty);
-            }
-        }
-    }
 }
 
 /// Callable target selected for one call.
@@ -733,31 +629,6 @@ impl CallTarget {
             } => None,
         }
     }
-
-    /// Apply one mapping to every type id stored in this target.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Expression { generic_arguments } => {
-                for argument in generic_arguments {
-                    argument.map_type_ids(map);
-                }
-            }
-            Self::Symbol { function, dispatch } => {
-                function.map_type_ids(map);
-                dispatch.map_type_ids(map);
-            }
-            Self::Dynamic {
-                dispatch,
-                function: _,
-                generic_arguments,
-            } => {
-                dispatch.map_type_ids(map);
-                for argument in generic_arguments {
-                    argument.map_type_ids(map);
-                }
-            }
-        }
-    }
 }
 
 /// Dispatch selected for one declaration-backed function.
@@ -770,15 +641,6 @@ pub enum FunctionDispatch {
         /// The class type declaring the virtual dispatch slot.
         class: GlobalTypeId,
     },
-}
-
-impl FunctionDispatch {
-    /// Apply one mapping to every type id stored in this dispatch.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        if let Self::Virtual { class } = self {
-            *class = map(*class);
-        }
-    }
 }
 
 /// Callable operation selected through one erased dispatch table.
@@ -812,7 +674,7 @@ pub struct Subscript {
 }
 
 /// Subscript selected at an index expression or destructuring field.
-pub type SubscriptResolution = OperationResolution<Subscript>;
+pub type SubscriptDecision = OperationResolution<Subscript>;
 
 impl Subscript {
     /// Return whether this subscript reads or writes stored aggregate state.
@@ -822,12 +684,6 @@ impl Subscript {
             SubscriptTarget::Call(_) => false,
             SubscriptTarget::Index(read) => read.missing.is_none(),
         }
-    }
-
-    /// Apply one mapping to every type id stored in this subscript.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.target.map_type_ids(map);
-        self.ty = map(self.ty);
     }
 }
 
@@ -847,24 +703,11 @@ impl OperationResolution<Subscript> {
             Self::Union { arms, .. } => !arms.is_empty() && arms.iter().all(Subscript::is_stored),
         }
     }
-
-    /// Apply one mapping to every type id stored in this resolution.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::One(subscript) => subscript.map_type_ids(map),
-            Self::Union { arms, ty } => {
-                for subscript in arms {
-                    subscript.map_type_ids(map);
-                }
-                *ty = map(*ty);
-            }
-        }
-    }
 }
 
-impl From<MemberResolution> for SubscriptResolution {
+impl From<MemberDecision> for SubscriptDecision {
     /// Convert one member resolution into the corresponding subscript resolution.
-    fn from(resolution: MemberResolution) -> Self {
+    fn from(resolution: MemberDecision) -> Self {
         match resolution {
             OperationResolution::One(access) => {
                 let ty = access.ty;
@@ -900,17 +743,6 @@ pub enum SubscriptTarget {
     Index(IndexRead),
 }
 
-impl SubscriptTarget {
-    /// Apply one mapping to every type id stored in this target.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Member(member) => member.map_type_ids(map),
-            Self::Call(call) => call.map_type_ids(map),
-            Self::Index(read) => read.map_type_ids(map),
-        }
-    }
-}
-
 /// One selected `Index.index` call and its bracket projection.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct IndexRead {
@@ -920,17 +752,6 @@ pub struct IndexRead {
     pub dereference: Dereference,
     /// The non-borrowed result type, when lookup may miss.
     pub missing: Option<GlobalTypeId>,
-}
-
-impl IndexRead {
-    /// Apply one mapping to every type id stored in this read.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.call.map_type_ids(map);
-        self.dereference.map_type_ids(map);
-        if let Some(missing) = &mut self.missing {
-            *missing = map(*missing);
-        }
-    }
 }
 
 /// Dereference selected by one projection or place.
@@ -947,34 +768,12 @@ pub struct Dereference {
 /// Dereference selected by one projection or place.
 pub type DereferenceResolution = OperationResolution<Dereference>;
 
-impl Dereference {
-    /// Apply one mapping to every type id stored in this dereference.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.receiver = map(self.receiver);
-        self.target.map_type_ids(map);
-        self.ty = map(self.ty);
-    }
-}
-
 impl OperationResolution<Dereference> {
     /// Return the projected or stored pointee type.
     pub fn ty(&self) -> GlobalTypeId {
         match self {
             Self::One(dereference) => dereference.ty,
             Self::Union { ty, .. } => *ty,
-        }
-    }
-
-    /// Apply one mapping to every type id stored in this resolution.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::One(dereference) => dereference.map_type_ids(map),
-            Self::Union { arms, ty } => {
-                for dereference in arms {
-                    dereference.map_type_ids(map);
-                }
-                *ty = map(*ty);
-            }
         }
     }
 }
@@ -986,16 +785,6 @@ pub enum DereferenceTarget {
     Direct,
     /// Protocol-backed dereference call.
     Call(Box<Call>),
-}
-
-impl DereferenceTarget {
-    /// Apply one mapping to every type id stored in this target.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Direct => {}
-            Self::Call(call) => call.map_type_ids(map),
-        }
-    }
 }
 
 /// Operator implementation selected at a usage site.
@@ -1028,7 +817,7 @@ pub enum OperatorApplication {
 }
 
 /// Operator application selected at a usage site.
-pub type OperatorResolution = OperationResolution<OperatorApplication>;
+pub type OperatorDecision = OperationResolution<OperatorApplication>;
 
 /// Implementation selected for one operator application.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -1056,11 +845,6 @@ impl BuiltinOperand {
         self.scalar_families
             .as_ref()
             .is_some_and(ScalarFamilySet::is_integral)
-    }
-
-    /// Apply one mapping to every type id stored in this operand.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.ty = map(self.ty);
     }
 }
 
@@ -1130,46 +914,6 @@ impl OperatorApplication {
             .iter()
             .find(|operand| operand.source == source)
     }
-
-    /// Apply one mapping to every type id stored in this resolution.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Unary {
-                target: OperatorTarget::Builtin(operand),
-                ty,
-                ..
-            } => {
-                operand.map_type_ids(map);
-                *ty = map(*ty);
-            }
-            Self::Binary {
-                target: OperatorTarget::Builtin(operands),
-                ty,
-                ..
-            } => {
-                for operand in operands {
-                    operand.map_type_ids(map);
-                }
-                *ty = map(*ty);
-            }
-            Self::Unary {
-                target: OperatorTarget::Call(call),
-                ty,
-                ..
-            } => {
-                call.map_type_ids(map);
-                *ty = map(*ty);
-            }
-            Self::Binary {
-                target: OperatorTarget::Call(call),
-                ty,
-                ..
-            } => {
-                call.map_type_ids(map);
-                *ty = map(*ty);
-            }
-        }
-    }
 }
 
 impl OperationResolution<OperatorApplication> {
@@ -1203,19 +947,6 @@ impl OperationResolution<OperatorApplication> {
             .iter()
             .find(|operand| operand.source == source)
     }
-
-    /// Apply one mapping to every type id stored in this resolution.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::One(application) => application.map_type_ids(map),
-            Self::Union { arms, ty } => {
-                for application in arms {
-                    application.map_type_ids(map);
-                }
-                *ty = map(*ty);
-            }
-        }
-    }
 }
 
 /// Addressable storage selected by a checked expression.
@@ -1237,15 +968,6 @@ pub struct PlaceResolution {
     pub access: GlobalTypeId,
 }
 
-impl PlaceResolution {
-    /// Apply one mapping to every type id stored in this resolution.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.placement = map(self.placement);
-        self.lifetime = map(self.lifetime);
-        self.access = map(self.access);
-    }
-}
-
 /// Read and write operations selected for one assignment target.
 ///
 /// Examples:
@@ -1255,23 +977,13 @@ impl PlaceResolution {
 /// values[index] = next
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct AssignmentResolution {
+pub struct AssignmentDecision {
     /// The expression node designating the assignment target.
     pub target: GlobalNodeIdAny,
     /// The selected read, when the source operator reads before writing.
     pub read: Option<ReadResolution>,
     /// The selected write.
     pub write: WriteResolution,
-}
-
-impl AssignmentResolution {
-    /// Apply one mapping to every type id stored in this resolution.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        if let Some(read) = &mut self.read {
-            read.map_type_ids(map);
-        }
-        self.write.map_type_ids(map);
-    }
 }
 
 /// Read selected for one place expression.
@@ -1285,9 +997,9 @@ pub enum ReadResolution {
         ty: GlobalTypeId,
     },
     /// Member read.
-    Member(MemberResolution),
+    Member(MemberDecision),
     /// Subscript read.
-    Subscript(SubscriptResolution),
+    Subscript(SubscriptDecision),
     /// Dereference read.
     Dereference(DereferenceResolution),
 }
@@ -1300,16 +1012,6 @@ impl ReadResolution {
             Self::Member(member) => member.ty(),
             Self::Subscript(subscript) => subscript.ty(),
             Self::Dereference(dereference) => dereference.ty(),
-        }
-    }
-
-    /// Apply one mapping to every type id stored in this read.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Binding { ty, .. } => *ty = map(*ty),
-            Self::Member(member) => member.map_type_ids(map),
-            Self::Subscript(subscript) => subscript.map_type_ids(map),
-            Self::Dereference(dereference) => dereference.map_type_ids(map),
         }
     }
 }
@@ -1325,9 +1027,9 @@ pub enum WriteResolution {
         ty: GlobalTypeId,
     },
     /// Member write.
-    Member(MemberResolution),
+    Member(MemberDecision),
     /// Subscript write.
-    Subscript(SubscriptResolution),
+    Subscript(SubscriptDecision),
     /// Dereference write.
     Dereference(DereferenceResolution),
 }
@@ -1342,16 +1044,6 @@ impl WriteResolution {
             Self::Dereference(dereference) => dereference.ty(),
         }
     }
-
-    /// Apply one mapping to every type id stored in this write.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Binding { ty, .. } => *ty = map(*ty),
-            Self::Member(member) => member.map_type_ids(map),
-            Self::Subscript(subscript) => subscript.map_type_ids(map),
-            Self::Dereference(dereference) => dereference.map_type_ids(map),
-        }
-    }
 }
 
 /// Guard expression selected during checking.
@@ -1363,46 +1055,37 @@ impl WriteResolution {
 /// "name" in value
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum GuardResolution {
+pub enum GuardDecision {
     /// `is` guard, like `value is T`.
     ///
     /// Examples:
     /// ```ds
     /// value is string
     /// ```
-    Is(IsGuardResolution),
+    Is(IsGuardDecision),
     /// `instanceof` guard, like `value instanceof User`.
     ///
     /// Examples:
     /// ```ds
     /// value instanceof User
     /// ```
-    InstanceOf(InstanceOfGuardResolution),
+    InstanceOf(InstanceOfGuardDecision),
     /// `in` guard, like `"name" in value`.
     ///
     /// Examples:
     /// ```ds
     /// "name" in value
     /// ```
-    In(InGuardResolution),
+    In(InGuardDecision),
 }
 
-impl GuardResolution {
+impl GuardDecision {
     /// Return the executable predicate selected for this guard.
     pub fn predicate(&self) -> &Predicate {
         match self {
             Self::Is(guard) => &guard.predicate,
             Self::InstanceOf(guard) => &guard.predicate,
             Self::In(guard) => &guard.predicate,
-        }
-    }
-
-    /// Apply one mapping to every type id stored in this guard.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Is(guard) => guard.map_type_ids(map),
-            Self::InstanceOf(guard) => guard.map_type_ids(map),
-            Self::In(guard) => guard.map_type_ids(map),
         }
     }
 }
@@ -1416,22 +1099,13 @@ impl GuardResolution {
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct IsGuardResolution {
+pub struct IsGuardDecision {
     /// The tested value type.
     pub value_type: GlobalTypeId,
     /// The tested target type.
     pub target_type: GlobalTypeId,
     /// The executable predicate.
     pub predicate: Predicate,
-}
-
-impl IsGuardResolution {
-    /// Apply one mapping to every type id stored in this guard.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.value_type = map(self.value_type);
-        self.target_type = map(self.target_type);
-        self.predicate.map_type_ids(map);
-    }
 }
 
 /// `instanceof` guard selected during checking.
@@ -1443,7 +1117,7 @@ impl IsGuardResolution {
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct InstanceOfGuardResolution {
+pub struct InstanceOfGuardDecision {
     /// The tested value type.
     pub value_type: GlobalTypeId,
     /// The selected right-hand-side declaration.
@@ -1452,15 +1126,6 @@ pub struct InstanceOfGuardResolution {
     pub target_type: GlobalTypeId,
     /// The executable predicate.
     pub predicate: Predicate,
-}
-
-impl InstanceOfGuardResolution {
-    /// Apply one mapping to every type id stored in this guard.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.value_type = map(self.value_type);
-        self.target_type = map(self.target_type);
-        self.predicate.map_type_ids(map);
-    }
 }
 
 /// `in` guard selected during checking.
@@ -1472,22 +1137,13 @@ impl InstanceOfGuardResolution {
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct InGuardResolution {
+pub struct InGuardDecision {
     /// The tested key type.
     pub key_type: GlobalTypeId,
     /// The tested receiver type.
     pub receiver_type: GlobalTypeId,
     /// The executable predicate.
     pub predicate: Predicate,
-}
-
-impl InGuardResolution {
-    /// Apply one mapping to every type id stored in this guard.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.key_type = map(self.key_type);
-        self.receiver_type = map(self.receiver_type);
-        self.predicate.map_type_ids(map);
-    }
 }
 
 /// One declaration-backed function selected for a call.
@@ -1508,18 +1164,6 @@ pub struct FunctionTarget {
     pub generic_arguments: Vec<GenericArgumentBinding>,
 }
 
-impl FunctionTarget {
-    /// Apply one mapping to every type id stored in this target.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        if let Some(receiver) = &mut self.receiver {
-            receiver.map_type_ids(map);
-        }
-        for argument in &mut self.generic_arguments {
-            argument.map_type_ids(map);
-        }
-    }
-}
-
 /// Construct expression selected at a usage site.
 ///
 /// Examples:
@@ -1528,7 +1172,7 @@ impl FunctionTarget {
 /// UserId(raw)
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct ConstructResolution {
+pub struct ConstructDecision {
     /// The selected construct target.
     pub target: ConstructTarget,
     /// The source arguments bound to selected parameters.
@@ -1537,7 +1181,7 @@ pub struct ConstructResolution {
     pub return_type: GlobalTypeId,
 }
 
-impl ConstructResolution {
+impl ConstructDecision {
     /// Create a construct resolution.
     pub fn new(
         target: ConstructTarget,
@@ -1549,15 +1193,6 @@ impl ConstructResolution {
             arguments,
             return_type,
         }
-    }
-
-    /// Apply one mapping to every type id stored in this resolution.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.target.map_type_ids(map);
-        for argument in &mut self.arguments {
-            argument.map_type_ids(map);
-        }
-        self.return_type = map(self.return_type);
     }
 }
 
@@ -1621,16 +1256,6 @@ impl ConstructTarget {
             Self::Dynamic { .. } => None,
         }
     }
-
-    /// Apply one mapping to every type id stored in this target.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Class(candidate) => candidate.map_type_ids(map),
-            Self::Newtype(candidate) => candidate.map_type_ids(map),
-            Self::Variant(candidate) => candidate.map_type_ids(map),
-            Self::Dynamic { dispatch, .. } => dispatch.map_type_ids(map),
-        }
-    }
 }
 
 /// One class construction candidate after overload selection.
@@ -1650,15 +1275,6 @@ pub struct ClassConstructCandidate {
     pub generic_arguments: Vec<GenericArgumentBinding>,
 }
 
-impl ClassConstructCandidate {
-    /// Apply one mapping to every type id stored in this candidate.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        for argument in &mut self.generic_arguments {
-            argument.map_type_ids(map);
-        }
-    }
-}
-
 /// One newtype backing selected for a nominal value.
 ///
 /// Examples:
@@ -1673,16 +1289,6 @@ pub struct NewtypeSelection {
     pub backing: GlobalTypeId,
     /// The selected generic argument bindings for the newtype symbol.
     pub generic_arguments: Vec<GenericArgumentBinding>,
-}
-
-impl NewtypeSelection {
-    /// Apply one mapping to every type id stored in this selection.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.backing = map(self.backing);
-        for argument in &mut self.generic_arguments {
-            argument.map_type_ids(map);
-        }
-    }
 }
 
 /// One tagged variant construction candidate after checking.
@@ -1707,19 +1313,6 @@ pub struct VariantConstructCandidate {
     pub discriminant: ScalarLiteral,
 }
 
-impl VariantConstructCandidate {
-    /// Apply one mapping to every type id stored in this candidate.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.backing = map(self.backing);
-        if let Some(argument) = &mut self.argument {
-            *argument = map(*argument);
-        }
-        for argument in &mut self.generic_arguments {
-            argument.map_type_ids(map);
-        }
-    }
-}
-
 /// Pattern meaning selected during checking.
 ///
 /// Examples:
@@ -1735,7 +1328,7 @@ impl VariantConstructCandidate {
 /// "yes" | "no"              // Or
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum PatternResolution {
+pub enum PatternDecision {
     /// Pattern that accepts the input without binding, like `_`.
     ///
     /// Examples:
@@ -1802,19 +1395,6 @@ pub enum PatternResolution {
     Or(PatternOrResolution),
 }
 
-impl PatternResolution {
-    /// Apply one mapping to every type id stored in this pattern.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Ignore | Self::Bind(_) | Self::Must(_) | Self::Default(_) | Self::Or(_) => {}
-            Self::Test(pattern) => pattern.map_type_ids(map),
-            Self::Variant(pattern) => pattern.map_type_ids(map),
-            Self::Project(pattern) => pattern.map_type_ids(map),
-            Self::Destructure(pattern) => pattern.map_type_ids(map),
-        }
-    }
-}
-
 /// Symbol binding introduced by one pattern.
 ///
 /// Examples:
@@ -1868,13 +1448,6 @@ pub struct PatternPredicateResolution {
     pub predicate: Predicate,
 }
 
-impl PatternPredicateResolution {
-    /// Apply one mapping to every type id stored in this pattern.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.predicate.map_type_ids(map);
-    }
-}
-
 /// Projection selected by one pattern.
 ///
 /// Examples:
@@ -1887,13 +1460,6 @@ pub struct PatternProjectionResolution {
     pub projection: ProjectionResolution,
     /// The pattern matched after projection.
     pub pattern: Option<GlobalNodeIdAny>,
-}
-
-impl PatternProjectionResolution {
-    /// Apply one mapping to every type id stored in this pattern.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.projection.map_type_ids(map);
-    }
 }
 
 /// Destructuring selected by one pattern.
@@ -1937,18 +1503,6 @@ pub enum PatternDestructureResolution {
     Sequence(PatternSequenceDestructureResolution),
 }
 
-impl PatternDestructureResolution {
-    /// Apply one mapping to every type id stored in this destructuring.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Tuple(destructure) => destructure.map_type_ids(map),
-            Self::Object(destructure) => destructure.map_type_ids(map),
-            Self::Nominal(destructure) => destructure.map_type_ids(map),
-            Self::Sequence(destructure) => destructure.map_type_ids(map),
-        }
-    }
-}
-
 /// Tuple destructuring selected by one pattern.
 ///
 /// Examples:
@@ -1959,15 +1513,6 @@ impl PatternDestructureResolution {
 pub struct PatternTupleDestructureResolution {
     /// The tuple fields in source order.
     pub fields: Vec<PatternFieldResolution>,
-}
-
-impl PatternTupleDestructureResolution {
-    /// Apply one mapping to every type id stored in this destructuring.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        for field in &mut self.fields {
-            field.map_type_ids(map);
-        }
-    }
 }
 
 /// Object destructuring selected by one pattern.
@@ -1982,18 +1527,6 @@ pub struct PatternObjectDestructureResolution {
     pub fields: Vec<PatternFieldResolution>,
     /// The rest field, when present.
     pub rest: Option<Box<PatternFieldResolution>>,
-}
-
-impl PatternObjectDestructureResolution {
-    /// Apply one mapping to every type id stored in this destructuring.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        for field in &mut self.fields {
-            field.map_type_ids(map);
-        }
-        if let Some(rest) = &mut self.rest {
-            rest.map_type_ids(map);
-        }
-    }
 }
 
 /// Nominal destructuring selected by one pattern.
@@ -2014,21 +1547,6 @@ pub struct PatternNominalDestructureResolution {
     pub rest: Option<Box<PatternFieldResolution>>,
 }
 
-impl PatternNominalDestructureResolution {
-    /// Apply one mapping to every type id stored in this destructuring.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        for argument in &mut self.generic_arguments {
-            argument.map_type_ids(map);
-        }
-        for field in &mut self.fields {
-            field.map_type_ids(map);
-        }
-        if let Some(rest) = &mut self.rest {
-            rest.map_type_ids(map);
-        }
-    }
-}
-
 /// Sequence destructuring selected by one pattern.
 ///
 /// Examples:
@@ -2043,18 +1561,6 @@ pub struct PatternSequenceDestructureResolution {
     pub fields: Vec<PatternFieldResolution>,
     /// The rest field, when present.
     pub rest: Option<Box<PatternFieldResolution>>,
-}
-
-impl PatternSequenceDestructureResolution {
-    /// Apply one mapping to every type id stored in this destructuring.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        for field in &mut self.fields {
-            field.map_type_ids(map);
-        }
-        if let Some(rest) = &mut self.rest {
-            rest.map_type_ids(map);
-        }
-    }
 }
 
 /// Arity requirement introduced by one sequence pattern.
@@ -2091,16 +1597,6 @@ pub struct PatternVariantResolution {
     pub fields: Vec<PatternFieldResolution>,
 }
 
-impl PatternVariantResolution {
-    /// Apply one mapping to every type id stored in this pattern.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.predicate.map_type_ids(map);
-        for field in &mut self.fields {
-            field.map_type_ids(map);
-        }
-    }
-}
-
 /// Or-pattern branches selected during checking.
 ///
 /// Examples:
@@ -2130,16 +1626,9 @@ pub struct PatternFieldResolution {
     pub pattern: Option<GlobalNodeIdAny>,
 }
 
-impl PatternFieldResolution {
-    /// Apply one mapping to every type id stored in this field.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.projection.map_type_ids(map);
-    }
-}
-
 /// Assignment target meaning selected during checking.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum AssignPatternResolution {
+pub enum AssignPatternDecision {
     /// Direct writable place target, like `value` or `object.field`.
     Place,
     /// Defaulted assignment target, like `value = fallback`.
@@ -2150,18 +1639,6 @@ pub enum AssignPatternResolution {
     Tuple(AssignPatternTupleResolution),
     /// Object destructuring target, like `{ name, age: years }`.
     Object(AssignPatternObjectResolution),
-}
-
-impl AssignPatternResolution {
-    /// Apply one mapping to every type id stored in this assignment target.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Place | Self::Default(_) => {}
-            Self::Sequence(resolution) => resolution.map_type_ids(map),
-            Self::Tuple(resolution) => resolution.map_type_ids(map),
-            Self::Object(resolution) => resolution.map_type_ids(map),
-        }
-    }
 }
 
 /// Defaulted assignment target selected during checking.
@@ -2184,32 +1661,11 @@ pub struct AssignPatternSequenceResolution {
     pub rest: Option<Box<AssignPatternFieldResolution>>,
 }
 
-impl AssignPatternSequenceResolution {
-    /// Apply one mapping to every type id stored in this destructuring.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        for field in &mut self.fields {
-            field.map_type_ids(map);
-        }
-        if let Some(rest) = &mut self.rest {
-            rest.map_type_ids(map);
-        }
-    }
-}
-
 /// Tuple assignment destructuring selected during checking.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct AssignPatternTupleResolution {
     /// The projected tuple fields in source order.
     pub fields: Vec<AssignPatternFieldResolution>,
-}
-
-impl AssignPatternTupleResolution {
-    /// Apply one mapping to every type id stored in this destructuring.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        for field in &mut self.fields {
-            field.map_type_ids(map);
-        }
-    }
 }
 
 /// Object assignment destructuring selected during checking.
@@ -2219,18 +1675,6 @@ pub struct AssignPatternObjectResolution {
     pub fields: Vec<AssignPatternFieldResolution>,
     /// The rest target, when present.
     pub rest: Option<Box<AssignPatternRestResolution>>,
-}
-
-impl AssignPatternObjectResolution {
-    /// Apply one mapping to every type id stored in this destructuring.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        for field in &mut self.fields {
-            field.map_type_ids(map);
-        }
-        if let Some(rest) = &mut self.rest {
-            rest.map_type_ids(map);
-        }
-    }
 }
 
 /// One destructured assignment field.
@@ -2244,13 +1688,6 @@ pub struct AssignPatternFieldResolution {
     pub pattern: Option<GlobalNodeIdAny>,
 }
 
-impl AssignPatternFieldResolution {
-    /// Apply one mapping to every type id stored in this field.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.projection.map_type_ids(map);
-    }
-}
-
 /// Rest field selected by one assignment destructuring pattern.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct AssignPatternRestResolution {
@@ -2262,16 +1699,9 @@ pub struct AssignPatternRestResolution {
     pub pattern: Option<GlobalNodeIdAny>,
 }
 
-impl AssignPatternRestResolution {
-    /// Apply one mapping to every type id stored in this rest field.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.projection.map_type_ids(map);
-    }
-}
-
 /// The checked resolution of one tree literal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct TreeResolution {
+pub struct TreeDecision {
     /// The builder type constructing this literal.
     pub builder: GlobalTypeId,
     /// The resolved literal target.
@@ -2284,21 +1714,6 @@ pub struct TreeResolution {
     pub ty: GlobalTypeId,
 }
 
-impl TreeResolution {
-    /// Apply one mapping to every type id stored in this resolution.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.builder = map(self.builder);
-        self.target.map_type_ids(map);
-        for attribute in &mut self.attributes {
-            attribute.ty = map(attribute.ty);
-        }
-        for child in &mut self.children {
-            child.map_type_ids(map);
-        }
-        self.ty = map(self.ty);
-    }
-}
-
 /// The resolved target of one tree literal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum TreeTarget {
@@ -2307,12 +1722,12 @@ pub enum TreeTarget {
         /// The tag name.
         tag: StringId,
         /// The selected element static call.
-        call: CallResolution,
+        call: CallDecision,
     },
     /// A fragment built through the builder's fragment static.
     Fragment {
         /// The selected fragment static call.
-        call: CallResolution,
+        call: CallDecision,
     },
     /// A lexical component value invoked with its checked props.
     Component {
@@ -2323,27 +1738,13 @@ pub enum TreeTarget {
     },
 }
 
-impl TreeTarget {
-    /// Apply one mapping to every type id stored in this target.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Element { call, .. } | Self::Fragment { call } => call.map_type_ids(map),
-            Self::Component { invocation, .. } => match invocation {
-                TreeInvocation::Call(call) => call.map_type_ids(map),
-                TreeInvocation::Construct(construct) => construct.map_type_ids(map),
-                TreeInvocation::Struct { ty } => *ty = map(*ty),
-            },
-        }
-    }
-}
-
 /// The resolved invocation of one tree component.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum TreeInvocation {
     /// A callable component invoked with its props row.
-    Call(CallResolution),
+    Call(CallDecision),
     /// A class component built through its selected constructor.
-    Construct(ConstructResolution),
+    Construct(ConstructDecision),
     /// A struct component built through its literal field form.
     Struct {
         /// The constructed struct instance.
@@ -2388,15 +1789,4 @@ pub enum TreeChildBinding {
         /// The checked tuple type of the operand.
         ty: GlobalTypeId,
     },
-}
-
-impl TreeChildBinding {
-    /// Apply one mapping to every type id stored in this child.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Text { ty, .. } | Self::Expression { ty, .. } | Self::Spread { ty, .. } => {
-                *ty = map(*ty)
-            }
-        }
-    }
 }
