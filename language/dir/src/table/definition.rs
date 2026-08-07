@@ -147,6 +147,13 @@ impl<'a> DefinitionTable<'a> {
         definitions.into_iter()
     }
 
+    /// Iterate checked member conformances in definition order.
+    pub fn member_conformances(&self) -> impl Iterator<Item = &MemberConformance> + '_ {
+        self.iter_definitions()
+            .flat_map(|(_, definition)| definition.implementations())
+            .flat_map(|conformance| &conformance.members)
+    }
+
     /// Return true when this table has no definitions.
     pub fn is_empty(&self) -> bool {
         self.segments.iter().all(|segment| segment.is_empty())
@@ -420,18 +427,18 @@ impl Definition {
         // map the definition's own type values
         match self {
             Self::TypeAlias(definition) => definition.value = map(definition.value),
-            Self::Struct(definition) => map_heritages(&mut definition.implements, map),
+            Self::Struct(definition) => map_conformances(&mut definition.implements, map),
             Self::Class(definition) => {
                 if let Some(extends) = &mut definition.extends {
                     extends.ty = map(extends.ty);
                 }
-                map_heritages(&mut definition.implements, map);
+                map_conformances(&mut definition.implements, map);
                 for constructor in &mut definition.constructors {
                     constructor.ty = map(constructor.ty);
                 }
             }
             Self::Interface(definition) => map_heritages(&mut definition.extends, map),
-            Self::Enum(definition) => map_heritages(&mut definition.implements, map),
+            Self::Enum(definition) => map_conformances(&mut definition.implements, map),
             Self::Newtype(definition) => {
                 definition.backing = map(definition.backing);
                 for constructor in &mut definition.constructors {
@@ -445,7 +452,7 @@ impl Definition {
                         *ty = map(*ty);
                     }
                 }
-                map_heritages(&mut definition.implements, map);
+                map_conformances(&mut definition.implements, map);
             }
         }
 
@@ -492,6 +499,16 @@ fn map_heritages(
     }
 }
 
+/// Apply one type id mapping to a conformance list.
+fn map_conformances(
+    conformances: &mut [NominalConformance],
+    map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId,
+) {
+    for conformance in conformances {
+        conformance.interface = map(conformance.interface);
+    }
+}
+
 /// Checked declaration data for one transparent type alias.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TypeAliasDefinition {
@@ -511,7 +528,7 @@ pub struct StructDefinition {
     /// The selected runtime representation.
     pub representation: Representation,
     /// The implemented interfaces.
-    pub implements: Vec<NominalHeritage>,
+    pub implements: Vec<NominalConformance>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
 }
@@ -532,7 +549,7 @@ pub struct ClassDefinition {
     /// The extended class.
     pub extends: Option<NominalHeritage>,
     /// The implemented interfaces.
-    pub implements: Vec<NominalHeritage>,
+    pub implements: Vec<NominalConformance>,
     /// The class's direct construct candidates.
     pub constructors: Vec<ClassConstructorDefinition>,
     /// The members in declaration order.
@@ -669,7 +686,7 @@ pub struct EnumDefinition {
     /// The scalar type backing every enum variant.
     pub backing: EnumBackingType,
     /// The implemented interfaces.
-    pub implements: Vec<NominalHeritage>,
+    pub implements: Vec<NominalConformance>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
 }
@@ -744,7 +761,7 @@ pub struct ExtensionDefinition {
     /// The checked receiver target.
     pub target: ExtensionTarget,
     /// The implemented interfaces.
-    pub implements: Vec<NominalHeritage>,
+    pub implements: Vec<NominalConformance>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
 }
@@ -756,7 +773,7 @@ impl ExtensionDefinition {
         form: ExtensionForm,
         template: Option<LocalGenericTemplateId>,
         target: ExtensionTarget,
-        implements: Vec<NominalHeritage>,
+        implements: Vec<NominalConformance>,
         members: Vec<DefinitionMember>,
     ) -> Self {
         Self {
@@ -869,6 +886,26 @@ pub struct NominalHeritage {
     pub source: GlobalNodeIdAny,
     /// The applied heritage type.
     pub ty: GlobalTypeId,
+}
+
+/// One explicit interface conformance.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct NominalConformance {
+    /// The source `implements` node.
+    pub source: GlobalNodeIdAny,
+    /// The applied interface type.
+    pub interface: GlobalTypeId,
+    /// The members selected to satisfy interface requirements.
+    pub members: Vec<MemberConformance>,
+}
+
+/// One member satisfying an interface requirement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct MemberConformance {
+    /// The implementing member symbol.
+    pub member: GlobalSymbolId,
+    /// The required interface member symbol.
+    pub requirement: GlobalSymbolId,
 }
 
 /// One field member.
@@ -1294,13 +1331,24 @@ impl Definition {
     }
 
     /// Return the interfaces implemented by this definition.
-    pub fn implementations(&self) -> &[NominalHeritage] {
+    pub fn implementations(&self) -> &[NominalConformance] {
         match self {
             Self::Struct(definition) => &definition.implements,
             Self::Class(definition) => &definition.implements,
             Self::Enum(definition) => &definition.implements,
             Self::Extension(definition) => &definition.implements,
             Self::TypeAlias(_) | Self::Interface(_) | Self::Newtype(_) => &[],
+        }
+    }
+
+    /// Return the implemented interfaces for in-place mutation.
+    pub fn implementations_mut(&mut self) -> Option<&mut [NominalConformance]> {
+        match self {
+            Self::Struct(definition) => Some(&mut definition.implements),
+            Self::Class(definition) => Some(&mut definition.implements),
+            Self::Enum(definition) => Some(&mut definition.implements),
+            Self::Extension(definition) => Some(&mut definition.implements),
+            Self::TypeAlias(_) | Self::Interface(_) | Self::Newtype(_) => None,
         }
     }
 
@@ -1343,22 +1391,6 @@ impl Definition {
     ) -> impl Iterator<Item = &DefinitionMember> + '_ {
         self.members_in(space)
             .filter(move |member| member.key() == Some(key))
-    }
-
-    /// Return the heritage clauses this definition relates to.
-    pub fn heritages(&self) -> SmallVec<[&NominalHeritage; 2]> {
-        match self {
-            Self::Struct(definition) => definition.implements.iter().collect(),
-            Self::Class(definition) => definition
-                .extends
-                .iter()
-                .chain(definition.implements.iter())
-                .collect(),
-            Self::Interface(definition) => definition.extends.iter().collect(),
-            Self::Enum(definition) => definition.implements.iter().collect(),
-            Self::Extension(extension) => extension.implements.iter().collect(),
-            Self::TypeAlias(_) | Self::Newtype(_) => SmallVec::new(),
-        }
     }
 
     /// Return the base declarations whose members are inherited.
