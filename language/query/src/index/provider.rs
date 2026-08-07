@@ -266,10 +266,19 @@ impl Indexer {
         let expanded = artifacts.dir_expanded(module_id, profile_id)?;
         let resolved = artifacts.dir_resolved(module_id, profile_id)?;
         let declared = artifacts.dir_declared(module_id, profile_id)?;
+        let elaborated = artifacts.dir_elaborated(module_id, profile_id)?;
         let strings = self.repository().string_pool();
 
         Ok(ModuleIndexContext::new(
-            strings, module_id, parsed, &bound, expanded, resolved, &declared, checked,
+            strings,
+            module_id,
+            parsed,
+            &bound,
+            expanded,
+            resolved,
+            &declared,
+            &elaborated,
+            checked,
         ))
     }
 

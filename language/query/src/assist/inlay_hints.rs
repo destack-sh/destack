@@ -162,37 +162,30 @@ impl ModuleQueryContext<'_> {
         range: Span,
         hints: &mut Vec<InlayHint>,
     ) -> QueryResult<()> {
-        // collect selected calls
-        for (call, resolution) in self.resolutions()?.call_entries() {
-            if self.resolutions()?.construct_resolution(call).is_some() {
-                return Err(QueryError::conflict(format!(
-                    "inlay hint resolution columns: {call:?}"
-                )));
-            }
-
+        for (call, resolution) in self.decisions()?.decision_entries() {
             let call_span = self.node_span(self.view()?, call.local_id)?;
             if !Self::span_overlaps_range(call_span, range) {
                 continue;
             }
 
-            // omit ambiguous hints when selected arms bind arguments differently
-            let Some(arguments) = resolution.shared_arguments() else {
-                continue;
-            };
+            match resolution {
+                // collect selected calls
+                dir::Decision::Call(resolution) => {
+                    // omit ambiguous hints when selected arms bind arguments differently
+                    let Some(arguments) = resolution.shared_arguments() else {
+                        continue;
+                    };
 
-            let names = self.call_parameter_names(query, call, resolution)?;
-            self.collect_argument_hints(call, arguments, &names, range, hints)?;
-        }
-
-        // collect selected constructions
-        for (call, resolution) in self.resolutions()?.construct_entries() {
-            let call_span = self.node_span(self.view()?, call.local_id)?;
-            if !Self::span_overlaps_range(call_span, range) {
-                continue;
+                    let names = self.call_parameter_names(query, call, resolution)?;
+                    self.collect_argument_hints(call, arguments, &names, range, hints)?;
+                }
+                // collect selected constructions
+                dir::Decision::Construct(resolution) => {
+                    let names = self.construct_parameter_names(query, call, resolution)?;
+                    self.collect_argument_hints(call, &resolution.arguments, &names, range, hints)?;
+                }
+                _ => {}
             }
-
-            let names = self.construct_parameter_names(query, call, resolution)?;
-            self.collect_argument_hints(call, &resolution.arguments, &names, range, hints)?;
         }
 
         Ok(())
@@ -203,7 +196,7 @@ impl ModuleQueryContext<'_> {
         &self,
         query: &ProgramQueryContext<'_>,
         call: dir::GlobalNodeIdAny,
-        resolution: &dir::CallResolution,
+        resolution: &dir::CallDecision,
     ) -> QueryResult<Vec<Option<String>>> {
         let mut signatures = Vec::with_capacity(resolution.iter().len());
 
@@ -353,7 +346,7 @@ impl ModuleQueryContext<'_> {
         &self,
         query: &ProgramQueryContext<'_>,
         call: dir::GlobalNodeIdAny,
-        resolution: &dir::ConstructResolution,
+        resolution: &dir::ConstructDecision,
     ) -> QueryResult<Vec<Option<String>>> {
         match &resolution.target {
             dir::ConstructTarget::Class(candidate) => {

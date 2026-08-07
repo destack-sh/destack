@@ -306,8 +306,8 @@ impl ModuleQueryContext<'_> {
             return Ok(None);
         };
         let call_id = expression_id.into_global_any(self.module_id());
-        let call = self.resolutions()?.call_resolution(call_id);
-        let construct = self.resolutions()?.construct_resolution(call_id);
+        let call = self.decisions()?.call_decision(call_id);
+        let construct = self.decisions()?.construct_decision(call_id);
         if call.is_some() && construct.is_some() {
             return Err(QueryError::conflict(format!(
                 "completion resolution columns: {call_id:?}"
@@ -316,7 +316,7 @@ impl ModuleQueryContext<'_> {
         let argument = argument_id.into_global_any(self.module_id());
         let mut types = call
             .into_iter()
-            .flat_map(dir::CallResolution::iter)
+            .flat_map(dir::CallDecision::iter)
             .flat_map(|selection| selection.arguments.iter())
             .chain(
                 construct

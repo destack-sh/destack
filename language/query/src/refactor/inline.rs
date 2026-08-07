@@ -460,8 +460,8 @@ impl InlineTarget {
         module: &ModuleQueryContext<'_>,
     ) -> QueryResult<Option<String>> {
         let source = object.into_global_any(module.module_id());
-        let Some(dir::PatternResolution::Destructure(resolution)) =
-            module.resolutions()?.pattern_resolution(source)
+        let Some(dir::PatternDecision::Destructure(resolution)) =
+            module.decisions()?.pattern_decision(source)
         else {
             return Err(QueryError::missing(format!("inline pattern: {source:?}")));
         };

@@ -1,7 +1,9 @@
 use std::slice;
 use std::sync::Arc;
 
-use destack_artifact::{DirBound, DirChecked, DirDeclared, DirExpanded, DirParsed, DirResolved};
+use destack_artifact::{
+    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirParsed, DirResolved,
+};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::{ModuleId, SourceIndex, Span};
@@ -23,6 +25,7 @@ pub(in crate::index) struct ModuleIndexContext<'a> {
     definitions: dir::DefinitionTable<'static>,
     /// The checked resolution table.
     resolutions: dir::ResolutionTable<'static>,
+    decisions: dir::DecisionTable<'static>,
     /// The resolved source references.
     resolved: Arc<DirResolved>,
     /// The shared string pool.
@@ -41,10 +44,11 @@ impl<'a> ModuleIndexContext<'a> {
         expanded: Arc<DirExpanded>,
         resolved: Arc<DirResolved>,
         declared: &DirDeclared,
+        elaborated: &DirElaborated,
         checked: &DirChecked,
     ) -> Self {
-        let bindings = checked.binding_table(bound, &expanded, declared);
-        let types = checked.type_table(bound, &expanded, declared);
+        let bindings = checked.binding_table(bound, &expanded, declared, elaborated);
+        let types = checked.type_table(bound, &expanded, declared, elaborated);
 
         Self {
             module_id,
@@ -53,8 +57,9 @@ impl<'a> ModuleIndexContext<'a> {
             bindings,
             types,
             decorators: checked.decorator_table(declared),
-            definitions: checked.definition_table(declared),
-            resolutions: checked.resolution_table(declared),
+            definitions: checked.definition_table(declared, elaborated),
+            resolutions: checked.resolution_table(declared, elaborated),
+            decisions: checked.decision_table(declared, elaborated),
             resolved,
             strings,
         }
@@ -98,6 +103,11 @@ impl<'a> ModuleIndexContext<'a> {
     /// Return the checked resolution table.
     pub(super) fn resolutions(&self) -> &dir::ResolutionTable<'static> {
         &self.resolutions
+    }
+
+    /// Return the module's decision table.
+    pub(super) fn decisions(&self) -> &dir::DecisionTable<'static> {
+        &self.decisions
     }
 
     /// Return the resolved source references.

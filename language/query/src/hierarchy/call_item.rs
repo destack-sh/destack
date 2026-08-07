@@ -132,7 +132,7 @@ impl<'a> ConstructorCall<'a> {
     /// Create one applied call from its exact bindings.
     fn new(
         generic_arguments: &'a [dir::GenericArgumentBinding],
-        resolution: &'a dir::ConstructResolution,
+        resolution: &'a dir::ConstructDecision,
     ) -> Self {
         Self {
             generic_arguments,
@@ -183,8 +183,8 @@ impl CallItem {
         // require the construction selected for this exact indexed edge
         let source = entry.source.into_any();
         let resolution = source_module
-            .resolutions()?
-            .construct_resolution(source)
+            .decisions()?
+            .construct_decision(source)
             .ok_or(QueryError::missing(format!(
                 "call hierarchy construction: {source:?}"
             )))?;
@@ -348,8 +348,8 @@ impl CallableSelection<'_> {
         module: &'a ModuleQueryContext<'_>,
     ) -> QueryResult<CallableSelection<'a>> {
         let node_id = expression_id.into_global_any(module.module_id());
-        let call = module.resolutions()?.call_resolution(node_id);
-        let construct = module.resolutions()?.construct_resolution(node_id);
+        let call = module.decisions()?.call_decision(node_id);
+        let construct = module.decisions()?.construct_decision(node_id);
         if call.is_some() && construct.is_some() {
             return Err(QueryError::conflict(format!(
                 "call item resolution columns: {node_id:?}"
@@ -380,8 +380,8 @@ impl CallableSelection<'_> {
         let node_id = expression_id.into_global_any(module.module_id());
         let resolution =
             module
-                .resolutions()?
-                .construct_resolution(node_id)
+                .decisions()?
+                .construct_decision(node_id)
                 .ok_or(QueryError::missing(format!(
                     "call item construction: {node_id:?}"
                 )))?;
@@ -390,7 +390,7 @@ impl CallableSelection<'_> {
     }
 
     /// Return the callable represented by one construction.
-    fn from_resolution(resolution: &dir::ConstructResolution) -> CallableSelection<'_> {
+    fn from_resolution(resolution: &dir::ConstructDecision) -> CallableSelection<'_> {
         match &resolution.target {
             dir::ConstructTarget::Class(candidate) => match candidate.constructor.call_symbol() {
                 Some(symbol) => CallableSelection::Symbol(symbol),

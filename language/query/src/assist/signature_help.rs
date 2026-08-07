@@ -79,8 +79,8 @@ impl ModuleQueryContext<'_> {
                 dir::Expression::Call {
                     left, arguments, ..
                 } => {
-                    let call = self.resolutions()?.call_resolution(global_id);
-                    let construct = self.resolutions()?.construct_resolution(global_id);
+                    let call = self.decisions()?.call_decision(global_id);
+                    let construct = self.decisions()?.construct_decision(global_id);
                     if call.is_some() && construct.is_some() {
                         return Err(QueryError::conflict(format!(
                             "signature resolution columns: {global_id:?}"
@@ -109,8 +109,7 @@ impl ModuleQueryContext<'_> {
                     }
                 }
                 dir::Expression::New { arguments, .. } => {
-                    let Some(resolution) = self.resolutions()?.construct_resolution(global_id)
-                    else {
+                    let Some(resolution) = self.decisions()?.construct_decision(global_id) else {
                         return Ok(None);
                     };
                     let signatures = self.construct_signature_items(query, resolution)?;
@@ -144,7 +143,7 @@ impl ModuleQueryContext<'_> {
         &self,
         query: &ProgramQueryContext<'_>,
         callee_id: dir::LocalNodeId<dir::Expression>,
-        resolution: &dir::CallResolution,
+        resolution: &dir::CallDecision,
     ) -> QueryResult<Vec<SignatureItem>> {
         let mut signatures = Vec::new();
         for call in resolution.iter() {
@@ -358,7 +357,7 @@ impl ModuleQueryContext<'_> {
     fn construct_signature_items(
         &self,
         query: &ProgramQueryContext<'_>,
-        resolution: &dir::ConstructResolution,
+        resolution: &dir::ConstructDecision,
     ) -> QueryResult<Vec<SignatureItem>> {
         let item = match &resolution.target {
             dir::ConstructTarget::Class(candidate) => {
@@ -437,7 +436,7 @@ impl ModuleQueryContext<'_> {
         &self,
         query: &ProgramQueryContext<'_>,
         candidate: &dir::ClassConstructCandidate,
-        resolution: &dir::ConstructResolution,
+        resolution: &dir::ConstructDecision,
     ) -> QueryResult<SignatureItem> {
         let Some(name) = query.symbol_name(candidate.symbol)? else {
             return Err(QueryError::missing(format!(

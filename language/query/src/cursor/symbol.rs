@@ -526,15 +526,15 @@ impl ModuleQueryContext<'_> {
 
         // read the exact variant selected for the pattern
         let pattern = pattern_id.into_global_any(self.module_id());
-        let resolution =
-            self.resolutions()?
-                .pattern_resolution(pattern)
-                .ok_or(QueryError::missing(format!(
-                    "qualified pattern: {pattern:?}"
-                )))?;
+        let resolution = self
+            .decisions()?
+            .pattern_decision(pattern)
+            .ok_or(QueryError::missing(format!(
+                "qualified pattern: {pattern:?}"
+            )))?;
         match resolution {
-            dir::PatternResolution::Variant(resolution) => Ok(Some(resolution.case.variant)),
-            dir::PatternResolution::Destructure(_) => Ok(None),
+            dir::PatternDecision::Variant(resolution) => Ok(Some(resolution.case.variant)),
+            dir::PatternDecision::Destructure(_) => Ok(None),
             _ => Err(QueryError::invalid(format!(
                 "qualified pattern: {pattern:?}"
             ))),
@@ -575,8 +575,8 @@ impl ModuleQueryContext<'_> {
         call_id: dir::GlobalNodeIdAny,
         span: Span,
     ) -> QueryResult<Option<SymbolOccurrence>> {
-        let construct = self.resolutions()?.construct_resolution(call_id);
-        let call = self.resolutions()?.call_resolution(call_id);
+        let construct = self.decisions()?.construct_decision(call_id);
+        let call = self.decisions()?.call_decision(call_id);
 
         // require one authoritative call selection
         if construct.is_some() && call.is_some() {

@@ -23,120 +23,73 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
         };
 
         // collect checked call and construct resolutions
-        indexer.collect_calls()?;
-        indexer.collect_member_calls()?;
-        indexer.collect_operator_calls()?;
-        indexer.collect_subscript_calls()?;
-        indexer.collect_place_calls()?;
-        indexer.collect_constructs()?;
+        indexer.collect_resolutions()?;
 
         Ok(dir::CallIndex::new(indexer.entries))
     }
 
-    /// Collect checked call target edges.
-    fn collect_calls(&mut self) -> ProviderResult<()> {
-        for (node_id, resolution) in self.module.resolutions().call_entries() {
-            // resolve call source metadata
-            let source = self.expression_source(node_id, "call")?;
+    /// Collect call edges from every checked node resolution.
+    fn collect_resolutions(&mut self) -> ProviderResult<()> {
+        for (node_id, resolution) in self.module.decisions().decision_entries() {
+            // resolve shared source metadata per resolved node
+            let label = match resolution {
+                dir::Decision::Call(_) => "call",
+                dir::Decision::Member(_) => "member",
+                dir::Decision::Operator(_) => "operator",
+                dir::Decision::Subscript(_) => "subscript",
+                dir::Decision::Assignment(_) => "assignment",
+                dir::Decision::Construct(_) => "construct",
+                _ => continue,
+            };
+            let source = self.expression_source(node_id, label)?;
             let Some(span) = self.module.view().get_span_by_id(node_id.local_id.id) else {
                 continue;
             };
             let caller = self.containing_symbol(node_id.local_id)?;
 
-            self.push_call_resolution(source, caller, span, resolution);
-        }
-
-        Ok(())
-    }
-
-    /// Collect getter calls stored by member resolutions.
-    fn collect_member_calls(&mut self) -> ProviderResult<()> {
-        for (node_id, resolution) in self.module.resolutions().member_entries() {
-            let source = self.expression_source(node_id, "member")?;
-            let Some(span) = self.module.view().get_span_by_id(node_id.local_id.id) else {
-                continue;
-            };
-            let caller = self.containing_symbol(node_id.local_id)?;
-
-            self.push_member_resolution(source, caller, span, resolution);
-        }
-
-        Ok(())
-    }
-
-    /// Collect protocol calls stored by operator resolutions.
-    fn collect_operator_calls(&mut self) -> ProviderResult<()> {
-        for (node_id, resolution) in self.module.resolutions().operator_entries() {
-            let source = self.expression_source(node_id, "operator")?;
-            let Some(span) = self.module.view().get_span_by_id(node_id.local_id.id) else {
-                continue;
-            };
-            let caller = self.containing_symbol(node_id.local_id)?;
-
-            for application in resolution.iter() {
-                if let Some(call) = application.call() {
-                    self.push_call(source, caller, span, call);
+            match resolution {
+                // emit selected call targets
+                dir::Decision::Call(resolution) => {
+                    self.push_call_decision(source, caller, span, resolution);
                 }
+                // emit getter calls stored by member resolutions
+                dir::Decision::Member(resolution) => {
+                    self.push_member_decision(source, caller, span, resolution);
+                }
+                // emit protocol calls stored by operator resolutions
+                dir::Decision::Operator(resolution) => {
+                    for application in resolution.iter() {
+                        if let Some(call) = application.call() {
+                            self.push_call(source, caller, span, call);
+                        }
+                    }
+                }
+                // emit protocol calls stored by subscript read resolutions
+                dir::Decision::Subscript(resolution) => {
+                    self.push_subscript_decision(source, caller, span, resolution);
+                }
+                // emit accessor and protocol calls stored by place resolutions
+                dir::Decision::Assignment(resolution) => {
+                    if let Some(read) = &resolution.read {
+                        self.push_read(source, caller, span, read);
+                    }
+                    self.push_write(source, caller, span, &resolution.write);
+                }
+                // emit the resolved construct edge
+                dir::Decision::Construct(resolution) => {
+                    let Some(callee) = resolution.target.call_symbol() else {
+                        continue;
+                    };
+                    self.entries.push(dir::CallEntry {
+                        source,
+                        kind: dir::CallKind::Construct,
+                        caller,
+                        callee,
+                        span,
+                    });
+                }
+                _ => {}
             }
-        }
-
-        Ok(())
-    }
-
-    /// Collect protocol calls stored by subscript read resolutions.
-    fn collect_subscript_calls(&mut self) -> ProviderResult<()> {
-        for (node_id, resolution) in self.module.resolutions().subscript_entries() {
-            let source = self.expression_source(node_id, "subscript")?;
-            let Some(span) = self.module.view().get_span_by_id(node_id.local_id.id) else {
-                continue;
-            };
-            let caller = self.containing_symbol(node_id.local_id)?;
-
-            self.push_subscript_resolution(source, caller, span, resolution);
-        }
-
-        Ok(())
-    }
-
-    /// Collect accessor and protocol calls stored by place resolutions.
-    fn collect_place_calls(&mut self) -> ProviderResult<()> {
-        for (node_id, resolution) in self.module.resolutions().assignment_entries() {
-            let source = self.expression_source(node_id, "assignment")?;
-            let Some(span) = self.module.view().get_span_by_id(node_id.local_id.id) else {
-                continue;
-            };
-            let caller = self.containing_symbol(node_id.local_id)?;
-
-            if let Some(read) = &resolution.read {
-                self.push_read(source, caller, span, read);
-            }
-            self.push_write(source, caller, span, &resolution.write);
-        }
-
-        Ok(())
-    }
-
-    /// Collect checked construct target edges.
-    fn collect_constructs(&mut self) -> ProviderResult<()> {
-        for (node_id, resolution) in self.module.resolutions().construct_entries() {
-            // resolve construct source metadata
-            let source = self.expression_source(node_id, "construct")?;
-            let Some(span) = self.module.view().get_span_by_id(node_id.local_id.id) else {
-                continue;
-            };
-            let caller = self.containing_symbol(node_id.local_id)?;
-
-            // emit the resolved construct edge
-            let Some(callee) = resolution.target.call_symbol() else {
-                continue;
-            };
-            self.entries.push(dir::CallEntry {
-                source,
-                kind: dir::CallKind::Construct,
-                caller,
-                callee,
-                span,
-            });
         }
 
         Ok(())
@@ -157,12 +110,12 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
     }
 
     /// Push call edges selected by one call resolution.
-    fn push_call_resolution(
+    fn push_call_decision(
         &mut self,
         source: dir::GlobalNodeId<dir::Expression>,
         caller: Option<dir::GlobalSymbolId>,
         span: Span,
-        resolution: &dir::CallResolution,
+        resolution: &dir::CallDecision,
     ) {
         for call in resolution.iter() {
             self.push_call(source, caller, span, call);
@@ -170,12 +123,12 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
     }
 
     /// Push getter call edges selected by one member resolution.
-    fn push_member_resolution(
+    fn push_member_decision(
         &mut self,
         source: dir::GlobalNodeId<dir::Expression>,
         caller: Option<dir::GlobalSymbolId>,
         span: Span,
-        resolution: &dir::MemberResolution,
+        resolution: &dir::MemberDecision,
     ) {
         for access in resolution.iter() {
             self.push_member_target(source, caller, span, &access.target);
@@ -216,12 +169,12 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
     }
 
     /// Push calls selected by one subscript resolution.
-    fn push_subscript_resolution(
+    fn push_subscript_decision(
         &mut self,
         source: dir::GlobalNodeId<dir::Expression>,
         caller: Option<dir::GlobalSymbolId>,
         span: Span,
-        resolution: &dir::SubscriptResolution,
+        resolution: &dir::SubscriptDecision,
     ) {
         for subscript in resolution.iter() {
             match &subscript.target {
@@ -262,10 +215,10 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
         match read {
             dir::ReadResolution::Binding { .. } => {}
             dir::ReadResolution::Member(member) => {
-                self.push_member_resolution(source, caller, span, member);
+                self.push_member_decision(source, caller, span, member);
             }
             dir::ReadResolution::Subscript(subscript) => {
-                self.push_subscript_resolution(source, caller, span, subscript);
+                self.push_subscript_decision(source, caller, span, subscript);
             }
             dir::ReadResolution::Dereference(dereference) => {
                 self.push_dereference_resolution(source, caller, span, dereference);
@@ -284,10 +237,10 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
         match write {
             dir::WriteResolution::Binding { .. } => {}
             dir::WriteResolution::Member(member) => {
-                self.push_member_resolution(source, caller, span, member);
+                self.push_member_decision(source, caller, span, member);
             }
             dir::WriteResolution::Subscript(subscript) => {
-                self.push_subscript_resolution(source, caller, span, subscript);
+                self.push_subscript_decision(source, caller, span, subscript);
             }
             dir::WriteResolution::Dereference(dereference) => {
                 self.push_dereference_resolution(source, caller, span, dereference);

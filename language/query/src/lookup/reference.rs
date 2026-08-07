@@ -9,9 +9,14 @@ impl ModuleQueryContext<'_> {
         &self,
     ) -> QueryResult<impl Iterator<Item = (dir::GlobalNodeIdAny, &dir::WriteResolution)>> {
         let places = self
-            .resolutions()?
-            .assignment_entries()
-            .map(|(_, resolution)| (resolution.target, &resolution.write));
+            .decisions()?
+            .decision_entries()
+            .filter_map(|(_, resolution)| match resolution {
+                dir::Decision::Assignment(resolution) => {
+                    Some((resolution.target, &resolution.write))
+                }
+                _ => None,
+            });
 
         Ok(places)
     }

@@ -11,16 +11,16 @@ impl ModuleQueryContext<'_> {
         let mut selections = Vec::new();
 
         // collect every exact symbol selection recorded for this node
-        if let Some(resolution) = self.resolutions()?.member_resolution(node_id) {
+        if let Some(resolution) = self.decisions()?.member_decision(node_id) {
             selections.push(resolution.target_symbols());
         }
-        if let Some(resolution) = self.resolutions()?.instantiation_resolution(node_id) {
+        if let Some(resolution) = self.decisions()?.instantiation_decision(node_id) {
             selections.push(vec![resolution.symbol]);
         }
         if let Some(resolution) = self.resolutions()?.name_resolution(node_id) {
             selections.push(resolution.symbols().to_vec());
         }
-        if let Some(resolution) = self.resolutions()?.receiver_resolution(node_id) {
+        if let Some(resolution) = self.decisions()?.receiver_decision(node_id) {
             selections.push(vec![resolution.declaration]);
         }
         if let Some(resolution) = self.resolutions()?.label_resolution(node_id) {

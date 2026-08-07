@@ -414,16 +414,16 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
         field: dir::LocalNodeId<dir::PatternField>,
     ) -> QueryResult<&dir::PatternFieldResolution> {
         let pattern = pattern.into_global(self.module.module_id());
-        let resolution = self
-            .module
-            .resolutions()?
-            .pattern_resolution(pattern)
-            .ok_or(QueryError::missing(format!(
-                "semantic token pattern: {pattern:?}"
-            )))?;
+        let resolution =
+            self.module
+                .decisions()?
+                .pattern_decision(pattern)
+                .ok_or(QueryError::missing(format!(
+                    "semantic token pattern: {pattern:?}"
+                )))?;
         let fields = match resolution {
-            dir::PatternResolution::Variant(resolution) => &resolution.fields,
-            dir::PatternResolution::Destructure(resolution) => match resolution.as_ref() {
+            dir::PatternDecision::Variant(resolution) => &resolution.fields,
+            dir::PatternDecision::Destructure(resolution) => match resolution.as_ref() {
                 dir::PatternDestructureResolution::Object(resolution) => &resolution.fields,
                 dir::PatternDestructureResolution::Nominal(resolution) => &resolution.fields,
                 dir::PatternDestructureResolution::Tuple(_)
@@ -614,15 +614,15 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
     ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
         match write {
             dir::WriteResolution::Binding { symbol, .. } => self.symbol_token(*symbol),
-            dir::WriteResolution::Member(member) => self.member_resolution_token(member),
+            dir::WriteResolution::Member(member) => self.member_decision_token(member),
             dir::WriteResolution::Subscript(_) | dir::WriteResolution::Dereference(_) => Ok(None),
         }
     }
 
     /// Return the semantic token selected by one member resolution.
-    fn member_resolution_token(
+    fn member_decision_token(
         &self,
-        resolution: &dir::MemberResolution,
+        resolution: &dir::MemberDecision,
     ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
         let symbols = resolution.target_symbols();
         if !symbols.is_empty() {
@@ -674,8 +674,8 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
         }
 
         // use the complete checked member selection when present
-        if let Some(resolution) = self.module.resolutions()?.member_resolution(node_id) {
-            return self.member_resolution_token(resolution);
+        if let Some(resolution) = self.module.decisions()?.member_decision(node_id) {
+            return self.member_decision_token(resolution);
         }
 
         // classify remaining references from their recorded symbol identities

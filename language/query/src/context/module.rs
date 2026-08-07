@@ -3,8 +3,8 @@ use std::slice;
 use std::sync::{Arc, OnceLock};
 
 use destack_artifact::{
-    ArtifactKey, DirBound, DirChecked, DirDeclared, DirExpanded, DirImported, DirParsed,
-    DirParsedFile, DirResolved,
+    ArtifactKey, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirImported,
+    DirParsed, DirParsedFile, DirResolved,
 };
 use destack_core::StringPool;
 use destack_dir as dir;
@@ -39,6 +39,8 @@ pub struct ModuleQueryContext<'a> {
     resolved: OnceLock<Result<Arc<DirResolved>, ProviderError>>,
     /// The declared module artifact.
     declared: OnceLock<Result<Arc<DirDeclared>, ProviderError>>,
+    /// The elaborated module artifact.
+    elaborated: OnceLock<Result<Arc<DirElaborated>, ProviderError>>,
     /// The checked module artifact.
     checked: OnceLock<Result<Arc<DirChecked>, ProviderError>>,
     /// The cumulative binding table.
@@ -55,6 +57,7 @@ pub struct ModuleQueryContext<'a> {
     definitions: OnceLock<dir::DefinitionTable<'static>>,
     /// The cumulative resolution table.
     resolutions: OnceLock<dir::ResolutionTable<'static>>,
+    decisions: OnceLock<dir::DecisionTable<'static>>,
     /// The checked member table.
     members: OnceLock<dir::MemberTable<'static>>,
 }
@@ -93,6 +96,7 @@ impl<'a> ModuleQueryContext<'a> {
             expanded: OnceLock::new(),
             resolved: OnceLock::new(),
             declared: OnceLock::new(),
+            elaborated: OnceLock::new(),
             checked: OnceLock::new(),
             bindings: OnceLock::new(),
             modules: OnceLock::new(),
@@ -101,6 +105,7 @@ impl<'a> ModuleQueryContext<'a> {
             generics: OnceLock::new(),
             definitions: OnceLock::new(),
             resolutions: OnceLock::new(),
+            decisions: OnceLock::new(),
             members: OnceLock::new(),
         }
     }
@@ -175,6 +180,15 @@ impl<'a> ModuleQueryContext<'a> {
             ArtifactKey::dir_declared(self.module_id, self.profile_id),
             &self.declared,
             |reader| reader.dir_declared(self.module_id, self.profile_id),
+        )
+    }
+
+    /// Return the elaborated module artifact.
+    fn elaborated(&self) -> QueryResult<&DirElaborated> {
+        self.read_artifact(
+            ArtifactKey::dir_elaborated(self.module_id, self.profile_id),
+            &self.elaborated,
+            |reader| reader.dir_elaborated(self.module_id, self.profile_id),
         )
     }
 
@@ -305,10 +319,11 @@ impl<'a> ModuleQueryContext<'a> {
         let bound = self.bound()?;
         let expanded = self.expanded()?;
         let declared = self.declared()?;
+        let elaborated = self.elaborated()?;
 
         Ok(self
             .bindings
-            .get_or_init(|| checked.binding_table(bound, expanded, declared)))
+            .get_or_init(|| checked.binding_table(bound, expanded, declared, elaborated)))
     }
 
     /// Return the symbol declared by one local node when bound.
@@ -331,10 +346,11 @@ impl<'a> ModuleQueryContext<'a> {
         let bound = self.bound()?;
         let expanded = self.expanded()?;
         let declared = self.declared()?;
+        let elaborated = self.elaborated()?;
 
         Ok(self
             .types
-            .get_or_init(|| checked.type_table(bound, expanded, declared)))
+            .get_or_init(|| checked.type_table(bound, expanded, declared, elaborated)))
     }
 
     /// Return the cumulative DIR decorator table.
@@ -359,10 +375,11 @@ impl<'a> ModuleQueryContext<'a> {
 
         let checked = self.checked()?;
         let declared = self.declared()?;
+        let elaborated = self.elaborated()?;
 
         Ok(self
             .generics
-            .get_or_init(|| checked.generic_table(declared)))
+            .get_or_init(|| checked.generic_table(declared, elaborated)))
     }
 
     /// Return the cumulative DIR definition table.
@@ -373,10 +390,26 @@ impl<'a> ModuleQueryContext<'a> {
 
         let checked = self.checked()?;
         let declared = self.declared()?;
+        let elaborated = self.elaborated()?;
 
         Ok(self
             .definitions
-            .get_or_init(|| checked.definition_table(declared)))
+            .get_or_init(|| checked.definition_table(declared, elaborated)))
+    }
+
+    /// Return the cumulative DIR decision table.
+    pub(crate) fn decisions(&self) -> QueryResult<&dir::DecisionTable<'static>> {
+        if let Some(decisions) = self.decisions.get() {
+            return Ok(decisions);
+        }
+
+        let checked = self.checked()?;
+        let declared = self.declared()?;
+        let elaborated = self.elaborated()?;
+
+        Ok(self
+            .decisions
+            .get_or_init(|| checked.decision_table(declared, elaborated)))
     }
 
     /// Return the cumulative DIR resolution table.
@@ -387,10 +420,11 @@ impl<'a> ModuleQueryContext<'a> {
 
         let checked = self.checked()?;
         let declared = self.declared()?;
+        let elaborated = self.elaborated()?;
 
         Ok(self
             .resolutions
-            .get_or_init(|| checked.resolution_table(declared)))
+            .get_or_init(|| checked.resolution_table(declared, elaborated)))
     }
 
     /// Return the checked DIR member table.

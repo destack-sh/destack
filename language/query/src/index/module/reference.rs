@@ -48,32 +48,35 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
 
     /// Collect targets selected after name and member lookup.
     fn collect_selected_targets(&mut self) -> ProviderResult<()> {
-        // record explicit generic selections
-        for (source, resolution) in self.module.resolutions().instantiation_entries() {
-            let sources = self.instantiation_sources(source)?;
-            self.select(sources, vec![resolution.symbol])?;
-        }
-
-        // record symbol-backed call selections
-        for (source, resolution) in self.module.resolutions().call_entries() {
-            let targets = resolution
-                .iter()
-                .filter_map(|call| call.target.symbol())
-                .collect::<Vec<_>>();
-            if targets.is_empty() {
-                continue;
+        for (source, resolution) in self.module.decisions().decision_entries() {
+            match resolution {
+                // record explicit generic selections
+                dir::Decision::Instantiation(resolution) => {
+                    let sources = self.instantiation_sources(source)?;
+                    self.select(sources, vec![resolution.symbol])?;
+                }
+                // record symbol-backed call selections
+                dir::Decision::Call(resolution) => {
+                    let targets = resolution
+                        .iter()
+                        .filter_map(|call| call.target.symbol())
+                        .collect::<Vec<_>>();
+                    if targets.is_empty() {
+                        continue;
+                    }
+                    let sources = self.call_sources(source)?;
+                    self.select(sources, targets)?;
+                }
+                // record nominal construction selections
+                dir::Decision::Construct(resolution) => {
+                    let Some(symbol) = resolution.target.symbol() else {
+                        continue;
+                    };
+                    let sources = self.construct_sources(source)?;
+                    self.select(sources, vec![symbol])?;
+                }
+                _ => {}
             }
-            let sources = self.call_sources(source)?;
-            self.select(sources, targets)?;
-        }
-
-        // record nominal construction selections
-        for (source, resolution) in self.module.resolutions().construct_entries() {
-            let Some(symbol) = resolution.target.symbol() else {
-                continue;
-            };
-            let sources = self.construct_sources(source)?;
-            self.select(sources, vec![symbol])?;
         }
 
         Ok(())
@@ -81,14 +84,20 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
 
     /// Collect reference occurrences recorded by the checker.
     fn collect_resolutions(&mut self) -> ProviderResult<()> {
-        // collect resolved names
-        for (source, resolution) in self.module.resolutions().name_entries() {
+        // collect resolved lexical names
+        let names = self
+            .module
+            .resolutions()
+            .name_entries()
+            .map(|(source, name)| (source, name.clone()))
+            .collect::<Vec<_>>();
+        for (source, resolution) in names {
             // dependency names use their exact imported-name occurrence
             if source.local_id.ty == dir::NodeType::DependencyItem {
                 continue;
             }
 
-            // final call, construction, and instantiation selections replace inner resolutions
+            // final selections replace inner resolutions
             if self.selected_sources.contains(&source) {
                 continue;
             }
@@ -98,51 +107,51 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
             }
         }
 
+        for (source, resolution) in self.module.decisions().decision_entries() {
+            match resolution {
+                // collect resolved receiver declarations
+                dir::Decision::Receiver(resolution) => {
+                    self.push(resolution.declaration, source)?;
+                }
+                // collect resolved members
+                dir::Decision::Member(resolution) => {
+                    if !self.selected_sources.contains(&source) {
+                        self.push_member(source, resolution)?;
+                    }
+                }
+                // collect protocol operator targets
+                dir::Decision::Operator(resolution) => {
+                    for application in resolution.iter() {
+                        if let Some(call) = application.call() {
+                            self.push_call(source, call)?;
+                        }
+                    }
+                }
+                // collect subscript read targets
+                dir::Decision::Subscript(resolution) => {
+                    self.push_subscript(source, resolution)?;
+                }
+                // collect assignment read and write targets
+                dir::Decision::Assignment(resolution) => {
+                    if let Some(read) = &resolution.read {
+                        self.push_read(source, read)?;
+                    }
+                    self.push_write(source, &resolution.write)?;
+                }
+                // collect type guard targets
+                dir::Decision::Guard(resolution) => {
+                    if let dir::GuardDecision::InstanceOf(guard) = resolution {
+                        self.push(guard.target, source)?;
+                    }
+                }
+                _ => {}
+            }
+        }
+
         // collect resolved symbol labels
         for (source, resolution) in self.module.resolutions().label_entries() {
             if let dir::LabelResolution::Symbol(symbol) = resolution {
                 self.push(*symbol, source)?;
-            }
-        }
-
-        // collect resolved receiver declarations
-        for (source, resolution) in self.module.resolutions().receiver_entries() {
-            self.push(resolution.declaration, source)?;
-        }
-
-        // collect resolved members
-        for (source, resolution) in self.module.resolutions().member_entries() {
-            if !self.selected_sources.contains(&source) {
-                self.push_member(source, resolution)?;
-            }
-        }
-
-        // collect protocol operator targets
-        for (source, resolution) in self.module.resolutions().operator_entries() {
-            for application in resolution.iter() {
-                if let Some(call) = application.call() {
-                    self.push_call(source, call)?;
-                }
-            }
-        }
-
-        // collect subscript read targets
-        for (source, resolution) in self.module.resolutions().subscript_entries() {
-            self.push_subscript(source, resolution)?;
-        }
-
-        // collect assignment read and write targets
-        for (source, resolution) in self.module.resolutions().assignment_entries() {
-            if let Some(read) = &resolution.read {
-                self.push_read(source, read)?;
-            }
-            self.push_write(source, &resolution.write)?;
-        }
-
-        // collect type guard targets
-        for (source, resolution) in self.module.resolutions().guard_entries() {
-            if let dir::GuardResolution::InstanceOf(guard) = resolution {
-                self.push(guard.target, source)?;
             }
         }
 
@@ -451,7 +460,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
     fn push_member(
         &mut self,
         source: dir::GlobalNodeIdAny,
-        resolution: &dir::MemberResolution,
+        resolution: &dir::MemberDecision,
     ) -> ProviderResult<()> {
         for access in resolution.iter() {
             self.push_member_target(source, &access.target)?;
@@ -498,7 +507,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
     fn push_subscript(
         &mut self,
         source: dir::GlobalNodeIdAny,
-        resolution: &dir::SubscriptResolution,
+        resolution: &dir::SubscriptDecision,
     ) -> ProviderResult<()> {
         for subscript in resolution.iter() {
             match &subscript.target {
