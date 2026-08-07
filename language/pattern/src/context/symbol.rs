@@ -9,7 +9,7 @@ impl ModuleContext {
         let node = node.into_global(self.module());
 
         // prefer selected member declarations
-        if let Some(resolution) = self.resolutions().member_resolution(node) {
+        if let Some(resolution) = self.decisions().member_decision(node) {
             let mut symbols = Vec::new();
             for access in resolution.iter() {
                 access.target.collect_symbols(&mut symbols);
@@ -19,7 +19,7 @@ impl ModuleContext {
         }
 
         // prefer explicit generic instantiations
-        if let Some(resolution) = self.resolutions().instantiation_resolution(node) {
+        if let Some(resolution) = self.decisions().instantiation_decision(node) {
             return vec![resolution.symbol];
         }
 

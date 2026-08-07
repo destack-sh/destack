@@ -2,7 +2,8 @@ use std::slice;
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirExpanded, DirExported, DirParsed, DirResolved,
+    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirParsed,
+    DirResolved,
 };
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -28,6 +29,8 @@ pub struct ModuleContext {
     statics: dir::StaticTable<'static>,
     /// The checked resolution table.
     resolutions: dir::ResolutionTable<'static>,
+    /// The checked decisions table.
+    decisions: dir::DecisionTable<'static>,
     /// The checked generic declarations and derived variances.
     generics: dir::GenericTable<'static>,
     /// The module id.
@@ -43,6 +46,7 @@ impl ModuleContext {
         exported: Arc<DirExported>,
         resolved: Arc<DirResolved>,
         declared: Arc<DirDeclared>,
+        elaborated: Arc<DirElaborated>,
         checked: Arc<DirChecked>,
     ) -> Result<Self, ContextError> {
         let module = checked.bindings.module_id;
@@ -64,9 +68,7 @@ impl ModuleContext {
             checked.statics.module_id,
             checked.resolutions.module_id,
             checked.generics.module_id,
-            checked.definitions.module_id,
             checked.decorators.module_id,
-            checked.auto.module_id,
             checked.coercions.module_id,
             checked.captures.module_id,
         ];
@@ -78,11 +80,12 @@ impl ModuleContext {
         }
 
         // compose cumulative checked tables once
-        let bindings = checked.binding_table(&bound, &expanded, &declared);
-        let types = checked.type_table(&bound, &expanded, &declared);
-        let statics = checked.static_table(&bound, &expanded, &declared);
-        let resolutions = checked.resolution_table(&declared);
-        let generics = checked.generic_table(&declared);
+        let bindings = checked.binding_table(&bound, &expanded, &declared, &elaborated);
+        let types = checked.type_table(&bound, &expanded, &declared, &elaborated);
+        let statics = checked.static_table(&bound, &expanded, &declared, &elaborated);
+        let resolutions = checked.resolution_table(&declared, &elaborated);
+        let decisions = checked.decision_table(&declared, &elaborated);
+        let generics = checked.generic_table(&declared, &elaborated);
 
         Ok(Self {
             parsed,
@@ -93,6 +96,7 @@ impl ModuleContext {
             types,
             statics,
             resolutions,
+            decisions,
             generics,
             module,
         })
@@ -131,6 +135,11 @@ impl ModuleContext {
     /// Return the checked resolution table.
     pub fn resolutions(&self) -> &dir::ResolutionTable<'static> {
         &self.resolutions
+    }
+
+    /// Return the decision table.
+    pub fn decisions(&self) -> &dir::DecisionTable<'static> {
+        &self.decisions
     }
 
     /// Return the checked generic declarations and derived variances.
