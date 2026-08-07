@@ -34,7 +34,7 @@ struct ModuleFileCandidate {
     package_root: Option<PathBuf>,
 }
 
-/// Resolution of one module path against the repository module set.
+/// Decision of one module path against the repository module set.
 #[derive(Debug)]
 pub struct ModulePathResolution {
     /// The candidate paths inspected.

@@ -442,8 +442,6 @@ pub struct DirChecked {
     pub decorators: Arc<dir::DecoratorSegment>,
     /// Checked diagnostic controls.
     pub controls: Arc<DiagnosticControlTable>,
-    /// Auto-derived implementations.
-    pub auto: Arc<dir::AutoSegment>,
     /// New types.
     pub types: Arc<dir::TypeSegment>,
     /// New static values.
@@ -452,12 +450,8 @@ pub struct DirChecked {
     pub resolutions: Arc<dir::ResolutionSegment>,
     /// New decisions.
     pub decisions: Arc<dir::DecisionSegment>,
-    /// Checked member availability.
-    pub members: Arc<dir::MemberSegment>,
     /// New generic slots and instances.
     pub generics: Arc<dir::GenericSegment>,
-    /// New declaration definitions.
-    pub definitions: Arc<dir::DefinitionSegment>,
     /// New implicit coercions.
     pub coercions: Arc<dir::CoercionSegment>,
     /// New captures.
@@ -483,16 +477,11 @@ impl DirChecked {
     }
 
     /// Return the cumulative decorator table for checked DIR.
-    pub fn decorator_table(&self, declared: &DirDeclared) -> dir::DecoratorTable<'static> {
+    pub fn decorator_table(&self, elaborated: &DirElaborated) -> dir::DecoratorTable<'static> {
         dir::DecoratorTable::from_segments(vec![
-            declared.decorators.clone(),
+            elaborated.decorators.clone(),
             self.decorators.clone(),
         ])
-    }
-
-    /// Return the cumulative auto implementation table for checked DIR.
-    pub fn auto_table(&self, elaborated: &DirElaborated) -> dir::AutoTable<'static> {
-        dir::AutoTable::from_segments(vec![elaborated.auto.clone(), self.auto.clone()])
     }
 
     /// Return the cumulative type table for checked DIR.
@@ -555,11 +544,6 @@ impl DirChecked {
         ])
     }
 
-    /// Return the checked member table.
-    pub fn member_table(&self) -> dir::MemberTable<'static> {
-        dir::MemberTable::from_segment(self.members.clone())
-    }
-
     /// Return the cumulative generic table for checked DIR.
     pub fn generic_table(
         &self,
@@ -570,19 +554,6 @@ impl DirChecked {
             declared.generics.clone(),
             elaborated.generics.clone(),
             self.generics.clone(),
-        ])
-    }
-
-    /// Return the cumulative definition table for checked DIR.
-    pub fn definition_table(
-        &self,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-    ) -> dir::DefinitionTable<'static> {
-        dir::DefinitionTable::from_segments(vec![
-            declared.definitions.clone(),
-            elaborated.definitions.clone(),
-            self.definitions.clone(),
         ])
     }
 
@@ -716,15 +687,8 @@ impl DirMaterialized {
     }
 
     /// Return the cumulative definition table for materialized DIR.
-    pub fn definition_table(
-        &self,
-        declared: &DirDeclared,
-        checked: &DirChecked,
-    ) -> dir::DefinitionTable<'static> {
-        dir::DefinitionTable::from_segments(vec![
-            declared.definitions.clone(),
-            checked.definitions.clone(),
-        ])
+    pub fn definition_table(&self, elaborated: &DirElaborated) -> dir::DefinitionTable<'static> {
+        dir::DefinitionTable::from_segment(elaborated.definitions.clone())
     }
 
     /// Return the cumulative coercion table for materialized DIR.

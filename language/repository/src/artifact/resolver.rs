@@ -13,7 +13,7 @@ use crate::{
 /// Commit attempts before one resolution reports contention.
 const RESOLVE_COMMIT_ATTEMPTS: usize = 1024;
 
-/// Resolution of one artifact in a repository revision.
+/// Decision of one artifact in a repository revision.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ArtifactResolution {
     /// The artifact has a terminal result.

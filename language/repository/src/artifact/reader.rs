@@ -5,7 +5,7 @@ use destack_artifact::{
     ArtifactDependency, ArtifactKey, ArtifactOutcome, ArtifactProjection,
     ArtifactProjectionDependency, ArtifactProjectionFingerprint, ArtifactProjectionKey,
     ArtifactRequirement, ArtifactTable, ArtifactVersion, Asset, Build, Bundle, Data, DirBound,
-    DirChecked, DirDeclared, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed,
+    DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed,
     DirResolved, EnvironmentBound, EnvironmentDeclared, IndexKind, InherentExtension, MirAnalyzed,
     MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleGraph, ModuleIndex, ModuleLinted,
     Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
@@ -568,6 +568,18 @@ impl<'a> ArtifactReader<'a> {
         self.read(
             ArtifactKey::dir_declared(module, profile),
             ArtifactTable::dir_declared,
+        )
+    }
+
+    /// Read one elaborated DIR artifact.
+    pub fn dir_elaborated(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirElaborated>, ProviderError> {
+        self.read(
+            ArtifactKey::dir_elaborated(module, profile),
+            ArtifactTable::dir_elaborated,
         )
     }
 
