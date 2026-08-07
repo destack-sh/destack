@@ -34,7 +34,7 @@ pub(in crate::check) struct FunctionFrame {
 #[derive(Debug)]
 pub(in crate::check) struct ControlTarget {
     /// The optional source label.
-    pub(in crate::check::flow) label: Option<dir::StringId>,
+    pub(in crate::check::flow) label: Option<ControlLabel>,
     /// The source form that introduced this target.
     pub(in crate::check::flow) form: ControlTargetForm,
     /// Flow branches collected at break sites.
@@ -43,6 +43,15 @@ pub(in crate::check) struct ControlTarget {
     pub(in crate::check::flow) continue_branches: Vec<FlowBranch>,
     /// The flow position before entering the control body.
     pub(in crate::check::flow) checkpoint: FlowCheckpoint,
+}
+
+/// One authored label attached to a control target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) struct ControlLabel {
+    /// The authored label name.
+    pub(in crate::check) name: dir::StringId,
+    /// The bound label symbol.
+    pub(in crate::check) symbol: dir::GlobalSymbolId,
 }
 
 /// A source control form that accepts `break`.

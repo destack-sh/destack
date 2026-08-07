@@ -1,10 +1,10 @@
 use destack_dir as dir;
 
-use crate::CompilerResult;
 use crate::check::{
-    CauseKind, ControlTarget, ControlTargetForm, FlowBranch, Origin, Relation, TryTarget,
-    VariableRole, WalkState, Widening,
+    CauseKind, ControlLabel, ControlTarget, ControlTargetForm, Decision, FlowBranch, Origin,
+    Relation, TryTarget, VariableRole, WalkState, Widening,
 };
+use crate::{CompilerError, CompilerResult};
 
 /// Receiver of one propagated try failure.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -25,7 +25,7 @@ impl WalkState<'_, '_> {
     /// Enter one break or continue target.
     pub(in crate::check) fn enter_control_target(
         &mut self,
-        label: Option<dir::StringId>,
+        label: Option<ControlLabel>,
         form: ControlTargetForm,
     ) {
         // capture flow state before the control body
@@ -112,6 +112,11 @@ impl WalkState<'_, '_> {
             return Ok(());
         };
 
+        // record the selected label symbol
+        if label.is_some() {
+            self.commit_label_resolution(source, index)?;
+        }
+
         // bind the carried value to the target output
         match (value, self.flow().control_target_form(index)) {
             // valued breaks check against the output at inference
@@ -160,7 +165,7 @@ impl WalkState<'_, '_> {
         &mut self,
         source: dir::LocalNodeIdAny,
         label: Option<dir::StringId>,
-    ) {
+    ) -> CompilerResult<()> {
         // resolve the chosen loop target
         let Some(index) = self.flow().continue_target_index(label) else {
             self.check.report_continue_outside_loop(self.module, source);
@@ -168,14 +173,39 @@ impl WalkState<'_, '_> {
             // unbound jumps already emitted diagnostics
             self.flow_mut().mark_unbound_jump(source);
 
-            return;
+            return Ok(());
         };
+
+        // record the selected label symbol
+        if label.is_some() {
+            self.commit_label_resolution(source, index)?;
+        }
 
         // capture branch flow at the continue site
         let checkpoint = self.flow().control_target_checkpoint(index);
         let branch = self.flow().branch(checkpoint);
 
         self.flow_mut().push_continue_branch(index, branch);
+
+        Ok(())
+    }
+
+    /// Commit the label selected by one explicit control transfer.
+    fn commit_label_resolution(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        target: usize,
+    ) -> CompilerResult<()> {
+        let label =
+            self.flow()
+                .control_target_label(target)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("labeled transfer {source:?} selected an unlabeled target"),
+                })?;
+        let source = source.into_global(self.module);
+
+        self.check
+            .commit_decision(source, Decision::Label(label.symbol))
     }
 
     /// Take continue branches collected by the current control target.

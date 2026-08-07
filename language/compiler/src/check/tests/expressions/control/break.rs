@@ -214,3 +214,83 @@ outer: {
 "#,
     );
 }
+
+#[test]
+fn test_labeled_break_selects_target() {
+    let session = TestSession::single(
+        r#"
+outer: loop {
+    break outer;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+outer: loop {
+    break outer;
+}
+
+=== checked ===
+outer: loop {
+/// @type.node type=void
+
+    break outer;
+    /// @type.node source="break outer" type=never
+    /// @resolution.label source="break outer" target=outer
+
+}
+"#,
+        r#"
+"#,
+    );
+}
+
+#[test]
+fn test_labeled_continue_selects_target() {
+    let session = TestSession::single(
+        r#"
+declare const running: boolean;
+
+outer: while (running) {
+    continue outer;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare const running: boolean;
+
+outer: while (running) {
+    continue outer;
+}
+
+=== checked ===
+declare const running: boolean;
+/// @type.symbol symbol=running source=running type=boolean
+/// @resolution.pattern source=running kind=binding target=running
+
+outer: while (running) {
+/// @type.node type=void
+/// @type.node source=running type=boolean
+/// @resolution.name source=running target=running
+/// @resolution.place source=running placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=running root=running
+
+    continue outer;
+    /// @type.node source="continue outer" type=never
+    /// @resolution.label source="continue outer" target=outer
+
+}
+"#,
+        r#"
+"#,
+    );
+}

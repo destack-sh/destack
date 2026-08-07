@@ -2,9 +2,9 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    AssignedPlace, CauseKind, ConditionBranch, ControlTargetForm, ExpectedType, FlowBranch,
-    FlowCheckpoint, Obligation, Origin, PatternCoverage, PatternCoverageObligation, PlaceUse,
-    Relation, ValueUse, VariableRole, WalkState, Widening,
+    AssignedPlace, CauseKind, ConditionBranch, ControlLabel, ControlTargetForm, ExpectedType,
+    FlowBranch, FlowCheckpoint, Obligation, Origin, PatternCoverage, PatternCoverageObligation,
+    PlaceUse, Relation, ValueUse, VariableRole, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -215,7 +215,7 @@ impl WalkState<'_, '_> {
             }
             // continue
             dir::Expression::Continue { label } => {
-                self.continue_to_control_target(id.into_any(), *label);
+                self.continue_to_control_target(id.into_any(), *label)?;
             }
             // await value
             dir::Expression::Await {
@@ -614,6 +614,17 @@ impl WalkState<'_, '_> {
         label: dir::StringId,
         body: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
+        let symbol = self
+            .check
+            .module(self.module)
+            .declaration_symbol(id.into_any())
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("label expression {id:?} has no bound symbol"),
+            })?;
+        let label = ControlLabel {
+            name: label,
+            symbol,
+        };
         let is_loop = matches!(
             self.tree.get(body),
             dir::Expression::While { .. }
@@ -840,7 +851,7 @@ impl WalkState<'_, '_> {
     /// ```
     fn walk_while_expression(
         &mut self,
-        label: Option<dir::StringId>,
+        label: Option<ControlLabel>,
         condition: dir::LocalNodeId<dir::Expression>,
         body: dir::LocalNodeId<dir::Block>,
     ) -> CompilerResult<()> {
@@ -876,7 +887,7 @@ impl WalkState<'_, '_> {
     /// ```
     fn walk_for_each_expression(
         &mut self,
-        label: Option<dir::StringId>,
+        label: Option<ControlLabel>,
         binding: &dir::ForEachBinding,
         iterator: dir::LocalNodeId<dir::Expression>,
         body: dir::LocalNodeId<dir::Block>,
@@ -917,7 +928,7 @@ impl WalkState<'_, '_> {
     /// ```
     fn walk_for_expression(
         &mut self,
-        label: Option<dir::StringId>,
+        label: Option<ControlLabel>,
         initialization: Option<dir::LocalNodeId<dir::Expression>>,
         condition: Option<dir::LocalNodeId<dir::Expression>>,
         increment: Option<dir::LocalNodeId<dir::Expression>>,
@@ -1009,7 +1020,7 @@ impl WalkState<'_, '_> {
     fn walk_loop_expression(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
-        label: Option<dir::StringId>,
+        label: Option<ControlLabel>,
         body: dir::LocalNodeId<dir::Block>,
     ) -> CompilerResult<()> {
         // open the loop output joined by break values

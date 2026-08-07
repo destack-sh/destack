@@ -5,7 +5,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Capture, ControlTarget, ControlTargetForm, FunctionFrame, Receiver, ReceiverBinding, TryTarget,
+    Capture, ControlLabel, ControlTarget, ControlTargetForm, FunctionFrame, Receiver,
+    ReceiverBinding, TryTarget,
 };
 
 /// Flow state while walking one module.
@@ -422,7 +423,10 @@ impl FlowState {
             .rev()
             .find_map(|(index, target)| {
                 if let Some(label) = label {
-                    (target.label == Some(label)).then_some(index)
+                    target
+                        .label
+                        .is_some_and(|target| target.name == label)
+                        .then_some(index)
                 } else {
                     target.form.accepts_unlabeled_break().then_some(index)
                 }
@@ -442,7 +446,9 @@ impl FlowState {
             .rev()
             .find_map(|(index, target)| {
                 if let Some(label) = label {
-                    (target.label == Some(label) && target.form.accepts_continue()).then_some(index)
+                    (target.label.is_some_and(|target| target.name == label)
+                        && target.form.accepts_continue())
+                    .then_some(index)
                 } else {
                     target.form.accepts_continue().then_some(index)
                 }
@@ -461,6 +467,11 @@ impl FlowState {
         let target = &self.targets[index];
 
         target.form
+    }
+
+    /// Return the label attached to one chosen control target.
+    pub(in crate::check) fn control_target_label(&self, index: usize) -> Option<ControlLabel> {
+        self.targets[index].label
     }
 
     /// Push one break branch onto a chosen control target.

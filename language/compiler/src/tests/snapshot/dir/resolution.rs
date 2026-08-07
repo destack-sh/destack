@@ -389,18 +389,11 @@ fn add_instantiation_resolution_row(
 fn add_label_resolution_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: dir::LabelResolution,
+    symbol: dir::GlobalSymbolId,
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "label")
-        .optional_field("source", builder.node_source(node_id));
-
-    let row = match resolution {
-        dir::LabelResolution::Symbol(symbol_id) => row
-            .field("kind", "symbol")
-            .field("target", builder.symbol_label(symbol_id)),
-        dir::LabelResolution::Loop => row.field("kind", "loop"),
-        dir::LabelResolution::Function => row.field("kind", "function"),
-    };
+        .optional_field("source", builder.node_source(node_id))
+        .field("target", builder.symbol_label(symbol));
 
     builder.push(row);
 }

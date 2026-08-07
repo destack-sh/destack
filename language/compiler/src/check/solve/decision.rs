@@ -13,6 +13,8 @@ pub(in crate::check) enum Decision {
     Name(dir::NameResolution),
     /// Resolved explicit generic application.
     Instantiation(dir::InstantiationResolution),
+    /// Resolved control label.
+    Label(dir::GlobalSymbolId),
     /// Resolved contextual receiver.
     Receiver(dir::ReceiverResolution),
     /// Resolved member access.
@@ -47,6 +49,7 @@ impl Decision {
         match self {
             Self::Name(_) => DecisionKind::Name,
             Self::Instantiation(_) => DecisionKind::Instantiation,
+            Self::Label(_) => DecisionKind::Label,
             Self::Receiver(_) => DecisionKind::Receiver,
             Self::Member(_) => DecisionKind::Member,
             Self::Operator(_) => DecisionKind::Operator,
@@ -71,6 +74,8 @@ pub(in crate::check) enum DecisionKind {
     Name,
     /// Resolved explicit generic application.
     Instantiation,
+    /// Resolved control label.
+    Label,
     /// Resolved contextual receiver.
     Receiver,
     /// Resolved member access.
@@ -164,6 +169,7 @@ impl CheckState<'_> {
             Decision::Instantiation(resolution) => {
                 resolutions.set_instantiation_resolution(node, resolution)
             }
+            Decision::Label(resolution) => resolutions.set_label_resolution(node, resolution),
             Decision::Receiver(resolution) => resolutions.set_receiver_resolution(node, resolution),
             Decision::Member(resolution) => resolutions.set_member_resolution(node, resolution),
             Decision::Operator(resolution) => resolutions.set_operator_resolution(node, resolution),
@@ -200,6 +206,7 @@ impl CheckState<'_> {
             Decision::Instantiation(resolution) => {
                 resolutions.instantiation_resolution(node) == Some(resolution)
             }
+            Decision::Label(resolution) => resolutions.label_resolution(node) == Some(*resolution),
             Decision::Receiver(resolution) => {
                 resolutions.receiver_resolution(node) == Some(resolution)
             }
