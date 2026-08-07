@@ -10,7 +10,11 @@ declare_lint! {
     pub MISSING_SPIN_LOOP {
         id: "missing-spin-loop",
         summary: "Require a processor hint in atomic busy-wait loops",
-        explanation: "An atomic polling loop without observable work continuously consumes execution resources. Use `spinLoop` for bounded optimistic spinning, or replace longer waits with a blocking synchronization operation.",
+        explanation: r#"
+An atomic polling loop without observable work continuously consumes execution resources. Use
+`spinLoop` for bounded optimistic spinning, or replace longer waits with a blocking synchronization
+operation.
+"#,
         example: {
             reported: r#"
 import { Atomic } from "destack:sync";

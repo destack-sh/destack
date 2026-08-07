@@ -8,7 +8,10 @@ declare_lint! {
     pub NO_USELESS_CONCAT {
         id: "no-useless-concat",
         summary: "Disallow concatenating adjacent string literals",
-        explanation: "Concatenating two authored string literals represents constant text as an operation without adding any dynamic value. Write one string or template literal so the text is represented directly.",
+        explanation: r#"
+Concatenating two authored string literals represents constant text as an operation without adding
+any dynamic value. Write one string or template literal so the text is represented directly.
+"#,
         example: {
             reported: r#"
 function message(): string {

@@ -22,7 +22,7 @@ macro_rules! declare_lint_stub {
         $visibility static $name: $crate::Lint = $crate::Lint {
             id: std::borrow::Cow::Borrowed($id),
             summary: std::borrow::Cow::Borrowed($summary),
-            explanation: std::borrow::Cow::Borrowed($explanation),
+            explanation: std::borrow::Cow::Borrowed($explanation.trim_ascii()),
             example: $crate::LintExample {
                 reported: std::borrow::Cow::Borrowed($reported),
                 accepted: std::borrow::Cow::Borrowed($accepted),

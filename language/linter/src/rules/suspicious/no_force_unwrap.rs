@@ -8,7 +8,11 @@ declare_lint_stub! {
     pub NO_FORCE_UNWRAP {
         id: "no-force-unwrap",
         summary: "Disallow force unwraps",
-        explanation: "Force unwrap turns an expected absence or failure into a panic. Propagate a typed failure or handle both cases explicitly; suppress the lint with a reason when an external invariant makes failure impossible.",
+        explanation: r#"
+Force unwrap turns an expected absence or failure into a panic. Propagate a typed failure or handle
+both cases explicitly; suppress the lint with a reason when an external invariant makes failure
+impossible.
+"#,
         example: {
             reported: r#"
 function load(config?: Config): Config {

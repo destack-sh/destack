@@ -10,7 +10,10 @@ declare_lint! {
     pub NO_UNNEEDED_TERNARY {
         id: "no-unneeded-ternary",
         summary: "Disallow unnecessary ternary expressions",
-        explanation: "A ternary that chooses opposite boolean literals only restates its boolean condition. Use the condition directly, or negate it when the branches reverse the condition.",
+        explanation: r#"
+A ternary that chooses opposite boolean literals only restates its boolean condition. Use the
+condition directly, or negate it when the branches reverse the condition.
+"#,
         example: {
             reported: r#"
 function active(condition: boolean): boolean {

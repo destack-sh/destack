@@ -10,7 +10,12 @@ declare_lint! {
     pub UNDOCUMENTED_UNSAFE {
         id: "undocumented-unsafe",
         summary: "Require a safety rationale for every unsafe declaration and expression",
-        explanation: "Unsafe APIs must state the obligations their callers must uphold, and local unsafe regions must explain why those obligations hold at the use site. Document every unsafe declaration with a `# Safety` section and local regions with an immediately preceding `SAFETY:` comment or a nonempty `@unsafe` reason.",
+        explanation: r#"
+Unsafe APIs must state the obligations their callers must uphold, and local unsafe regions must
+explain why those obligations hold at the use site. Document every unsafe declaration with a
+`# Safety` section and local regions with an immediately preceding `SAFETY:` comment or a nonempty
+`@unsafe` reason.
+"#,
         example: {
             reported: r#"
 function execute(): void {

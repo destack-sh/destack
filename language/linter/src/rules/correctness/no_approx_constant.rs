@@ -11,7 +11,10 @@ declare_lint! {
     pub NO_APPROX_CONSTANT {
         id: "no-approx-constant",
         summary: "Disallow numeric literals that approximate well-known constants",
-        explanation: "Hand-written approximations are usually less precise and less recognizable than the canonical standard-library constant. Use the corresponding `Math` member directly.",
+        explanation: r#"
+Hand-written approximations are usually less precise and less recognizable than the canonical
+standard-library constant. Use the corresponding `Math` member directly.
+"#,
         example: {
             reported: r#"
 declare const radius: number;

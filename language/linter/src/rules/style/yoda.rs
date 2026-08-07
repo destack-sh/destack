@@ -10,7 +10,10 @@ declare_lint! {
     pub YODA {
         id: "yoda",
         summary: "Disallow literal-first comparisons",
-        explanation: "Putting a literal before the value being tested reverses the usual subject-first reading order. Put the checked value first and reverse relational operators so the comparison retains its meaning.",
+        explanation: r#"
+Putting a literal before the value being tested reverses the usual subject-first reading order. Put
+the checked value first and reverse relational operators so the comparison retains its meaning.
+"#,
         example: {
             reported: r#"
 function isReady(state: string): boolean {

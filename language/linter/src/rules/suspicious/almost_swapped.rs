@@ -8,7 +8,11 @@ declare_lint! {
     pub ALMOST_SWAPPED {
         id: "almost-swapped",
         summary: "Disallow assignments that overwrite a value before swapping it",
-        explanation: "Two assignments of `left = right; right = left` do not exchange their values because the first assignment destroys the original left value. Preserve one value temporarily or use a checked swap operation.",
+        explanation: r#"
+Two assignments of `left = right; right = left` do not exchange their values because the first
+assignment destroys the original left value. Preserve one value temporarily or use a checked swap
+operation.
+"#,
         example: {
             reported: r#"
 function exchange(pair: { left: int32; right: int32 }): void {

@@ -8,7 +8,10 @@ declare_lint_stub! {
     pub EXCESSIVE_NESTING {
         id: "excessive-nesting",
         summary: "Disallow control flow nested beyond the canonical depth",
-        explanation: "Deeply nested control flow obscures the conditions governing each operation. Prefer guards, early exits, or an extracted operation once a function exceeds the standard nesting depth.",
+        explanation: r#"
+Deeply nested control flow obscures the conditions governing each operation. Prefer guards, early
+exits, or an extracted operation once a function exceeds the standard nesting depth.
+"#,
         example: {
             reported: r#"
 function acceptsMail(isActive: boolean, hasEmail: boolean, isSubscribed: boolean): boolean {

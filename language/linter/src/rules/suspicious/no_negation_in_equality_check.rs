@@ -9,7 +9,11 @@ declare_lint! {
     pub NO_NEGATION_IN_EQUALITY_CHECK {
         id: "no-negation-in-equality-check",
         summary: "Disallow negation in equality checks",
-        explanation: "A negated left operand is easy to confuse with negation of the complete equality check. Move the negation outside the comparison or choose the opposite equality operator to state the intended condition explicitly.",
+        explanation: r#"
+A negated left operand is easy to confuse with negation of the complete equality check. Move the
+negation outside the comparison or choose the opposite equality operator to state the intended
+condition explicitly.
+"#,
         example: {
             reported: r#"
 function differs(left: boolean, right: boolean): boolean {

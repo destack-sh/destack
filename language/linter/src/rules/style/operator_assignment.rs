@@ -10,7 +10,10 @@ declare_lint! {
     pub OPERATOR_ASSIGNMENT {
         id: "operator-assignment",
         summary: "Require compound assignment where equivalent",
-        explanation: "Repeating one stable place on both sides of an assignment obscures that the existing value is being updated. Use the corresponding compound assignment to name that update directly.",
+        explanation: r#"
+Repeating one stable place on both sides of an assignment obscures that the existing value is being
+updated. Use the corresponding compound assignment to name that update directly.
+"#,
         example: {
             reported: r#"
 function advance(value: int32): int32 {

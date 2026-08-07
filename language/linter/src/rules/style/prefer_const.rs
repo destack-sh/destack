@@ -11,7 +11,10 @@ declare_lint! {
     pub PREFER_CONST {
         id: "prefer-const",
         summary: "Require const for bindings never reassigned after initialization",
-        explanation: "A binding that is initialized once and never reassigned should be declared with `const`. This documents the binding cell without restricting mutation performed through the stored value's API.",
+        explanation: r#"
+A binding that is initialized once and never reassigned should be declared with `const`. This
+documents the binding cell without restricting mutation performed through the stored value's API.
+"#,
         example: {
             reported: r#"
 function identity(value: int32): int32 {

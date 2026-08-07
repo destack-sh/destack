@@ -9,7 +9,10 @@ declare_lint! {
     pub NO_LITERAL_UNWRAP {
         id: "no-literal-unwrap",
         summary: "Disallow immediately unwrapping a known successful result variant",
-        explanation: "Unwrapping a result immediately after constructing the variant that succeeds for that operation is redundant. Use the constructed value directly; statically failing unwraps are reported separately.",
+        explanation: r#"
+Unwrapping a result immediately after constructing the variant that succeeds for that operation is
+redundant. Use the constructed value directly; statically failing unwraps are reported separately.
+"#,
         example: {
             reported: r#"
 function identity(value: int32): int32 {

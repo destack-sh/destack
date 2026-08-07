@@ -8,7 +8,11 @@ declare_lint_stub! {
     pub REDUNDANT_FORWARDING_FUNCTION {
         id: "redundant-forwarding-function",
         summary: "Discourage functions that only forward their parameters unchanged",
-        explanation: "A function whose complete body calls another callable with the same parameters adds a name without adding behavior. Use the underlying callable directly; intentional API aliases, protocol implementations, decorators, and foreign boundaries are exempt.",
+        explanation: r#"
+A function whose complete body calls another callable with the same parameters adds a name without
+adding behavior. Use the underlying callable directly; intentional API aliases, protocol
+implementations, decorators, and foreign boundaries are exempt.
+"#,
         example: {
             reported: r#"
 function parseUser(source: string): Result<User, ParseError> {

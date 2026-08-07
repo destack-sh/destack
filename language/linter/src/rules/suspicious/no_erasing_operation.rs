@@ -8,7 +8,11 @@ declare_lint! {
     pub NO_ERASING_OPERATION {
         id: "no-erasing-operation",
         summary: "Disallow operations that erase their operand into a constant",
-        explanation: "An integral operation with an erasing operand produces a constant regardless of the other value, apart from operations that may trap. Such expressions usually use the wrong operator or operand and should be corrected explicitly.",
+        explanation: r#"
+An integral operation with an erasing operand produces a constant regardless of the other value,
+apart from operations that may trap. Such expressions usually use the wrong operator or operand and
+should be corrected explicitly.
+"#,
         example: {
             reported: r#"
 function erase(value: int32): int32 {

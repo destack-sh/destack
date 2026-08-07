@@ -8,7 +8,11 @@ declare_lint_stub! {
     pub IDENTIFIER_CASE {
         id: "identifier-case",
         summary: "Require canonical casing for declared identifiers",
-        explanation: "Types and type parameters use PascalCase, ordinary values and callables use camelCase, and exported platform constants use UPPER_SNAKE_CASE. Names imposed by foreign interfaces, protocol implementations, generated declarations, and language items are exempt.",
+        explanation: r#"
+Types, variants, extensions, and type parameters use PascalCase. Values, functions, labels, and
+value parameters use camelCase. Imports, string-named members, foreign declarations, protocol
+implementations, generated declarations, and language items retain their imposed names.
+"#,
         example: {
             reported: r#"
 struct user_record {

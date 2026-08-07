@@ -10,7 +10,14 @@ declare_lint! {
     pub COMMENT_STYLE {
         id: "comment-style",
         summary: "Require canonical style for comments and documentation",
-        explanation: "Documentation uses uppercase sentence starts, terminal punctuation, and a one-sentence summary paragraph. Ordinary comments begin with a lowercase action or label and omit the final period when they contain one sentence. Every sentence begins on its own physical line, while ordinary sentence continuations use one additional space. Comment prose ends at or before visual column 100. Initialisms, marked source, legal comments, Markdown, code blocks, and unbreakable tokens retain their authored form.",
+        explanation: r#"
+Documentation uses uppercase sentence starts, terminal punctuation, and a one-sentence summary
+paragraph. Ordinary comments begin with a lowercase action or label and omit the final period when
+they contain one sentence. Every sentence begins on its own physical line, while ordinary sentence
+continuations use one additional space. Comment prose ends at or before visual column 100.
+Initialisms, marked source, legal comments, Markdown, code blocks, and unbreakable tokens retain
+their authored form.
+"#,
         example: {
             reported: r#"
 /// return the active session.

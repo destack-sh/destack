@@ -8,7 +8,12 @@ declare_lint_stub! {
     pub BOOLEAN_PREFIX {
         id: "boolean-prefix",
         summary: "Require predicate prefixes for boolean values",
-        explanation: "Boolean bindings, parameters, fields, and constants begin with `is`, `has`, `can`, `should`, `did`, or `will` so their truth condition reads directly at use sites. Functions and methods are exempt because predicate verbs such as `contains`, `matches`, and `startsWith` already express a boolean result.",
+        explanation: r#"
+Boolean bindings, parameters, fields, and constants begin with `is`, `has`, `can`, `should`, `did`,
+or `will` so their truth condition reads directly at use sites. Functions and methods are exempt
+because predicate verbs such as `contains`, `matches`, and `startsWith` already express a boolean
+result.
+"#,
         example: {
             reported: r#"
 struct Connection {

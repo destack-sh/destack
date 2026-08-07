@@ -9,7 +9,11 @@ declare_lint! {
     pub NO_COND_ASSIGN {
         id: "no-cond-assign",
         summary: "Disallow assignment in conditions",
-        explanation: "An assignment used as a condition is easily mistaken for a comparison and hides mutation inside control flow. Move the assignment before the condition, or use a binding condition when the assigned value is intentionally tested.",
+        explanation: r#"
+An assignment used as a condition is easily mistaken for a comparison and hides mutation inside
+control flow. Move the assignment before the condition, or use a binding condition when the assigned
+value is intentionally tested.
+"#,
         example: {
             reported: r#"
 function select(next: boolean): boolean {

@@ -8,7 +8,11 @@ declare_lint_stub! {
     pub DECLARATION_ORDER {
         id: "declaration-order",
         summary: "Require declarations in the canonical source order",
-        explanation: "A consistent declaration order makes modules and types predictable to scan. Keep imports first, constants before declarations, principal types before their extensions, and tests last; preserve authored order where it affects overload selection or representation.",
+        explanation: r#"
+A consistent declaration order makes modules and types predictable to scan. Keep imports first,
+constants before declarations, principal types before their extensions, and tests last; preserve
+authored order where it affects overload selection or representation.
+"#,
         example: {
             reported: r#"
 function run(): void {}

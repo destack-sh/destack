@@ -12,7 +12,11 @@ declare_lint! {
     pub FOR_DIRECTION {
         id: "for-direction",
         summary: "Disallow for loops whose counter moves away from the stop condition",
-        explanation: "A for-loop counter that moves away from its relational stop condition cannot make that condition false. Reverse either the update or the comparison direction, or use an unconditional loop when nontermination is intentional.",
+        explanation: r#"
+A for-loop counter that moves away from its relational stop condition cannot make that condition
+false. Reverse either the update or the comparison direction, or use an unconditional loop when
+nontermination is intentional.
+"#,
         example: {
             reported: r#"
 for (let index: int32 = 0; index < 10; index--) {}

@@ -8,7 +8,11 @@ declare_lint! {
     pub NO_SELF_COMPARE {
         id: "no-self-compare",
         summary: "Disallow comparisons of a repeatable value with itself",
-        explanation: "Comparing a repeatable value with itself has a fixed or misleading result. Compare it with the intended second value, or use an explicit predicate when testing exceptional values such as floating-point NaN.",
+        explanation: r#"
+Comparing a repeatable value with itself has a fixed or misleading result. Compare it with the
+intended second value, or use an explicit predicate when testing exceptional values such as
+floating-point NaN.
+"#,
         example: {
             reported: r#"
 function changed(value: int32): boolean {

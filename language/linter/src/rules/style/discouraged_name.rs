@@ -8,7 +8,11 @@ declare_lint_stub! {
     pub DISCOURAGED_NAME {
         id: "discouraged-name",
         summary: "Discourage generic names that hide a declaration's role",
-        explanation: "Names such as `helper`, `util`, `wrapper`, `info`, and `support` obscure the concrete noun or verb owned by a declaration. Use the standardized denylist only for declarations where the word carries no domain meaning; generated and foreign names are exempt.",
+        explanation: r#"
+Names such as `helper`, `util`, `wrapper`, `info`, and `support` obscure the concrete noun or verb
+owned by a declaration. Use the standardized denylist only for declarations where the word carries
+no domain meaning; generated and foreign names are exempt.
+"#,
         example: {
             reported: r#"
 function helper(order: &readonly Order): Money {

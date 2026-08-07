@@ -10,7 +10,10 @@ declare_lint! {
     pub USE_ISNAN {
         id: "use-isnan",
         summary: "Require the NaN predicate instead of equality comparisons with NaN",
-        explanation: "Floating-point NaN is unequal to every value, including itself, so equality cannot test for it. Call `.isNaN()` on the checked float value to state the operation directly.",
+        explanation: r#"
+Floating-point NaN is unequal to every value, including itself, so equality cannot test for it. Call
+`.isNaN()` on the checked float value to state the operation directly.
+"#,
         example: {
             reported: r#"
 function isMissing(value: float64): boolean {

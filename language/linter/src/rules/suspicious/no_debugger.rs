@@ -10,7 +10,11 @@ declare_lint! {
     pub NO_DEBUGGER {
         id: "no-debugger",
         summary: "Disallow debugger statements",
-        explanation: "The `debugger` statement interrupts execution only when an attached debugger honors it and otherwise has no useful runtime effect. It is normally an accidental development artifact and should not remain in checked source.",
+        explanation: r#"
+The `debugger` statement interrupts execution only when an attached debugger honors it and otherwise
+has no useful runtime effect. It is normally an accidental development artifact and should not
+remain in checked source.
+"#,
         example: {
             reported: r#"
 declare const active: boolean;

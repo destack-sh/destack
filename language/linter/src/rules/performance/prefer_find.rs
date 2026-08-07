@@ -10,7 +10,11 @@ declare_lint! {
     pub PREFER_FIND {
         id: "prefer-find",
         summary: "Prefer find when consuming the first filtered element",
-        explanation: "Filtering an array before optionally reading its first element allocates and examines every input. Use `find` to stop at the first match. This changes how often an effectful predicate runs, so the correction requires review.",
+        explanation: r#"
+Filtering an array before optionally reading its first element allocates and examines every input.
+Use `find` to stop at the first match. This changes how often an effectful predicate runs, so the
+correction requires review.
+"#,
         example: {
             reported: r#"
 function firstPositive(values: int32[]): int32 | undefined {

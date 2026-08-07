@@ -10,7 +10,10 @@ declare_lint! {
     pub NO_BOOLEAN_LITERAL_COMPARE {
         id: "no-boolean-literal-compare",
         summary: "Disallow comparing boolean values to boolean literals",
-        explanation: "Comparing a boolean value to `true` or `false` repeats information already carried by the value. Use the value directly or negate it to state the condition without an unnecessary equality operation.",
+        explanation: r#"
+Comparing a boolean value to `true` or `false` repeats information already carried by the value. Use
+the value directly or negate it to state the condition without an unnecessary equality operation.
+"#,
         example: {
             reported: r#"
 function active(value: boolean): boolean {

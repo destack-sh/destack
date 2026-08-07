@@ -10,7 +10,10 @@ declare_lint! {
     pub NO_NEEDLESS_BOOLEAN_BRANCH {
         id: "no-needless-boolean-branch",
         summary: "Disallow branches that only return boolean literals",
-        explanation: "An if statement whose two branches return opposite boolean literals only restates its condition. Return the condition directly, or negate it when the branches reverse the condition.",
+        explanation: r#"
+An if statement whose two branches return opposite boolean literals only restates its condition.
+Return the condition directly, or negate it when the branches reverse the condition.
+"#,
         example: {
             reported: r#"
 function active(condition: boolean): boolean {

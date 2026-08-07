@@ -8,7 +8,10 @@ declare_lint! {
     pub NO_SELF_ASSIGNMENT {
         id: "no-self-assignment",
         summary: "Disallow assigning a stable place to itself",
-        explanation: "Assigning a stable storage place to itself has no effect and usually remains after an incomplete edit. Remove the assignment or replace either side with the intended place.",
+        explanation: r#"
+Assigning a stable storage place to itself has no effect and usually remains after an incomplete
+edit. Remove the assignment or replace either side with the intended place.
+"#,
         example: {
             reported: r#"
 function retain(value: int32): int32 {
