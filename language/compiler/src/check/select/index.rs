@@ -312,6 +312,7 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         left: dir::LocalNodeId<dir::Expression>,
         index: Option<dir::LocalNodeId<dir::Expression>>,
+        is_optional: bool,
         use_: PlaceUse,
     ) -> CompilerResult<Answer<()>> {
         let node = site.node.into_typed::<dir::Expression>();
@@ -324,6 +325,7 @@ impl BodyState<'_, '_> {
         let receiver_site = self.node_site(receiver_node)?;
         let receiver = answer!(self.infer_node_type(receiver_site, PlaceUse::Read)?);
         let receiver_value = answer!(self.expression_value(receiver_site, receiver)?);
+        let receiver = answer!(self.select_chain_operand(origin, receiver, is_optional)?);
         let Some(index) = index else {
             return self.reject_operator(node, origin, "[]".to_string(), &[receiver]);
         };

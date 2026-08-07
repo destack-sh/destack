@@ -352,6 +352,7 @@ impl BodyState<'_, '_> {
                 left,
                 generic_arguments,
                 arguments,
+                is_optional,
                 ..
             } => {
                 let check = answer!(self.select_call(
@@ -359,6 +360,7 @@ impl BodyState<'_, '_> {
                     left,
                     &generic_arguments.into_iter().collect::<SmallVec<[_; 2]>>(),
                     &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
+                    is_optional,
                     Some(expectation),
                 )?);
                 Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {

@@ -6,8 +6,8 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Answer, BodyState, CallableArgument, CandidateOutcome, CandidateVerdict, CheckState, Decision,
-    FlowSite, NullishPart, Origin, PlaceUse, ReceiverSteps, Relation, SignatureMatch,
-    TypeSubstitution, Value, ValueUse, answer,
+    FlowSite, Origin, PlaceUse, ReceiverSteps, Relation, SignatureMatch, TypeSubstitution, Value,
+    ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -699,10 +699,9 @@ impl BodyState<'_, '_> {
         origin: Origin,
         receiver_node: dir::GlobalNodeIdAny,
         receiver: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<(dir::MemberSubject, Option<NullishPart>)>> {
-        let split = answer!(self.split_nullish_type(origin, receiver)?);
-        let rejected = split.map(|split| split.rejected);
-        let receiver = split.map_or(receiver, |split| split.value);
+        is_optional: bool,
+    ) -> CompilerResult<Answer<dir::MemberSubject>> {
+        let receiver = answer!(self.select_chain_operand(origin, receiver, is_optional)?);
         let receiver = answer!(self.reduce_type_head(origin, receiver)?);
         let mut space = self.member_receiver_space(receiver_node, receiver)?;
         let mut subject = receiver;
@@ -725,7 +724,7 @@ impl BodyState<'_, '_> {
         let subject = dir::MemberSubject::new(receiver, subject, space)
             .with_scope(self.origin_scope(origin)?);
 
-        Ok(Answer::Ready((subject, rejected)))
+        Ok(Answer::Ready(subject))
     }
 
     /// Return the readable type exposed by one member lookup.
@@ -1218,13 +1217,12 @@ impl BodyState<'_, '_> {
         let receiver_node = left.into_global_any(module);
         let receiver_site = self.node_site(receiver_node)?;
         let written_receiver = answer!(self.infer_node_type(receiver_site, PlaceUse::Read)?);
-        let (subject, rejected) =
-            answer!(self.resolve_member_subject(origin, receiver_node, written_receiver)?);
-        if let Some(rejected) = rejected
-            && !is_optional
-        {
-            self.report_possibly_nullish(origin, rejected.label().to_string())?;
-        }
+        let subject = answer!(self.resolve_member_subject(
+            origin,
+            receiver_node,
+            written_receiver,
+            is_optional,
+        )?);
 
         // retain the lookup subject at this source site
         self.module_mut(module)
@@ -1483,9 +1481,13 @@ impl BodyState<'_, '_> {
                 continue;
             }
 
-            // read the extension's target, implements, and members
+            // read the extension target, interfaces, and members
             let target_type = extension.target.r#type();
-            let implements = extension.implements.clone();
+            let interfaces = extension
+                .implements
+                .iter()
+                .map(|conformance| conformance.interface)
+                .collect::<SmallVec<[_; 2]>>();
             let members = extension.members.clone();
             let template = self.symbol_template(extension_symbol)?;
 
@@ -1500,7 +1502,7 @@ impl BodyState<'_, '_> {
                     &interface,
                     template,
                     target_type,
-                    &implements,
+                    &interfaces,
                 )?;
 
                 Ok(matched.map(|matched| match matched {
@@ -1522,7 +1524,7 @@ impl BodyState<'_, '_> {
                 &interface,
                 template,
                 target_type,
-                &implements,
+                &interfaces,
             )?);
             let Some((substitution, implementation)) = matched else {
                 continue;
@@ -1544,9 +1546,13 @@ impl BodyState<'_, '_> {
         if let Some((application_module, application)) = self.nominal_application_maybe(owner)?
             && let Some(definition) = self.definition(application.symbol)?
         {
-            let implements = definition.implementations().to_vec();
+            let interfaces = definition
+                .implementations()
+                .iter()
+                .map(|conformance| conformance.interface)
+                .collect::<SmallVec<[_; 2]>>();
             let members = definition.members().to_vec();
-            if !implements.is_empty() {
+            if !interfaces.is_empty() {
                 let mut substitution =
                     self.instance_substitution(application_module, &application)?;
                 let matched = answer!(self.match_implemented_interface(
@@ -1555,7 +1561,7 @@ impl BodyState<'_, '_> {
                     interface_module,
                     &[],
                     &mut substitution,
-                    &implements,
+                    &interfaces,
                     &interface,
                 )?);
                 if let Some(implementation) = matched {

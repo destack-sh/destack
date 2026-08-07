@@ -10,6 +10,23 @@ use crate::check::{
 use crate::{CompilerError, CompilerResult};
 
 impl BodyState<'_, '_> {
+    /// Select the non-nullish operand inspected by one chain segment.
+    pub(in crate::check) fn select_chain_operand(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        is_optional: bool,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let Some(split) = answer!(self.split_nullish_type(origin, ty)?) else {
+            return Ok(Answer::Ready(ty));
+        };
+        if !is_optional {
+            self.report_possibly_nullish(origin, split.rejected.label().to_string())?;
+        }
+
+        Ok(Answer::Ready(split.value))
+    }
+
     /// Infer one optional chain from its accesses.
     pub(in crate::check) fn infer_chain_expression(
         &mut self,
