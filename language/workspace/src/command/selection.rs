@@ -213,12 +213,15 @@ impl CommandContext<'_> {
                 let declared = artifacts
                     .dir_declared(module, profile)
                     .map_err(|error| error.to_string())?;
+                let elaborated = artifacts
+                    .dir_elaborated(module, profile)
+                    .map_err(|error| error.to_string())?;
                 let checked = artifacts
                     .dir_checked(module, profile)
                     .map_err(|error| error.to_string())?;
 
                 ModuleContext::new(
-                    parsed, bound, expanded, exported, resolved, declared, checked,
+                    parsed, bound, expanded, exported, resolved, declared, elaborated, checked,
                 )
                 .map_err(|error| error.to_string().into())
             })
