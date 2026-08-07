@@ -360,11 +360,11 @@ impl<'a> ModuleQueryContext<'a> {
         }
 
         let checked = self.checked()?;
-        let declared = self.declared()?;
+        let elaborated = self.elaborated()?;
 
         Ok(self
             .decorators
-            .get_or_init(|| checked.decorator_table(declared)))
+            .get_or_init(|| checked.decorator_table(elaborated)))
     }
 
     /// Return the cumulative DIR generic table.
@@ -388,13 +388,11 @@ impl<'a> ModuleQueryContext<'a> {
             return Ok(definitions);
         }
 
-        let checked = self.checked()?;
-        let declared = self.declared()?;
         let elaborated = self.elaborated()?;
 
         Ok(self
             .definitions
-            .get_or_init(|| checked.definition_table(declared, elaborated)))
+            .get_or_init(|| elaborated.definition_table()))
     }
 
     /// Return the cumulative DIR decision table.
@@ -433,9 +431,9 @@ impl<'a> ModuleQueryContext<'a> {
             return Ok(members);
         }
 
-        let checked = self.checked()?;
+        let elaborated = self.elaborated()?;
 
-        Ok(self.members.get_or_init(|| checked.member_table()))
+        Ok(self.members.get_or_init(|| elaborated.member_table()))
     }
 
     /// Return the cumulative DIR module table.
