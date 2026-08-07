@@ -47,6 +47,34 @@ function read(): void {
 @completion.none
 ```
 
+### Exclude the current destructuring pattern
+
+Bindings introduced by a declarator are unavailable throughout its initializer.
+
+```ds main.ds
+const target = 1;
+const { targetField, source: targetAlias } = tar;
+                                             ^^^ prefix
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=target kind=constant replace=main.ds#prefix suffix=": 1" declaration="const target: 1" preselect=true matches=0,1,2
+```
+
+### Retain an earlier destructuring binding
+
+A default value can use bindings evaluated earlier in the same pattern, but not its own binding.
+
+```ds main.ds
+declare const source: { targetValue?: int32; targetField?: int32 };
+const { targetValue = 1, targetField = tar } = source;
+                                       ^^^ prefix
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=targetValue kind=constant replace=main.ds#prefix suffix=": int32" declaration="const targetValue: int32" preselect=true matches=0,1,2
+```
+
 ### Distinguish a mutable binding
 
 Mutable bindings use their variable kind and widened type.
