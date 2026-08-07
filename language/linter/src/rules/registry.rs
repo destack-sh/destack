@@ -297,7 +297,6 @@ pub static LINTS: &[&Lint] = &[
     &suspicious::NO_COND_ASSIGN,
     &suspicious::NO_CONTROL_REGEX,
     &suspicious::NO_DEBUGGER,
-    &suspicious::NO_DETACHED_DOC_COMMENT,
     &suspicious::NO_DIVERGING_SUBEXPRESSION,
     &suspicious::NO_DROP_OF_TRIVIAL_VALUE,
     &suspicious::NO_DUPLICATE_CODE,

@@ -86,7 +86,7 @@ fn has_safety_section(module: &DirModule<'_>, owner: dir::LocalNodeIdAny) -> boo
     let Some(documentation) = view.get_documentation_any(owner) else {
         return false;
     };
-    let documentation = module.dir.strings.get(documentation.text);
+    let documentation = module.dir.strings.get(documentation.markdown);
 
     documentation.lines().any(|line| line.trim() == "# Safety")
 }
