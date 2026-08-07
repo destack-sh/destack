@@ -139,7 +139,8 @@ match extracted {
 - Place comments above a related code block (usually 2-6 lines).
 - Most comments should be <=1 sentence and should not include a period at the end (again, lowercase).
 - When a a regular line comment needs to be multiple lines add a leading space to following lines, and ideally try to make the comment read naturally line by line (even if it means splitting a sentence grammatically).
-- Avoid using hyphens inside comments, instead prefer colons or commas (except for proper compound words that need hpyhens of course)
+- Avoid using hyphens inside comments, instead prefer colons or commas (except for proper compound words that need hpyhens of course).
+- LLM slop, sludge, muddy words (see above), statements about what things are *not*, negative parallelisms (e.g., vomit like "listed rather than omitted so the absence is a decision"), are evil and forbidden. We want plain, simple, straightforward comments that state / explain what *is*.
 - Inline comments may also just be single words or sequences of words if the "scoping" is clear; i.e., not every inline comment needs to be a sentence.
 - Comments serve to organize the reader's mental model of the code, so they can be just anything from a one-word summary, a three word phrase, or a short explanatory note.
 - Most logic block comments of more than one/two words should be action / verb shaped, e.g.:
