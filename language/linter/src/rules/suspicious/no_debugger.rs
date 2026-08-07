@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, PatchSet};
+use destack_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -123,10 +123,8 @@ fn suggest_removal(
     } else {
         module.statement_span(expression)?
     };
-    let mut file_patch = FilePatch::new(span.file);
-    file_patch.replace(span, replacement);
-    let patches = PatchSet::single(file_patch);
-    let suggestion = lint.fix("remove the debugger statement", patches)?;
+    let patch = Patch::replace(span, replacement);
+    let suggestion = lint.fix("remove the debugger statement", patch)?;
 
     Ok(suggestion)
 }

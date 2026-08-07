@@ -1,7 +1,7 @@
 use std::f64::consts;
 
 use destack_dir as dir;
-use destack_source::{FilePatch, PatchSet};
+use destack_source::Patch;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -147,10 +147,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
         // suggest the canonical standard-library member
         let replacement = format!("Math.{}", constant.name);
-        let mut file = FilePatch::new(span.file);
-        file.replace(span, replacement.clone());
-        let patches = PatchSet::single(file);
-        let suggestion = lint.suggestion(format!("use `{replacement}`"), patches)?;
+        let patch = Patch::replace(span, replacement.clone());
+        let suggestion = lint.suggestion(format!("use `{replacement}`"), patch)?;
         let diagnostic = lint
             .diagnostic(format!("approximate value of `{replacement}`"), span)
             .suggestion(suggestion);

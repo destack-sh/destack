@@ -1,7 +1,7 @@
 use destack_core::FxIndexMap;
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, PatchSet, Span};
+use destack_source::Patch;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -107,7 +107,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             && bindings.iter().all(|binding| binding.is_initialized);
         if can_replace {
             let span = module.main_span(expression.into_any())?;
-            let suggestion = replace_let(span, lint)?;
+            let patch = Patch::replace(span, "const");
+            let suggestion = lint.fix("declare the binding with const", patch)?;
             let diagnostic = lint
                 .diagnostic("binding is never reassigned", span)
                 .suggestion(suggestion);
@@ -249,15 +250,6 @@ fn has_mutable_borrow(
     }
 
     Ok(false)
-}
-
-/// Replace one let keyword with const.
-fn replace_let(span: Span, lint: &Lint) -> Result<DiagnosticSuggestion, ProviderError> {
-    let mut file = FilePatch::new(span.file);
-    file.replace(span, "const");
-    let patches = PatchSet::single(file);
-
-    lint.fix("declare the binding with const", patches)
 }
 
 #[cfg(test)]

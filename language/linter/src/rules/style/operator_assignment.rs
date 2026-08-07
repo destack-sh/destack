@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, PatchSet};
+use destack_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -113,10 +113,8 @@ fn suggestion(
         module.source(target)?,
         module.source(value)?
     );
-    let mut file = FilePatch::new(extent.file);
-    file.replace(extent, replacement);
-    let patches = PatchSet::single(file);
-    let suggestion = lint.fix("use compound assignment", patches)?;
+    let patch = Patch::replace(extent, replacement);
+    let suggestion = lint.fix("use compound assignment", patch)?;
 
     Ok(Some(suggestion))
 }
