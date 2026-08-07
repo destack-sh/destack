@@ -561,12 +561,12 @@ pub struct Call {
 pub type CallResolution = OperationResolution<Call>;
 
 impl Call {
-    /// Return the selected parameter types bound to one argument source.
+    /// Return the types accepted from one argument source.
     pub fn argument_types(&self, source: ArgumentSource) -> Vec<GlobalTypeId> {
         self.arguments
             .iter()
-            .filter(|binding| binding.argument == source)
-            .map(|binding| binding.ty)
+            .filter(|binding| binding.source == source)
+            .map(|binding| binding.argument_type)
             .collect()
     }
 
@@ -607,9 +607,11 @@ impl OperationResolution<Call> {
         let first = self.iter().next()?.arguments.as_slice();
         let is_shared = self.iter().all(|call| {
             call.arguments.len() == first.len()
-                && call.arguments.iter().zip(first).all(|(left, right)| {
-                    left.parameter == right.parameter && left.argument == right.argument
-                })
+                && call
+                    .arguments
+                    .iter()
+                    .zip(first)
+                    .all(|(left, right)| left.source == right.source)
         });
 
         is_shared.then_some(first)
@@ -623,7 +625,7 @@ impl OperationResolution<Call> {
         }
     }
 
-    /// Return the selected parameter types bound to one argument source.
+    /// Return the types accepted from one argument source.
     pub fn argument_types(&self, source: ArgumentSource) -> Vec<GlobalTypeId> {
         match self {
             Self::One(call) => call.argument_types(source),
