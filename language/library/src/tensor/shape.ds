@@ -12,12 +12,12 @@ export newtype Stride = isize;
 
 /// Tensor shape with `Rank` axes.
 @languageItem("tensor.Shape")
-export struct Shape<comptime Rank: int> {
+export struct Shape<comptime Rank: usize> {
     /// The size of each axis.
     extents: [Extent; Rank];
 }
 
-export extension<comptime Rank: int> of Shape<Rank> {
+export extension<comptime Rank: usize> of Shape<Rank> {
     /// Create a shape from `extents`.
     static new(extents: [Extent; Rank]): Shape<Rank> {
         Shape { extents }
@@ -40,12 +40,12 @@ export extension<comptime Rank: int> of Shape<Rank> {
 }
 
 /// Tensor coordinate with `Rank` indices.
-export struct Coordinate<comptime Rank: int> {
+export struct Coordinate<comptime Rank: usize> {
     /// The per-axis indices.
     values: [usize; Rank];
 }
 
-export extension<comptime Rank: int> of Coordinate<Rank> {
+export extension<comptime Rank: usize> of Coordinate<Rank> {
     /// Create a coordinate from `values`.
     static new(values: [usize; Rank]): Coordinate<Rank> {
         Coordinate { values }
@@ -53,12 +53,12 @@ export extension<comptime Rank: int> of Coordinate<Rank> {
 }
 
 /// Axis permutation with `Rank` entries.
-export struct Permutation<comptime Rank: int> {
+export struct Permutation<comptime Rank: usize> {
     /// The source axis for each result axis.
     axes: [Axis; Rank];
 }
 
-export extension<comptime Rank: int> of Permutation<Rank> {
+export extension<comptime Rank: usize> of Permutation<Rank> {
     /// Create a permutation from `axes`.
     static new(axes: [Axis; Rank]): Permutation<Rank> {
         Permutation { axes }
@@ -71,12 +71,12 @@ export extension<comptime Rank: int> of Permutation<Rank> {
 }
 
 /// Axis set used by reductions and broadcasts.
-export struct AxisSet<comptime Count: int> {
+export struct AxisSet<comptime Count: usize> {
     /// The axis values.
     values: [Axis; Count];
 }
 
-export extension<comptime Count: int> of AxisSet<Count> {
+export extension<comptime Count: usize> of AxisSet<Count> {
     /// Create an axis set from `values`.
     static new(values: [Axis; Count]): AxisSet<Count> {
         AxisSet { values }

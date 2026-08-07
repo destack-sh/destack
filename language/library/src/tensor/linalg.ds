@@ -14,7 +14,7 @@ export enum FactorizationMode {
 }
 
 /// Options for matrix factorizations.
-export struct FactorizationOptions<T, comptime Rank: int> {
+export struct FactorizationOptions<T, comptime Rank: usize> {
     /// Factorization mode.
     mode: FactorizationMode = FactorizationMode.Reduced;
 
@@ -73,7 +73,7 @@ export function inverse<T: Float>(
 }
 
 /// Solve a linear system.
-export function solve<T: Float, comptime RightRank: int>(
+export function solve<T: Float, comptime RightRank: usize>(
     matrix: Tensor<T, 2>,
     right: Tensor<T, RightRank>,
     options?: TensorOutputOptions<T, RightRank>,
@@ -108,9 +108,9 @@ export function svd<T: Float>(
 /// Return vector or matrix norm along `axes`.
 export function norm<
     T: Float,
-    comptime Rank: int,
-    comptime AxisCount: int,
-    comptime OutRank: int = Rank - AxisCount,
+    comptime Rank: usize,
+    comptime AxisCount: usize,
+    comptime OutRank: usize = Rank - AxisCount,
 >(
     tensor: Tensor<T, Rank>,
     axes: AxisSet<AxisCount>,

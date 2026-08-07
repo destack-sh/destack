@@ -333,20 +333,6 @@ export extension<T: Numeric> of Matrix4<T>
         }
     }
 
-    /// Return a perspective projection matrix.
-    static perspective(fovY: T, aspect: T, near: T, far: T): Matrix4<T> {
-        let height = T.one() / (fovY / 2).tan();
-        let width = height / aspect;
-        let depth = far / (near - far);
-
-        Matrix4 {
-            x: Vector4 { x: width, y: T.zero(), z: T.zero(), w: T.zero() },
-            y: Vector4 { x: T.zero(), y: height, z: T.zero(), w: T.zero() },
-            z: Vector4 { x: T.zero(), y: T.zero(), z: depth, w: depth * near },
-            w: Vector4 { x: T.zero(), y: T.zero(), z: -T.one(), w: T.zero() },
-        }
-    }
-
     /// Return an orthographic projection matrix.
     static orthographic(left: T, right: T, bottom: T, top: T, near: T, far: T): Matrix4<T> {
         let width = right - left;
@@ -357,20 +343,6 @@ export extension<T: Numeric> of Matrix4<T>
             x: Vector4 { x: 2 / width, y: T.zero(), z: T.zero(), w: -(left + right) / width },
             y: Vector4 { x: T.zero(), y: 2 / height, z: T.zero(), w: -(bottom + top) / height },
             z: Vector4 { x: T.zero(), y: T.zero(), z: T.one() / depth, w: near / depth },
-            w: Vector4 { x: T.zero(), y: T.zero(), z: T.zero(), w: T.one() },
-        }
-    }
-
-    /// Return a view matrix looking from `eye` toward `target`.
-    static lookAt(eye: Vector3<T>, target: Vector3<T>, up: Vector3<T>): Matrix4<T> {
-        let ahead = (target - eye).normalized();
-        let right = ahead.cross(up).normalized();
-        let above = right.cross(ahead);
-
-        Matrix4 {
-            x: Vector4 { x: right.x, y: right.y, z: right.z, w: -right.dot(eye) },
-            y: Vector4 { x: above.x, y: above.y, z: above.z, w: -above.dot(eye) },
-            z: Vector4 { x: -ahead.x, y: -ahead.y, z: -ahead.z, w: ahead.dot(eye) },
             w: Vector4 { x: T.zero(), y: T.zero(), z: T.zero(), w: T.one() },
         }
     }
@@ -482,6 +454,34 @@ export extension<T: Numeric> of Matrix4<T>
 }
 
 export extension<T: Float> of Matrix4<T> {
+    /// Return a perspective projection matrix.
+    static perspective(fovY: T, aspect: T, near: T, far: T): Matrix4<T> {
+        let height = T.one() / (fovY / 2).tan();
+        let width = height / aspect;
+        let depth = far / (near - far);
+
+        Matrix4 {
+            x: Vector4 { x: width, y: T.zero(), z: T.zero(), w: T.zero() },
+            y: Vector4 { x: T.zero(), y: height, z: T.zero(), w: T.zero() },
+            z: Vector4 { x: T.zero(), y: T.zero(), z: depth, w: depth * near },
+            w: Vector4 { x: T.zero(), y: T.zero(), z: -T.one(), w: T.zero() },
+        }
+    }
+
+    /// Return a view matrix looking from `eye` toward `target`.
+    static lookAt(eye: Vector3<T>, target: Vector3<T>, up: Vector3<T>): Matrix4<T> {
+        let ahead = (target - eye).normalized();
+        let right = ahead.cross(up).normalized();
+        let above = right.cross(ahead);
+
+        Matrix4 {
+            x: Vector4 { x: right.x, y: right.y, z: right.z, w: -right.dot(eye) },
+            y: Vector4 { x: above.x, y: above.y, z: above.z, w: -above.dot(eye) },
+            z: Vector4 { x: -ahead.x, y: -ahead.y, z: -ahead.z, w: ahead.dot(eye) },
+            w: Vector4 { x: T.zero(), y: T.zero(), z: T.zero(), w: T.one() },
+        }
+    }
+
     /// Return the inverse matrix.
     inverse(): Matrix4<T> {
         let topXY = this.x.x * this.y.y - this.x.y * this.y.x;

@@ -1,7 +1,7 @@
 import { FixedArray } from "destack:collections";
 
 /// Slice window for a tensor with `Rank` axes.
-export struct SliceWindow<comptime Rank: int> {
+export struct SliceWindow<comptime Rank: usize> {
     /// The starting coordinate for each axis.
     offsets: [usize; Rank];
 
@@ -13,7 +13,7 @@ export struct SliceWindow<comptime Rank: int> {
 }
 
 /// Padding for a tensor with `Rank` axes.
-export struct Padding<comptime Rank: int> {
+export struct Padding<comptime Rank: usize> {
     /// Padding before each axis.
     low: [usize; Rank];
 
@@ -25,7 +25,7 @@ export struct Padding<comptime Rank: int> {
 }
 
 /// Window parameters for tensor convolution.
-export struct ConvolutionWindow<comptime SpatialRank: int> {
+export struct ConvolutionWindow<comptime SpatialRank: usize> {
     /// Stride for each spatial axis.
     strides: [usize; SpatialRank];
 
@@ -55,7 +55,7 @@ export struct ConvolutionGroups {
 }
 
 /// Window parameters for pooling.
-export struct PoolWindow<comptime Rank: int> {
+export struct PoolWindow<comptime Rank: usize> {
     /// Window size for each axis.
     size: [usize; Rank];
 
