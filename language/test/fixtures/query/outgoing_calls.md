@@ -349,14 +349,14 @@ function create(): UserId {
 @outgoing_calls.site call=0 range=main.ds#call
 ```
 
-### [ignored] Return a tagged variant constructor
+### Return a tagged variant constructor
 
-Tagged construction identifies its variant constructor and callable type.
+A tagged construction identifies its variant constructor.
 
 ```ds main.ds
 @derive(Tagged)
 newtype Status = Ok<string>;
-^^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration
+                 ^^^^^^^^^^ declaration
                  ^^ name
 
 function create(): Status {

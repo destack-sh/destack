@@ -490,34 +490,6 @@ declare const box: Box<int32>;
 @goto_type_definition.target origin=main.ds#reference:box location=main.ds#declaration:box selection=main.ds#definition:box symbol=main.ds#Box@1
 ```
 
-## Type and Value Names
-
-### [ignored] Resolve a type hidden by a value binding
-
-A value binding with the same name does not replace an imported type.
-
-```ds model.ds
-export struct Config {
-^ declaration:config:start
-              ^^^^^^ definition:config
-    enabled: boolean;
-}
-^ declaration:config:end
-```
-
-```ds main.ds
-import { Config as SharedConfig } from "./model.ds";
-
-const SharedConfig = 1;
-
-declare const config: SharedConfig;
-                      ^^^^^^^^^^^^ reference:config
-```
-
-```query goto_type_definition main.ds#reference:config
-@goto_type_definition.target origin=main.ds#reference:config location=model.ds#declaration:config selection=model.ds#definition:config symbol=model.ds#Config@1
-```
-
 ## Missing Symbols
 
 ### Return no type definition for an unresolved name

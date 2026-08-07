@@ -50,7 +50,7 @@ function read(counter: Counter): int32 {
 @rename_target.target placeholder=count location=main.ds#reference symbol=main.ds#count@2
 ```
 
-### [ignored] Resolve a string-keyed field access
+### Resolve a string-keyed field access
 
 A string-keyed field access exposes only the identifier contents as its rename range.
 
@@ -214,13 +214,13 @@ type Route<T extends string> = `api:${T}`;
 @rename_target.target placeholder=T location=main.ds#reference symbol=main.ds#T@2
 ```
 
-### [ignored] Resolve a comptime type parameter
+### Resolve a comptime type parameter
 
 A comptime type parameter identifies its local parameter.
 
 ```ds main.ds
 type Buffer<comptime size: usize> = [uint8; size];
-                                           ^^^^ reference
+                                            ^^^^ reference
 ```
 
 ```query rename_target main.ds#reference
@@ -246,7 +246,7 @@ const value = left;
 @rename_target.target placeholder=left location=main.ds#reference symbol=main.ds#left@2
 ```
 
-### [ignored] Resolve a match binding
+### Resolve a match binding
 
 A match-arm name identifies its arm-local binding.
 
@@ -256,12 +256,12 @@ declare const pair: (int32, int32);
 const total = match (pair) {
     (left, right) => left + right
      ^^^^ definition
-                    ^^^^ reference
+                     ^^^^ reference
 };
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=left location=main.ds#reference symbol=main.ds#left@3
+@rename_target.target placeholder=left location=main.ds#reference symbol=main.ds#left@2
 ```
 
 ### Resolve the local value of an object shorthand
@@ -323,7 +323,7 @@ const user = new User("Ada");
 
 ## Labels
 
-### [ignored] Resolve a control label reference
+### Resolve a control label reference
 
 A targeted break identifies its enclosing label.
 

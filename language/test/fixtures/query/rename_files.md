@@ -51,26 +51,26 @@ import { value } from "./source/result.ds";
 const result = value;
 ```
 
-### [ignored] Preserve a dotted extensionless path
+### Preserve a dotted extensionless path
 
 A dotted basename remains extensionless when the module extension was omitted.
 
-```ds source/value.test.ds
+```ds source/value.generated.ds
 export const value = 1;
 ```
 
 ```ds main.ds
-import { value } from "./source/value.test";
+import { value } from "./source/value.generated";
 
 const result = value;
 ```
 
 ```query rename_files
-source/value.test.ds -> source/result.test.ds
+source/value.generated.ds -> source/result.generated.ds
 ```
 
 ```ds main.ds after
-import { value } from "./source/result.test";
+import { value } from "./source/result.generated";
 
 const result = value;
 ```

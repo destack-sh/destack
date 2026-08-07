@@ -441,14 +441,14 @@ function createBuffer<comptime size: int32>(): int32 {
 @find_references.reference location=main.ds#reference symbol=main.ds#size@2
 ```
 
-### [ignored] Find a comptime type parameter
+### Find a comptime type parameter
 
 A comptime parameter has one lexical identity inside the declared type.
 
 ```ds main.ds
 type Buffer<comptime size: usize> = [uint8; size];
                      ^^^^ declaration
-                                           ^^^^ reference
+                                            ^^^^ reference
 ```
 
 ```query find_references main.ds#reference include_declaration=true
@@ -476,7 +476,7 @@ const value = left;
 @find_references.reference location=main.ds#reference symbol=main.ds#left@2
 ```
 
-### [ignored] Find match binding occurrences
+### Find match binding occurrences
 
 A match-arm binding includes only references inside its arm.
 
@@ -486,18 +486,18 @@ declare const pair: (int32, int32);
 const total = match (pair) {
     (left, right) => left + right
      ^^^^ declaration
-                    ^^^^ reference
+                     ^^^^ reference
 };
 ```
 
 ```query find_references main.ds#reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#left@3
-@find_references.reference location=main.ds#reference symbol=main.ds#left@3
+@find_references.reference location=main.ds#declaration symbol=main.ds#left@2
+@find_references.reference location=main.ds#reference symbol=main.ds#left@2
 ```
 
 ## Labels
 
-### [ignored] Find control label occurrences
+### Find control label occurrences
 
 A control label includes its declaration and each targeted break.
 

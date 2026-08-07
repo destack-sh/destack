@@ -244,9 +244,9 @@ const created = new User();
 
 ## Labels
 
-### [ignored] Highlight control label occurrences
+### Highlight control label occurrences
 
-Label declarations and targeted breaks are textual control-flow occurrences.
+A label declaration and its targeted breaks share one identity.
 
 ```ds main.ds
 function choose(): int32 {

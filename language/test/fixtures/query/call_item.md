@@ -223,9 +223,9 @@ const user = new User();
 
 ## Newtype Constructors
 
-### [ignored] Return a newtype constructor from its declaration
+### Return a newtype constructor from its declaration
 
-A newtype declaration identifies its constructor family.
+A newtype declaration identifies its constructor.
 
 ```ds main.ds
 newtype UserId = string;
@@ -256,29 +256,29 @@ const userId = UserId("user-1");
 
 ## Tagged Variant Constructors
 
-### [ignored] Return a tagged variant constructor from its declaration
+### Return a tagged variant constructor from its declaration
 
-A tagged variant declaration identifies its constructor.
+A tagged backing arm identifies its variant constructor.
 
 ```ds main.ds
 @derive(Tagged)
 newtype Status = Ok<string>;
-^^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration
+                 ^^^^^^^^^^ declaration
                  ^^ name
 ```
 
 ```query call_item main.ds#name
-@call_item.item name=Ok kind=constructor detail="Status.Ok({ value: string }): Status" location=main.ds#declaration selection=main.ds#name symbol=main.ds#Ok@3
+@call_item.item name=Ok kind=constructor detail="Status.Ok({ value: string }): Status" location=main.ds#declaration selection=main.ds#name symbol=main.ds#Ok@2
 ```
 
-### [ignored] Return a tagged variant constructor from its construction
+### Return a tagged variant constructor from its construction
 
 A tagged construction identifies its variant constructor.
 
 ```ds main.ds
 @derive(Tagged)
 newtype Status = Ok<string>;
-^^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration
+                 ^^^^^^^^^^ declaration
                  ^^ name
 
 const status = Status.Ok({ value: "ready" });

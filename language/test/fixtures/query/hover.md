@@ -448,9 +448,9 @@ const color = Color.Red;
 @hover.item index=0 signature="(enum member) Color.Red: Color.Red" location=main.ds:2:5-2:8 range=main.ds#reference
 ```
 
-### [ignored] Hover over a tagged variant constructor
+### Hover over a tagged variant constructor
 
-A tagged case reports its constructor signature.
+A tagged variant reports its constructor signature.
 
 ```ds main.ds
 @derive(Tagged)
@@ -461,7 +461,7 @@ const status = Status.Ok({ value: "ready" });
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="(constructor) Status.Ok({ value: string }): Status" location=main.ds:2:18-2:28 selection=main.ds:2:18-2:20 range=main.ds#reference
+@hover.item index=0 signature="(constructor) Status.Ok({ value: string }): Status" type=Status.Ok location=main.ds:2:18-2:28 selection=main.ds:2:18-2:20 range=main.ds#reference
 ```
 
 ## Parameters

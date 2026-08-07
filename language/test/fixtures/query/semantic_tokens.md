@@ -995,7 +995,7 @@ validate();
 
 ## Labels and Decorators
 
-### [ignored] Classify labels
+### Classify labels
 
 Label declarations and references use their dedicated token kind.
 

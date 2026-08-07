@@ -301,7 +301,7 @@ function create(): UserId {
 @incoming_calls.site call=0 range=main.ds#call
 ```
 
-### [ignored] Find callers of a tagged variant constructor
+### Find callers of a tagged variant constructor
 
 Tagged construction is attributed to its variant constructor.
 
