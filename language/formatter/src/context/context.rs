@@ -94,7 +94,7 @@ impl<'a> DestackFormatContext<'a> {
         parents: &'a NodeParentIndex,
     ) -> Self {
         debug_assert!(tokens.iter().all(|token| token.token.ty().is_semantic()));
-        let source_index = FormatSourceIndex::new(file, comments);
+        let source_index = FormatSourceIndex::new(file, tree, comments);
 
         Self {
             options,

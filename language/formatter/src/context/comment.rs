@@ -92,6 +92,14 @@ impl<'a> Comments<'a> {
         &self.comments[..end]
     }
 
+    /// Return whether one source comment has already been printed.
+    #[inline]
+    pub fn is_printed(&self, comment: Comment) -> bool {
+        self.printed_comments()
+            .last()
+            .is_some_and(|printed| printed.span.end >= comment.span.end)
+    }
+
     /// Return an iterator over comments that end before or at one position.
     #[inline]
     pub fn comments_before_iter(&self, pos: u32) -> impl Iterator<Item = &Comment> {
@@ -331,6 +339,20 @@ impl<'a> Comments<'a> {
             .comments
             .partition_point(|candidate| candidate.span.end <= comment.span.end);
         self.printed_count = self.printed_count.max(printed_count);
+    }
+
+    /// Advance the printed cursor through one exact comment end.
+    #[inline]
+    pub fn mark_comments_printed_through(&mut self, end: u32) -> bool {
+        let printed_count = self
+            .comments
+            .partition_point(|comment| comment.span.end <= end);
+        let is_exact = printed_count > 0 && self.comments[printed_count - 1].span.end == end;
+        if is_exact {
+            self.printed_count = self.printed_count.max(printed_count);
+        }
+
+        is_exact
     }
 
     /// Save the current comment cursor state.
