@@ -86,6 +86,7 @@ declare function map<T, U>(value: T, callback: (value: T) => U): U;
 /// @type.symbol symbol=map.value#1 source="value: T" type=T
 /// @resolution.name source=T target=map.T
 /// @type.symbol symbol=map.callback source="callback: (value: T) => U" type=Function<(T,), U>
+/// @type.symbol symbol=map.value#2 source="value: T" type=T
 /// @resolution.name source=T target=map.T
 /// @resolution.name source=U target=map.U
 /// @resolution.name source=U target=map.U
@@ -150,6 +151,7 @@ declare class Box<T> {
     /// @type.symbol symbol=Box.map source="map<U>(callback: (value: T) => U): Box<U>" type=<U>(this: this, Function<(T,), U>) => Box<U>
     /// @type.symbol symbol=Box.map.U source=U type=U
     /// @type.symbol symbol=Box.map.callback source="callback: (value: T) => U" type=Function<(T,), U>
+    /// @type.symbol symbol=Box.map.value source="value: T" type=T
     /// @resolution.name source=T target=Box.T
     /// @resolution.name source=U target=Box.map.U
     /// @resolution.name source=Box target=Box
@@ -232,6 +234,7 @@ declare function map<T, U>(value: T, callback: (value: T) => U | Box<U>): U;
 /// @type.symbol symbol=map.value#1 source="value: T" type=T#2
 /// @resolution.name source=T target=map.T
 /// @type.symbol symbol=map.callback source="callback: (value: T) => U | Box<U>" type=Function<(T#2,), U | Box<U>>
+/// @type.symbol symbol=map.value#2 source="value: T" type=T#2
 /// @resolution.name source=T target=map.T
 /// @resolution.name source=U target=map.U
 /// @resolution.name source=Box target=Box
@@ -304,6 +307,7 @@ declare class Box<T> {
     /// @type.symbol symbol=Box.map source="map<U>(callback: (value: T) => U | Box<U>): U" type=<U>(this: this, Function<(T,), U | Box<U>>) => U
     /// @type.symbol symbol=Box.map.U source=U type=U
     /// @type.symbol symbol=Box.map.callback source="callback: (value: T) => U | Box<U>" type=Function<(T,), U | Box<U>>
+    /// @type.symbol symbol=Box.map.value source="value: T" type=T
     /// @resolution.name source=T target=Box.T
     /// @resolution.name source=U target=Box.map.U
     /// @resolution.name source=Box target=Box

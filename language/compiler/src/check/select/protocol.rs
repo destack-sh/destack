@@ -497,7 +497,11 @@ impl BodyState<'_, '_> {
             }
 
             let target_type = extension.target.r#type();
-            let implements = extension.implements.clone();
+            let interfaces = extension
+                .implements
+                .iter()
+                .map(|conformance| conformance.interface)
+                .collect::<SmallVec<[_; 2]>>();
             let definition_members = extension.members.clone();
             let members =
                 answer!(self.matching_extension_members(&definition_members, space, key)?);
@@ -514,11 +518,11 @@ impl BodyState<'_, '_> {
                     lookup_receiver,
                     extension_symbol,
                     target_type,
-                    &implements,
+                    &interfaces,
                     &classified,
                 )
             })?;
-            let candidate = (extension_symbol, target_type, implements, members);
+            let candidate = (extension_symbol, target_type, interfaces, members);
             match verdict {
                 Answer::Ready(CandidateVerdict::Viable) => {
                     viable = Some(candidate);
@@ -538,7 +542,7 @@ impl BodyState<'_, '_> {
         }
 
         // apply one selected extension in the enclosing transaction
-        let Some((extension_symbol, target_type, implements, members)) = viable.or(indeterminate)
+        let Some((extension_symbol, target_type, interfaces, members)) = viable.or(indeterminate)
         else {
             return Ok(Answer::ready_unless_blocked(None, blockers));
         };
@@ -549,7 +553,7 @@ impl BodyState<'_, '_> {
             lookup_receiver,
             extension_symbol,
             target_type,
-            &implements,
+            &interfaces,
             &members,
             protocol,
         )?;
@@ -577,7 +581,7 @@ impl BodyState<'_, '_> {
         lookup_receiver: dir::GlobalTypeId,
         extension_symbol: dir::GlobalSymbolId,
         target_type: dir::GlobalTypeId,
-        implementations: &[dir::NominalHeritage],
+        interfaces: &[dir::GlobalTypeId],
         protocol: &Protocol,
     ) -> CompilerResult<Answer<CandidateOutcome<(), ()>>> {
         let matched = self.match_extension_protocol_implementation(
@@ -587,7 +591,7 @@ impl BodyState<'_, '_> {
             lookup_receiver,
             extension_symbol,
             target_type,
-            implementations,
+            interfaces,
             protocol,
         )?;
 
@@ -606,7 +610,7 @@ impl BodyState<'_, '_> {
         lookup_receiver: dir::GlobalTypeId,
         extension_symbol: dir::GlobalSymbolId,
         target_type: dir::GlobalTypeId,
-        implementations: &[dir::NominalHeritage],
+        interfaces: &[dir::GlobalTypeId],
         members: &[DeclaredMember],
         protocol: &Protocol,
     ) -> CompilerResult<Answer<Option<(dir::GlobalTypeId, Vec<MemberCandidate>)>>> {
@@ -617,7 +621,7 @@ impl BodyState<'_, '_> {
             lookup_receiver,
             extension_symbol,
             target_type,
-            implementations,
+            interfaces,
             protocol,
         )?;
         let Some((substitution, implementation)) = answer!(matched) else {
@@ -659,7 +663,7 @@ impl BodyState<'_, '_> {
         lookup_receiver: dir::GlobalTypeId,
         extension_symbol: dir::GlobalSymbolId,
         target_type: dir::GlobalTypeId,
-        implementations: &[dir::NominalHeritage],
+        interfaces: &[dir::GlobalTypeId],
         protocol: &Protocol,
     ) -> CompilerResult<Answer<Option<(TypeSubstitution, dir::GlobalTypeId)>>> {
         let template = self.symbol_template(extension_symbol)?;
@@ -674,7 +678,7 @@ impl BodyState<'_, '_> {
             &interface,
             template,
             target_type,
-            implementations,
+            interfaces,
         )
     }
 
@@ -978,8 +982,12 @@ impl BodyState<'_, '_> {
             if matches!(definition, dir::Definition::Interface(_)) {
                 continue;
             }
-            let implementations = definition.implementations().to_vec();
-            if implementations.is_empty() {
+            let interfaces = definition
+                .implementations()
+                .iter()
+                .map(|conformance| conformance.interface)
+                .collect::<SmallVec<[_; 2]>>();
+            if interfaces.is_empty() {
                 continue;
             }
 
@@ -1002,7 +1010,7 @@ impl BodyState<'_, '_> {
                 module,
                 &[],
                 &mut substitution,
-                &implementations,
+                &interfaces,
                 &interface,
             )?);
             if matched.is_some() {

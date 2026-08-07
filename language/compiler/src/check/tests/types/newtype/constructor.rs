@@ -608,6 +608,7 @@ export extension<T> of Holder<T> implements Peekable<T> {
 /// @definition.extension symbol=<module>#2 form=exported target=Holder<T#2>
 /// @definition.implements symbol=<module>#2 source=Peekable<T> target=wrap.Peekable<T#2>
 /// @definition.method symbol=peek slot=peek type=<peek.'a>(this: &peek.'a readonly this) => wrap.Wrap<&peek.'a readonly T#2>
+/// @definition.conformance symbol=<module>#2 member=peek requirement=wrap.Peekable.peek
 /// @type.symbol symbol=T source=T type=T#2
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=T target=T

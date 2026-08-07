@@ -16,7 +16,7 @@ ok.id satisfies string;
         DirRows::checked(),
         r#"
 === annotated ===
-type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>;
+type Receiver = ThisParameterType<(this: { id: string }, value: float64) => void>;
 
 const ok: Receiver = { id: "u1" };
 ok.id satisfies string;
@@ -26,6 +26,8 @@ type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>
 /// @type.symbol symbol=Receiver source="type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>" type=ThisParameterType<Function<(float64,), void>> reduced={ id: string }
 /// @definition.type symbol=Receiver source="type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>" value=ThisParameterType<Function<(float64,), void>> reduced={ id: string }
 /// @resolution.name source=ThisParameterType target=types.function.ThisParameterType
+/// @type.symbol symbol=Receiver.this source="this: { id: string }" type={ id: string }
+/// @type.symbol symbol=Receiver.value source="value: number" type=float64
 
 const ok: Receiver = { id: "u1" };
 /// @type.symbol symbol=ok source=ok type=Receiver reduced={ id: string }
@@ -60,7 +62,7 @@ const ok: Receiver = { anything: true };
         DirRows::checked(),
         r#"
 === annotated ===
-type Receiver = ThisParameterType<(value: number) => void>;
+type Receiver = ThisParameterType<(value: float64) => void>;
 
 const ok: Receiver = { anything: true } as Dynamic<unknown>;
 
@@ -69,6 +71,7 @@ type Receiver = ThisParameterType<(value: number) => void>;
 /// @type.symbol symbol=Receiver source="type Receiver = ThisParameterType<(value: number) => void>" type=ThisParameterType<Function<(float64,), void>> reduced=unknown
 /// @definition.type symbol=Receiver source="type Receiver = ThisParameterType<(value: number) => void>" value=ThisParameterType<Function<(float64,), void>> reduced=unknown
 /// @resolution.name source=ThisParameterType target=types.function.ThisParameterType
+/// @type.symbol symbol=Receiver.value source="value: number" type=float64
 
 const ok: Receiver = { anything: true };
 /// @type.symbol symbol=ok source=ok type=Receiver reduced=unknown
@@ -106,6 +109,8 @@ type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>;
 /// @type.symbol symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>" type=OmitThisParameter<Function<(string,), string>> reduced=Function<(string,), string>
 /// @definition.type symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>" value=OmitThisParameter<Function<(string,), string>> reduced=Function<(string,), string>
 /// @resolution.name source=OmitThisParameter target=types.function.OmitThisParameter
+/// @type.symbol symbol=Fn.this source="this: { id: string }" type={ id: string }
+/// @type.symbol symbol=Fn.value source="value: string" type=string
 
 const fn: Fn = (value) => `${value}`;
 /// @type.symbol symbol=fn source=fn type=Fn reduced=Function<(string,), string>
@@ -144,7 +149,7 @@ fn("bad");
         DirRows::checked(),
         r#"
 === annotated ===
-type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>;
+type Fn = OmitThisParameter<(this: { id: string }, value: float64) => string>;
 
 declare const fn: Fn;
 fn("bad");
@@ -154,6 +159,8 @@ type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>;
 /// @type.symbol symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>" type=OmitThisParameter<Function<(float64,), string>> reduced=Function<(float64,), string>
 /// @definition.type symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>" value=OmitThisParameter<Function<(float64,), string>> reduced=Function<(float64,), string>
 /// @resolution.name source=OmitThisParameter target=types.function.OmitThisParameter
+/// @type.symbol symbol=Fn.this source="this: { id: string }" type={ id: string }
+/// @type.symbol symbol=Fn.value source="value: number" type=float64
 
 declare const fn: Fn;
 /// @type.symbol symbol=fn source=fn type=Fn reduced=Function<(float64,), string>

@@ -55,6 +55,8 @@ pub(in crate::check) struct InterfaceIndexSignature {
 /// One member required by an applied interface.
 #[derive(Debug, Clone, Copy)]
 pub(in crate::check) struct InterfaceMember {
+    /// The required interface member symbol.
+    pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The interface member's source declaration.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The member space.
@@ -206,7 +208,7 @@ impl CheckState<'_> {
         interface_module: ModuleId,
         parameters: &[GenericParameterId],
         substitution: &mut TypeSubstitution,
-        implementations: &[dir::NominalHeritage],
+        interfaces: &[dir::GlobalTypeId],
         interface: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         // compare each declared implemented interface
@@ -218,9 +220,9 @@ impl CheckState<'_> {
             symbol: interface.symbol,
             arguments,
         }))?;
-        for heritage in implementations {
+        for implemented in interfaces {
             // fill elided arguments before matching
-            let declared = self.settled_root(heritage.ty)?;
+            let declared = self.settled_root(*implemented)?;
             let declared = match self.ty(declared)? {
                 dir::Type::Application(instance) => {
                     match self.fill_elided_application(declared.module_id, &instance)? {
@@ -714,6 +716,13 @@ impl CheckState<'_> {
             let Some(key) = member.key() else {
                 continue;
             };
+            let symbol = member.symbol().ok_or_else(|| CompilerError::Internal {
+                message: format!(
+                    "named interface member has no symbol: {:?}",
+                    member.source()
+                ),
+            })?;
+
             // associated types bound implementers by constraint; a written
             //  value is a default the implementer may override
             let (declared, has_default) = match &member {
@@ -734,6 +743,7 @@ impl CheckState<'_> {
                 _ => (false, false),
             };
             required.push(InterfaceMember {
+                symbol,
                 source: member.source(),
                 space: member.space(),
                 key,

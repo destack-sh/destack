@@ -51,6 +51,7 @@ type Consume<T> = (value: T) => void;
 /// @type.symbol symbol=Consume source="type Consume<T> = (value: T) => void" type=Function<(T#1,), void>
 /// @definition.type symbol=Consume source="type Consume<T> = (value: T) => void" template=(T#1) value=Function<(T#1,), void>
 /// @type.symbol symbol=Consume.T source=T type=T#1
+/// @type.symbol symbol=Consume.value source="value: T" type=T#1
 /// @resolution.name source=T target=Consume.T
 
 class Cell<T> {
@@ -63,6 +64,7 @@ class Cell<T> {
     constructor(executor: (consume: Consume<T>) => void) {
     /// @type.symbol symbol=Cell.constructor type=(Function<(Consume<T#2>,), void>) => this
     /// @type.symbol symbol=Cell.constructor.executor source="executor: (consume: Consume<T>) => void" type=Function<(Consume<T#2>,), void>
+    /// @type.symbol symbol=Cell.constructor.consume source="consume: Consume<T>" type=Consume<T#2> reduced=Function<(T#2,), void>
     /// @resolution.name source=Consume target=Consume
     /// @resolution.name source=T target=Cell.T
 
@@ -189,6 +191,7 @@ class Cell<T> {
     constructor(executor: (value: T) => void) {
     /// @type.symbol symbol=Cell.constructor type=(Function<(T,), void>) => this
     /// @type.symbol symbol=Cell.constructor.executor source="executor: (value: T) => void" type=Function<(T,), void>
+    /// @type.symbol symbol=Cell.constructor.value source="value: T" type=T
     /// @resolution.name source=T target=Cell.T
 
         executor;

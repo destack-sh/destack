@@ -287,6 +287,7 @@ declare const value: Dynamic<<T>(input: T) => T>;
 /// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
 /// @generic.template source=type_expression parameters=(T)
 /// @type.symbol symbol=T source=T type=T
+/// @type.symbol symbol=input source="input: T" type=T
 /// @resolution.name source=T target=T
 /// @resolution.name source=T target=T
 "#,

@@ -51,6 +51,7 @@ type Handlers<T> = {
     /// @type.symbol symbol=Handlers.K source=[K in keyof T as `on-${K}`] type=K
     /// @resolution.name source=T target=Handlers.T
     /// @resolution.name source=K target=Handlers.K
+    /// @type.symbol symbol=Handlers.value source="value: T[K]" type=T[K]
     /// @resolution.name source=T target=Handlers.T
     /// @resolution.name source=K target=Handlers.K
 
@@ -77,6 +78,7 @@ handlers["on-ready"] satisfies (value: boolean) => void;
 /// @resolution.subscript source="handlers[\"on-ready\"]" type=Function<(Events["ready"],), void> kind=member target="receiver={ on-ready: Function<(Events[\"ready\"],), void>; on-message: Function<(Events[\"message\"],), void> }, target=field(receiver={ on-ready: Function<(Events[\"ready\"],), void>; on-message: Function<(Events[\"message\"],), void> }, target=on-ready, type=Function<(Events[\"ready\"],), void>), type=Function<(Events[\"ready\"],), void>"
 /// @resolution.place source=handlers placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=handlers root=handlers
+/// @type.symbol symbol=value#1 source="value: boolean" type=boolean
 
 handlers["on-message"] satisfies (value: string) => void;
 /// @resolution.name source=handlers target=handlers
@@ -85,6 +87,7 @@ handlers["on-message"] satisfies (value: string) => void;
 /// @resolution.subscript source="handlers[\"on-message\"]" type=Function<(Events["message"],), void> kind=member target="receiver={ on-ready: Function<(Events[\"ready\"],), void>; on-message: Function<(Events[\"message\"],), void> }, target=field(receiver={ on-ready: Function<(Events[\"ready\"],), void>; on-message: Function<(Events[\"message\"],), void> }, target=on-message, type=Function<(Events[\"message\"],), void>), type=Function<(Events[\"message\"],), void>"
 /// @resolution.place source=handlers placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=handlers root=handlers
+/// @type.symbol symbol=value#2 source="value: string" type=string
 
 /// @generic.instance id=Handlers<Events> template=Handlers arguments=(Events)
 "#,

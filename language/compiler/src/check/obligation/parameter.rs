@@ -149,12 +149,17 @@ impl CheckState<'_> {
             }
         }
 
-        // include newtype backings and complete heritage types
+        // include newtype backings and complete base types
         if let dir::Definition::Newtype(newtype) = &definition {
             types.push(newtype.backing);
         }
-        for heritage in definition.heritages() {
+        for heritage in definition.bases() {
             types.push(heritage.ty);
+        }
+
+        // include complete interface applications
+        for conformance in definition.implementations() {
+            types.push(conformance.interface);
         }
 
         Ok(Answer::Ready(types))

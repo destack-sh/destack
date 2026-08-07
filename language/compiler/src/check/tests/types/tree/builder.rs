@@ -58,6 +58,7 @@ extension of Panel implements Maker {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=Maker target=Maker
 /// @definition.method symbol=make slot=make static=true type=<T#2>(T#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=make requirement=Maker.make
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=Maker target=Maker
 
@@ -137,6 +138,7 @@ extension of Panel implements Tagger {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=Tagger target=Tagger
 /// @definition.method symbol=tag slot=tag static=true type=<comptime Name#2: string>(Name#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=tag requirement=Tagger.tag
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=Tagger target=Tagger
 
@@ -229,6 +231,8 @@ extension of Panel implements Rowed {
 /// @definition.implements symbol=<module>#2 source=Rowed target=Rowed
 /// @definition.associated.type symbol=Rows source="type Rows = { header: string }" key=Rows value={ header: string }
 /// @definition.method symbol=row slot=row static=true type=<comptime Key#2: keyof this.Rows>(Key#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=Rows requirement=Rowed.Rows
+/// @definition.conformance symbol=<module>#2 member=row requirement=Rowed.row
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=Rowed target=Rowed
 
@@ -326,6 +330,8 @@ extension of Panel implements Rowed {
 /// @definition.implements symbol=<module>#2 source=Rowed target=Rowed
 /// @definition.associated.type symbol=Rows source="type Rows = { header: string }" key=Rows value={ header: string }
 /// @definition.method symbol=row slot=row static=true type=<comptime Key#2: keyof this.Rows>(Key#2, this.Rows[Key#2]) => Panel
+/// @definition.conformance symbol=<module>#2 member=Rows requirement=Rowed.Rows
+/// @definition.conformance symbol=<module>#2 member=row requirement=Rowed.row
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=Rowed target=Rowed
 
@@ -410,6 +416,7 @@ extension of Panel implements Grouper {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=Grouper target=Grouper
 /// @definition.method symbol=group slot=group static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=group requirement=Grouper.group
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=Grouper target=Grouper
 
@@ -511,6 +518,9 @@ extension of Panel implements TreeBuilder {
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=tree.builder.TreeBuilder.fragment
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
 
@@ -660,6 +670,9 @@ extension of Panel implements TreeBuilder {
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=tree.builder.TreeBuilder.fragment
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
 

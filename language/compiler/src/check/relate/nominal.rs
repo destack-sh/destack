@@ -709,20 +709,26 @@ impl CheckState<'_> {
                         instance.symbol
                     ),
                 })?;
-        let heritages = definition
-            .heritages()
+        let mut heritages = definition
+            .bases()
             .iter()
-            .map(|heritage| (*heritage).clone())
+            .map(|heritage| (heritage.source, heritage.ty))
             .collect::<SmallVec<[_; 2]>>();
+        heritages.extend(
+            definition
+                .implementations()
+                .iter()
+                .map(|conformance| (conformance.source, conformance.interface)),
+        );
         let substitution =
             self.qualified_instance_substitution(instance_module, instance, receiver)?;
 
         // walk direct heritage edges with applied arguments
-        for heritage in heritages {
-            let ty = self.substitute_type(heritage.ty, &substitution)?;
+        for (source, heritage) in heritages {
+            let ty = self.substitute_type(heritage, &substitution)?;
             let (application_module, instance) = self.nominal_application(ty)?;
             let application = HeritageApplication {
-                source: branch_source.unwrap_or(heritage.source),
+                source: branch_source.unwrap_or(source),
                 ty,
             };
 

@@ -372,6 +372,7 @@ export extension<T, E> of Outcome<T, E> {
     /// @type.symbol symbol=map type=<U>(this: this, Function<(T#3,), U>) => Outcome<U, E#3>
     /// @type.symbol symbol=map.U source=U type=U
     /// @type.symbol symbol=map.f source="f: (value: T) => U" type=Function<(T#3,), U>
+    /// @type.symbol symbol=map.value#1 source="value: T" type=T#3
     /// @resolution.name source=T target=T
     /// @resolution.name source=U target=map.U
     /// @resolution.name source=Outcome target=Outcome
@@ -913,6 +914,7 @@ export extension<T, E> of Outcome<T, E> {
     /// @type.symbol symbol=map type=<U>(this: this, Function<(T#3,), U>) => Outcome<U, E#3>
     /// @type.symbol symbol=map.U source=U type=U
     /// @type.symbol symbol=map.f source="f: (value: T) => U" type=Function<(T#3,), U>
+    /// @type.symbol symbol=map.value#1 source="value: T" type=T#3
     /// @resolution.name source=T target=T
     /// @resolution.name source=U target=map.U
     /// @resolution.name source=Outcome target=Outcome

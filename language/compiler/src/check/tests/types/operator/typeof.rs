@@ -171,6 +171,7 @@ type CounterCtor = typeof Counter;
 declare function takesCounter(ctor: { new (value: int32): Counter }): void;
 /// @type.symbol symbol=takesCounter source="declare function takesCounter(ctor: { new (value: int32): Counter }): void" type=({ <new>: (int32) => Counter }) => void
 /// @type.symbol symbol=takesCounter.ctor source="ctor: { new (value: int32): Counter }" type={ <new>: (int32) => Counter }
+/// @type.symbol symbol=takesCounter.value source="value: int32" type=int32
 /// @resolution.name source=Counter target=Counter
 
 takesCounter(Counter);

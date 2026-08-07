@@ -400,11 +400,17 @@ impl CheckState<'_> {
             members.push((newtype.backing, storage));
         }
 
-        let heritages = definition
-            .heritages()
+        let mut heritages = definition
+            .bases()
             .iter()
             .map(|heritage| heritage.ty)
             .collect::<SmallVec<[_; 2]>>();
+        heritages.extend(
+            definition
+                .implementations()
+                .iter()
+                .map(|conformance| conformance.interface),
+        );
 
         // measure every member occurrence
         let mut measured = Variance::Bivariant;

@@ -121,6 +121,7 @@ class Bus<T> implements EventShape<T> {}
 /// @definition.class symbol=Bus source="class Bus<T> implements EventShape<T> {}" template=(in out T#2)
 /// @definition.where symbol=Bus source=EventShape<T> relation=satisfies left=this right=EventShape<T#2>
 /// @definition.implements symbol=Bus source=EventShape<T> target=EventShape<T#2>
+/// @definition.conformance symbol=Bus member=EventShape.Handlers requirement=EventShape.Handlers
 /// @type.symbol symbol=Bus.T source=T type=T#2
 /// @resolution.name source=EventShape target=EventShape
 /// @resolution.name source=T target=Bus.T
@@ -128,6 +129,7 @@ class Bus<T> implements EventShape<T> {}
 declare const handlers: Bus<{ ready: boolean; message: string }>.Handlers;
 /// @type.symbol symbol=handlers source=handlers type=Bus<{ ready: boolean; message: string }>.Handlers reduced={ on-ready: boolean; on-message: string }
 /// @resolution.pattern source=handlers kind=binding target=handlers
+/// @resolution.name source="Bus<{ ready: boolean; message: string }>.Handlers" target=EventShape.Handlers
 /// @resolution.name source=Bus target=Bus
 
 handlers["on-ready"] satisfies boolean;

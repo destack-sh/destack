@@ -1304,6 +1304,7 @@ declare class Promise<T> {
     /// @type.symbol symbol=Promise.then#1 source="then<U>(onFulfilled: (value: T) => Promise<U>): Promise<U>" type=<U#1>(this: this, Function<(T#1,), Promise<U#1>>) => Promise<U#1>
     /// @type.symbol symbol=Promise.then.U#1 source=U type=U#1
     /// @type.symbol symbol=Promise.then.onFulfilled#1 source="onFulfilled: (value: T) => Promise<U>" type=Function<(T#1,), Promise<U#1>>
+    /// @type.symbol symbol=Promise.then.value#1 source="value: T" type=T#1
     /// @resolution.name source=T target=Promise.T
     /// @resolution.name source=Promise target=Promise
     /// @resolution.name source=U target=Promise.then.U#1
@@ -1315,6 +1316,7 @@ declare class Promise<T> {
     /// @type.symbol symbol=Promise.then#2 source="then<U>(onFulfilled: (value: T) => U): Promise<U>" type=<U#2>(this: this, Function<(T#1,), U#2>) => Promise<U#2>
     /// @type.symbol symbol=Promise.then.U#2 source=U type=U#2
     /// @type.symbol symbol=Promise.then.onFulfilled#2 source="onFulfilled: (value: T) => U" type=Function<(T#1,), U#2>
+    /// @type.symbol symbol=Promise.then.value#2 source="value: T" type=T#1
     /// @resolution.name source=T target=Promise.T
     /// @resolution.name source=U target=Promise.then.U#2
     /// @resolution.name source=Promise target=Promise
@@ -1400,6 +1402,7 @@ extension<T, E> of Result<T, E> {
     /// @type.symbol symbol=andThen.U source=U type=U#3
     /// @type.symbol symbol=andThen.F source=F type=F#1
     /// @type.symbol symbol=andThen.f source="f: (value: T) => Result<U, F>" type=Function<(T#5,), Result<U#3, F#1>>
+    /// @type.symbol symbol=andThen.value source="value: T" type=T#5
     /// @resolution.name source=T target=T#1
     /// @resolution.name source=Result target=Result
     /// @resolution.name source=U target=andThen.U
@@ -1447,6 +1450,7 @@ extension<T, E> of AsyncResult<T, E> {
     /// @type.symbol symbol=andThenSync.U source=U type=U#4
     /// @type.symbol symbol=andThenSync.F source=F type=F#2
     /// @type.symbol symbol=andThenSync.f source="f: (value: T) => Result<U, F>" type=Function<(T#7,), Result<U#4, F#2>>
+    /// @type.symbol symbol=andThenSync.value source="value: T" type=T#7
     /// @resolution.name source=T target=T#2
     /// @resolution.name source=Result target=Result
     /// @resolution.name source=U target=andThenSync.U

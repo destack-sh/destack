@@ -474,6 +474,7 @@ struct Handler {
 
     readonly run: (value: int32) => int32;
     /// @type.symbol symbol=Handler.run source="readonly run: (value: int32) => int32" type=Function<(int32,), int32>
+    /// @type.symbol symbol=Handler.value source="value: int32" type=int32
 
 }
 

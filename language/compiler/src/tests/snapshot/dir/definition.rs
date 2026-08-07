@@ -39,7 +39,7 @@ fn add_definition_rows(
             let row = declaration_row(builder, symbol, "struct", source, definition.template);
             let row = add_representation_fields(row, definition.representation);
             builder.push(row);
-            add_heritage(builder, symbol, "implements", &definition.implements);
+            add_conformances(builder, symbol, &definition.implements);
             add_members(builder, symbol, &definition.members);
         }
         dir::Definition::Class(definition) => {
@@ -52,7 +52,7 @@ fn add_definition_rows(
             let row = add_representation_fields(row, definition.representation);
             builder.push(row);
             add_optional_heritage(builder, symbol, "extends", definition.extends.as_ref());
-            add_heritage(builder, symbol, "implements", &definition.implements);
+            add_conformances(builder, symbol, &definition.implements);
             add_members(builder, symbol, &definition.members);
         }
         dir::Definition::Interface(definition) => {
@@ -64,7 +64,7 @@ fn add_definition_rows(
         }
         dir::Definition::Enum(definition) => {
             add_enum_row(builder, symbol, source, definition);
-            add_heritage(builder, symbol, "implements", &definition.implements);
+            add_conformances(builder, symbol, &definition.implements);
             add_members(builder, symbol, &definition.members);
         }
         dir::Definition::Newtype(definition) => {
@@ -73,7 +73,7 @@ fn add_definition_rows(
         }
         dir::Definition::Extension(extension) => {
             add_extension_row(builder, symbol, source, extension);
-            add_heritage(builder, symbol, "implements", &extension.implements);
+            add_conformances(builder, symbol, &extension.implements);
             add_template_predicates(builder, symbol, extension.template);
             add_members(builder, symbol, &extension.members);
         }
@@ -244,6 +244,30 @@ fn add_one_heritage(
         .field("target", builder.global_type_label(heritage.ty));
 
     builder.push(row);
+}
+
+/// Add explicit interface conformance rows.
+fn add_conformances(
+    builder: &mut DirSnapshotBuilder<'_>,
+    owner: dir::GlobalSymbolId,
+    conformances: &[dir::NominalConformance],
+) {
+    // render each implemented interface and its selected members
+    for conformance in conformances {
+        let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", "implements")
+            .field("symbol", builder.symbol_path_label(owner))
+            .optional_field("source", builder.node_source(conformance.source))
+            .field("target", builder.global_type_label(conformance.interface));
+        builder.push(row);
+
+        for member in &conformance.members {
+            let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", "conformance")
+                .field("symbol", builder.symbol_path_label(owner))
+                .field("member", builder.symbol_path_label(member.member))
+                .field("requirement", builder.symbol_path_label(member.requirement));
+            builder.push(row);
+        }
+    }
 }
 
 /// Add one extension definition row.

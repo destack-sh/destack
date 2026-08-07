@@ -326,7 +326,7 @@ impl Compiler {
 
                 // index implementing declarations by their interface
                 for implementation in definition.implementations() {
-                    let interface = implementation.ty;
+                    let interface = implementation.interface;
                     let Some(dir::Type::Application(instance)) =
                         types.get_type_maybe(interface.local_id)
                     else {

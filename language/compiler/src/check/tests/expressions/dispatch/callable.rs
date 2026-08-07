@@ -222,6 +222,9 @@ interface Adder {
 /// @definition.signature kind=call source="(left: int32, right: int32): int32" type=Function<(int32, int32), int32>
 
     (left: int32, right: int32): int32;
+    /// @type.symbol symbol=Adder.left source="left: int32" type=int32
+    /// @type.symbol symbol=Adder.right source="right: int32" type=int32
+
 }
 
 declare const add: Adder;
@@ -290,6 +293,7 @@ interface Factory {
 /// @definition.signature kind=construct source="new (value: int32): Counter" type=(int32) => Counter
 
     new (value: int32): Counter;
+    /// @type.symbol symbol=Factory.value source="value: int32" type=int32
     /// @resolution.name source=Counter target=Counter
 
 }
@@ -338,6 +342,9 @@ interface Adder {
 /// @definition.signature kind=call source="(left: int32, right: int32): int32" type=Function<(int32, int32), int32>
 
     (left: int32, right: int32): int32;
+    /// @type.symbol symbol=Adder.left source="left: int32" type=int32
+    /// @type.symbol symbol=Adder.right source="right: int32" type=int32
+
 }
 
 const add: Adder = (left: int32, right: int32): int32 => left + right;

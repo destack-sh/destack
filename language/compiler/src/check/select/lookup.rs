@@ -1247,13 +1247,23 @@ impl BodyState<'_, '_> {
             keys.insert(discriminator);
         }
 
-        // collect inherited keys through the heritage clauses
+        // collect inherited keys through base declarations and interfaces
         let heritages = match self.definition(symbol)? {
-            Some(definition) => definition
-                .heritages()
-                .into_iter()
-                .map(|heritage| heritage.ty)
-                .collect::<SmallVec<[_; 2]>>(),
+            Some(definition) => {
+                let mut heritages = definition
+                    .bases()
+                    .into_iter()
+                    .map(|heritage| heritage.ty)
+                    .collect::<SmallVec<[_; 2]>>();
+                heritages.extend(
+                    definition
+                        .implementations()
+                        .iter()
+                        .map(|conformance| conformance.interface),
+                );
+
+                heritages
+            }
             None => SmallVec::new(),
         };
         for heritage in heritages {

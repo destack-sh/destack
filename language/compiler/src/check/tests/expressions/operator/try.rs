@@ -56,6 +56,8 @@ extension of Token implements Add<Token> {
 /// @definition.implements symbol=<module>#2 source=Add<Token> target=ops.plus.Add<Token>
 /// @definition.associated.type symbol=Output source="type Output = string" key=Output value=string
 /// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a exclusive this, Token) => string
+/// @definition.conformance symbol=<module>#2 member=Output requirement=ops.plus.Add.Output
+/// @definition.conformance symbol=<module>#2 member=add requirement=ops.plus.Add.add
 /// @resolution.name source=Token target=Token
 /// @resolution.name source=Add target=ops.plus.Add
 /// @resolution.name source=Token target=Token
@@ -182,6 +184,11 @@ extension of Attempt implements Try {
 /// @definition.method symbol=branch slot=branch type=<branch.'a>(this: &branch.'a exclusive this) => ops.try.ControlFlow<string, int32>
 /// @definition.method symbol=fromOutput slot=fromOutput static=true type=(int32) => Attempt
 /// @definition.method symbol=fromResidual slot=fromResidual static=true type=(string) => Attempt
+/// @definition.conformance symbol=<module>#2 member=Output requirement=ops.try.Try.Output
+/// @definition.conformance symbol=<module>#2 member=Residual requirement=ops.try.Try.Residual
+/// @definition.conformance symbol=<module>#2 member=branch requirement=ops.try.Try.branch
+/// @definition.conformance symbol=<module>#2 member=fromOutput requirement=ops.try.Try.fromOutput
+/// @definition.conformance symbol=<module>#2 member=fromResidual requirement=ops.try.FromResidual.fromResidual
 /// @resolution.name source=Attempt target=Attempt
 /// @resolution.name source=Try target=ops.try.Try
 

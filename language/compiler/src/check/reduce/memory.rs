@@ -171,9 +171,18 @@ impl CheckState<'_> {
         };
         let mut space = definition.space();
 
-        // inherit the first concrete requirement, as heritage validation rejects disagreement
-        for heritage in definition.heritages() {
+        // inherit the first concrete base, as heritage validation rejects disagreement
+        for heritage in definition.bases() {
             let (_, inherited) = self.nominal_application(heritage.ty)?;
+            let inherited = self.nominal_space_guarded(inherited.symbol, active)?;
+            if space.is_none() {
+                space = inherited;
+            }
+        }
+
+        // inherit the first concrete interface requirement
+        for conformance in definition.implementations() {
+            let (_, inherited) = self.nominal_application(conformance.interface)?;
             let inherited = self.nominal_space_guarded(inherited.symbol, active)?;
             if space.is_none() {
                 space = inherited;

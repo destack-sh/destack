@@ -1,6 +1,26 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_function_type_parameter_records_its_declared_symbol() {
+    let session = TestSession::single(
+        r#"
+function schedule(callback: (ready: boolean) => void): void {}
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+=== annotated ===
+function schedule(callback: (arg0: boolean) => void): void {}
+
+=== checked ===
+function schedule(callback: (ready: boolean) => void): void {}
+/// @type.symbol symbol=schedule source="function schedule(callback: (ready: boolean) => void): void {}" type=(Function<(boolean,), void>) => void
+/// @type.symbol symbol=schedule.callback source="callback: (ready: boolean) => void" type=Function<(boolean,), void>
+/// @type.symbol symbol=schedule.ready source="ready: boolean" type=boolean
+"#);
+}
+
+#[test]
 fn test_free_function_call_selects_function_symbol() {
     let session = TestSession::single(
         r#"
@@ -137,6 +157,7 @@ function source(value?: unknown): void {}
 declare function use(callback: (value: unknown) => void): void;
 /// @type.symbol symbol=use source="declare function use(callback: (value: unknown) => void): void" type=(Function<(unknown,), void>) => void
 /// @type.symbol symbol=use.callback source="callback: (value: unknown) => void" type=Function<(Dynamic<unknown>,), void>
+/// @type.symbol symbol=use.value source="value: unknown" type=Dynamic<unknown>
 
 use(source);
 /// @type.node source=use type=(Function<(unknown,), void>) => void
@@ -179,6 +200,7 @@ declare function map<T>(callback: (value: unknown) => T): T;
 /// @type.symbol symbol=map source="declare function map<T>(callback: (value: unknown) => T): T" type=<T>(Function<(unknown,), T>) => T
 /// @type.symbol symbol=map.T source=T type=T
 /// @type.symbol symbol=map.callback source="callback: (value: unknown) => T" type=Function<(Dynamic<unknown>,), T>
+/// @type.symbol symbol=map.value source="value: unknown" type=Dynamic<unknown>
 /// @resolution.name source=T target=map.T
 /// @resolution.name source=T target=map.T
 

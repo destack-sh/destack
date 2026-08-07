@@ -240,6 +240,7 @@ struct Picture implements Named {
 /// @definition.implements symbol=Picture source=Named target=Named
 /// @definition.field symbol=Picture.name source="name: string" key=name type=string
 /// @definition.field symbol=Picture.opacity source="opacity: float32" key=opacity type=float32
+/// @definition.conformance symbol=Picture member=Picture.name requirement=Named.name
 /// @resolution.name source=Named target=Named
 
     name: string;
