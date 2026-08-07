@@ -259,6 +259,8 @@ impl DirResolved {
 pub struct DirDeclared {
     /// The stable fingerprint of this module's declared output.
     pub fingerprint: ArtifactProjectionFingerprint,
+    /// The modules this artifact's rows mention.
+    pub references: Vec<ModuleId>,
     /// Declared binding segment.
     pub bindings: Arc<dir::BindingSegment>,
     /// Declared decorator applications.
@@ -273,6 +275,8 @@ pub struct DirDeclared {
     pub definitions: Arc<dir::DefinitionSegment>,
     /// Declared node resolutions.
     pub resolutions: Arc<dir::ResolutionSegment>,
+    /// Decisions made while declaring.
+    pub decisions: Arc<dir::DecisionSegment>,
     /// Authored member lookup subjects.
     pub members: Arc<dir::MemberSegment>,
 }
@@ -318,9 +322,112 @@ impl DirDeclared {
         dir::GenericTable::from_segment(self.generics.clone())
     }
 
+    /// Return the declared member table.
+    pub fn member_table(&self) -> dir::MemberTable<'static> {
+        dir::MemberTable::from_segment(self.members.clone())
+    }
+
     /// Return the cumulative definition table for declared DIR.
     pub fn definition_table(&self) -> dir::DefinitionTable<'static> {
         dir::DefinitionTable::from_segment(self.definitions.clone())
+    }
+}
+
+/// Elaborated DIR for one module under one profile.
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+pub struct DirElaborated {
+    /// The stable fingerprint of this module's elaborated output.
+    pub fingerprint: ArtifactProjectionFingerprint,
+    /// The modules this artifact's rows mention.
+    pub references: Vec<ModuleId>,
+    /// Symbols minted while deriving variants and constructors.
+    pub bindings: Arc<dir::BindingSegment>,
+    /// Types minted while flattening member bindings.
+    pub types: Arc<dir::TypeSegment>,
+    /// Flattened member bindings per owner subject.
+    pub members: Arc<dir::MemberSegment>,
+    /// Auto conformances for concrete nominals.
+    pub auto: Arc<dir::AutoSegment>,
+    /// Derived variances.
+    pub generics: Arc<dir::GenericSegment>,
+    /// Definitions carrying derived constructor rows.
+    pub definitions: Arc<dir::DefinitionSegment>,
+    /// Selected and evaluated decorator applications.
+    pub decorators: Arc<dir::DecoratorSegment>,
+    /// Resolutions recorded while checking declarations and decorators.
+    pub resolutions: Arc<dir::ResolutionSegment>,
+    /// Decisions made while elaborating declarations and decorators.
+    pub decisions: Arc<dir::DecisionSegment>,
+    /// Static values evaluated for decorator applications.
+    pub statics: Arc<dir::StaticSegment>,
+    /// Diagnostic controls applied by decorators.
+    pub controls: Arc<DiagnosticControlTable>,
+}
+
+impl DirElaborated {
+    /// Return the elaborated member table.
+    pub fn member_table(&self) -> dir::MemberTable<'static> {
+        dir::MemberTable::from_segment(self.members.clone())
+    }
+
+    /// Return the cumulative binding table for elaborated DIR.
+    pub fn binding_table(
+        &self,
+        bound: &DirBound,
+        expanded: &DirExpanded,
+        declared: &DirDeclared,
+    ) -> dir::BindingTable<'static> {
+        dir::BindingTable::from_segments(vec![
+            bound.bindings.clone(),
+            expanded.bindings.clone(),
+            declared.bindings.clone(),
+            self.bindings.clone(),
+        ])
+    }
+
+    /// Return the cumulative type table for elaborated DIR.
+    pub fn type_table(
+        &self,
+        bound: &DirBound,
+        expanded: &DirExpanded,
+        declared: &DirDeclared,
+    ) -> dir::TypeTable<'static> {
+        dir::TypeTable::from_segments(vec![
+            bound.types.clone(),
+            expanded.types.clone(),
+            declared.types.clone(),
+            self.types.clone(),
+        ])
+    }
+
+    /// Return the elaborated auto implementation table.
+    pub fn auto_table(&self) -> dir::AutoTable<'static> {
+        dir::AutoTable::from_segment(self.auto.clone())
+    }
+
+    /// Return the cumulative generic table for elaborated DIR.
+    pub fn generic_table(&self, declared: &DirDeclared) -> dir::GenericTable<'static> {
+        dir::GenericTable::from_segments(vec![declared.generics.clone(), self.generics.clone()])
+    }
+
+    /// Return the elaborated definition table.
+    pub fn definition_table(&self) -> dir::DefinitionTable<'static> {
+        dir::DefinitionTable::from_segment(self.definitions.clone())
+    }
+
+    /// Return the cumulative static table for elaborated DIR.
+    pub fn static_table(
+        &self,
+        bound: &DirBound,
+        expanded: &DirExpanded,
+        declared: &DirDeclared,
+    ) -> dir::StaticTable<'static> {
+        dir::StaticTable::from_segments(vec![
+            bound.statics.clone(),
+            expanded.statics.clone(),
+            declared.statics.clone(),
+            self.statics.clone(),
+        ])
     }
 }
 
@@ -343,6 +450,8 @@ pub struct DirChecked {
     pub statics: Arc<dir::StaticSegment>,
     /// New resolutions.
     pub resolutions: Arc<dir::ResolutionSegment>,
+    /// New decisions.
+    pub decisions: Arc<dir::DecisionSegment>,
     /// Checked member availability.
     pub members: Arc<dir::MemberSegment>,
     /// New generic slots and instances.
@@ -362,11 +471,13 @@ impl DirChecked {
         bound: &DirBound,
         expanded: &DirExpanded,
         declared: &DirDeclared,
+        elaborated: &DirElaborated,
     ) -> dir::BindingTable<'static> {
         dir::BindingTable::from_segments(vec![
             bound.bindings.clone(),
             expanded.bindings.clone(),
             declared.bindings.clone(),
+            elaborated.bindings.clone(),
             self.bindings.clone(),
         ])
     }
@@ -380,8 +491,8 @@ impl DirChecked {
     }
 
     /// Return the cumulative auto implementation table for checked DIR.
-    pub fn auto_table(&self) -> dir::AutoTable<'static> {
-        dir::AutoTable::from_segment(self.auto.clone())
+    pub fn auto_table(&self, elaborated: &DirElaborated) -> dir::AutoTable<'static> {
+        dir::AutoTable::from_segments(vec![elaborated.auto.clone(), self.auto.clone()])
     }
 
     /// Return the cumulative type table for checked DIR.
@@ -390,11 +501,13 @@ impl DirChecked {
         bound: &DirBound,
         expanded: &DirExpanded,
         declared: &DirDeclared,
+        elaborated: &DirElaborated,
     ) -> dir::TypeTable<'static> {
         dir::TypeTable::from_segments(vec![
             bound.types.clone(),
             expanded.types.clone(),
             declared.types.clone(),
+            elaborated.types.clone(),
             self.types.clone(),
         ])
     }
@@ -405,20 +518,40 @@ impl DirChecked {
         bound: &DirBound,
         expanded: &DirExpanded,
         declared: &DirDeclared,
+        elaborated: &DirElaborated,
     ) -> dir::StaticTable<'static> {
         dir::StaticTable::from_segments(vec![
             bound.statics.clone(),
             expanded.statics.clone(),
             declared.statics.clone(),
+            elaborated.statics.clone(),
             self.statics.clone(),
         ])
     }
 
     /// Return the cumulative resolution table for checked DIR.
-    pub fn resolution_table(&self, declared: &DirDeclared) -> dir::ResolutionTable<'static> {
+    pub fn resolution_table(
+        &self,
+        declared: &DirDeclared,
+        elaborated: &DirElaborated,
+    ) -> dir::ResolutionTable<'static> {
         dir::ResolutionTable::from_segments(vec![
             declared.resolutions.clone(),
+            elaborated.resolutions.clone(),
             self.resolutions.clone(),
+        ])
+    }
+
+    /// Return the cumulative decision table for checked DIR.
+    pub fn decision_table(
+        &self,
+        declared: &DirDeclared,
+        elaborated: &DirElaborated,
+    ) -> dir::DecisionTable<'static> {
+        dir::DecisionTable::from_segments(vec![
+            declared.decisions.clone(),
+            elaborated.decisions.clone(),
+            self.decisions.clone(),
         ])
     }
 
@@ -428,14 +561,27 @@ impl DirChecked {
     }
 
     /// Return the cumulative generic table for checked DIR.
-    pub fn generic_table(&self, declared: &DirDeclared) -> dir::GenericTable<'static> {
-        dir::GenericTable::from_segments(vec![declared.generics.clone(), self.generics.clone()])
+    pub fn generic_table(
+        &self,
+        declared: &DirDeclared,
+        elaborated: &DirElaborated,
+    ) -> dir::GenericTable<'static> {
+        dir::GenericTable::from_segments(vec![
+            declared.generics.clone(),
+            elaborated.generics.clone(),
+            self.generics.clone(),
+        ])
     }
 
     /// Return the cumulative definition table for checked DIR.
-    pub fn definition_table(&self, declared: &DirDeclared) -> dir::DefinitionTable<'static> {
+    pub fn definition_table(
+        &self,
+        declared: &DirDeclared,
+        elaborated: &DirElaborated,
+    ) -> dir::DefinitionTable<'static> {
         dir::DefinitionTable::from_segments(vec![
             declared.definitions.clone(),
+            elaborated.definitions.clone(),
             self.definitions.clone(),
         ])
     }
@@ -464,6 +610,8 @@ pub struct DirMaterialized {
     pub statics: Arc<dir::StaticSegment>,
     /// New resolutions.
     pub resolutions: Arc<dir::ResolutionSegment>,
+    /// New decisions.
+    pub decisions: Arc<dir::DecisionSegment>,
     /// New generic slots and instances.
     pub generics: Arc<dir::GenericSegment>,
     /// New implicit coercions.
@@ -511,12 +659,14 @@ impl DirMaterialized {
         bound: &DirBound,
         expanded: &DirExpanded,
         declared: &DirDeclared,
+        elaborated: &DirElaborated,
         checked: &DirChecked,
     ) -> dir::StaticTable<'static> {
         dir::StaticTable::from_segments(vec![
             bound.statics.clone(),
             expanded.statics.clone(),
             declared.statics.clone(),
+            elaborated.statics.clone(),
             checked.statics.clone(),
             self.statics.clone(),
         ])
@@ -526,12 +676,29 @@ impl DirMaterialized {
     pub fn resolution_table(
         &self,
         declared: &DirDeclared,
+        elaborated: &DirElaborated,
         checked: &DirChecked,
     ) -> dir::ResolutionTable<'static> {
         dir::ResolutionTable::from_segments(vec![
             declared.resolutions.clone(),
+            elaborated.resolutions.clone(),
             checked.resolutions.clone(),
             self.resolutions.clone(),
+        ])
+    }
+
+    /// Return the cumulative decision table for materialized DIR.
+    pub fn decision_table(
+        &self,
+        declared: &DirDeclared,
+        elaborated: &DirElaborated,
+        checked: &DirChecked,
+    ) -> dir::DecisionTable<'static> {
+        dir::DecisionTable::from_segments(vec![
+            declared.decisions.clone(),
+            elaborated.decisions.clone(),
+            checked.decisions.clone(),
+            self.decisions.clone(),
         ])
     }
 

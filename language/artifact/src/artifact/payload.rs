@@ -7,10 +7,10 @@ use destack_source::ContentId;
 
 use crate::{
     ArtifactError, ArtifactKey, ArtifactProjectionFingerprint, ArtifactProjectionKey, Asset, Build,
-    Bundle, Data, DirBound, DirChecked, DirDeclared, DirExpanded, DirExported, DirImported,
-    DirMaterialized, DirParsed, DirResolved, EnvironmentBound, EnvironmentDeclared, MirAnalyzed,
-    MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleGraph, ModuleIndex, ModuleLinted,
-    Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
+    Bundle, Data, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported,
+    DirImported, DirMaterialized, DirParsed, DirResolved, EnvironmentBound, EnvironmentDeclared,
+    MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleGraph, ModuleIndex,
+    ModuleLinted, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 use serde::{Deserialize, Serialize};
 
@@ -41,6 +41,8 @@ pub enum ArtifactPayload {
     DirDeclared(Arc<DirDeclared>),
     /// One declared environment payload.
     EnvironmentDeclared(Arc<EnvironmentDeclared>),
+    /// Elaborated DIR module.
+    DirElaborated(Arc<DirElaborated>),
     /// Checked DIR module.
     DirChecked(Arc<DirChecked>),
     /// Materialized DIR.
@@ -107,6 +109,7 @@ pub enum ArtifactPayloadRef<'a> {
     /// One declared environment payload.
     EnvironmentDeclared(&'a EnvironmentDeclared),
     /// Checked DIR module.
+    DirElaborated(&'a DirElaborated),
     DirChecked(&'a DirChecked),
     /// Materialized DIR.
     DirMaterialized(&'a DirMaterialized),
@@ -204,6 +207,10 @@ impl ArtifactPayload {
                         ArtifactPayload::DirDeclared(_)
                     )
                     | (
+                        ArtifactKey::DirElaborated { .. },
+                        ArtifactPayload::DirElaborated(_)
+                    )
+                    | (
                         ArtifactKey::DirChecked { .. },
                         ArtifactPayload::DirChecked(_)
                     )
@@ -269,6 +276,7 @@ impl ArtifactPayload {
             Self::DirExported(payload) => ArtifactPayloadRef::DirExported(payload.as_ref()),
             Self::DirResolved(payload) => ArtifactPayloadRef::DirResolved(payload.as_ref()),
             Self::DirDeclared(payload) => ArtifactPayloadRef::DirDeclared(payload.as_ref()),
+            Self::DirElaborated(payload) => ArtifactPayloadRef::DirElaborated(payload.as_ref()),
             Self::DirChecked(payload) => ArtifactPayloadRef::DirChecked(payload.as_ref()),
             Self::DirMaterialized(payload) => ArtifactPayloadRef::DirMaterialized(payload.as_ref()),
             Self::MirLowered(payload) => ArtifactPayloadRef::MirLowered(payload.as_ref()),
@@ -305,6 +313,7 @@ impl ArtifactPayload {
             Self::DirExported(_) => "dir_exported",
             Self::DirResolved(_) => "dir_resolved",
             Self::DirDeclared(_) => "dir_declared",
+            Self::DirElaborated(_) => "dir_elaborated",
             Self::DirChecked(_) => "dir_checked",
             Self::DirMaterialized(_) => "dir_materialized",
             Self::MirLowered(_) => "mir_lowered",
@@ -358,6 +367,9 @@ impl ArtifactPayloadRef<'_> {
                 Some(payload.component_edges_fingerprint())
             }
             (Self::DirDeclared(payload), ArtifactProjectionKey::Declared) => {
+                Some(payload.fingerprint)
+            }
+            (Self::DirElaborated(payload), ArtifactProjectionKey::Elaborated) => {
                 Some(payload.fingerprint)
             }
             (Self::DirChecked(payload), ArtifactProjectionKey::Checked) => {
@@ -422,6 +434,9 @@ impl ArtifactPayloadRef<'_> {
         match self {
             Self::DirDeclared(declared) => {
                 projections.push((ArtifactProjectionKey::Declared, declared.fingerprint));
+            }
+            Self::DirElaborated(elaborated) => {
+                projections.push((ArtifactProjectionKey::Elaborated, elaborated.fingerprint));
             }
             Self::DirChecked(checked) => {
                 projections.push((ArtifactProjectionKey::Checked, checked.fingerprint));
@@ -533,6 +548,13 @@ impl From<DirDeclared> for ArtifactPayload {
     /// Wrap one declared DIR module payload.
     fn from(payload: DirDeclared) -> Self {
         Self::DirDeclared(Arc::new(payload))
+    }
+}
+
+impl From<DirElaborated> for ArtifactPayload {
+    /// Wrap one elaborated DIR module payload.
+    fn from(payload: DirElaborated) -> Self {
+        Self::DirElaborated(Arc::new(payload))
     }
 }
 

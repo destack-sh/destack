@@ -127,6 +127,8 @@ pub enum ArtifactProjectionKey {
     InherentExtensions,
     /// The declared output fingerprint of one declared module.
     Declared,
+    /// The elaborated output fingerprint of one elaborated module.
+    Elaborated,
     /// The checked output fingerprint of one checked module.
     Checked,
     /// The resolved import relationships that shape module graph edges.

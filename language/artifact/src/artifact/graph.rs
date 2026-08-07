@@ -242,6 +242,7 @@ impl ModuleGraph {
                 Some(ArtifactProjectionFingerprint::new(self.extensions.as_ref()))
             }
             ArtifactProjectionKey::Declared
+            | ArtifactProjectionKey::Elaborated
             | ArtifactProjectionKey::Checked
             | ArtifactProjectionKey::ImportEdges
             | ArtifactProjectionKey::Content => None,

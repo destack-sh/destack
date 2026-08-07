@@ -24,7 +24,7 @@ impl PackageNode {
     }
 }
 
-/// Resolution of one declared package dependency.
+/// Decision of one declared package dependency.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum PackageDependency {
     /// The declared dependency package is unavailable.

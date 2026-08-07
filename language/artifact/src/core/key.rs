@@ -72,6 +72,11 @@ pub enum ArtifactKey {
     /// Declared implicit environment for one profile.
     EnvironmentDeclared { profile: ProfileId },
 
+    /// Elaborated DIR module.
+    DirElaborated {
+        module: ModuleId,
+        profile: ProfileId,
+    },
     /// Checked DIR module.
     DirChecked {
         module: ModuleId,
@@ -245,6 +250,7 @@ impl ArtifactKey {
             | Self::DirExported { .. }
             | Self::DirResolved { .. }
             | Self::DirDeclared { .. }
+            | Self::DirElaborated { .. }
             | Self::DirChecked { .. }
             | Self::DirMaterialized { .. }
             | Self::MirLowered { .. }
@@ -335,6 +341,11 @@ impl ArtifactKey {
     /// Build one declared DIR component artifact key.
     pub fn dir_declared(module: ModuleId, profile: ProfileId) -> Self {
         Self::DirDeclared { module, profile }
+    }
+
+    /// Build one elaborated DIR module artifact key.
+    pub fn dir_elaborated(module: ModuleId, profile: ProfileId) -> Self {
+        Self::DirElaborated { module, profile }
     }
 
     /// Build one checked DIR module artifact key.
@@ -465,7 +476,9 @@ impl ArtifactKey {
             }
             Self::ModuleGraph { .. } => ArtifactStage::Graph,
             Self::DirExpanded { .. } | Self::DirMaterialized { .. } => ArtifactStage::Macro,
-            Self::DirDeclared { .. } | Self::DirChecked { .. } => ArtifactStage::Check,
+            Self::DirDeclared { .. } | Self::DirElaborated { .. } | Self::DirChecked { .. } => {
+                ArtifactStage::Check
+            }
             Self::MirLowered { .. }
             | Self::MirVerified { .. }
             | Self::MirElaborated { .. }
@@ -499,6 +512,7 @@ impl ArtifactKey {
             Self::ModuleGraph { .. } => "module.graph",
             Self::ProgramAnalysis { .. } => "program.analyze",
             Self::DirDeclared { .. } => "dir.declare",
+            Self::DirElaborated { .. } => "dir.elaborate",
             Self::DirChecked { .. } => "dir.check",
             Self::DirMaterialized { .. } => "dir.materialize",
             Self::MirLowered { .. } => "mir.lower",
@@ -535,6 +549,7 @@ impl ArtifactKey {
             Self::ModuleGraph { .. } => "module_graph",
             Self::ProgramAnalysis { .. } => "program_analysis",
             Self::DirDeclared { .. } => "dir_declared",
+            Self::DirElaborated { .. } => "dir_elaborated",
             Self::DirChecked { .. } => "dir_checked",
             Self::DirMaterialized { .. } => "dir_materialized",
             Self::MirLowered { .. } => "mir_lowered",
@@ -567,6 +582,7 @@ impl ArtifactKey {
             | Self::DirExported { module, .. }
             | Self::DirResolved { module, .. }
             | Self::DirDeclared { module, .. }
+            | Self::DirElaborated { module, .. }
             | Self::DirChecked { module, .. }
             | Self::DirMaterialized { module, .. }
             | Self::MirLowered { module, .. }
@@ -635,6 +651,7 @@ impl ArtifactKey {
             | Self::DirExported { profile, .. }
             | Self::DirResolved { profile, .. }
             | Self::DirDeclared { profile, .. }
+            | Self::DirElaborated { profile, .. }
             | Self::DirChecked { profile, .. }
             | Self::DirMaterialized { profile, .. }
             | Self::MirLowered { profile, .. }

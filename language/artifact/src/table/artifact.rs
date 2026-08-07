@@ -21,11 +21,11 @@ use super::pin::ArtifactBindingPin;
 use crate::{
     ArtifactDependency, ArtifactError, ArtifactFailure, ArtifactKey, ArtifactPayload,
     ArtifactProjection, ArtifactProjectionFingerprint, ArtifactProjectionKey, ArtifactRecord,
-    ArtifactVersion, Asset, Build, Bundle, Data, DirBound, DirChecked, DirDeclared, DirExpanded,
-    DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, EnvironmentBound,
-    EnvironmentDeclared, MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified,
-    ModuleGraph, ModuleIndex, ModuleLinted, Product, ProgramAnalysis, ProgramIndex, ProgramLinted,
-    Script,
+    ArtifactVersion, Asset, Build, Bundle, Data, DirBound, DirChecked, DirDeclared, DirElaborated,
+    DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
+    EnvironmentBound, EnvironmentDeclared, MirAnalyzed, MirElaborated, MirLowered, MirOptimized,
+    MirVerified, ModuleGraph, ModuleIndex, ModuleLinted, Product, ProgramAnalysis, ProgramIndex,
+    ProgramLinted, Script,
 };
 
 macro_rules! artifact_getter {
@@ -461,6 +461,7 @@ impl ArtifactTable {
         EnvironmentDeclared,
         EnvironmentDeclared
     );
+    artifact_getter!(dir_elaborated, DirElaborated, DirElaborated);
     artifact_getter!(dir_checked, DirChecked, DirChecked);
     artifact_getter!(dir_materialized, DirMaterialized, DirMaterialized);
     artifact_getter!(mir_lowered, MirLowered, MirLowered);
