@@ -118,14 +118,14 @@ const result = identity(name);
 
 ## Documentation
 
-### [ignored] Include callable and parameter documentation
+### Include callable and parameter documentation
 
 Signature help includes documentation from the declaration and its parameters.
 
 ```ds main.ds
 /// Add two values.
-/// @param left The first value.
-/// @param right The second value.
+/// @param left - The first value.
+/// @param right - The second value.
 function add(left: int32, right: int32): int32 {
     return left + right;
 }
@@ -215,15 +215,15 @@ function total(calculator: Calculator): int32 {
 @signature_help.parameter signature=0 index=1 label="right: int32" active=true
 ```
 
-### [ignored] Include method parameter documentation
+### Include method parameter documentation
 
 Method signature help includes documentation from the method declaration.
 
 ```ds main.ds
 class Calculator {
     /// Add two values.
-    /// @param left The first value.
-    /// @param right The second value.
+    /// @param left - The first value.
+    /// @param right - The second value.
     add(left: int32, right: int32): int32 {
         return left + right;
     }

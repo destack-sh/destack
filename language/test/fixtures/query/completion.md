@@ -117,6 +117,12 @@ A function completion includes its signature, documentation, and call snippet.
 
 ```ds main.ds
 /// Format one name.
+/// @param name - The name to format.
+/// @param width - The requested width.
+/// @example
+/// ```ds
+/// formatName("Ada", 8);
+/// ```
 function formatName(name: string, width: int32): string {
     return name;
 }
@@ -126,7 +132,7 @@ const result = formatN;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=formatName kind=function replace=main.ds#prefix suffix="(name: string, width: int32): string" declaration="function formatName(name: string, width: int32): string" documentation="Format one name." insert="formatName(${1:name}, ${2:width})$0" snippet=true preselect=true matches=0,1,2,3,4,5,6
+@completion.item label=formatName kind=function replace=main.ds#prefix suffix="(name: string, width: int32): string" declaration="function formatName(name: string, width: int32): string" documentation="Format one name.\n\n## Parameters\n\n- `name`: The name to format.\n\n- `width`: The requested width.\n\n## Examples\n\n```ds\nformatName(\"Ada\", 8);\n```" insert="formatName(${1:name}, ${2:width})$0" snippet=true preselect=true matches=0,1,2,3,4,5,6
 ```
 
 ### Complete an imported function alias

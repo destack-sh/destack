@@ -108,17 +108,23 @@ Documentation comes from the referenced declaration.
 
 ```ds main.ds
 /// Return the supplied name.
-function identity(name: string): string {
+/// @typeParam Value - The supplied value type.
+/// @param name - The value to return.
+/// @example
+/// ```ds
+/// identity<string>("Destack");
+/// ```
+function identity<Value>(name: Value): Value {
          ^^^^^^^^ definition
     return name;
 }
 
-const name = identity("Destack");
+const name = identity<string>("Destack");
              ^^^^^^^^ reference
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 declaration="function identity(name: string): string" documentation="Return the supplied name." location=main.ds:2:1-4:2 selection=main.ds#definition range=main.ds#reference
+@hover.item index=0 declaration="function identity<Value>(name: Value): Value" type="(name: string) => string" documentation="Return the supplied name.\n\n## Type parameters\n\n- `Value`: The supplied value type.\n\n## Parameters\n\n- `name`: The value to return.\n\n## Examples\n\n```ds\nidentity<string>(\"Destack\");\n```" location=main.ds:8:1-10:2 selection=main.ds#definition range=main.ds#reference
 ```
 
 ### Return no symbol hover inside documentation
