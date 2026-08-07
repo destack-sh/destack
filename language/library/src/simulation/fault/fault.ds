@@ -554,7 +554,7 @@ export class FaultSet {
 
     /// Return whether no fault triggered.
     isEmpty(&readonly this): boolean {
-        this.faults.length == 0
+        this.faults.isEmpty
     }
 }
 /// Create a user-defined simulation fault.

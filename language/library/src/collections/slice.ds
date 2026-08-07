@@ -145,7 +145,7 @@ export extension<T: Copy> of Slice<T> implements Iterable<T>, Sequence {
 
     /// Return the first element by value.
     first(&readonly this): T | undefined {
-        if (this.size == 0) {
+        if (this.isEmpty) {
             return undefined;
         }
 
