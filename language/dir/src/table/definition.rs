@@ -103,22 +103,6 @@ impl<'a> DefinitionTable<'a> {
         }
     }
 
-    /// Return the definition member carrying one exact symbol.
-    pub fn member(
-        &self,
-        symbol: GlobalSymbolId,
-    ) -> Option<(GlobalSymbolId, &Definition, &DefinitionMember)> {
-        self.segments
-            .iter()
-            .rev()
-            .flat_map(DefinitionSegment::iter_definitions)
-            .find_map(|(declaring, definition)| {
-                definition
-                    .member(symbol)
-                    .map(|member| (declaring, definition, member))
-            })
-    }
-
     /// Iterate extension symbols targeting one nominal symbol.
     pub fn target_extensions(
         &self,
@@ -1001,7 +985,7 @@ pub struct TaggedOptionsDefinition {
 pub struct TaggedKeyDefinition {
     /// The variant symbol.
     pub symbol: GlobalSymbolId,
-    /// The source newtype declaration node.
+    /// The authored backing arm node.
     pub source: GlobalNodeIdAny,
     /// The written backing arm position.
     pub index: u32,
@@ -1012,7 +996,7 @@ pub struct TaggedKeyDefinition {
 pub struct TaggedVariantDefinition {
     /// The variant symbol.
     pub symbol: GlobalSymbolId,
-    /// The source newtype declaration node.
+    /// The authored backing arm node.
     pub source: GlobalNodeIdAny,
     /// The derived variant key.
     pub key: StaticKey,

@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 pub struct MemberIndex {
     /// The members in stable source order.
     entries: Vec<MemberEntry>,
+    /// Member indexes ordered by source node.
+    by_source: Vec<usize>,
     /// Member indexes ordered by owner symbol.
     by_owner: Vec<usize>,
     /// Member indexes ordered by declaring symbol.
@@ -35,6 +37,7 @@ impl MemberIndex {
     pub fn new(entries: Vec<MemberEntry>) -> Self {
         let mut index = Self {
             entries,
+            by_source: Vec::new(),
             by_owner: Vec::new(),
             by_declaring: Vec::new(),
             by_symbol: Vec::new(),
@@ -49,6 +52,15 @@ impl MemberIndex {
         self.entries.sort_by(MemberEntry::compare_by_source);
         self.entries.dedup();
         self.rebuild_views();
+    }
+
+    /// Iterate members declared at one source node.
+    pub fn source_entries(&self, source: GlobalNodeIdAny) -> impl Iterator<Item = &MemberEntry> {
+        let range = self.source_range(source);
+
+        self.by_source[range]
+            .iter()
+            .map(|index| &self.entries[*index])
     }
 
     /// Iterate members declared on one owner symbol.
@@ -92,6 +104,10 @@ impl MemberIndex {
 
     /// Rebuild secondary sorted views.
     fn rebuild_views(&mut self) {
+        self.by_source = (0..self.entries.len()).collect();
+        self.by_source
+            .sort_by_key(|index| self.entries[*index].source);
+
         self.by_owner = (0..self.entries.len()).collect();
         self.by_owner
             .retain(|index| self.entries[*index].owner.is_some());
@@ -107,6 +123,18 @@ impl MemberIndex {
             .retain(|index| self.entries[*index].symbol.is_some());
         self.by_symbol
             .sort_by(|left, right| self.entries[*left].compare_by_symbol(&self.entries[*right]));
+    }
+
+    /// Return the stored range for one source node.
+    fn source_range(&self, source: GlobalNodeIdAny) -> std::ops::Range<usize> {
+        let start = self
+            .by_source
+            .partition_point(|index| self.entries[*index].source < source);
+        let end = self.by_source[start..]
+            .partition_point(|index| self.entries[*index].source == source)
+            + start;
+
+        start..end
     }
 
     /// Return the stored range for one owner symbol.

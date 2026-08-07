@@ -832,6 +832,22 @@ impl Subscript {
 }
 
 impl OperationResolution<Subscript> {
+    /// Return the deduplicated declaration symbols selected across arms.
+    pub fn target_symbols(&self) -> Vec<GlobalSymbolId> {
+        let mut symbols = Vec::new();
+        for subscript in self.iter() {
+            match &subscript.target {
+                SubscriptTarget::Member(member) => member.target.collect_symbols(&mut symbols),
+                SubscriptTarget::Call(call) => symbols.extend(call.target.symbol()),
+                SubscriptTarget::Index(read) => symbols.extend(read.call.target.symbol()),
+            }
+        }
+        symbols.sort();
+        symbols.dedup();
+
+        symbols
+    }
+
     /// Return the projected or stored value type.
     pub fn ty(&self) -> GlobalTypeId {
         match self {
