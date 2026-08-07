@@ -306,25 +306,28 @@ impl Encoder<'_> {
 
     /// Write one unsigned integer as a varint.
     fn write_u128(&mut self, mut value: u128) -> Result<()> {
+        // single byte values write straight through
+        if value < 0x80 {
+            return self.write_byte(value as u8);
+        }
+
+        // buffer the varint once, then write it in one call
+        let mut bytes = [0u8; U128_VARINT_MAX_BYTES];
         let mut byte_count = 0usize;
-
         loop {
-            if byte_count == U128_VARINT_MAX_BYTES {
-                return Err(Error::VarintTooLarge);
-            }
-            byte_count += 1;
-
             let mut byte = (value & 0x7f) as u8;
             value >>= 7;
-
-            if value == 0 {
-                self.write_byte(byte)?;
-                return Ok(());
+            if value != 0 {
+                byte |= 0x80;
             }
-
-            byte |= 0x80;
-            self.write_byte(byte)?;
+            bytes[byte_count] = byte;
+            byte_count += 1;
+            if value == 0 {
+                break;
+            }
         }
+
+        self.write_bytes(&bytes[..byte_count])
     }
 
     /// Write one signed integer as a zigzag varint.
