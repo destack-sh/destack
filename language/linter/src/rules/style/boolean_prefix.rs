@@ -1,9 +1,12 @@
+use destack_dir as dir;
 use destack_repository::ProviderError;
 
-use crate::rules::declare_lint_stub;
-use crate::{DirModule, Lint, LintResult};
+use crate::rules::declare_lint;
+use crate::{DirModule, Lint, LintOutput, LintResult};
 
-declare_lint_stub! {
+const PREFIXES: &[&str] = &["is", "has", "can", "should", "did", "will"];
+
+declare_lint! {
     /// Require predicate prefixes for boolean values.
     pub BOOLEAN_PREFIX {
         id: "boolean-prefix",
@@ -16,31 +19,257 @@ result.
 "#,
         example: {
             reported: r#"
-struct Connection {
-    active: boolean;
-}
-
-function send(ready: boolean): void;
+function send(ready: boolean): void {}
 "#,
             accepted: r#"
-struct Connection {
-    isActive: boolean;
-}
-
-function send(isReady: boolean): void;
+function send(isReady: boolean): void {}
 "#,
         },
         category: Style,
         level: Warning,
-        fixable: Suggestion,
+        fixable: None,
         check: DirModule(check),
     }
 }
 
-/// Check boolean-prefix.
-fn check(_module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} is not implemented",
-        lint.id
-    )))
+/// Report boolean value symbols without one standard predicate prefix.
+fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    let mut output = LintOutput::default();
+
+    // inspect value-bearing declaration symbols through their checked types
+    for (declaration, symbol_id) in module.bindings.declaration_symbols() {
+        if declaration.module_id != module.id {
+            continue;
+        }
+
+        // select authored local value declarations
+        let symbol = module.bindings.get_symbol(symbol_id);
+        if !matches!(
+            symbol.kind,
+            dir::SymbolKind::AssociatedConst
+                | dir::SymbolKind::GenericValueParameter
+                | dir::SymbolKind::Parameter
+                | dir::SymbolKind::Variable
+        ) {
+            continue;
+        }
+        if !module.is_authored(declaration.local_id) {
+            continue;
+        }
+        let Some(name) = symbol.name() else {
+            continue;
+        };
+        let name = module.dir.strings.get(name);
+
+        // read the declared value or compile-time constraint type
+        let symbol_id = symbol_id.into_global(module.id);
+        let type_id = if symbol.kind == dir::SymbolKind::GenericValueParameter {
+            let parameter_id = module
+                .generics
+                .parameter_by_symbol(symbol_id)
+                .ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "checked generic value symbol {symbol_id:?} has no generic parameter"
+                    ))
+                })?;
+            let Some(constraint) = module.generics.get_parameter(parameter_id).constraint else {
+                continue;
+            };
+
+            module.types.get_reduced_type_id(constraint)
+        } else {
+            let Some(type_id) = module.types.get_reduced_symbol_type_id(symbol_id) else {
+                return Err(ProviderError::internal(format!(
+                    "checked value symbol `{name}` ({symbol_id:?}) has no reduced type"
+                )));
+            };
+
+            type_id
+        };
+
+        // require a boolean without a predicate prefix
+        if !module.dir.get_type(type_id)?.is_boolean() {
+            continue;
+        }
+        if has_predicate_prefix(name) {
+            continue;
+        }
+
+        // report the authored declaration name
+        let span = module.main_span(declaration.local_id)?;
+        let message = format!("boolean value `{name}` needs a predicate prefix");
+        output.report(lint.diagnostic(message, span));
+    }
+
+    Ok(output)
+}
+
+/// Return whether one name starts with a complete predicate word.
+fn has_predicate_prefix(name: &str) -> bool {
+    PREFIXES.iter().any(|prefix| {
+        let Some(rest) = name.strip_prefix(prefix) else {
+            return false;
+        };
+
+        rest.is_empty() || rest.starts_with(|character: char| character.is_uppercase())
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::TestSession;
+
+    /// Report a boolean field without a predicate prefix.
+    #[test]
+    fn test_reports_boolean_field() {
+        let session = TestSession::dir(
+            &BOOLEAN_PREFIX,
+            r#"
+struct Options {
+    enabled: boolean;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[boolean-prefix]: boolean value `enabled` needs a predicate prefix
+ ──▶ main.ds:2:5
+  │
+1 │ struct Options {
+2 │     enabled: boolean;
+  │     ^^^^^^^
+3 │ }
+  │
+"#,
+        );
+    }
+
+    /// Accept every standard predicate prefix.
+    #[test]
+    fn test_accepts_predicate_prefixes() {
+        let session = TestSession::dir(
+            &BOOLEAN_PREFIX,
+            r#"
+function send(
+    isReady: boolean,
+    hasCapacity: boolean,
+    canRetry: boolean,
+    shouldFlush: boolean,
+    didConnect: boolean,
+    willClose: boolean,
+): void {}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept boolean-returning function names without a prescribed prefix.
+    #[test]
+    fn test_accepts_predicate_function_name() {
+        let session = TestSession::dir(
+            &BOOLEAN_PREFIX,
+            r#"
+function contains(value: string): boolean {
+    return value.length > 0;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Reject a lowercase word that merely begins with predicate letters.
+    #[test]
+    fn test_reports_incomplete_predicate_prefix() {
+        let session = TestSession::dir(
+            &BOOLEAN_PREFIX,
+            r#"
+function visit(island: boolean): void {}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[boolean-prefix]: boolean value `island` needs a predicate prefix
+ ──▶ main.ds:1:16
+  │
+1 │ function visit(island: boolean): void {}
+  │                ^^^^^^
+  │
+"#,
+        );
+    }
+
+    /// Report a boolean constant without a predicate prefix.
+    #[test]
+    fn test_reports_boolean_constant() {
+        let session = TestSession::dir(
+            &BOOLEAN_PREFIX,
+            r#"
+const ready: boolean = true;
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[boolean-prefix]: boolean value `ready` needs a predicate prefix
+ ──▶ main.ds:1:7
+  │
+1 │ const ready: boolean = true;
+  │       ^^^^^
+  │
+"#,
+        );
+    }
+
+    /// Report a boolean compile-time parameter without a predicate prefix.
+    #[test]
+    fn test_reports_boolean_generic_value_parameter() {
+        let session = TestSession::dir(
+            &BOOLEAN_PREFIX,
+            r#"
+function choose<comptime enabled: boolean>(value: int32): int32 {
+    return value;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[boolean-prefix]: boolean value `enabled` needs a predicate prefix
+ ──▶ main.ds:1:26
+  │
+1 │ function choose<comptime enabled: boolean>(value: int32): int32 {
+  │                          ^^^^^^^
+2 │     return value;
+3 │ }
+  │
+"#,
+        );
+    }
+
+    /// Report a boolean parameter declared by a nested function type.
+    #[test]
+    fn test_reports_nested_function_parameter() {
+        let session = TestSession::dir(
+            &BOOLEAN_PREFIX,
+            r#"
+function schedule(callback: (ready: boolean) => void): void {}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[boolean-prefix]: boolean value `ready` needs a predicate prefix
+ ──▶ main.ds:1:30
+  │
+1 │ function schedule(callback: (ready: boolean) => void): void {}
+  │                              ^^^^^
+  │
+"#,
+        );
+    }
 }
