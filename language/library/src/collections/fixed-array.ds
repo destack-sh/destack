@@ -38,12 +38,12 @@ export extension<T, comptime N: usize> of FixedArray<T, N>
 
     /// Return the number of elements.
     get length(): usize {
-        N as usize
+        N
     }
 
     /// Return the number of elements.
     get size(): usize {
-        N as usize
+        N
     }
 
     /// Return whether this fixed array has no elements.
@@ -93,7 +93,7 @@ export extension<T, comptime N: usize, 'a, comptime A: Access> of Borrowed<Fixed
 
     /// Return the number of elements.
     get length(): usize {
-        N as usize
+        N
     }
 
     /// Borrow the elements from `start..end` for a rest pattern.

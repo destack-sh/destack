@@ -24,7 +24,7 @@ export extension<comptime Rank: usize> of Shape<Rank> {
     }
 
     /// Return the tensor rank.
-    get rank(): int {
+    get rank(): usize {
         Rank
     }
 

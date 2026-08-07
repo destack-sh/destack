@@ -62,7 +62,7 @@ export declare function convert<U, T, comptime N: usize>(value: Vector<T, N>): V
 export function load<T, comptime N: usize>(source: &readonly [T]): Vector<T, N> {
     let result = splat<T, N>(source[0]);
 
-    for (let lane: usize = 1; lane < (N as usize); lane += 1) {
+    for (let lane: usize = 1; lane < N; lane += 1) {
         result = insert(result, lane as uint32, source[lane]);
     }
 
@@ -71,7 +71,7 @@ export function load<T, comptime N: usize>(source: &readonly [T]): Vector<T, N> 
 
 /// Store `value` into `destination`.
 export function store<T, comptime N: usize>(destination: &exclusive [T], value: Vector<T, N>): void {
-    for (let lane: usize = 0; lane < (N as usize); lane += 1) {
+    for (let lane: usize = 0; lane < N; lane += 1) {
         destination[lane] = extract(value, lane as uint32);
     }
 }

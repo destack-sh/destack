@@ -82,7 +82,7 @@ export extension<T, comptime Rank: usize, F: TensorFormat, P: Placement> of Tens
     }
 
     /// Return the number of axes.
-    get rank(): int {
+    get rank(): usize {
         Rank
     }
 
