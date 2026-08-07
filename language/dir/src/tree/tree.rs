@@ -77,7 +77,7 @@ pub struct Tree {
     /// Decorator attachments in insertion order for rollback.
     #[serde(skip)]
     decorator_attachments: Vec<DecoratorAttachment>,
-    /// The normalized documentation attached to nodes.
+    /// The parsed documentation attached to nodes.
     documentation_by_node_id: SparseNodeMap<Documentation>,
     /// Final source span overrides by node id.
     source_span_by_node_id: SparseNodeMap<Span>,
@@ -1130,25 +1130,31 @@ impl Tree {
             .unwrap_or(&[])
     }
 
-    /// Set normalized documentation for a node.
+    /// Set parsed documentation for a node.
     #[inline]
     pub fn set_documentation(&mut self, node_id: u32, documentation: Documentation) {
         self.documentation_by_node_id.insert(node_id, documentation);
     }
 
-    /// Return whether one node has normalized documentation.
+    /// Return whether one node has parsed documentation.
     #[inline]
     pub fn has_documentation(&self, node_id: u32) -> bool {
         self.documentation_by_node_id.get_ref(node_id).is_some()
     }
 
-    /// Get normalized documentation attached to a node.
+    /// Get parsed documentation attached to a node.
     #[inline]
     pub fn get_documentation(&self, node_id: u32) -> Option<&Documentation> {
         self.documentation_by_node_id.get_ref(node_id)
     }
 
-    /// Take normalized documentation from one node.
+    /// Iterate over documented node IDs and their documentation.
+    #[inline]
+    pub fn iter_documentation(&self) -> impl Iterator<Item = (u32, &Documentation)> {
+        self.documentation_by_node_id.iter()
+    }
+
+    /// Take parsed documentation from one node.
     #[inline]
     pub fn take_documentation(&mut self, node_id: u32) -> Option<Documentation> {
         self.documentation_by_node_id.take(node_id)
