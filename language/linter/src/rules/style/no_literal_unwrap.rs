@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_source::{FilePatch, PatchSet};
+use destack_source::Patch;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -43,7 +43,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect selected zero-argument unwrap calls
-    for (expression, node) in view.iter_nodes::<dir::Expression>() {
+    for expression in module.call_expressions() {
+        let expression = expression?;
+        let node = view.get(expression);
         let dir::Expression::Call {
             left, arguments, ..
         } = node
@@ -92,16 +94,14 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let mut diagnostic =
             lint.diagnostic("result is unwrapped immediately after construction", span);
         if !module.has_unretained_comment(span, &[value_span])? {
-            let replacement = module.postfix_source(value)?;
-            let mut file = FilePatch::new(span.file);
-            file.replace(span, replacement);
-            let patches = PatchSet::single(file);
+            let replacement = module.operand_source(value, dir::OperatorPrecedence::Postfix)?;
+            let patch = Patch::replace(span, replacement);
             let preserves_type = module.node_type_id(expression.into_any())?
                 == module.node_type_id(value.into_any())?;
             let suggestion = if preserves_type {
-                lint.fix("use the constructed value directly", patches)?
+                lint.fix("use the constructed value directly", patch)?
             } else {
-                lint.suggestion("use the constructed value directly", patches)?
+                lint.suggestion("use the constructed value directly", patch)?
             };
             diagnostic = diagnostic.suggestion(suggestion);
         }

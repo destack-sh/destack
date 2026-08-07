@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, PatchSet};
+use destack_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -38,38 +38,30 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect checked equality expressions
-    for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
-        let dir::Expression::Binary {
-            left,
-            operator,
-            right,
-        } = expression
+    // inspect compiler-defined equality expressions
+    for expression_id in module.operator_expressions() {
+        let expression_id = expression_id?;
+        let Some((operator, [left_operand, right_operand])) =
+            module.builtin_binary(expression_id)?
         else {
             continue;
         };
         if !operator.is_equality() {
             continue;
         }
-
-        // require the compiler's builtin equality selection
-        let Some(resolution) = module.operator_resolution(expression_id.into_any())? else {
-            continue;
-        };
-        if !resolution.is_builtin() {
-            continue;
-        }
+        let left = left_operand.source.local_id;
+        let right = right_operand.source.local_id;
 
         // select one literal and its compared operand
-        let Some(comparison) = BooleanLiteralComparison::select(view, *left, *right, *operator)
-        else {
+        let Some(comparison) = BooleanLiteralComparison::select(view, left, right, operator) else {
             continue;
         };
 
         // require the compared value to contain only boolean runtime values
-        let Some(operand) = module.builtin_operand(expression_id.into_any(), comparison.value)?
-        else {
-            continue;
+        let operand = if comparison.value == left {
+            left_operand
+        } else {
+            right_operand
         };
         if !operand
             .scalar_families
@@ -151,16 +143,14 @@ impl BooleanLiteralComparison {
         };
 
         // replace the complete comparison
-        let mut file_patch = FilePatch::new(comparison_span.file);
-        file_patch.replace(comparison_span, replacement);
-        let patches = PatchSet::single(file_patch);
+        let patch = Patch::replace(comparison_span, replacement);
         let preserves_type = self.is_negated
             || module.node_type_id(comparison.into_any())?
                 == module.node_type_id(self.value.into_any())?;
         let suggestion = if preserves_type {
-            lint.fix("remove the boolean literal comparison", patches)?
+            lint.fix("remove the boolean literal comparison", patch)?
         } else {
-            lint.suggestion("remove the boolean literal comparison", patches)?
+            lint.suggestion("remove the boolean literal comparison", patch)?
         };
 
         Ok(Some(suggestion))

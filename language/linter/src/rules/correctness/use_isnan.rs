@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, PatchSet};
+use destack_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -38,93 +38,81 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect checked equality and switch expressions
-    for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
-        match expression {
-            // value === NaN
-            dir::Expression::Binary {
-                left,
-                operator,
-                right,
-            } => {
-                if !operator.is_equality() {
-                    continue;
-                }
-                let Some(resolution) = module.operator_resolution(expression_id.into_any())? else {
-                    continue;
-                };
-                if !resolution.is_builtin() {
-                    continue;
-                }
+    // inspect checked equality operations
+    for expression_id in module.operator_expressions() {
+        let expression_id = expression_id?;
+        let Some((operator, [left, right])) = module.builtin_binary(expression_id)? else {
+            continue;
+        };
+        if !operator.is_equality() {
+            continue;
+        }
+        let left = left.source.local_id;
+        let right = right.source.local_id;
 
-                // select one checked NaN comparison
-                let Some(comparison) = NanEquality::select(module, *left, *right, *operator)?
-                else {
-                    continue;
-                };
+        // select one checked NaN comparison
+        let Some(comparison) = NanEquality::select(module, left, right, operator)? else {
+            continue;
+        };
 
-                // report the ineffective equality comparison
-                let span = module.source_extent(comparison.nan.into_any())?;
-                let predicate = if operator.is_negative_equality() {
-                    "use a negated NaN predicate instead"
-                } else {
-                    "use a NaN predicate instead"
-                };
-                let mut diagnostic = lint
-                    .diagnostic("equality cannot test for NaN", span)
-                    .help(predicate);
-                if let Some(suggestion) = comparison.suggestion(module, expression_id, lint)? {
-                    diagnostic = diagnostic.suggestion(suggestion);
-                }
-                output.report(diagnostic);
+        // report the ineffective equality comparison
+        let span = module.source_extent(comparison.nan.into_any())?;
+        let predicate = if operator.is_negative_equality() {
+            "use a negated NaN predicate instead"
+        } else {
+            "use a NaN predicate instead"
+        };
+        let mut diagnostic = lint
+            .diagnostic("equality cannot test for NaN", span)
+            .help(predicate);
+        if let Some(suggestion) = comparison.suggestion(module, expression_id, lint)? {
+            diagnostic = diagnostic.suggestion(suggestion);
+        }
+        output.report(diagnostic);
+    }
+
+    // inspect checked switch equality operations
+    for (_, expression) in view.iter_nodes::<dir::Expression>() {
+        let dir::Expression::Switch { value, cases } = expression else {
+            continue;
+        };
+        let mut selectors = Vec::new();
+        let mut has_selector = false;
+        let mut uses_builtin_equality = true;
+
+        // collect cases that use the checked builtin equality
+        for case in cases {
+            let dir::SwitchSelector::Case(selector) = view.get(*case).selector else {
+                continue;
+            };
+            has_selector = true;
+            let is_builtin = module.builtin_operands(case.into_any())?.is_some();
+            uses_builtin_equality &= is_builtin;
+            if is_builtin {
+                selectors.push(selector);
+            }
+        }
+
+        // report a NaN switch value
+        if has_selector && uses_builtin_equality && module.is_nan(*value)? {
+            let span = module.source_extent(value.into_any())?;
+            let diagnostic = lint
+                .diagnostic("NaN switch value cannot match a case", span)
+                .help("use a NaN predicate before the switch");
+            output.report(diagnostic);
+        }
+
+        // report NaN case selectors
+        for selector in selectors {
+            if !module.is_nan(selector)? {
+                continue;
             }
 
-            // switch (NaN)
-            dir::Expression::Switch { value, cases } => {
-                let mut selectors = Vec::new();
-                let mut has_selector = false;
-                let mut uses_builtin_equality = true;
-
-                // collect cases that use the checked builtin equality
-                for case in cases {
-                    let dir::SwitchSelector::Case(selector) = view.get(*case).selector else {
-                        continue;
-                    };
-                    has_selector = true;
-                    let is_builtin = module
-                        .operator_resolution(case.into_any())?
-                        .is_some_and(dir::OperatorResolution::is_builtin);
-                    uses_builtin_equality &= is_builtin;
-                    if is_builtin {
-                        selectors.push(selector);
-                    }
-                }
-
-                // switch (NaN)
-                if has_selector && uses_builtin_equality && module.is_nan(*value)? {
-                    let span = module.source_extent(value.into_any())?;
-                    let diagnostic = lint
-                        .diagnostic("NaN switch value cannot match a case", span)
-                        .help("use a NaN predicate before the switch");
-                    output.report(diagnostic);
-                }
-
-                // case NaN
-                for selector in selectors {
-                    if !module.is_nan(selector)? {
-                        continue;
-                    }
-
-                    let span = module.source_extent(selector.into_any())?;
-                    let diagnostic = lint
-                        .diagnostic("switch case cannot match NaN", span)
-                        .help("test for NaN before entering the switch");
-                    output.report(diagnostic);
-                }
-            }
-
-            // unrelated expressions
-            _ => {}
+            let span = module.source_extent(selector.into_any())?;
+            let diagnostic = lint
+                .diagnostic("switch case cannot match NaN", span)
+                .help("test for NaN before entering the switch");
+            output.report(diagnostic);
         }
     }
 
@@ -181,7 +169,7 @@ impl NanEquality {
         }
 
         // preserve the exact compared expression text
-        let receiver = module.postfix_source(self.value)?;
+        let receiver = module.operand_source(self.value, dir::OperatorPrecedence::Postfix)?;
         let predicate = format!("{receiver}.isNaN()");
         let replacement = if self.is_negated {
             format!("!{predicate}")
@@ -190,12 +178,9 @@ impl NanEquality {
         };
 
         // replace the complete ineffective comparison
-        let mut file_patch = FilePatch::new(comparison_span.file);
-        file_patch.replace(comparison_span, replacement);
-        let patches = PatchSet::single(file_patch);
-
+        let patch = Patch::replace(comparison_span, replacement);
         let suggestion =
-            lint.suggestion("replace the equality check with a NaN predicate", patches)?;
+            lint.suggestion("replace the equality check with a NaN predicate", patch)?;
 
         Ok(Some(suggestion))
     }

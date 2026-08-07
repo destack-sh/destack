@@ -37,7 +37,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect builtin addition between two literal strings
-    for (expression, node) in view.iter_nodes::<dir::Expression>() {
+    for expression in module.operator_expressions() {
+        let expression = expression?;
+        let node = view.get(expression);
         let dir::Expression::Binary {
             left,
             operator: dir::BinaryOperator::Add,

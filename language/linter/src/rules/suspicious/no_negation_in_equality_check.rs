@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_source::{FilePatch, PatchSet};
+use destack_source::FilePatch;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -38,29 +38,24 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect checked equality expressions
-    for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
-        let dir::Expression::Binary {
-            left,
-            operator,
-            right,
-        } = expression
+    // inspect compiler-defined equality expressions
+    for expression_id in module.operator_expressions() {
+        let expression_id = expression_id?;
+        let Some((operator, [left_operand, right_operand])) =
+            module.builtin_binary(expression_id)?
         else {
             continue;
         };
         if !operator.is_equality() {
             continue;
         }
-        let Some(resolution) = module.operator_resolution(expression_id.into_any())? else {
-            continue;
-        };
-        if !resolution.is_builtin() {
-            continue;
-        }
+
+        // require prefix negation on the left operand
+        let left = left_operand.source.local_id;
         let dir::Expression::Unary {
             operator: dir::UnaryOperator::Not,
             right: value,
-        } = view.get(*left)
+        } = view.get(left)
         else {
             continue;
         };
@@ -69,11 +64,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let negation_span = module.main_span(left.into_any())?;
         let mut diagnostic = lint.diagnostic("left equality operand is negated", negation_span);
 
-        // suggest regrouping only when it preserves boolean equality
+        // prove that regrouping preserves boolean equality
         let Some(value_operand) = module.builtin_operand(left.into_any(), *value)? else {
-            continue;
-        };
-        let Some(right_operand) = module.builtin_operand(expression_id.into_any(), *right)? else {
             continue;
         };
         let can_regroup = value_operand
@@ -84,16 +76,18 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 .scalar_families
                 .as_ref()
                 .is_some_and(|families| families.is_only_domain(dir::ScalarDomain::Boolean));
+
+        // suggest negating the complete equality when safe
         if can_regroup {
             let comparison_span = module.source_extent(expression_id.into_any())?;
             let mut file_patch = FilePatch::new(comparison_span.file);
             file_patch.replace(negation_span, "!(");
             file_patch.insert(comparison_span.end, ")");
             file_patch.sort();
-            let patches = PatchSet::single(file_patch);
-            let suggestion = lint.suggestion("negate the complete equality check", patches)?;
+            let suggestion = lint.suggestion("negate the complete equality check", file_patch)?;
             diagnostic = diagnostic.suggestion(suggestion);
         }
+
         output.report(diagnostic);
     }
 

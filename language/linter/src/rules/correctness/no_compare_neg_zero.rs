@@ -1,5 +1,3 @@
-use destack_dir as dir;
-
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
@@ -33,34 +31,25 @@ function isNegativeZero(value: float64): boolean {
 
 /// Report comparisons whose authored operand is negative floating-point zero.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect checked comparison expressions
-    for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
-        let dir::Expression::Binary {
-            left,
-            operator,
-            right,
-        } = expression
-        else {
+    // inspect compiler-defined comparisons
+    for expression_id in module.operator_expressions() {
+        let expression_id = expression_id?;
+        let Some((operator, [left, right])) = module.builtin_binary(expression_id)? else {
             continue;
         };
         if !operator.is_comparison() {
             continue;
         }
-        let Some(resolution) = module.operator_resolution(expression_id.into_any())? else {
-            continue;
-        };
-        if !resolution.is_builtin() {
-            continue;
-        }
+        let left = left.source.local_id;
+        let right = right.source.local_id;
 
         // select one checked negative-zero operand
-        let negative_zero = if module.is_negative_zero(*left)? {
-            *left
-        } else if module.is_negative_zero(*right)? {
-            *right
+        let negative_zero = if module.is_negative_zero(left)? {
+            left
+        } else if module.is_negative_zero(right)? {
+            right
         } else {
             continue;
         };

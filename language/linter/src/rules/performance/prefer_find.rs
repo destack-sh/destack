@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, PatchSet, Span};
+use destack_source::{DiagnosticSuggestion, FilePatch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -40,13 +40,17 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect checked calls that optionally consume one first element
-    for (expression, node) in view.iter_nodes::<dir::Expression>() {
+    for expression in module.call_expressions() {
+        let expression = expression?;
+        let node = view.get(expression);
         let dir::Expression::Call {
             left, arguments, ..
         } = node
         else {
             continue;
         };
+
+        // read the immediate receiver of the consuming member
         let dir::Expression::Member { left: filter, .. } = view.get(*left) else {
             continue;
         };
@@ -96,9 +100,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let span = module.span(expression.into_any())?;
         let mut diagnostic =
             lint.diagnostic("filtered array is only used for its first element", span);
-        if let Some(suggestion) = suggest_find(module, expression, *filter, *filter_member, lint)? {
+        if let Some(suggestion) = suggestion(module, lint, expression, *filter, *filter_member)? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
+
         output.report(diagnostic);
     }
 
@@ -106,12 +111,12 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 }
 
 /// Suggest replacing one filtered first-element read with `find`.
-fn suggest_find(
+fn suggestion(
     module: &DirModule<'_>,
+    lint: &Lint,
     expression: dir::LocalNodeId<dir::Expression>,
     filter: dir::LocalNodeId<dir::Expression>,
     filter_member: dir::LocalNodeId<dir::Expression>,
-    lint: &Lint,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let expression = module.source_extent(expression.into_any())?;
     let filter = module.source_extent(filter.into_any())?;
@@ -131,8 +136,7 @@ fn suggest_find(
     file.replace(filter_member, "find");
     file.delete(suffix);
     file.sort();
-    let patches = PatchSet::single(file);
-    let suggestion = lint.suggestion("search the array directly", patches)?;
+    let suggestion = lint.suggestion("search the array directly", file)?;
 
     Ok(Some(suggestion))
 }
@@ -154,6 +158,26 @@ function firstPositive(values: int32[]): int32 | undefined {
 "#,
         );
 
+        session.assert_diagnostics(
+            r#"
+warning[prefer-find]: filtered array is only used for its first element
+ ──▶ main.ds:2:12
+  │
+1 │ function firstPositive(values: int32[]): int32 | undefined {
+2 │     return values.filter((value) => value > 0).first();
+  │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3 │ }
+  │
+
+ = suggestion: search the array directly (requires review)
+--- a/main.ds
++++ b/main.ds
+
+    1│ function firstPositive(values: int32[]): int32 | undefined {
+-   2│     return values.filter((value) => value > 0).first();
++   2│     return values.find((value) => value > 0);
+"#,
+        );
         session.assert_suggestions(PREFER_FIND.example.accepted());
     }
 
@@ -249,6 +273,52 @@ extension<T> of Array<T> {
 
 function firstPositive(values: int32[]): int32 | undefined {
     return values.filter((value) => value > 0, true).at(0);
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Preserve comments outside the retained predicate by omitting the suggestion.
+    #[test]
+    fn test_reports_commented_filter_without_suggestion() {
+        let session = TestSession::dir(
+            &PREFER_FIND,
+            r#"
+function firstPositive(values: int32[]): int32 | undefined {
+    return values.filter((value) => value > 0) /* retain */.first();
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[prefer-find]: filtered array is only used for its first element
+ ──▶ main.ds:2:12
+  │
+1 │ function firstPositive(values: int32[]): int32 | undefined {
+2 │     return values.filter((value) => value > 0) /* retain */.first();
+  │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3 │ }
+  │
+"#,
+        );
+    }
+
+    /// Ignore call-shaped tagged variant construction.
+    #[test]
+    fn test_accepts_tagged_variant_construction() {
+        let session = TestSession::dir(
+            &PREFER_FIND,
+            r#"
+@derive(Tagged)
+newtype Status =
+    | { kind: "ready"; value: int32 }
+    | { kind: "pending" };
+
+function ready(value: int32): Status {
+    return Status.Ready({ value });
 }
 "#,
         );

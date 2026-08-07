@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, PatchSet};
+use destack_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -39,25 +39,19 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect builtin comparisons in literal-first order
-    for (expression, node) in view.iter_nodes::<dir::Expression>() {
-        let dir::Expression::Binary {
-            left,
-            operator,
-            right,
-        } = node
-        else {
+    for expression in module.operator_expressions() {
+        let expression = expression?;
+        let Some((operator, [left, right])) = module.builtin_binary(expression)? else {
             continue;
         };
+        let left = left.source.local_id;
+        let right = right.source.local_id;
+
+        // require a scalar literal only on the left
         if !operator.is_comparison()
-            || view.get(*left).as_scalar().is_none()
-            || view.get(*right).as_scalar().is_some()
+            || view.get(left).as_scalar().is_none()
+            || view.get(right).as_scalar().is_some()
         {
-            continue;
-        }
-        let Some(resolution) = module.operator_resolution(expression.into_any())? else {
-            continue;
-        };
-        if !resolution.is_builtin() {
             continue;
         }
         let Some(operator) = operator.swapped() else {
@@ -67,9 +61,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         // report and reverse the exact authored operands
         let span = module.source_extent(expression.into_any())?;
         let mut diagnostic = lint.diagnostic("comparison puts its literal first", span);
-        if let Some(suggestion) = suggestion(module, lint, expression, *left, *right, operator)? {
+        if let Some(suggestion) = suggestion(module, lint, expression, left, right, operator)? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
+
         output.report(diagnostic);
     }
 
@@ -101,10 +96,8 @@ fn suggestion(
         operator.text(),
         module.source(left)?
     );
-    let mut file = FilePatch::new(extent.file);
-    file.replace(extent, replacement);
-    let patches = PatchSet::single(file);
-    let suggestion = lint.fix("put the checked value first", patches)?;
+    let patch = Patch::replace(extent, replacement);
+    let suggestion = lint.fix("put the checked value first", patch)?;
 
     Ok(Some(suggestion))
 }

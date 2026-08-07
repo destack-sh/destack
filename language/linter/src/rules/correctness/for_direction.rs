@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, PatchSet, Span};
+use destack_source::{DiagnosticSuggestion, Patch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -147,10 +147,7 @@ impl<'a> CounterUpdate<'a> {
         };
 
         // require builtin update behavior over one stable place
-        let Some(resolution) = module.operator_resolution(increment.into_any())? else {
-            return Ok(None);
-        };
-        if !resolution.is_builtin() {
+        if module.builtin_operands(increment.into_any())?.is_none() {
             return Ok(None);
         }
         let Some(access) = module.access_resolution(target) else {
@@ -172,40 +169,28 @@ impl<'a> CounterUpdate<'a> {
         module: &DirModule<'_>,
         condition: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<Direction>, ProviderError> {
-        let view = module.view();
-        let dir::Expression::Binary {
-            left,
-            operator,
-            right,
-        } = view.get(condition)
-        else {
+        let Some((operator, [left, right])) = module.builtin_binary(condition)? else {
             return Ok(None);
         };
-        let Some(resolution) = module.operator_resolution(condition.into_any())? else {
-            return Ok(None);
-        };
-        if !resolution.is_builtin() {
-            return Ok(None);
-        }
+        let left = left.source.local_id;
+        let right = right.source.local_id;
 
         // identify one side as the updated storage path
-        let is_left = module.access_resolution(*left) == Some(self.access);
-        let is_right = module.access_resolution(*right) == Some(self.access);
+        let is_left = module.access_resolution(left) == Some(self.access);
+        let is_right = module.access_resolution(right) == Some(self.access);
         if is_left == is_right {
             return Ok(None);
         }
-        let direction = Direction::from_condition(*operator, is_left);
+        let direction = Direction::from_condition(operator, is_left);
 
         Ok(direction)
     }
 
     /// Build the review suggestion that reverses this update.
     fn suggestion(&self, lint: &Lint) -> Result<DiagnosticSuggestion, ProviderError> {
-        let mut file = FilePatch::new(self.operator.file);
-        file.replace(self.operator, self.opposite_operator);
-        let patches = PatchSet::single(file);
+        let patch = Patch::replace(self.operator, self.opposite_operator);
 
-        lint.suggestion("reverse the counter update", patches)
+        lint.suggestion("reverse the counter update", patch)
     }
 }
 

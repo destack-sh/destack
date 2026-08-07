@@ -34,49 +34,40 @@ function changed(left: int32, right: int32): boolean {
 
 /// Report comparisons whose operands repeat the same checked value.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect checked comparison expressions
-    for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
-        let dir::Expression::Binary {
-            left,
-            operator,
-            right,
-        } = expression
+    // inspect compiler-defined comparisons
+    for expression_id in module.operator_expressions() {
+        let expression_id = expression_id?;
+        let Some((operator, [left_operand, right_operand])) =
+            module.builtin_binary(expression_id)?
         else {
             continue;
         };
         if !operator.is_comparison() {
             continue;
-        }
-
-        // require the compiler's builtin comparison selection
-        let Some(resolution) = module.operator_resolution(expression_id.into_any())? else {
-            continue;
-        };
-        let Some([left_operand, right_operand]) = resolution.builtin_operands() else {
-            continue;
         };
 
         // require both operands to repeat one checked value
-        if !module.is_repeated_operand(*left, left_operand, *right, right_operand)? {
+        if !module.is_repeated_operand(left_operand, right_operand)? {
             continue;
         }
 
         // report the complete comparison
         let span = module.span(expression_id.into_any())?;
         let mut diagnostic = lint.diagnostic("comparison has identical operands", span);
+
+        // explain self-comparison when a float operand may be NaN
         if operator.is_equality() {
-            let Some(operand) = module.builtin_operand(expression_id.into_any(), *left)? else {
-                continue;
-            };
-            let has_float_family = operand.scalar_families.as_ref().is_some_and(|families| {
-                families.contains(dir::ScalarFamily::Domain(dir::ScalarDomain::Float))
-            });
+            let has_float_family = left_operand
+                .scalar_families
+                .as_ref()
+                .is_some_and(|families| {
+                    families.contains(dir::ScalarFamily::Domain(dir::ScalarDomain::Float))
+                });
             let can_be_nan = has_float_family
                 && module
-                    .scalar_constant(*left)?
+                    .scalar_constant(left_operand.source.local_id)?
                     .is_none_or(|constant| constant.is_nan());
             if can_be_nan {
                 let help = if operator.is_negative_equality() {
@@ -87,6 +78,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 diagnostic = diagnostic.help(help);
             }
         }
+
         output.report(diagnostic);
     }
 
