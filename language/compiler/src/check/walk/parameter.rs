@@ -226,18 +226,7 @@ impl WalkState<'_, '_> {
                         .report_missing_type_annotation(self.module, id.into_any());
                 }
 
-                let symbol = self
-                    .check
-                    .module(self.module)
-                    .declaration_symbol(id.into_any());
                 let parameter_type = self.walk_parameter_type(id, represents_open_type)?;
-
-                // bind the parameter name to its type
-                if let Some(symbol) = symbol
-                    && let Some(parameter_type) = parameter_type
-                {
-                    self.bind_symbol_type(symbol, parameter_type)?;
-                }
 
                 // validate defaults while checking, declaring transcribes them
                 if let Some(default) = default.filter(|_| !self.check.is_declaration()) {
@@ -268,18 +257,7 @@ impl WalkState<'_, '_> {
                         .report_missing_type_annotation(self.module, id.into_any());
                 }
 
-                let symbol = self
-                    .check
-                    .module(self.module)
-                    .declaration_symbol(id.into_any());
                 let parameter_type = self.walk_parameter_type(id, represents_open_type)?;
-
-                // bind the variadic parameter name to its type
-                if let Some(symbol) = symbol
-                    && let Some(parameter_type) = parameter_type
-                {
-                    self.bind_symbol_type(symbol, parameter_type)?;
-                }
 
                 result = parameter_type;
             }

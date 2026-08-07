@@ -691,33 +691,39 @@ impl<'check, 'state> WalkState<'check, 'state> {
             dir::Parameter::Error => return Ok(None),
             parameter => parameter.declared_type(),
         };
-        let Some(declared_type) = declared_type else {
-            let ty =
-                self.open_type_hole(id.into_any(), Widening::Never, VariableRole::Parameter)?;
-            self.commit_node_type(id, ty)?;
+        let ty = if let Some(declared_type) = declared_type {
+            let is_optional = self.tree.get(id).is_optional();
+            let ty = self.walk_type_expression(declared_type)?;
+            let ty = if represents_open_type {
+                let origin = Origin::Node(
+                    declared_type.into_global_any(self.module),
+                    self.flow().template_scope(),
+                );
 
-            return Ok(Some(ty));
-        };
+                self.check.storage_type(origin, ty)?
+            } else {
+                ty
+            };
 
-        let is_optional = self.tree.get(id).is_optional();
-        let ty = self.walk_type_expression(declared_type)?;
-        let ty = if represents_open_type {
-            let origin = Origin::Node(
-                declared_type.into_global_any(self.module),
-                self.flow().template_scope(),
-            );
-
-            self.check.storage_type(origin, ty)?
+            // optional parameters accept explicit undefined at call sites
+            if is_optional {
+                self.optional_value_type(ty)?
+            } else {
+                ty
+            }
         } else {
-            ty
-        };
-        // optional parameters accept explicit undefined at call sites
-        let ty = if is_optional {
-            self.optional_value_type(ty)?
-        } else {
-            ty
+            self.open_type_hole(id.into_any(), Widening::Never, VariableRole::Parameter)?
         };
         self.commit_node_type(id, ty)?;
+
+        // bind named parameters through the same path as their node type
+        if let Some(symbol) = self
+            .check
+            .module(self.module)
+            .declaration_symbol(id.into_any())
+        {
+            self.bind_symbol_type(symbol, ty)?;
+        }
 
         Ok(Some(ty))
     }
