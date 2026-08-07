@@ -140,6 +140,26 @@ impl Node for Property {
 }
 
 impl Property {
+    /// Return the member slot occupied by this property.
+    pub fn slot(&self) -> Option<MemberSlot> {
+        match self {
+            Self::Field { key, .. } => key.direct_static_key().map(MemberSlot::Key),
+            Self::Method { key, signature, .. } => signature
+                .role
+                .and_then(MemberSlot::from_function_role)
+                .or_else(|| (*key).and_then(Key::direct_static_key).map(MemberSlot::Key)),
+            Self::Spread { .. } | Self::Error => None,
+        }
+    }
+
+    /// Return the member namespace occupied by this property.
+    pub fn space(&self) -> Option<MemberSpace> {
+        match self {
+            Self::Field { .. } | Self::Method { .. } => Some(MemberSpace::Instance),
+            Self::Spread { .. } | Self::Error => None,
+        }
+    }
+
     /// Get the key of the property when one exists.
     pub fn key(&self) -> Option<&Key> {
         match self {

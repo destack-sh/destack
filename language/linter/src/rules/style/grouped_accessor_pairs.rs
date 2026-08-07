@@ -1,24 +1,293 @@
+use destack_core::FxIndexMap;
+use destack_dir as dir;
 use destack_repository::ProviderError;
+use destack_source::Span;
 
-use crate::rules::declare_lint_stub;
-use crate::{DirModule, Lint, LintResult};
+use crate::rules::declare_lint;
+use crate::{DirModule, Lint, LintOutput, LintResult};
 
-declare_lint_stub! {
+declare_lint! {
     /// Require getter and setter pairs to be adjacent.
     pub GROUPED_ACCESSOR_PAIRS {
         id: "grouped-accessor-pairs",
         summary: "Require getter and setter pairs to be adjacent",
+        explanation: r#"
+A getter and setter define one property. Keep the pair adjacent so its readable and writable
+behavior can be inspected together.
+"#,
+        example: {
+            reported: r#"
+interface Store {
+    get value(): string;
+    clear(): void;
+    set value(next: string);
+}
+"#,
+            accepted: r#"
+interface Store {
+    get value(): string;
+    set value(next: string);
+    clear(): void;
+}
+"#,
+        },
         category: Style,
         level: Warning,
-        fixable: Suggestion,
+        fixable: None,
         check: DirModule(check),
     }
 }
 
-/// Check grouped-accessor-pairs.
-fn check(_module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} is not implemented",
-        lint.id
-    )))
+/// Report getter and setter pairs separated by another member.
+fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    let view = module.view();
+    let mut output = LintOutput::default();
+
+    // inspect every structured declaration member list
+    for (_, declaration) in view.iter_nodes::<dir::Declaration>() {
+        // inspect declaration members
+        if let Some(members) = declaration.member_ids() {
+            let accessors = members.iter().copied().map(|member| {
+                let value = view.get(member);
+
+                accessor(
+                    member.into_any(),
+                    value.signature(),
+                    value.space(),
+                    value.slot(),
+                    module,
+                )
+            });
+            report_separated_accessors(lint, accessors, &mut output)?;
+        }
+
+        // inspect structural type members
+        if let Some(members) = declaration.type_member_ids() {
+            let accessors = members.iter().copied().map(|member| {
+                let value = view.get(member);
+
+                accessor(
+                    member.into_any(),
+                    value.signature(),
+                    value.space(),
+                    value.slot(),
+                    module,
+                )
+            });
+            report_separated_accessors(lint, accessors, &mut output)?;
+        }
+    }
+
+    // inspect object literal property lists
+    for (_, expression) in view.iter_nodes::<dir::Expression>() {
+        let dir::Expression::ObjectExpression { properties } = expression else {
+            continue;
+        };
+        let accessors = properties.iter().copied().map(|property| {
+            let value = view.get(property);
+
+            accessor(
+                property.into_any(),
+                value.signature(),
+                value.space(),
+                value.slot(),
+                module,
+            )
+        });
+        report_separated_accessors(lint, accessors, &mut output)?;
+    }
+
+    Ok(output)
+}
+
+/// Report separated accessors from one authored member list.
+fn report_separated_accessors(
+    lint: &Lint,
+    accessors: impl IntoIterator<
+        Item = Result<
+            Option<((dir::MemberSpace, dir::MemberSlot), dir::FunctionRole, Span)>,
+            ProviderError,
+        >,
+    >,
+    output: &mut LintOutput,
+) -> Result<(), ProviderError> {
+    let mut seen = FxIndexMap::default();
+
+    // compare each accessor with its counterpart already seen for the property
+    for (index, accessor) in accessors.into_iter().enumerate() {
+        let Some((key, role, span)) = accessor? else {
+            continue;
+        };
+        let Some(counterpart) = role.accessor_counterpart() else {
+            continue;
+        };
+
+        // report a counterpart separated by another member
+        if seen
+            .get(&(key, counterpart))
+            .is_some_and(|previous| *previous + 1 != index)
+        {
+            output.report(lint.diagnostic("accessor is separated from its pair", span));
+        }
+
+        // retain this accessor for a later counterpart
+        seen.insert((key, role), index);
+    }
+
+    Ok(())
+}
+
+/// Return one member's accessor identity and role.
+fn accessor(
+    member: dir::LocalNodeIdAny,
+    signature: Option<&dir::FunctionSignature>,
+    space: Option<dir::MemberSpace>,
+    slot: Option<dir::MemberSlot>,
+    module: &DirModule<'_>,
+) -> Result<Option<((dir::MemberSpace, dir::MemberSlot), dir::FunctionRole, Span)>, ProviderError> {
+    // select a named getter or setter
+    let Some(signature) = signature else {
+        return Ok(None);
+    };
+    let Some(role @ (dir::FunctionRole::Getter | dir::FunctionRole::Setter)) = signature.role
+    else {
+        return Ok(None);
+    };
+    let (Some(space), Some(slot @ dir::MemberSlot::Key(_))) = (space, slot) else {
+        return Ok(None);
+    };
+
+    // retain its authored source span
+    let span = module.main_span(member)?;
+
+    Ok(Some(((space, slot), role, span)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::TestSession;
+
+    /// Report separated accessors on a class declaration.
+    #[test]
+    fn test_reports_separated_class_accessors() {
+        let session = TestSession::dir(
+            &GROUPED_ACCESSOR_PAIRS,
+            r#"
+declare class Store {
+    get value(): string;
+    clear(): void;
+    set value(next: string);
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[grouped-accessor-pairs]: accessor is separated from its pair
+ ──▶ main.ds:4:9
+  │
+2 │     get value(): string;
+3 │     clear(): void;
+4 │     set value(next: string);
+  │         ^^^^^
+5 │ }
+  │
+"#,
+        );
+    }
+
+    /// Accept a lone getter without requiring a setter.
+    #[test]
+    fn test_accepts_lone_getter() {
+        let session = TestSession::dir(
+            &GROUPED_ACCESSOR_PAIRS,
+            r#"
+interface Store {
+    get value(): string;
+    clear(): void;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept an adjacent setter followed by its getter.
+    #[test]
+    fn test_accepts_setter_before_getter() {
+        let session = TestSession::dir(
+            &GROUPED_ACCESSOR_PAIRS,
+            r#"
+interface Store {
+    set value(next: string);
+    get value(): string;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Keep static and instance accessors in distinct property groups.
+    #[test]
+    fn test_accepts_static_and_instance_accessors() {
+        let session = TestSession::dir(
+            &GROUPED_ACCESSOR_PAIRS,
+            r#"
+declare class Store {
+    static get value(): string;
+    clear(): void;
+    set value(next: string);
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Report separated accessors in an object literal.
+    #[test]
+    fn test_reports_separated_object_accessors() {
+        let session = TestSession::dir(
+            &GROUPED_ACCESSOR_PAIRS,
+            r#"
+const store = {
+    get value(): string { return ""; },
+    clear(): void {},
+    set value(next: string): void {},
+};
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[grouped-accessor-pairs]: accessor is separated from its pair
+ ──▶ main.ds:4:9
+  │
+2 │     get value(): string { return ""; },
+3 │     clear(): void {},
+4 │     set value(next: string): void {},
+  │         ^^^^^
+5 │ };
+  │
+"#,
+        );
+    }
+
+    /// Accept adjacent accessors in an object literal.
+    #[test]
+    fn test_accepts_adjacent_object_accessors() {
+        let session = TestSession::dir(
+            &GROUPED_ACCESSOR_PAIRS,
+            r#"
+const store = {
+    get value(): string { return ""; },
+    set value(next: string): void {},
+};
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
 }
