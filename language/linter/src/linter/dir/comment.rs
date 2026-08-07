@@ -3,7 +3,7 @@ use std::sync::Arc;
 use destack_artifact::DirParsedFile;
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{File, FilePatch, PatchSet, Span};
+use destack_source::{File, FilePatch, Span};
 use destack_unicode::UnicodeWidthChar;
 
 use super::DirModule;
@@ -247,7 +247,7 @@ impl<'a> CommentBlock<'a> {
     }
 
     /// Return a patch that demotes this documentation block to ordinary comments.
-    pub fn demote_documentation(self) -> Result<PatchSet, ProviderError> {
+    pub fn demote_documentation(self) -> Result<FilePatch, ProviderError> {
         let mut file = FilePatch::new(self.span().file);
 
         // replace every physical documentation delimiter
@@ -277,7 +277,7 @@ impl<'a> CommentBlock<'a> {
             file.replace(prefix, replacement);
         }
 
-        Ok(PatchSet::single(file))
+        Ok(file)
     }
 
     /// Return whether this block contains documentation syntax.

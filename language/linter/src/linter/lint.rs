@@ -232,18 +232,18 @@ impl Lint {
     pub fn fix(
         &self,
         message: impl Into<String>,
-        patches: PatchSet,
+        patches: impl Into<PatchSet>,
     ) -> Result<DiagnosticSuggestion, ProviderError> {
-        self.correction(message, patches, Applicability::Automatic)
+        self.correction(message, patches.into(), Applicability::Automatic)
     }
 
     /// Create a review correction for this lint.
     pub fn suggestion(
         &self,
         message: impl Into<String>,
-        patches: PatchSet,
+        patches: impl Into<PatchSet>,
     ) -> Result<DiagnosticSuggestion, ProviderError> {
-        self.correction(message, patches, Applicability::Dangerous)
+        self.correction(message, patches.into(), Applicability::Dangerous)
     }
 
     /// Return whether this lint can provide fixes.
