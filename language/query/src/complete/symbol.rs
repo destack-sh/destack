@@ -2,10 +2,7 @@ use destack_dir as dir;
 
 use super::CompletionCollector;
 use super::call::CallSnippet;
-use crate::{
-    CompletionCandidate, CompletionItemKind, CompletionResolution, Formatter, QueryError,
-    QueryResult,
-};
+use crate::{CompletionCandidate, CompletionResolution, Formatter, QueryError, QueryResult};
 
 impl CompletionCollector<'_, '_, '_> {
     /// Render the call insertion for one callable symbol.
@@ -77,7 +74,7 @@ impl CompletionCollector<'_, '_, '_> {
         ))?;
 
         // read the declaration's value type
-        if completion.kind.has_value_detail() {
+        if completion.kind.has_value_suffix() {
             let module = self.program.module(symbol_id.module_id)?;
             let type_id =
                 module
@@ -178,20 +175,33 @@ impl CompletionCollector<'_, '_, '_> {
             completion = self.render_call(completion, symbol)?;
         }
 
-        // render declaration text and documentation
+        // render declaration text, label suffix, and documentation
         if let Some(symbol) = completion.symbol() {
-            if completion.detail.is_none() {
-                let formatter = Formatter::new(self.module, self.program);
-                let detail = if completion.kind.has_value_detail() {
-                    Some(formatter.symbol_type(symbol)?)
-                } else if completion.kind.has_declaration_detail() {
-                    Some(formatter.symbol_signature(symbol)?)
-                } else {
-                    None
-                };
-                if let Some(detail) = detail {
-                    completion = completion.with_detail(detail);
-                }
+            let module = self.program.module(symbol.module_id)?;
+            let formatter = Formatter::new(&module, self.program);
+            let declaration = formatter.symbol_signature(symbol)?;
+            completion = completion.with_declaration(declaration);
+
+            if completion.label_suffix.is_none() && completion.kind.has_value_suffix() {
+                let type_id = completion.type_id.ok_or(QueryError::missing(format!(
+                    "completion value type: {symbol:?}"
+                )))?;
+                let suffix =
+                    if completion.kind.is_callable() {
+                        let parameter_names = self.program.symbol_parameter_names(symbol)?.ok_or(
+                            QueryError::missing(format!("completion parameters: {symbol:?}")),
+                        )?;
+
+                        formatter.callable_suffix(type_id, Some(&parameter_names))?
+                    } else {
+                        format!(": {}", formatter.global_type(type_id)?)
+                    };
+                completion = completion.with_label_suffix(suffix);
+            } else if completion.label_suffix.is_none()
+                && completion.kind.has_generic_suffix()
+                && let Some(generics) = formatter.symbol_generics(symbol)?
+            {
+                completion = completion.with_label_suffix(generics);
             }
 
             if let Some(documentation) = self.program.symbol_documentation(symbol)? {
@@ -200,50 +210,14 @@ impl CompletionCollector<'_, '_, '_> {
         }
 
         // render contextual value types without declarations
-        if completion.kind.has_value_detail()
-            && completion.detail.is_none()
+        if completion.kind.has_value_suffix()
+            && completion.label_suffix.is_none()
             && let Some(type_id) = completion.type_id
         {
-            let detail = Formatter::new(self.module, self.program).global_type(type_id)?;
-            completion = completion.with_detail(detail);
+            let type_text = Formatter::new(self.module, self.program).global_type(type_id)?;
+            completion = completion.with_label_suffix(format!(": {type_text}"));
         }
 
         Ok(completion)
-    }
-}
-
-impl CompletionItemKind {
-    /// Return whether this editor item includes its value type as detail.
-    fn has_value_detail(self) -> bool {
-        matches!(
-            self,
-            Self::AssociatedConst
-                | Self::Constant
-                | Self::EnumMember
-                | Self::Field
-                | Self::Function
-                | Self::Method
-                | Self::Property
-                | Self::Value
-                | Self::ValueParameter
-                | Self::Variable
-        )
-    }
-
-    /// Return whether this editor item includes its declaration as detail.
-    fn has_declaration_detail(self) -> bool {
-        matches!(
-            self,
-            Self::AssociatedType
-                | Self::Class
-                | Self::Enum
-                | Self::Extension
-                | Self::Interface
-                | Self::Newtype
-                | Self::NewtypeInterface
-                | Self::Struct
-                | Self::TypeAlias
-                | Self::TypeParameter
-        )
     }
 }

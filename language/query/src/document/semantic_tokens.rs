@@ -191,35 +191,35 @@ impl ModuleQueryContext<'_> {
     /// Return semantic tokens for a module file.
     pub fn semantic_tokens(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         file_id: FileId,
     ) -> QueryResult<Vec<SemanticToken>> {
-        SemanticTokens::collect(self, query, file_id)
+        SemanticTokens::collect(self, program, file_id)
     }
 }
 
 /// Semantic token collection for one module.
-struct SemanticTokens<'owner, 'module, 'query> {
+struct SemanticTokens<'owner, 'module, 'program> {
     /// The queried module.
     module: &'owner ModuleQueryContext<'module>,
-    /// The shared query context.
-    query: &'owner ProgramQueryContext<'query>,
+    /// The shared program context.
+    program: &'owner ProgramQueryContext<'program>,
     /// The queried source file.
     file_id: FileId,
     /// The collected tokens.
     tokens: Vec<SemanticToken>,
 }
 
-impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
+impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
     /// Collect semantic tokens for one source file.
     fn collect(
         module: &'owner ModuleQueryContext<'module>,
-        query: &'owner ProgramQueryContext<'query>,
+        program: &'owner ProgramQueryContext<'program>,
         file_id: FileId,
     ) -> QueryResult<Vec<SemanticToken>> {
         let mut semantic_tokens = Self {
             module,
-            query,
+            program,
             file_id,
             tokens: Vec::new(),
         };
@@ -695,7 +695,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
     ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
         let mut token: Option<(SemanticTokenType, SemanticTokenModifiers)> = None;
         for symbol_id in symbols {
-            for symbol_id in self.query.canonical_symbols(*symbol_id)? {
+            for symbol_id in self.program.canonical_symbols(*symbol_id)? {
                 let Some(candidate) = self.canonical_symbol_token(symbol_id)? else {
                     return Ok(None);
                 };
@@ -728,7 +728,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
         &self,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
-        let symbol_module = self.query.module(symbol_id.module_id)?;
+        let symbol_module = self.program.module(symbol_id.module_id)?;
         let symbols = symbol_module.bindings()?;
         let symbol = symbols.get_symbol(symbol_id.local_id);
         let symbol_modifiers = self.symbol_modifiers(symbol_id)?;
@@ -820,13 +820,13 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
     ) -> QueryResult<SemanticTokenModifiers> {
         let mut modifiers = SemanticTokenModifiers::NONE;
 
-        // transcribe exact decorator state
-        if self.query.symbol_is_deprecated(symbol_id)? {
+        // record decorator state
+        if self.program.symbol_is_deprecated(symbol_id)? {
             modifiers = modifiers.union(SemanticTokenModifiers::DEPRECATED);
         }
 
-        // transcribe exact package ownership
-        if self.query.symbol_is_default_library(symbol_id)? {
+        // record package ownership
+        if self.program.symbol_is_default_library(symbol_id)? {
             modifiers = modifiers.union(SemanticTokenModifiers::DEFAULT_LIBRARY);
         }
 
@@ -1033,7 +1033,7 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
                     )))?;
                 let (_, _, definition) = self
                     .module
-                    .definition_member(self.query, symbol_id)?
+                    .definition_member(self.program, symbol_id)?
                     .ok_or(QueryError::missing(format!(
                         "semantic token member definition: {symbol_id:?}"
                     )))?;
@@ -1189,9 +1189,9 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
             // classify only segments carrying exact recorded symbol targets
             for span in spans {
-                let Some(occurrence) = self
-                    .module
-                    .symbol_at_offset(self.query, span.file, span.start)?
+                let Some(occurrence) =
+                    self.module
+                        .symbol_at_offset(self.program, span.file, span.start)?
                 else {
                     continue;
                 };

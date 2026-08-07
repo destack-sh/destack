@@ -5,7 +5,7 @@ use rustc_hash::FxHashSet;
 use super::{CompletionCollector, CompletionContext};
 use crate::{
     CompletionCandidate, CompletionItemKind, CompletionOrigin, ModuleQueryContext, QueryError,
-    QueryResult, SORT_CONTEXTUAL, SORT_LOCAL_SYMBOL,
+    QueryResult,
 };
 
 /// Source spans owned by one object literal.
@@ -228,15 +228,12 @@ impl CompletionCollector<'_, '_, '_> {
                     &label,
                     CompletionItemKind::Field,
                     CompletionOrigin::Contextual,
-                    SORT_CONTEXTUAL,
                 )
                 .with_object_field(site, member.key)
                 .with_type_id(member.access.store());
-                let completion = match member.declarations.first() {
-                    Some(declaration) => {
-                        self.collect_declaration(completion, declaration.symbol)?
-                    }
-                    None => completion,
+                let completion = match member.declarations.as_slice() {
+                    [declaration] => self.collect_declaration(completion, declaration.symbol)?,
+                    _ => completion,
                 };
 
                 // prefer shorthand insertion when the value is visible
@@ -254,12 +251,8 @@ impl CompletionCollector<'_, '_, '_> {
                 continue;
             };
             let label = self.module.strings().get(name).to_string();
-            let completion = CompletionCandidate::new(
-                label,
-                CompletionItemKind::Field,
-                CompletionOrigin::Local,
-                SORT_LOCAL_SYMBOL,
-            );
+            let completion =
+                CompletionCandidate::new(label, CompletionItemKind::Field, CompletionOrigin::Local);
             results.push(self.collect_symbol(completion, symbol)?);
         }
 

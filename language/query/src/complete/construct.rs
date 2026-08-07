@@ -4,7 +4,6 @@ use super::CompletionCollector;
 use super::call::CallSnippet;
 use crate::{
     CompletionCandidate, CompletionItemKind, CompletionOrigin, Formatter, QueryError, QueryResult,
-    SORT_LOCAL_SYMBOL,
 };
 
 impl CompletionCollector<'_, '_, '_> {
@@ -36,17 +35,13 @@ impl CompletionCollector<'_, '_, '_> {
 
         // retain constructor identity for each overload
         for constructor in &definition.constructors {
-            let completion = CompletionCandidate::new(
-                name,
-                CompletionItemKind::Class,
-                CompletionOrigin::Local,
-                SORT_LOCAL_SYMBOL,
-            )
-            .with_class_constructor(
-                symbol,
-                constructor.ty,
-                constructor.constructor.call_symbol(),
-            );
+            let completion =
+                CompletionCandidate::new(name, CompletionItemKind::Class, CompletionOrigin::Local)
+                    .with_class_constructor(
+                        symbol,
+                        constructor.ty,
+                        constructor.constructor.call_symbol(),
+                    );
             completions.push(self.collect_symbol(completion, symbol)?);
         }
 
@@ -73,10 +68,10 @@ impl CompletionCollector<'_, '_, '_> {
                 )))?,
             None => Vec::new(),
         };
-        let signature =
-            Formatter::new(&module, self.program).callable_type(type_id, Some(&parameter_names))?;
+        let suffix = Formatter::new(&module, self.program)
+            .callable_suffix(type_id, Some(&parameter_names))?;
         let snippet = CallSnippet::named(&completion.label, &parameter_names);
-        let completion = completion.with_detail(format!("new {signature}"));
+        let completion = completion.with_label_suffix(suffix);
 
         if snippet.is_snippet {
             Ok(completion.with_snippet(snippet.text))
@@ -92,13 +87,9 @@ impl CompletionCollector<'_, '_, '_> {
         symbol: dir::GlobalSymbolId,
     ) -> QueryResult<CompletionCandidate> {
         let symbol = self.canonical_symbol(symbol)?;
-        let completion = CompletionCandidate::new(
-            name,
-            CompletionItemKind::Struct,
-            CompletionOrigin::Local,
-            SORT_LOCAL_SYMBOL,
-        )
-        .with_struct(symbol);
+        let completion =
+            CompletionCandidate::new(name, CompletionItemKind::Struct, CompletionOrigin::Local)
+                .with_struct(symbol);
 
         self.collect_symbol(completion, symbol)
     }
@@ -157,9 +148,6 @@ impl CompletionCollector<'_, '_, '_> {
 
             format!("{} {{ {fields} }}$0", completion.label)
         };
-        let detail = completion.label.clone();
-        let completion = completion.with_detail(detail);
-
         if fields.is_empty() {
             Ok(completion.with_insert_text(insert_text))
         } else {
@@ -194,7 +182,6 @@ impl CompletionCollector<'_, '_, '_> {
                 name,
                 CompletionItemKind::Constructor,
                 CompletionOrigin::Local,
-                SORT_LOCAL_SYMBOL,
             )
             .with_newtype_constructor(symbol, constructor.ty);
             completions.push(self.collect_symbol(completion, symbol)?);
@@ -213,18 +200,9 @@ impl CompletionCollector<'_, '_, '_> {
         let module = self.program.module(symbol.module_id)?;
 
         // render the selected constructor signature and insertion
-        let detail = Formatter::new(&module, self.program).callable_type(type_id, None)?;
-        let parameter_count = self.program.read_type(type_id, |ty, owner| match ty {
-            dir::Type::FunctionSignature(signature) => Ok(owner
-                .types()?
-                .parameters(owner.types()?.signature(*signature).parameters)
-                .len()),
-            _ => Err(QueryError::invalid(format!(
-                "completion constructor type: {type_id:?}"
-            ))),
-        })?;
-        let snippet = CallSnippet::positional(&completion.label, parameter_count);
-        let completion = completion.with_detail(detail);
+        let suffix = Formatter::new(&module, self.program).callable_suffix(type_id, None)?;
+        let snippet = CallSnippet::positional(&completion.label, type_id, self.program)?;
+        let completion = completion.with_label_suffix(suffix);
 
         if snippet.is_snippet {
             Ok(completion.with_snippet(snippet.text))

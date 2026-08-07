@@ -6,7 +6,7 @@ use crate::{ModuleQueryContext, QueryResult};
 /// The structural owner for one expression slot.
 #[derive(Debug, Clone, Copy)]
 enum ExpressionSlotOwner {
-    /// The slot is the value side of one declarator.
+    /// The slot is the value side of a declarator.
     DeclaratorValue(dir::LocalNodeId<dir::Declarator>),
     /// The slot expects a value expression.
     Value,
@@ -173,7 +173,9 @@ impl ModuleQueryContext<'_> {
         offset: u32,
     ) -> QueryResult<bool> {
         let view = self.view()?;
-        let Some(declarator_id) = self.current_initializer_declarator(file_id, offset)? else {
+        let Some(ExpressionSlotOwner::DeclaratorValue(declarator_id)) =
+            self.expression_slot_owner(file_id, offset)?
+        else {
             return Ok(false);
         };
 
@@ -247,19 +249,40 @@ fn expression_hole_owner(
 }
 
 impl ModuleQueryContext<'_> {
-    /// Resolve the declarator that owns the initializer slot at one cursor offset.
-    fn current_initializer_declarator(
+    /// Resolve the binding pattern being initialized at one cursor offset.
+    pub(crate) fn initializing_pattern_at_offset(
         &self,
         file_id: FileId,
         offset: u32,
-    ) -> QueryResult<Option<dir::LocalNodeId<dir::Declarator>>> {
-        let Some(owner) = self.expression_slot_owner(file_id, offset)? else {
-            return Ok(None);
-        };
-        let ExpressionSlotOwner::DeclaratorValue(declarator_id) = owner else {
+    ) -> QueryResult<Option<dir::LocalNodeId<dir::Pattern>>> {
+        let view = self.view()?;
+        let enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
+        let node_id = enclosing
+            .into_iter()
+            .find_map(|span| view.get_node_id_by_source_id(span.source_id));
+        let Some(node_id) = node_id else {
             return Ok(None);
         };
 
-        Ok(Some(declarator_id))
+        // select a destructuring default initialized at the cursor
+        if let Some(default_id) = view.ancestor::<dir::Pattern>(node_id)
+            && let dir::Pattern::Default { pattern, value } = view.get(default_id)
+            && view.is_inside(node_id, (*value).into_any())
+        {
+            return Ok(Some(*pattern));
+        }
+
+        // select a declarator initialized at the cursor
+        if let Some(declarator_id) = view.ancestor::<dir::Declarator>(node_id) {
+            let declarator = view.get(declarator_id);
+            if declarator
+                .value
+                .is_some_and(|value| view.is_inside(node_id, value.into_any()))
+            {
+                return Ok(Some(declarator.pattern));
+            }
+        }
+
+        Ok(None)
     }
 }

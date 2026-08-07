@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_source::{EnclosingSpan, FileId, Span};
 
-use crate::{ModuleQueryContext, QueryError, QueryResult};
+use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
 
 use super::CompletionContext;
 
@@ -46,8 +46,8 @@ impl CallSnippet {
         }
     }
 
-    /// Build a call insertion from positional parameters.
-    pub(super) fn positional(function_name: &str, parameter_count: usize) -> Self {
+    /// Build a call insertion from positional placeholders.
+    fn placeholders(function_name: &str, parameter_count: usize) -> Self {
         if parameter_count == 0 {
             Self {
                 text: format!("{function_name}()"),
@@ -64,6 +64,31 @@ impl CallSnippet {
                 is_snippet: true,
             }
         }
+    }
+
+    /// Build a positional call insertion from one callable type.
+    pub(super) fn positional(
+        function_name: &str,
+        type_id: dir::GlobalTypeId,
+        program: &ProgramQueryContext<'_>,
+    ) -> QueryResult<Self> {
+        program.read_type(type_id, |type_value, module| match type_value {
+            dir::Type::FunctionSignature(function) => {
+                let types = module.types()?;
+                let parameter_count = types
+                    .parameters(types.signature(*function).parameters)
+                    .len();
+
+                Ok(Self::placeholders(function_name, parameter_count))
+            }
+            dir::Type::Function(function) => {
+                Self::positional(function_name, function.signature, program)
+            }
+            dir::Type::FunctionPointer(function) => {
+                Self::positional(function_name, function.signature, program)
+            }
+            _ => Err(QueryError::invalid(format!("callable type: {type_id:?}"))),
+        })
     }
 
     /// Build a call insertion from one object argument's fields.
@@ -324,7 +349,7 @@ impl ModuleQueryContext<'_> {
                     .flat_map(|selection| selection.arguments.iter()),
             )
             .filter(|binding| binding.contains_argument(argument))
-            .map(|binding| binding.ty)
+            .map(|binding| binding.argument_type)
             .collect::<Vec<_>>();
         if types.is_empty() && call.is_none() && construct.is_none() {
             return Ok(None);

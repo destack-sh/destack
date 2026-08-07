@@ -28,8 +28,18 @@ pub(crate) struct ExportCandidate {
     pub(crate) module: ModuleId,
     /// The import binding to introduce.
     pub(crate) binding: ImportBinding,
-    /// The exposed declaration.
-    pub(crate) declaration: ExportDeclaration,
+    /// The indexed export target.
+    pub(crate) target: dir::ExportTarget,
+}
+
+impl ExportCandidate {
+    /// Resolve the exact declarations exposed by this export.
+    pub(crate) fn resolve_declarations(
+        &self,
+        program: &ProgramQueryContext<'_>,
+    ) -> QueryResult<Vec<ExportDeclaration>> {
+        program.export_declarations(self.target)
+    }
 }
 
 /// One indexed reference with its owning module.
@@ -50,7 +60,7 @@ impl ProgramQueryContext<'_> {
         let index = self.export_index(module_id)?;
         let mut entries = Vec::new();
 
-        // transcribe each exact non-default export
+        // collect each non-default export
         for export in index.entries() {
             if export.name == "default" {
                 continue;
@@ -91,15 +101,13 @@ impl ProgramQueryContext<'_> {
                     continue;
                 }
 
-                for declaration in self.export_declarations(export.target)? {
-                    entries.push(ExportCandidate {
-                        module,
-                        binding: ImportBinding::Named {
-                            name: export.name.clone(),
-                        },
-                        declaration,
-                    });
-                }
+                entries.push(ExportCandidate {
+                    module,
+                    binding: ImportBinding::Named {
+                        name: export.name.clone(),
+                    },
+                    target: export.target,
+                });
             }
         }
 
@@ -138,7 +146,7 @@ impl ProgramQueryContext<'_> {
                         binding: ImportBinding::Default {
                             name: symbol.name.clone(),
                         },
-                        declaration,
+                        target: export.target,
                     });
                 }
             }
@@ -415,10 +423,10 @@ impl ProgramQueryContext<'_> {
     /// Sort and deduplicate exported symbol entries.
     fn sort_export_entries(entries: &mut Vec<ExportCandidate>) {
         entries.sort_by(|left, right| {
-            (&left.binding, left.module, left.declaration).cmp(&(
+            (&left.binding, left.module, left.target).cmp(&(
                 &right.binding,
                 right.module,
-                right.declaration,
+                right.target,
             ))
         });
         entries.dedup();

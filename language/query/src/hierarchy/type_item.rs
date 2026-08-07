@@ -16,7 +16,7 @@ pub struct TypeItem {
     /// The kind of type.
     pub kind: SymbolKind,
     /// The rendered generic parameters.
-    pub detail: Option<String>,
+    pub generics: Option<String>,
     /// The target source.
     pub target: Target,
     /// The resolved type symbol.
@@ -59,13 +59,13 @@ pub(crate) struct TypeItemOrder<'a> {
 impl TypeItem {
     /// Build the hierarchy item for one type symbol.
     pub(crate) fn from_symbol(
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<Self>> {
-        let Some(canonical_id) = query.canonical_symbol(symbol_id)? else {
+        let Some(canonical_id) = program.canonical_symbol(symbol_id)? else {
             return Ok(None);
         };
-        let module = query.module(canonical_id.module_id)?;
+        let module = program.module(canonical_id.module_id)?;
         let symbol = module.bindings()?.get_symbol(canonical_id.local_id);
         let kind = match symbol.kind {
             dir::SymbolKind::Class
@@ -77,7 +77,7 @@ impl TypeItem {
                 .map_err(|_| QueryError::invalid(format!("type item symbol: {canonical_id:?}")))?,
             _ => return Ok(None),
         };
-        let name = query
+        let name = program
             .symbol_name(canonical_id)?
             .ok_or(QueryError::invalid(format!(
                 "type item symbol: {canonical_id:?}"
@@ -85,24 +85,24 @@ impl TypeItem {
 
         // resolve source ranges around the declaration name
         let selection_range =
-            query
+            program
                 .symbol_definition_span(canonical_id)?
                 .ok_or(QueryError::missing(format!(
                     "type item span: {canonical_id:?}"
                 )))?;
         let range = module
-            .symbol_local_declaration_span(query, canonical_id)?
+            .symbol_local_declaration_span(program, canonical_id)?
             .ok_or(QueryError::missing(format!(
                 "type item span: {canonical_id:?}"
             )))?;
 
         let target = Target::new(module.module(), range).with_selection_span(selection_range)?;
-        let detail = Formatter::new(&module, query).symbol_generics(canonical_id)?;
+        let generics = Formatter::new(&module, program).symbol_generics(canonical_id)?;
 
         Ok(Some(Self {
             name,
             kind,
-            detail,
+            generics,
             target,
             symbol_id: canonical_id,
         }))
@@ -126,17 +126,17 @@ impl ModuleQueryContext<'_> {
     /// Return a type item at the given position.
     pub fn type_item(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<TypeItem>> {
-        let Some(symbol_at) = self.symbol_at_offset(query, file_id, offset)? else {
+        let Some(symbol_at) = self.symbol_at_offset(program, file_id, offset)? else {
             return Ok(None);
         };
         let Some(symbol_id) = symbol_at.symbol() else {
             return Ok(None);
         };
 
-        TypeItem::from_symbol(query, symbol_id)
+        TypeItem::from_symbol(program, symbol_id)
     }
 }

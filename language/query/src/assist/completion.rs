@@ -11,19 +11,6 @@ use crate::{
     ImportOrder, ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult,
 };
 
-/// Sort order for contextual candidates.
-pub(crate) const SORT_CONTEXTUAL: u32 = 0;
-/// Sort order for local declaration candidates.
-pub(crate) const SORT_LOCAL_SYMBOL: u32 = 10;
-/// Sort order for member candidates.
-pub(crate) const SORT_MEMBER: u32 = 20;
-/// Sort order for builtin candidates.
-pub(crate) const SORT_BUILTIN: u32 = 30;
-/// Sort order for default candidates.
-pub(crate) const SORT_DEFAULT: u32 = 100;
-/// Sort order for keyword candidates.
-pub(crate) const SORT_KEYWORD: u32 = 700;
-
 /// Kind of completion item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum CompletionItemKind {
@@ -174,9 +161,11 @@ pub struct CompletionItem {
     pub label: String,
     /// The kind of completion.
     pub kind: CompletionItemKind,
-    /// Detail shown alongside the label.
-    pub detail: Option<String>,
-    /// Description shown separately from the label.
+    /// The exact text shown directly after the label.
+    pub label_suffix: Option<String>,
+    /// The declaration shown in completion details.
+    pub declaration: Option<String>,
+    /// The declaration owner or import source.
     pub description: Option<String>,
     /// Documentation for the item.
     pub documentation: Option<String>,
@@ -201,16 +190,16 @@ pub(crate) struct CompletionCandidate {
     pub(crate) label: String,
     /// The kind of completion.
     pub(crate) kind: CompletionItemKind,
-    /// Detail shown alongside the label.
-    pub(crate) detail: Option<String>,
-    /// Description shown separately from the label.
+    /// The exact text shown directly after the label.
+    pub(crate) label_suffix: Option<String>,
+    /// The declaration shown in completion details.
+    pub(crate) declaration: Option<String>,
+    /// The declaration owner or import source.
     pub(crate) description: Option<String>,
     /// Documentation for the item.
     pub(crate) documentation: Option<String>,
     /// The insertion produced when this candidate is selected.
     insertion: CompletionInsertion,
-    /// The producer ordering bucket.
-    pub(crate) producer_order: u32,
     /// Stable text used to order otherwise equal candidates.
     pub(crate) ordering_text: Option<String>,
     /// Whether to preselect this item.
@@ -346,8 +335,11 @@ impl ModuleQueryContext<'_> {
             });
         };
 
+        // exclude bindings declared by the pattern under initialization
+        let initializing_pattern = self.initializing_pattern_at_offset(file_id, offset)?;
+
         // collect and rank candidates for the selected context
-        let collector = CompletionCollector::new(self, program, file_id);
+        let collector = CompletionCollector::new(self, program, file_id, initializing_pattern);
         let completions =
             collector.collect(trigger, &context, token.as_ref(), include_auto_imports)?;
         let is_incomplete = completions.is_incomplete;
@@ -376,16 +368,15 @@ impl CompletionCandidate {
         label: impl Into<String>,
         kind: CompletionItemKind,
         origin: CompletionOrigin,
-        producer_order: u32,
     ) -> Self {
         Self {
             label: label.into(),
             kind,
-            detail: None,
+            label_suffix: None,
+            declaration: None,
             description: None,
             documentation: None,
             insertion: CompletionInsertion::Label,
-            producer_order,
             ordering_text: None,
             preselect: false,
             is_deprecated: false,
@@ -411,9 +402,17 @@ impl CompletionCandidate {
         matches!(self.insertion, CompletionInsertion::Call)
     }
 
-    /// Set the detail text.
-    pub(crate) fn with_detail(mut self, detail: impl Into<String>) -> Self {
-        self.detail = Some(detail.into());
+    /// Set the exact suffix shown after the label.
+    pub(crate) fn with_label_suffix(mut self, suffix: impl Into<String>) -> Self {
+        self.label_suffix = Some(suffix.into());
+
+        self
+    }
+
+    /// Set the declaration shown in completion details.
+    pub(crate) fn with_declaration(mut self, declaration: impl Into<String>) -> Self {
+        self.declaration = Some(declaration.into());
+
         self
     }
 
@@ -427,6 +426,7 @@ impl CompletionCandidate {
     /// Set the documentation.
     pub(crate) fn with_documentation(mut self, documentation: impl Into<String>) -> Self {
         self.documentation = Some(documentation.into());
+
         self
     }
 
@@ -447,6 +447,7 @@ impl CompletionCandidate {
     /// Add additional edits.
     pub(crate) fn with_additional_edits(mut self, edits: Vec<Patch>) -> Self {
         self.additional_edits = edits;
+
         self
     }
 
@@ -571,7 +572,8 @@ impl CompletionCandidate {
         Ok(CompletionItem {
             label: self.label,
             kind: self.kind,
-            detail: self.detail,
+            label_suffix: self.label_suffix,
+            declaration: self.declaration,
             description: self.description,
             documentation: self.documentation,
             edit: CompletionEdit {
@@ -592,5 +594,42 @@ impl CompletionItemKind {
     /// Return whether this item can insert a call.
     pub(crate) fn is_callable(self) -> bool {
         matches!(self, Self::Constructor | Self::Function | Self::Method)
+    }
+
+    /// Return whether this item shows a value type after its label.
+    pub(crate) fn has_value_suffix(self) -> bool {
+        matches!(
+            self,
+            Self::AssociatedConst
+                | Self::Constant
+                | Self::EnumMember
+                | Self::Field
+                | Self::Function
+                | Self::Method
+                | Self::Property
+                | Self::Value
+                | Self::ValueParameter
+                | Self::Variable
+        )
+    }
+
+    /// Return whether this item shows generic parameters after its label.
+    pub(crate) fn has_generic_suffix(self) -> bool {
+        matches!(
+            self,
+            Self::Class
+                | Self::Enum
+                | Self::Extension
+                | Self::Interface
+                | Self::Newtype
+                | Self::NewtypeInterface
+                | Self::Struct
+                | Self::TypeAlias
+        )
+    }
+
+    /// Return whether this item is constructable with `new`.
+    pub(crate) fn is_constructable(self) -> bool {
+        matches!(self, Self::Class | Self::Struct)
     }
 }

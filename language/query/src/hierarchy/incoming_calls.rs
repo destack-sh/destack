@@ -49,7 +49,7 @@ impl ProgramQueryContext<'_> {
             spans_by_caller.entry(caller).or_default().push(entry.span);
         }
 
-        // transcribe exact indexed callers
+        // collect indexed callers
         let mut calls = Vec::new();
         for (caller, mut ranges) in spans_by_caller {
             sort_and_dedup_spans(&mut ranges);

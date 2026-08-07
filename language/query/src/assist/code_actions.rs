@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::source::ImportBinding;
 use crate::{
-    ImportCandidate, ImportOrder, ModuleQueryContext, ProgramQueryContext, QueryError, QueryRange,
+    ImportOrder, ImportPathOrder, ModuleQueryContext, ProgramQueryContext, QueryError, QueryRange,
     QueryResult, SymbolUse,
 };
 
@@ -343,28 +343,43 @@ impl ModuleQueryContext<'_> {
 
         // retain exact matching exports and their importable specifiers
         for candidate in candidates {
-            if candidate.binding.name() != name
-                || !symbol_use.accepts_export(candidate.declaration)
-                || !seen.insert((candidate.module, candidate.binding.clone()))
+            if candidate.binding.name() != name {
+                continue;
+            }
+
+            // require one declaration in the unresolved name's symbol space
+            let declarations = candidate.resolve_declarations(program)?;
+            if !declarations
+                .into_iter()
+                .any(|declaration| symbol_use.accepts_export(declaration))
             {
                 continue;
             }
+
+            // rank every specifier from the same module path
+            let path = ImportPathOrder::between(
+                self.repository(),
+                self.revision(),
+                self.module_id(),
+                candidate.module,
+            )?;
             let specifiers = program.import_specifiers(self.module_id(), candidate.module)?;
             for specifier in specifiers {
+                let key = (
+                    candidate.module,
+                    candidate.binding.clone(),
+                    specifier.clone(),
+                );
+                if !seen.insert(key) {
+                    continue;
+                }
+
+                // build one action for this exact import
                 let patches = self.build_import_edits(file, &candidate.binding, &specifier)?;
                 if patches.is_empty() {
                     continue;
                 }
-                let order = ImportCandidate {
-                    repository: self.repository(),
-                    revision: self.revision(),
-                    current_module_id: self.module_id(),
-                    export_name: name,
-                    expected_use: Some(symbol_use),
-                    declaration: candidate.declaration,
-                    module_id: candidate.module,
-                }
-                .order(&specifier)?;
+                let order = ImportOrder::new(path.clone(), &specifier, name);
                 imports.push(ImportAction {
                     order,
                     binding: candidate.binding.clone(),

@@ -36,7 +36,7 @@ impl ProgramQueryContext<'_> {
         subtype_ids.sort();
         subtype_ids.dedup();
 
-        // transcribe every exact indexed type item
+        // collect every indexed type item
         let mut items = Vec::with_capacity(subtype_ids.len());
         for symbol_id in subtype_ids {
             let item = TypeItem::from_symbol(self, symbol_id)?.ok_or(QueryError::invalid(

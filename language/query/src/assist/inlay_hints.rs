@@ -79,7 +79,7 @@ impl ModuleQueryContext<'_> {
     /// Return inlay hints for a range in a file.
     pub fn inlay_hints(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         range: Span,
         type_hints: bool,
         parameter_hints: bool,
@@ -88,10 +88,10 @@ impl ModuleQueryContext<'_> {
 
         // collect requested hint families
         if type_hints {
-            self.collect_type_inlay_hints(query, range, &mut hints)?;
+            self.collect_type_inlay_hints(program, range, &mut hints)?;
         }
         if parameter_hints {
-            self.collect_parameter_inlay_hints(query, range, &mut hints)?;
+            self.collect_parameter_inlay_hints(program, range, &mut hints)?;
         }
 
         // retain source order across hint families
@@ -108,7 +108,7 @@ impl ModuleQueryContext<'_> {
     /// Collect inferred type inlay hints.
     fn collect_type_inlay_hints(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         range: Span,
         hints: &mut Vec<InlayHint>,
     ) -> QueryResult<()> {
@@ -147,7 +147,7 @@ impl ModuleQueryContext<'_> {
                 .ok_or(QueryError::missing(format!(
                     "inlay hint type: {global_symbol_id:?}"
                 )))?;
-            let type_text = Formatter::new(self, query).binding_type(declarator, type_id)?;
+            let type_text = Formatter::new(self, program).binding_type(declarator, type_id)?;
 
             hints.push(InlayHint::type_hint(name_span.end, type_text));
         }
@@ -158,7 +158,7 @@ impl ModuleQueryContext<'_> {
     /// Collect parameter hints from selected call and construction bindings.
     fn collect_parameter_inlay_hints(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         range: Span,
         hints: &mut Vec<InlayHint>,
     ) -> QueryResult<()> {
@@ -180,7 +180,7 @@ impl ModuleQueryContext<'_> {
                 continue;
             };
 
-            let names = self.call_parameter_names(query, call, resolution)?;
+            let names = self.call_parameter_names(program, call, resolution)?;
             self.collect_argument_hints(call, arguments, &names, range, hints)?;
         }
 
@@ -191,7 +191,7 @@ impl ModuleQueryContext<'_> {
                 continue;
             }
 
-            let names = self.construct_parameter_names(query, call, resolution)?;
+            let names = self.construct_parameter_names(program, call, resolution)?;
             self.collect_argument_hints(call, &resolution.arguments, &names, range, hints)?;
         }
 
@@ -201,25 +201,24 @@ impl ModuleQueryContext<'_> {
     /// Return parameter names for one selected call.
     fn call_parameter_names(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         call: dir::GlobalNodeIdAny,
         resolution: &dir::CallResolution,
     ) -> QueryResult<Vec<Option<String>>> {
         let mut signatures = Vec::with_capacity(resolution.iter().len());
 
-        // read parameter names independently from every exact selected arm
+        // read parameter names from every selected call arm
         for selected in resolution.iter() {
             let names = match &selected.target {
                 dir::CallTarget::Symbol { function, .. } => {
-                    self.symbol_call_parameter_names(query, call, function.symbol)?
+                    self.symbol_call_parameter_names(program, call, function.symbol)?
                 }
                 dir::CallTarget::Dynamic {
                     function: dir::DynamicFunction::Symbol(symbol),
                     ..
-                } => self.symbol_call_parameter_names(query, call, *symbol)?,
-                dir::CallTarget::Expression { .. } => {
-                    self.expression_parameter_names(query, call)?
-                }
+                } => self.symbol_call_parameter_names(program, call, *symbol)?,
+                // FUGU #Incomplete: retain callable parameter sources on expression call targets
+                dir::CallTarget::Expression { .. } => vec![None; selected.arguments.len()],
                 dir::CallTarget::Dynamic {
                     function:
                         dir::DynamicFunction::CallSignature(node)
@@ -227,7 +226,7 @@ impl ModuleQueryContext<'_> {
                         | dir::DynamicFunction::IndexWrite(node)
                         | dir::DynamicFunction::ConstructSignature(node),
                     ..
-                } => self.signature_call_parameter_names(query, call, *node)?,
+                } => self.signature_call_parameter_names(program, call, *node)?,
             };
             signatures.push(names);
         }
@@ -235,8 +234,11 @@ impl ModuleQueryContext<'_> {
         // retain a name only when every selected declaration agrees
         let parameter_count = resolution
             .iter()
-            .flat_map(|call| call.arguments.iter())
-            .fold(0, |count, binding| count.max(binding.parameter + 1));
+            .map(|call| call.arguments.len())
+            .max()
+            .ok_or(QueryError::missing(format!(
+                "inlay hint call arms: {call:?}"
+            )))?;
         let first = signatures.first().ok_or(QueryError::missing(format!(
             "inlay hint parameters: {call:?}"
         )))?;
@@ -260,16 +262,16 @@ impl ModuleQueryContext<'_> {
     /// Return authored parameter names for one exact declaration backed call arm.
     fn symbol_call_parameter_names(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         call: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
     ) -> QueryResult<Vec<Option<String>>> {
-        let Some(symbol) = query.canonical_symbol(symbol)? else {
+        let Some(symbol) = program.canonical_symbol(symbol)? else {
             return Err(QueryError::missing(format!(
                 "inlay hint parameters: {call:?}"
             )));
         };
-        let Some(names) = query.symbol_parameter_names(symbol)? else {
+        let Some(names) = program.symbol_parameter_names(symbol)? else {
             return Err(QueryError::missing(format!(
                 "inlay hint parameters: {call:?}"
             )));
@@ -281,11 +283,11 @@ impl ModuleQueryContext<'_> {
     /// Return authored parameter names for one signature backed call arm.
     fn signature_call_parameter_names(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         call: dir::GlobalNodeIdAny,
         node: dir::GlobalNodeIdAny,
     ) -> QueryResult<Vec<Option<String>>> {
-        let Some(names) = query.node_parameter_names(node)? else {
+        let Some(names) = program.node_parameter_names(node)? else {
             return Err(QueryError::missing(format!(
                 "inlay hint parameters: {call:?}"
             )));
@@ -294,64 +296,10 @@ impl ModuleQueryContext<'_> {
         Ok(names)
     }
 
-    /// Return authored parameter names for an expression backed call.
-    fn expression_parameter_names(
-        &self,
-        query: &ProgramQueryContext<'_>,
-        call: dir::GlobalNodeIdAny,
-    ) -> QueryResult<Vec<Option<String>>> {
-        if call.module_id != self.module_id() || call.local_id.ty != dir::NodeType::Expression {
-            return Err(QueryError::missing(format!(
-                "inlay hint parameters: {call:?}"
-            )));
-        }
-
-        // select the authored callee expression
-        let call_id = dir::LocalNodeId::<dir::Expression>::new(call.local_id.id);
-        let dir::Expression::Call { left, .. } = self.view()?.get(call_id) else {
-            return Err(QueryError::missing(format!(
-                "inlay hint parameters: {call:?}"
-            )));
-        };
-        if let dir::Expression::Declaration(declaration_id) = self.view()?.get(*left)
-            && let dir::Declaration::Function(function) = self.view()?.get(*declaration_id)
-        {
-            return self.parameter_names(&function.signature.parameters);
-        }
-
-        // follow the exact symbol occurrence into its variable declaration
-        let source = left.into_global_any(self.module_id());
-        let Some(symbols) = self.symbol_targets(source)? else {
-            return Err(QueryError::missing(format!(
-                "inlay hint callable: {source:?}"
-            )));
-        };
-        let [symbol_id] = symbols.as_slice() else {
-            return Err(QueryError::conflict(format!(
-                "inlay hint callable: {source:?}"
-            )));
-        };
-
-        self.symbol_call_parameter_names(query, call, *symbol_id)
-    }
-
-    /// Return authored display names for one parameter list.
-    fn parameter_names(
-        &self,
-        parameters: &[dir::LocalNodeId<dir::Parameter>],
-    ) -> QueryResult<Vec<Option<String>>> {
-        let names = parameters
-            .iter()
-            .map(|parameter_id| self.parameter_name(self.view()?.get(*parameter_id)))
-            .collect::<QueryResult<Vec<_>>>()?;
-
-        Ok(names.into_iter().map(Some).collect())
-    }
-
     /// Return parameter names for one selected construction.
     fn construct_parameter_names(
         &self,
-        query: &ProgramQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         call: dir::GlobalNodeIdAny,
         resolution: &dir::ConstructResolution,
     ) -> QueryResult<Vec<Option<String>>> {
@@ -361,7 +309,7 @@ impl ModuleQueryContext<'_> {
                     return Ok(Vec::new());
                 };
 
-                self.symbol_call_parameter_names(query, call, symbol_id)
+                self.symbol_call_parameter_names(program, call, symbol_id)
             }
             dir::ConstructTarget::Newtype(_) | dir::ConstructTarget::Variant(_) => {
                 Ok(vec![None; resolution.arguments.len()])
@@ -374,11 +322,11 @@ impl ModuleQueryContext<'_> {
                     | dir::DynamicFunction::IndexRead(node)
                     | dir::DynamicFunction::IndexWrite(node),
                 ..
-            } => self.signature_call_parameter_names(query, call, *node),
+            } => self.signature_call_parameter_names(program, call, *node),
             dir::ConstructTarget::Dynamic {
                 function: dir::DynamicFunction::Symbol(symbol),
                 ..
-            } => self.symbol_call_parameter_names(query, call, *symbol),
+            } => self.symbol_call_parameter_names(program, call, *symbol),
         }
     }
 
@@ -391,16 +339,14 @@ impl ModuleQueryContext<'_> {
         range: Span,
         hints: &mut Vec<InlayHint>,
     ) -> QueryResult<()> {
-        for binding in bindings {
-            let name = names
-                .get(binding.parameter)
-                .ok_or(QueryError::missing(format!(
-                    "inlay hint parameters: {call:?}"
-                )))?;
+        for (parameter, binding) in bindings.iter().enumerate() {
+            let name = names.get(parameter).ok_or(QueryError::missing(format!(
+                "inlay hint parameters: {call:?}"
+            )))?;
             let Some(name) = name else {
                 continue;
             };
-            let arguments = match &binding.argument {
+            let arguments = match &binding.source {
                 dir::ArgumentSource::Provided(argument) => std::slice::from_ref(argument),
                 dir::ArgumentSource::Rest(arguments) => arguments.as_slice(),
                 dir::ArgumentSource::Static(_)

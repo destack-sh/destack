@@ -35,29 +35,11 @@ impl SymbolUse {
     }
 }
 
-/// One import candidate being ranked for auto import.
-pub(crate) struct ImportCandidate<'a> {
-    /// The repository used to read source and target metadata.
-    pub(crate) repository: &'a Repository,
-    /// The repository revision being queried.
-    pub(crate) revision: Revision,
-    /// The module containing the import.
-    pub(crate) current_module_id: ModuleId,
-    /// The exported symbol name.
-    pub(crate) export_name: &'a str,
-    /// The requested symbol use when known.
-    pub(crate) expected_use: Option<SymbolUse>,
-    /// The exported declaration.
-    pub(crate) declaration: ExportDeclaration,
-    /// The target module id.
-    pub(crate) module_id: ModuleId,
-}
-
 /// The stable path order for one import candidate.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-enum ImportPathOrder {
+pub(crate) enum ImportPathOrder {
     /// A filesystem-backed path with exact structural measurements.
-    Known {
+    Physical {
         /// The same-directory ordering priority.
         directory_priority: u8,
         /// The same-package ordering priority.
@@ -68,7 +50,7 @@ enum ImportPathOrder {
         depth: u32,
     },
     /// A virtual source with only a package relationship.
-    Unknown {
+    Virtual {
         /// The same-package ordering priority.
         package_priority: u8,
     },
@@ -77,8 +59,6 @@ enum ImportPathOrder {
 /// The stable order for one import candidate.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct ImportOrder {
-    /// The coarse use ordering priority.
-    use_priority: u8,
     /// The structural path order.
     path: ImportPathOrder,
     /// The display-path length.
@@ -91,9 +71,8 @@ pub(crate) struct ImportOrder {
 
 impl ImportOrder {
     /// Build the stable order for one import candidate.
-    fn new(use_priority: u8, path: ImportPathOrder, display_path: &str, export_name: &str) -> Self {
+    pub(crate) fn new(path: ImportPathOrder, display_path: &str, export_name: &str) -> Self {
         Self {
-            use_priority,
             path,
             display_path_length: display_path.chars().count(),
             display_path: display_path.to_string(),
@@ -102,38 +81,26 @@ impl ImportOrder {
     }
 }
 
-impl ImportCandidate<'_> {
-    /// Build the stable order for this import candidate.
-    pub(crate) fn order(&self, display_path: &str) -> QueryResult<ImportOrder> {
-        let use_priority = import_use_priority(self.declaration, self.expected_use);
-        let path_order = self.path_order()?;
-
-        Ok(ImportOrder::new(
-            use_priority,
-            path_order,
-            display_path,
-            self.export_name,
-        ))
-    }
-
-    /// Compute the structural path order for this import candidate.
-    fn path_order(&self) -> QueryResult<ImportPathOrder> {
+impl ImportPathOrder {
+    /// Compute the structural order between two module paths.
+    pub(crate) fn between(
+        repository: &Repository,
+        revision: Revision,
+        current_module_id: ModuleId,
+        module_id: ModuleId,
+    ) -> QueryResult<Self> {
         // read source and target modules in one repository coordinate system
-        let source_module = self
-            .repository
-            .module(self.revision, self.current_module_id)
+        let source_module = repository
+            .module(revision, current_module_id)
             .map_err(QueryError::from)?
             .ok_or(QueryError::missing(format!(
-                "repository module: {:?}",
-                self.current_module_id
+                "repository module: {current_module_id:?}"
             )))?;
-        let target_module = self
-            .repository
-            .module(self.revision, self.module_id)
+        let target_module = repository
+            .module(revision, module_id)
             .map_err(QueryError::from)?
             .ok_or(QueryError::missing(format!(
-                "repository module: {:?}",
-                self.module_id
+                "repository module: {module_id:?}"
             )))?;
         let current_package_id = source_module.package_id;
         let target_package_id = target_module.package_id;
@@ -142,12 +109,12 @@ impl ImportCandidate<'_> {
         let Some(source_path) = source_module.path.as_ref() else {
             let package_priority = import_package_priority(current_package_id, target_package_id);
 
-            return Ok(ImportPathOrder::Unknown { package_priority });
+            return Ok(Self::Virtual { package_priority });
         };
         let Some(target_path) = target_module.path.as_ref() else {
             let package_priority = import_package_priority(current_package_id, target_package_id);
 
-            return Ok(ImportPathOrder::Unknown { package_priority });
+            return Ok(Self::Virtual { package_priority });
         };
 
         import_path_order(
@@ -178,7 +145,7 @@ fn import_path_order(
     let Some(source_dir) = source_path.parent() else {
         let package_priority = import_package_priority(current_package, target_package);
 
-        return Ok(ImportPathOrder::Unknown { package_priority });
+        return Ok(ImportPathOrder::Virtual { package_priority });
     };
 
     // score the relative path shape
@@ -193,20 +160,10 @@ fn import_path_order(
     let target_depth = path_depth(&target_dir)?;
     let source_depth = path_depth(&source_dir)?;
 
-    Ok(ImportPathOrder::Known {
+    Ok(ImportPathOrder::Physical {
         directory_priority: u8::from(source_dir != target_dir),
         package_priority,
         distance,
         depth: target_depth.abs_diff(source_depth),
     })
-}
-
-/// Return one coarse import use priority.
-fn import_use_priority(declaration: ExportDeclaration, expected_use: Option<SymbolUse>) -> u8 {
-    match expected_use {
-        Some(symbol_use) if symbol_use.accepts_export(declaration) => 0,
-        None if SymbolUse::Value.accepts_export(declaration) => 0,
-        None if SymbolUse::Type.accepts_export(declaration) => 1,
-        _ => 2,
-    }
 }

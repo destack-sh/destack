@@ -7,8 +7,7 @@ use super::builtin::{keyword_completions, primitive_type_completions};
 use super::{AutoImportSearch, CompletionContext, CompletionReceiver, CursorToken};
 use crate::{
     CompletionCandidate, CompletionCandidates, CompletionItemKind, CompletionOrigin,
-    CompletionTrigger, ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult,
-    SORT_LOCAL_SYMBOL, SymbolUse,
+    CompletionTrigger, ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult, SymbolUse,
 };
 
 /// Collects completion candidates at one module position.
@@ -19,6 +18,8 @@ pub(crate) struct CompletionCollector<'owner, 'module, 'program> {
     pub(super) program: &'owner ProgramQueryContext<'program>,
     /// The source file being completed.
     pub(super) file_id: FileId,
+    /// The pattern being initialized at the cursor.
+    initializing_pattern: Option<dir::LocalNodeId<dir::Pattern>>,
 }
 
 impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
@@ -27,11 +28,13 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
         module: &'owner ModuleQueryContext<'module>,
         program: &'owner ProgramQueryContext<'program>,
         file_id: FileId,
+        initializing_pattern: Option<dir::LocalNodeId<dir::Pattern>>,
     ) -> Self {
         Self {
             module,
             program,
             file_id,
+            initializing_pattern,
         }
     }
 
@@ -43,7 +46,7 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
         token: Option<&CursorToken>,
         include_auto_imports: bool,
     ) -> QueryResult<CompletionCandidates> {
-        // collect query shaping inputs once up front
+        // collect completion inputs once
         let prefix = token.map_or("", |token| token.text.as_str());
         let allow_short_prefix = matches!(
             trigger,
@@ -85,19 +88,14 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
 
         // layer in auto imports when this context supports them
         if include_auto_imports && let Some(auto_import) = context.auto_import_search() {
-            let auto_imports = self.collect_auto_imports_with_visibility(
+            let auto_imports = self.collect_auto_imports(
                 prefix,
-                Some(auto_import.symbol_use),
+                auto_import.symbol_use,
                 auto_import.scope,
                 allow_short_prefix,
+                auto_import.is_constructable_only,
             )?;
-            let mut candidates = auto_imports.items;
-
-            if auto_import.is_constructable_only {
-                candidates.retain(|completion| completion.kind.is_constructable());
-            }
-
-            items.extend(candidates);
+            items.extend(auto_imports.items);
             is_incomplete = auto_imports.is_incomplete;
         }
 
@@ -129,8 +127,7 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
             }
 
             let kind = self.completion_symbol_kind(visible.symbol_id)?;
-            let completion =
-                CompletionCandidate::new(name, kind, CompletionOrigin::Local, SORT_LOCAL_SYMBOL);
+            let completion = CompletionCandidate::new(name, kind, CompletionOrigin::Local);
             let symbol_id = dir::GlobalSymbolId {
                 module_id: self.module.module_id(),
                 local_id: visible.symbol_id,
@@ -173,6 +170,7 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
     ) -> QueryResult<FxIndexMap<dir::StaticKey, dir::GlobalSymbolId>> {
         let module_id = self.module.module_id();
         let bindings = self.module.bindings()?;
+        let view = self.module.view()?;
         let mut values = FxIndexMap::default();
 
         // collect the nearest value for each static name
@@ -180,6 +178,10 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
             .visible_bindings(scope)
             .filter(|binding| SymbolUse::Value.accepts_symbol_kind(binding.symbol.kind))
         {
+            if self.is_initializing_binding(visible.symbol, view) {
+                continue;
+            }
+
             let dir::StaticKey::Name(_) = visible.key else {
                 continue;
             };
@@ -195,6 +197,24 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
         }
 
         Ok(values)
+    }
+
+    /// Return whether one symbol belongs to the pattern currently being initialized.
+    fn is_initializing_binding(&self, symbol: &dir::Symbol, view: dir::View<'_>) -> bool {
+        let Some(pattern) = self.initializing_pattern else {
+            return false;
+        };
+        let Some(declaration) = symbol.declaration else {
+            return false;
+        };
+        if declaration.module_id != self.module.module_id() {
+            return false;
+        }
+
+        let declaration = declaration.local_id;
+        let pattern = pattern.into_any();
+
+        view.is_inside(declaration, pattern)
     }
 
     /// Collect values in expression position.
@@ -224,8 +244,7 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
             }
 
             // build the ordinary value candidate
-            let completion =
-                CompletionCandidate::new(&name, kind, CompletionOrigin::Local, SORT_LOCAL_SYMBOL);
+            let completion = CompletionCandidate::new(&name, kind, CompletionOrigin::Local);
             let completion = if kind.is_callable() {
                 completion.with_call()
             } else {
@@ -274,12 +293,7 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
             if kind == CompletionItemKind::Class {
                 results.extend(self.collect_class(&name, symbol_id)?);
             } else {
-                let completion = CompletionCandidate::new(
-                    name,
-                    kind,
-                    CompletionOrigin::Local,
-                    SORT_LOCAL_SYMBOL,
-                );
+                let completion = CompletionCandidate::new(name, kind, CompletionOrigin::Local);
                 results.push(self.collect_symbol(completion, symbol_id)?);
             }
         }

@@ -52,7 +52,7 @@ impl ProgramQueryContext<'_> {
             callees.entry(callee).or_default().push(entry);
         }
 
-        // transcribe exact indexed callees
+        // collect indexed callees
         let mut calls = Vec::new();
         for (callee, entries) in callees {
             let first_source = entries

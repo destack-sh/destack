@@ -205,7 +205,7 @@ impl Formatter<'_, '_, '_> {
 
     /// Format one borrow lifetime.
     fn borrow_lifetime(&self, type_id: dir::GlobalTypeId) -> QueryResult<String> {
-        self.query
+        self.program
             .read_type(type_id, |type_value, module| match type_value {
                 dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame)) => {
                     Ok(String::new())
@@ -215,7 +215,7 @@ impl Formatter<'_, '_, '_> {
                 }
                 dir::Type::Parameter(parameter) => {
                     let lifetime =
-                        Formatter::new(module, self.query).generic_parameter_type(*parameter)?;
+                        Formatter::new(module, self.program).generic_parameter_type(*parameter)?;
                     if !lifetime.starts_with('\'') {
                         return Err(QueryError::invalid(format!("borrow lifetime: {type_id:?}")));
                     }
@@ -259,7 +259,7 @@ impl Formatter<'_, '_, '_> {
                     let borrowed = format!("&{lifetime}{value}");
                     let access = formatter.generic_parameter_type(*parameter)?;
                     let symbol = formatter
-                        .query
+                        .program
                         .environment_bound()?
                         .language
                         .symbol(dir::LanguageItem::WithAccess)
@@ -277,7 +277,7 @@ impl Formatter<'_, '_, '_> {
 
     /// Format one concrete placement form.
     fn placed_form(&self, type_id: dir::GlobalTypeId, value: &str) -> QueryResult<String> {
-        self.query
+        self.program
             .read_type(type_id, |type_value, _| match type_value {
                 dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(space))) => {
                     Ok(format!("{} {value}", space.text()))

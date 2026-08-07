@@ -3,20 +3,20 @@ use destack_dir as dir;
 use crate::{ModuleQueryContext, ProgramQueryContext, QueryResult};
 
 /// Formatter for query display text.
-pub(crate) struct Formatter<'owner, 'module, 'query> {
+pub(crate) struct Formatter<'owner, 'module, 'program> {
     /// The module that owns local ids read by the formatter.
     pub(super) module: &'owner ModuleQueryContext<'module>,
-    /// The shared query context.
-    pub(super) query: &'owner ProgramQueryContext<'query>,
+    /// The queried program.
+    pub(super) program: &'owner ProgramQueryContext<'program>,
 }
 
-impl<'owner, 'module, 'query> Formatter<'owner, 'module, 'query> {
+impl<'owner, 'module, 'program> Formatter<'owner, 'module, 'program> {
     /// Create a formatter for one module.
     pub(crate) fn new(
         module: &'owner ModuleQueryContext<'module>,
-        query: &'owner ProgramQueryContext<'query>,
+        program: &'owner ProgramQueryContext<'program>,
     ) -> Self {
-        Self { module, query }
+        Self { module, program }
     }
 
     /// Return the type table visible to this formatter.
@@ -35,8 +35,8 @@ impl<'owner, 'module, 'query> Formatter<'owner, 'module, 'query> {
 
             read(&type_value, self)
         } else {
-            self.query.read_type(type_id, |type_value, module| {
-                let formatter = Formatter::new(module, self.query);
+            self.program.read_type(type_id, |type_value, module| {
+                let formatter = Formatter::new(module, self.program);
 
                 read(type_value, &formatter)
             })
