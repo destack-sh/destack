@@ -41,6 +41,8 @@ pub struct DirModule<'a> {
     pub auto: &'a dir::AutoTable<'static>,
     /// The resolution table.
     pub resolutions: &'a dir::ResolutionTable<'static>,
+    /// The decision table.
+    pub decisions: &'a dir::DecisionTable<'static>,
     /// The generic table.
     pub generics: &'a dir::GenericTable<'static>,
     /// The definition table.
@@ -86,6 +88,8 @@ pub(super) struct DirModuleStorage {
     auto: dir::AutoTable<'static>,
     /// The resolution table.
     resolutions: dir::ResolutionTable<'static>,
+    /// The decision table.
+    decisions: dir::DecisionTable<'static>,
     /// The generic table.
     pub(super) generics: dir::GenericTable<'static>,
     /// The definition table.
@@ -120,6 +124,7 @@ impl<'a> DirModule<'a> {
             decorators: &storage.decorators,
             auto: &storage.auto,
             resolutions: &storage.resolutions,
+            decisions: &storage.decisions,
             generics: &storage.generics,
             definitions: &storage.definitions,
             coercions: &storage.coercions,
@@ -321,6 +326,7 @@ impl DirModuleStorage {
         let exported = artifacts.dir_exported(module_id, profile)?;
         let checked = artifacts.dir_checked(module_id, profile)?;
         let declared = artifacts.dir_declared(module_id, profile)?;
+        let elaborated = artifacts.dir_elaborated(module_id, profile)?;
         let expected_files = module
             .files
             .iter()
@@ -354,15 +360,16 @@ impl DirModuleStorage {
         }
 
         // compose the checked tables
-        let bindings = checked.binding_table(&bound, &expanded, &declared);
+        let bindings = checked.binding_table(&bound, &expanded, &declared, &elaborated);
         let modules = expanded.module_table(&imported);
-        let types = checked.type_table(&bound, &expanded, &declared);
-        let statics = checked.static_table(&bound, &expanded, &declared);
+        let types = checked.type_table(&bound, &expanded, &declared, &elaborated);
+        let statics = checked.static_table(&bound, &expanded, &declared, &elaborated);
         let decorators = checked.decorator_table(&declared);
-        let auto = checked.auto_table();
-        let resolutions = checked.resolution_table(&declared);
-        let generics = checked.generic_table(&declared);
-        let definitions = checked.definition_table(&declared);
+        let auto = checked.auto_table(&elaborated);
+        let resolutions = checked.resolution_table(&declared, &elaborated);
+        let decisions = checked.decision_table(&declared, &elaborated);
+        let generics = checked.generic_table(&declared, &elaborated);
+        let definitions = checked.definition_table(&declared, &elaborated);
         let coercions = checked.coercion_table();
         let captures = checked.capture_table();
         let roots = expanded.roots.clone();
@@ -383,6 +390,7 @@ impl DirModuleStorage {
             decorators,
             auto,
             resolutions,
+            decisions,
             generics,
             definitions,
             coercions,

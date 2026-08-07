@@ -159,7 +159,10 @@ fn mutable_binding_uses(
     let mut uses: FxIndexMap<dir::GlobalSymbolId, Vec<dir::LocalNodeIdAny>> = FxIndexMap::default();
 
     // collect direct binding writes
-    for (source, assignment) in module.resolutions.assignment_entries() {
+    for (source, resolution) in module.decisions.decision_entries() {
+        let dir::Decision::Assignment(assignment) = resolution else {
+            continue;
+        };
         let dir::WriteResolution::Binding { symbol, .. } = assignment.write else {
             continue;
         };
@@ -207,7 +210,7 @@ fn record_mutable_binding_use(
     use_: dir::LocalNodeIdAny,
     uses: &mut FxIndexMap<dir::GlobalSymbolId, Vec<dir::LocalNodeIdAny>>,
 ) {
-    let Some(access) = module.resolutions.access_resolution(source) else {
+    let Some(access) = module.decisions.access_resolution(source) else {
         return;
     };
     let dir::AccessRoot::Symbol(symbol) = access.path().root() else {

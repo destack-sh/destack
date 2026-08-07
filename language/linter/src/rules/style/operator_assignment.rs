@@ -65,7 +65,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
 
         // require one selected operation and one repeatable checked target
-        if module.operator_resolution(right.into_any())?.is_none() {
+        if module.operator_decision(right.into_any())?.is_none() {
             continue;
         }
         if !module.is_repeated_expression(*target, *repeated)? {

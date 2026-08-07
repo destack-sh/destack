@@ -50,7 +50,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         // require the compiler's builtin equality selection
-        let Some(resolution) = module.operator_resolution(expression_id.into_any())? else {
+        let Some(resolution) = module.operator_decision(expression_id.into_any())? else {
             continue;
         };
         if !resolution.is_builtin() {

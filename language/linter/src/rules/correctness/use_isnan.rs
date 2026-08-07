@@ -47,7 +47,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 if !operator.is_equality() {
                     continue;
                 }
-                let Some(resolution) = module.operator_resolution(expression_id.into_any())? else {
+                let Some(resolution) = module.operator_decision(expression_id.into_any())? else {
                     continue;
                 };
                 if !resolution.is_builtin() {
@@ -89,8 +89,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                     };
                     has_selector = true;
                     let is_builtin = module
-                        .operator_resolution(case.into_any())?
-                        .is_some_and(dir::OperatorResolution::is_builtin);
+                        .operator_decision(case.into_any())?
+                        .is_some_and(dir::OperatorDecision::is_builtin);
                     uses_builtin_equality &= is_builtin;
                     if is_builtin {
                         selectors.push(selector);

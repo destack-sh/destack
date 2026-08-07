@@ -75,7 +75,7 @@ impl DirModule<'_> {
         match view.get(expression) {
             // calls retain one selected callable for every runtime arm
             dir::Expression::Call { .. } => {
-                let Some(resolution) = self.call_resolution(expression)? else {
+                let Some(resolution) = self.call_decision(expression)? else {
                     return Ok(None);
                 };
                 let symbols = resolution.iter().map(|call| call.target.symbol());
@@ -85,7 +85,7 @@ impl DirModule<'_> {
 
             // property reads retain one selected member for every runtime arm
             dir::Expression::Member { .. } => {
-                let Some(resolution) = self.member_resolution(expression)? else {
+                let Some(resolution) = self.member_decision(expression)? else {
                     return Ok(None);
                 };
                 let symbols = resolution.iter().map(|access| access.target.symbol());
@@ -101,7 +101,7 @@ impl DirModule<'_> {
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<dir::LanguageMember>, ProviderError> {
-        let Some(resolution) = self.operator_resolution(expression.into_any())? else {
+        let Some(resolution) = self.operator_decision(expression.into_any())? else {
             return Ok(None);
         };
         let symbols = resolution

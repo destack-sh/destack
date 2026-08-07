@@ -68,7 +68,7 @@ impl DirModule<'_> {
                 *symbol
             }
             dir::Expression::Member { .. } => {
-                let Some(resolution) = self.member_resolution(node)? else {
+                let Some(resolution) = self.member_decision(node)? else {
                     return Ok(None);
                 };
                 let dir::OperationResolution::One(access) = resolution else {
@@ -93,7 +93,7 @@ impl DirModule<'_> {
     ) -> Option<&dir::AccessResolution> {
         let global = node.into_global_any(self.id);
 
-        self.resolutions.access_resolution(global)
+        self.decisions.access_resolution(global)
     }
 
     /// Return whether two checked expressions repeat one deterministic computation.
@@ -149,8 +149,8 @@ impl DirModule<'_> {
                         | dir::UnaryOperator::Void
                 ) =>
             {
-                let left_resolution = self.operator_resolution(left.into_any())?;
-                let right_resolution = self.operator_resolution(right.into_any())?;
+                let left_resolution = self.operator_decision(left.into_any())?;
+                let right_resolution = self.operator_decision(right.into_any())?;
                 let (Some(left_resolution), Some(right_resolution)) =
                     (left_resolution, right_resolution)
                 else {
@@ -179,8 +179,8 @@ impl DirModule<'_> {
                     right: right_right,
                 },
             ) if left_operator == right_operator => {
-                let left_resolution = self.operator_resolution(left.into_any())?;
-                let right_resolution = self.operator_resolution(right.into_any())?;
+                let left_resolution = self.operator_decision(left.into_any())?;
+                let right_resolution = self.operator_decision(right.into_any())?;
                 let (Some(left_resolution), Some(right_resolution)) =
                     (left_resolution, right_resolution)
                 else {
@@ -261,12 +261,12 @@ impl DirModule<'_> {
     }
 
     /// Return the operator resolution selected for one checked node.
-    pub fn operator_resolution(
+    pub fn operator_decision(
         &self,
         node: dir::LocalNodeIdAny,
-    ) -> Result<Option<&dir::OperatorResolution>, ProviderError> {
+    ) -> Result<Option<&dir::OperatorDecision>, ProviderError> {
         let global = node.into_global(self.id);
-        let Some(resolution) = self.resolutions.operator_resolution(global) else {
+        let Some(resolution) = self.decisions.operator_decision(global) else {
             if self.node_type(node)?.is_error() {
                 return Ok(None);
             }
@@ -281,12 +281,12 @@ impl DirModule<'_> {
     }
 
     /// Return the call resolution selected for one checked expression.
-    pub fn call_resolution(
+    pub fn call_decision(
         &self,
         node: dir::LocalNodeId<dir::Expression>,
-    ) -> Result<Option<&dir::CallResolution>, ProviderError> {
+    ) -> Result<Option<&dir::CallDecision>, ProviderError> {
         let global = node.into_global_any(self.id);
-        let Some(resolution) = self.resolutions.call_resolution(global) else {
+        let Some(resolution) = self.decisions.call_decision(global) else {
             if self.node_type(node.into_any())?.is_error() {
                 return Ok(None);
             }
@@ -329,19 +329,19 @@ impl DirModule<'_> {
         application: dir::LocalNodeIdAny,
     ) -> Result<Option<&[dir::BuiltinOperand]>, ProviderError> {
         let operands = self
-            .operator_resolution(application)?
-            .and_then(dir::OperatorResolution::builtin_operands);
+            .operator_decision(application)?
+            .and_then(dir::OperatorDecision::builtin_operands);
 
         Ok(operands)
     }
 
     /// Return the member resolution selected for one checked expression.
-    pub fn member_resolution(
+    pub fn member_decision(
         &self,
         node: dir::LocalNodeId<dir::Expression>,
-    ) -> Result<Option<&dir::MemberResolution>, ProviderError> {
+    ) -> Result<Option<&dir::MemberDecision>, ProviderError> {
         let global = node.into_global_any(self.id);
-        let Some(resolution) = self.resolutions.member_resolution(global) else {
+        let Some(resolution) = self.decisions.member_decision(global) else {
             if self.node_type(node.into_any())?.is_error() {
                 return Ok(None);
             }

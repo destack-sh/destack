@@ -143,7 +143,7 @@ impl<'a> CounterUpdate<'a> {
         };
 
         // require builtin update behavior over one stable place
-        let Some(resolution) = module.operator_resolution(increment.into_any())? else {
+        let Some(resolution) = module.operator_decision(increment.into_any())? else {
             return Ok(None);
         };
         if !resolution.is_builtin() {
@@ -177,7 +177,7 @@ impl<'a> CounterUpdate<'a> {
         else {
             return Ok(None);
         };
-        let Some(resolution) = module.operator_resolution(condition.into_any())? else {
+        let Some(resolution) = module.operator_decision(condition.into_any())? else {
             return Ok(None);
         };
         if !resolution.is_builtin() {

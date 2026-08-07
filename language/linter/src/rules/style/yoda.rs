@@ -51,7 +51,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         {
             continue;
         }
-        let Some(resolution) = module.operator_resolution(expression.into_any())? else {
+        let Some(resolution) = module.operator_decision(expression.into_any())? else {
             continue;
         };
         if !resolution.is_builtin() {

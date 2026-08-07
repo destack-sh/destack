@@ -48,7 +48,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         // require the compiler's builtin comparison selection
-        let Some(resolution) = module.operator_resolution(expression_id.into_any())? else {
+        let Some(resolution) = module.operator_decision(expression_id.into_any())? else {
             continue;
         };
         let Some([left_operand, right_operand]) = resolution.builtin_operands() else {
