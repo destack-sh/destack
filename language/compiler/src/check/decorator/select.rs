@@ -59,12 +59,10 @@ impl BodyState<'_, '_> {
             NewtypeOverload::Unambiguous,
             ValueUse::Comptime,
         )?);
-        let (selection, parameters, return_type) = match matched {
-            NewtypeMatch::Selected(signature) | NewtypeMatch::ReturnMismatch(signature) => (
-                signature.selection,
-                signature.parameters,
-                signature.return_type,
-            ),
+        let (selection, signature) = match matched {
+            NewtypeMatch::Selected(signature) | NewtypeMatch::ReturnMismatch(signature) => {
+                (signature.selection, signature.signature)
+            }
             NewtypeMatch::Invalid { rejection, .. } => {
                 self.report_decorator_rejection(
                     site.origin(),
@@ -92,16 +90,8 @@ impl BodyState<'_, '_> {
                 symbol: application.symbol,
             },
         };
-        let origin = Origin::Node(
-            application.expression.decorator.into_global_any(module),
-            None,
-        );
-        let arguments = self.argument_bindings(
-            origin,
-            module,
-            &application.expression.arguments,
-            &parameters,
-        )?;
+        let arguments = signature.bind_arguments(module, &application.expression.arguments);
+        let return_type = signature.return_type;
 
         let resolution = dir::DecoratorResolution {
             target,
@@ -253,12 +243,10 @@ impl BodyState<'_, '_> {
                 NewtypeOverload::Unambiguous,
                 ValueUse::Comptime,
             )?);
-            let (selection, parameters, return_type) = match matched {
-                NewtypeMatch::Selected(signature) | NewtypeMatch::ReturnMismatch(signature) => (
-                    signature.selection,
-                    signature.parameters,
-                    signature.return_type,
-                ),
+            let (selection, signature) = match matched {
+                NewtypeMatch::Selected(signature) | NewtypeMatch::ReturnMismatch(signature) => {
+                    (signature.selection, signature.signature)
+                }
                 NewtypeMatch::Invalid { rejection, .. } => {
                     self.report_decorator_rejection(
                         origin,
@@ -279,21 +267,16 @@ impl BodyState<'_, '_> {
             // retain the selected provider construction for static evaluation
             let resolution = dir::ConstructResolution::new(
                 dir::ConstructTarget::Newtype(selection.clone()),
-                self.argument_bindings(
-                    Origin::Node(expression.into_global_any(module), None),
-                    module,
-                    &arguments,
-                    &parameters,
-                )?,
-                return_type,
+                signature.bind_arguments(module, &arguments),
+                signature.return_type,
             );
             self.commit_decision(
                 expression.into_global_any(module),
                 Decision::Construct(resolution),
             )?;
-            self.commit_node_type(expression.into_global_any(module), return_type)?;
+            self.commit_node_type(expression.into_global_any(module), signature.return_type)?;
 
-            (selection, return_type)
+            (selection, signature.return_type)
         }
         // otherwise select the zero-argument backing of a bare provider
         else {
@@ -325,7 +308,7 @@ impl BodyState<'_, '_> {
             )?);
             let (selection, return_type) = match matched {
                 NewtypeMatch::Selected(signature) | NewtypeMatch::ReturnMismatch(signature) => {
-                    (signature.selection, signature.return_type)
+                    (signature.selection, signature.signature.return_type)
                 }
                 NewtypeMatch::Invalid { rejection, .. } => {
                     self.report_decorator_rejection(

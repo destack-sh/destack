@@ -1145,7 +1145,7 @@ impl BodyState<'_, '_> {
         let SignatureMatch::Selected(signature) = selected else {
             return Ok(Answer::Ready(None));
         };
-        let arguments = Self::source_argument_bindings(&[], &signature.parameters);
+        let arguments = signature.bind_sources(&[]);
         let resolution = signature.member_call(resolution, candidate.owner, symbol, arguments);
 
         Ok(Answer::Ready(Some(resolution)))
@@ -1195,7 +1195,7 @@ impl BodyState<'_, '_> {
                 message: format!("selected setter {symbol:?} rejects its declared value type"),
             });
         };
-        let arguments = Self::source_argument_bindings(&sources, &signature.parameters);
+        let arguments = signature.bind_sources(&sources);
         let resolution = signature.member_call(resolution, candidate.owner, symbol, arguments);
 
         Ok(Answer::Ready(resolution))
@@ -1341,7 +1341,8 @@ impl BodyState<'_, '_> {
         let Some(receiver) = receiver else {
             return Ok(Answer::Ready(ty));
         };
-        let ty = answer!(self.project_member_place(origin, receiver, ty)?);
+        let ty = answer!(self.resolve_contained_type(origin, receiver, ty)?);
+        let ty = answer!(self.reduce_type_head(origin, ty)?);
 
         // readonly receivers project deep readonly views onto stored fields
         if !answer!(self.receiver_projects_readonly(origin, receiver)?) {
@@ -1909,68 +1910,6 @@ impl BodyState<'_, '_> {
         }
 
         Ok(Answer::Ready(None))
-    }
-
-    /// Return one field type projected through the receiver placement.
-    fn project_member_place(
-        &mut self,
-        origin: Origin,
-        receiver: dir::GlobalTypeId,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let Some(place) = answer!(self.receiver_projected_place(origin, receiver)?) else {
-            return Ok(Answer::Ready(ty));
-        };
-        let ty = answer!(self.place_relative_type(origin, place, ty)?);
-
-        self.reduce_type_head(origin, ty)
-    }
-
-    /// Resolve one relative member type in a projected receiver place.
-    pub(in crate::check) fn place_relative_type(
-        &mut self,
-        origin: Origin,
-        place: dir::GlobalTypeId,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        // bare members of local receivers stay bare
-        let root = answer!(self.reduce_type_head(origin, place)?);
-        if self.check.place_space(root)? == Some(dir::Space::Local) {
-            return Ok(Answer::Ready(ty));
-        }
-
-        self.resolve_relative_place(origin, ty, place)
-    }
-
-    /// Return the place projected by one receiver type.
-    pub(in crate::check) fn receiver_projected_place(
-        &mut self,
-        origin: Origin,
-        receiver: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let mut current = receiver;
-        loop {
-            current = answer!(self.reduce_type_head(origin, current)?);
-            let dir::Type::Form(form) = self.ty(current)? else {
-                // bare nominal instances live in their declared or inherited space
-                if let dir::Type::Application(instance) = self.ty(current)?
-                    && let Some(space) = self.check.nominal_space(instance.symbol)?
-                {
-                    let place = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Place(
-                        dir::Place::Space(space),
-                    )))?;
-
-                    return Ok(Answer::Ready(Some(place)));
-                }
-
-                return Ok(Answer::Ready(None));
-            };
-
-            match form.form {
-                dir::Form::Placed { place } => return Ok(Answer::Ready(Some(place))),
-                _ => current = form.value,
-            }
-        }
     }
 
     /// Return whether one projected value should retain a readonly view.

@@ -871,7 +871,7 @@ impl CheckState<'_> {
                 // lend constructor arguments through borrowing parameters
                 let binding = resolution.arguments.iter().find(|binding| {
                     matches!(
-                        binding.argument,
+                        binding.source,
                         dir::ArgumentSource::Provided(provided) if provided == site.node
                     )
                 });
@@ -884,7 +884,7 @@ impl CheckState<'_> {
                     });
                 };
 
-                return self.type_head_borrows(origin, binding.ty);
+                return self.type_head_borrows(origin, binding.argument_type);
             }
 
             return Err(CompilerError::Internal {
@@ -935,11 +935,11 @@ impl CheckState<'_> {
         // borrow an argument according to its selected parameter
         if let Some(binding) = call.arguments.iter().find(|binding| {
             matches!(
-                binding.argument,
+                binding.source,
                 dir::ArgumentSource::Provided(provided) if provided == source
             )
         }) {
-            return self.type_head_borrows(origin, binding.ty);
+            return self.type_head_borrows(origin, binding.argument_type);
         }
 
         // treat the remaining marked position as the selected receiver

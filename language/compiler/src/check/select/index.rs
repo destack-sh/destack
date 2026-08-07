@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Answer, BodyState, Cause, CauseKind, Decision, FlowSite, InferMode, InterfaceIndexSignature,
-    Origin, PlaceUse, Relation, SubscriptProtocol, Value, ValueUse, answer,
+    Origin, PlaceUse, Relation, SubscriptProtocol, TypeSubstitution, Value, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -657,7 +657,15 @@ impl BodyState<'_, '_> {
         let parameters = self
             .signature_parameters(callable_type.module_id, parameters)?
             .to_vec();
-        let arguments = Self::source_argument_bindings(&sources, &parameters);
+        let arguments = parameters
+            .iter()
+            .zip(sources)
+            .map(|(parameter, source)| dir::ArgumentBinding {
+                parameter_type: parameter.ty,
+                argument_type: parameter.ty,
+                source,
+            })
+            .collect();
         let dispatch = dir::DynamicDispatch {
             receiver: dir::AdjustedReceiver::direct(receiver),
             constraint,
@@ -1230,9 +1238,24 @@ impl BodyState<'_, '_> {
         else {
             return Ok(Answer::Ready(None));
         };
-        let parameters = self
+        // select each substituted parameter in the receiver placement
+        let parameter_types = self
             .signature_parameters(callable.module_id, signature.parameters)?
             .to_vec();
+        let substitution = TypeSubstitution::default();
+        let receiver = match &candidate.receiver {
+            dir::MemberReceiver::Direct(receiver) => receiver.ty(),
+            dir::MemberReceiver::Dynamic(dispatch) => dispatch.constraint,
+        };
+        let mut parameters = SmallVec::<[_; 2]>::with_capacity(parameter_types.len());
+        for parameter in parameter_types {
+            parameters.push(answer!(self.select_parameter(
+                origin,
+                parameter,
+                &substitution,
+                Some(receiver)
+            )?));
+        }
         let Some(return_type) = signature.return_type else {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -1257,10 +1280,24 @@ impl BodyState<'_, '_> {
                 generic_arguments: candidate.generic_arguments.clone(),
             },
         };
+
+        // require one recorded source for every IndexSet parameter
+        if parameters.len() != sources.len() {
+            return Err(CompilerError::Internal {
+                message: "selected IndexSet signature has an incompatible arity".to_string(),
+            });
+        }
+
+        // bind parameters and sources in declaration order
+        let arguments = parameters
+            .into_iter()
+            .zip(sources)
+            .map(|(selected, source)| selected.bind(source.clone()))
+            .collect();
         let call = dir::Call {
             target,
             callable_type: callable,
-            arguments: Self::source_argument_bindings(sources, &parameters),
+            arguments,
             return_type,
         };
 

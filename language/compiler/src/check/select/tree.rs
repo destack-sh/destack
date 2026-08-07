@@ -675,9 +675,9 @@ impl BodyState<'_, '_> {
             target,
             callable_type: selection.callable,
             arguments: vec![dir::ArgumentBinding {
-                parameter: 0,
-                ty: row,
-                argument: dir::ArgumentSource::Static(row),
+                parameter_type: row,
+                argument_type: row,
+                source: dir::ArgumentSource::Static(row),
             }],
             return_type: selection.return_type,
         };
@@ -766,7 +766,6 @@ impl BodyState<'_, '_> {
         // construct the instance carrying the checked props row
         let selection = answer!(self.attempt_construct(
             origin,
-            module,
             symbol.module_id,
             &instance,
             target,
@@ -793,9 +792,9 @@ impl BodyState<'_, '_> {
                 generic_arguments,
             }),
             vec![dir::ArgumentBinding {
-                parameter: 0,
-                ty: row,
-                argument: dir::ArgumentSource::Static(row),
+                parameter_type: row,
+                argument_type: row,
+                source: dir::ArgumentSource::Static(row),
             }],
             selection.return_type,
         );

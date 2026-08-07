@@ -1100,7 +1100,7 @@ impl BodyState<'_, '_> {
             | SignatureMatch::Inapplicable(_) => return Ok(Answer::Ready(None)),
         };
 
-        let arguments = Self::source_argument_bindings(argument_sources, &signature.parameters);
+        let arguments = signature.bind_sources(argument_sources);
         let call = signature.member_call(resolution, candidate.owner, symbol, arguments);
         let resolution = dir::OperationResolution::One(call);
 

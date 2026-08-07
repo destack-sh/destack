@@ -3,8 +3,8 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Answer, BodyState, CallableArgument, CandidateOutcome, CandidateVerdict, Expectation,
-    ObligationCheck, Origin, SignatureMatch, SignatureRejection, TypeSubstitution, ValueUse,
-    answer,
+    ObligationCheck, Origin, SignatureMatch, SignatureRejection, SignatureSelection,
+    TypeSubstitution, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -36,14 +36,10 @@ pub(in crate::check) enum NewtypeMatch {
 
 /// One selected newtype backing signature.
 pub(in crate::check) struct NewtypeSignature {
-    /// The durable nominal selection.
+    /// The selected newtype backing.
     pub(in crate::check) selection: dir::NewtypeSelection,
-    /// The selected parameter types.
-    pub(in crate::check) parameters: SmallVec<[dir::FunctionParameterType; 4]>,
-    /// The instantiated nominal return type.
-    pub(in crate::check) return_type: dir::GlobalTypeId,
-    /// The argument conversions selected with the backing.
-    pub(in crate::check) coercions: SmallVec<[(dir::GlobalNodeIdAny, dir::Coercion); 4]>,
+    /// The selected backing signature.
+    pub(in crate::check) signature: SignatureSelection,
 }
 
 /// Reason no backing alternative accepted the supplied arguments.
@@ -263,9 +259,7 @@ impl BodyState<'_, '_> {
 
         let signature = NewtypeSignature {
             selection,
-            parameters: signature.parameters,
-            return_type: signature.return_type,
-            coercions: signature.coercions,
+            signature,
         };
         let matched = match rejection {
             Some(rejection) => NewtypeMatch::Invalid {
@@ -406,7 +400,6 @@ impl BodyState<'_, '_> {
         arguments: &[CallableArgument],
         expectation: Option<Expectation>,
     ) -> CompilerResult<Answer<SignatureMatch>> {
-        let module = origin.module();
         let Some(function) = self.signature_head(candidate.signature)? else {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -418,7 +411,6 @@ impl BodyState<'_, '_> {
 
         self.match_signature(
             origin,
-            module,
             candidate.signature.module_id,
             None,
             &[],

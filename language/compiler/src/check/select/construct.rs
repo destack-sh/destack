@@ -410,7 +410,6 @@ impl BodyState<'_, '_> {
                 |state| {
                     let outcome = state.attempt_construct(
                         origin,
-                        module,
                         target.module_id,
                         &instance,
                         target,
@@ -444,7 +443,6 @@ impl BodyState<'_, '_> {
         if let Some(constructor) = selected {
             let attempt = self.attempt_construct(
                 origin,
-                module,
                 target.module_id,
                 &instance,
                 target,
@@ -602,7 +600,6 @@ impl BodyState<'_, '_> {
     pub(in crate::check) fn attempt_construct(
         &mut self,
         origin: Origin,
-        module: ModuleId,
         instance_module: ModuleId,
         instance: &dir::GenericApplication,
         target: dir::GlobalTypeId,
@@ -625,7 +622,6 @@ impl BodyState<'_, '_> {
         if instance.arguments.is_empty() && template.is_some() {
             return self.match_signature(
                 origin,
-                module,
                 function_type.module_id,
                 Some(instance.symbol),
                 &[],
@@ -642,7 +638,6 @@ impl BodyState<'_, '_> {
         let substitution = self
             .instance_substitution(instance_module, instance)?
             .with_receiver(target);
-        let module = self.module_id;
         let function_type = self.substitute_type(function_type, &substitution)?;
         let function_type = answer!(self.reduce_type_head(origin, function_type)?);
         let Some(function) = self.signature_head(function_type)? else {
@@ -655,7 +650,6 @@ impl BodyState<'_, '_> {
         let carried = self.settled_argument_bindings(&substitution.bindings)?;
         self.match_signature(
             origin,
-            module,
             function_type.module_id,
             Some(instance.symbol),
             &carried,
@@ -754,27 +748,25 @@ impl BodyState<'_, '_> {
         // commit the selected newtype construction
         let NewtypeSignature {
             selection,
-            parameters,
-            coercions,
-            return_type,
+            signature,
         } = signature;
         // commit conversions only after the backing has been selected
-        for (source, coercion) in &coercions {
+        for (source, coercion) in &signature.coercions {
             self.commit_coercion(*source, coercion.clone())?;
         }
         let target = dir::ConstructTarget::Newtype(selection);
         let resolution = dir::ConstructResolution::new(
             target,
-            self.argument_bindings(origin, module, argument_nodes, &parameters)?,
-            return_type,
+            signature.bind_arguments(module, argument_nodes),
+            signature.return_type,
         );
         self.commit_decision(node, Decision::Construct(resolution))?;
-        self.commit_node_type(node, return_type)?;
+        self.commit_node_type(node, signature.return_type)?;
 
-        let expected = expectation.map_or(return_type, |expectation| expectation.target);
+        let expected = expectation.map_or(signature.return_type, |expectation| expectation.target);
 
         Ok(Answer::Ready(ValueCheck {
-            source: return_type,
+            source: signature.return_type,
             outcome,
             target: expected,
         }))
@@ -817,12 +809,7 @@ impl BodyState<'_, '_> {
         }
         let resolution = dir::ConstructResolution::new(
             target,
-            self.argument_bindings(
-                Origin::Node(node, None),
-                module,
-                argument_nodes,
-                &signature.parameters,
-            )?,
+            signature.bind_arguments(module, argument_nodes),
             produced,
         );
         self.commit_decision(node, Decision::Construct(resolution))?;
@@ -868,7 +855,6 @@ impl BodyState<'_, '_> {
                 |state| {
                     let outcome = state.attempt_construct(
                         origin,
-                        module,
                         constraint_module,
                         &instance,
                         target,
@@ -902,7 +888,6 @@ impl BodyState<'_, '_> {
         if let Some(signature) = selected {
             let attempt = self.attempt_construct(
                 origin,
-                module,
                 constraint_module,
                 &instance,
                 target,
@@ -1046,7 +1031,6 @@ impl BodyState<'_, '_> {
                 |state| {
                     let outcome = state.attempt_construct(
                         origin,
-                        module,
                         base_module,
                         &instance,
                         super_ty,
@@ -1080,7 +1064,6 @@ impl BodyState<'_, '_> {
         if let Some(constructor) = selected {
             let attempt = self.attempt_construct(
                 origin,
-                module,
                 base_module,
                 &instance,
                 super_ty,
@@ -1158,12 +1141,7 @@ impl BodyState<'_, '_> {
         });
         let resolution = dir::ConstructResolution::new(
             target,
-            self.argument_bindings(
-                Origin::Node(node, None),
-                module,
-                argument_nodes,
-                &signature.parameters,
-            )?,
+            signature.bind_arguments(module, argument_nodes),
             produced,
         );
         self.commit_decision(node, Decision::Construct(resolution))?;
@@ -1198,12 +1176,7 @@ impl BodyState<'_, '_> {
         // bind the arguments and commit the selection
         let resolution = dir::ConstructResolution::new(
             target,
-            self.argument_bindings(
-                Origin::Node(node, None),
-                module,
-                argument_nodes,
-                &signature.parameters,
-            )?,
+            signature.bind_arguments(module, argument_nodes),
             produced,
         );
         self.commit_decision(node, Decision::Construct(resolution))?;

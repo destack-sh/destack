@@ -1108,13 +1108,8 @@ impl BodyState<'_, '_> {
         let mut calls = Vec::with_capacity(overload.candidates.len());
         let mut returns = SmallVec::<[_; 4]>::new();
         for (candidate, signature) in overload.candidates.iter().zip(signatures) {
-            let call = self.call_resolution(
-                origin,
-                origin.module(),
-                candidate,
-                argument_nodes,
-                &signature,
-            )?;
+            let call =
+                self.call_resolution(origin.module(), candidate, argument_nodes, &signature)?;
             returns.push(call.return_type);
             calls.push(call);
         }
@@ -1187,14 +1182,7 @@ impl BodyState<'_, '_> {
             self.commit_node_type(callee, signature.callable)?;
         }
 
-        let origin = Origin::Node(node, None);
-        let call = self.call_resolution(
-            origin,
-            node.module_id,
-            candidate,
-            argument_nodes,
-            &signature,
-        )?;
+        let call = self.call_resolution(node.module_id, candidate, argument_nodes, &signature)?;
         let resolution = dir::OperationResolution::One(call);
 
         self.commit_call_selection(node, resolution)
@@ -1203,14 +1191,12 @@ impl BodyState<'_, '_> {
     /// Build one expression or symbol call resolution.
     fn call_resolution(
         &mut self,
-        origin: Origin,
         module: ModuleId,
         candidate: &CallableCandidate,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         signature: &SignatureSelection,
     ) -> CompilerResult<dir::Call> {
-        let arguments =
-            self.argument_bindings(origin, module, argument_nodes, &signature.parameters)?;
+        let arguments = signature.bind_arguments(module, argument_nodes);
         let return_type =
             self.select_call_return_type(module, candidate, argument_nodes, signature.return_type)?;
         let target = match &candidate.target {
@@ -1357,12 +1343,7 @@ impl BodyState<'_, '_> {
             discriminator,
             discriminant: dir::ScalarLiteral::String(variant.discriminant),
         });
-        let arguments = self.argument_bindings(
-            Origin::Node(node, None),
-            node.module_id,
-            argument_nodes,
-            &signature.parameters,
-        )?;
+        let arguments = signature.bind_arguments(node.module_id, argument_nodes);
         let resolution = dir::ConstructResolution::new(target, arguments, signature.return_type);
 
         self.commit_decision(node, Decision::Construct(resolution))?;
