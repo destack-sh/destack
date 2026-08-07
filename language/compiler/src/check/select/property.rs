@@ -53,7 +53,17 @@ impl BodyState<'_, '_> {
                         source: value.into_global_any(module),
                     });
                 }
-                dir::Property::Method { key, .. } => {
+                dir::Property::Method { key, signature, .. } => {
+                    // reject accessors that cannot initialize struct storage
+                    if matches!(
+                        signature.role,
+                        Some(dir::FunctionRole::Getter | dir::FunctionRole::Setter)
+                    ) {
+                        self.check
+                            .report_invalid_struct_accessor(property.into_global_any(module));
+                    }
+
+                    // retain ordinary method shorthand and diagnosed accessors for checking
                     let Some(key) = answer!(match key {
                         Some(key) => self.select_property_key(site, key)?,
                         None => Answer::Ready(None),

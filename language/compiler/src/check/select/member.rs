@@ -424,6 +424,41 @@ impl MemberLookup {
     }
 }
 
+impl From<Option<dir::FunctionRole>> for MemberRole {
+    fn from(role: Option<dir::FunctionRole>) -> Self {
+        match role {
+            Some(dir::FunctionRole::Getter) => Self::Getter,
+            Some(dir::FunctionRole::Setter) => Self::Setter,
+            Some(dir::FunctionRole::Constructor)
+            | Some(dir::FunctionRole::New)
+            | Some(dir::FunctionRole::Call)
+            | None => Self::Method,
+        }
+    }
+}
+
+impl TryFrom<&dir::DefinitionMember> for MemberRole {
+    type Error = ();
+
+    fn try_from(member: &dir::DefinitionMember) -> Result<Self, Self::Error> {
+        match member {
+            dir::DefinitionMember::Field(_) => Ok(Self::Field),
+            dir::DefinitionMember::Method(method) => Ok(method.role.into()),
+            dir::DefinitionMember::AssociatedType(_)
+            | dir::DefinitionMember::AssociatedConst(_) => Ok(Self::Associated),
+            dir::DefinitionMember::EnumVariant(_) => Ok(Self::VariantValue),
+            dir::DefinitionMember::TaggedKey(_) => Ok(Self::VariantValue),
+            dir::DefinitionMember::TaggedVariant(variant) if variant.argument.is_some() => {
+                Ok(Self::VariantConstructor)
+            }
+            dir::DefinitionMember::TaggedVariant(_) => Ok(Self::VariantValue),
+            dir::DefinitionMember::CallSignature(_)
+            | dir::DefinitionMember::ConstructSignature(_)
+            | dir::DefinitionMember::IndexSignature(_) => Err(()),
+        }
+    }
+}
+
 impl MemberRole {
     /// Return whether this role selects a callable declaration.
     pub(in crate::check) fn is_callable(self) -> bool {
@@ -431,35 +466,6 @@ impl MemberRole {
             self,
             Self::Method | Self::Getter | Self::Setter | Self::VariantConstructor
         )
-    }
-
-    /// Return the use-site role of one definition member.
-    pub(in crate::check) fn from_definition(member: &dir::DefinitionMember) -> Option<Self> {
-        match member {
-            dir::DefinitionMember::Field(_) => Some(Self::Field),
-            dir::DefinitionMember::Method(method)
-                if method.role == Some(dir::FunctionRole::Getter) =>
-            {
-                Some(Self::Getter)
-            }
-            dir::DefinitionMember::Method(method)
-                if method.role == Some(dir::FunctionRole::Setter) =>
-            {
-                Some(Self::Setter)
-            }
-            dir::DefinitionMember::Method(_) => Some(Self::Method),
-            dir::DefinitionMember::AssociatedType(_)
-            | dir::DefinitionMember::AssociatedConst(_) => Some(Self::Associated),
-            dir::DefinitionMember::EnumVariant(_) => Some(Self::VariantValue),
-            dir::DefinitionMember::TaggedKey(_) => Some(Self::VariantValue),
-            dir::DefinitionMember::TaggedVariant(variant) if variant.argument.is_some() => {
-                Some(Self::VariantConstructor)
-            }
-            dir::DefinitionMember::TaggedVariant(_) => Some(Self::VariantValue),
-            dir::DefinitionMember::CallSignature(_)
-            | dir::DefinitionMember::ConstructSignature(_)
-            | dir::DefinitionMember::IndexSignature(_) => None,
-        }
     }
 
     /// Return whether this role can be read by member access.
@@ -475,38 +481,11 @@ impl DeclaredMember {
         check: &CheckState<'_>,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if !matches!(self.role, MemberRole::Getter | MemberRole::Setter) {
+        let Some(access) = check.property_access(self.role, ty, false)? else {
             return Ok(ty);
-        }
-        let dir::Type::FunctionSignature(function) = check.ty(ty)? else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "accessor member {:?} has non-signature type {ty:?}",
-                    self.symbol
-                ),
-            });
-        };
-        let function = check.type_signature(ty.module_id, function)?;
-
-        if self.role == MemberRole::Getter {
-            return function.return_type.ok_or_else(|| CompilerError::Internal {
-                message: format!("getter member {:?} has no result type", self.symbol),
-            });
-        }
-
-        // setters expose their one written parameter as the property type
-        let parameters = check.signature_parameters(ty.module_id, function.parameters)?;
-        let [parameter] = parameters else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "setter member {:?} has {} value parameters",
-                    self.symbol,
-                    parameters.len(),
-                ),
-            });
         };
 
-        Ok(parameter.ty)
+        Ok(access.store())
     }
 
     /// Return the callable type exposed by this declaration member.
@@ -901,7 +880,7 @@ impl BodyState<'_, '_> {
         &mut self,
         member: &dir::DefinitionMember,
     ) -> CompilerResult<Answer<Option<DeclaredMember>>> {
-        let Some(role) = MemberRole::from_definition(member) else {
+        let Ok(role) = MemberRole::try_from(member) else {
             return Ok(Answer::Ready(None));
         };
         let Some(symbol) = member.symbol() else {

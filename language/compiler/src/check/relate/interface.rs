@@ -433,28 +433,66 @@ impl CheckState<'_> {
                 return Ok(Answer::Ready(false));
             };
 
-            let Some(found) = self.body().member_read_type(origin, &lookup)? else {
-                // absent optional and defaulted members satisfy by omission
-                if member.is_optional || member.has_default {
-                    continue;
-                }
+            let access = self.property_access(member.role, member_type, member.is_readonly)?;
+            let member_decision = match access {
+                // properties relate their complete read and write operations
+                Some(required) if member.role != MemberRole::Method => {
+                    let Some(found) = self.body().member_binding(origin, member.key, &lookup)?
+                    else {
+                        if member.is_optional || member.has_default {
+                            continue;
+                        }
 
-                return Ok(Answer::Ready(false));
-            };
+                        return Ok(Answer::Ready(false));
+                    };
+                    let source = dir::TypeProperty {
+                        key: member.key,
+                        access: found.access,
+                        is_optional: found.is_optional,
+                    };
+                    let target = dir::TypeProperty {
+                        key: member.key,
+                        access: required,
+                        is_optional: member.is_optional,
+                    };
+                    let Some(relations) =
+                        self.shape_property_relations(Relation::Assignable, &source, &target)
+                    else {
+                        return Ok(Answer::Ready(false));
+                    };
 
-            let member_decision = match member.role {
-                // setters accept writes flowing back into the source
-                MemberRole::Setter => {
-                    self.decide_relation(origin, Relation::Assignable, member_type, found)?
+                    self.decide_shape_fields(origin, &relations)?
                 }
-                role if role.is_callable() => self.decide_method_relation(
-                    origin,
-                    Relation::Assignable,
-                    found,
-                    member_type,
-                    None,
-                )?,
-                _ => self.decide_relation(origin, Relation::Assignable, found, member_type)?,
+                // methods compare callable signatures without their receivers
+                Some(_) => {
+                    let Some(found) = self.body().member_read_type(origin, &lookup)? else {
+                        if member.is_optional || member.has_default {
+                            continue;
+                        }
+
+                        return Ok(Answer::Ready(false));
+                    };
+
+                    self.decide_method_relation(
+                        origin,
+                        Relation::Assignable,
+                        found,
+                        member_type,
+                        None,
+                    )?
+                }
+                // associated members use their selected value type
+                None => {
+                    let Some(found) = self.body().member_read_type(origin, &lookup)? else {
+                        if member.is_optional || member.has_default {
+                            continue;
+                        }
+
+                        return Ok(Answer::Ready(false));
+                    };
+
+                    self.decide_relation(origin, Relation::Assignable, found, member_type)?
+                }
             };
             decision = decision.and(member_decision);
             if decision.is_ready_false() {
@@ -710,7 +748,7 @@ impl CheckState<'_> {
 
         // collect direct interface members with applied arguments
         for member in members {
-            let Some(role) = MemberRole::from_definition(&member) else {
+            let Ok(role) = MemberRole::try_from(&member) else {
                 continue;
             };
             let Some(key) = member.key() else {
@@ -774,7 +812,7 @@ impl CheckState<'_> {
 
         // collect inherited interface fields first
         let requirements = answer!(self.interface_requirements(interface, receiver)?);
-        let mut fields = Vec::new();
+        let mut fields = Vec::<dir::TypeProperty>::new();
         for inherited in requirements.inherited {
             let Some(nested) = answer!(self.interface_instance_fields(inherited.ty, receiver)?)
             else {
@@ -785,28 +823,35 @@ impl CheckState<'_> {
                     ),
                 });
             };
-            fields.extend(nested);
+
+            // compose accessor operations inherited through separate requirements
+            for property in nested {
+                if !fields.iter_mut().any(|field| field.compose(property)) {
+                    fields.push(property);
+                }
+            }
         }
         for member in requirements.members {
             if member.space != dir::MemberSpace::Instance {
                 continue;
             }
+
             let Some(ty) = member.ty else {
                 continue;
             };
-
-            let access = match member.is_readonly {
-                true => dir::PropertyAccess::Read(ty),
-                false => dir::PropertyAccess::ReadWrite {
-                    read: ty,
-                    write: ty,
-                },
+            let Some(access) = self.property_access(member.role, ty, member.is_readonly)? else {
+                continue;
             };
-            fields.push(dir::TypeProperty {
+            let property = dir::TypeProperty {
                 key: member.key,
                 access,
                 is_optional: member.is_optional || member.has_default,
-            });
+            };
+
+            // merge complementary getter and setter operations
+            if !fields.iter_mut().any(|field| field.compose(property)) {
+                fields.push(property);
+            }
         }
 
         Ok(Answer::Ready(Some(fields)))

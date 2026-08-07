@@ -2734,4 +2734,15 @@ impl CheckState<'_> {
 
         self.report(module, error);
     }
+
+    /// Report one accessor used as a struct field initializer.
+    pub(in crate::check) fn report_invalid_struct_accessor(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+    ) {
+        let (module, anchor) = self.source_anchor(source);
+        let error = CheckError::InvalidStructAccessor { anchor, module };
+
+        self.report(module, error);
+    }
 }

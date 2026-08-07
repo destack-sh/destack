@@ -2202,6 +2202,23 @@ pub struct TypeProperty {
     pub is_optional: bool,
 }
 
+impl TypeProperty {
+    /// Compose complementary operations from another property.
+    pub fn compose(&mut self, other: TypeProperty) -> bool {
+        if self.key != other.key {
+            return false;
+        }
+        let Some(access) = self.access.composed(other.access) else {
+            return false;
+        };
+
+        self.access = access;
+        self.is_optional &= other.is_optional;
+
+        true
+    }
+}
+
 /// The value types exposed by one structural property.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum PropertyAccess {
@@ -2281,6 +2298,17 @@ impl PropertyAccess {
             Self::ReadWrite { read, .. } => Self::Read(read),
             access => access,
         }
+    }
+
+    /// Combine complementary property operations, rejecting overlapping operations.
+    pub fn composed(self, other: PropertyAccess) -> Option<PropertyAccess> {
+        let overlaps = self.read().is_some() && other.read().is_some()
+            || self.write().is_some() && other.write().is_some();
+        if overlaps {
+            return None;
+        }
+
+        Some(self.merged(other))
     }
 
     /// Merge one key's accessor operations into a single access.

@@ -56,6 +56,34 @@ point satisfies Point;
     );
 }
 
+/// Reject accessors because struct literals initialize stored fields.
+#[test]
+fn test_struct_literal_rejects_accessors() {
+    let session = TestSession::single(
+        r#"
+struct Store {
+    read: () => string;
+    write: (value: string) => void;
+}
+
+const store = Store {
+    get read(): string { return "ready"; },
+    set write(value: string): void {},
+};
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=invalid-struct-accessor message="accessors are not valid in struct literals"
+/// @diagnostic.label line=8 column=9 span="read" line_source="get read(): string { return \"ready\"; },"
+/// @diagnostic.error id=invalid-struct-accessor message="accessors are not valid in struct literals"
+/// @diagnostic.label line=9 column=9 span="write" line_source="set write(value: string): void {},"
+"#,
+    );
+}
+
 #[test]
 fn test_generic_struct_literal_uses_expected_result_arguments() {
     let session = TestSession::single(

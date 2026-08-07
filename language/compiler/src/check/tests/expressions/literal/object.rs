@@ -677,3 +677,406 @@ const value = { name: "Ada", name: "Grace" };
 "#,
     );
 }
+
+/// Infer a getter as a readable object property.
+#[test]
+fn test_object_getter_infers_read_property() {
+    let session = TestSession::single(
+        r#"
+const store = {
+    get value(): string { return "ready"; },
+};
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_check_stats(),
+        r#"
+=== annotated ===
+const store: { readonly value: string } = {
+    get value(): string {
+        return "ready";
+    },
+};
+
+=== checked ===
+const store = {
+/// @type.symbol symbol=store source=store type={ readonly value: string }
+/// @resolution.pattern source=store kind=binding target=store
+/// @type.node type={ readonly value: string }
+
+    get value(): string { return "ready"; },
+    /// @type.symbol symbol=symbol1 source="get value(): string { return \"ready\"; }" type=() => string
+    /// @type.node source="\"ready\"" type="ready"
+
+};
+
+/// @check.stats.solve variables=1 types=7 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+"#,
+    );
+}
+
+/// Infer a setter as a writable object property.
+#[test]
+fn test_object_setter_infers_write_property() {
+    let session = TestSession::single(
+        r#"
+const store = {
+    set value(next: string): void {},
+};
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_check_stats(),
+        r#"
+=== annotated ===
+const store: { value: string } = {
+    set value(next: string): void {},
+};
+
+=== checked ===
+const store = {
+/// @type.symbol symbol=store source=store type={ set value(value: string) }
+/// @resolution.pattern source=store kind=binding target=store
+/// @type.node type={ set value(value: string) }
+
+    set value(next: string): void {},
+    /// @type.symbol symbol=symbol1 source="set value(next: string): void {}" type=(string) => void
+    /// @type.symbol symbol=symbol1.next source="next: string" type=string
+
+};
+
+/// @check.stats.solve variables=1 types=5 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+"#,
+    );
+}
+
+/// Merge one getter and setter into one readable and writable object property.
+#[test]
+fn test_object_accessor_pair_infers_property_operations() {
+    let session = TestSession::single(
+        r#"
+const store = {
+    get value(): string { return "ready"; },
+    set value(next: string | int32): void {},
+};
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_check_stats(),
+        r#"
+=== annotated ===
+const store: { value: string | int32 } = {
+    get value(): string {
+        return "ready";
+    },
+    set value(next: string | int32): void {},
+};
+
+=== checked ===
+const store = {
+/// @type.symbol symbol=store source=store type={ get value(): string; set value(value: string | int32) }
+/// @resolution.pattern source=store kind=binding target=store
+/// @type.node type={ get value(): string; set value(value: string | int32) }
+
+    get value(): string { return "ready"; },
+    /// @type.symbol symbol=symbol1 source="get value(): string { return \"ready\"; }" type=() => string
+    /// @type.node source="\"ready\"" type="ready"
+
+    set value(next: string | int32): void {},
+    /// @type.symbol symbol=symbol2 source="set value(next: string | int32): void {}" type=(string | int32) => void
+    /// @type.symbol symbol=symbol2.next source="next: string | int32" type=string | int32
+
+};
+
+/// @check.stats.solve variables=1 types=10 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+"#,
+    );
+}
+
+/// Accept an object accessor pair under a structural property expectation.
+#[test]
+fn test_object_accessor_pair_satisfies_property_expectation() {
+    let session = TestSession::single(
+        r#"
+interface Store {
+    get value(): string;
+    set value(next: string | int32);
+}
+const store: Store = {
+    get value(): string { return "ready"; },
+    set value(next: string | int32): void {},
+};
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_check_stats(),
+        r#"
+=== annotated ===
+interface Store {
+    get value(): string;
+    set value(next: string | int32);
+}
+const store: Dynamic<Store> = {
+    get value(): string {
+        return "ready";
+    },
+    set value(next: string | int32): void {},
+} as Dynamic<Store>;
+
+=== checked ===
+interface Store {
+/// @type.symbol symbol=Store type=Store
+/// @definition.interface symbol=Store
+/// @definition.method symbol=Store.value#1 source="get value(): string" slot=value role=getter type=(this: this) => string
+/// @definition.method symbol=Store.value#2 source="set value(next: string | int32)" slot=value role=setter type=(this: this, string | int32) => void
+
+    get value(): string;
+    /// @type.symbol symbol=Store.value#1 source="get value(): string" type=(this: this) => string
+
+    set value(next: string | int32);
+    /// @type.symbol symbol=Store.value#2 source="set value(next: string | int32)" type=(this: this, string | int32) => void
+    /// @type.symbol symbol=Store.value.next source="next: string | int32" type=string | int32
+
+}
+const store: Store = {
+/// @type.symbol symbol=store source=store type=Dynamic<Store>
+/// @resolution.pattern source=store kind=binding target=store
+/// @resolution.name source=Store target=Store
+/// @type.node type={ get value(): string; set value(value: string | int32) }
+
+    get value(): string { return "ready"; },
+    /// @type.symbol symbol=symbol7 source="get value(): string { return \"ready\"; }" type=() => string
+    /// @type.node source="\"ready\"" type="ready"
+
+    set value(next: string | int32): void {},
+    /// @type.symbol symbol=symbol8 source="set value(next: string | int32): void {}" type=(string | int32) => void
+    /// @type.symbol symbol=symbol8.next source="next: string | int32" type=string | int32
+
+};
+
+/// @check.stats.solve variables=0 types=18 constraints=0 obligations=3 solutions=0 bounds=0 decisions=1
+"#,
+    );
+}
+
+/// Reject an object getter incompatible with its property expectation.
+#[test]
+fn test_object_getter_rejects_incompatible_property_expectation() {
+    let session = TestSession::single(
+        r#"
+interface Store {
+    get value(): string;
+}
+const store: Store = {
+    get value(): int32 { return 1; },
+};
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=not-assignable message="type '{ readonly value: int32 }' is not assignable to type 'Dynamic<Store>'"
+/// @diagnostic.label line=5 column=22 span="{\n    get value(): int32 { return 1; },\n}" line_source="const store: Store = {"
+/// @diagnostic.related line=5 column=14 span="Store" line_source="const store: Store = {" message="expected due to this annotation"
+"#,
+    );
+}
+
+/// Reject an object setter incompatible with its property expectation.
+#[test]
+fn test_object_setter_rejects_incompatible_property_expectation() {
+    let session = TestSession::single(
+        r#"
+interface Store {
+    set value(next: string);
+}
+const store: Store = {
+    set value(next: int32): void {},
+};
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=not-assignable message="type '{ set value(value: int32) }' is not assignable to type 'Dynamic<Store>'"
+/// @diagnostic.label line=5 column=22 span="{\n    set value(next: int32): void {},\n}" line_source="const store: Store = {"
+/// @diagnostic.related line=5 column=14 span="Store" line_source="const store: Store = {" message="expected due to this annotation"
+"#,
+    );
+}
+
+/// Reject object accessors missing the operation required by their interfaces.
+#[test]
+fn test_object_accessor_rejects_missing_property_operation() {
+    let session = TestSession::single(
+        r#"
+interface Readable {
+    get value(): string;
+}
+interface Writable {
+    set value(next: string);
+}
+
+const readable: Readable = {
+    set value(next: string): void {},
+};
+const writable: Writable = {
+    get value(): string { return "ready"; },
+};
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=not-assignable message="type '{ set value(value: string) }' is not assignable to type 'Dynamic<Readable>'"
+/// @diagnostic.label line=9 column=28 span="{\n    set value(next: string): void {},\n}" line_source="const readable: Readable = {"
+/// @diagnostic.related line=9 column=17 span="Readable" line_source="const readable: Readable = {" message="expected due to this annotation"
+/// @diagnostic.error id=not-assignable message="type '{ readonly value: string }' is not assignable to type 'Dynamic<Writable>'"
+/// @diagnostic.label line=12 column=28 span="{\n    get value(): string { return \"ready\"; },\n}" line_source="const writable: Writable = {"
+/// @diagnostic.related line=12 column=17 span="Writable" line_source="const writable: Writable = {" message="expected due to this annotation"
+"#,
+    );
+}
+
+/// Reject two getters for one object property.
+#[test]
+fn test_reject_duplicate_object_getters() {
+    let session = TestSession::single(
+        r#"
+const store = {
+    get value(): string { return "ready"; },
+    get value(): string { return "waiting"; },
+};
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+const store: { readonly value: string } = {
+    get value(): string {
+        return "ready";
+    },
+    get value(): string {
+        return "waiting";
+    },
+};
+
+=== checked ===
+const store = {
+/// @type.symbol symbol=store source=store type={ readonly value: string }
+/// @resolution.pattern source=store kind=binding target=store
+
+    get value(): string { return "ready"; },
+    /// @type.symbol symbol=symbol1 source="get value(): string { return \"ready\"; }" type=() => string
+
+    get value(): string { return "waiting"; },
+    /// @type.symbol symbol=symbol2 source="get value(): string { return \"waiting\"; }" type=() => string
+
+};
+"#,
+        r#"
+/// @diagnostic.error id=duplicate-member message="member 'value' is already declared"
+/// @diagnostic.label line=4 column=9 span="value" line_source="get value(): string { return \"waiting\"; },"
+"#,
+    );
+}
+
+/// Reject two setters for one object property.
+#[test]
+fn test_reject_duplicate_object_setters() {
+    let session = TestSession::single(
+        r#"
+const store = {
+    set value(next: string): void {},
+    set value(next: string): void {},
+};
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+const store: { value: string } = {
+    set value(next: string): void {},
+    set value(next: string): void {},
+};
+
+=== checked ===
+const store = {
+/// @type.symbol symbol=store source=store type={ set value(value: string) }
+/// @resolution.pattern source=store kind=binding target=store
+
+    set value(next: string): void {},
+    /// @type.symbol symbol=symbol1 source="set value(next: string): void {}" type=(string) => void
+    /// @type.symbol symbol=symbol1.next source="next: string" type=string
+
+    set value(next: string): void {},
+    /// @type.symbol symbol=symbol3 source="set value(next: string): void {}" type=(string) => void
+    /// @type.symbol symbol=symbol3.next source="next: string" type=string
+
+};
+"#,
+        r#"
+/// @diagnostic.error id=duplicate-member message="member 'value' is already declared"
+/// @diagnostic.label line=4 column=9 span="value" line_source="set value(next: string): void {},"
+"#,
+    );
+}
+
+/// Reject an accessor colliding with an object field.
+#[test]
+fn test_reject_object_accessor_field_collision() {
+    let session = TestSession::single(
+        r#"
+const store = {
+    value: "ready",
+    get value(): string { return "waiting"; },
+};
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+const store: { readonly value: string } = {
+    value: "ready",
+    get value(): string {
+        return "waiting";
+    },
+};
+
+=== checked ===
+const store = {
+/// @type.symbol symbol=store source=store type={ readonly value: string }
+/// @resolution.pattern source=store kind=binding target=store
+
+    value: "ready",
+    get value(): string { return "waiting"; },
+    /// @type.symbol symbol=symbol1 source="get value(): string { return \"waiting\"; }" type=() => string
+
+};
+"#,
+        r#"
+/// @diagnostic.error id=duplicate-member message="member 'value' is already declared"
+/// @diagnostic.label line=4 column=9 span="value" line_source="get value(): string { return \"waiting\"; },"
+"#,
+    );
+}

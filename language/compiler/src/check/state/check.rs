@@ -12,8 +12,8 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Cause, CauseId, CheckExternalModuleState, CheckModuleState, CheckTrace, DecisionTable,
-    DecoratorApplication, FunctionBody, GenericIndex, GenericTemplateId, Origin, OriginId,
-    Relation, Solver, TryPropagationTarget, TypeSubstitution, should_stream_check_events,
+    DecoratorApplication, FunctionBody, GenericIndex, GenericTemplateId, MemberRole, Origin,
+    OriginId, Relation, Solver, TryPropagationTarget, TypeSubstitution, should_stream_check_events,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -718,6 +718,61 @@ impl CheckState<'_> {
             }
             _ => Ok(None),
         }
+    }
+
+    /// Return the structural property operations exposed by one member.
+    pub(in crate::check) fn property_access(
+        &self,
+        role: MemberRole,
+        ty: dir::GlobalTypeId,
+        is_readonly: bool,
+    ) -> CompilerResult<Option<dir::PropertyAccess>> {
+        let access = match role {
+            MemberRole::Field | MemberRole::Method if is_readonly => dir::PropertyAccess::Read(ty),
+            MemberRole::Field | MemberRole::Method => dir::PropertyAccess::ReadWrite {
+                read: ty,
+                write: ty,
+            },
+            MemberRole::Getter | MemberRole::Setter => {
+                let dir::Type::FunctionSignature(signature) = self.ty(ty)? else {
+                    return Err(CompilerError::Internal {
+                        message: format!("accessor has non-signature type {ty:?}"),
+                    });
+                };
+                let signature = self.type_signature(ty.module_id, signature)?;
+
+                // getters expose their return type
+                if role == MemberRole::Getter {
+                    let result = signature
+                        .return_type
+                        .ok_or_else(|| CompilerError::Internal {
+                            message: format!("getter signature {ty:?} has no return type"),
+                        })?;
+
+                    dir::PropertyAccess::Read(result)
+                }
+                // setters expose their single value parameter
+                else {
+                    let parameters =
+                        self.signature_parameters(ty.module_id, signature.parameters)?;
+                    let [parameter] = parameters else {
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "setter signature {ty:?} has {} value parameters",
+                                parameters.len(),
+                            ),
+                        });
+                    };
+
+                    dir::PropertyAccess::Write(parameter.ty)
+                }
+            }
+            MemberRole::Associated | MemberRole::VariantValue | MemberRole::VariantConstructor => {
+                return Ok(None);
+            }
+        };
+
+        Ok(Some(access))
     }
 
     /// Intern one function signature into a module's working segment.
