@@ -64,6 +64,34 @@ pub(super) struct CompletionDisplay<'a> {
     pub(super) description: Option<&'a str>,
     /// The expanded completion detail.
     pub(super) detail: Option<&'a str>,
+    /// The rich completion documentation.
+    pub(super) documentation: Option<&'a str>,
+}
+
+impl<'a> From<&'a lsp::CompletionItem> for CompletionDisplay<'a> {
+    /// Read every displayed field from one LSP completion item.
+    fn from(item: &'a lsp::CompletionItem) -> Self {
+        let label_details = item.label_details.as_ref();
+        let documentation = match item.documentation.as_ref() {
+            Some(lsp::Documentation::MarkupContent(markup)) => {
+                assert_eq!(markup.kind, lsp::MarkupKind::Markdown);
+
+                Some(markup.value.as_str())
+            }
+            Some(lsp::Documentation::String(documentation)) => {
+                panic!("completion documentation is plain text: {documentation}");
+            }
+            None => None,
+        };
+
+        Self {
+            label: &item.label,
+            label_detail: label_details.and_then(|details| details.detail.as_deref()),
+            description: label_details.and_then(|details| details.description.as_deref()),
+            detail: item.detail.as_deref(),
+            documentation,
+        }
+    }
 }
 
 impl TestServer {
@@ -249,16 +277,8 @@ impl TestServer {
             "expected one {:?} completion, found labels {labels:?}",
             expected.label,
         );
-        let item = matching[0];
-        let label_details = item.label_details.as_ref();
-
         // compare every displayed detail
-        let actual = CompletionDisplay {
-            label: &item.label,
-            label_detail: label_details.and_then(|details| details.detail.as_deref()),
-            description: label_details.and_then(|details| details.description.as_deref()),
-            detail: item.detail.as_deref(),
-        };
+        let actual = CompletionDisplay::from(matching[0]);
         assert_eq!(actual, expected);
     }
 

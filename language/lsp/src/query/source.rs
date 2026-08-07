@@ -19,6 +19,15 @@ pub(crate) trait IntoSource {
     fn into_source(self) -> Self::Source;
 }
 
+/// Convert one Destack value into an LSP value.
+pub(crate) trait IntoLsp {
+    /// The converted LSP value.
+    type Lsp;
+
+    /// Convert this value.
+    fn into_lsp(self) -> Self::Lsp;
+}
+
 impl IntoSource for lsp::Position {
     type Source = TextPosition;
 

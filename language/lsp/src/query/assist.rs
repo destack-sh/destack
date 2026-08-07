@@ -6,7 +6,7 @@ use destack_query as query;
 use destack_source::DiagnosticReference;
 use serde_json::{Value, from_value};
 
-use super::{Document, DocumentSet};
+use super::{Document, DocumentSet, IntoLsp};
 use crate::server::internal_error;
 
 /// Code action constraints read from one client request.
@@ -25,6 +25,143 @@ struct CodeActionDiagnostic {
     reference: DiagnosticReference,
     /// The client diagnostic.
     diagnostic: lsp::Diagnostic,
+}
+
+/// Markdown assembled for one LSP result.
+#[derive(Default)]
+struct Markdown {
+    /// The rendered Markdown.
+    text: String,
+}
+
+impl Markdown {
+    /// Append one Markdown block.
+    fn push(&mut self, markdown: &str) {
+        if !self.text.is_empty() {
+            self.text.push_str("\n\n");
+        }
+
+        self.text.push_str(markdown);
+    }
+
+    /// Append one fenced code block.
+    fn push_code(&mut self, language: &str, source: &str) {
+        if !self.text.is_empty() {
+            self.text.push_str("\n\n");
+        }
+
+        self.text.push_str("```");
+        self.text.push_str(language);
+        self.text.push('\n');
+        self.text.push_str(source);
+        self.text.push_str("\n```");
+    }
+
+    /// Return whether no Markdown has been appended.
+    fn is_empty(&self) -> bool {
+        self.text.is_empty()
+    }
+
+    /// Consume the rendered Markdown.
+    fn into_string(self) -> String {
+        self.text
+    }
+
+    /// Consume the rendered Markdown as LSP documentation.
+    fn into_documentation(self) -> lsp::Documentation {
+        lsp::Documentation::MarkupContent(lsp::MarkupContent {
+            kind: lsp::MarkupKind::Markdown,
+            value: self.text,
+        })
+    }
+}
+
+impl From<String> for Markdown {
+    /// Wrap existing Markdown.
+    fn from(text: String) -> Self {
+        Self { text }
+    }
+}
+
+impl IntoLsp for query::CompletionItemKind {
+    type Lsp = lsp::CompletionItemKind;
+
+    /// Convert this completion item kind.
+    fn into_lsp(self) -> lsp::CompletionItemKind {
+        match self {
+            Self::AssociatedConst | Self::Constant => lsp::CompletionItemKind::CONSTANT,
+            Self::AssociatedType | Self::TypeAlias | Self::TypeParameter => {
+                lsp::CompletionItemKind::TYPE_PARAMETER
+            }
+            Self::Method => lsp::CompletionItemKind::METHOD,
+            Self::Function => lsp::CompletionItemKind::FUNCTION,
+            Self::Constructor => lsp::CompletionItemKind::CONSTRUCTOR,
+            Self::Field => lsp::CompletionItemKind::FIELD,
+            Self::Variable | Self::ValueParameter => lsp::CompletionItemKind::VARIABLE,
+            Self::Class => lsp::CompletionItemKind::CLASS,
+            Self::Interface | Self::NewtypeInterface => lsp::CompletionItemKind::INTERFACE,
+            Self::Newtype | Self::Struct => lsp::CompletionItemKind::STRUCT,
+            Self::Extension => lsp::CompletionItemKind::CLASS,
+            Self::Module => lsp::CompletionItemKind::MODULE,
+            Self::Property => lsp::CompletionItemKind::PROPERTY,
+            Self::Value => lsp::CompletionItemKind::VALUE,
+            Self::Enum => lsp::CompletionItemKind::ENUM,
+            Self::Keyword | Self::BuiltinType => lsp::CompletionItemKind::KEYWORD,
+            Self::File => lsp::CompletionItemKind::FILE,
+            Self::Reference | Self::Label => lsp::CompletionItemKind::REFERENCE,
+            Self::Folder => lsp::CompletionItemKind::FOLDER,
+            Self::EnumMember => lsp::CompletionItemKind::ENUM_MEMBER,
+        }
+    }
+}
+
+impl IntoLsp for query::SignatureHelp {
+    type Lsp = lsp::SignatureHelp;
+
+    /// Convert this signature help result.
+    fn into_lsp(self) -> lsp::SignatureHelp {
+        let signatures = self
+            .signatures
+            .into_iter()
+            .map(|signature| lsp::SignatureInformation {
+                label: signature.label,
+                documentation: signature
+                    .documentation
+                    .map(|documentation| Markdown::from(documentation).into_documentation()),
+                parameters: Some(
+                    signature
+                        .parameters
+                        .into_iter()
+                        .map(|parameter| lsp::ParameterInformation {
+                            label: lsp::ParameterLabel::Simple(parameter.label),
+                            documentation: parameter.documentation.map(|documentation| {
+                                Markdown::from(documentation).into_documentation()
+                            }),
+                        })
+                        .collect(),
+                ),
+                active_parameter: None,
+            })
+            .collect();
+
+        lsp::SignatureHelp {
+            signatures,
+            active_signature: Some(self.active_signature as u32),
+            active_parameter: self.active_parameter.map(|parameter| parameter as u32),
+        }
+    }
+}
+
+impl IntoLsp for query::InlayHintKind {
+    type Lsp = lsp::InlayHintKind;
+
+    /// Convert this inlay hint kind.
+    fn into_lsp(self) -> lsp::InlayHintKind {
+        match self {
+            Self::Type => lsp::InlayHintKind::TYPE,
+            Self::Parameter => lsp::InlayHintKind::PARAMETER,
+        }
+    }
 }
 
 impl CodeActionContext {
@@ -203,7 +340,13 @@ impl Document {
     ) -> jsonrpc::Result<lsp::CompletionItem> {
         // build compact label details when the client supports them
         let label_details = if supports_label_details {
-            Self::completion_label_details(&item)
+            let detail = item.label_suffix.clone();
+            let description = item.description.clone();
+
+            (detail.is_some() || description.is_some()).then_some(lsp::CompletionItemLabelDetails {
+                detail,
+                description,
+            })
         } else {
             None
         };
@@ -257,13 +400,17 @@ impl Document {
             new_text: item.edit.new_text,
         };
 
-        // build presentation fields
-        let documentation = item.documentation.map(|documentation| {
-            lsp::Documentation::MarkupContent(lsp::MarkupContent {
-                kind: lsp::MarkupKind::Markdown,
-                value: documentation,
-            })
-        });
+        // render declaration and authored documentation
+        let mut documentation = Markdown::default();
+        if let Some(declaration) = item.declaration.as_deref() {
+            documentation.push_code("ds", declaration);
+        }
+        if let Some(item_documentation) = item.documentation.as_deref() {
+            documentation.push(item_documentation);
+        }
+        let documentation = (!documentation.is_empty()).then(|| documentation.into_documentation());
+
+        // map deprecation fields
         let (deprecated, tags) = if item.is_deprecated {
             (Some(true), Some(vec![lsp::CompletionItemTag::DEPRECATED]))
         } else {
@@ -271,43 +418,21 @@ impl Document {
         };
 
         // retain descriptions in expanded details for older clients
-        let detail = match (supports_label_details, item.detail, item.description) {
-            (true, detail, _) | (false, detail, None) => detail,
-            (false, Some(detail), Some(description)) => Some(format!("{detail} — {description}")),
-            (false, None, Some(description)) => Some(description),
+        let detail = match (
+            supports_label_details,
+            item.declaration,
+            item.description.as_deref(),
+        ) {
+            (_, Some(declaration), None) | (true, Some(declaration), Some(_)) => Some(declaration),
+            (false, Some(declaration), Some(description)) => {
+                Some(format!("{declaration} — {description}"))
+            }
+            (false, None, Some(description)) => Some(description.to_string()),
+            (_, None, None) | (true, None, Some(_)) => None,
         };
 
         // map completion kind
-        let kind = match item.kind {
-            query::CompletionItemKind::AssociatedConst => lsp::CompletionItemKind::CONSTANT,
-            query::CompletionItemKind::AssociatedType => lsp::CompletionItemKind::TYPE_PARAMETER,
-            query::CompletionItemKind::Method => lsp::CompletionItemKind::METHOD,
-            query::CompletionItemKind::Function => lsp::CompletionItemKind::FUNCTION,
-            query::CompletionItemKind::Constructor => lsp::CompletionItemKind::CONSTRUCTOR,
-            query::CompletionItemKind::Field => lsp::CompletionItemKind::FIELD,
-            query::CompletionItemKind::Variable => lsp::CompletionItemKind::VARIABLE,
-            query::CompletionItemKind::Class => lsp::CompletionItemKind::CLASS,
-            query::CompletionItemKind::Interface => lsp::CompletionItemKind::INTERFACE,
-            query::CompletionItemKind::NewtypeInterface => lsp::CompletionItemKind::INTERFACE,
-            query::CompletionItemKind::Newtype => lsp::CompletionItemKind::STRUCT,
-            query::CompletionItemKind::TypeAlias => lsp::CompletionItemKind::TYPE_PARAMETER,
-            query::CompletionItemKind::Extension => lsp::CompletionItemKind::CLASS,
-            query::CompletionItemKind::Module => lsp::CompletionItemKind::MODULE,
-            query::CompletionItemKind::Property => lsp::CompletionItemKind::PROPERTY,
-            query::CompletionItemKind::Value => lsp::CompletionItemKind::VALUE,
-            query::CompletionItemKind::Enum => lsp::CompletionItemKind::ENUM,
-            query::CompletionItemKind::Keyword => lsp::CompletionItemKind::KEYWORD,
-            query::CompletionItemKind::File => lsp::CompletionItemKind::FILE,
-            query::CompletionItemKind::Reference => lsp::CompletionItemKind::REFERENCE,
-            query::CompletionItemKind::Label => lsp::CompletionItemKind::REFERENCE,
-            query::CompletionItemKind::Folder => lsp::CompletionItemKind::FOLDER,
-            query::CompletionItemKind::EnumMember => lsp::CompletionItemKind::ENUM_MEMBER,
-            query::CompletionItemKind::Constant => lsp::CompletionItemKind::CONSTANT,
-            query::CompletionItemKind::Struct => lsp::CompletionItemKind::STRUCT,
-            query::CompletionItemKind::TypeParameter => lsp::CompletionItemKind::TYPE_PARAMETER,
-            query::CompletionItemKind::ValueParameter => lsp::CompletionItemKind::VARIABLE,
-            query::CompletionItemKind::BuiltinType => lsp::CompletionItemKind::KEYWORD,
-        };
+        let kind = item.kind.into_lsp();
 
         Ok(lsp::CompletionItem {
             label: item.label,
@@ -324,56 +449,6 @@ impl Document {
             additional_text_edits,
             text_edit: Some(text_edit.into()),
             ..Default::default()
-        })
-    }
-
-    /// Build compact LSP label details for one completion item.
-    fn completion_label_details(
-        item: &query::CompletionItem,
-    ) -> Option<lsp::CompletionItemLabelDetails> {
-        let detail = match item.kind {
-            query::CompletionItemKind::Constructor
-            | query::CompletionItemKind::Function
-            | query::CompletionItemKind::Method => {
-                item.detail.as_ref().map(|detail| format!(" {detail}"))
-            }
-            query::CompletionItemKind::AssociatedConst
-            | query::CompletionItemKind::Constant
-            | query::CompletionItemKind::EnumMember
-            | query::CompletionItemKind::Field
-            | query::CompletionItemKind::Property
-            | query::CompletionItemKind::Value
-            | query::CompletionItemKind::ValueParameter
-            | query::CompletionItemKind::Variable => {
-                item.detail.as_ref().map(|detail| format!(": {detail}"))
-            }
-            _ => None,
-        };
-
-        // place declarations and import sources in the secondary label column
-        let description = if let Some(description) = &item.description {
-            Some(description.clone())
-        } else if matches!(
-            item.kind,
-            query::CompletionItemKind::AssociatedType
-                | query::CompletionItemKind::Class
-                | query::CompletionItemKind::Enum
-                | query::CompletionItemKind::Extension
-                | query::CompletionItemKind::Interface
-                | query::CompletionItemKind::Newtype
-                | query::CompletionItemKind::NewtypeInterface
-                | query::CompletionItemKind::Struct
-                | query::CompletionItemKind::TypeAlias
-                | query::CompletionItemKind::TypeParameter
-        ) {
-            item.detail.clone()
-        } else {
-            None
-        };
-
-        (detail.is_some() || description.is_some()).then_some(lsp::CompletionItemLabelDetails {
-            detail,
-            description,
         })
     }
 }
@@ -408,71 +483,21 @@ impl DocumentSet {
             position.line + 1,
             position.character + 1
         );
-        let mut markdown = String::new();
-        markdown.push_str("**Signature**\n\n");
-        markdown.push_str("```ds\n");
-        markdown.push_str(&item.signature);
-        markdown.push_str("\n```");
+        let mut markdown = Markdown::default();
+        markdown.push(&format!("`{location}`"));
+        markdown.push_code("ds", &item.declaration);
 
         // add the selected type
-        if let Some(type_text) = &item.type_text {
-            markdown.push_str("\n\n**Type**\n\n");
-            markdown.push_str("```ds\n");
-            markdown.push_str(type_text);
-            markdown.push_str("\n```");
+        if let Some(selected_type) = &item.selected_type {
+            markdown.push_code("ds", selected_type);
         }
 
         // add documentation
         if let Some(documentation) = &item.documentation {
-            markdown.push_str("\n\n**Documentation**\n\n");
-            markdown.push_str(documentation);
+            markdown.push(documentation);
         }
 
-        // add the declaration location
-        markdown.push_str("\n\n**Location**\n\n`");
-        markdown.push_str(&location);
-        markdown.push('`');
-
-        Ok(markdown)
-    }
-}
-
-impl Document {
-    /// Build LSP signature help from one query result.
-    pub(crate) fn signature_help(&self, help: query::SignatureHelp) -> lsp::SignatureHelp {
-        let signatures = help
-            .signatures
-            .into_iter()
-            .map(|signature| lsp::SignatureInformation {
-                label: signature.label,
-                documentation: signature.documentation.map(Self::documentation),
-                parameters: Some(
-                    signature
-                        .parameters
-                        .into_iter()
-                        .map(|parameter| lsp::ParameterInformation {
-                            label: lsp::ParameterLabel::Simple(parameter.label),
-                            documentation: parameter.documentation.map(Self::documentation),
-                        })
-                        .collect(),
-                ),
-                active_parameter: None,
-            })
-            .collect();
-
-        lsp::SignatureHelp {
-            signatures,
-            active_signature: Some(help.active_signature as u32),
-            active_parameter: help.active_parameter.map(|parameter| parameter as u32),
-        }
-    }
-
-    /// Build LSP Markdown documentation.
-    fn documentation(documentation: String) -> lsp::Documentation {
-        lsp::Documentation::MarkupContent(lsp::MarkupContent {
-            kind: lsp::MarkupKind::Markdown,
-            value: documentation,
-        })
+        Ok(markdown.into_string())
     }
 }
 
@@ -480,10 +505,7 @@ impl Document {
     /// Encode one inlay hint as an LSP inlay hint.
     pub(crate) fn inlay_hint(&self, hint: &query::InlayHint) -> jsonrpc::Result<lsp::InlayHint> {
         let position = self.position(hint.position)?;
-        let kind = match hint.kind {
-            query::InlayHintKind::Type => Some(lsp::InlayHintKind::TYPE),
-            query::InlayHintKind::Parameter => Some(lsp::InlayHintKind::PARAMETER),
-        };
+        let kind = Some(hint.kind.into_lsp());
 
         Ok(lsp::InlayHint {
             position,

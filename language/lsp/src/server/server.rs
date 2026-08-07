@@ -17,8 +17,8 @@ use serde_json::to_value;
 
 use super::{ClientCapabilities, ServerSession, ServerSettings, internal_error, workspace_error};
 use crate::query::{
-    CodeActionContext, DiagnosticDelivery, DiagnosticPublisher, Document, DocumentSet, IntoSource,
-    QueryContinuation, SemanticTokenStream, ToLspUri,
+    CodeActionContext, DiagnosticDelivery, DiagnosticPublisher, Document, DocumentSet, IntoLsp,
+    IntoSource, QueryContinuation, SemanticTokenStream, ToLspUri,
 };
 
 /// Slow artifact attempts included in verbose LSP traces.
@@ -1559,7 +1559,7 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         };
 
-        Ok(Some(document.signature_help(help)))
+        Ok(Some(help.into_lsp()))
     }
 
     // ------------------------------------------------------------------------

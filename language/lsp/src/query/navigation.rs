@@ -5,7 +5,7 @@ use destack_lsp_types as lsp;
 use destack_query as query;
 use destack_repository::Revision;
 
-use super::{Document, DocumentSet, QueryContinuation};
+use super::{Document, DocumentSet, IntoLsp, QueryContinuation};
 use crate::server::internal_error;
 
 impl DocumentSet {
@@ -41,7 +41,7 @@ impl DocumentSet {
     ) -> jsonrpc::Result<lsp::SymbolInformation> {
         let document = self.document(search_symbol.target.span.file)?;
         let location = document.location(search_symbol.target.span)?;
-        let kind = Document::symbol_kind(search_symbol.kind);
+        let kind = search_symbol.kind.into_lsp();
 
         Ok(lsp::SymbolInformation {
             name: search_symbol.name.clone(),
@@ -79,7 +79,7 @@ impl DocumentSet {
             name: item.name.clone(),
             kind,
             tags: None,
-            detail: item.detail.clone(),
+            detail: item.signature.clone(),
             uri,
             range,
             selection_range,
@@ -160,7 +160,7 @@ impl DocumentSet {
         let uri = document.uri()?;
         let (range, selection_range) =
             document.ranges(item.target.span, item.target.selection_span)?;
-        let kind = Document::symbol_kind(item.kind);
+        let kind = item.kind.into_lsp();
 
         let continuation = QueryContinuation::new(path, revision, item.clone());
         let data = Some(continuation.into_value()?);
@@ -169,7 +169,7 @@ impl DocumentSet {
             name: item.name.clone(),
             kind,
             tags: None,
-            detail: item.detail.clone(),
+            detail: item.generics.clone(),
             uri,
             range,
             selection_range,
