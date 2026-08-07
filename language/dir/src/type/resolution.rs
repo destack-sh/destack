@@ -124,45 +124,6 @@ impl InstantiationResolution {
     }
 }
 
-/// Target selected by a labeled transfer.
-///
-/// Examples:
-/// ```ds
-/// break outer
-/// continue
-/// return value
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum LabelResolution {
-    /// An explicit label target.
-    ///
-    /// Examples:
-    /// ```ds
-    /// outer: while (running) {
-    ///     break outer;
-    /// }
-    /// ```
-    Symbol(GlobalSymbolId),
-    /// The nearest enclosing loop target.
-    ///
-    /// Examples:
-    /// ```ds
-    /// while (running) {
-    ///     continue;
-    /// }
-    /// ```
-    Loop,
-    /// The enclosing function target.
-    ///
-    /// Examples:
-    /// ```ds
-    /// function read(): string {
-    ///     return line;
-    /// }
-    /// ```
-    Function,
-}
-
 /// One statically selected aggregate field.
 ///
 /// Examples:

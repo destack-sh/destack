@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     AccessResolution, AssignPatternResolution, AssignmentResolution, CallResolution,
     ConstructResolution, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, GuardResolution,
-    InstantiationResolution, LabelResolution, MemberResolution, NameResolution, OperatorResolution,
-    Path, PatternResolution, PlaceResolution, ReceiverResolution, SegmentView, SubscriptResolution,
+    InstantiationResolution, MemberResolution, NameResolution, OperatorResolution, Path,
+    PatternResolution, PlaceResolution, ReceiverResolution, SegmentView, SubscriptResolution,
     TreeResolution,
 };
 
@@ -84,7 +84,7 @@ impl<'a> ResolutionTable<'a> {
     }
 
     /// Iterate visible label resolutions.
-    pub fn label_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &LabelResolution)> + '_ {
+    pub fn label_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &GlobalSymbolId)> + '_ {
         self.visible_entries(|segment| &segment.labels)
     }
 
@@ -204,7 +204,7 @@ impl<'a> ResolutionTable<'a> {
     }
 
     /// Get the label resolution for a node.
-    pub fn label_resolution(&self, node_id: GlobalNodeIdAny) -> Option<LabelResolution> {
+    pub fn label_resolution(&self, node_id: GlobalNodeIdAny) -> Option<GlobalSymbolId> {
         self.lookup(node_id, |segment| &segment.labels).copied()
     }
 
@@ -337,7 +337,7 @@ pub struct ResolutionSegment {
     /// Checked generic instantiations keyed by DIR node.
     pub(crate) instantiations: IndexMap<GlobalNodeIdAny, InstantiationResolution>,
     /// Checked label resolutions keyed by DIR node.
-    pub(crate) labels: IndexMap<GlobalNodeIdAny, LabelResolution>,
+    pub(crate) labels: IndexMap<GlobalNodeIdAny, GlobalSymbolId>,
     /// Checked receiver resolutions keyed by DIR node.
     pub(crate) receivers: IndexMap<GlobalNodeIdAny, ReceiverResolution>,
     /// Checked stable storage accesses keyed by DIR node.
@@ -574,12 +574,12 @@ impl ResolutionSegment {
     }
 
     /// Set the label resolution for a node.
-    pub fn set_label_resolution(&mut self, node_id: GlobalNodeIdAny, resolution: LabelResolution) {
-        self.labels.insert(node_id, resolution);
+    pub fn set_label_resolution(&mut self, node_id: GlobalNodeIdAny, symbol: GlobalSymbolId) {
+        self.labels.insert(node_id, symbol);
     }
 
     /// Get the label resolution for a node.
-    pub fn label_resolution(&self, node_id: GlobalNodeIdAny) -> Option<LabelResolution> {
+    pub fn label_resolution(&self, node_id: GlobalNodeIdAny) -> Option<GlobalSymbolId> {
         self.labels.get(&node_id).copied()
     }
 
@@ -788,7 +788,7 @@ impl ResolutionSegment {
     }
 
     /// Iterate visible label resolutions.
-    pub fn label_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &LabelResolution)> + '_ {
+    pub fn label_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &GlobalSymbolId)> + '_ {
         self.labels
             .iter()
             .map(|(node_id, resolution)| (*node_id, resolution))
