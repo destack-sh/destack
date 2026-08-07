@@ -1498,6 +1498,13 @@ fn test_reject_exclusive_receiver_borrow_from_shared_managed_value() {
 declare const values: shared int32[];
 
 values.push(1);
+
+class Message {}
+
+declare const messages: shared Message[];
+declare const message: shared Message;
+
+messages.push(message);
 "#,
     );
 
@@ -1510,6 +1517,13 @@ declare const values: shared int32[];
 
 values.push<int32>(1);
 
+class Message {}
+
+declare const messages: shared Message[];
+declare const message: shared Message;
+
+messages.push<Message>(message);
+
 === checked ===
 declare const values: shared int32[];
 /// @type.symbol symbol=values source=values type=Placed<Array<int32>, "shared">
@@ -1518,16 +1532,42 @@ declare const values: shared int32[];
 values.push(1);
 /// @resolution.name source=values target=values
 /// @resolution.member source=values.push receiver=Placed<Array<int32>, "shared"> type=<collections.array.push.'a>(this: Placed<&collections.array.push.'a exclusive Array<int32>, "shared">, ...int32[]) => usize kind=symbol target_receiver=Placed<Array<int32>, "shared"> target=collections.array.push
-/// @resolution.call source=values.push(1) parameters=(Placed<Array<int32>, "shared">) arguments=(rest(1) as Placed<Array<int32>, "shared">) return=usize kind=symbol target=collections.array.push receiver=Placed<Array<int32>, "shared"> instance=Array<int32>.<extension#4>.push
+/// @resolution.call source=values.push(1) parameters=(Placed<Array<int32>, "shared">) arguments=(rest(1) as int32) return=usize kind=symbol target=collections.array.push receiver=Placed<Array<int32>, "shared"> instance=Array<int32>.<extension#4>.push
 /// @resolution.place source=values placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=values root=values
 /// @generic.instance source=values.push(1) id=Array<int32>.<extension#4>.push
 
+class Message {}
+/// @type.symbol symbol=Message source="class Message {}" type=Message
+/// @definition.class symbol=Message source="class Message {}"
+
+declare const messages: shared Message[];
+/// @type.symbol symbol=messages source=messages type=Placed<Array<Message>, "shared">
+/// @resolution.pattern source=messages kind=binding target=messages
+/// @resolution.name source=Message target=Message
+
+declare const message: shared Message;
+/// @type.symbol symbol=message source=message type=Placed<Message, "shared">
+/// @resolution.pattern source=message kind=binding target=message
+/// @resolution.name source=Message target=Message
+
+messages.push(message);
+/// @resolution.name source=messages target=messages
+/// @resolution.member source=messages.push receiver=Placed<Array<Message>, "shared"> type=<collections.array.push.'a>(this: Placed<&collections.array.push.'a exclusive Array<Message>, "shared">, ...Message[]) => usize kind=symbol target_receiver=Placed<Array<Message>, "shared"> target=collections.array.push
+/// @resolution.call source=messages.push(message) parameters=(Placed<Array<Message>, "shared">) arguments=(rest(message) as Placed<Message, "shared">) return=usize kind=symbol target=collections.array.push receiver=Placed<Array<Message>, "shared"> instance=Array<Message>.<extension#4>.push
+/// @resolution.place source=messages placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=messages root=messages
+/// @generic.instance source=messages.push(message) id=Array<Message>.<extension#4>.push
+/// @resolution.name source=message target=message
+
+/// @generic.instance id=Array<Message>.<extension#4>.push template=collections.array.push arguments=(Message)
 /// @generic.instance id=Array<int32>.<extension#4>.push template=collections.array.push arguments=(int32)
 "#,
         r#"
 /// @diagnostic.error id=receiver-not-assignable message="receiver type 'shared Array<int32>' is not assignable to the method's 'this' type 'shared &exclusive Array<int32>'"
 /// @diagnostic.label line=4 column=1 span="values.push(1)" line_source="values.push(1);"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type 'shared Array<Message>' is not assignable to the method's 'this' type 'shared &exclusive Array<Message>'"
+/// @diagnostic.label line=11 column=1 span="messages.push(message)" line_source="messages.push(message);"
 "#,
     );
 }

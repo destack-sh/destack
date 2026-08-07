@@ -608,7 +608,7 @@ fn add_call_fields(
         "parameters",
         call.arguments
             .iter()
-            .map(|argument| builder.global_type_label(argument.ty)),
+            .map(|argument| builder.global_type_label(argument.parameter_type)),
     )
     .optional_field(
         "arguments",
@@ -1242,7 +1242,7 @@ fn direct_call_label(
 ) -> String {
     let parameters = arguments
         .iter()
-        .map(|argument| builder.global_type_label(argument.ty))
+        .map(|argument| builder.global_type_label(argument.parameter_type))
         .collect::<Vec<_>>()
         .join(", ");
     let arguments = builder
@@ -1308,7 +1308,7 @@ fn add_construct_resolution_row(
             resolution
                 .arguments
                 .iter()
-                .map(|argument| builder.global_type_label(argument.ty)),
+                .map(|argument| builder.global_type_label(argument.parameter_type)),
         )
         .optional_field(
             "arguments",
@@ -2926,7 +2926,7 @@ fn argument_binding_label(
     builder: &DirSnapshotBuilder<'_>,
     binding: &dir::ArgumentBinding,
 ) -> String {
-    let source = match &binding.argument {
+    let source = match &binding.source {
         dir::ArgumentSource::Provided(node) => {
             let source = builder
                 .node_source(*node)
@@ -2954,7 +2954,11 @@ fn argument_binding_label(
         }
     };
 
-    format!("{} as {}", source, builder.global_type_label(binding.ty))
+    format!(
+        "{} as {}",
+        source,
+        builder.global_type_label(binding.argument_type)
+    )
 }
 
 /// Return selected generic argument values in binding order.
