@@ -1,6 +1,6 @@
 use destack_dir::{
     AssignPattern, Block, Expression, LocalNodeId, Node, NodeType, TokenLiteral, TokenType,
-    TypeExpression, normalize_comment_payload,
+    TypeExpression,
 };
 use std::sync::Arc;
 
@@ -121,7 +121,7 @@ impl TestParser {
         parser
             .tree
             .get_documentation(node_id.id)
-            .map(|documentation| parser.strings.get(documentation.text))
+            .map(|documentation| parser.strings.get(documentation.markdown))
     }
 }
 
@@ -504,11 +504,6 @@ fn collect_value_expression_path_segments(
     }
 }
 
-/// Normalize one comment payload for test assertions.
-pub(crate) fn normalized_comment_payload(source: &str) -> std::borrow::Cow<'_, str> {
-    normalize_comment_payload(source)
-}
-
 /// Assert one path-like expression directly against an expected path string.
 ///
 /// This is a convenience helper for tests that only care about the visible
@@ -544,8 +539,7 @@ macro_rules! assert_comment {
         let comment = &$parser.comments()[$index];
         assert_eq!(comment.kind, $expected_kind, "expected comment kind");
 
-        let source = $parser.span_str(comment.span);
-        let got = $crate::tests::normalized_comment_payload(source);
+        let got = comment.text($parser.file.text());
         assert_eq!(got.as_ref(), $expected_text, "expected comment text");
     }};
 }

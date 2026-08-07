@@ -40,6 +40,10 @@ const PARSER_DIAGNOSTICS: &[DiagnosticDefinition] = &[
     ParserDiagnostic::Expected(NodeType::Decorator).definition(),
     ParserDiagnostic::Expected(NodeType::SwitchCase).definition(),
     ParserDiagnostic::InvalidAssignmentTarget.definition(),
+    ParserDiagnostic::InvalidDocumentationTag.definition(),
+    ParserDiagnostic::InvalidDocumentationOwner.definition(),
+    ParserDiagnostic::MissingDocumentationTarget.definition(),
+    ParserDiagnostic::DuplicateDocumentationTarget.definition(),
 ];
 
 /// One parser diagnostic.
@@ -55,6 +59,14 @@ enum ParserDiagnostic {
     Expected(NodeType),
     /// An expression that cannot be assigned to.
     InvalidAssignmentTarget,
+    /// A malformed or unsupported documentation tag.
+    InvalidDocumentationTag,
+    /// Documentation that cannot attach to its authored owner.
+    InvalidDocumentationOwner,
+    /// A documentation tag naming no child of its owner.
+    MissingDocumentationTarget,
+    /// Multiple documentation forms naming the same child.
+    DuplicateDocumentationTarget,
 }
 
 impl ParserDiagnostic {
@@ -134,6 +146,21 @@ impl ParserDiagnostic {
             Self::InvalidAssignmentTarget => {
                 ("invalid-assignment-target", "Invalid assignment target.")
             }
+            Self::InvalidDocumentationTag => {
+                ("invalid-documentation-tag", "Invalid documentation tag.")
+            }
+            Self::InvalidDocumentationOwner => (
+                "invalid-documentation-owner",
+                "Documentation is not valid for this owner.",
+            ),
+            Self::MissingDocumentationTarget => (
+                "missing-documentation-target",
+                "Documentation tag target does not exist.",
+            ),
+            Self::DuplicateDocumentationTarget => (
+                "duplicate-documentation-target",
+                "Documentation target is documented more than once.",
+            ),
         };
 
         DiagnosticDefinition::error(id, description)
@@ -162,6 +189,14 @@ pub enum ParserErrorKind {
     Expected(TokenType),
     /// The source expression is not an assignment target.
     InvalidAssignmentTarget,
+    /// A malformed or unsupported documentation tag.
+    InvalidDocumentationTag,
+    /// Documentation that cannot attach to its authored owner.
+    InvalidDocumentationOwner,
+    /// A documentation tag naming no child of its owner.
+    MissingDocumentationTarget,
+    /// Multiple documentation forms naming the same child.
+    DuplicateDocumentationTarget,
 }
 
 /// The source location of one parser error.
@@ -264,6 +299,26 @@ impl ParserError {
         }
     }
 
+    /// Create an invalid documentation tag error.
+    pub fn invalid_documentation_tag(range: ByteRange) -> Self {
+        Self::documentation(range, ParserErrorKind::InvalidDocumentationTag)
+    }
+
+    /// Create an invalid documentation owner error.
+    pub fn invalid_documentation_owner(range: ByteRange) -> Self {
+        Self::documentation(range, ParserErrorKind::InvalidDocumentationOwner)
+    }
+
+    /// Create a missing documentation target error.
+    pub fn missing_documentation_target(range: ByteRange) -> Self {
+        Self::documentation(range, ParserErrorKind::MissingDocumentationTarget)
+    }
+
+    /// Create a duplicate documentation target error.
+    pub fn duplicate_documentation_target(range: ByteRange) -> Self {
+        Self::documentation(range, ParserErrorKind::DuplicateDocumentationTarget)
+    }
+
     /// Return the source range of this error.
     pub fn range(self) -> ByteRange {
         self.range
@@ -278,7 +333,12 @@ impl ParserError {
     pub fn expected_token(self) -> Option<TokenType> {
         match self.kind {
             ParserErrorKind::Expected(expected) => Some(expected),
-            ParserErrorKind::Unexpected | ParserErrorKind::InvalidAssignmentTarget => None,
+            ParserErrorKind::Unexpected
+            | ParserErrorKind::InvalidAssignmentTarget
+            | ParserErrorKind::InvalidDocumentationTag
+            | ParserErrorKind::InvalidDocumentationOwner
+            | ParserErrorKind::MissingDocumentationTarget
+            | ParserErrorKind::DuplicateDocumentationTarget => None,
         }
     }
 
@@ -322,6 +382,18 @@ impl ParserError {
         match (self.kind, self.expected_node, self.actual) {
             (ParserErrorKind::InvalidAssignmentTarget, _, _) => {
                 ParserDiagnostic::InvalidAssignmentTarget
+            }
+            (ParserErrorKind::InvalidDocumentationTag, _, _) => {
+                ParserDiagnostic::InvalidDocumentationTag
+            }
+            (ParserErrorKind::InvalidDocumentationOwner, _, _) => {
+                ParserDiagnostic::InvalidDocumentationOwner
+            }
+            (ParserErrorKind::MissingDocumentationTarget, _, _) => {
+                ParserDiagnostic::MissingDocumentationTarget
+            }
+            (ParserErrorKind::DuplicateDocumentationTarget, _, _) => {
+                ParserDiagnostic::DuplicateDocumentationTarget
             }
             (_, Some(node_type), _) => ParserDiagnostic::Expected(node_type),
             (ParserErrorKind::Expected(_), None, _) => ParserDiagnostic::ExpectedToken,
@@ -370,6 +442,36 @@ impl ParserError {
 
                 (message.clone(), message)
             }
+            ParserErrorKind::InvalidDocumentationTag => {
+                let message = "invalid documentation tag".to_string();
+
+                (message.clone(), message)
+            }
+            ParserErrorKind::InvalidDocumentationOwner => {
+                let message = "documentation is not valid for this owner".to_string();
+
+                (message.clone(), message)
+            }
+            ParserErrorKind::MissingDocumentationTarget => {
+                let message = "documentation tag target does not exist".to_string();
+
+                (message.clone(), message)
+            }
+            ParserErrorKind::DuplicateDocumentationTarget => {
+                let message = "documentation target is documented more than once".to_string();
+
+                (message.clone(), message)
+            }
+        }
+    }
+
+    /// Create one documentation error.
+    fn documentation(range: ByteRange, kind: ParserErrorKind) -> Self {
+        Self {
+            range,
+            actual: None,
+            kind,
+            expected_node: None,
         }
     }
 }

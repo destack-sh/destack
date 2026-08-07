@@ -2,7 +2,7 @@ use crate::parse::{ExpressionContext, StatementPosition};
 use crate::tests::TestParser;
 use destack_dir::{
     CommentKind, Declaration, Declarator, Decorator, DecoratorPosition, Expression, TokenType,
-    TypeDeclaration, TypeExpression, TypeLiteral, normalize_comment_payload,
+    TypeDeclaration, TypeExpression, TypeLiteral,
 };
 use std::sync::Arc;
 
@@ -326,7 +326,7 @@ fn test_parse_type_union_multiline_doc_comment_before_first_arm_line() {
     );
 
     assert_eq!(
-        normalize_comment_payload(parser.span_str(parser.comments()[0].span)).trim(),
+        parser.comments()[0].text(parser.file.text()).trim(),
         "leading-union"
     );
     assert_eq!(
@@ -883,10 +883,7 @@ fn test_parse_union_doc_block_comment_attaches_to_first_union_arm() {
     });
     assert_eq!(parser.comments().len(), 1);
     let comment = parser.comments()[0];
-    assert_eq!(
-        normalize_comment_payload(parser.span_str(comment.span)),
-        "union-doc\n"
-    );
+    assert_eq!(comment.text(parser.file.text()), "union-doc\n");
 }
 
 /// Record mapped remap and value separator ownership and template head spans.
@@ -929,7 +926,7 @@ fn test_parse_type_mapped_expression_records_separator_and_template_head_spans()
                     let _ = key_remap;
                     assert_eq!(parser.span_str(comment.span), "// remap-note");
                     assert_eq!(
-                        normalize_comment_payload(parser.span_str(comment.span)),
+                        comment.text(parser.file.text()),
                         "remap-note",
                     );
                 });
@@ -937,7 +934,7 @@ fn test_parse_type_mapped_expression_records_separator_and_template_head_spans()
                 let _value_comment = parser.comments()
                     .iter()
                     .copied()
-                    .find(|comment| normalize_comment_payload(parser.span_str(comment.span)) == "value-note")
+                    .find(|comment| comment.text(parser.file.text()) == "value-note")
                     .expect("missing value comment");
 
                 let _ = mapped_value;
@@ -996,7 +993,7 @@ fn test_parse_type_mapped_expression_records_remap_block_comment_boundary() {
                     .expect("missing token before remap");
 
                 assert_eq!(
-                    normalize_comment_payload(parser.span_str(comment.span)).trim(),
+                    comment.text(parser.file.text()).trim(),
                     "remap-note"
                 );
                 assert_eq!(parser.span_str(peek_previous_token.span), "as");
@@ -1032,7 +1029,7 @@ fn test_parse_type_mapped_expression_records_trailing_comment_owner() {
                     .expect("missing remap comment");
 
                 let _ = value;
-                assert_eq!(normalize_comment_payload(parser.span_str(comment.span)), "remap-note");
+                assert_eq!(comment.text(parser.file.text()), "remap-note");
             });
         });
     });
@@ -1099,7 +1096,7 @@ fn test_parse_type_template_interpolation_records_trailing_line_comment_boundary
                     let comment = parser.comments()
                         .iter()
                         .copied()
-                        .find(|comment| normalize_comment_payload(parser.span_str(comment.span)) == "remap-note")
+                        .find(|comment| comment.text(parser.file.text()) == "remap-note")
                         .expect("missing remap comment");
 
                     assert!(comment.is_trailing());

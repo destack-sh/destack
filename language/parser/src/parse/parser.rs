@@ -2,9 +2,8 @@ use crate::{CommentRetention, ParserError, ParserResult, PatternMarker, classify
 use core::fmt;
 use destack_core::{LocalStringPool, StringId, StringPool, ensure_sufficient_stack};
 use destack_dir::{
-    BlockContext, BlockForm, Comment, Documentation, Expression, Keyword, LocalNodeId, Node,
-    NodeType, Token, TokenLiteral, TokenSpan, TokenType, Tree, TreeCapacity, TreeStore,
-    normalize_comment_payload,
+    BlockContext, BlockForm, Comment, Expression, Keyword, LocalNodeId, Node, NodeType, Token,
+    TokenLiteral, TokenSpan, TokenType, Tree, TreeCapacity, TreeStore,
 };
 use destack_source::{
     ByteRange, Diagnostic, DiagnosticCollection, File, FileId, LanguageType, ModuleId,
@@ -43,7 +42,7 @@ pub struct Parser {
     /// Whether the parser is finished.
     is_finished: bool,
     /// The next retained comment to inspect for documentation.
-    next_documentation_comment: usize,
+    pub(super) next_documentation_comment: usize,
     /// The current nested recursive descent depth.
     recursive_descent_depth: u16,
     /// The accepted source grammar.
@@ -546,6 +545,7 @@ impl Parser {
     /// Finalize retained comments after contextual tokenization.
     pub fn finalize_comments(&mut self) {
         self.cursor.finalize_comments();
+        self.finalize_documentation();
     }
 
     /// Return retained source comments.
@@ -608,131 +608,6 @@ impl Parser {
         Tree: TreeStore<T>,
     {
         self.tree.insert_parsed(node, range)
-    }
-
-    /// Parse normalized documentation before the current token.
-    pub(crate) fn parse_documentation(&mut self) -> Option<Documentation> {
-        let token_start = self.cursor.peek().start();
-        let comments = self.cursor.comments();
-
-        // skip comments attached to earlier source boundaries
-        while let Some(comment) = comments.get(self.next_documentation_comment) {
-            let is_before_current = comment
-                .following_token_start()
-                .map_or(comment.span.end <= token_start, |start| start < token_start);
-            if !is_before_current {
-                break;
-            }
-
-            self.next_documentation_comment += 1;
-        }
-
-        // take comments attached to the current token boundary
-        let group_start = self.next_documentation_comment;
-        while comments
-            .get(self.next_documentation_comment)
-            .is_some_and(|comment| comment.following_token_start() == Some(token_start))
-        {
-            self.next_documentation_comment += 1;
-        }
-        let group_end = self.next_documentation_comment;
-        if group_start == group_end {
-            return None;
-        }
-
-        // select the final contiguous documentation block
-        let mut documentation_start = group_end;
-        let mut following_start = token_start;
-        while documentation_start > group_start {
-            let comment = comments[documentation_start - 1];
-            if !comment.is_documentation()
-                || !self.documentation_is_adjacent(comment.span.end, following_start)
-            {
-                break;
-            }
-
-            documentation_start -= 1;
-            following_start = comment.span.start;
-        }
-        if documentation_start == group_end {
-            return None;
-        }
-        let first = comments[documentation_start];
-        let last = comments[group_end - 1];
-        let span = first.span.merge(last.span);
-
-        // normalize one comment without an intermediate string
-        if documentation_start + 1 == group_end {
-            let comment = first;
-            let range = comment.span.range();
-            let source = &self.file.text()[range.start as usize..range.end as usize];
-            let text = normalize_comment_payload(source);
-            let text = self.strings.intern(&text);
-
-            return Some(Documentation { span, text });
-        }
-
-        // normalize a multi-comment block into one interned string
-        let capacity = comments[documentation_start..group_end]
-            .iter()
-            .map(|comment| comment.span.len() as usize)
-            .sum();
-        let mut text = String::with_capacity(capacity);
-        for comment in &comments[documentation_start..group_end] {
-            if !text.is_empty() {
-                text.push('\n');
-            }
-
-            let normalized = normalize_comment_payload(self.span_str(comment.span));
-            text.push_str(&normalized);
-        }
-        let text = self.strings.intern(&text);
-
-        Some(Documentation { span, text })
-    }
-
-    /// Attach normalized documentation to one node.
-    pub(crate) fn attach_documentation<T>(
-        &mut self,
-        node_id: LocalNodeId<T>,
-        documentation: Option<Documentation>,
-    ) where
-        T: Node,
-    {
-        let Some(documentation) = documentation else {
-            return;
-        };
-
-        self.tree.set_documentation(node_id.id, documentation);
-    }
-
-    /// Return whether documentation is adjacent across one source range.
-    fn documentation_is_adjacent(&self, start: u32, end: u32) -> bool {
-        let bytes = self.file.text().as_bytes();
-        let mut offset = start as usize;
-        let mut line_breaks = 0;
-
-        // reject intervening comments and blank lines
-        while offset < end as usize {
-            if offset + 1 < end as usize
-                && bytes[offset] == b'/'
-                && matches!(bytes[offset + 1], b'/' | b'*')
-            {
-                return false;
-            } else if bytes[offset] == b'\r' {
-                line_breaks += 1;
-                offset += usize::from(bytes.get(offset + 1) == Some(&b'\n'));
-            } else if bytes[offset] == b'\n' {
-                line_breaks += 1;
-            }
-            if line_breaks > 1 {
-                return false;
-            }
-
-            offset += 1;
-        }
-
-        true
     }
 
     /// Attach one child-owned leading boundary range.

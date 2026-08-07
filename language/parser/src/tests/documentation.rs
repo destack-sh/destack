@@ -1,9 +1,9 @@
-use crate::{CommentRetention, TestParser};
+use crate::TestParser;
 use destack_dir::{
-    Argument, Catch, Declaration, Declarator, DependencyItem, EnumField, Expression,
-    GenericArgument, GenericParameter, MatchArm, Member, Parameter, Pattern, PatternField,
-    Property, SwitchCase, TupleElement, TypeDeclaration, TypeExpression, TypeMappedParameter,
-    TypeMember, WhereClause,
+    Argument, Catch, Declaration, Declarator, DependencyItem, DocumentationTag, EnumField,
+    Expression, GenericArgument, GenericParameter, MatchArm, Member, Parameter, Pattern,
+    PatternField, Property, SwitchCase, TupleElement, TypeDeclaration, TypeExpression,
+    TypeMappedParameter, TypeMember, WhereClause,
 };
 
 /// Attach documentation and decorators to the declaration rather than its expression wrapper.
@@ -42,6 +42,135 @@ function run(): string {}
     let decorators = parser.tree.get_decorators(declaration.id);
     assert_eq!(decorators.len(), 1);
     assert_eq!(test.documentation(&parser, decorators[0]), None);
+}
+
+/// Bind callable documentation tags to their exact declared parameters.
+#[test]
+fn test_parse_callable_documentation() {
+    let test = TestParser::new(
+        r#"
+/// Return the provided value.
+///
+/// # Errors
+///
+/// Returns `InvalidValue` when validation fails.
+///
+/// @typeParam Value - The returned value type.
+/// @param value - The value to return.
+/// @example
+/// ```ds
+/// identity<string>("value");
+/// ```
+function identity<Value>(value: Value): Value {
+    return value;
+}
+"#,
+    );
+    let (parser, roots) = test.parse();
+
+    let root = parser.unwrap_label_expression(roots[0]);
+    let declaration = match parser.tree.get(root) {
+        Expression::Declaration(declaration) => *declaration,
+        expression => panic!("expected declaration expression, got {expression:?}"),
+    };
+    let function = match parser.tree.get(declaration) {
+        Declaration::Function(function) => function,
+        declaration => panic!("expected function declaration, got {declaration:?}"),
+    };
+    let documentation = parser
+        .tree
+        .get_documentation(declaration.id)
+        .expect("function declaration should have documentation");
+
+    assert_eq!(
+        parser.strings.get(documentation.markdown),
+        "Return the provided value.\n\n# Errors\n\nReturns `InvalidValue` when validation fails."
+    );
+    assert_eq!(documentation.tags.len(), 3);
+    let DocumentationTag::TypeParameter {
+        parameter,
+        markdown,
+    } = documentation.tags[0]
+    else {
+        panic!("expected type parameter documentation");
+    };
+    assert_eq!(parameter, function.signature.generic_parameters[0]);
+    assert_eq!(parser.strings.get(markdown), "The returned value type.");
+    let DocumentationTag::Parameter {
+        parameter,
+        markdown,
+    } = documentation.tags[1]
+    else {
+        panic!("expected parameter documentation");
+    };
+    assert_eq!(parameter, function.signature.parameters[0]);
+    assert_eq!(parser.strings.get(markdown), "The value to return.");
+    let DocumentationTag::Example { markdown } = documentation.tags[2] else {
+        panic!("expected example documentation");
+    };
+    assert_eq!(
+        parser.strings.get(markdown),
+        "```ds\nidentity<string>(\"value\");\n```"
+    );
+}
+
+/// Accept common parameter separators while retaining exact parameter bindings.
+#[test]
+fn test_parse_documentation_parameter_separators() {
+    let test = TestParser::new(
+        r#"
+/// Select one value.
+/// @param plain Plain documentation.
+/// @param dash - Dash documentation.
+/// @param colon: Colon documentation.
+function select<Value>(plain: Value, dash: Value, colon: Value): Value {
+    return plain;
+}
+"#,
+    );
+    let (parser, roots) = test.parse();
+
+    let root = parser.unwrap_label_expression(roots[0]);
+    let declaration = match parser.tree.get(root) {
+        Expression::Declaration(declaration) => *declaration,
+        expression => panic!("expected declaration expression, got {expression:?}"),
+    };
+    let function = match parser.tree.get(declaration) {
+        Declaration::Function(function) => function,
+        declaration => panic!("expected function declaration, got {declaration:?}"),
+    };
+    let documentation = parser
+        .tree
+        .get_documentation(declaration.id)
+        .expect("function declaration should have documentation");
+    let targets = documentation
+        .tags
+        .iter()
+        .map(|tag| tag.target())
+        .collect::<Vec<_>>();
+    let markdown = documentation
+        .tags
+        .iter()
+        .map(|tag| parser.strings.get(tag.markdown()))
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        targets,
+        function
+            .signature
+            .parameters
+            .iter()
+            .map(|parameter| Some(parameter.into_any()))
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        markdown,
+        vec![
+            "Plain documentation.",
+            "Dash documentation.",
+            "Colon documentation."
+        ]
+    );
 }
 
 /// Attach documentation to complete value expressions and nested operand expressions.
@@ -422,80 +551,4 @@ match (value) {
         .filter_map(|pattern| test.documentation(&parser, pattern))
         .collect::<Vec<_>>();
     assert_eq!(documented_patterns, vec!["Bound value."]);
-}
-
-/// Leave documentation between decorators and their owner unattached.
-#[test]
-fn test_leave_documentation_after_decorator_unattached() {
-    let test = TestParser::new(
-        r#"
-@memo
-/// Not attached.
-function run(): void {}
-"#,
-    );
-    let (parser, roots) = test.parse();
-
-    let root = parser.unwrap_label_expression(roots[0]);
-    let declaration = match parser.tree.get(root) {
-        Expression::Declaration(declaration) => *declaration,
-        expression => panic!("expected declaration expression, got {expression:?}"),
-    };
-    assert_eq!(test.documentation(&parser, root), None);
-    assert_eq!(test.documentation(&parser, declaration), None);
-    assert_eq!(parser.comments().len(), 1);
-}
-
-/// Do not attach detached, interrupted, or trailing documentation to later expressions.
-#[test]
-fn test_leave_unowned_documentation_unattached() {
-    let test = TestParser::new(
-        r#"
-/// Attached.
-first
-
-/// Detached.
-
-second
-
-/// Interrupted.
-// ordinary
-third
-
-fourth /// trailing
-fifth
-"#,
-    );
-    let (parser, roots) = test.parse();
-
-    assert_eq!(roots.len(), 5);
-    assert_eq!(test.documentation(&parser, roots[0]), Some("Attached."));
-    assert_eq!(test.documentation(&parser, roots[1]), None);
-    assert_eq!(test.documentation(&parser, roots[2]), None);
-    assert_eq!(test.documentation(&parser, roots[3]), None);
-    assert_eq!(test.documentation(&parser, roots[4]), None);
-    assert_eq!(parser.comments().len(), 5);
-}
-
-/// Preserve ordinary comment barriers when only documentation comments are retained.
-#[test]
-fn test_keep_ordinary_comments_from_extending_documentation() {
-    let test = TestParser::new(
-        r#"
-/// Detached.
-// ordinary
-first
-
-// ordinary
-/// Attached.
-second
-"#,
-    );
-    let mut parser = test.prepare_with_comment_retention(CommentRetention::Documentation);
-    let roots = parser.parse();
-
-    test.assert_no_errors(&parser);
-    assert_eq!(roots.len(), 2);
-    assert_eq!(test.documentation(&parser, roots[0]), None);
-    assert_eq!(test.documentation(&parser, roots[1]), Some("Attached."));
 }

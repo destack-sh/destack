@@ -2,7 +2,7 @@ use destack_dir::{
     Argument, Block, BlockContext, BlockForm, ClassDeclaration, Comment, CommentAnchor,
     CommentKind, CommentRole, Declaration, Declarator, Decorator, DecoratorPosition, Expression,
     FunctionDeclaration, LocalNodeId, Member, Parameter, Property, StructDeclaration, TokenType,
-    TypeDeclaration, TypeExpression, normalize_comment_payload,
+    TypeDeclaration, TypeExpression,
 };
 use std::sync::Arc;
 
@@ -63,8 +63,7 @@ fn parse_property_source(source: &str) -> (Parser, LocalNodeId<Property>) {
 
 /// Return the normalized payload text for one source comment.
 fn comment_text(parser: &Parser, comment: Comment) -> String {
-    let source = parser.span_str(comment.span);
-    normalize_comment_payload(source).into_owned()
+    comment.text(parser.file.text()).into_owned()
 }
 
 /// Return the nearest semantic token before one comment boundary.
