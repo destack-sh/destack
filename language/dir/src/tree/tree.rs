@@ -458,8 +458,20 @@ impl Tree {
         T: Node,
         Self: TreeStore<T>,
     {
-        let local_id = <Self as TreeStore<T>>::allocate(self, node);
+        assert_eq!(
+            node_id.ty,
+            T::TYPE,
+            "DIR reserved node type differs from its inserted value"
+        );
         let index = self.node_index(node_id.id);
+        let entry = self.node_index_by_node_id[index];
+        assert!(
+            entry.is_placeholder(),
+            "DIR reserved node was already filled"
+        );
+
+        // fill the reserved node in its typed arena
+        let local_id = <Self as TreeStore<T>>::allocate(self, node);
         self.node_index_by_node_id[index] = NodeIndexEntry::new(local_id, T::TYPE);
 
         LocalNodeId::new(node_id.id)
@@ -1259,6 +1271,9 @@ mod tests {
         assert!(!tree.has_node_id(ty.id));
         assert!(!tree.has_node_id(decorator_expression.id));
         assert!(!tree.has_node_id(decorator.id));
+        assert_eq!(tree.iter_nodes::<Expression>().count(), 1);
+        assert_eq!(tree.iter_nodes::<TypeExpression>().count(), 0);
+        assert_eq!(tree.iter_nodes::<Decorator>().count(), 0);
         assert_eq!(tree.next_global_id(), mark.next_global_id());
     }
 
