@@ -403,7 +403,7 @@ export extension<T> of Array<T>
 
     /// Create the default array.
     static default(): ^Array<T> {
-        Array.new()
+        []
     }
 
     /// Return the number of elements.

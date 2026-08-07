@@ -233,18 +233,15 @@ export local class Promise<T: Copy> implements Awaitable<T> {
         else if (this.state.kind == "cancelled") {
             this.cancelWaiter(waiter);
         }
-        // retain pending waiters
+        // initialize the pending list
+        else if (this.state.tail == undefined) {
+            this.state.head = waiter;
+            this.state.tail = waiter;
+        }
+        // append in settlement order
         else {
-            // initialize the pending list
-            if (this.state.tail == undefined) {
-                this.state.head = waiter;
-                this.state.tail = waiter;
-            }
-            // append in settlement order
-            else {
-                this.state.tail.next = waiter;
-                this.state.tail = waiter;
-            }
+            this.state.tail.next = waiter;
+            this.state.tail = waiter;
         }
     }
 
@@ -303,7 +300,9 @@ export local class Promise<T: Copy> implements Awaitable<T> {
 
     /// Create one unresolved promise.
     private static pending<T: Copy>(): Promise<T> {
-        new Promise<T>((_resolve) => {})
+        new Promise<T>((_resolve) => {
+            // leave the promise unresolved
+        })
     }
 }
 
