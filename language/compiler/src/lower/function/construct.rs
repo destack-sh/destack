@@ -40,7 +40,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // lower the constructor arguments in declaration order
         let mut values = Vec::with_capacity(resolution.arguments.len());
         for binding in &resolution.arguments {
-            let dir::ArgumentSource::Provided(source) = binding.argument else {
+            let dir::ArgumentSource::Provided(source) = binding.source else {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
                     construct: "a defaulted or spread argument".to_string(),
@@ -156,7 +156,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "multiple arguments bound to one newtype construction".to_string(),
             });
         };
-        let dir::ArgumentSource::Provided(source) = binding.argument else {
+        let dir::ArgumentSource::Provided(source) = binding.source else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "a defaulted newtype argument".to_string(),
@@ -216,7 +216,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let payload = match resolution.arguments.as_slice() {
             [] => None,
             [binding] => {
-                let dir::ArgumentSource::Provided(source) = binding.argument else {
+                let dir::ArgumentSource::Provided(source) = binding.source else {
                     return Err(LowerError::Unsupported {
                         anchor: self.lowerer.module.into(),
                         construct: "a defaulted case payload".to_string(),
