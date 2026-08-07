@@ -48,6 +48,28 @@ impl Dir<'_> {
 }
 
 impl DirModule<'_> {
+    /// Return the canonical language member containing one node.
+    pub fn enclosing_language_member(
+        &self,
+        node: dir::LocalNodeIdAny,
+    ) -> Result<Option<dir::LanguageMember>, ProviderError> {
+        // select the member that contains the node
+        let Some(member) = self.view().ancestor::<dir::Member>(node) else {
+            return Ok(None);
+        };
+
+        // resolve the member's canonical language identity
+        let member = member.into_global_any(self.id);
+        let symbol = self.bindings.declaration_symbol(member).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "checked member {member:?} has no declaration symbol"
+            ))
+        })?;
+        let symbol = symbol.into_global(self.id);
+
+        self.dir.language_member(symbol)
+    }
+
     /// Return the canonical language item selected directly by one expression.
     pub fn language_item(
         &self,
