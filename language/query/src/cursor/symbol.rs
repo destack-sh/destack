@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_source::{FileId, NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
 
-use crate::{ModuleQueryContext, QueryError, QueryResult};
+use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
 
 /// One symbol occurrence at an authored source span.
 #[derive(Debug, Clone)]
@@ -38,11 +38,12 @@ impl ModuleQueryContext<'_> {
     /// Return the recorded symbol occurrence at an authored span.
     pub(crate) fn symbol_at_offset(
         &self,
+        query: &ProgramQueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<SymbolOccurrence>> {
         self.occurrence_at_offset(file_id, offset, |view, node_id, span, offset| {
-            self.symbol_occurrence(view, node_id, span, offset)
+            self.symbol_occurrence(query, view, node_id, span, offset)
         })
     }
 
@@ -65,33 +66,40 @@ impl ModuleQueryContext<'_> {
     /// Return the recorded declaration occurrence at an authored span.
     pub(crate) fn declaration_at_offset(
         &self,
+        query: &ProgramQueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<SymbolOccurrence>> {
         self.occurrence_at_offset(file_id, offset, |view, node_id, span, offset| {
-            self.declaration_occurrence(view, node_id, span, offset)
+            self.declaration_occurrence(query, view, node_id, span, offset)
         })
     }
 
     /// Return the identity used by a reference search at an authored span.
     pub(crate) fn reference_at_offset(
         &self,
+        query: &ProgramQueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<SymbolOccurrence>> {
         self.occurrence_at_offset(file_id, offset, |view, node_id, span, offset| {
             // explicit import aliases retain their local declaration identity
-            let declaration = self.declaration_occurrence(view, node_id, span, offset)?;
+            let declaration = self.declaration_occurrence(query, view, node_id, span, offset)?;
             let is_local_alias = match declaration.as_ref().and_then(SymbolOccurrence::symbol) {
                 Some(symbol) => self.is_local_import_alias(symbol)?,
                 None => false,
             };
-            if is_local_alias {
+            let is_definition_member = match declaration.as_ref().and_then(SymbolOccurrence::symbol)
+            {
+                Some(symbol) => self.definition_member(query, symbol)?.is_some(),
+                None => false,
+            };
+            if is_local_alias || is_definition_member {
                 return Ok(declaration);
             }
 
             // all other occurrences use their final checked targets
-            self.symbol_occurrence(view, node_id, span, offset)
+            self.symbol_occurrence(query, view, node_id, span, offset)
         })
     }
 
@@ -189,25 +197,45 @@ impl ModuleQueryContext<'_> {
     /// Return the occurrence introduced by one authored binding.
     fn binding_occurrence(
         &self,
+        query: &ProgramQueryContext<'_>,
         node_id: dir::LocalNodeIdAny,
         span: Span,
     ) -> QueryResult<Option<SymbolOccurrence>> {
-        let Some(symbol_id) = self.node_symbol(node_id)? else {
-            return Ok(None);
+        let source = node_id.into_global(self.module_id());
+        let symbols = match self.node_symbol(node_id)? {
+            Some(symbol) => vec![symbol.into_global(self.module_id())],
+            None => query
+                .member_index(self.module_id())?
+                .source_entries(source)
+                .filter_map(|member| member.symbol)
+                .collect(),
         };
-        let symbol_id = symbol_id.into_global(self.module_id());
-        let symbol = self.bindings()?.get_symbol(symbol_id.local_id);
-        let is_named_member = self
-            .definitions()?
-            .member(symbol_id)
-            .is_some_and(|(_, _, member)| member.is_named());
-        if symbol.name().is_none() && !is_named_member {
+        if symbols.is_empty() {
             return Ok(None);
         }
-        let source = node_id.into_global(self.module_id());
+
+        let bindings = self.bindings()?;
+        let mut is_named = false;
+        for symbol_id in &symbols {
+            let symbol = bindings.get_symbol(symbol_id.local_id);
+            let is_symbol_named = if symbol.name().is_some() {
+                true
+            } else {
+                self.definition_member(query, *symbol_id)?
+                    .is_some_and(|(_, _, member)| member.is_named())
+            };
+            if is_symbol_named {
+                is_named = true;
+
+                break;
+            }
+        }
+        if !is_named {
+            return Ok(None);
+        }
 
         Ok(Some(SymbolOccurrence {
-            symbols: vec![symbol_id],
+            symbols,
             type_id: self.types()?.get_node_type_id(source),
             span,
         }))
@@ -216,6 +244,7 @@ impl ModuleQueryContext<'_> {
     /// Return declaration symbols for one DIR node at its authored span.
     fn declaration_occurrence(
         &self,
+        query: &ProgramQueryContext<'_>,
         view: dir::View<'_>,
         node_id: dir::LocalNodeIdAny,
         span: Span,
@@ -229,6 +258,16 @@ impl ModuleQueryContext<'_> {
         }
 
         let source = node_id.into_global(self.module_id());
+
+        // definition members retain their declaration identity at their exact source
+        if query
+            .member_index(self.module_id())?
+            .source_entries(source)
+            .next()
+            .is_some()
+        {
+            return self.binding_occurrence(query, node_id, span);
+        }
 
         // select only recorded identities for qualified type path segments
         if let Some((segment, segment_count)) = self.qualified_type_segment(view, node_id, span)? {
@@ -274,7 +313,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // declaration nodes read their recorded binding
-        self.binding_occurrence(node_id, span)
+        self.binding_occurrence(query, node_id, span)
     }
 
     /// Return the first authored name span for one reference node.
@@ -314,6 +353,7 @@ impl ModuleQueryContext<'_> {
     /// Return the recorded symbols for one DIR node at its authored span.
     fn symbol_occurrence(
         &self,
+        query: &ProgramQueryContext<'_>,
         view: dir::View<'_>,
         node_id: dir::LocalNodeIdAny,
         span: Span,
@@ -327,6 +367,16 @@ impl ModuleQueryContext<'_> {
         }
 
         let global_node_id = node_id.into_global(self.module_id());
+
+        // definition members retain their declaration identity at their exact source
+        if query
+            .member_index(self.module_id())?
+            .source_entries(global_node_id)
+            .next()
+            .is_some()
+        {
+            return self.binding_occurrence(query, node_id, span);
+        }
 
         // select only recorded identities for qualified type path segments
         if let Some((segment, segment_count)) = self.qualified_type_segment(view, node_id, span)? {
@@ -346,6 +396,9 @@ impl ModuleQueryContext<'_> {
         // use the checked decorator selection for decorator targets
         if node_id.ty == dir::NodeType::Expression {
             let expression_id = dir::LocalNodeId::<dir::Expression>::new(node_id.id);
+            if let Some(occurrence) = self.subscript_key_occurrence(view, expression_id, span)? {
+                return Ok(Some(occurrence));
+            }
             if let Some(application) = self.decorators()?.application_for_expression(expression_id)
             {
                 let symbol = match application.resolution.target {
@@ -384,7 +437,68 @@ impl ModuleQueryContext<'_> {
         }
 
         // declarations read only their recorded binding
-        self.binding_occurrence(node_id, span)
+        self.binding_occurrence(query, node_id, span)
+    }
+
+    /// Return the checked member selected by one authored string subscript key.
+    fn subscript_key_occurrence(
+        &self,
+        view: dir::View<'_>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        span: Span,
+    ) -> QueryResult<Option<SymbolOccurrence>> {
+        if !matches!(
+            view.get(expression_id),
+            dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(_))
+        ) {
+            return Ok(None);
+        }
+
+        // require this literal as the exact key of one index expression
+        let Some(parent) = view.get_parent_for(expression_id) else {
+            return Ok(None);
+        };
+        if parent.ty != dir::NodeType::Expression {
+            return Ok(None);
+        }
+        let parent_id = dir::LocalNodeId::<dir::Expression>::new(parent.id);
+        if !matches!(
+            view.get(parent_id),
+            dir::Expression::Index {
+                index: Some(index), ..
+            } if *index == expression_id
+        ) {
+            return Ok(None);
+        }
+
+        // read only the exact target retained for this subscript
+        let source = parent_id.into_global_any(self.module_id());
+        let Some(resolution) = self.resolutions()?.subscript_resolution(source) else {
+            return Ok(None);
+        };
+        let mut symbols = Vec::new();
+        for subscript in resolution.iter() {
+            if let dir::SubscriptTarget::Member(member) = &subscript.target {
+                member.target.collect_symbols(&mut symbols);
+            }
+        }
+        symbols.sort();
+        symbols.dedup();
+        if symbols.is_empty() {
+            return Ok(None);
+        }
+        if span.end < span.start + 2 {
+            return Err(QueryError::invalid(format!(
+                "subscript string key span: {span:?}"
+            )));
+        }
+        let span = Span::new(span.file, span.start + 1, span.end - 1);
+
+        Ok(Some(SymbolOccurrence {
+            symbols,
+            type_id: Some(resolution.ty()),
+            span,
+        }))
     }
 
     /// Return the selected segment in one qualified type reference.

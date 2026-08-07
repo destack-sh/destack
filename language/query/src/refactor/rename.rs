@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, btree_map};
 use destack_dir as dir;
 use destack_serde::Reflect;
 use destack_source::{FileId, FilePatch, Patch, PatchSet, Span};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::source::is_simple_identifier;
@@ -45,7 +45,7 @@ impl ModuleQueryContext<'_> {
         let Some(selection) = self.resolve_rename_target(program, file_id, offset)? else {
             return Ok(None);
         };
-        let symbols = selection.expand_rename_symbols(program)?;
+        let symbols = &selection.symbols;
 
         // reject no-op names
         if selection.placeholder == new_name {
@@ -55,10 +55,10 @@ impl ModuleQueryContext<'_> {
         // collect the complete indexed occurrence set
         let occurrences = self.collect_symbol_rename_occurrences(
             program,
-            &symbols,
+            symbols,
             selection.is_local_declaration,
         )?;
-        let role = RenameRole::resolve(program, &symbols)?;
+        let role = RenameRole::resolve(program, symbols)?;
 
         let edits = selection.edits(program, &occurrences, new_name, role)?;
 
@@ -79,39 +79,6 @@ pub(crate) struct RenameSelection {
 }
 
 impl RenameSelection {
-    /// Expand the selection to every declaration renamed together with it.
-    fn expand_rename_symbols(
-        &self,
-        program: &ProgramQueryContext<'_>,
-    ) -> QueryResult<Vec<dir::GlobalSymbolId>> {
-        let mut worklist = self.symbols.clone();
-        let mut expanded = Vec::new();
-        let mut seen = FxHashSet::default();
-
-        while let Some(symbol_id) = worklist.pop() {
-            if !seen.insert(symbol_id) {
-                continue;
-            }
-            expanded.push(symbol_id);
-            let module = program.module(symbol_id.module_id)?;
-            let symbol = module.bindings()?.get_symbol(symbol_id.local_id);
-            let Some(declaration) = symbol.declaration else {
-                continue;
-            };
-
-            // rename members with their same-key siblings and implementations
-            if matches!(
-                declaration.local_id.ty,
-                dir::NodeType::Member | dir::NodeType::TypeMember
-            ) {
-                worklist.extend(module.member_rename_siblings(program, symbol_id)?);
-            }
-        }
-        expanded.sort();
-
-        Ok(expanded)
-    }
-
     /// Build exact file edits from indexed occurrences.
     fn edits(
         &self,
@@ -220,14 +187,19 @@ impl RenameRole {
     ) -> QueryResult<Self> {
         let module = program.module(symbol_id.module_id)?;
         let symbol = module.bindings()?.get_symbol(symbol_id.local_id);
-        let declaration = symbol.declaration.ok_or(QueryError::missing(format!(
-            "rename declaration: {symbol_id:?}"
-        )))?;
-        let role = match declaration.local_id.ty {
-            dir::NodeType::Member | dir::NodeType::TypeMember | dir::NodeType::EnumField => {
-                Self::Member
+        let role = match symbol.declaration {
+            Some(declaration) => match declaration.local_id.ty {
+                dir::NodeType::Member | dir::NodeType::TypeMember | dir::NodeType::EnumField => {
+                    Self::Member
+                }
+                _ => Self::Binding,
+            },
+            None if module.definition_member(program, symbol_id)?.is_some() => Self::Member,
+            None => {
+                return Err(QueryError::missing(format!(
+                    "rename declaration: {symbol_id:?}"
+                )));
             }
-            _ => Self::Binding,
         };
 
         Ok(role)
@@ -326,7 +298,7 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<RenameSelection>> {
-        let Some(occurrence) = self.reference_at_offset(file_id, offset)? else {
+        let Some(occurrence) = self.reference_at_offset(query, file_id, offset)? else {
             return Ok(None);
         };
 
@@ -393,7 +365,7 @@ impl ModuleQueryContext<'_> {
         for symbol in symbols {
             let module = program.module(symbol.module_id)?;
             let definition_span = if is_local_declaration {
-                module.symbol_local_definition_span(*symbol)?
+                module.symbol_local_definition_span(program, *symbol)?
             } else {
                 program.symbol_definition_span(*symbol)?
             }

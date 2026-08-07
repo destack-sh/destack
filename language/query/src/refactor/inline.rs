@@ -66,7 +66,7 @@ impl ModuleQueryContext<'_> {
         offset: u32,
     ) -> QueryResult<Option<PatchSet>> {
         // resolve one exact local symbol
-        let Some(occurrence) = self.symbol_at_offset(file_id, offset)? else {
+        let Some(occurrence) = self.symbol_at_offset(program, file_id, offset)? else {
             return Ok(None);
         };
         let Some(symbol) = occurrence.symbol() else {

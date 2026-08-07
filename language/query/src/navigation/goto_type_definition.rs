@@ -30,7 +30,7 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Vec<NavigationTarget>> {
-        let occurrence = self.symbol_at_offset(file_id, offset)?;
+        let occurrence = self.symbol_at_offset(query, file_id, offset)?;
         let (span, symbols, type_id) = if let Some(occurrence) = occurrence {
             (occurrence.span, occurrence.symbols, occurrence.type_id)
         } else if let Some(occurrence) = self.type_at_offset(file_id, offset)? {
@@ -88,7 +88,7 @@ impl ModuleQueryContext<'_> {
                     )));
                 }
 
-                targets.push(module.navigation_target(definition, origin)?);
+                targets.push(module.navigation_target(query, definition, origin)?);
             }
         }
 

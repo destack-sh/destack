@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{ModuleQueryContext, QueryError, QueryRange, QueryResult, Target};
+use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryRange, QueryResult, Target};
 
 /// One navigation target.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -17,13 +17,18 @@ pub struct NavigationTarget {
 
 impl ModuleQueryContext<'_> {
     /// Build one source target from an exact declaration symbol.
-    pub(crate) fn symbol_target(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<Target> {
-        // navigate generated symbols to their generating member declaration
-        let Some(span) = self.symbol_local_declaration_span(symbol_id)? else {
-            return self.generated_symbol_target(symbol_id);
-        };
+    pub(crate) fn symbol_target(
+        &self,
+        query: &ProgramQueryContext<'_>,
+        symbol_id: dir::GlobalSymbolId,
+    ) -> QueryResult<Target> {
+        let span = self
+            .symbol_local_declaration_span(query, symbol_id)?
+            .ok_or(QueryError::missing(format!(
+                "declaration target: {symbol_id:?}"
+            )))?;
         let selection_span =
-            self.symbol_local_definition_span(symbol_id)?
+            self.symbol_local_definition_span(query, symbol_id)?
                 .ok_or(QueryError::missing(format!(
                     "declaration selection: {symbol_id:?}"
                 )))?;
@@ -31,32 +36,14 @@ impl ModuleQueryContext<'_> {
         Target::new(self.module(), span).with_selection_span(selection_span)
     }
 
-    /// Build one source target from a generated symbol's defining member.
-    fn generated_symbol_target(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<Target> {
-        let (_, _, member) = self
-            .definitions()?
-            .member(symbol_id)
-            .ok_or(QueryError::missing(format!(
-                "generated symbol member: {symbol_id:?}"
-            )))?;
-        let source = member.source();
-        let span = self
-            .view()?
-            .get_span_by_id(source.local_id.id)
-            .ok_or(QueryError::missing(format!(
-                "generated member span: {source:?}"
-            )))?;
-
-        Ok(Target::new(self.module(), span))
-    }
-
     /// Build one navigation target from an exact declaration symbol.
     pub(crate) fn navigation_target(
         &self,
+        query: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
         origin: QueryRange,
     ) -> QueryResult<NavigationTarget> {
-        let target = self.symbol_target(symbol_id)?;
+        let target = self.symbol_target(query, symbol_id)?;
 
         Ok(NavigationTarget {
             origin,

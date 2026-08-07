@@ -17,7 +17,7 @@ impl CompletionCollector<'_, '_, '_> {
         // render a derived tagged constructor from its object argument
         let module = self.program.module(symbol.module_id)?;
         if let Some((_, _, dir::DefinitionMember::TaggedVariant(variant))) =
-            module.definitions()?.member(symbol)
+            module.definition_member(self.program, symbol)?
         {
             let fields = match variant.argument {
                 Some(argument) => self.program.read_type(argument, |ty, owner| {

@@ -3,7 +3,6 @@ mod documentation;
 mod expression;
 mod import;
 mod lexical;
-mod member;
 mod parameter;
 mod program;
 mod reference;

@@ -76,6 +76,38 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
             self.select(sources, vec![symbol])?;
         }
 
+        // record the exact variant selected by nominal patterns
+        for (source, resolution) in self.module.resolutions().pattern_entries() {
+            let dir::PatternResolution::Variant(resolution) = resolution else {
+                continue;
+            };
+
+            let pattern = source
+                .local_id
+                .try_into_typed::<dir::Pattern>()
+                .map_err(|_| {
+                    ProviderError::internal(format!(
+                        "pattern resolution source is not a pattern: {source:?}"
+                    ))
+                })?;
+            let source = match self.module.view().get(pattern) {
+                dir::Pattern::NominalTuple { ty, .. } | dir::Pattern::NominalObject { ty, .. } => {
+                    ty.into_global_any(self.module.module_id())
+                }
+                dir::Pattern::Expression { value } => {
+                    value.into_global_any(self.module.module_id())
+                }
+                pattern => {
+                    return Err(ProviderError::internal(format!(
+                        "variant resolution has incompatible pattern {pattern:?}: {source:?}"
+                    ))
+                    .into());
+                }
+            };
+
+            self.select(vec![source], vec![resolution.case.variant])?;
+        }
+
         Ok(())
     }
 
@@ -98,11 +130,9 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
             }
         }
 
-        // collect resolved symbol labels
-        for (source, resolution) in self.module.resolutions().label_entries() {
-            if let dir::LabelResolution::Symbol(symbol) = resolution {
-                self.push(*symbol, source)?;
-            }
+        // collect resolved label symbols
+        for (source, symbol) in self.module.resolutions().label_entries() {
+            self.push(*symbol, source)?;
         }
 
         // collect resolved receiver declarations
@@ -306,6 +336,13 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
             return Ok(());
         };
 
+        self.push_at(target, source, span);
+
+        Ok(())
+    }
+
+    /// Push one authored reference occurrence at its exact selection span.
+    fn push_at(&mut self, target: dir::GlobalSymbolId, source: dir::GlobalNodeIdAny, span: Span) {
         // record explicit local aliases without interpreting dependency chains
         let declarations = self.module.resolved().references.declarations(source);
         let is_import_alias = declarations.is_some_and(|declarations| {
@@ -319,8 +356,6 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
             span,
             is_import_alias,
         });
-
-        Ok(())
     }
 
     /// Return the authored span carrying one lexical declaration identity.
@@ -353,6 +388,11 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
         source_id: u32,
         target: dir::GlobalSymbolId,
     ) -> ProviderResult<Option<Span>> {
+        // final selections replace projected prefix bindings
+        if self.selected_sources.contains(&source) {
+            return Ok(self.module.source_index().get_main(source_id));
+        }
+
         // projected type paths bind the final namespace prefix, not the final source segment
         if source.local_id.ty == dir::NodeType::TypeExpression
             && let Some(dir::Reference::Projected {
@@ -500,17 +540,79 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
         source: dir::GlobalNodeIdAny,
         resolution: &dir::SubscriptResolution,
     ) -> ProviderResult<()> {
+        let member_span = self.string_subscript_span(source)?;
+        let mut member_symbols = Vec::new();
+
         for subscript in resolution.iter() {
             match &subscript.target {
+                dir::SubscriptTarget::Member(member) if member_span.is_some() => {
+                    member.target.collect_symbols(&mut member_symbols)
+                }
                 dir::SubscriptTarget::Member(member) => {
-                    self.push_member_target(source, &member.target)?;
+                    self.push_member_target(source, &member.target)?
                 }
                 dir::SubscriptTarget::Call(call) => self.push_call(source, call)?,
                 dir::SubscriptTarget::Index(read) => self.push_call(source, &read.call)?,
             }
         }
 
+        // emit every member selected by one authored string key
+        if let Some(span) = member_span {
+            member_symbols.sort();
+            member_symbols.dedup();
+            for symbol in member_symbols {
+                self.push_at(symbol, source, span);
+            }
+        }
+
         Ok(())
+    }
+
+    /// Return the authored contents of one string subscript key.
+    fn string_subscript_span(&self, source: dir::GlobalNodeIdAny) -> ProviderResult<Option<Span>> {
+        let expression_id = source
+            .local_id
+            .try_into_typed::<dir::Expression>()
+            .map_err(|_| {
+                ProviderError::internal(format!(
+                    "subscript resolution source is not an expression: {source:?}"
+                ))
+            })?;
+        let dir::Expression::Index { index, .. } = self.module.view().get(expression_id) else {
+            return Err(ProviderError::internal(format!(
+                "subscript resolution source is not an index expression: {source:?}"
+            ))
+            .into());
+        };
+        let Some(index) = index else {
+            return Ok(None);
+        };
+
+        // retain only static string member keys
+        if !matches!(
+            self.module.view().get(*index),
+            dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(_))
+        ) {
+            return Ok(None);
+        }
+
+        let span = self
+            .module
+            .view()
+            .get_source_extent_by_id(index.id)
+            .ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "subscript string key has no authored source span: {source:?}"
+                ))
+            })?;
+        if span.end < span.start + 2 {
+            return Err(ProviderError::internal(format!(
+                "subscript string key has an invalid source span: {span:?}"
+            ))
+            .into());
+        }
+
+        Ok(Some(Span::new(span.file, span.start + 1, span.end - 1)))
     }
 
     /// Push the symbol targets recorded by one dereference resolution.

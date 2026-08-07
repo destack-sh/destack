@@ -90,12 +90,11 @@ impl TypeItem {
                 .ok_or(QueryError::missing(format!(
                     "type item span: {canonical_id:?}"
                 )))?;
-        let range =
-            module
-                .symbol_local_declaration_span(canonical_id)?
-                .ok_or(QueryError::missing(format!(
-                    "type item span: {canonical_id:?}"
-                )))?;
+        let range = module
+            .symbol_local_declaration_span(query, canonical_id)?
+            .ok_or(QueryError::missing(format!(
+                "type item span: {canonical_id:?}"
+            )))?;
 
         let target = Target::new(module.module(), range).with_selection_span(selection_range)?;
         let detail = Formatter::new(&module, query).symbol_generics(canonical_id)?;
@@ -131,7 +130,7 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<TypeItem>> {
-        let Some(symbol_at) = self.symbol_at_offset(file_id, offset)? else {
+        let Some(symbol_at) = self.symbol_at_offset(query, file_id, offset)? else {
             return Ok(None);
         };
         let Some(symbol_id) = symbol_at.symbol() else {

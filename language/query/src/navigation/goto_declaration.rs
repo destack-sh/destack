@@ -29,7 +29,7 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Vec<NavigationTarget>> {
-        let Some(occurrence) = self.declaration_at_offset(file_id, offset)? else {
+        let Some(occurrence) = self.declaration_at_offset(query, file_id, offset)? else {
             return Ok(Vec::new());
         };
         let origin = QueryRange {
@@ -41,7 +41,7 @@ impl ModuleQueryContext<'_> {
         let mut targets = Vec::new();
         for symbol_id in occurrence.symbols {
             let module = query.module(symbol_id.module_id)?;
-            let target = module.navigation_target(symbol_id, origin)?;
+            let target = module.navigation_target(query, symbol_id, origin)?;
 
             targets.push(target);
         }

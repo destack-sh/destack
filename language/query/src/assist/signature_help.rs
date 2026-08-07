@@ -396,11 +396,10 @@ impl ModuleQueryContext<'_> {
                 let symbol_id = candidate.case.variant;
                 let module = query.module(symbol_id.module_id)?;
                 let (declaring, definition, member) = module
-                    .definitions()?
-                    .member(symbol_id)
+                    .definition_member(query, symbol_id)?
                     .ok_or(QueryError::missing(format!(
-                        "signature member: {symbol_id:?}"
-                    )))?;
+                    "signature member: {symbol_id:?}"
+                )))?;
                 let owner = definition
                     .member_owner(declaring)
                     .ok_or(QueryError::missing(format!(

@@ -55,7 +55,7 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<Option<Hover>> {
         // resolve source documentation and every exact named declaration
         let documentation = self.documentation_at_offset(file_id, offset)?;
-        let occurrence = self.symbol_at_offset(file_id, offset)?;
+        let occurrence = self.symbol_at_offset(query, file_id, offset)?;
         if occurrence.is_none() && documentation.is_none() {
             return Ok(None);
         }
@@ -80,7 +80,7 @@ impl ModuleQueryContext<'_> {
             let module = query.module(symbol.module_id)?;
             let signature = Formatter::new(&module, query).symbol_signature(symbol)?;
             let item_documentation = query.symbol_documentation(symbol)?;
-            let target = module.symbol_target(symbol)?;
+            let target = module.symbol_target(query, symbol)?;
 
             // avoid repeating documentation on its declaration occurrence
             if let Some(documentation) = &documentation {

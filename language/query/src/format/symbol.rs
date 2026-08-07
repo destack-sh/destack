@@ -152,9 +152,9 @@ impl Formatter<'_, '_, '_> {
         let formatter = Formatter::new(&module, self.query);
         let symbols = module.bindings()?;
         let symbol = symbols.get_symbol(symbol_id.into_local());
-        let declaration = symbol.declaration.ok_or(QueryError::missing(format!(
-            "signature declaration: {symbol_id:?}"
-        )))?;
+        let Some(declaration) = symbol.declaration else {
+            return formatter.member_symbol_signature(symbol_id);
+        };
         let name = symbol
             .name()
             .map(|name| module.strings().get(name).to_string());
@@ -226,13 +226,12 @@ impl Formatter<'_, '_, '_> {
 
     /// Format one member symbol.
     fn member_symbol_signature(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<String> {
-        let (declaring, definition, member) =
-            self.module
-                .definitions()?
-                .member(symbol_id)
-                .ok_or(QueryError::missing(format!(
-                    "signature member: {symbol_id:?}"
-                )))?;
+        let (declaring, definition, member) = self
+            .module
+            .definition_member(self.query, symbol_id)?
+            .ok_or(QueryError::missing(format!(
+                "signature member: {symbol_id:?}"
+            )))?;
         let owner = definition.member_owner(declaring);
         let container = owner
             .map(|owner| self.query.symbol_name(owner))
@@ -244,91 +243,107 @@ impl Formatter<'_, '_, '_> {
             None => name,
         };
 
-        let signature =
-            match member {
-                dir::DefinitionMember::Field(_) => {
+        let signature = match member {
+            dir::DefinitionMember::Field(_) => {
+                let type_text = self.member_type(member)?;
+
+                format!("(property) {name}: {type_text}")
+            }
+            dir::DefinitionMember::Method(method) => {
+                if matches!(
+                    method.role,
+                    Some(dir::FunctionRole::Getter | dir::FunctionRole::Setter)
+                ) {
                     let type_text = self.member_type(member)?;
 
-                    format!("(property) {name}: {type_text}")
+                    return Ok(format!("(property) {name}: {type_text}"));
                 }
-                dir::DefinitionMember::Method(method) => {
-                    if matches!(
-                        method.role,
-                        Some(dir::FunctionRole::Getter | dir::FunctionRole::Setter)
-                    ) {
-                        let type_text = self.member_type(member)?;
 
-                        return Ok(format!("(property) {name}: {type_text}"));
+                let signature = self.authored_member_signature(member.source())?;
+                let signature = self.call_signature(&name, signature, false)?;
+                let kind = match method.slot {
+                    dir::MemberSlot::Key(_) => "method",
+                    dir::MemberSlot::Constructor | dir::MemberSlot::New => "constructor",
+                    dir::MemberSlot::Call => "function",
+                };
+
+                format!("({kind}) {signature}")
+            }
+            dir::DefinitionMember::AssociatedType(associated) => {
+                let constraint = associated
+                    .constraint
+                    .map(|constraint| self.global_type(constraint))
+                    .transpose()?;
+                let value = associated
+                    .value
+                    .map(|value| self.global_type(value))
+                    .transpose()?;
+
+                match (constraint, value) {
+                    (None, None) => format!("(type member) {name}"),
+                    (Some(constraint), None) => {
+                        format!("(type member) {name}: {constraint}")
                     }
-
-                    let signature = self.authored_member_signature(member.source())?;
-                    let signature = self.call_signature(&name, signature, false)?;
-                    let kind = match method.slot {
-                        dir::MemberSlot::Key(_) => "method",
-                        dir::MemberSlot::Constructor | dir::MemberSlot::New => "constructor",
-                        dir::MemberSlot::Call => "function",
-                    };
-
-                    format!("({kind}) {signature}")
-                }
-                dir::DefinitionMember::AssociatedType(associated) => {
-                    let constraint = associated
-                        .constraint
-                        .map(|constraint| self.global_type(constraint))
-                        .transpose()?;
-                    let value = associated
-                        .value
-                        .map(|value| self.global_type(value))
-                        .transpose()?;
-
-                    match (constraint, value) {
-                        (None, None) => format!("(type member) {name}"),
-                        (Some(constraint), None) => {
-                            format!("(type member) {name}: {constraint}")
-                        }
-                        (None, Some(value)) => format!("(type member) {name} = {value}"),
-                        (Some(constraint), Some(value)) => {
-                            format!("(type member) {name}: {constraint} = {value}")
-                        }
+                    (None, Some(value)) => format!("(type member) {name} = {value}"),
+                    (Some(constraint), Some(value)) => {
+                        format!("(type member) {name}: {constraint} = {value}")
                     }
                 }
-                dir::DefinitionMember::AssociatedConst(_) => {
-                    let type_text = self.member_type(member)?;
+            }
+            dir::DefinitionMember::AssociatedConst(_) => {
+                let type_text = self.member_type(member)?;
 
-                    format!("(comptime const) {name}: {type_text}")
-                }
-                dir::DefinitionMember::EnumVariant(_) => {
-                    let type_text = self.member_type(member)?;
+                format!("(comptime const) {name}: {type_text}")
+            }
+            dir::DefinitionMember::EnumVariant(_) => {
+                let type_text = self.member_type(member)?;
 
-                    format!("(enum member) {name}: {type_text}")
-                }
-                // format the declared variant identity alone in unchecked modules
-                dir::DefinitionMember::TaggedKey(_) => {
-                    format!("(constructor) {name}")
-                }
-                dir::DefinitionMember::TaggedVariant(variant) => {
-                    let type_id = self.types()?.get_symbol_type_id(variant.symbol).ok_or(
-                        QueryError::missing(format!("tagged variant type: {:?}", variant.symbol)),
-                    )?;
-                    let signature = self.callable_signature(&name, type_id)?;
+                format!("(enum member) {name}: {type_text}")
+            }
+            // format the declared variant identity alone in unchecked modules
+            dir::DefinitionMember::TaggedKey(_) => {
+                format!("(constructor) {name}")
+            }
+            dir::DefinitionMember::TaggedVariant(variant) => {
+                let signature = self.tagged_variant_signature(declaring, variant)?;
 
-                    format!("(constructor) {signature}")
-                }
-                dir::DefinitionMember::CallSignature(_)
-                | dir::DefinitionMember::ConstructSignature(_) => {
-                    let signature = self.authored_member_signature(member.source())?;
-                    let signature = self.call_signature(&name, signature, false)?;
+                format!("(constructor) {signature}")
+            }
+            dir::DefinitionMember::CallSignature(_)
+            | dir::DefinitionMember::ConstructSignature(_) => {
+                let signature = self.authored_member_signature(member.source())?;
+                let signature = self.call_signature(&name, signature, false)?;
 
-                    format!("(function) {signature}")
-                }
-                dir::DefinitionMember::IndexSignature(_) => {
-                    let type_text = self.member_type(member)?;
+                format!("(function) {signature}")
+            }
+            dir::DefinitionMember::IndexSignature(_) => {
+                let type_text = self.member_type(member)?;
 
-                    format!("(property) {name}: {type_text}")
-                }
-            };
+                format!("(property) {name}: {type_text}")
+            }
+        };
 
         Ok(signature)
+    }
+
+    /// Format one generated tagged variant constructor.
+    pub(crate) fn tagged_variant_signature(
+        &self,
+        declaring: dir::GlobalSymbolId,
+        variant: &dir::TaggedVariantDefinition,
+    ) -> QueryResult<String> {
+        let owner = self.symbol(declaring)?;
+        let generic_parameters = self.symbol_generics(declaring)?.unwrap_or_default();
+        let name = self.property_key(variant.key)?;
+        let parameters = variant
+            .argument
+            .map(|argument| self.global_type(argument))
+            .transpose()?
+            .unwrap_or_default();
+
+        Ok(format!(
+            "{owner}.{name}{generic_parameters}({parameters}): {owner}{generic_parameters}"
+        ))
     }
 
     /// Format one parameter symbol.

@@ -63,7 +63,7 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Vec<Highlight>> {
-        let Some(occurrence) = self.declaration_at_offset(file_id, offset)? else {
+        let Some(occurrence) = self.declaration_at_offset(program, file_id, offset)? else {
             return Ok(Vec::new());
         };
 
@@ -89,7 +89,7 @@ impl ModuleQueryContext<'_> {
         // collect definitions and references for every exact declaration
         for symbol in symbols {
             if symbol.module_id == self.module_id()
-                && let Some(span) = self.symbol_local_definition_span(symbol)?
+                && let Some(span) = self.symbol_local_definition_span(program, symbol)?
             {
                 let kind = self.declaration_highlight_kind(program, symbol)?;
                 Self::insert_highlight(&mut highlights, span, kind);

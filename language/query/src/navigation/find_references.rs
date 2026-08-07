@@ -44,7 +44,7 @@ impl ModuleQueryContext<'_> {
         include_declaration: bool,
     ) -> QueryResult<Vec<ReferenceOccurrence>> {
         // read the exact local alias or final semantic identities at the cursor
-        let Some(occurrence) = self.reference_at_offset(file_id, offset)? else {
+        let Some(occurrence) = self.reference_at_offset(program, file_id, offset)? else {
             return Ok(Vec::new());
         };
         let is_local_alias = match occurrence.symbol() {
@@ -85,7 +85,7 @@ impl ModuleQueryContext<'_> {
             if include_declaration {
                 let module = program.module(symbol.module_id)?;
                 let span = if is_local_alias {
-                    module.symbol_local_definition_span(*symbol)?
+                    module.symbol_local_definition_span(program, *symbol)?
                 } else {
                     program.symbol_definition_span(*symbol)?
                 };

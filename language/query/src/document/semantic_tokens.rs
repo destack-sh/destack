@@ -652,10 +652,12 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
         node_id: dir::GlobalNodeIdAny,
     ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
         // explicit label transfers carry local symbol identity directly
-        if matches!(
-            self.module.resolutions()?.label_resolution(node_id),
-            Some(dir::LabelResolution::Symbol(_))
-        ) {
+        if self
+            .module
+            .resolutions()?
+            .label_resolution(node_id)
+            .is_some()
+        {
             return Ok(Some((
                 SemanticTokenType::Label,
                 SemanticTokenModifiers::NONE,
@@ -1029,13 +1031,12 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
                         "semantic token member symbol: {:?}",
                         member_id.into_global_any(self.module.module_id())
                     )))?;
-                let (_, _, definition) =
-                    self.module
-                        .definitions()?
-                        .member(symbol_id)
-                        .ok_or(QueryError::missing(format!(
-                            "semantic token member definition: {symbol_id:?}"
-                        )))?;
+                let (_, _, definition) = self
+                    .module
+                    .definition_member(self.query, symbol_id)?
+                    .ok_or(QueryError::missing(format!(
+                        "semantic token member definition: {symbol_id:?}"
+                    )))?;
                 let dir::DefinitionMember::Method(definition) = definition else {
                     return Err(QueryError::invalid(format!(
                         "semantic token member definition: {symbol_id:?}"
@@ -1188,7 +1189,10 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
             // classify only segments carrying exact recorded symbol targets
             for span in spans {
-                let Some(occurrence) = self.module.symbol_at_offset(span.file, span.start)? else {
+                let Some(occurrence) = self
+                    .module
+                    .symbol_at_offset(self.query, span.file, span.start)?
+                else {
                     continue;
                 };
                 if occurrence.span != span {

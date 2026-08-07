@@ -14,6 +14,9 @@ impl ModuleQueryContext<'_> {
         if let Some(resolution) = self.resolutions()?.member_resolution(node_id) {
             selections.push(resolution.target_symbols());
         }
+        if let Some(resolution) = self.resolutions()?.subscript_resolution(node_id) {
+            selections.push(resolution.target_symbols());
+        }
         if let Some(resolution) = self.resolutions()?.instantiation_resolution(node_id) {
             selections.push(vec![resolution.symbol]);
         }
@@ -23,13 +26,8 @@ impl ModuleQueryContext<'_> {
         if let Some(resolution) = self.resolutions()?.receiver_resolution(node_id) {
             selections.push(vec![resolution.declaration]);
         }
-        if let Some(resolution) = self.resolutions()?.label_resolution(node_id) {
-            let symbols = match resolution {
-                dir::LabelResolution::Symbol(symbol) => vec![symbol],
-                dir::LabelResolution::Loop | dir::LabelResolution::Function => Vec::new(),
-            };
-
-            selections.push(symbols);
+        if let Some(symbol) = self.resolutions()?.label_resolution(node_id) {
+            selections.push(vec![symbol]);
         }
 
         // require one authoritative resolution column

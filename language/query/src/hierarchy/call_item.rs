@@ -64,7 +64,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // otherwise classify the exact symbol occurrence
-        let Some(symbol_at) = self.symbol_at_offset(file_id, offset)? else {
+        let Some(symbol_at) = self.symbol_at_offset(query, file_id, offset)? else {
             return Ok(None);
         };
         let Some(symbol_id) = symbol_at.symbol() else {
@@ -471,8 +471,7 @@ impl ModuleQueryContext<'_> {
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<CallItem>> {
         let (declaring, definition, member) =
-            self.definitions()?
-                .member(symbol_id)
+            self.definition_member(query, symbol_id)?
                 .ok_or(QueryError::missing(format!(
                     "call item member: {symbol_id:?}"
                 )))?;
@@ -620,12 +619,11 @@ impl ModuleQueryContext<'_> {
         query: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<CallItem>> {
-        let (_, _, member) = self
-            .definitions()?
-            .member(symbol_id)
-            .ok_or(QueryError::invalid(format!(
-                "call item symbol: {symbol_id:?}"
-            )))?;
+        let (declaring, _, member) =
+            self.definition_member(query, symbol_id)?
+                .ok_or(QueryError::invalid(format!(
+                    "call item symbol: {symbol_id:?}"
+                )))?;
         if matches!(member, dir::DefinitionMember::EnumVariant(_)) {
             return Ok(None);
         }
@@ -642,16 +640,13 @@ impl ModuleQueryContext<'_> {
             )));
         };
         let name = self.strings().get(name).to_string();
-        let detail = match self.types()?.get_symbol_type_id(variant.symbol) {
-            Some(type_id) => Some(Formatter::new(self, query).callable_signature(&name, type_id)?),
-            None => None,
-        };
-        let target = self.symbol_target(symbol_id)?;
+        let detail = Formatter::new(self, query).tagged_variant_signature(declaring, variant)?;
+        let target = self.symbol_target(query, symbol_id)?;
 
         Ok(Some(CallItem {
             name,
             kind: CallItemKind::Constructor,
-            detail,
+            detail: Some(detail),
             target,
             symbol_id,
         }))

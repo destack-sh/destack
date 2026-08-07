@@ -25,6 +25,45 @@ impl ModuleQueryContext<'_> {
 
         Ok(symbol)
     }
+
+    /// Return the exact definition member carried by one indexed symbol.
+    pub(crate) fn definition_member<'a>(
+        &'a self,
+        query: &ProgramQueryContext<'_>,
+        symbol: dir::GlobalSymbolId,
+    ) -> QueryResult<
+        Option<(
+            dir::GlobalSymbolId,
+            &'a dir::Definition,
+            &'a dir::DefinitionMember,
+        )>,
+    > {
+        if symbol.module_id != self.module_id() {
+            return Err(QueryError::invalid(format!(
+                "local member symbol: {symbol:?}, {:?}",
+                self.module_id()
+            )));
+        }
+
+        // select the declaring definition through the persisted member index
+        let Some(entry) = query.member_index(self.module_id())?.symbol_entry(symbol) else {
+            return Ok(None);
+        };
+        let declaring = entry.declaring;
+        let definition = self
+            .definitions()?
+            .definition(declaring)
+            .ok_or(QueryError::missing(format!(
+                "member declaring definition: {symbol:?}, {declaring:?}"
+            )))?;
+        let member = definition
+            .member(symbol)
+            .ok_or(QueryError::missing(format!(
+                "indexed definition member: {symbol:?}, {declaring:?}"
+            )))?;
+
+        Ok(Some((declaring, definition, member)))
+    }
 }
 
 impl ProgramQueryContext<'_> {
@@ -168,7 +207,7 @@ impl ProgramQueryContext<'_> {
         };
         let module = self.module(symbol_id.module_id)?;
 
-        module.symbol_local_definition_span(symbol_id)
+        module.symbol_local_definition_span(self, symbol_id)
     }
 }
 
@@ -176,6 +215,7 @@ impl ModuleQueryContext<'_> {
     /// Return the local definition span of a symbol without canonical expansion.
     pub(crate) fn symbol_local_definition_span(
         &self,
+        query: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<Span>> {
         if symbol_id.module_id != self.module_id() {
@@ -202,12 +242,25 @@ impl ModuleQueryContext<'_> {
             return Ok(Some(span));
         }
 
+        // read member selections from their exact definition source
+        if let Some((_, _, member)) = self.definition_member(query, symbol_id)? {
+            let source = member.source();
+            let span = self
+                .node_selection_span(self.view()?, source.local_id)?
+                .ok_or(QueryError::missing(format!(
+                    "member definition: {symbol_id:?}"
+                )))?;
+
+            return Ok(Some(span));
+        }
+
         Ok(None)
     }
 
     /// Return the local declaration span of a symbol without canonical expansion.
     pub(crate) fn symbol_local_declaration_span(
         &self,
+        query: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<Span>> {
         if symbol_id.module_id != self.module_id() {
@@ -220,11 +273,17 @@ impl ModuleQueryContext<'_> {
 
         let symbols = self.bindings()?;
         let symbol = symbols.get_symbol(symbol_id.local_id);
-        let Some(declaration) = symbol.declaration else {
-            return Ok(None);
-        };
+        let source = match symbol.declaration {
+            Some(declaration) => declaration.local_id,
+            None => {
+                let Some((_, _, member)) = self.definition_member(query, symbol_id)? else {
+                    return Ok(None);
+                };
 
-        let span = self.node_span(self.view()?, declaration.local_id)?;
+                member.source().local_id
+            }
+        };
+        let span = self.node_span(self.view()?, source)?;
 
         Ok(Some(span))
     }

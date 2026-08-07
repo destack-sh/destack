@@ -292,6 +292,14 @@ impl<'a> ProgramQueryContext<'a> {
         }
     }
 
+    /// Return one module member index.
+    pub(crate) fn member_index(&self, module_id: ModuleId) -> QueryResult<&dir::MemberIndex> {
+        match self.module_index(module_id, IndexKind::Members)? {
+            ModuleIndex::Members(index) => Ok(index),
+            index => Err(Self::unexpected_module_index(IndexKind::Members, index)),
+        }
+    }
+
     /// Return one module export index selected by a program ordinal.
     pub(crate) fn export_index_at(
         &self,
