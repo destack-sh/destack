@@ -1,3 +1,4 @@
+use std::iter::repeat_n;
 use std::mem::take;
 
 use destack_core::{FxIndexMap, FxIndexSet, StringPool};
@@ -459,14 +460,8 @@ impl CheckState<'_> {
 
             return Ok(());
         };
-        let (backing, template, is_tagged) = match self.definition_maybe(symbol) {
-            Some(dir::Definition::Newtype(definition)) => (
-                definition.backing,
-                definition
-                    .template
-                    .map(|template| template.into_global(module)),
-                definition.is_tagged(),
-            ),
+        let is_tagged = match self.definition_maybe(symbol) {
+            Some(dir::Definition::Newtype(definition)) => definition.is_tagged(),
             _ => {
                 self.report_invalid_derive_target(origin, provider)?;
 
@@ -479,24 +474,36 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        let _ = template;
+        // read the exact authored backing type expression
+        let declaration = owner
+            .local_id
+            .try_into_typed::<dir::Declaration>()
+            .map_err(|_| CompilerError::Internal {
+                message: format!("Tagged owner {owner:?} is not a declaration"),
+            })?;
+        let dir::Declaration::Type(declaration) = self.module_view(module).get(declaration) else {
+            return Err(CompilerError::Internal {
+                message: format!("Tagged owner {owner:?} is not a type declaration"),
+            });
+        };
+        let backing_source = declaration.value.into_global_any(module);
 
-        // count the written backing arms
+        // retain one authored source per derived variant
         let mut active = FxIndexSet::default();
         active.insert(symbol);
-        let Some(arity) = self.written_tagged_arity(backing, &mut active)? else {
+        let Some(sources) = self.tagged_variant_sources(backing_source, &mut active)? else {
             self.report_invalid_tagged_variant(origin)?;
 
             return Ok(());
         };
 
-        // insert one positional variant symbol per written arm
-        let mut members = Vec::with_capacity(arity);
-        for index in 0..arity {
+        // insert one positional symbol per derived variant
+        let mut members = Vec::with_capacity(sources.len());
+        for (index, source) in sources.into_iter().enumerate() {
             let member = self.insert_tagged_variant_symbol(symbol)?;
             members.push(dir::DefinitionMember::TaggedKey(dir::TaggedKeyDefinition {
                 symbol: member,
-                source: owner,
+                source,
                 index: index as u32,
             }));
         }
@@ -524,28 +531,62 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Count the written backing arms of one tagged newtype.
-    fn written_tagged_arity(
+    /// Return the authored source node that introduced every derived variant.
+    fn tagged_variant_sources(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        active: &mut FxIndexSet<dir::GlobalSymbolId>,
+    ) -> CompilerResult<Option<Vec<dir::GlobalNodeIdAny>>> {
+        let module = source.module_id;
+        let source_id = source
+            .local_id
+            .try_into_typed::<dir::TypeExpression>()
+            .map_err(|_| CompilerError::Internal {
+                message: format!("Tagged backing source {source:?} is not a type expression"),
+            })?;
+        let sources = match self.module_view(module).get(source_id) {
+            dir::TypeExpression::Union { elements } => elements
+                .iter()
+                .map(|element| element.into_global_any(module))
+                .collect(),
+            _ => vec![source],
+        };
+
+        // repeat each authored source for the variants it expands into
+        let mut expanded = Vec::new();
+        for source in sources {
+            let ty = self.require_node_type(source)?;
+            let Some(count) = self.tagged_variant_count(ty, active)? else {
+                return Ok(None);
+            };
+            expanded.extend(repeat_n(source, count));
+        }
+
+        Ok(Some(expanded))
+    }
+
+    /// Return the derived variant count of one checked backing type.
+    fn tagged_variant_count(
         &mut self,
         ty: dir::GlobalTypeId,
         active: &mut FxIndexSet<dir::GlobalSymbolId>,
     ) -> CompilerResult<Option<usize>> {
         match self.ty(ty)? {
-            // sum direct union arms in declaration order
+            // count direct union variants in checked order
             dir::Type::Union(union) => {
                 let elements = self.type_ids(ty.module_id, union.elements)?.to_vec();
-                let mut arity = 0;
+                let mut count = 0;
                 for element in elements {
-                    let Some(element_arity) = self.written_tagged_arity(element, active)? else {
+                    let Some(element_count) = self.tagged_variant_count(element, active)? else {
                         return Ok(None);
                     };
-                    arity += element_arity;
+                    count += element_count;
                 }
 
-                Ok(Some(arity))
+                Ok(Some(count))
             }
 
-            // flatten an own nested newtype into its written arms
+            // count variants in an own nested newtype
             dir::Type::Application(instance) if self.is_own_module(instance.symbol.module_id) => {
                 match self.definition_maybe(instance.symbol) {
                     Some(dir::Definition::Newtype(definition)) => {
@@ -553,17 +594,16 @@ impl CheckState<'_> {
                         if !active.insert(instance.symbol) {
                             return Ok(None);
                         }
-                        let arity = self.written_tagged_arity(backing, active)?;
+                        let count = self.tagged_variant_count(backing, active)?;
                         active.swap_remove(&instance.symbol);
 
-                        Ok(arity)
+                        Ok(count)
                     }
                     _ => Ok(Some(1)),
                 }
             }
 
-            // every other leaf counts one written arm, checking
-            //  validates the derived arity against these identities
+            // every other leaf produces one variant
             _ => Ok(Some(1)),
         }
     }

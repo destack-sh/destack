@@ -47,8 +47,8 @@ newtype Edge =
 /// @type.symbol symbol=Edge.Bounded type=({ limit: int32 }) => Edge.Bounded
 /// @type.symbol symbol=Edge.Open type=Edge.Open
 /// @definition.newtype symbol=Edge discriminator=kind backing={ kind: "bounded"; limit: int32 } | { kind: "open" }
-/// @definition.variant symbol=Edge.Bounded key=Bounded discriminant=bounded backing={ kind: "bounded"; limit: int32 } argument={ limit: int32 }
-/// @definition.variant symbol=Edge.Open key=Open discriminant=open backing={ kind: "open" }
+/// @definition.variant symbol=Edge.Bounded source={ kind: "bounded"; limit: int32 } key=Bounded discriminant=bounded backing={ kind: "bounded"; limit: int32 } argument={ limit: int32 }
+/// @definition.variant symbol=Edge.Open source={ kind: "open" } key=Open discriminant=open backing={ kind: "open" }
 
     | { kind: "bounded"; limit: int32 }
     | { kind: "open" };
@@ -174,8 +174,8 @@ newtype Cow = Borrowed | Owned;
 /// @type.symbol symbol=Cow.Borrowed type=({ value: string }) => Cow.Borrowed
 /// @type.symbol symbol=Cow.Owned type=({ value: string }) => Cow.Owned
 /// @definition.newtype symbol=Cow source="newtype Cow = Borrowed | Owned" discriminator=kind backing=Borrowed | Owned
-/// @definition.variant symbol=Cow.Borrowed source="newtype Cow = Borrowed | Owned" key=Borrowed discriminant=borrowed backing=Borrowed argument={ value: string }
-/// @definition.variant symbol=Cow.Owned source="newtype Cow = Borrowed | Owned" key=Owned discriminant=owned backing=Owned argument={ value: string }
+/// @definition.variant symbol=Cow.Borrowed source=Borrowed key=Borrowed discriminant=borrowed backing=Borrowed argument={ value: string }
+/// @definition.variant symbol=Cow.Owned source=Owned key=Owned discriminant=owned backing=Owned argument={ value: string }
 /// @resolution.name source=Borrowed target=Borrowed
 /// @resolution.name source=Owned target=Owned
 
@@ -255,7 +255,7 @@ newtype Read = { kind: "read"; value: string };
 /// @type.symbol symbol=Read source="newtype Read = { kind: \"read\"; value: string }" type=Read
 /// @type.symbol symbol=Read.Read type=({ value: string }) => Read.Read
 /// @definition.newtype symbol=Read source="newtype Read = { kind: \"read\"; value: string }" discriminator=kind backing={ kind: "read"; value: string }
-/// @definition.variant symbol=Read.Read source="newtype Read = { kind: \"read\"; value: string }" key=Read discriminant=read backing={ kind: "read"; value: string } argument={ value: string }
+/// @definition.variant symbol=Read.Read source={ kind: "read"; value: string } key=Read discriminant=read backing={ kind: "read"; value: string } argument={ value: string }
 
 @derive(Tagged)
 /// @decorator.node source=@derive(Tagged) owner="newtype Write = { kind: \"write\"; value: string }" expression=derive target=decorator.derive type=derive kind=derive providers=[decorator.derive.Tagged backing=() type=Tagged] value=derive(Tagged())
@@ -268,7 +268,7 @@ newtype Write = { kind: "write"; value: string };
 /// @type.symbol symbol=Write source="newtype Write = { kind: \"write\"; value: string }" type=Write
 /// @type.symbol symbol=Write.Write type=({ value: string }) => Write.Write
 /// @definition.newtype symbol=Write source="newtype Write = { kind: \"write\"; value: string }" discriminator=kind backing={ kind: "write"; value: string }
-/// @definition.variant symbol=Write.Write source="newtype Write = { kind: \"write\"; value: string }" key=Write discriminant=write backing={ kind: "write"; value: string } argument={ value: string }
+/// @definition.variant symbol=Write.Write source={ kind: "write"; value: string } key=Write discriminant=write backing={ kind: "write"; value: string } argument={ value: string }
 
 @derive(Tagged)
 /// @decorator.node source=@derive(Tagged) owner="newtype Action = Read | Write" expression=derive target=decorator.derive type=derive kind=derive providers=[decorator.derive.Tagged backing=() type=Tagged] value=derive(Tagged())
@@ -282,8 +282,8 @@ newtype Action = Read | Write;
 /// @type.symbol symbol=Action.Read type=({ value: string }) => Action.Read
 /// @type.symbol symbol=Action.Write type=({ value: string }) => Action.Write
 /// @definition.newtype symbol=Action source="newtype Action = Read | Write" discriminator=kind backing=Read | Write
-/// @definition.variant symbol=Action.Read source="newtype Action = Read | Write" key=Read discriminant=read backing={ kind: "read"; value: string } argument={ value: string }
-/// @definition.variant symbol=Action.Write source="newtype Action = Read | Write" key=Write discriminant=write backing={ kind: "write"; value: string } argument={ value: string }
+/// @definition.variant symbol=Action.Read source=Read key=Read discriminant=read backing={ kind: "read"; value: string } argument={ value: string }
+/// @definition.variant symbol=Action.Write source=Write key=Write discriminant=write backing={ kind: "write"; value: string } argument={ value: string }
 /// @resolution.name source=Read target=Read
 /// @resolution.name source=Write target=Write
 
@@ -370,7 +370,7 @@ newtype State = Ready;
 /// @type.symbol symbol=State source="newtype State = Ready" type=State
 /// @type.symbol symbol=State.Ready type=({ value?: int32 }?) => State.Ready
 /// @definition.newtype symbol=State source="newtype State = Ready" discriminator=kind backing=Ready
-/// @definition.variant symbol=State.Ready source="newtype State = Ready" key=Ready discriminant=ready backing=Ready argument={ value?: int32 }
+/// @definition.variant symbol=State.Ready source=Ready key=Ready discriminant=ready backing=Ready argument={ value?: int32 }
 /// @resolution.name source=Ready target=Ready
 
 const state: State = State.Ready();
@@ -416,7 +416,7 @@ newtype Edge = { kind: "bounded"; limit: int32 };
 /// @type.symbol symbol=Edge source="newtype Edge = { kind: \"bounded\"; limit: int32 }" type=Edge
 /// @type.symbol symbol=Edge.Bounded type=({ limit: int32 }) => Edge.Bounded
 /// @definition.newtype symbol=Edge source="newtype Edge = { kind: \"bounded\"; limit: int32 }" discriminator=kind backing={ kind: "bounded"; limit: int32 }
-/// @definition.variant symbol=Edge.Bounded source="newtype Edge = { kind: \"bounded\"; limit: int32 }" key=Bounded discriminant=bounded backing={ kind: "bounded"; limit: int32 } argument={ limit: int32 }
+/// @definition.variant symbol=Edge.Bounded source={ kind: "bounded"; limit: int32 } key=Bounded discriminant=bounded backing={ kind: "bounded"; limit: int32 } argument={ limit: int32 }
 
 const bounded = Edge.Bounded;
 /// @type.symbol symbol=bounded source=bounded type=({ limit: int32 }) => Edge.Bounded
@@ -614,8 +614,8 @@ newtype Bound<T, E> = Included<T> | Excluded<E>;
 /// @type.symbol symbol=Bound.Excluded type=<T#2, E#2>({ error: E#2 }) => Bound.Excluded<T#2, E#2>
 /// @type.symbol symbol=Bound.Included type=<T#2, E#2>({ value: T#2 }) => Bound.Included<T#2, E#2>
 /// @definition.newtype symbol=Bound source="newtype Bound<T, E> = Included<T> | Excluded<E>" template=(out T#2, out E#2) discriminator=kind backing=Included<T#2> | Excluded<E#2>
-/// @definition.variant symbol=Bound.Excluded source="newtype Bound<T, E> = Included<T> | Excluded<E>" key=Excluded discriminant=excluded backing=Excluded<E#2> argument={ error: E#2 }
-/// @definition.variant symbol=Bound.Included source="newtype Bound<T, E> = Included<T> | Excluded<E>" key=Included discriminant=included backing=Included<T#2> argument={ value: T#2 }
+/// @definition.variant symbol=Bound.Excluded source=Excluded<E> key=Excluded discriminant=excluded backing=Excluded<E#2> argument={ error: E#2 }
+/// @definition.variant symbol=Bound.Included source=Included<T> key=Included discriminant=included backing=Included<T#2> argument={ value: T#2 }
 /// @type.symbol symbol=Bound.T source=T type=T#2
 /// @type.symbol symbol=Bound.E source=E type=E#2
 /// @resolution.name source=Included target=Included
@@ -691,8 +691,8 @@ newtype Option<T> =
 /// @type.symbol symbol=Option.None type=Option.None<T>
 /// @type.symbol symbol=Option.Some type=<T>({ value: T }) => Option.Some<T>
 /// @definition.newtype symbol=Option template=(in out T) discriminator=kind backing={ kind: "some"; value: T } | { kind: "none" }
-/// @definition.variant symbol=Option.None key=None discriminant=none backing={ kind: "none" }
-/// @definition.variant symbol=Option.Some key=Some discriminant=some backing={ kind: "some"; value: T } argument={ value: T }
+/// @definition.variant symbol=Option.None source={ kind: "none" } key=None discriminant=none backing={ kind: "none" }
+/// @definition.variant symbol=Option.Some source={ kind: "some"; value: T } key=Some discriminant=some backing={ kind: "some"; value: T } argument={ value: T }
 /// @type.symbol symbol=Option.T source=T type=T
 
     | { kind: "some"; value: T }
@@ -752,8 +752,8 @@ newtype Option<T> =
 /// @type.symbol symbol=Option.None type=Option.None<T>
 /// @type.symbol symbol=Option.Some type=<T>({ value: T }) => Option.Some<T>
 /// @definition.newtype symbol=Option template=(in out T) discriminator=kind backing={ kind: "some"; value: T } | { kind: "none" }
-/// @definition.variant symbol=Option.None key=None discriminant=none backing={ kind: "none" }
-/// @definition.variant symbol=Option.Some key=Some discriminant=some backing={ kind: "some"; value: T } argument={ value: T }
+/// @definition.variant symbol=Option.None source={ kind: "none" } key=None discriminant=none backing={ kind: "none" }
+/// @definition.variant symbol=Option.Some source={ kind: "some"; value: T } key=Some discriminant=some backing={ kind: "some"; value: T } argument={ value: T }
 /// @type.symbol symbol=Option.T source=T type=T
 
     | { kind: "some"; value: T }

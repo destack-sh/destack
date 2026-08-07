@@ -68,7 +68,7 @@ newtype Shape = { value: int32 };
 newtype Shape = { value: int32 };
 /// @type.symbol symbol=Shape source="newtype Shape = { value: int32 }" type=Shape
 /// @definition.newtype symbol=Shape source="newtype Shape = { value: int32 }" backing={ value: int32 }
-/// @definition.variant symbol=Shape.symbol4 source="newtype Shape = { value: int32 }" index=0
+/// @definition.variant symbol=Shape.symbol4 source={ value: int32 } index=0
 "#,
         r#"
 /// @diagnostic.error id=missing-tagged-discriminator message="Tagged backing has no common required field with distinct string literal types"
@@ -104,8 +104,8 @@ newtype Event = { type?: "click"; x: int32 } | { type: "key"; key: string };
 newtype Event =
 /// @type.symbol symbol=Event type=Event
 /// @definition.newtype symbol=Event backing={ type?: "click"; x: int32 } | { type: "key"; key: string }
-/// @definition.variant symbol=Event.symbol10 index=0
-/// @definition.variant symbol=Event.symbol11 index=1
+/// @definition.variant symbol=Event.symbol10 source={ type?: "click"; x: int32 } index=0
+/// @definition.variant symbol=Event.symbol11 source={ type: "key"; key: string } index=1
 
     | { type?: "click"; x: int32 }
     | { type: "key"; key: string };
@@ -146,8 +146,8 @@ newtype Event =
 /// @type.symbol symbol=Event.Click type=({ x: int32 }) => Event.Click
 /// @type.symbol symbol=Event.Key type=({ key: string }) => Event.Key
 /// @definition.newtype symbol=Event discriminator=type backing={ type: "click"; x: int32 } | { type: "key"; key: string }
-/// @definition.variant symbol=Event.Click key=Click discriminant=click backing={ type: "click"; x: int32 } argument={ x: int32 }
-/// @definition.variant symbol=Event.Key key=Key discriminant=key backing={ type: "key"; key: string } argument={ key: string }
+/// @definition.variant symbol=Event.Click source={ type: "click"; x: int32 } key=Click discriminant=click backing={ type: "click"; x: int32 } argument={ x: int32 }
+/// @definition.variant symbol=Event.Key source={ type: "key"; key: string } key=Key discriminant=key backing={ type: "key"; key: string } argument={ key: string }
 
     | { type: "click"; x: int32 }
     | { type: "key"; key: string };
@@ -184,8 +184,8 @@ newtype Event =
 newtype Event =
 /// @type.symbol symbol=Event type=Event
 /// @definition.newtype symbol=Event backing={ kind: "click"; type: "pointer"; x: int32 } | { kind: "key"; type: "keyboard"; key: string }
-/// @definition.variant symbol=Event.symbol14 index=0
-/// @definition.variant symbol=Event.symbol15 index=1
+/// @definition.variant symbol=Event.symbol14 source={ kind: "click"; type: "pointer"; x: int32 } index=0
+/// @definition.variant symbol=Event.symbol15 source={ kind: "key"; type: "keyboard"; key: string } index=1
 
     | { kind: "click"; type: "pointer"; x: int32 }
     | { kind: "key"; type: "keyboard"; key: string };
@@ -229,8 +229,8 @@ newtype Event =
 /// @type.symbol symbol=Event.Keyboard type=({ kind: "key"; key: string }) => Event.Keyboard
 /// @type.symbol symbol=Event.Pointer type=({ kind: "click"; x: int32 }) => Event.Pointer
 /// @definition.newtype symbol=Event discriminator=type backing={ kind: "click"; type: "pointer"; x: int32 } | { kind: "key"; type: "keyboard"; key: string }
-/// @definition.variant symbol=Event.Keyboard key=Keyboard discriminant=keyboard backing={ kind: "key"; type: "keyboard"; key: string } argument={ kind: "key"; key: string }
-/// @definition.variant symbol=Event.Pointer key=Pointer discriminant=pointer backing={ kind: "click"; type: "pointer"; x: int32 } argument={ kind: "click"; x: int32 }
+/// @definition.variant symbol=Event.Keyboard source={ kind: "key"; type: "keyboard"; key: string } key=Keyboard discriminant=keyboard backing={ kind: "key"; type: "keyboard"; key: string } argument={ kind: "key"; key: string }
+/// @definition.variant symbol=Event.Pointer source={ kind: "click"; type: "pointer"; x: int32 } key=Pointer discriminant=pointer backing={ kind: "click"; type: "pointer"; x: int32 } argument={ kind: "click"; x: int32 }
 
     | { kind: "click"; type: "pointer"; x: int32 }
     | { kind: "key"; type: "keyboard"; key: string };
@@ -266,8 +266,8 @@ newtype Event = { kind: "click"; type: "pointer"; x: int32 } | { kind: "key"; ke
 newtype Event =
 /// @type.symbol symbol=Event type=Event
 /// @definition.newtype symbol=Event backing={ kind: "click"; type: "pointer"; x: int32 } | { kind: "key"; key: string }
-/// @definition.variant symbol=Event.symbol12 index=0
-/// @definition.variant symbol=Event.symbol13 index=1
+/// @definition.variant symbol=Event.symbol12 source={ kind: "click"; type: "pointer"; x: int32 } index=0
+/// @definition.variant symbol=Event.symbol13 source={ kind: "key"; key: string } index=1
 
     | { kind: "click"; type: "pointer"; x: int32 }
     | { kind: "key"; key: string };
@@ -306,8 +306,8 @@ newtype Shape = { kind: "shape"; width: int32 } | { kind: "shape"; radius: float
 newtype Shape =
 /// @type.symbol symbol=Shape type=Shape
 /// @definition.newtype symbol=Shape backing={ kind: "shape"; width: int32 } | { kind: "shape"; radius: float64 }
-/// @definition.variant symbol=Shape.symbol10 index=0
-/// @definition.variant symbol=Shape.symbol11 index=1
+/// @definition.variant symbol=Shape.symbol10 source={ kind: "shape"; width: int32 } index=0
+/// @definition.variant symbol=Shape.symbol11 source={ kind: "shape"; radius: float64 } index=1
 
     | { kind: "shape"; width: int32 }
     | { kind: "shape"; radius: float64 };
@@ -362,7 +362,7 @@ class Active {
 newtype State = Active;
 /// @type.symbol symbol=State source="newtype State = Active" type=State
 /// @definition.newtype symbol=State source="newtype State = Active" backing=Active
-/// @definition.variant symbol=State.symbol5 source="newtype State = Active" index=0
+/// @definition.variant symbol=State.symbol5 source=Active index=0
 /// @resolution.name source=Active target=Active
 "#,
         r#"
@@ -415,7 +415,7 @@ interface Active {
 newtype State = Active;
 /// @type.symbol symbol=State source="newtype State = Active" type=State
 /// @definition.newtype symbol=State source="newtype State = Active" backing=Active
-/// @definition.variant symbol=State.symbol5 source="newtype State = Active" index=0
+/// @definition.variant symbol=State.symbol5 source=Active index=0
 /// @resolution.name source=Active target=Active
 "#,
         r#"
@@ -459,8 +459,8 @@ newtype Shape = { kind: "fooBar" } | { kind: "foo_bar" };
 newtype Shape = { kind: "fooBar" } | { kind: "foo_bar" };
 /// @type.symbol symbol=Shape source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" }" type=Shape
 /// @definition.newtype symbol=Shape source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" }" backing={ kind: "fooBar" } | { kind: "foo_bar" }
-/// @definition.variant symbol=Shape.symbol6 source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" }" index=0
-/// @definition.variant symbol=Shape.symbol7 source="newtype Shape = { kind: \"fooBar\" } | { kind: \"foo_bar\" }" index=1
+/// @definition.variant symbol=Shape.symbol6 source={ kind: "fooBar" } index=0
+/// @definition.variant symbol=Shape.symbol7 source={ kind: "foo_bar" } index=1
 "#,
         r#"
 /// @diagnostic.error id=duplicate-tagged-case message="duplicate Tagged case 'foo_bar'"
@@ -499,7 +499,7 @@ newtype Shape = { kind: "shape" };
 /// @type.symbol symbol=Shape source="newtype Shape = { kind: \"shape\" }" type=Shape
 /// @type.symbol symbol=Shape.Shape type=Shape.Shape
 /// @definition.newtype symbol=Shape source="newtype Shape = { kind: \"shape\" }" discriminator=kind backing={ kind: "shape" }
-/// @definition.variant symbol=Shape.Shape source="newtype Shape = { kind: \"shape\" }" key=Shape discriminant=shape backing={ kind: "shape" }
+/// @definition.variant symbol=Shape.Shape source={ kind: "shape" } key=Shape discriminant=shape backing={ kind: "shape" }
 "#,
         r#"
 /// @diagnostic.error id=duplicate-derive-provider message="duplicate derive provider 'Tagged'"
