@@ -1,4 +1,3 @@
-#[cfg(test)]
 extern crate self as destack_serde;
 
 mod codec;

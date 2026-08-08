@@ -11,56 +11,76 @@ use smallvec::{Array, SmallVec};
 
 /// Type that can describe its Destack serialization schema.
 pub trait Reflect {
-    /// Register this type in one schema registry.
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef;
+    /// Register this type in one schema.
+    fn reflect(schema: &mut Schema) -> Type;
 }
 
-/// Registry of named schema items.
+/// One collection of named serialization types.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SchemaRegistry {
+pub struct Schema {
     /// Named schema items keyed by module and name.
-    pub items: BTreeMap<SchemaName, SchemaItem>,
+    pub items: BTreeMap<Name, Item>,
     /// Item names grouped by module path.
-    pub modules: BTreeMap<Vec<String>, Vec<SchemaName>>,
+    pub modules: BTreeMap<Vec<String>, Vec<Name>>,
     /// Items that are currently being declared.
     #[serde(skip)]
-    declaring: BTreeSet<SchemaName>,
+    declaring: BTreeSet<Name>,
 }
 
-impl SchemaRegistry {
-    /// Register one schema type in this registry.
-    pub fn register<T: Reflect>(&mut self) -> SchemaRef {
-        let reference = T::reflect(self);
-        if let SchemaRef::Named(name) = &reference {
+impl Schema {
+    /// Register one type in this schema.
+    pub fn register<T: Reflect>(&mut self) -> Type {
+        let ty = T::reflect(self);
+        if let Type::Named(name) = &ty {
             self.move_to_end(name);
         }
 
-        reference
+        ty
     }
 
-    /// Declare one named schema item and return a reference to it.
+    /// Merge another schema and return the first conflicting item name.
+    pub fn merge(&mut self, schema: Self) -> Result<(), Name> {
+        // reject conflicts before changing either declaration index
+        let conflict = schema.items.iter().find_map(|(name, item)| {
+            self.items
+                .get(name)
+                .filter(|existing| *existing != item)
+                .map(|_| name.clone())
+        });
+        if let Some(name) = conflict {
+            return Err(name);
+        }
+
+        // merge exact declarations
+        for (name, item) in schema.items {
+            self.items.entry(name).or_insert(item);
+        }
+
+        // merge module declaration order
+        for (module, names) in schema.modules {
+            let existing = self.modules.entry(module).or_default();
+            for name in names {
+                // preserve each name once
+                if !existing.contains(&name) {
+                    existing.push(name);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Declare one named schema item and return its named type.
     pub fn declare(
         &mut self,
         module: &'static str,
         name: &'static str,
         docs: Vec<String>,
-        declare: impl FnOnce(&mut Self) -> SchemaShape,
-    ) -> SchemaRef {
-        self.declare_with(module, name, docs, Vec::new(), declare)
-    }
-
-    /// Declare one named schema item with consumer attributes.
-    pub fn declare_with(
-        &mut self,
-        module: &'static str,
-        name: &'static str,
-        docs: Vec<String>,
-        attributes: Vec<String>,
-        declare: impl FnOnce(&mut Self) -> SchemaShape,
-    ) -> SchemaRef {
-        let name = SchemaName::new(module, name);
+        declare: impl FnOnce(&mut Self) -> Type,
+    ) -> Type {
+        let name = Name::new(module, name);
         if self.items.contains_key(&name) || self.declaring.contains(&name) {
-            return SchemaRef::Named(name);
+            return Type::Named(name);
         }
 
         self.modules
@@ -69,22 +89,21 @@ impl SchemaRegistry {
             .push(name.clone());
 
         self.declaring.insert(name.clone());
-        let shape = declare(self);
+        let ty = declare(self);
         self.declaring.remove(&name);
 
-        let item = SchemaItem {
+        let item = Item {
             name: name.clone(),
             docs,
-            attributes,
-            shape,
+            ty,
         };
         self.items.insert(name.clone(), item);
 
-        SchemaRef::Named(name)
+        Type::Named(name)
     }
 
     /// Move one registered item to the end of its module order.
-    fn move_to_end(&mut self, name: &SchemaName) {
+    fn move_to_end(&mut self, name: &Name) {
         let Some(names) = self.modules.get_mut(&name.module) else {
             unreachable!("schema item module is missing");
         };
@@ -99,14 +118,14 @@ impl SchemaRegistry {
 
 /// Name of one schema item.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct SchemaName {
+pub struct Name {
     /// Module path segments.
     pub module: Vec<String>,
     /// Item name.
     pub name: String,
 }
 
-impl SchemaName {
+impl Name {
     /// Build one schema name from a Rust module path and item name.
     pub fn new(module: &str, name: &str) -> Self {
         let module = module.split("::").map(str::to_string).collect();
@@ -118,9 +137,9 @@ impl SchemaName {
     }
 }
 
-/// Reference to a schema type.
+/// One serialization type.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum SchemaRef {
+pub enum Type {
     /// Unit value.
     Unit,
     /// Boolean value.
@@ -138,145 +157,136 @@ pub enum SchemaRef {
     /// UTF-8 string value.
     String,
     /// Optional value.
-    Option(Box<SchemaRef>),
+    Option(Box<Type>),
     /// Sequence value.
-    Sequence(Box<SchemaRef>),
+    Sequence(Box<Type>),
     /// Fixed-length array value.
     Array {
         /// Element type.
-        item: Box<SchemaRef>,
+        item: Box<Type>,
         /// Element count.
         len: usize,
     },
     /// Fixed-length tuple value.
-    Tuple(Vec<SchemaRef>),
+    Tuple(Vec<Type>),
     /// Map value.
     Map {
         /// Key type.
-        key: Box<SchemaRef>,
+        key: Box<Type>,
         /// Value type.
-        value: Box<SchemaRef>,
+        value: Box<Type>,
     },
-    /// Dynamic JSON value.
-    Json,
     /// Named schema item.
-    Named(SchemaName),
+    Named(Name),
+    /// Struct with named fields.
+    Struct(Vec<Field>),
+    /// Enum with variants.
+    Enum(Vec<Variant>),
 }
 
 /// One named schema item.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SchemaItem {
+pub struct Item {
     /// Reflect item name.
-    pub name: SchemaName,
+    pub name: Name,
     /// Documentation lines.
     pub docs: Vec<String>,
-    /// Consumer attributes attached to this item.
-    pub attributes: Vec<String>,
-    /// Reflect item shape.
-    pub shape: SchemaShape,
-}
-
-/// Shape of one named schema item.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum SchemaShape {
-    /// Struct with named or positional fields.
-    Struct(Vec<SchemaField>),
-    /// Enum with variants.
-    Enum(Vec<SchemaVariant>),
+    /// Reflected serialization type.
+    pub ty: Type,
 }
 
 /// One schema struct or variant field.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SchemaField {
+pub struct Field {
     /// Field name.
     pub name: String,
     /// Documentation lines.
     pub docs: Vec<String>,
     /// Field type.
-    pub ty: SchemaRef,
+    pub ty: Type,
 }
 
 /// One enum variant.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SchemaVariant {
+pub struct Variant {
     /// Variant name.
     pub name: String,
     /// Documentation lines.
     pub docs: Vec<String>,
     /// Variant payload.
-    pub payload: SchemaPayload,
+    pub payload: Payload,
 }
 
 /// Payload of one enum variant.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum SchemaPayload {
+pub enum Payload {
     /// Variant without payload.
     Unit,
-    /// Variant with one unnamed payload.
-    Tuple(SchemaRef),
-    /// Variant with fields.
-    Struct(Vec<SchemaField>),
+    /// Variant with an unnamed payload.
+    Value(Type),
+    /// Variant with named fields.
+    Struct(Vec<Field>),
 }
 
 impl Reflect for () {
-    fn reflect(_registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::Unit
+    fn reflect(_schema: &mut Schema) -> Type {
+        Type::Unit
     }
 }
 
 impl Reflect for bool {
-    fn reflect(_registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::Bool
+    fn reflect(_schema: &mut Schema) -> Type {
+        Type::Bool
     }
 }
 
 impl Reflect for char {
-    fn reflect(_registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::Char
+    fn reflect(_schema: &mut Schema) -> Type {
+        Type::Char
     }
 }
 
 impl Reflect for String {
-    fn reflect(_registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::String
+    fn reflect(_schema: &mut Schema) -> Type {
+        Type::String
     }
 }
 
 impl Reflect for str {
-    fn reflect(_registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::String
+    fn reflect(_schema: &mut Schema) -> Type {
+        Type::String
     }
 }
 
 impl Reflect for PathBuf {
-    fn reflect(_registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::String
+    fn reflect(_schema: &mut Schema) -> Type {
+        Type::String
     }
 }
 
 impl<T: Reflect> Reflect for Option<T> {
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::Option(Box::new(T::reflect(registry)))
+    fn reflect(schema: &mut Schema) -> Type {
+        Type::Option(Box::new(T::reflect(schema)))
     }
 }
 
 impl<T: Reflect> Reflect for Vec<T> {
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::Sequence(Box::new(T::reflect(registry)))
+    fn reflect(schema: &mut Schema) -> Type {
+        Type::Sequence(Box::new(T::reflect(schema)))
     }
 }
 
 impl<T: Reflect> Reflect for BTreeSet<T> {
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::Sequence(Box::new(T::reflect(registry)))
+    fn reflect(schema: &mut Schema) -> Type {
+        Type::Sequence(Box::new(T::reflect(schema)))
     }
 }
 
 impl<K: Reflect, V: Reflect, S: BuildHasher> Reflect for HashMap<K, V, S> {
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::Map {
-            key: Box::new(K::reflect(registry)),
-            value: Box::new(V::reflect(registry)),
+    fn reflect(schema: &mut Schema) -> Type {
+        Type::Map {
+            key: Box::new(K::reflect(schema)),
+            value: Box::new(V::reflect(schema)),
         }
     }
 }
@@ -286,86 +296,80 @@ where
     A: Array,
     A::Item: Reflect,
 {
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::Sequence(Box::new(A::Item::reflect(registry)))
+    fn reflect(schema: &mut Schema) -> Type {
+        Type::Sequence(Box::new(A::Item::reflect(schema)))
     }
 }
 
 impl<T: Reflect, const N: usize> Reflect for [T; N] {
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::Array {
-            item: Box::new(T::reflect(registry)),
+    fn reflect(schema: &mut Schema) -> Type {
+        Type::Array {
+            item: Box::new(T::reflect(schema)),
             len: N,
         }
     }
 }
 
 impl<T: Reflect> Reflect for [T] {
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::Sequence(Box::new(T::reflect(registry)))
+    fn reflect(schema: &mut Schema) -> Type {
+        Type::Sequence(Box::new(T::reflect(schema)))
     }
 }
 
 impl<K: Reflect, V: Reflect> Reflect for BTreeMap<K, V> {
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::Map {
-            key: Box::new(K::reflect(registry)),
-            value: Box::new(V::reflect(registry)),
+    fn reflect(schema: &mut Schema) -> Type {
+        Type::Map {
+            key: Box::new(K::reflect(schema)),
+            value: Box::new(V::reflect(schema)),
         }
     }
 }
 
 impl<K: Reflect, V: Reflect> Reflect for OrdMap<K, V> {
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::Map {
-            key: Box::new(K::reflect(registry)),
-            value: Box::new(V::reflect(registry)),
+    fn reflect(schema: &mut Schema) -> Type {
+        Type::Map {
+            key: Box::new(K::reflect(schema)),
+            value: Box::new(V::reflect(schema)),
         }
     }
 }
 
 impl<K: Reflect, V: Reflect, S> Reflect for IndexMap<K, V, S> {
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::Map {
-            key: Box::new(K::reflect(registry)),
-            value: Box::new(V::reflect(registry)),
+    fn reflect(schema: &mut Schema) -> Type {
+        Type::Map {
+            key: Box::new(K::reflect(schema)),
+            value: Box::new(V::reflect(schema)),
         }
     }
 }
 
 impl<T: Reflect, S> Reflect for IndexSet<T, S> {
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::Sequence(Box::new(T::reflect(registry)))
+    fn reflect(schema: &mut Schema) -> Type {
+        Type::Sequence(Box::new(T::reflect(schema)))
     }
 }
 
 impl<A: Reflect, B: Reflect> Reflect for (A, B) {
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::Tuple(vec![A::reflect(registry), B::reflect(registry)])
+    fn reflect(schema: &mut Schema) -> Type {
+        Type::Tuple(vec![A::reflect(schema), B::reflect(schema)])
     }
 }
 
 impl<T: Reflect + ?Sized> Reflect for Arc<T> {
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
-        T::reflect(registry)
+    fn reflect(schema: &mut Schema) -> Type {
+        T::reflect(schema)
     }
 }
 
 impl<T: Reflect + ?Sized> Reflect for Box<T> {
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
-        T::reflect(registry)
+    fn reflect(schema: &mut Schema) -> Type {
+        T::reflect(schema)
     }
 }
 
 impl Reflect for NonZeroU32 {
-    fn reflect(_registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::Unsigned { bits: 32 }
-    }
-}
-
-impl Reflect for serde_json::Value {
-    fn reflect(_registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::Json
+    fn reflect(_schema: &mut Schema) -> Type {
+        Type::Unsigned { bits: 32 }
     }
 }
 
@@ -373,8 +377,8 @@ macro_rules! unsigned_schema {
     ($($ty:ty => $bits:literal),* $(,)?) => {
         $(
             impl Reflect for $ty {
-                fn reflect(_registry: &mut SchemaRegistry) -> SchemaRef {
-                    SchemaRef::Unsigned { bits: $bits }
+                fn reflect(_schema: &mut Schema) -> Type {
+                    Type::Unsigned { bits: $bits }
                 }
             }
         )*
@@ -385,8 +389,8 @@ macro_rules! signed_schema {
     ($($ty:ty => $bits:literal),* $(,)?) => {
         $(
             impl Reflect for $ty {
-                fn reflect(_registry: &mut SchemaRegistry) -> SchemaRef {
-                    SchemaRef::Signed { bits: $bits }
+                fn reflect(_schema: &mut Schema) -> Type {
+                    Type::Signed { bits: $bits }
                 }
             }
         )*
@@ -397,8 +401,8 @@ macro_rules! float_schema {
     ($($ty:ty => $bits:literal),* $(,)?) => {
         $(
             impl Reflect for $ty {
-                fn reflect(_registry: &mut SchemaRegistry) -> SchemaRef {
-                    SchemaRef::Float { bits: $bits }
+                fn reflect(_schema: &mut Schema) -> Type {
+                    Type::Float { bits: $bits }
                 }
             }
         )*
@@ -414,8 +418,8 @@ unsigned_schema! {
 }
 
 impl Reflect for usize {
-    fn reflect(_registry: &mut SchemaRegistry) -> SchemaRef {
-        SchemaRef::Usize
+    fn reflect(_schema: &mut Schema) -> Type {
+        Type::Usize
     }
 }
 

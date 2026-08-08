@@ -3,6 +3,20 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Data, DeriveInput, Fields, GenericParam, LitStr, Token, parse_macro_input};
 
+const CONTAINER_SERDE_OPTIONS: &[&str] = &[
+    "bound",
+    "crate",
+    "default",
+    "deny_unknown_fields",
+    "expecting",
+    "rename",
+    "rename_all",
+    "rename_all_fields",
+    "transparent",
+];
+const VARIANT_SERDE_OPTIONS: &[&str] = &["alias", "rename", "skip"];
+const FIELD_SERDE_OPTIONS: &[&str] = &["alias", "borrow", "bound", "default", "rename", "skip"];
+
 /// Expand one `Reflect` derive invocation.
 pub(crate) fn expand(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -15,11 +29,12 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
 
 /// Expand one parsed reflection derive input.
 fn expand_input(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
+    validate_serde_options(&input.attrs, CONTAINER_SERDE_OPTIONS)?;
+
     let ident = input.ident;
     let docs = docs(&input.attrs);
     let module = module(&input.attrs)?;
-    let attributes = attributes(&input.data)?;
-    let shape = shape(&input.data)?;
+    let ty = ty(&input.attrs, &input.data)?;
     let mut generics = input.generics;
 
     // require reflection support for each generic type parameter
@@ -36,13 +51,12 @@ fn expand_input(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
 
     Ok(quote! {
         impl #impl_generics destack_serde::Reflect for #ident #type_generics #where_clause {
-            fn reflect(registry: &mut destack_serde::SchemaRegistry) -> destack_serde::SchemaRef {
-                registry.declare_with(
+            fn reflect(schema: &mut destack_serde::Schema) -> destack_serde::Type {
+                schema.declare(
                     #module,
                     #name,
                     vec![#(#docs.to_string()),*],
-                    vec![#(#attributes.to_string()),*],
-                    |registry| #shape,
+                    |schema| #ty,
                 )
             }
         }
@@ -81,36 +95,11 @@ fn module(attributes: &[syn::Attribute]) -> syn::Result<proc_macro2::TokenStream
     }
 }
 
-/// Extract schema consumer attributes from one Rust item.
-fn attributes(data: &Data) -> syn::Result<Vec<String>> {
+/// Build the reflected type for one Rust item.
+fn ty(attributes: &[syn::Attribute], data: &Data) -> syn::Result<proc_macro2::TokenStream> {
     match data {
-        Data::Struct(data) if matches!(data.fields, Fields::Unnamed(_)) => {
-            let Fields::Unnamed(fields) = &data.fields else {
-                unreachable!("struct fields were matched above");
-            };
-
-            if fields.unnamed.len() == 1 {
-                Ok(vec!["tuple_newtype".to_string()])
-            } else {
-                Ok(Vec::new())
-            }
-        }
-        Data::Struct(_) | Data::Enum(_) => Ok(Vec::new()),
-        Data::Union(data) => Err(syn::Error::new(
-            data.union_token.span,
-            "Destack schemas do not support unions",
-        )),
-    }
-}
-
-/// Build the reflection shape for one Rust item.
-fn shape(data: &Data) -> syn::Result<proc_macro2::TokenStream> {
-    match data {
-        Data::Struct(data) => {
-            let fields = fields(&data.fields)?;
-
-            Ok(quote!(destack_serde::SchemaShape::Struct(#fields)))
-        }
+        Data::Struct(data) if is_serde_transparent(attributes)? => transparent_type(&data.fields),
+        Data::Struct(data) => struct_type(&data.fields),
         Data::Enum(data) => {
             let variants = data
                 .variants
@@ -123,7 +112,7 @@ fn shape(data: &Data) -> syn::Result<proc_macro2::TokenStream> {
                     let payload = payload(&variant.fields)?;
 
                     Ok(quote! {
-                        destack_serde::SchemaVariant {
+                        destack_serde::Variant {
                             name: #name.to_string(),
                             docs: vec![#(#docs.to_string()),*],
                             payload: #payload,
@@ -132,9 +121,7 @@ fn shape(data: &Data) -> syn::Result<proc_macro2::TokenStream> {
                 })
                 .collect::<syn::Result<Vec<_>>>()?;
 
-            Ok(quote!(destack_serde::SchemaShape::Enum(
-                vec![#(#variants),*]
-            )))
+            Ok(quote!(destack_serde::Type::Enum(vec![#(#variants),*])))
         }
         Data::Union(data) => Err(syn::Error::new(
             data.union_token.span,
@@ -143,12 +130,48 @@ fn shape(data: &Data) -> syn::Result<proc_macro2::TokenStream> {
     }
 }
 
-/// Build struct fields for one reflection shape.
-fn fields(fields: &Fields) -> syn::Result<proc_macro2::TokenStream> {
+/// Build the underlying type for one transparent struct.
+fn transparent_type(fields: &Fields) -> syn::Result<proc_macro2::TokenStream> {
+    let active = fields
+        .iter()
+        .filter_map(|field| active_field(field).transpose())
+        .collect::<syn::Result<Vec<_>>>()?;
+    let [field] = active.as_slice() else {
+        return Err(syn::Error::new_spanned(
+            fields,
+            "transparent struct must have exactly one serialized field",
+        ));
+    };
+    let ty = &field.ty;
+
+    Ok(quote!(<#ty as destack_serde::Reflect>::reflect(schema)))
+}
+
+/// Build one reflected struct type.
+fn struct_type(fields: &Fields) -> syn::Result<proc_macro2::TokenStream> {
     match fields {
-        Fields::Named(fields) => named_fields(fields),
-        Fields::Unnamed(fields) => unnamed_fields(fields),
-        Fields::Unit => Ok(quote!(Vec::new())),
+        Fields::Named(fields) => {
+            let fields = named_fields(fields)?;
+
+            Ok(quote!(destack_serde::Type::Struct(#fields)))
+        }
+        Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
+            let Some(field) = fields.unnamed.first() else {
+                return Err(syn::Error::new_spanned(fields, "expected newtype field"));
+            };
+            let Some(field) = active_field(field)? else {
+                return Ok(quote!(destack_serde::Type::Tuple(Vec::new())));
+            };
+            let ty = &field.ty;
+
+            Ok(quote!(<#ty as destack_serde::Reflect>::reflect(schema)))
+        }
+        Fields::Unnamed(fields) => {
+            let fields = unnamed_types(fields)?;
+
+            Ok(quote!(destack_serde::Type::Tuple(#fields)))
+        }
+        Fields::Unit => Ok(quote!(destack_serde::Type::Struct(Vec::new()))),
     }
 }
 
@@ -172,29 +195,17 @@ fn named_fields(fields: &syn::FieldsNamed) -> syn::Result<proc_macro2::TokenStre
     Ok(quote!(vec![#(#fields),*]))
 }
 
-/// Build unnamed struct fields.
-fn unnamed_fields(fields: &syn::FieldsUnnamed) -> syn::Result<proc_macro2::TokenStream> {
-    if fields.unnamed.len() == 1 {
-        let Some(field) = fields.unnamed.first() else {
-            return Err(syn::Error::new_spanned(fields, "expected tuple field"));
-        };
-        let Some(field) = active_field(field)? else {
-            return Ok(quote!(Vec::new()));
-        };
-
-        return field_schema(field, "value".to_string()).map(|field| quote!(vec![#field]));
-    }
-
+/// Build unnamed field types.
+fn unnamed_types(fields: &syn::FieldsUnnamed) -> syn::Result<proc_macro2::TokenStream> {
     let fields = fields
         .unnamed
         .iter()
-        .enumerate()
-        .filter_map(|(index, field)| active_field(field).transpose().map(|field| (index, field)))
-        .map(|(index, field)| {
+        .filter_map(|field| active_field(field).transpose())
+        .map(|field| {
             let field = field?;
-            let name = index.to_string();
+            let ty = &field.ty;
 
-            field_schema(field, name)
+            Ok(quote!(<#ty as destack_serde::Reflect>::reflect(schema)))
         })
         .collect::<syn::Result<Vec<_>>>()?;
 
@@ -203,6 +214,8 @@ fn unnamed_fields(fields: &syn::FieldsUnnamed) -> syn::Result<proc_macro2::Token
 
 /// Return one variant unless it is skipped by serde.
 fn active_variant(variant: &syn::Variant) -> syn::Result<Option<&syn::Variant>> {
+    validate_serde_options(&variant.attrs, VARIANT_SERDE_OPTIONS)?;
+
     if is_serde_skip(&variant.attrs)? {
         Ok(None)
     } else {
@@ -212,6 +225,8 @@ fn active_variant(variant: &syn::Variant) -> syn::Result<Option<&syn::Variant>> 
 
 /// Return one field unless it is skipped by serde.
 fn active_field(field: &syn::Field) -> syn::Result<Option<&syn::Field>> {
+    validate_serde_options(&field.attrs, FIELD_SERDE_OPTIONS)?;
+
     if is_serde_skip(&field.attrs)? {
         Ok(None)
     } else {
@@ -225,10 +240,10 @@ fn field_schema(field: &syn::Field, name: String) -> syn::Result<proc_macro2::To
     let ty = &field.ty;
 
     Ok(quote! {
-        destack_serde::SchemaField {
+        destack_serde::Field {
             name: #name.to_string(),
             docs: vec![#(#docs.to_string()),*],
-            ty: <#ty as destack_serde::Reflect>::reflect(registry),
+            ty: <#ty as destack_serde::Reflect>::reflect(schema),
         }
     })
 }
@@ -236,21 +251,31 @@ fn field_schema(field: &syn::Field, name: String) -> syn::Result<proc_macro2::To
 /// Build enum variant payload schema.
 fn payload(input: &Fields) -> syn::Result<proc_macro2::TokenStream> {
     match input {
-        Fields::Unit => Ok(quote!(destack_serde::SchemaPayload::Unit)),
+        Fields::Unit => Ok(quote!(destack_serde::Payload::Unit)),
         Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
             let Some(field) = fields.unnamed.first() else {
-                return Err(syn::Error::new_spanned(input, "expected tuple field"));
+                return Err(syn::Error::new_spanned(input, "expected newtype field"));
+            };
+            let Some(field) = active_field(field)? else {
+                return Ok(quote!(destack_serde::Payload::Unit));
             };
             let ty = &field.ty;
 
-            Ok(quote!(destack_serde::SchemaPayload::Tuple(
-                <#ty as destack_serde::Reflect>::reflect(registry),
+            Ok(quote!(destack_serde::Payload::Value(
+                <#ty as destack_serde::Reflect>::reflect(schema),
             )))
         }
-        Fields::Unnamed(_) | Fields::Named(_) => {
-            let fields = fields(input)?;
+        Fields::Unnamed(fields) => {
+            let fields = unnamed_types(fields)?;
 
-            Ok(quote!(destack_serde::SchemaPayload::Struct(#fields)))
+            Ok(quote!(destack_serde::Payload::Value(
+                destack_serde::Type::Tuple(#fields),
+            )))
+        }
+        Fields::Named(fields) => {
+            let fields = named_fields(fields)?;
+
+            Ok(quote!(destack_serde::Payload::Struct(#fields)))
         }
     }
 }
@@ -287,16 +312,73 @@ fn is_serde_skip(attributes: &[syn::Attribute]) -> syn::Result<bool> {
             if meta.path.is_ident("skip") {
                 is_skipped = true;
             }
-            if meta.input.peek(Token![=]) {
-                let value = meta.value()?;
-                let _ = value.parse::<syn::Expr>()?;
-            }
 
-            Ok(())
+            consume_serde_option(meta)
         })?;
     }
 
     Ok(is_skipped)
+}
+
+/// Reject serde options that are not represented by the reflected wire schema.
+fn validate_serde_options(attributes: &[syn::Attribute], allowed: &[&str]) -> syn::Result<()> {
+    for attribute in attributes {
+        if !attribute.path().is_ident("serde") {
+            continue;
+        }
+
+        attribute.parse_nested_meta(|meta| {
+            let name = meta
+                .path
+                .get_ident()
+                .map(ToString::to_string)
+                .unwrap_or_else(|| "<qualified>".to_string());
+            if !allowed.iter().any(|allowed| *allowed == name) {
+                return Err(meta.error(format!(
+                    "serde option `{name}` is not represented by the Destack wire schema"
+                )));
+            }
+
+            consume_serde_option(meta)
+        })?;
+    }
+
+    Ok(())
+}
+
+/// Return whether one item uses transparent serde representation.
+fn is_serde_transparent(attributes: &[syn::Attribute]) -> syn::Result<bool> {
+    let mut is_transparent = false;
+
+    for attribute in attributes {
+        if !attribute.path().is_ident("serde") {
+            continue;
+        }
+
+        attribute.parse_nested_meta(|meta| {
+            if meta.path.is_ident("transparent") {
+                is_transparent = true;
+            }
+
+            consume_serde_option(meta)
+        })?;
+    }
+
+    Ok(is_transparent)
+}
+
+/// Consume one validated serde option payload.
+fn consume_serde_option(meta: syn::meta::ParseNestedMeta<'_>) -> syn::Result<()> {
+    if meta.input.peek(Token![=]) {
+        let value = meta.value()?;
+        let _ = value.parse::<syn::Expr>()?;
+    } else if meta.input.peek(syn::token::Paren) {
+        let content;
+        syn::parenthesized!(content in meta.input);
+        let _ = content.parse::<proc_macro2::TokenStream>()?;
+    }
+
+    Ok(())
 }
 
 /// Clean one Rust documentation literal.
