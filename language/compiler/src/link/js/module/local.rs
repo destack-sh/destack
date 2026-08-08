@@ -554,14 +554,20 @@ impl JsLinker<'_> {
             let Some(static_key) = key.named_key() else {
                 continue;
             };
-            let dir::NamedExport::Local(export) = export else {
+            let dir::ExportBinding::Local { symbols } = &export.binding else {
                 continue;
             };
             if !seen_keys.insert(static_key) {
                 continue;
             }
 
-            let target_symbol = export.source.into_global(target_module);
+            // select the implementation from the exported overload group
+            let target_symbol = symbols.last().ok_or_else(|| LinkError::Internal {
+                anchor: package_id.into(),
+                package: package_id,
+                message: format!("runtime export {key:?} has no local declaration"),
+            })?;
+            let target_symbol = target_symbol.into_global(target_module);
             let (target_symbol, target_name) =
                 self.resolve_same_output_printable_symbol(target_symbol, profile_id, package_id)?;
             let key = self.same_output_namespace_key(
