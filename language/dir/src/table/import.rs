@@ -164,30 +164,24 @@ impl ImportResolution {
             .flat_map(|resolution| resolution.declaration.iter())
     }
 
-    /// Replace the selected declaration while retaining final targets.
-    pub fn through(self, declaration: ExportTarget) -> Self {
-        match self {
-            Self::Resolved(resolution) => Self::Resolved(resolution.through(declaration)),
-            Self::Ambiguous(resolutions) => Self::Ambiguous(
-                resolutions
-                    .into_iter()
-                    .map(|resolution| resolution.through(declaration.clone()))
-                    .collect(),
-            ),
-            Self::Missing => Self::Missing,
-        }
-    }
-
     /// Return the final compiler target as a name reference.
     pub fn target_reference(&self) -> Reference {
         match self {
             Self::Resolved(resolution) => Reference::from(&resolution.target),
             Self::Ambiguous(resolutions) => {
-                let targets = resolutions
-                    .iter()
-                    .flat_map(|resolution| resolution.target.iter());
+                let mut targets = SmallVec::new();
 
-                Reference::from_targets(targets)
+                // retain every conflicting final target once
+                for target in resolutions
+                    .iter()
+                    .flat_map(|resolution| resolution.target.iter())
+                {
+                    if !targets.contains(&target) {
+                        targets.push(target);
+                    }
+                }
+
+                Reference::Ambiguous(targets)
             }
             Self::Missing => Reference::Missing,
         }
@@ -198,11 +192,19 @@ impl ImportResolution {
         match self {
             Self::Resolved(resolution) => Reference::from(&resolution.declaration),
             Self::Ambiguous(resolutions) => {
-                let declarations = resolutions
-                    .iter()
-                    .flat_map(|resolution| resolution.declaration.iter());
+                let mut declarations = SmallVec::new();
 
-                Reference::from_targets(declarations)
+                // retain every conflicting authored declaration once
+                for declaration in resolutions
+                    .iter()
+                    .flat_map(|resolution| resolution.declaration.iter())
+                {
+                    if !declarations.contains(&declaration) {
+                        declarations.push(declaration);
+                    }
+                }
+
+                Reference::Ambiguous(declarations)
             }
             Self::Missing => Reference::Missing,
         }

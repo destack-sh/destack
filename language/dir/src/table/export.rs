@@ -70,7 +70,9 @@ impl ExportTable {
             .values()
             .filter_map(|export| match export.binding {
                 ExportBinding::Local { .. } => None,
-                ExportBinding::Import { module, .. } => module,
+                ExportBinding::Import { module, .. } | ExportBinding::ReExport { module, .. } => {
+                    module
+                }
             })
             .chain(self.star_exports.iter().filter_map(|export| export.target))
     }

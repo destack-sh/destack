@@ -318,6 +318,12 @@ impl SymbolKind {
         matches!(self, Self::Variable | Self::Parameter)
     }
 
+    /// Return whether this symbol forwards to another declaration.
+    #[inline]
+    pub fn is_alias(self) -> bool {
+        matches!(self, Self::Import | Self::ExportAlias)
+    }
+
     /// Return the symbol space normally introduced by this symbol kind.
     pub fn symbol_space(self) -> SymbolSpace {
         match self {

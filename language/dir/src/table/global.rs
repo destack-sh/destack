@@ -2,12 +2,8 @@ use destack_core::FxIndexMap as IndexMap;
 use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
-use smallvec::smallvec;
 
-use crate::{
-    DependencyItem, ExportBinding, ExportSelector, GlobalEntry, LocalNodeId, LocalSymbolId,
-    StaticKey,
-};
+use crate::{GlobalEntry, StaticKey};
 
 /// Global names contributed by one module.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
@@ -30,38 +26,6 @@ impl GlobalTable {
     /// Return true when the module contributes no globals.
     pub fn is_empty(&self) -> bool {
         self.entries_by_key.is_empty()
-    }
-
-    /// Add one local global declaration.
-    pub fn push_local(&mut self, key: StaticKey, symbol: LocalSymbolId) {
-        self.push(GlobalEntry {
-            key,
-            item: None,
-            alias: None,
-            binding: ExportBinding::Local {
-                symbols: smallvec![symbol],
-            },
-        });
-    }
-
-    /// Add one global re-export.
-    pub fn push_indirect(
-        &mut self,
-        key: StaticKey,
-        item: LocalNodeId<DependencyItem>,
-        alias: Option<LocalSymbolId>,
-        target: Option<ModuleId>,
-        imported: ExportSelector,
-    ) {
-        self.push(GlobalEntry {
-            key,
-            item: Some(item),
-            alias,
-            binding: ExportBinding::Import {
-                module: target,
-                selector: imported,
-            },
-        });
     }
 
     /// Add one global entry.

@@ -25,16 +25,16 @@ impl ExportTarget {
 
     /// Create one non-empty symbol group.
     pub fn symbols(symbols: impl IntoIterator<Item = GlobalSymbolId>) -> Option<Self> {
-        let mut group = SmallVec::new();
+        let mut target = SmallVec::new();
 
         // retain every exact declaration once in source order
         for symbol in symbols {
-            if !group.contains(&symbol) {
-                group.push(symbol);
+            if !target.contains(&symbol) {
+                target.push(symbol);
             }
         }
 
-        (!group.is_empty()).then_some(Self::Symbols(group))
+        (!target.is_empty()).then_some(Self::Symbols(target))
     }
 
     /// Iterate the scalar reference targets.
@@ -116,7 +116,7 @@ impl ExportResolution {
     }
 
     /// Replace the selected declaration while retaining the final target.
-    pub fn through(self, declaration: ExportTarget) -> Self {
+    pub fn with_declaration(self, declaration: ExportTarget) -> Self {
         Self {
             declaration,
             target: self.target,
@@ -222,8 +222,17 @@ pub enum ExportBinding {
         /// The local declaration overload group.
         symbols: SmallVec<[LocalSymbolId; 2]>,
     },
-    /// A declaration imported from another module.
+    /// A local import exported by this module.
     Import {
+        /// The local import symbol.
+        local: LocalSymbolId,
+        /// The imported module.
+        module: Option<ModuleId>,
+        /// The selected exported name.
+        selector: ExportSelector,
+    },
+    /// A declaration re-exported directly from another module.
+    ReExport {
         /// The imported module.
         module: Option<ModuleId>,
         /// The selected exported name.
@@ -236,7 +245,7 @@ impl ExportBinding {
     pub fn target_module(&self) -> Option<ModuleId> {
         match self {
             Self::Local { .. } => None,
-            Self::Import { module, .. } => *module,
+            Self::Import { module, .. } | Self::ReExport { module, .. } => *module,
         }
     }
 }
@@ -248,8 +257,8 @@ pub struct NamedExport {
     pub key: ExportKey,
     /// The dependency item that declared this export.
     pub item: Option<LocalNodeId<DependencyItem>>,
-    /// The explicit public alias declaration.
-    pub alias: Option<LocalSymbolId>,
+    /// The local declaration selected by the exported name.
+    pub declaration: Option<LocalSymbolId>,
     /// How the exported name is bound.
     pub binding: ExportBinding,
 }

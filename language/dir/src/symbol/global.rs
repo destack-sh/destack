@@ -11,8 +11,8 @@ pub struct GlobalEntry {
     pub key: StaticKey,
     /// The dependency item that declared this global name.
     pub item: Option<LocalNodeId<DependencyItem>>,
-    /// The explicit public alias declaration.
-    pub alias: Option<LocalSymbolId>,
+    /// The local declaration selected by the global name.
+    pub declaration: Option<LocalSymbolId>,
     /// How the global name is bound.
     pub binding: ExportBinding,
 }

@@ -11,14 +11,16 @@ use crate::{ExportTarget, GlobalNodeIdAny, GlobalSymbolId};
 pub struct ReferenceTable {
     /// The module id of the reference table.
     pub module_id: ModuleId,
-    /// Semantic targets keyed by their source node.
+    /// Final targets keyed by their source node.
     pub target_by_node: IndexMap<GlobalNodeIdAny, Reference>,
-    /// Authored declarations keyed by source nodes whose final targets differ.
+    /// Authored declarations that differ from their final target.
     pub declaration_by_node: IndexMap<GlobalNodeIdAny, Reference>,
 }
 
 /// One scalar target selected while resolving a source reference.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
 pub enum ReferenceTarget {
     /// One declaration symbol.
     Symbol(GlobalSymbolId),
@@ -46,29 +48,38 @@ impl ReferenceTable {
         }
     }
 
-    /// Insert one semantic target.
-    pub fn insert(&mut self, node: GlobalNodeIdAny, target: Reference) {
+    /// Insert one final target and its authored declaration.
+    pub fn insert_resolution(
+        &mut self,
+        node: GlobalNodeIdAny,
+        declaration: Reference,
+        target: Reference,
+    ) {
+        // retain only declarations that differ from their final target
+        if declaration == target {
+            self.declaration_by_node.shift_remove(&node);
+        } else {
+            self.declaration_by_node.insert(node, declaration);
+        }
+
         self.target_by_node.insert(node, target);
     }
 
-    /// Insert the authored declaration selected by one source node.
-    pub fn insert_declaration(&mut self, node: GlobalNodeIdAny, declaration: Reference) {
-        self.declaration_by_node.insert(node, declaration);
-    }
-
-    /// Return one semantic target.
+    /// Return one final target.
     pub fn get(&self, node: GlobalNodeIdAny) -> Option<&Reference> {
         self.target_by_node.get(&node)
     }
 
-    /// Return the authored declaration selected by one source node.
+    /// Return the authored declaration, equal to the final target unless overridden.
     pub fn declaration(&self, node: GlobalNodeIdAny) -> Option<&Reference> {
-        self.declaration_by_node.get(&node)
+        self.declaration_by_node
+            .get(&node)
+            .or_else(|| self.target_by_node.get(&node))
     }
 
     /// Return true when no references were resolved.
     pub fn is_empty(&self) -> bool {
-        self.target_by_node.is_empty() && self.declaration_by_node.is_empty()
+        self.target_by_node.is_empty()
     }
 
     /// Return modules that own resolved reference targets.
@@ -124,6 +135,14 @@ impl Reference {
         }
     }
 
+    /// Return the selected module namespace.
+    pub fn namespace(&self) -> Option<ModuleId> {
+        match self {
+            Self::Namespace(module) => Some(*module),
+            Self::Bound(_) | Self::Projected { .. } | Self::Ambiguous(_) | Self::Missing => None,
+        }
+    }
+
     /// Create a bound or missing reference from declaration symbols.
     pub fn from_symbols(symbols: impl IntoIterator<Item = GlobalSymbolId>) -> Self {
         let symbols = symbols.into_iter().collect::<SmallVec<_>>();
@@ -134,7 +153,7 @@ impl Reference {
         }
     }
 
-    /// Create a symbol, namespace, or missing reference from semantic targets.
+    /// Create a name reference from final targets.
     pub fn from_targets(resolved_targets: impl IntoIterator<Item = ReferenceTarget>) -> Self {
         let mut targets = SmallVec::<[ReferenceTarget; 2]>::new();
 
