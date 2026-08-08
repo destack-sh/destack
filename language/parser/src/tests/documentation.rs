@@ -309,7 +309,10 @@ class Box {
 "#,
     );
     let (parser, _) = test.parse();
-    let members = parser.tree.iter_nodes::<Member>().collect::<Vec<_>>();
+    let members = parser
+        .tree
+        .iter_node_ids_of_type::<Member>()
+        .collect::<Vec<_>>();
     assert_eq!(members.len(), 1);
     assert_eq!(
         test.documentation(&parser, members[0]),
@@ -325,7 +328,10 @@ type Shape = {
 "#,
     );
     let (parser, _) = test.parse();
-    let members = parser.tree.iter_nodes::<TypeMember>().collect::<Vec<_>>();
+    let members = parser
+        .tree
+        .iter_node_ids_of_type::<TypeMember>()
+        .collect::<Vec<_>>();
     assert_eq!(members.len(), 1);
     assert_eq!(
         test.documentation(&parser, members[0]),
@@ -341,7 +347,10 @@ enum Color {
 "#,
     );
     let (parser, _) = test.parse();
-    let fields = parser.tree.iter_nodes::<EnumField>().collect::<Vec<_>>();
+    let fields = parser
+        .tree
+        .iter_node_ids_of_type::<EnumField>()
+        .collect::<Vec<_>>();
     assert_eq!(fields.len(), 1);
     assert_eq!(test.documentation(&parser, fields[0]), Some("Red channel."));
 
@@ -356,7 +365,7 @@ import {
     let (parser, _) = test.parse();
     let items = parser
         .tree
-        .iter_nodes::<DependencyItem>()
+        .iter_node_ids_of_type::<DependencyItem>()
         .collect::<Vec<_>>();
     assert_eq!(items.len(), 1);
     assert_eq!(
@@ -373,7 +382,10 @@ match (value) {
 "#,
     );
     let (parser, _) = test.parse();
-    let arms = parser.tree.iter_nodes::<MatchArm>().collect::<Vec<_>>();
+    let arms = parser
+        .tree
+        .iter_node_ids_of_type::<MatchArm>()
+        .collect::<Vec<_>>();
     assert_eq!(arms.len(), 1);
     assert_eq!(
         test.documentation(&parser, arms[0]),
@@ -389,7 +401,10 @@ switch (value) {
 "#,
     );
     let (parser, _) = test.parse();
-    let cases = parser.tree.iter_nodes::<SwitchCase>().collect::<Vec<_>>();
+    let cases = parser
+        .tree
+        .iter_node_ids_of_type::<SwitchCase>()
+        .collect::<Vec<_>>();
     assert_eq!(cases.len(), 1);
     assert_eq!(
         test.documentation(&parser, cases[0]),
@@ -404,7 +419,10 @@ const first = 1,
 "#,
     );
     let (parser, _) = test.parse();
-    let declarators = parser.tree.iter_nodes::<Declarator>().collect::<Vec<_>>();
+    let declarators = parser
+        .tree
+        .iter_node_ids_of_type::<Declarator>()
+        .collect::<Vec<_>>();
     assert_eq!(declarators.len(), 2);
     assert_eq!(test.documentation(&parser, declarators[0]), None);
     assert_eq!(
@@ -427,7 +445,7 @@ function run<
     let (parser, _) = test.parse();
     let parameters = parser
         .tree
-        .iter_nodes::<GenericParameter>()
+        .iter_node_ids_of_type::<GenericParameter>()
         .collect::<Vec<_>>();
     assert_eq!(parameters.len(), 1);
     assert_eq!(
@@ -446,7 +464,7 @@ run<
     let (parser, _) = test.parse();
     let arguments = parser
         .tree
-        .iter_nodes::<GenericArgument>()
+        .iter_node_ids_of_type::<GenericArgument>()
         .collect::<Vec<_>>();
     assert_eq!(arguments.len(), 1);
     assert_eq!(
@@ -465,7 +483,7 @@ type Fields<T> = {
     let (parser, _) = test.parse();
     let parameters = parser
         .tree
-        .iter_nodes::<TypeMappedParameter>()
+        .iter_node_ids_of_type::<TypeMappedParameter>()
         .collect::<Vec<_>>();
     assert_eq!(parameters.len(), 1);
     assert_eq!(
@@ -486,7 +504,10 @@ function run<T>(): void where (
 "#,
     );
     let (parser, _) = test.parse();
-    let clauses = parser.tree.iter_nodes::<WhereClause>().collect::<Vec<_>>();
+    let clauses = parser
+        .tree
+        .iter_node_ids_of_type::<WhereClause>()
+        .collect::<Vec<_>>();
     assert_eq!(clauses.len(), 1);
     assert_eq!(
         test.documentation(&parser, clauses[0]),
@@ -501,7 +522,10 @@ catch (error) {}
 "#,
     );
     let (parser, _) = test.parse();
-    let catches = parser.tree.iter_nodes::<Catch>().collect::<Vec<_>>();
+    let catches = parser
+        .tree
+        .iter_node_ids_of_type::<Catch>()
+        .collect::<Vec<_>>();
     assert_eq!(catches.len(), 1);
     assert_eq!(
         test.documentation(&parser, catches[0]),
@@ -521,7 +545,10 @@ const value = {
 "#,
     );
     let (parser, _) = test.parse();
-    let properties = parser.tree.iter_nodes::<Property>().collect::<Vec<_>>();
+    let properties = parser
+        .tree
+        .iter_node_ids_of_type::<Property>()
+        .collect::<Vec<_>>();
     assert_eq!(properties.len(), 1);
     assert_eq!(
         test.documentation(&parser, properties[0]),
@@ -541,13 +568,16 @@ match (value) {
 "#,
     );
     let (parser, _) = test.parse();
-    let fields = parser.tree.iter_nodes::<PatternField>().collect::<Vec<_>>();
+    let fields = parser
+        .tree
+        .iter_node_ids_of_type::<PatternField>()
+        .collect::<Vec<_>>();
     assert_eq!(fields.len(), 1);
     assert_eq!(test.documentation(&parser, fields[0]), Some("Item field."));
 
     let documented_patterns = parser
         .tree
-        .iter_nodes::<Pattern>()
+        .iter_node_ids_of_type::<Pattern>()
         .filter_map(|pattern| test.documentation(&parser, pattern))
         .collect::<Vec<_>>();
     assert_eq!(documented_patterns, vec!["Bound value."]);

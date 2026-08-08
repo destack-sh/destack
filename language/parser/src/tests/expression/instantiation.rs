@@ -122,11 +122,6 @@ fn test_parse_generic_call_with_parenthesized_instantiation_callee() {
 }
 
 /// Parse optional-chain generic argument calls in value positions.
-///
-/// TODO(#bug): `eat_indirect_generic_postfix` (language/parser/src/parse/expression/postfix.rs)
-/// hardcodes `is_optional: false` on the call it builds, so `fn?.<number>()` loses its
-/// optionality between the `?.` and the call. Fix by threading `is_optional` through
-/// `eat_indirect_generic_postfix` from `eat_value_dot_postfix`.
 #[test]
 fn test_parse_optional_chain_generic_argument_call() {
     let test = TestParser::new("fn?.<number>();");

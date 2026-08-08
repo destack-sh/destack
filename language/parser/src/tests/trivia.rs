@@ -369,11 +369,11 @@ fn test_retain_empty_line_comments() {
     // `function func() { ... }`
     assert_eq!(expressions.len(), 1);
 
-    // `/**/`, `//`, `/**/`
+    // `/******/`, `//`, `/******/`
     assert_eq!(comments(&parser).len(), 3);
-    assert_comment!(parser, 0, CommentKind::SingleLineBlock, "***");
+    assert_comment!(parser, 0, CommentKind::SingleLineBlock, "****");
     assert_comment!(parser, 1, CommentKind::Line, "");
-    assert_comment!(parser, 2, CommentKind::SingleLineBlock, "***");
+    assert_comment!(parser, 2, CommentKind::SingleLineBlock, "****");
 }
 
 #[test]
@@ -1074,7 +1074,7 @@ fn test_doc_and_decorator_attach_to_function_declaration_in_source_order() {
 
     // `function f() {}`
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.iter_nodes::<Decorator>().count(), 1);
+    assert_eq!(parser.tree.iter_node_ids_of_type::<Decorator>().count(), 1);
 
     // `/** docs */`
     assert_eq!(comments(&parser).len(), 1);
@@ -1084,7 +1084,7 @@ fn test_doc_and_decorator_attach_to_function_declaration_in_source_order() {
     // `@memo`
     let decorator_annotation = parser
         .tree
-        .iter_nodes::<Decorator>()
+        .iter_node_ids_of_type::<Decorator>()
         .next()
         .expect("missing decorator annotation");
     assert_node!(parser.tree, decorator_annotation, Decorator { expression: node, position } => {
@@ -2013,7 +2013,7 @@ fn test_keep_doc_comment_separate_from_decorator_node() {
     assert_eq!(expressions.len(), 1);
 
     // `@memo`
-    assert_eq!(parser.tree.iter_nodes::<Decorator>().count(), 1);
+    assert_eq!(parser.tree.iter_node_ids_of_type::<Decorator>().count(), 1);
 
     // `/** docs */`
     assert_eq!(comments(&parser).len(), 1);
