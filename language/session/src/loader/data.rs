@@ -37,15 +37,15 @@ impl SessionState {
         let data = match file.ty {
             FileType::Json => {
                 let value = Self::parse_json_value(file.as_ref())?;
-                Data::Json(value)
+                Data::Json(value.into())
             }
             FileType::Toml => {
                 let value = Self::parse_toml_value(file.as_ref())?;
-                Data::Json(value)
+                Data::Json(value.into())
             }
             FileType::Yaml => {
                 let value = Self::parse_yaml_value(file.as_ref())?;
-                Data::Json(value)
+                Data::Json(value.into())
             }
             file_type => {
                 return Err(SessionError::Internal {
