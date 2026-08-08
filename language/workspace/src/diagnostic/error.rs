@@ -18,6 +18,13 @@ pub enum Error {
         /// The missing file path.
         path: PathBuf,
     },
+    /// A filesystem path cannot be loaded as a module.
+    ModuleNotLoadable {
+        /// The path that could not be loaded.
+        path: PathBuf,
+        /// The failure detail.
+        detail: String,
+    },
     /// The incoming open file version is not newer than the tracked version.
     StaleOpenFile {
         /// The open file path.
@@ -110,6 +117,13 @@ impl std::fmt::Display for Error {
             }
             Error::FileMissing { path } => {
                 write!(formatter, "file is missing: {}", path.display())
+            }
+            Error::ModuleNotLoadable { path, detail } => {
+                write!(
+                    formatter,
+                    "module is not loadable for {}: {detail}",
+                    path.display()
+                )
             }
             Error::StaleOpenFile {
                 path,

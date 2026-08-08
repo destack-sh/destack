@@ -33,7 +33,7 @@ impl LocalWorkspace {
         }
 
         // read the file and formatter options from one revision
-        let session = self.pin_session(root)?;
+        let session = self.pin_workspace(root)?;
         let Some(file_id) = session.file_id(&path)? else {
             return Ok(None);
         };

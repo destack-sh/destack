@@ -1,8 +1,6 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Instant;
 
 use crate::diagnostic::{DiagnosticsRequest, Error, FileDiagnostics};
 use crate::file::{Commit, FileOperation, OpenFile, SourceUpdate};
@@ -12,45 +10,40 @@ use crate::{
     CacheOutput, CheckInput, CheckOutput, CleanInput, CleanOptions, CleanOutput, CommandContext,
     CommandError, CommandOptions, CommandOutcome, CommandProgress, CommandResult, CommandRevision,
     DocInput, DocOptions, DocOutput, DoctorInput, DoctorOptions, DoctorOutput, FormatInput,
-    FormatOutput, InfoInput, InfoOptions, InfoOutput, Output, OutputBuffer, ProgressEvent,
-    QueryInput, QueryOutput, RewriteInput, RewriteOutput, RunInput, RunOutput, SettingsInput,
-    SettingsOptions, SettingsOutput, TargetsInput, TargetsOptions, TargetsOutput, TaskInput,
-    TaskOptions, TaskOutput, TestInput, TestOptions, TestOutput, Workspace,
+    FormatOutput, InfoInput, InfoOptions, InfoOutput, Output, OutputBuffer, QueryInput,
+    QueryOutput, RewriteInput, RewriteOutput, RunInput, RunOutput, SettingsInput, SettingsOptions,
+    SettingsOutput, TargetsInput, TargetsOptions, TargetsOutput, TaskInput, TaskOptions,
+    TaskOutput, TestInput, TestOptions, TestOutput, Workspace,
 };
 use dashmap::DashMap;
 use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactReference, Bundle, BundleFile, Product,
 };
-use destack_repository::{Ref, Repository, Revision, Trace, TraceSnapshot, TraceView};
-use destack_session::{SessionEvent, SessionEventHandler};
-use destack_source::{
-    Content, ContentId, DiagnosticCollection, Edit, File, FileId, OverlayFileSystem, TextRange,
-};
+use destack_repository::{Repository, Revision, Trace, TraceSnapshot, TraceView};
+use destack_session::Session;
+use destack_source::{Content, ContentId, Edit, File, FileId, OverlayFileSystem, TextRange};
 use futures::future::BoxFuture;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 use super::root::WorkspaceRoot;
-use super::{RunQueryInput, RunQueryResponse, SessionPin};
-use crate::{ExportInput, ExportResult, ExportedFile, FileEdit, FileImage, QueryFile};
+use super::{RunQueryInput, RunQueryResponse, WorkspacePin};
+use crate::{ExportInput, ExportResult, ExportedFile, FileEdit, QueryFile};
 
 /// Local workspace used by tooling integrations.
 pub struct LocalWorkspace {
     /// Repository for workspace resolution.
     pub(crate) repository: Arc<Repository>,
+    /// Shared artifact computation session.
+    pub(crate) session: Arc<Session>,
     /// Opened roots keyed by root path.
-    pub(super) roots: DashMap<PathBuf, Arc<WorkspaceRoot>>,
+    pub(super) roots: RwLock<HashMap<PathBuf, Arc<WorkspaceRoot>>>,
     /// Open files keyed by source path.
     pub(crate) open_file_by_path: DashMap<PathBuf, OpenFile>,
-    /// Overlay filesystem shared by live sessions.
+    /// Overlay filesystem shared by workspace source operations.
     pub(crate) overlay_file_system: Option<Arc<OverlayFileSystem>>,
 
-    /// Number of workers for each opened session.
-    pub(crate) worker_limit: usize,
-
-    /// Optional session event handler for local progress reporting.
-    pub(super) event_handler: Option<SessionEventHandler>,
-    /// Next id for private command session refs.
-    pub(crate) next_command_session_id: AtomicU64,
+    /// Number of workers in the artifact session.
+    pub(crate) worker_count: usize,
 }
 
 impl std::fmt::Debug for LocalWorkspace {
@@ -59,12 +52,11 @@ impl std::fmt::Debug for LocalWorkspace {
         formatter
             .debug_struct("LocalWorkspace")
             .field("repository", &self.repository)
-            .field("roots", &self.roots)
+            .field("session", &self.session)
+            .field("roots", &self.roots.read())
             .field("open_file_by_path", &self.open_file_by_path.len())
             .field("overlay_file_system", &self.overlay_file_system.is_some())
-            .field("worker_limit", &self.worker_limit)
-            .field("event_handler", &self.event_handler.is_some())
-            .field("next_command_session_id", &self.next_command_session_id)
+            .field("worker_count", &self.worker_count)
             .finish()
     }
 }
@@ -80,17 +72,16 @@ impl LocalWorkspace {
         repository: Arc<Repository>,
         overlay_file_system: Option<Arc<OverlayFileSystem>>,
         roots: Vec<PathBuf>,
-        worker_limit: usize,
-        event_handler: Option<SessionEventHandler>,
+        worker_count: usize,
     ) -> Result<Self, Error> {
+        let session = Arc::new(Session::new(repository.clone(), worker_count)?);
         let workspace = Self {
             repository,
-            roots: dashmap::DashMap::new(),
+            session,
+            roots: RwLock::new(HashMap::new()),
             open_file_by_path: dashmap::DashMap::new(),
             overlay_file_system,
-            worker_limit,
-            event_handler,
-            next_command_session_id: AtomicU64::new(1),
+            worker_count,
         };
 
         for root in roots {
@@ -102,7 +93,10 @@ impl LocalWorkspace {
 
     /// Return opened roots as a stable path list.
     pub fn root_paths(&self) -> Vec<PathBuf> {
-        self.roots.iter().map(|entry| entry.key().clone()).collect()
+        let mut roots = self.roots.read().keys().cloned().collect::<Vec<_>>();
+        roots.sort();
+
+        roots
     }
 
     /// Snapshot one workspace operation trace with repository display names.
@@ -127,13 +121,6 @@ impl LocalWorkspace {
         )
     }
 
-    /// Allocate one private session ref for a command.
-    pub(crate) fn next_command_session_ref(&self, root: &Path) -> Ref {
-        let id = self.next_command_session_id.fetch_add(1, Ordering::Relaxed);
-
-        Ref::new(format!("command:{}:{id}", root.display()))
-    }
-
     /// Execute one command operation for the given root.
     pub(crate) async fn run_command<'a, T, O>(
         &self,
@@ -151,7 +138,7 @@ impl LocalWorkspace {
     {
         let repository = Arc::clone(&self.repository);
 
-        let event_handler = progress.map(session_progress_handler);
+        let event_handler = progress.map(CommandProgress::event_handler);
 
         // gather shared context
         let mut output = OutputBuffer::default();
@@ -180,7 +167,7 @@ impl LocalWorkspace {
             target_count,
         } = result;
         let revision = context.revision()?;
-        let files = command_file_images(&context, revision, &diagnostics, &files)?;
+        let files = context.file_images(revision, &diagnostics, &files)?;
         let success = exit_code == 0;
         let trace = common
             .trace
@@ -207,79 +194,6 @@ impl LocalWorkspace {
     }
 }
 
-/// Build one session event handler forwarding throttled progress.
-///
-/// Counting stays exact; emission throttles to one event per interval
-/// so slow transports never stall the workers.
-fn session_progress_handler(progress: CommandProgress) -> SessionEventHandler {
-    let interval = progress.interval();
-    let throttle = Mutex::new((None::<Instant>, 0usize));
-
-    Arc::new(move |event| match event {
-        SessionEvent::TaskFinished { artifact_key, .. }
-        | SessionEvent::TaskFailed { artifact_key, .. } => {
-            let mut throttle = throttle.lock();
-            throttle.1 += 1;
-            let due = throttle.0.is_none_or(|last| last.elapsed() >= interval);
-            if due {
-                throttle.0 = Some(Instant::now());
-                let _is_queued = progress.try_emit(ProgressEvent {
-                    task: artifact_key.stage().name().to_string(),
-                    message: Some(format!("{} artifacts", throttle.1)),
-                    percent: None,
-                });
-            }
-        }
-        _ => {}
-    })
-}
-
-/// Return file images for diagnostics emitted by one command.
-fn command_file_images(
-    context: &CommandContext<'_>,
-    revision: Revision,
-    diagnostics: &DiagnosticCollection,
-    sources: &[Arc<File>],
-) -> CommandResult<Vec<FileImage>> {
-    let mut seen = HashSet::new();
-    let mut files = Vec::new();
-
-    // retain files referenced by command data
-    for file in sources {
-        if seen.insert(file.id) {
-            files.push(FileImage::from(file.as_ref()));
-        }
-    }
-
-    // collect every file referenced by labels and suggestion patches
-    for diagnostic in diagnostics.iter() {
-        let mut file_ids = vec![diagnostic.primary_label().target.file()];
-        file_ids.extend(diagnostic.labels().map(|label| label.target.file()));
-        file_ids.extend(
-            diagnostic
-                .suggestions
-                .iter()
-                .flat_map(|suggestion| &suggestion.patches.files)
-                .map(|patch| patch.file),
-        );
-
-        for file_id in file_ids {
-            if !seen.insert(file_id) {
-                continue;
-            }
-
-            let file = context.file(revision, file_id)?.ok_or_else(|| {
-                CommandError::internal(format!(
-                    "diagnostic references missing source file {file_id:?}"
-                ))
-            })?;
-            files.push(FileImage::from(file.as_ref()));
-        }
-    }
-
-    Ok(files)
-}
-
 impl Workspace for LocalWorkspace {
     fn home(&self) -> &Path {
         self.repository.path()
@@ -300,7 +214,9 @@ impl Workspace for LocalWorkspace {
     }
 
     fn open(&self, root: PathBuf) -> Result<(), Error> {
-        LocalWorkspace::open_root(self, root)
+        let _is_new = LocalWorkspace::open_root(self, root)?;
+
+        Ok(())
     }
 
     fn close(&self, root: &Path) -> Result<(), Error> {
@@ -316,7 +232,7 @@ impl Workspace for LocalWorkspace {
     }
 
     fn reload(&self, root: &Path) -> Result<Option<Commit>, Error> {
-        LocalWorkspace::reload_root(self, root)
+        LocalWorkspace::reload(self, root)
     }
 
     fn file(&self, root: &Path, operation: FileOperation) -> Result<Option<Commit>, Error> {
@@ -324,7 +240,7 @@ impl Workspace for LocalWorkspace {
     }
 
     fn is_file_open(&self, root: &Path, path: &Path) -> Result<bool, Error> {
-        let root = self.workspace_root(root)?;
+        let root = self.root(root)?;
         let path = self.resolve_path(root.as_ref(), path)?;
 
         Ok(LocalWorkspace::has_open_file(self, &path))
@@ -635,10 +551,9 @@ impl Workspace for LocalWorkspace {
         file_ids: Vec<FileId>,
     ) -> Result<Vec<Arc<File>>, Error> {
         // pin the requested immutable revision
-        let session = self.session(root)?;
-        let repository = session.repository();
-        let revision = repository.pin(revision)?;
-        let session = SessionPin::new(session, revision);
+        let workspace_root = self.root(root)?;
+        let revision = self.repository.pin(revision)?;
+        let session = WorkspacePin::new(workspace_root, self.session(), revision);
 
         // read every requested file exactly
         let mut files = Vec::with_capacity(file_ids.len());
@@ -704,9 +619,9 @@ impl Workspace for LocalWorkspace {
     }
 
     fn watch(&self, root: &Path) -> Result<Watch, Error> {
-        let root = self.workspace_root(root)?;
+        let root = self.root(root)?;
 
-        root.watch()
+        root.watch(&self.repository)
     }
 }
 
@@ -929,7 +844,7 @@ impl LocalWorkspace {
         root: &Path,
         operation: FileOperation,
     ) -> Result<Option<Commit>, Error> {
-        let workspace_root = self.workspace_root(root)?;
+        let workspace_root = self.root(root)?;
         let operation = self.resolve_operation(workspace_root.as_ref(), operation)?;
 
         match operation {

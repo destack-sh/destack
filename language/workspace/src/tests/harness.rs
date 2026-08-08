@@ -84,9 +84,8 @@ impl TestWorkspace {
             )
             .expect("failed to import repository from overlay fs"),
         );
-        let workspace =
-            LocalWorkspace::new(repository.clone(), Some(overlay), roots.clone(), 1, None)
-                .expect("expected workspace");
+        let workspace = LocalWorkspace::new(repository.clone(), Some(overlay), roots.clone(), 1)
+            .expect("expected workspace");
 
         Self {
             fs,

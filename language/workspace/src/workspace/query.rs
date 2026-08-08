@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::RunGuard;
 use crate::diagnostic::Error;
 
-use super::{LocalWorkspace, SessionPin};
+use super::{LocalWorkspace, WorkspacePin};
 
 /// One source file resolved for semantic queries.
 #[derive(Debug, Clone)]
@@ -65,7 +65,7 @@ impl LocalWorkspace {
         }
 
         // pin the root and resolve the requested source
-        let session = self.pin_session(root)?;
+        let session = self.pin_workspace(root)?;
         let Some(file_id) = session.file_id(&path)? else {
             return Ok(None);
         };
@@ -110,7 +110,7 @@ pub struct RunQueryInput {
 /// One scheduled semantic query at an exact revision.
 pub struct QueryRun {
     /// Pinned source and artifact state.
-    session: SessionPin,
+    session: WorkspacePin,
     /// Query executed after its artifacts become ready.
     request: QueryRequest,
     /// Profiles selected for a request that reads every program.
@@ -233,7 +233,7 @@ impl QueryRun {
 
         // close the run before publishing its complete trace
         drop(artifacts);
-        session.session().finish_trace(trace);
+        trace.finish();
 
         result
     }
@@ -265,24 +265,28 @@ pub enum RevisionPolicy {
 
 impl LocalWorkspace {
     /// Schedule one semantic query for a root.
-    pub fn start_query(&self, root: &Path, request: RunQueryInput) -> Result<QueryRun, Error> {
+    pub fn start_query(
+        &self,
+        root: &Path,
+        request: RunQueryInput,
+        is_tracing: bool,
+    ) -> Result<QueryRun, Error> {
         // pin the session selected by the revision policy
         let session = match request.revision {
             // select the latest ref state
-            RevisionPolicy::Latest => self.pin_session(root)?,
+            RevisionPolicy::Latest => self.pin_workspace(root)?,
 
             // pin the exact immutable revision
             RevisionPolicy::Exact(revision) => {
-                let session = self.session(root)?;
-                let repository = session.repository();
-                let revision = repository.pin(revision)?;
+                let root = self.root(root)?;
+                let revision = self.repository.pin(revision)?;
 
-                SessionPin::new(session, revision)
+                WorkspacePin::new(root, self.session(), revision)
             }
 
             // require the ref to remain at the caller's revision
             RevisionPolicy::Current(expected) => {
-                let session = self.pin_session(root)?;
+                let session = self.pin_workspace(root)?;
                 let current = session.revision();
                 if current != expected {
                     return Err(Error::StaleRevision { expected, current });
@@ -292,7 +296,7 @@ impl LocalWorkspace {
             }
         };
 
-        let trace = session.session().start_trace();
+        let trace = session.session().start_trace(is_tracing);
 
         // select every program only when the request reads all selected programs
         let selected_profile_ids = trace.span("profiles", || {
@@ -304,23 +308,27 @@ impl LocalWorkspace {
         })?;
 
         // open one cancellable artifact run for exact query reads
-        let artifacts = session.session().schedule_artifacts_traced(
+        let artifacts = session.session().provide_traced(
             session.revision(),
             &[],
             ArtifactPriority::Foreground,
             trace.clone(),
+            None,
         );
 
         // complete diagnostics separately because failed checks carry diagnostics
         let diagnostics = request.request.diagnostic_artifacts();
-        let diagnostics = (!diagnostics.is_empty()).then(|| {
-            session.session().schedule_artifacts_traced(
+        let diagnostics = if diagnostics.is_empty() {
+            None
+        } else {
+            Some(session.session().provide_traced(
                 session.revision(),
                 &diagnostics,
                 ArtifactPriority::Foreground,
                 trace.clone(),
-            )
-        });
+                None,
+            ))
+        };
 
         Ok(QueryRun {
             session,
@@ -338,6 +346,6 @@ impl LocalWorkspace {
         root: &Path,
         request: RunQueryInput,
     ) -> Result<RunQueryResponse, Error> {
-        self.start_query(root, request)?.wait().await
+        self.start_query(root, request, false)?.wait().await
     }
 }

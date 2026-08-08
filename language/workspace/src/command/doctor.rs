@@ -149,7 +149,7 @@ impl CommandContext<'_> {
             self.resolve_destack_config_path(self.common.manifest.as_deref())
                 .ok()
         } else {
-            self.find_destack_config(self.session.cwd())
+            self.find_destack_config(&self.cwd)
         };
         let config = manifest
             .as_ref()
@@ -201,10 +201,10 @@ impl CommandContext<'_> {
 
         let payload = DoctorPayload {
             cli_version: env!("CARGO_PKG_VERSION").to_string(),
-            cwd: self.session.cwd().display().to_string(),
+            cwd: self.cwd.display().to_string(),
             os: os.to_string(),
             arch: arch.to_string(),
-            workers: self.workspace.worker_limit as u64,
+            workers: self.workspace.worker_count as u64,
             available_parallelism: u64::try_from(available_parallelism).unwrap_or(u64::MAX),
             workspace: DoctorWorkspace {
                 root: workspace.root.display().to_string(),

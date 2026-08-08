@@ -20,7 +20,7 @@ use crate::Error;
 impl LocalWorkspace {
     /// Open a local workspace from one filesystem path.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn open(path: impl Into<PathBuf>, worker_limit: usize) -> Result<Self, Error> {
+    pub fn open(path: impl Into<PathBuf>, worker_count: usize) -> Result<Self, Error> {
         let path = workspace_path(&path.into())?;
         let file_system = Arc::new(OverlayFileSystem::with_inner(Arc::new(PhysicalFileSystem)));
         let repository = Arc::new(
@@ -34,20 +34,14 @@ impl LocalWorkspace {
             .map_err(Error::from)?,
         );
 
-        Self::new(
-            repository,
-            Some(file_system),
-            Vec::new(),
-            worker_limit,
-            None,
-        )
+        Self::new(repository, Some(file_system), Vec::new(), worker_count)
     }
 
     /// Open a local workspace from in-memory source edits.
     pub fn memory(
         root: impl Into<PathBuf>,
         edits: Vec<Edit>,
-        worker_limit: usize,
+        worker_count: usize,
     ) -> Result<Self, Error> {
         let root = root.into();
         let repository = Arc::new(
@@ -61,7 +55,7 @@ impl LocalWorkspace {
             .map_err(Error::from)?,
         );
 
-        Self::new(repository, None, vec![root], worker_limit, None)
+        Self::new(repository, None, vec![root], worker_count)
     }
 }
 

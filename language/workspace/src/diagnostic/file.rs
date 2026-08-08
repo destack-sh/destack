@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::RunGuard;
 use crate::diagnostic::Error;
-use crate::workspace::{LocalWorkspace, SessionPin};
+use crate::workspace::{LocalWorkspace, WorkspacePin};
 
 /// Selection for one diagnostic read.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -73,7 +73,7 @@ impl DiagnosticOutcome {
 impl FileDiagnostics {
     /// Read diagnostics for one exact file.
     fn read(
-        session: &SessionPin,
+        session: &WorkspacePin,
         open_files: &HashMap<FileId, (Uri, Option<i32>)>,
         file_id: FileId,
         diagnostics: Vec<Diagnostic>,
@@ -150,7 +150,7 @@ struct DiagnosticRead {
     /// Opened root containing this exact read.
     root: PathBuf,
     /// Pinned source and diagnostic state.
-    session: SessionPin,
+    session: WorkspacePin,
     /// Files selected from this root.
     selection: DiagnosticSelection,
     /// Open file protocol identities at the pinned revision.
@@ -165,13 +165,13 @@ impl DiagnosticRead {
     /// Schedule one exact root diagnostic read.
     fn new(
         root: PathBuf,
-        session: SessionPin,
+        session: WorkspacePin,
         selection: DiagnosticSelection,
         open_files: HashMap<FileId, (Uri, Option<i32>)>,
         modules: &[Module],
     ) -> Result<Self, Error> {
         let artifact_keys = session.diagnostic_artifacts(modules);
-        let artifact_run = session.session().schedule_artifacts(
+        let artifact_run = session.session().provide(
             session.revision(),
             &artifact_keys,
             ArtifactPriority::Foreground,
@@ -298,7 +298,7 @@ impl LocalWorkspace {
     /// Schedule exact diagnostics for one file path.
     fn start_file_diagnostics(&self, path: &Path) -> Result<Option<DiagnosticRead>, Error> {
         let root = self.root_at(path)?;
-        let session = self.pin_session(&root)?;
+        let session = self.pin_workspace(&root)?;
         let revision = session.revision();
         let repository = session.repository();
 
@@ -337,7 +337,7 @@ impl LocalWorkspace {
 
     /// Schedule exact diagnostics for one root.
     fn start_root_diagnostics(&self, root: &Path) -> Result<DiagnosticRead, Error> {
-        let session = self.pin_session(root)?;
+        let session = self.pin_workspace(root)?;
         let revision = session.revision();
         let repository = session.repository();
         let module_ids = repository.module_ids(revision)?;
@@ -365,10 +365,10 @@ impl LocalWorkspace {
     }
 
     /// Schedule program indexes for one selected revision.
-    fn schedule_program_indexes(&self, root: &Path, session: &SessionPin) -> Result<(), Error> {
-        let root = self.workspace_root(root)?;
+    fn schedule_program_indexes(&self, root: &Path, session: &WorkspacePin) -> Result<(), Error> {
+        let root = self.root(root)?;
         let artifacts = session.program_indexes()?;
-        root.schedule_background(session.revision(), &artifacts);
+        root.schedule_background(session.revision(), &artifacts, session.session())?;
 
         Ok(())
     }

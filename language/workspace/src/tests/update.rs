@@ -156,6 +156,41 @@ fn test_close_root_clears_open_files() {
     );
 }
 
+/// Reject mutations retained by an operation after its root closes.
+#[test]
+fn test_close_root_rejects_retained_mutation() {
+    let test = TestWorkspace::new("workspace_close_retained_root");
+    let root = &test.roots[0];
+    let retained = test.workspace.root(root).expect("retain opened root");
+
+    test.workspace.close_root(root).expect("close root");
+    let error = retained.write().expect_err("reject retained mutation");
+
+    assert!(matches!(error, Error::PathNotInRoot { path } if path == *root));
+}
+
+/// Distinguish the deepest operation owner from every affected containing root.
+#[test]
+fn test_route_nested_root_path() {
+    let test = TestWorkspace::new("workspace_nested_root");
+    let outer = &test.roots[0];
+    let nested = outer.join("nested");
+    let config = nested.join("destack.json");
+    test.fs
+        .write_text(&config, "{ \"name\": \"nested\" }\n")
+        .expect("write nested manifest");
+    test.workspace
+        .open_root(nested.clone())
+        .expect("open nested root");
+    let path = nested.join("main.ds");
+
+    assert_eq!(
+        test.workspace.roots_at(&path),
+        vec![outer.clone(), nested.clone()]
+    );
+    assert_eq!(test.workspace.root_at(&path).expect("route path"), nested);
+}
+
 /// Reject stale open file changes before mutating source state.
 #[test]
 fn test_change_file_rejects_stale_version() {

@@ -9,21 +9,31 @@ use destack_source::{File, FileId, ModuleId, ProfileId, TargetId};
 
 use crate::diagnostic::Error;
 
-use super::LocalWorkspace;
+use super::{LocalWorkspace, WorkspaceRoot};
 
-/// Pinned read state for one session at one pinned repository revision.
+/// Pinned workspace state at one immutable repository revision.
 #[derive(Debug)]
-pub(crate) struct SessionPin {
-    /// The live session.
+pub(crate) struct WorkspacePin {
+    /// The opened workspace root.
+    root: Arc<WorkspaceRoot>,
+    /// The shared computation session.
     session: Arc<Session>,
     /// The retained repository revision.
     revision: RevisionPin,
 }
 
-impl SessionPin {
-    /// Create one session pin.
-    pub(crate) fn new(session: Arc<Session>, revision: RevisionPin) -> Self {
-        Self { session, revision }
+impl WorkspacePin {
+    /// Create one workspace pin.
+    pub(crate) fn new(
+        root: Arc<WorkspaceRoot>,
+        session: Arc<Session>,
+        revision: RevisionPin,
+    ) -> Self {
+        Self {
+            root,
+            session,
+            revision,
+        }
     }
 
     /// Return the live session for workspace internals.
@@ -43,7 +53,7 @@ impl SessionPin {
 
     /// Return one tracked file id for a path in this revision.
     pub(crate) fn file_id(&self, path: &Path) -> Result<Option<FileId>, Error> {
-        let file_id = self.session.file_id(path);
+        let file_id = self.root.file_id(self.repository(), path)?;
         let file = self.repository().file(self.revision(), file_id)?;
 
         Ok(file.map(|_| file_id))
@@ -208,13 +218,12 @@ impl SessionPin {
 }
 
 impl LocalWorkspace {
-    /// Pin one root session at its current revision.
-    pub(crate) fn pin_session(&self, root: &Path) -> Result<SessionPin, Error> {
-        let session = self.session(root)?;
-        let repository = session.repository();
-        let revision = session.revision(session.head())?;
-        let revision = repository.pin(revision)?;
+    /// Pin one opened root at its current revision.
+    pub(crate) fn pin_workspace(&self, root: &Path) -> Result<WorkspacePin, Error> {
+        let root = self.root(root)?;
+        let revision = root.revision(&self.repository)?;
+        let revision = self.repository.pin(revision)?;
 
-        Ok(SessionPin::new(session, revision))
+        Ok(WorkspacePin::new(root, self.session(), revision))
     }
 }
