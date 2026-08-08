@@ -1,7 +1,6 @@
-use destack_serde::Reflect;
 use std::path::{Path, PathBuf};
 
-use destack_session::Change;
+use destack_serde::Reflect;
 use destack_source::{Content, File, FileId, FileType, ModuleId, TextChange, Uri};
 use serde::{Deserialize, Serialize};
 
@@ -74,7 +73,7 @@ pub enum UpdateKind {
 
 impl UpdateKind {
     /// Return the coarse update kind for one path.
-    pub(crate) fn for_path(path: &std::path::Path) -> Self {
+    pub(crate) fn for_path(path: &Path) -> Self {
         let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
             return Self::Source;
         };
@@ -107,57 +106,6 @@ pub struct FileUpdate {
     pub is_removed: bool,
     /// The coarse change kind for this file.
     pub kind: UpdateKind,
-}
-
-impl From<Change> for FileUpdate {
-    /// Project one session change into a workspace payload.
-    fn from(update: Change) -> Self {
-        match update {
-            Change::Updated {
-                module_id,
-                file_id,
-                uri,
-                file,
-            } => {
-                let kind = file
-                    .path
-                    .as_deref()
-                    .map(UpdateKind::for_path)
-                    .unwrap_or(UpdateKind::Source);
-
-                Self {
-                    module_id,
-                    file_id,
-                    diagnostic_uri: uri,
-                    diagnostic_version: None,
-                    file: Some(FileImage::from(file.as_ref())),
-                    is_removed: false,
-                    kind,
-                }
-            }
-            Change::Removed {
-                module_id,
-                file_id,
-                uri,
-            } => {
-                let kind = uri
-                    .to_path_buf()
-                    .as_deref()
-                    .map(UpdateKind::for_path)
-                    .unwrap_or(UpdateKind::Source);
-
-                Self {
-                    module_id,
-                    file_id,
-                    diagnostic_uri: uri,
-                    diagnostic_version: None,
-                    file: None,
-                    is_removed: true,
-                    kind,
-                }
-            }
-        }
-    }
 }
 
 /// File operation applied through a workspace.

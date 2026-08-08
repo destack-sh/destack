@@ -7,7 +7,9 @@ impl From<Error> for Status {
     /// Convert one workspace failure into a terminal RPC status.
     fn from(error: Error) -> Self {
         let code = match &error {
-            Error::PathNotInRoot { .. } | Error::FileMissing { .. } => Code::NotFound,
+            Error::PathNotInRoot { .. }
+            | Error::FileMissing { .. }
+            | Error::ModuleNotLoadable { .. } => Code::NotFound,
             Error::StaleOpenFile { .. } => Code::Aborted,
             Error::InvalidTextChange { .. } | Error::InvalidEdit { .. } => Code::InvalidArgument,
             Error::Query(error) if matches!(error.as_ref(), QueryError::Invalid(_)) => {
