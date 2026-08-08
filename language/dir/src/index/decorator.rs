@@ -1,7 +1,4 @@
-use crate::{
-    Decorator, DecoratorTarget, Expression, GlobalNodeId, GlobalNodeIdAny, LocalDecoratorId,
-    Postings,
-};
+use crate::{Decorator, DecoratorTarget, GlobalNodeId, GlobalNodeIdAny, Postings};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -24,12 +21,8 @@ pub struct DecoratorPostings {
 pub struct DecoratorEntry {
     /// The decorator name when syntactically known.
     pub name: Option<String>,
-    /// The local decorator application id.
-    pub application: LocalDecoratorId,
     /// The decorator node.
     pub decorator: GlobalNodeId<Decorator>,
-    /// The decorator expression target.
-    pub expression: GlobalNodeId<Expression>,
     /// The decorated owner node.
     pub owner: GlobalNodeIdAny,
     /// The resolved decorator declaration.
@@ -99,14 +92,12 @@ impl DecoratorEntry {
             self.decorator.module_id,
             self.owner.local_id.id,
             self.decorator.local_id.id,
-            self.expression.local_id.id,
         );
         let right = (
             other.name.as_deref(),
             other.decorator.module_id,
             other.owner.local_id.id,
             other.decorator.local_id.id,
-            other.expression.local_id.id,
         );
 
         left.cmp(&right)

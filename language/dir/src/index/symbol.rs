@@ -1,8 +1,6 @@
-use crate::{
-    GlobalNodeIdAny, GlobalSymbolId, MemberKind, Mutability, Postings, SymbolKind, SymbolRole,
-};
+use crate::{GlobalSymbolId, MemberKind, Mutability, Postings, SymbolKind};
 use destack_serde::Reflect;
-use destack_source::{FileId, Span};
+use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
 /// Indexed declared symbols.
@@ -28,14 +26,8 @@ pub struct SymbolEntry {
     pub kind: SymbolKind,
     /// The declaration member kind when present.
     pub member_kind: Option<MemberKind>,
-    /// The symbol role.
-    pub role: SymbolRole,
     /// The symbol id.
     pub symbol: GlobalSymbolId,
-    /// The source node that declares the symbol.
-    pub source: GlobalNodeIdAny,
-    /// The source file.
-    pub file: FileId,
     /// The source range.
     pub span: Span,
     /// The declaration name range.
@@ -98,8 +90,8 @@ impl SymbolEntry {
             self.name.as_str(),
             self.kind,
             self.member_kind,
-            self.source.module_id,
-            self.file,
+            self.symbol.module_id,
+            self.span.file,
             self.span.start,
             self.span.end,
             self.selection.start,
@@ -110,8 +102,8 @@ impl SymbolEntry {
             other.name.as_str(),
             other.kind,
             other.member_kind,
-            other.source.module_id,
-            other.file,
+            other.symbol.module_id,
+            other.span.file,
             other.span.start,
             other.span.end,
             other.selection.start,
