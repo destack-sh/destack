@@ -1,5 +1,5 @@
 use destack_program::Object;
-use destack_serde::SchemaRegistry;
+use destack_serde::Schema;
 
 use crate::{
     ArtifactDependency, ArtifactEventLog, ArtifactKey, ArtifactPayload, ArtifactRecord,
@@ -13,66 +13,66 @@ use crate::{
 };
 
 /// Include public artifact schema roots.
-pub fn schema(registry: &mut SchemaRegistry) {
-    registry.register::<ArtifactKey>();
-    registry.register::<ArtifactVersion>();
-    registry.register::<ArtifactDependency>();
-    registry.register::<ArtifactSidecar>();
-    registry.register::<ArtifactRecord>();
-    registry.register::<ArtifactPayload>();
-    registry.register::<ArtifactReference>();
+pub fn schema(schema: &mut Schema) {
+    schema.register::<ArtifactKey>();
+    schema.register::<ArtifactVersion>();
+    schema.register::<ArtifactDependency>();
+    schema.register::<ArtifactSidecar>();
+    schema.register::<ArtifactRecord>();
+    schema.register::<ArtifactPayload>();
+    schema.register::<ArtifactReference>();
 
-    registry.register::<BuildProfile>();
-    registry.register::<BuildLinkage>();
-    registry.register::<Output>();
-    registry.register::<Code>();
-    registry.register::<Runtime>();
-    registry.register::<Host>();
-    registry.register::<Platform>();
-    registry.register::<Build>();
+    schema.register::<BuildProfile>();
+    schema.register::<BuildLinkage>();
+    schema.register::<Output>();
+    schema.register::<Code>();
+    schema.register::<Runtime>();
+    schema.register::<Host>();
+    schema.register::<Platform>();
+    schema.register::<Build>();
 
-    registry.register::<DirParsed>();
-    registry.register::<Data>();
-    registry.register::<DirBound>();
+    schema.register::<DirParsed>();
+    schema.register::<Data>();
+    schema.register::<DirBound>();
 
-    registry.register::<LanguageEnvironment>();
-    registry.register::<LanguageIntrinsics>();
-    registry.register::<EnvironmentBound>();
-    registry.register::<ModuleEdges>();
-    registry.register::<ModuleGraph>();
+    schema.register::<LanguageEnvironment>();
+    schema.register::<LanguageIntrinsics>();
+    schema.register::<EnvironmentBound>();
+    schema.register::<ModuleEdges>();
+    schema.register::<ModuleGraph>();
 
-    registry.register::<DirImported>();
-    registry.register::<DirExpanded>();
-    registry.register::<DirExported>();
-    registry.register::<DirResolved>();
-    registry.register::<DirDeclared>();
-    registry.register::<EnvironmentDeclared>();
-    registry.register::<DirElaborated>();
-    registry.register::<DirChecked>();
-    registry.register::<DirMaterialized>();
+    schema.register::<DirImported>();
+    schema.register::<DirExpanded>();
+    schema.register::<DirExported>();
+    schema.register::<DirResolved>();
+    schema.register::<DirDeclared>();
+    schema.register::<EnvironmentDeclared>();
+    schema.register::<DirElaborated>();
+    schema.register::<DirChecked>();
+    schema.register::<DirMaterialized>();
 
-    registry.register::<MirLowered>();
-    registry.register::<MirVerified>();
-    registry.register::<MirElaborated>();
-    registry.register::<MirAnalyzed>();
-    registry.register::<MirOptimized>();
-    registry.register::<ProgramAnalysis>();
+    schema.register::<MirLowered>();
+    schema.register::<MirVerified>();
+    schema.register::<MirElaborated>();
+    schema.register::<MirAnalyzed>();
+    schema.register::<MirOptimized>();
+    schema.register::<ProgramAnalysis>();
 
-    registry.register::<ModuleIndex>();
-    registry.register::<ProgramIndex>();
-    registry.register::<ModuleLinted>();
-    registry.register::<ProgramLinted>();
-    registry.register::<ArtifactEventLog>();
-    registry.register::<BuildManifest>();
+    schema.register::<ModuleIndex>();
+    schema.register::<ProgramIndex>();
+    schema.register::<ModuleLinted>();
+    schema.register::<ProgramLinted>();
+    schema.register::<ArtifactEventLog>();
+    schema.register::<BuildManifest>();
 
-    registry.register::<SourceMap>();
-    registry.register::<Object>();
-    registry.register::<Script>();
-    registry.register::<Asset>();
-    registry.register::<BundleSection>();
-    registry.register::<BundleMode>();
-    registry.register::<BundleFile>();
-    registry.register::<Bundle>();
-    registry.register::<ProductTarget>();
-    registry.register::<Product>();
+    schema.register::<SourceMap>();
+    schema.register::<Object>();
+    schema.register::<Script>();
+    schema.register::<Asset>();
+    schema.register::<BundleSection>();
+    schema.register::<BundleMode>();
+    schema.register::<BundleFile>();
+    schema.register::<Bundle>();
+    schema.register::<ProductTarget>();
+    schema.register::<Product>();
 }
