@@ -70,8 +70,8 @@ struct TokenRecord {
 }
 
 impl Reflect for Token {
-    fn reflect(registry: &mut destack_serde::SchemaRegistry) -> destack_serde::SchemaRef {
-        TokenRecord::reflect(registry)
+    fn reflect(schema: &mut destack_serde::Schema) -> destack_serde::Type {
+        TokenRecord::reflect(schema)
     }
 }
 
