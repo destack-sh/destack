@@ -1,4 +1,5 @@
 mod extract_variable;
+mod hoist;
 mod inline;
 mod rename;
 mod rename_files;
