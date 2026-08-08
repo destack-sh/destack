@@ -2,7 +2,7 @@ use std::fmt;
 use std::mem::{ManuallyDrop, size_of};
 use std::sync::Arc;
 
-use destack_serde::{Reflect, SchemaField, SchemaRef, SchemaRegistry, SchemaShape};
+use destack_serde::{Field, Reflect, Schema, Type};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -209,22 +209,22 @@ impl<'de> Deserialize<'de> for Value {
 }
 
 impl Reflect for Value {
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
-        registry.declare(
+    fn reflect(schema: &mut Schema) -> Type {
+        schema.declare(
             module_path!(),
             "Value",
             vec!["One type-erased value crossing a Program execution boundary.".to_string()],
-            |registry| {
-                SchemaShape::Struct(vec![
-                    SchemaField {
+            |schema| {
+                Type::Struct(vec![
+                    Field {
                         name: "ty".to_string(),
                         docs: vec!["The concrete Program type.".to_string()],
-                        ty: TypeId::reflect(registry),
+                        ty: TypeId::reflect(schema),
                     },
-                    SchemaField {
+                    Field {
                         name: "words".to_string(),
                         docs: vec!["The exact execution words.".to_string()],
-                        ty: Vec::<Word>::reflect(registry),
+                        ty: Vec::<Word>::reflect(schema),
                     },
                 ])
             },
