@@ -7,11 +7,11 @@ use crate::{Module, ProgramQueryContext, QueryError, QueryResult, match_quality}
 /// One exact declaration exposed for import.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) enum ExportDeclaration {
-    /// One exported declaration symbol and its checked kind.
+    /// One exported declaration symbol and kind.
     Symbol {
         /// The declaration symbol.
         symbol: dir::GlobalSymbolId,
-        /// The checked symbol kind.
+        /// The declaration kind.
         kind: dir::SymbolKind,
     },
     /// One exported module namespace object.
@@ -28,7 +28,7 @@ pub(crate) struct ExportCandidate {
     pub(crate) module: ModuleId,
     /// The import binding to introduce.
     pub(crate) binding: ImportBinding,
-    /// The indexed export target.
+    /// The export target.
     pub(crate) target: dir::ExportTarget,
 }
 
@@ -38,7 +38,7 @@ impl ExportCandidate {
         &self,
         program: &ProgramQueryContext<'_>,
     ) -> QueryResult<Vec<ExportDeclaration>> {
-        program.export_declarations(self.target)
+        program.export_declarations(&self.target)
     }
 }
 
@@ -66,7 +66,7 @@ impl ProgramQueryContext<'_> {
                 continue;
             }
 
-            for declaration in self.export_declarations(export.target)? {
+            for declaration in self.export_declarations(&export.target)? {
                 entries.push((export.name.clone(), declaration));
             }
         }
@@ -106,7 +106,7 @@ impl ProgramQueryContext<'_> {
                     binding: ImportBinding::Named {
                         name: export.name.clone(),
                     },
-                    target: export.target,
+                    target: export.target.clone(),
                 });
             }
         }
@@ -125,7 +125,7 @@ impl ProgramQueryContext<'_> {
                 .iter()
                 .filter(|export| export.name == "default")
             {
-                for declaration in self.export_declarations(export.target)? {
+                for declaration in self.export_declarations(&export.target)? {
                     let ExportDeclaration::Symbol { symbol, .. } = declaration else {
                         continue;
                     };
@@ -146,7 +146,7 @@ impl ProgramQueryContext<'_> {
                         binding: ImportBinding::Default {
                             name: symbol.name.clone(),
                         },
-                        target: export.target,
+                        target: export.target.clone(),
                     });
                 }
             }
@@ -423,33 +423,33 @@ impl ProgramQueryContext<'_> {
     /// Sort and deduplicate exported symbol entries.
     fn sort_export_entries(entries: &mut Vec<ExportCandidate>) {
         entries.sort_by(|left, right| {
-            (&left.binding, left.module, left.target).cmp(&(
+            (&left.binding, left.module, &left.target).cmp(&(
                 &right.binding,
                 right.module,
-                right.target,
+                &right.target,
             ))
         });
         entries.dedup();
     }
 
-    /// Resolve one indexed export target to its checked declarations.
+    /// Resolve one indexed export target to its declarations.
     fn export_declarations(
         &self,
-        target: dir::ExportTarget,
+        target: &dir::ExportTarget,
     ) -> QueryResult<Vec<ExportDeclaration>> {
         match target {
-            dir::ExportTarget::Symbol(symbol) => {
+            dir::ExportTarget::Symbols(symbols) => {
                 let mut declarations = Vec::new();
-                for symbol in self.canonical_symbols(symbol)? {
+                for symbol in symbols {
                     let index = self.symbol_index(symbol.module_id)?;
                     let entry = index
                         .entries()
                         .iter()
-                        .find(|entry| entry.symbol == symbol)
+                        .find(|entry| entry.symbol == *symbol)
                         .ok_or(QueryError::missing(format!("program symbol: {symbol:?}")))?;
 
                     declarations.push(ExportDeclaration::Symbol {
-                        symbol,
+                        symbol: *symbol,
                         kind: entry.kind,
                     });
                 }
@@ -457,7 +457,7 @@ impl ProgramQueryContext<'_> {
                 Ok(declarations)
             }
             dir::ExportTarget::Namespace(module) => {
-                Ok(vec![ExportDeclaration::Namespace { module }])
+                Ok(vec![ExportDeclaration::Namespace { module: *module }])
             }
         }
     }
@@ -488,7 +488,7 @@ impl ProgramQueryContext<'_> {
                 entry.span.end,
                 entry.source,
                 entry.symbol,
-                entry.is_import_alias,
+                entry.is_alias,
             )
         });
     }

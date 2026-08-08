@@ -88,7 +88,7 @@ impl From<dir::SymbolKind> for CompletionItemKind {
             dir::SymbolKind::Variant => CompletionItemKind::EnumMember,
             dir::SymbolKind::Function => CompletionItemKind::Function,
             dir::SymbolKind::Label => CompletionItemKind::Label,
-            dir::SymbolKind::Import => CompletionItemKind::Reference,
+            dir::SymbolKind::Import | dir::SymbolKind::ExportAlias => CompletionItemKind::Reference,
             dir::SymbolKind::Extension => CompletionItemKind::Extension,
             dir::SymbolKind::TypeAlias => CompletionItemKind::TypeAlias,
             dir::SymbolKind::AssociatedType => CompletionItemKind::AssociatedType,
@@ -297,7 +297,7 @@ pub(crate) struct CompletionCandidate {
     pub(crate) import_order: Option<ImportOrder>,
     /// The exact value type when this candidate denotes one.
     pub(crate) type_id: Option<dir::GlobalTypeId>,
-    /// The canonical declaration carried by this candidate.
+    /// The target declaration carried by this candidate.
     symbol: Option<dir::GlobalSymbolId>,
     /// The specialized resolution selected for this candidate.
     resolution: CompletionResolution,
@@ -479,7 +479,7 @@ impl CompletionCandidate {
         self
     }
 
-    /// Set the canonical declaration.
+    /// Set the target declaration.
     pub(crate) fn with_symbol(mut self, symbol: dir::GlobalSymbolId) -> Self {
         self.symbol = Some(symbol);
 
@@ -548,7 +548,7 @@ impl CompletionCandidate {
         mem::replace(&mut self.resolution, CompletionResolution::None)
     }
 
-    /// Return the canonical declaration carried by this candidate.
+    /// Return the target declaration carried by this candidate.
     pub(crate) fn symbol(&self) -> Option<dir::GlobalSymbolId> {
         self.symbol
     }

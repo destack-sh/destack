@@ -81,7 +81,7 @@ impl ModuleQueryContext<'_> {
         } else {
             let mut symbols = Vec::new();
             for symbol in occurrence.symbols {
-                symbols.extend(program.canonical_symbols(symbol)?);
+                symbols.extend(program.symbol_targets(symbol)?);
             }
             symbols.sort();
             symbols.dedup();

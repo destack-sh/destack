@@ -8,16 +8,16 @@ use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
 pub(crate) struct SymbolOccurrence {
     /// The recorded symbols in declaration order.
     pub symbols: Vec<dir::GlobalSymbolId>,
-    /// The checked type selected at this occurrence.
+    /// The resolved type selected at this occurrence.
     pub type_id: Option<dir::GlobalTypeId>,
     /// The authored occurrence span.
     pub span: Span,
 }
 
-/// One checked type occurrence at an authored source span.
+/// One type occurrence at an authored source span.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct TypeOccurrence {
-    /// The checked type selected at this occurrence.
+    /// The resolved type selected at this occurrence.
     pub type_id: dir::GlobalTypeId,
     /// The authored occurrence span.
     pub span: Span,
@@ -47,7 +47,7 @@ impl ModuleQueryContext<'_> {
         })
     }
 
-    /// Return the checked type occurrence at an authored span.
+    /// Return the type occurrence at an authored span.
     pub(crate) fn type_at_offset(
         &self,
         file_id: FileId,
@@ -102,7 +102,7 @@ impl ModuleQueryContext<'_> {
                 return Ok(declaration);
             }
 
-            // all other occurrences use their final checked targets
+            // all other occurrences use their selected targets
             self.symbol_occurrence(program, view, node_id, span, offset)
         })
     }
@@ -287,7 +287,12 @@ impl ModuleQueryContext<'_> {
         }
 
         // imported path roots retain their local declaration identities
-        if let Some(symbols) = self.resolved()?.references.declarations(source) {
+        if let Some(symbols) = self
+            .resolved()?
+            .references
+            .declaration(source)
+            .and_then(dir::Reference::symbols)
+        {
             let root_span = self.reference_root_span(view, node_id, span)?;
             if root_span.owns_cursor(offset) {
                 return Ok(Some(SymbolOccurrence {
@@ -298,7 +303,7 @@ impl ModuleQueryContext<'_> {
             }
         }
 
-        // prefer the final checked use-site selection
+        // prefer the selected use-site target
         if let Some(symbols) = self.symbol_targets(source)? {
             return Ok(Some(SymbolOccurrence {
                 symbols,
@@ -558,7 +563,11 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<Option<Vec<dir::GlobalSymbolId>>> {
         // the root retains its lexical declaration identities
         if segment == 0
-            && let Some(declarations) = self.resolved()?.references.declarations(source)
+            && let Some(declarations) = self
+                .resolved()?
+                .references
+                .declaration(source)
+                .and_then(dir::Reference::symbols)
         {
             return Ok(Some(declarations.to_vec()));
         }
@@ -585,14 +594,14 @@ impl ModuleQueryContext<'_> {
                 "qualified reference: {source:?}"
             )))?;
         let targets = match reference {
-            // the final bound segment receives the checker's selected declaration
+            // the bound segment receives the selected declaration
             dir::Reference::Bound(_) if segment + 1 == segment_count => {
                 self.symbol_targets(source)?
             }
 
             // the bound prefix receives its exact projected base declaration
             dir::Reference::Projected {
-                base: dir::ImportTarget::Symbol(base),
+                base: dir::ReferenceTarget::Symbol(base),
                 from,
             } if segment + 1
                 == usize::try_from(*from).map_err(|_| {
@@ -743,7 +752,7 @@ impl ModuleQueryContext<'_> {
         if let Some(span) = self.source_index()?.get_side(source_id, imported_name)
             && span.owns_cursor(offset)
         {
-            let symbols = self.dependency_symbol_targets(item_id)?;
+            let symbols = self.dependency_declaration_symbols(item_id)?;
             if symbols.is_empty() {
                 return Ok(None);
             }

@@ -161,13 +161,13 @@ impl CompletionReceiver {
                                 }))
                             }
                             Some(dir::Reference::Projected {
-                                base: dir::ImportTarget::Namespace(module_id),
+                                base: dir::ReferenceTarget::Namespace(module_id),
                                 ..
                             }) => Ok(Some(Self::Namespace {
                                 module_id: *module_id,
                             })),
                             Some(dir::Reference::Projected {
-                                base: dir::ImportTarget::Symbol(_),
+                                base: dir::ReferenceTarget::Symbol(_),
                                 ..
                             }) => {
                                 let Some(selected_span) = selected_span else {

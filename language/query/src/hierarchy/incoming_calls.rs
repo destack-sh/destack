@@ -38,15 +38,15 @@ impl ProgramQueryContext<'_> {
     ) -> QueryResult<IncomingCallsResponse> {
         let item = request.item;
         let symbol_id = item.symbol_id;
-        let canonical_id = self
-            .canonical_symbol(symbol_id)?
+        let target_id = self
+            .symbol_target(symbol_id)?
             .ok_or(QueryError::invalid(format!(
                 "call hierarchy symbol: {symbol_id:?}"
             )))?;
         let mut spans_by_caller: FxHashMap<dir::GlobalSymbolId, Vec<Span>> = FxHashMap::default();
 
         // collect call sites grouped by their exact caller
-        for entry in self.callee_calls(canonical_id)? {
+        for entry in self.callee_calls(target_id)? {
             let Some(caller) = entry.caller else {
                 continue;
             };

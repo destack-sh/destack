@@ -66,7 +66,7 @@ impl ModuleQueryContext<'_> {
         let mut symbols = Vec::new();
         if let Some(occurrence) = &occurrence {
             for symbol in &occurrence.symbols {
-                symbols.extend(program.canonical_symbols(*symbol)?);
+                symbols.extend(program.symbol_targets(*symbol)?);
             }
         }
         symbols.sort();
@@ -83,7 +83,7 @@ impl ModuleQueryContext<'_> {
             let module = program.module(symbol.module_id)?;
             let declaration = Formatter::new(&module, program).symbol_signature(symbol)?;
             let item_documentation = program.symbol_documentation(symbol)?;
-            let target = module.symbol_target(program, symbol)?;
+            let target = module.declaration_target(program, symbol)?;
 
             // avoid repeating documentation on its declaration occurrence
             if let Some(documentation) = &documentation {

@@ -55,27 +55,34 @@ impl SemanticTokenType {
             dir::Declaration::Type(_) | dir::Declaration::Extension(_) => Self::Type,
         }
     }
+}
 
-    /// Return the token type for one symbol kind.
-    fn symbol_kind(symbol_kind: dir::SymbolKind) -> Self {
+impl TryFrom<dir::SymbolKind> for SemanticTokenType {
+    type Error = QueryError;
+
+    /// Convert one declaration kind into its semantic token type.
+    fn try_from(symbol_kind: dir::SymbolKind) -> Result<Self, Self::Error> {
         match symbol_kind {
             dir::SymbolKind::Variable
             | dir::SymbolKind::AssociatedConst
-            | dir::SymbolKind::GenericValueParameter => Self::Variable,
-            dir::SymbolKind::Parameter => Self::Parameter,
-            dir::SymbolKind::Class => Self::Class,
-            dir::SymbolKind::Struct => Self::Struct,
-            dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface => Self::Interface,
-            dir::SymbolKind::Enum => Self::Enum,
-            dir::SymbolKind::Variant => Self::EnumMember,
-            dir::SymbolKind::Function => Self::Function,
-            dir::SymbolKind::Label => Self::Label,
-            dir::SymbolKind::Import => Self::Variable,
-            dir::SymbolKind::Extension => Self::Type,
+            | dir::SymbolKind::GenericValueParameter => Ok(Self::Variable),
+            dir::SymbolKind::Parameter => Ok(Self::Parameter),
+            dir::SymbolKind::Class => Ok(Self::Class),
+            dir::SymbolKind::Struct => Ok(Self::Struct),
+            dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface => Ok(Self::Interface),
+            dir::SymbolKind::Enum => Ok(Self::Enum),
+            dir::SymbolKind::Variant => Ok(Self::EnumMember),
+            dir::SymbolKind::Function => Ok(Self::Function),
+            dir::SymbolKind::Label => Ok(Self::Label),
+            dir::SymbolKind::Import => Ok(Self::Variable),
+            dir::SymbolKind::Extension => Ok(Self::Type),
             dir::SymbolKind::AssociatedType
             | dir::SymbolKind::TypeAlias
-            | dir::SymbolKind::Newtype => Self::Type,
-            dir::SymbolKind::GenericTypeParameter => Self::TypeParameter,
+            | dir::SymbolKind::Newtype => Ok(Self::Type),
+            dir::SymbolKind::GenericTypeParameter => Ok(Self::TypeParameter),
+            dir::SymbolKind::ExportAlias => Err(QueryError::invalid(
+                "export alias has no selected declaration classification",
+            )),
         }
     }
 }
@@ -697,8 +704,8 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
     ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
         let mut token: Option<(SemanticTokenType, SemanticTokenModifiers)> = None;
         for symbol_id in symbols {
-            for symbol_id in self.program.canonical_symbols(*symbol_id)? {
-                let Some(candidate) = self.canonical_symbol_token(symbol_id)? else {
+            for symbol_id in self.program.symbol_targets(*symbol_id)? {
+                let Some(candidate) = self.target_symbol_token(symbol_id)? else {
                     return Ok(None);
                 };
                 if token.is_some_and(|(token_type, _)| token_type != candidate.0) {
@@ -725,8 +732,8 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         self.symbol_targets_token(&[symbol_id])
     }
 
-    /// Return the token classification for one canonical symbol.
-    fn canonical_symbol_token(
+    /// Return the token classification for one target symbol.
+    fn target_symbol_token(
         &self,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
@@ -769,7 +776,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
             }
         }
 
-        let token_type = SemanticTokenType::symbol_kind(symbol.kind);
+        let token_type = SemanticTokenType::try_from(symbol.kind)?;
         let source_modifiers = match symbol.declaration {
             Some(declaration) => {
                 Self::declaration_reference_modifiers(&symbol_module, declaration)?
@@ -1352,10 +1359,10 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
             let mut token: Option<(SemanticTokenType, SemanticTokenModifiers)> = None;
             for target in targets {
                 let candidate = match target {
-                    dir::ImportTarget::Namespace(_) => {
+                    dir::ReferenceTarget::Namespace(_) => {
                         (SemanticTokenType::Namespace, SemanticTokenModifiers::NONE)
                     }
-                    dir::ImportTarget::Symbol(symbol_id) => {
+                    dir::ReferenceTarget::Symbol(symbol_id) => {
                         let Some(token) = self.symbol_token(symbol_id)? else {
                             token = None;
                             break;

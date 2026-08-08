@@ -22,15 +22,15 @@ impl ProgramQueryContext<'_> {
     pub fn supertypes(&self, request: SupertypesRequest) -> QueryResult<SupertypesResponse> {
         let item = request.item;
         let symbol_id = item.symbol_id;
-        let canonical_id = self
-            .canonical_symbol(symbol_id)?
+        let target_id = self
+            .symbol_target(symbol_id)?
             .ok_or(QueryError::invalid(format!(
                 "type item symbol: {symbol_id:?}"
             )))?;
         let mut supertype_ids = Vec::new();
 
         // collect direct nominal edges declared by the target symbol
-        for entry in self.derived_heritage(canonical_id)? {
+        for entry in self.derived_heritage(target_id)? {
             if !supertype_ids.contains(&entry.base) {
                 supertype_ids.push(entry.base);
             }

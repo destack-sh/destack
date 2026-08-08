@@ -17,7 +17,7 @@ pub struct NavigationTarget {
 
 impl ModuleQueryContext<'_> {
     /// Build one source target from an exact declaration symbol.
-    pub(crate) fn symbol_target(
+    pub(crate) fn declaration_target(
         &self,
         program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
@@ -43,7 +43,7 @@ impl ModuleQueryContext<'_> {
         symbol_id: dir::GlobalSymbolId,
         origin: QueryRange,
     ) -> QueryResult<NavigationTarget> {
-        let target = self.symbol_target(program, symbol_id)?;
+        let target = self.declaration_target(program, symbol_id)?;
 
         Ok(NavigationTarget {
             origin,

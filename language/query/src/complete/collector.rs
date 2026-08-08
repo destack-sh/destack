@@ -151,14 +151,14 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
             module_id: self.module.module_id(),
             local_id: symbol_id,
         };
-        let Some(canonical_id) = self.program.canonical_symbol(global_id)? else {
+        let Some(target_id) = self.program.symbol_target(global_id)? else {
             return Err(QueryError::missing(format!(
                 "completion declaration: {global_id:?}"
             )));
         };
-        let canonical_module = self.program.module(canonical_id.module_id)?;
-        let symbols = canonical_module.bindings()?;
-        let symbol = symbols.get_symbol(canonical_id.local_id);
+        let target_module = self.program.module(target_id.module_id)?;
+        let symbols = target_module.bindings()?;
+        let symbol = symbols.get_symbol(target_id.local_id);
 
         Ok(symbol.into())
     }

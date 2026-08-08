@@ -42,7 +42,7 @@ impl ModuleQueryContext<'_> {
         // collect each exact definition target
         let mut targets = Vec::new();
         for symbol_id in occurrence.symbols {
-            for symbol_id in program.canonical_symbols(symbol_id)? {
+            for symbol_id in program.symbol_targets(symbol_id)? {
                 let module = program.module(symbol_id.module_id)?;
 
                 targets.push(module.navigation_target(program, symbol_id, origin)?);

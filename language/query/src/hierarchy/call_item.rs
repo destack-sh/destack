@@ -155,24 +155,22 @@ impl CallItem {
         program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<Self>> {
-        // follow exact import bindings to their declared symbol
-        let Some(canonical_id) = program.canonical_symbol(symbol_id)? else {
+        // read the target selected by an import binding
+        let Some(target_id) = program.symbol_target(symbol_id)? else {
             return Ok(None);
         };
-        let canonical_module = program.module(canonical_id.module_id)?;
-        let symbols = canonical_module.bindings()?;
-        let symbol = symbols.get_symbol(canonical_id.local_id);
+        let target_module = program.module(target_id.module_id)?;
+        let symbols = target_module.bindings()?;
+        let symbol = symbols.get_symbol(target_id.local_id);
 
         // build only declaration-backed callable kinds
         match symbol.kind {
             dir::SymbolKind::Function => {
-                canonical_module.function_call_item(program, canonical_id, symbol)
+                target_module.function_call_item(program, target_id, symbol)
             }
-            dir::SymbolKind::Class => canonical_module.class_call_item(program, canonical_id),
-            dir::SymbolKind::Newtype => {
-                canonical_module.newtype_call_item(program, canonical_id, None)
-            }
-            dir::SymbolKind::Variant => canonical_module.variant_call_item(program, canonical_id),
+            dir::SymbolKind::Class => target_module.class_call_item(program, target_id),
+            dir::SymbolKind::Newtype => target_module.newtype_call_item(program, target_id, None),
+            dir::SymbolKind::Variant => target_module.variant_call_item(program, target_id),
             _ => Ok(None),
         }
     }
@@ -208,7 +206,7 @@ impl CallItem {
         };
 
         // require the indexed edge to name this exact constructor
-        let Some(selected) = program.canonical_symbol(selected)? else {
+        let Some(selected) = program.symbol_target(selected)? else {
             return Err(QueryError::invalid(format!(
                 "call hierarchy symbol: {selected:?}"
             )));
@@ -245,26 +243,24 @@ impl CallItem {
             CallableSelection::DeclarationFree | CallableSelection::Multiple => Ok(None),
             CallableSelection::Symbol(symbol_id) => Self::from_symbol(program, symbol_id),
             CallableSelection::Newtype { symbol_id, call } => {
-                let canonical_id =
-                    program
-                        .canonical_symbol(symbol_id)?
-                        .ok_or(QueryError::missing(format!(
-                            "call item symbol: {symbol_id:?}"
-                        )))?;
-                let module = program.module(canonical_id.module_id)?;
+                let target_id = program
+                    .symbol_target(symbol_id)?
+                    .ok_or(QueryError::missing(format!(
+                        "call item symbol: {symbol_id:?}"
+                    )))?;
+                let module = program.module(target_id.module_id)?;
 
-                module.newtype_call_item(program, canonical_id, Some(call))
+                module.newtype_call_item(program, target_id, Some(call))
             }
             CallableSelection::Variant { symbol_id } => {
-                let canonical_id =
-                    program
-                        .canonical_symbol(symbol_id)?
-                        .ok_or(QueryError::missing(format!(
-                            "call item symbol: {symbol_id:?}"
-                        )))?;
-                let module = program.module(canonical_id.module_id)?;
+                let target_id = program
+                    .symbol_target(symbol_id)?
+                    .ok_or(QueryError::missing(format!(
+                        "call item symbol: {symbol_id:?}"
+                    )))?;
+                let module = program.module(target_id.module_id)?;
 
-                module.variant_call_item(program, canonical_id)
+                module.variant_call_item(program, target_id)
             }
         }
     }
@@ -649,7 +645,7 @@ impl ModuleQueryContext<'_> {
         let name = self.strings().get(name).to_string();
         let signature =
             Formatter::new(self, program).tagged_variant_signature(declaring, variant)?;
-        let target = self.symbol_target(program, symbol_id)?;
+        let target = self.declaration_target(program, symbol_id)?;
 
         Ok(Some(CallItem {
             name,

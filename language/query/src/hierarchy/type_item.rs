@@ -61,11 +61,11 @@ impl TypeItem {
         program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<Self>> {
-        let Some(canonical_id) = program.canonical_symbol(symbol_id)? else {
+        let Some(target_id) = program.symbol_target(symbol_id)? else {
             return Ok(None);
         };
-        let module = program.module(canonical_id.module_id)?;
-        let symbol = module.bindings()?.get_symbol(canonical_id.local_id);
+        let module = program.module(target_id.module_id)?;
+        let symbol = module.bindings()?.get_symbol(target_id.local_id);
         let kind = match symbol.kind {
             dir::SymbolKind::Class
             | dir::SymbolKind::Struct
@@ -73,37 +73,37 @@ impl TypeItem {
             | dir::SymbolKind::NewtypeInterface
             | dir::SymbolKind::Enum
             | dir::SymbolKind::Newtype => SymbolKind::try_from(symbol.kind)
-                .map_err(|_| QueryError::invalid(format!("type item symbol: {canonical_id:?}")))?,
+                .map_err(|_| QueryError::invalid(format!("type item symbol: {target_id:?}")))?,
             _ => return Ok(None),
         };
         let name = program
-            .symbol_name(canonical_id)?
+            .symbol_name(target_id)?
             .ok_or(QueryError::invalid(format!(
-                "type item symbol: {canonical_id:?}"
+                "type item symbol: {target_id:?}"
             )))?;
 
         // resolve source ranges around the declaration name
         let selection_range =
             program
-                .symbol_definition_span(canonical_id)?
+                .symbol_definition_span(target_id)?
                 .ok_or(QueryError::missing(format!(
-                    "type item span: {canonical_id:?}"
+                    "type item span: {target_id:?}"
                 )))?;
         let range = module
-            .symbol_local_declaration_span(program, canonical_id)?
+            .symbol_local_declaration_span(program, target_id)?
             .ok_or(QueryError::missing(format!(
-                "type item span: {canonical_id:?}"
+                "type item span: {target_id:?}"
             )))?;
 
         let target = Target::new(module.module(), range).with_selection_span(selection_range)?;
-        let generics = Formatter::new(&module, program).symbol_generics(canonical_id)?;
+        let generics = Formatter::new(&module, program).symbol_generics(target_id)?;
 
         Ok(Some(Self {
             name,
             kind,
             generics,
             target,
-            symbol_id: canonical_id,
+            symbol_id: target_id,
         }))
     }
 

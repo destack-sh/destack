@@ -213,7 +213,7 @@ impl ModuleQueryContext<'_> {
         bindings: &[dir::ArgumentBinding],
         return_type: dir::GlobalTypeId,
     ) -> QueryResult<SignatureItem> {
-        let Some(symbol_id) = program.canonical_symbol(symbol)? else {
+        let Some(symbol_id) = program.symbol_target(symbol)? else {
             return Err(QueryError::missing(format!(
                 "call signature declaration: {symbol:?}"
             )));
@@ -467,7 +467,7 @@ impl ModuleQueryContext<'_> {
             );
         };
 
-        let Some(constructor_symbol) = program.canonical_symbol(constructor_symbol)? else {
+        let Some(constructor_symbol) = program.symbol_target(constructor_symbol)? else {
             return Err(QueryError::missing(format!(
                 "class constructor declaration: {constructor_symbol:?}"
             )));

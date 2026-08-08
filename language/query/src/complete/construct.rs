@@ -13,7 +13,7 @@ impl CompletionCollector<'_, '_, '_> {
         name: &str,
         symbol: dir::GlobalSymbolId,
     ) -> QueryResult<Vec<CompletionCandidate>> {
-        let symbol = self.canonical_symbol(symbol)?;
+        let symbol = self.symbol_target(symbol)?;
         let module = self.program.module(symbol.module_id)?;
         let definition = module
             .definitions()?
@@ -86,7 +86,7 @@ impl CompletionCollector<'_, '_, '_> {
         name: &str,
         symbol: dir::GlobalSymbolId,
     ) -> QueryResult<CompletionCandidate> {
-        let symbol = self.canonical_symbol(symbol)?;
+        let symbol = self.symbol_target(symbol)?;
         let completion =
             CompletionCandidate::new(name, CompletionItemKind::Struct, CompletionOrigin::Local)
                 .with_struct(symbol);
@@ -161,7 +161,7 @@ impl CompletionCollector<'_, '_, '_> {
         name: &str,
         symbol: dir::GlobalSymbolId,
     ) -> QueryResult<Vec<CompletionCandidate>> {
-        let symbol = self.canonical_symbol(symbol)?;
+        let symbol = self.symbol_target(symbol)?;
         let module = self.program.module(symbol.module_id)?;
         let definition = module
             .definitions()?

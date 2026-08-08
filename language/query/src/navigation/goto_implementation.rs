@@ -45,10 +45,10 @@ impl ModuleQueryContext<'_> {
 
         // collect implementations for every exact declaration named by the occurrence
         for symbol_id in symbol.symbols {
-            for canonical_id in program.canonical_symbols(symbol_id)? {
-                let target_module = program.module(canonical_id.module_id)?;
+            for target_id in program.symbol_targets(symbol_id)? {
+                let target_module = program.module(target_id.module_id)?;
                 let symbols = target_module.bindings()?;
-                let symbol = symbols.get_symbol(canonical_id.local_id);
+                let symbol = symbols.get_symbol(target_id.local_id);
 
                 let heritage_kind = match symbol.kind {
                     dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface => {
@@ -58,8 +58,8 @@ impl ModuleQueryContext<'_> {
                     _ => continue,
                 };
 
-                // match cached direct edges against this canonical declaration
-                for entry in program.base_heritage(canonical_id)? {
+                // match cached direct edges against this target declaration
+                for entry in program.base_heritage(target_id)? {
                     if entry.kind == heritage_kind {
                         let declaration_module = program.module(entry.declaration.module_id)?;
                         let target = declaration_module.navigation_target(

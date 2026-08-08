@@ -41,7 +41,7 @@ impl ModuleQueryContext<'_> {
         request: FindReferencesRequest,
         program: &ProgramQueryContext<'_>,
     ) -> QueryResult<FindReferencesResponse> {
-        // read the exact local alias or final checked identities at the cursor
+        // read the exact local alias or selected identities at the cursor
         let position = request.position;
         let Some(occurrence) =
             self.reference_at_offset(program, position.file_id, position.offset)?
@@ -59,7 +59,7 @@ impl ModuleQueryContext<'_> {
         } else {
             let mut symbols = Vec::new();
             for symbol in occurrence.symbols {
-                symbols.extend(program.canonical_symbols(symbol)?);
+                symbols.extend(program.symbol_targets(symbol)?);
             }
             symbols.sort();
             symbols.dedup();

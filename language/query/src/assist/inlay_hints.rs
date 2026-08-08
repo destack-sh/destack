@@ -265,7 +265,7 @@ impl ModuleQueryContext<'_> {
         call: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
     ) -> QueryResult<Vec<Option<String>>> {
-        let Some(symbol) = program.canonical_symbol(symbol)? else {
+        let Some(symbol) = program.symbol_target(symbol)? else {
             return Err(QueryError::missing(format!(
                 "inlay hint parameters: {call:?}"
             )));

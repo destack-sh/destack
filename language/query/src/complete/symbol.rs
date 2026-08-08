@@ -90,13 +90,13 @@ impl CompletionCollector<'_, '_, '_> {
         Ok(completion)
     }
 
-    /// Collect the canonical declaration and modifiers behind one candidate.
+    /// Collect the target declaration and modifiers behind one candidate.
     pub(super) fn collect_declaration(
         &self,
         mut completion: CompletionCandidate,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<CompletionCandidate> {
-        let symbol_id = self.canonical_symbol(symbol_id)?;
+        let symbol_id = self.symbol_target(symbol_id)?;
 
         // mark deprecated declarations
         if self.program.symbol_is_deprecated(symbol_id)? {
@@ -106,13 +106,13 @@ impl CompletionCollector<'_, '_, '_> {
         Ok(completion.with_symbol(symbol_id))
     }
 
-    /// Return the canonical declaration for one completion symbol.
-    pub(super) fn canonical_symbol(
+    /// Return the target declaration for one completion symbol.
+    pub(super) fn symbol_target(
         &self,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<dir::GlobalSymbolId> {
         self.program
-            .canonical_symbol(symbol_id)?
+            .symbol_target(symbol_id)?
             .ok_or(QueryError::missing(format!(
                 "completion declaration: {symbol_id:?}"
             )))

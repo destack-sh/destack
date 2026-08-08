@@ -45,24 +45,20 @@ impl ModuleQueryContext<'_> {
         };
         let mut definitions = Vec::new();
 
-        // resolve nominal declarations and checked result types for every exact target
+        // resolve nominal declarations and result types for every exact target
         for symbol in symbols {
-            for canonical in program.canonical_symbols(symbol)? {
-                let module = program.module(canonical.module_id)?;
-                let declaration = module.bindings()?.get_symbol(canonical.local_id);
+            for target_symbol in program.symbol_targets(symbol)? {
+                let module = program.module(target_symbol.module_id)?;
+                let declaration = module.bindings()?.get_symbol(target_symbol.local_id);
                 if declaration.kind.is_type_definition() {
-                    definitions.push(canonical);
+                    definitions.push(target_symbol);
 
                     continue;
                 }
 
-                let type_id =
-                    module
-                        .types()?
-                        .get_symbol_type_id(canonical)
-                        .ok_or(QueryError::missing(format!(
-                            "type definition type: {canonical:?}"
-                        )))?;
+                let type_id = module.types()?.get_symbol_type_id(target_symbol).ok_or(
+                    QueryError::missing(format!("type definition type: {target_symbol:?}")),
+                )?;
                 let mut type_symbols = module.type_definition_symbols(program, type_id)?;
                 definitions.append(&mut type_symbols);
             }
@@ -77,10 +73,10 @@ impl ModuleQueryContext<'_> {
         definitions.sort_unstable();
         definitions.dedup();
 
-        // build every exact nominal target reached through the checked type
+        // build every exact nominal target reached through the resolved type
         let mut targets = Vec::new();
         for definition in definitions {
-            for definition in program.canonical_symbols(definition)? {
+            for definition in program.symbol_targets(definition)? {
                 let module = program.module(definition.module_id)?;
                 let symbol = module.bindings()?.get_symbol(definition.local_id);
                 if !symbol.kind.is_type_definition() {
@@ -98,7 +94,7 @@ impl ModuleQueryContext<'_> {
         Ok(GotoTypeDefinitionResponse { targets })
     }
 
-    /// Return nominal declarations beneath checked type forms.
+    /// Return nominal declarations beneath one type.
     fn type_definition_symbols(
         &self,
         program: &ProgramQueryContext<'_>,
@@ -133,7 +129,7 @@ impl ModuleQueryContext<'_> {
             Ok(selected)
         })?;
 
-        // descend through transparent checked type forms
+        // descend through transparent type forms
         for nested_type_id in nested {
             symbols.extend(self.type_definition_symbols(program, nested_type_id)?);
         }

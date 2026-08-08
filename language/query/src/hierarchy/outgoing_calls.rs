@@ -38,17 +38,17 @@ impl ProgramQueryContext<'_> {
     ) -> QueryResult<OutgoingCallsResponse> {
         let item = request.item;
         let symbol_id = item.symbol_id;
-        let canonical_id = self
-            .canonical_symbol(symbol_id)?
+        let target_id = self
+            .symbol_target(symbol_id)?
             .ok_or(QueryError::invalid(format!(
                 "call hierarchy symbol: {symbol_id:?}"
             )))?;
         let mut callees: FxHashMap<dir::GlobalSymbolId, Vec<dir::CallEntry>> = FxHashMap::default();
 
-        // collect call sites grouped by their exact canonical callee
-        for entry in self.caller_calls(canonical_id)? {
+        // collect call sites grouped by their exact target callee
+        for entry in self.caller_calls(target_id)? {
             let callee = self
-                .canonical_symbol(entry.callee)?
+                .symbol_target(entry.callee)?
                 .ok_or(QueryError::invalid(format!(
                     "call hierarchy symbol: {:?}",
                     entry.callee
