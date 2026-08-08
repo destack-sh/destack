@@ -23,7 +23,6 @@ use crate::{
 
 /// Query request envelope.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-#[serde(tag = "kind", content = "params", rename_all = "snake_case")]
 pub enum QueryRequest {
     /// Completion request payload.
     Completion(CompletionRequest),
@@ -172,7 +171,6 @@ impl QueryRequest {
 
 /// Query response envelope.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-#[serde(tag = "kind", content = "result", rename_all = "snake_case")]
 pub enum QueryResponse {
     /// Completion response payload.
     Completion(CompletionResponse),
