@@ -1,9 +1,7 @@
 use std::collections::BTreeSet;
 
 use destack_core::StableHasher;
-use destack_serde::{
-    SchemaField, SchemaName, SchemaPayload, SchemaRef, SchemaRegistry, SchemaShape,
-};
+use destack_serde::{Field, Name, Payload, Schema, Type};
 use serde::Serialize;
 
 use super::{Idempotency, MethodFingerprint, MethodId, MethodKind, ServiceFingerprint, ServiceId};
@@ -18,7 +16,7 @@ pub struct ServiceSchema {
     /// Canonical method descriptions.
     methods: Vec<MethodSchema>,
     /// Value schemas reachable from the methods.
-    types: SchemaRegistry,
+    types: Schema,
     /// Canonical schema fingerprint.
     fingerprint: ServiceFingerprint,
 }
@@ -28,7 +26,7 @@ impl ServiceSchema {
     pub fn new(
         name: impl Into<String>,
         mut methods: Vec<MethodSchema>,
-        mut types: SchemaRegistry,
+        mut types: Schema,
     ) -> Result<Self, ServiceSchemaError> {
         let name = name.into();
         let id = ServiceId::for_name(&name);
@@ -122,7 +120,7 @@ impl ServiceSchema {
     }
 
     /// Return the value schemas reachable from this service.
-    pub const fn types(&self) -> &SchemaRegistry {
+    pub const fn types(&self) -> &Schema {
         &self.types
     }
 
@@ -137,7 +135,7 @@ impl ServiceSchema {
     }
 
     /// Return canonical wire types without descriptive reflection metadata.
-    fn canonical_types(types: &SchemaRegistry) -> SchemaRegistry {
+    fn canonical_types(types: &Schema) -> Schema {
         let mut types = types.clone();
 
         // canonicalize declaration order before hashing the reachable graph
@@ -145,21 +143,21 @@ impl ServiceSchema {
             names.sort_unstable();
         }
 
-        // exclude documentation and consumer metadata from wire compatibility
+        // exclude documentation from the wire fingerprint
         for item in types.items.values_mut() {
             item.docs.clear();
-            item.attributes.clear();
-            match &mut item.shape {
-                SchemaShape::Struct(fields) => Self::clear_field_docs(fields),
-                SchemaShape::Enum(variants) => {
+            match &mut item.ty {
+                Type::Struct(fields) => Self::clear_field_docs(fields),
+                Type::Enum(variants) => {
                     for variant in variants {
                         variant.docs.clear();
                         match &mut variant.payload {
-                            SchemaPayload::Struct(fields) => Self::clear_field_docs(fields),
-                            SchemaPayload::Unit | SchemaPayload::Tuple(_) => {}
+                            Payload::Struct(fields) => Self::clear_field_docs(fields),
+                            Payload::Unit | Payload::Value(_) => {}
                         }
                     }
                 }
+                _ => {}
             }
         }
 
@@ -167,7 +165,7 @@ impl ServiceSchema {
     }
 
     /// Remove descriptive documentation from schema fields.
-    fn clear_field_docs(fields: &mut [SchemaField]) {
+    fn clear_field_docs(fields: &mut [Field]) {
         for field in fields {
             field.docs.clear();
         }
@@ -186,13 +184,13 @@ pub struct MethodSchema {
     /// Method behavior under repeated calls.
     idempotency: Idempotency,
     /// Initial request value type.
-    request: SchemaRef,
+    request: Type,
     /// Terminal response value type.
-    response: SchemaRef,
+    response: Type,
     /// Caller-to-callee stream item type when present.
-    input: Option<SchemaRef>,
+    input: Option<Type>,
     /// Callee-to-caller stream item type when present.
-    output: Option<SchemaRef>,
+    output: Option<Type>,
     /// Exact canonical method contract fingerprint.
     fingerprint: MethodFingerprint,
 }
@@ -203,11 +201,11 @@ impl MethodSchema {
         service: &str,
         name: impl Into<String>,
         kind: MethodKind,
-        request: SchemaRef,
-        response: SchemaRef,
-        input: Option<SchemaRef>,
-        output: Option<SchemaRef>,
-        types: &SchemaRegistry,
+        request: Type,
+        response: Type,
+        input: Option<Type>,
+        output: Option<Type>,
+        types: &Schema,
     ) -> Result<Self, ServiceSchemaError> {
         let name = name.into();
         let id = MethodId::for_name(service, &name);
@@ -240,7 +238,7 @@ impl MethodSchema {
     pub fn with_idempotency(
         mut self,
         idempotency: Idempotency,
-        types: &SchemaRegistry,
+        types: &Schema,
     ) -> Result<Self, ServiceSchemaError> {
         self.idempotency = idempotency;
 
@@ -281,22 +279,22 @@ impl MethodSchema {
     }
 
     /// Return this method's initial request type.
-    pub const fn request(&self) -> &SchemaRef {
+    pub const fn request(&self) -> &Type {
         &self.request
     }
 
     /// Return this method's terminal response type.
-    pub const fn response(&self) -> &SchemaRef {
+    pub const fn response(&self) -> &Type {
         &self.response
     }
 
     /// Return this method's caller stream item type.
-    pub fn input(&self) -> Option<&SchemaRef> {
+    pub fn input(&self) -> Option<&Type> {
         self.input.as_ref()
     }
 
     /// Return this method's service stream item type.
-    pub fn output(&self) -> Option<&SchemaRef> {
+    pub fn output(&self) -> Option<&Type> {
         self.output.as_ref()
     }
 
@@ -309,9 +307,9 @@ impl MethodSchema {
     pub fn unary(
         service: &str,
         name: impl Into<String>,
-        request: SchemaRef,
-        response: SchemaRef,
-        types: &SchemaRegistry,
+        request: Type,
+        response: Type,
+        types: &Schema,
     ) -> Result<Self, ServiceSchemaError> {
         Self::new(
             service,
@@ -329,10 +327,10 @@ impl MethodSchema {
     pub fn server_streaming(
         service: &str,
         name: impl Into<String>,
-        request: SchemaRef,
-        response: SchemaRef,
-        output: SchemaRef,
-        types: &SchemaRegistry,
+        request: Type,
+        response: Type,
+        output: Type,
+        types: &Schema,
     ) -> Result<Self, ServiceSchemaError> {
         Self::new(
             service,
@@ -350,10 +348,10 @@ impl MethodSchema {
     pub fn client_streaming(
         service: &str,
         name: impl Into<String>,
-        request: SchemaRef,
-        response: SchemaRef,
-        input: SchemaRef,
-        types: &SchemaRegistry,
+        request: Type,
+        response: Type,
+        input: Type,
+        types: &Schema,
     ) -> Result<Self, ServiceSchemaError> {
         Self::new(
             service,
@@ -371,11 +369,11 @@ impl MethodSchema {
     pub fn bidirectional_streaming(
         service: &str,
         name: impl Into<String>,
-        request: SchemaRef,
-        response: SchemaRef,
-        input: SchemaRef,
-        output: SchemaRef,
-        types: &SchemaRegistry,
+        request: Type,
+        response: Type,
+        input: Type,
+        output: Type,
+        types: &Schema,
     ) -> Result<Self, ServiceSchemaError> {
         Self::new(
             service,
@@ -395,11 +393,11 @@ impl MethodSchema {
         name: &str,
         kind: MethodKind,
         idempotency: Idempotency,
-        request: &SchemaRef,
-        response: &SchemaRef,
-        input: Option<&SchemaRef>,
-        output: Option<&SchemaRef>,
-        types: &SchemaRegistry,
+        request: &Type,
+        response: &Type,
+        input: Option<&Type>,
+        output: Option<&Type>,
+        types: &Schema,
     ) -> Result<MethodFingerprint, ServiceSchemaError> {
         let mut names = BTreeSet::new();
         Self::collect_type(request, types, &mut names)?;
@@ -443,46 +441,55 @@ impl MethodSchema {
         Ok(MethodFingerprint(hasher.finish_u128()))
     }
 
-    /// Collect every named type reachable from one schema reference.
+    /// Collect every named type reachable from one type.
     fn collect_type(
-        reference: &SchemaRef,
-        types: &SchemaRegistry,
-        names: &mut BTreeSet<SchemaName>,
+        ty: &Type,
+        types: &Schema,
+        names: &mut BTreeSet<Name>,
     ) -> Result<(), ServiceSchemaError> {
-        match reference {
-            SchemaRef::Option(inner) | SchemaRef::Sequence(inner) => {
-                Self::collect_type(inner, types, names)
-            }
-            SchemaRef::Array { item, .. } => Self::collect_type(item, types, names),
-            SchemaRef::Tuple(elements) => {
+        match ty {
+            Type::Option(inner) | Type::Sequence(inner) => Self::collect_type(inner, types, names),
+            Type::Array { item, .. } => Self::collect_type(item, types, names),
+            Type::Tuple(elements) => {
                 for element in elements {
                     Self::collect_type(element, types, names)?;
                 }
 
                 Ok(())
             }
-            SchemaRef::Map { key, value } => {
+            Type::Map { key, value } => {
                 Self::collect_type(key, types, names)?;
                 Self::collect_type(value, types, names)
             }
-            SchemaRef::Named(name) => Self::collect_named_type(name, types, names),
-            SchemaRef::Unit
-            | SchemaRef::Bool
-            | SchemaRef::Signed { .. }
-            | SchemaRef::Unsigned { .. }
-            | SchemaRef::Usize
-            | SchemaRef::Float { .. }
-            | SchemaRef::Char
-            | SchemaRef::String
-            | SchemaRef::Json => Ok(()),
+            Type::Named(name) => Self::collect_named_type(name, types, names),
+            Type::Struct(fields) => Self::collect_fields(fields, types, names),
+            Type::Enum(variants) => {
+                for variant in variants {
+                    match &variant.payload {
+                        Payload::Unit => {}
+                        Payload::Value(ty) => Self::collect_type(ty, types, names)?,
+                        Payload::Struct(fields) => Self::collect_fields(fields, types, names)?,
+                    }
+                }
+
+                Ok(())
+            }
+            Type::Unit
+            | Type::Bool
+            | Type::Signed { .. }
+            | Type::Unsigned { .. }
+            | Type::Usize
+            | Type::Float { .. }
+            | Type::Char
+            | Type::String => Ok(()),
         }
     }
 
     /// Collect one named type and its transitive field types.
     fn collect_named_type(
-        name: &SchemaName,
-        types: &SchemaRegistry,
-        names: &mut BTreeSet<SchemaName>,
+        name: &Name,
+        types: &Schema,
+        names: &mut BTreeSet<Name>,
     ) -> Result<(), ServiceSchemaError> {
         if !names.insert(name.clone()) {
             return Ok(());
@@ -492,31 +499,14 @@ impl MethodSchema {
             .get(name)
             .ok_or_else(|| ServiceSchemaError::MissingType(name.clone()))?;
 
-        match &item.shape {
-            SchemaShape::Struct(fields) => Self::collect_fields(fields, types, names),
-            SchemaShape::Enum(variants) => {
-                for variant in variants {
-                    match &variant.payload {
-                        SchemaPayload::Unit => {}
-                        SchemaPayload::Tuple(reference) => {
-                            Self::collect_type(reference, types, names)?
-                        }
-                        SchemaPayload::Struct(fields) => {
-                            Self::collect_fields(fields, types, names)?
-                        }
-                    }
-                }
-
-                Ok(())
-            }
-        }
+        Self::collect_type(&item.ty, types, names)
     }
 
     /// Collect named types reachable through schema fields.
     fn collect_fields(
-        fields: &[SchemaField],
-        types: &SchemaRegistry,
-        names: &mut BTreeSet<SchemaName>,
+        fields: &[Field],
+        types: &Schema,
+        names: &mut BTreeSet<Name>,
     ) -> Result<(), ServiceSchemaError> {
         for field in fields {
             Self::collect_type(&field.ty, types, names)?;
@@ -550,7 +540,7 @@ pub enum ServiceSchemaError {
         kind: MethodKind,
     },
     /// One method references a named type absent from its service schema.
-    MissingType(SchemaName),
+    MissingType(Name),
     /// Canonical schema encoding failed.
     Encode(destack_serde::Error),
 }

@@ -16,7 +16,6 @@ fn test_canonicalize_service_fingerprint() {
     let mut types = service.schema.types().clone();
     for item in types.items.values_mut() {
         item.docs.push("Updated documentation.".to_string());
-        item.attributes.push("typescript:test".to_string());
     }
 
     let schema =
@@ -26,11 +25,11 @@ fn test_canonicalize_service_fingerprint() {
     assert_eq!(service.double.0, 666_045_904_407_490_870);
     assert_eq!(
         service.fingerprint(service.double).0,
-        109_115_393_057_239_494_256_042_906_589_739_721_775
+        300_652_519_399_172_628_929_253_121_341_196_797_834
     );
     assert_eq!(
         service.schema.fingerprint().0,
-        183_834_525_369_069_250_632_899_094_423_994_363_963
+        83_906_476_527_576_347_358_312_781_079_707_886_886
     );
     assert_eq!(schema.fingerprint(), service.schema.fingerprint());
     assert_eq!(

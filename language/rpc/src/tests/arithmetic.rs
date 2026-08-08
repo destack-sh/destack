@@ -2,7 +2,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use destack_serde::{Reflect, SchemaRef, SchemaRegistry};
+use destack_serde::{Reflect, Schema, Type};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -84,14 +84,14 @@ impl ArithmeticService {
         let sum = MethodId::for_name(service, "sum");
         let early = MethodId::for_name(service, "early");
         let blob = MethodId::for_name(service, "blob");
-        let mut types = SchemaRegistry::default();
+        let mut types = Schema::default();
         let request = types.register::<NumberRequest>();
         let response = types.register::<NumberResponse>();
         let blob_request = types.register::<BlobRequest>();
         let extra_request = has_extra_method.then(|| types.register::<ExtraRequest>());
-        let number = SchemaRef::Unsigned { bits: 32 };
+        let number = Type::Unsigned { bits: 32 };
         let double_response = if has_changed_method {
-            SchemaRef::Bool
+            Type::Bool
         } else {
             response.clone()
         };
@@ -111,9 +111,9 @@ impl ArithmeticService {
             MethodSchema::client_streaming(
                 service,
                 "early",
-                SchemaRef::Unit,
+                Type::Unit,
                 response.clone(),
-                SchemaRef::Unsigned { bits: 32 },
+                Type::Unsigned { bits: 32 },
                 &types,
             )
             .expect("valid client-streaming method"),
@@ -121,7 +121,7 @@ impl ArithmeticService {
                 service,
                 "blob",
                 blob_request,
-                SchemaRef::Unsigned { bits: 32 },
+                Type::Unsigned { bits: 32 },
                 &types,
             )
             .expect("valid unary method"),
@@ -130,7 +130,7 @@ impl ArithmeticService {
         // add one unrelated method when requested
         if let Some(extra_request) = extra_request {
             methods.push(
-                MethodSchema::unary(service, "extra", extra_request, SchemaRef::Bool, &types)
+                MethodSchema::unary(service, "extra", extra_request, Type::Bool, &types)
                     .expect("valid unary method"),
             );
         }

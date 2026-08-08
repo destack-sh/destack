@@ -56,7 +56,7 @@ fn expand_service(service: Service) -> Tokens {
                 (::destack_rpc::ServiceSchema, Self),
                 ::destack_rpc::ServiceSchemaError,
             > {
-                let mut types = ::destack_serde::SchemaRegistry::default();
+                let mut types = ::destack_serde::Schema::default();
                 let mut methods = Vec::new();
                 let service = ::destack_rpc::ServiceId::for_name(#name);
 
