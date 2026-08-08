@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 use super::executor::Executor;
 use super::scheduler::Scheduler;
 use super::task::Task;
-use crate::{SessionError, SessionEvent, SessionState};
+use crate::{SessionError, SessionEvent, SessionEventHandler};
 
 /// Id for one artifact executor run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -210,7 +210,6 @@ impl ArtifactCancellation {
 }
 
 /// Shared state for one artifact run.
-#[derive(Debug)]
 pub(super) struct ArtifactRunState {
     /// The id for this artifact run.
     id: ArtifactRunId,
@@ -230,10 +229,31 @@ pub(super) struct ArtifactRunState {
     is_finished: AtomicBool,
     /// The trace for this run.
     trace: Arc<Trace>,
-    /// Whether this run owns and publishes its trace.
-    owns_trace: bool,
+    /// Whether this run owns and finishes its trace.
+    is_trace_owner: bool,
+    /// Optional event handler for this run.
+    event_handler: Option<SessionEventHandler>,
     /// Cooperative waiter for scheduler changes affecting this run.
     waker: AtomicWaker,
+}
+
+impl std::fmt::Debug for ArtifactRunState {
+    /// Format the visible artifact run state.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ArtifactRunState")
+            .field("id", &self.id)
+            .field("roots", &self.roots)
+            .field("revision", &self.revision)
+            .field("priority", &self.priority)
+            .field("is_cancelled", &self.is_cancelled)
+            .field("is_abandoned", &self.is_abandoned)
+            .field("is_finished", &self.is_finished)
+            .field("trace", &self.trace)
+            .field("is_trace_owner", &self.is_trace_owner)
+            .field("event_handler", &self.event_handler.is_some())
+            .finish()
+    }
 }
 
 impl ArtifactRunState {
@@ -244,7 +264,8 @@ impl ArtifactRunState {
         revision: Revision,
         priority: ArtifactPriority,
         trace: Arc<Trace>,
-        owns_trace: bool,
+        is_trace_owner: bool,
+        event_handler: Option<SessionEventHandler>,
     ) -> Self {
         Self {
             id,
@@ -256,7 +277,8 @@ impl ArtifactRunState {
             is_abandoned: AtomicBool::new(false),
             is_finished: AtomicBool::new(false),
             trace,
-            owns_trace,
+            is_trace_owner,
+            event_handler,
             waker: AtomicWaker::new(),
         }
     }
@@ -286,6 +308,13 @@ impl ArtifactRunState {
         self.priority
     }
 
+    /// Emit one event through this run's handler when present.
+    pub(super) fn emit(&self, event: SessionEvent) {
+        if let Some(handler) = &self.event_handler {
+            handler(event);
+        }
+    }
+
     /// Mark this run as cancelled.
     pub(super) fn cancel(&self) -> bool {
         !self.is_cancelled.swap(true, Ordering::AcqRel)
@@ -312,20 +341,19 @@ impl ArtifactRunState {
     }
 
     /// Publish this run's terminal lifecycle once.
-    pub(super) fn finish(&self, scheduler: &Scheduler, session: &SessionState) {
+    pub(super) fn finish(&self, scheduler: &Scheduler) {
         if self.is_finished.swap(true, Ordering::AcqRel) {
             return;
         }
 
         self.trace.span("run.clean", || {
             scheduler.remove_run(self.id);
-            session.emit_event(SessionEvent::RunFinished { run_id: self.id });
+            self.emit(SessionEvent::RunFinished { run_id: self.id });
         });
 
-        // publish only traces created for standalone runs
-        if self.owns_trace {
+        // finish only traces created for this standalone run
+        if self.is_trace_owner {
             self.trace.finish();
-            session.set_last_trace(self.trace.clone());
         }
     }
 

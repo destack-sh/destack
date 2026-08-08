@@ -12,7 +12,7 @@ use destack_repository::{
 };
 
 use super::attempt::ProviderAttempt;
-use super::run::{ArtifactRunId, ArtifactRunState};
+use super::run::ArtifactRunState;
 use super::scheduler::Scheduler;
 use super::task::Task;
 use crate::{SessionError, SessionEvent, SessionState};
@@ -61,20 +61,20 @@ impl SessionState {
     }
 }
 
-/// Convert one caught provider panic into a session error.
-fn panic_error(task: Task, panic: Box<dyn Any + Send>) -> SessionError {
-    let message = panic
-        .downcast_ref::<&str>()
-        .copied()
-        .or_else(|| panic.downcast_ref::<String>().map(String::as_str))
-        .unwrap_or("opaque panic payload");
-
-    SessionError::Internal {
-        detail: format!("provider panicked for artifact {:?}: {message}", task.key),
-    }
-}
-
 impl Worker {
+    /// Convert one caught provider panic into a session error.
+    fn panic_error(task: Task, panic: Box<dyn Any + Send>) -> SessionError {
+        let message = panic
+            .downcast_ref::<&str>()
+            .copied()
+            .or_else(|| panic.downcast_ref::<String>().map(String::as_str))
+            .unwrap_or("opaque panic payload");
+
+        SessionError::Internal {
+            detail: format!("provider panicked for artifact {:?}: {message}", task.key),
+        }
+    }
+
     /// Drive the shared scheduler until the executor shuts down.
     pub(super) fn run(&self) {
         loop {
@@ -106,7 +106,7 @@ impl Worker {
                 match provided {
                     Ok(Ok(())) => {}
                     Ok(Err(error)) => self.scheduler.abort(task, error),
-                    Err(panic) => self.scheduler.abort(task, panic_error(task, panic)),
+                    Err(panic) => self.scheduler.abort(task, Self::panic_error(task, panic)),
                 }
             }
             Err(error) => {
@@ -114,9 +114,14 @@ impl Worker {
             }
         }
 
-        // finish a cancelled trace after its last active attempt
+        // wake a cancelled waiter after its last active attempt
+        if run.is_cancelled() {
+            run.wake();
+        }
+
+        // finish an abandoned trace after its last active attempt
         if run.is_abandoned() && !self.scheduler.is_run_executing(run.id()) {
-            run.finish(&self.scheduler, &self.state);
+            run.finish(&self.scheduler);
         }
     }
 
@@ -130,7 +135,7 @@ impl Worker {
         let recorder = Arc::new(run.trace().begin(task.key, self.index));
 
         // expose the session task through events
-        self.state.emit_event(SessionEvent::TaskStarted {
+        run.emit(SessionEvent::TaskStarted {
             run_id: run.id(),
             artifact_key: task.key,
         });
@@ -154,8 +159,8 @@ impl Worker {
             Ok(ArtifactPlan::Done { outcome, attempt }) => {
                 recorder.finish(attempt);
                 match outcome {
-                    ArtifactOutcome::Ok => self.finish_ready(run.id(), task),
-                    ArtifactOutcome::Failed(_) => self.finish_failed(run.id(), task),
+                    ArtifactOutcome::Ok => self.finish_ready(run, task),
+                    ArtifactOutcome::Failed(_) => self.finish_failed(run, task),
                 }
 
                 Ok(())
@@ -174,14 +179,7 @@ impl Worker {
                 let failure = ArtifactFailure::requirement(failed_dependency);
                 let diagnostics = Vec::new();
                 let result = recorder.span("commit", || {
-                    self.fail(
-                        run.id(),
-                        task,
-                        dependencies,
-                        diagnostics,
-                        Vec::new(),
-                        failure,
-                    )
+                    self.fail(run, task, dependencies, diagnostics, Vec::new(), failure)
                 });
                 recorder.finish(ArtifactAttemptOutcome::Failed);
 
@@ -256,13 +254,13 @@ impl Worker {
                     return Err(error.into());
                 }
                 recorder.finish(ArtifactAttemptOutcome::Built);
-                self.finish_ready(run.id(), task);
+                self.finish_ready(run, task);
 
                 Ok(())
             }
             Err(error) => {
                 let result = recorder.span("commit", || {
-                    self.fail_provider(&attempt, run.id(), task, dependencies, *error)
+                    self.fail_provider(&attempt, run, task, dependencies, *error)
                 });
                 recorder.finish(ArtifactAttemptOutcome::Failed);
 
@@ -308,7 +306,7 @@ impl Worker {
     fn fail_provider(
         &self,
         attempt: &ProviderAttempt,
-        run: ArtifactRunId,
+        run: &ArtifactRunState,
         task: Task,
         dependencies: Arc<[ArtifactDependency]>,
         error: ProviderError,
@@ -346,21 +344,21 @@ impl Worker {
     }
 
     /// Mark one ready task terminal and emit its finished event.
-    fn finish_ready(&self, run: ArtifactRunId, task: Task) {
+    fn finish_ready(&self, run: &ArtifactRunState, task: Task) {
         self.scheduler.mark_done(task);
 
-        self.state.emit_event(SessionEvent::TaskFinished {
-            run_id: run,
+        run.emit(SessionEvent::TaskFinished {
+            run_id: run.id(),
             artifact_key: task.key,
         });
     }
 
     /// Mark one failed task terminal and emit its failed event.
-    fn finish_failed(&self, run: ArtifactRunId, task: Task) {
+    fn finish_failed(&self, run: &ArtifactRunState, task: Task) {
         self.scheduler.mark_done(task);
 
-        self.state.emit_event(SessionEvent::TaskFailed {
-            run_id: run,
+        run.emit(SessionEvent::TaskFailed {
+            run_id: run.id(),
             artifact_key: task.key,
         });
     }
@@ -368,7 +366,7 @@ impl Worker {
     /// Record one artifact failure and emit its failed event.
     fn fail(
         &self,
-        run: ArtifactRunId,
+        run: &ArtifactRunState,
         task: Task,
         dependencies: Arc<[ArtifactDependency]>,
         diagnostics: Vec<DiagnosticRecord>,

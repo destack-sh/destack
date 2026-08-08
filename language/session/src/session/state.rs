@@ -1,36 +1,27 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use destack_artifact::ArtifactOutcome;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Indexer;
-use destack_repository::{Repository, Trace};
-use parking_lot::Mutex;
+use destack_repository::Repository;
 
 use crate::executor::{ArtifactRunId, Task};
 use crate::{SessionError, diagnostic};
 
-use super::{SessionEvent, SessionEventHandler};
-
 /// Shared session state used by session workers.
 pub(crate) struct SessionState {
-    /// Repository backing this source root.
+    /// Repository read and updated by providers.
     repository: Arc<Repository>,
-    /// Compiler for this root.
+    /// Compiler used by this session.
     compiler: Compiler,
-    /// Linter for this root.
+    /// Linter used by this session.
     linter: Linter,
-    /// Indexer for this root.
+    /// Indexer used by this session.
     indexer: Indexer,
-    /// Optional outer session event handler.
-    event_handler: Option<SessionEventHandler>,
     /// Monotonic ids for session runs.
     next_run_id: AtomicU32,
-    /// Whether runs record detailed traces.
-    is_tracing: AtomicBool,
-    /// The trace of the latest finished run.
-    last_trace: Mutex<Option<Arc<Trace>>>,
 }
 
 impl std::fmt::Debug for SessionState {
@@ -42,17 +33,13 @@ impl std::fmt::Debug for SessionState {
             .field("compiler", &self.compiler)
             .field("linter", &self.linter)
             .field("indexer", &self.indexer)
-            .field("event_handler", &self.event_handler.is_some())
             .finish_non_exhaustive()
     }
 }
 
 impl SessionState {
     /// Create shared state for one session.
-    pub(crate) fn new(
-        repository: Arc<Repository>,
-        event_handler: Option<SessionEventHandler>,
-    ) -> Self {
+    pub(crate) fn new(repository: Arc<Repository>) -> Self {
         let diagnostics = diagnostic::registry();
 
         // initialize repository consumers with the shared diagnostic registry
@@ -65,31 +52,8 @@ impl SessionState {
             compiler,
             linter,
             indexer,
-            event_handler,
             next_run_id: AtomicU32::new(1),
-            is_tracing: AtomicBool::new(false),
-            last_trace: Mutex::new(None),
         }
-    }
-
-    /// Enable or disable detailed run tracing.
-    pub(crate) fn set_tracing(&self, is_tracing: bool) {
-        self.is_tracing.store(is_tracing, Ordering::Relaxed);
-    }
-
-    /// Return whether runs record detailed traces.
-    pub(crate) fn is_tracing(&self) -> bool {
-        self.is_tracing.load(Ordering::Relaxed)
-    }
-
-    /// Record the trace of one finished run.
-    pub(crate) fn set_last_trace(&self, trace: Arc<Trace>) {
-        *self.last_trace.lock() = Some(trace);
-    }
-
-    /// Return the trace of the latest finished run.
-    pub(crate) fn last_trace(&self) -> Option<Arc<Trace>> {
-        self.last_trace.lock().clone()
     }
 
     /// Return the repository for this session.
@@ -110,13 +74,6 @@ impl SessionState {
     /// Return the indexer for this session.
     pub(crate) fn indexer(&self) -> &Indexer {
         &self.indexer
-    }
-
-    /// Emit one outer session event when a handler is installed.
-    pub(crate) fn emit_event(&self, event: SessionEvent) {
-        if let Some(handler) = &self.event_handler {
-            handler(event);
-        }
     }
 
     /// Allocate the next session run id.

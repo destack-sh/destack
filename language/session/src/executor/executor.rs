@@ -9,7 +9,7 @@ use super::run::{ArtifactPriority, ArtifactRun, ArtifactRunGoal, ArtifactRunStat
 use super::scheduler::Scheduler;
 use super::task::Task;
 use super::worker::Worker;
-use crate::{Session, SessionError, SessionEvent, SessionState};
+use crate::{Session, SessionError, SessionEvent, SessionEventHandler, SessionState};
 
 /// Executor for session-owned artifact work.
 #[derive(Debug)]
@@ -69,75 +69,34 @@ impl Executor {
     }
 
     /// Provide root artifacts for one immutable revision.
-    pub(crate) async fn provide(
-        self: &Arc<Self>,
-        revision: Revision,
-        artifact_keys: &[ArtifactKey],
-    ) -> Result<(), SessionError> {
-        // cleanly bound keys answer without a run
-        let pending = self
-            .state
-            .repository()
-            .unclean_artifact_keys(revision, artifact_keys)?;
-        if pending.is_empty() {
-            let trace = self.start_trace();
-            trace.finish();
-            self.state.set_last_trace(trace);
-
-            return Ok(());
-        }
-
-        self.schedule(revision, &pending, ArtifactPriority::Foreground)
-            .wait()
-            .await
-    }
-
-    /// Provide root artifacts while recording into an existing operation trace.
-    pub(crate) async fn provide_traced(
-        self: &Arc<Self>,
-        revision: Revision,
-        artifact_keys: &[ArtifactKey],
-        trace: Arc<Trace>,
-    ) -> Result<(), SessionError> {
-        self.start_run(
-            revision,
-            artifact_keys,
-            ArtifactPriority::Foreground,
-            trace,
-            false,
-        )
-        .wait()
-        .await
-    }
-
-    /// Complete root artifacts while recording into an existing operation trace.
-    pub(crate) async fn complete_traced(
-        self: &Arc<Self>,
-        revision: Revision,
-        artifact_keys: &[ArtifactKey],
-        trace: Arc<Trace>,
-    ) -> Result<(), SessionError> {
-        self.start_run(
-            revision,
-            artifact_keys,
-            ArtifactPriority::Foreground,
-            trace,
-            false,
-        )
-        .complete()
-        .await
-    }
-
-    /// Schedule root artifacts for one immutable revision.
-    pub(crate) fn schedule(
+    pub(crate) fn provide(
         self: &Arc<Self>,
         revision: Revision,
         artifact_keys: &[ArtifactKey],
         priority: ArtifactPriority,
     ) -> ArtifactRun {
-        let trace = self.start_trace();
+        let trace = self.start_trace(false);
 
-        self.start_run(revision, artifact_keys, priority, trace, true)
+        self.start_run(revision, artifact_keys, priority, trace, true, None)
+    }
+
+    /// Provide root artifacts through an existing operation trace.
+    pub(crate) fn provide_traced(
+        self: &Arc<Self>,
+        revision: Revision,
+        artifact_keys: &[ArtifactKey],
+        priority: ArtifactPriority,
+        trace: Arc<Trace>,
+        event_handler: Option<SessionEventHandler>,
+    ) -> ArtifactRun {
+        self.start_run(
+            revision,
+            artifact_keys,
+            priority,
+            trace,
+            false,
+            event_handler,
+        )
     }
 
     /// Start one artifact run.
@@ -147,7 +106,8 @@ impl Executor {
         artifact_keys: &[ArtifactKey],
         priority: ArtifactPriority,
         trace: Arc<Trace>,
-        owns_trace: bool,
+        is_trace_owner: bool,
+        event_handler: Option<SessionEventHandler>,
     ) -> ArtifactRun {
         let root_tasks = artifact_keys
             .iter()
@@ -162,11 +122,12 @@ impl Executor {
             revision,
             priority,
             trace.clone(),
-            owns_trace,
+            is_trace_owner,
+            event_handler,
         ));
         trace.add_counter("run.roots", artifact_keys.len() as u64);
 
-        self.state.emit_event(SessionEvent::RunStarted { run_id });
+        state.emit(SessionEvent::RunStarted { run_id });
 
         // enqueue roots into the shared scheduler
         trace.span("run.enqueue", || {
@@ -178,14 +139,14 @@ impl Executor {
     }
 
     /// Start one trace configured for this executor.
-    pub(crate) fn start_trace(&self) -> Arc<Trace> {
+    pub(crate) fn start_trace(&self, is_enabled: bool) -> Arc<Trace> {
         let clock = self.state.repository().host().clock();
         let workers = match self.execution {
             Execution::Threaded => self.workers.len(),
             Execution::Cooperative => 1,
         };
 
-        Trace::new(clock, workers, self.state.is_tracing())
+        Trace::new(clock, workers, is_enabled)
     }
 
     /// Require one artifact version for an immutable revision.
@@ -194,8 +155,26 @@ impl Executor {
         revision: Revision,
         artifact_key: ArtifactKey,
     ) -> Result<ArtifactVersion, SessionError> {
-        self.provide(revision, &[artifact_key]).await?;
+        let pending = self
+            .state
+            .repository()
+            .unclean_artifact_keys(revision, &[artifact_key])?;
+        if pending.is_empty() {
+            return self.ready_version(revision, artifact_key);
+        }
+        self.provide(revision, &pending, ArtifactPriority::Foreground)
+            .wait()
+            .await?;
 
+        self.ready_version(revision, artifact_key)
+    }
+
+    /// Return one ready artifact version from an immutable revision.
+    fn ready_version(
+        &self,
+        revision: Revision,
+        artifact_key: ArtifactKey,
+    ) -> Result<ArtifactVersion, SessionError> {
         let Some(version) = self
             .state
             .repository()
@@ -322,11 +301,12 @@ impl Executor {
         }
 
         self.scheduler.remove_run(run.id());
+        run.wake();
     }
 
     /// Finish one artifact run.
     pub(super) fn finish_run(&self, run: &ArtifactRunState) {
-        run.finish(&self.scheduler, &self.state);
+        run.finish(&self.scheduler);
     }
 
     /// Finish one run when every root already reached a terminal outcome.
@@ -387,69 +367,31 @@ impl Drop for Executor {
 
 impl Session {
     /// Start one trace spanning multiple artifact requests.
-    pub fn start_trace(&self) -> Arc<Trace> {
-        self.executor.start_trace()
+    pub fn start_trace(&self, is_enabled: bool) -> Arc<Trace> {
+        self.executor.start_trace(is_enabled)
     }
 
-    /// Provide one root artifact slice for an immutable revision.
-    pub async fn provide(
-        &self,
-        revision: Revision,
-        artifact_keys: &[ArtifactKey],
-    ) -> Result<(), SessionError> {
-        self.executor.provide(revision, artifact_keys).await
-    }
-
-    /// Schedule root artifacts for one immutable revision.
-    pub fn schedule_artifacts(
+    /// Provide root artifacts for one immutable revision.
+    pub fn provide(
         &self,
         revision: Revision,
         artifact_keys: &[ArtifactKey],
         priority: ArtifactPriority,
     ) -> ArtifactRun {
-        self.executor.schedule(revision, artifact_keys, priority)
+        self.executor.provide(revision, artifact_keys, priority)
     }
 
-    /// Schedule root artifacts into an existing operation trace.
-    pub fn schedule_artifacts_traced(
+    /// Provide root artifacts through an existing operation trace.
+    pub fn provide_traced(
         &self,
         revision: Revision,
         artifact_keys: &[ArtifactKey],
         priority: ArtifactPriority,
         trace: Arc<Trace>,
+        event_handler: Option<SessionEventHandler>,
     ) -> ArtifactRun {
         self.executor
-            .start_run(revision, artifact_keys, priority, trace, false)
-    }
-
-    /// Finish and publish one trace spanning multiple artifact runs.
-    pub fn finish_trace(&self, trace: Arc<Trace>) {
-        trace.finish();
-        self.state.set_last_trace(trace);
-    }
-
-    /// Provide root artifacts while recording into an existing operation trace.
-    pub async fn provide_traced(
-        &self,
-        revision: Revision,
-        artifact_keys: &[ArtifactKey],
-        trace: Arc<Trace>,
-    ) -> Result<(), SessionError> {
-        self.executor
-            .provide_traced(revision, artifact_keys, trace)
-            .await
-    }
-
-    /// Complete root artifacts while recording into an existing operation trace.
-    pub async fn complete_traced(
-        &self,
-        revision: Revision,
-        artifact_keys: &[ArtifactKey],
-        trace: Arc<Trace>,
-    ) -> Result<(), SessionError> {
-        self.executor
-            .complete_traced(revision, artifact_keys, trace)
-            .await
+            .provide_traced(revision, artifact_keys, priority, trace, event_handler)
     }
 
     /// Require one root artifact for an immutable revision.
