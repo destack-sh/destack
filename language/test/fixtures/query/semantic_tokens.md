@@ -100,6 +100,38 @@ render();
 @semantic_tokens.token range=main.ds#reference type=function
 ```
 
+### Classify a public re-export alias
+
+Re-exported names use the target declaration kind without changing the public alias.
+
+```ds library.ds
+export function paint(): void {}
+```
+
+```ds barrel.ds
+export { paint as render } from "./library.ds";
+         ^^^^^ imported
+                  ^^^^^^ alias
+```
+
+```ds main.ds
+import { render } from "./barrel.ds";
+         ^^^^^^ imported
+
+render();
+^^^^^^ reference
+```
+
+```query semantic_tokens barrel.ds
+@semantic_tokens.token range=barrel.ds#imported type=function
+@semantic_tokens.token range=barrel.ds#alias type=function modifiers=declaration
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#imported type=function modifiers=declaration
+@semantic_tokens.token range=main.ds#reference type=function
+```
+
 ### Update object pattern tokens after a field edit
 
 Object patterns distinguish the selected field from the introduced binding after both names change.
@@ -602,7 +634,7 @@ function borrow<'a>(value: &'a readonly string): &'a readonly string {
 
 ### Classify imported names and aliases
 
-An imported name and its local alias use the canonical exported symbol kind.
+An imported name and its local alias use the exported declaration kind.
 
 ```ds library.ds
 export function paint(): void {}
@@ -625,7 +657,7 @@ render();
 
 ### Classify type and namespace imports
 
-Plain and namespace aliases use their canonical symbol kinds.
+Plain and namespace aliases use their target declaration kinds.
 
 ```ds library.ds
 export struct Packet {}

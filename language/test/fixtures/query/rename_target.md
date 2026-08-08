@@ -527,9 +527,9 @@ welcome();
 @rename_target.target placeholder=greet location=main.ds#imported_name symbol=library.ds#greet@1
 ```
 
-### [ignored] Resolve a namespace re-export alias
+### Resolve a namespace re-export alias
 
-A namespace re-export alias has one identity through a named import.
+A namespace re-export alias remains the rename target when imported by name.
 
 ```ds base.ds
 export function ping(): void {}

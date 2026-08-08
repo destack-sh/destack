@@ -359,7 +359,7 @@ import { welcome } from "./barrel.ds";
 const message = welcome("Destack");
 ```
 
-### [ignored] Preserve a public re-export alias
+### Preserve a public re-export alias
 
 Renaming an export leaves its explicit public alias unchanged.
 
@@ -427,7 +427,7 @@ import { Configuration } from "./library.ds";
 const configuration: Configuration = { enabled: true };
 ```
 
-### [ignored] Rename a type through a re-export
+### Rename a type through a re-export
 
 Renaming an exported type updates its re-export while preserving the public alias.
 
