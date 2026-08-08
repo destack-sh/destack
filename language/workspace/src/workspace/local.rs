@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use crate::diagnostic::{DiagnosticsRequest, Error, FileDiagnostics};
 use crate::file::{Commit, FileOperation, OpenFile, SourceUpdate};
-use crate::watch::{WatchId, WatchSubscription, WatchUpdate};
+use crate::watch::Watch;
 use crate::{
     BenchInput, BenchOptions, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOptions,
     CacheOutput, CheckInput, CheckOutput, CleanInput, CleanOptions, CleanOutput, CommandContext,
@@ -15,8 +15,7 @@ use crate::{
     FormatOutput, InfoInput, InfoOptions, InfoOutput, Output, OutputBuffer, ProgressEvent,
     QueryInput, QueryOutput, RewriteInput, RewriteOutput, RunInput, RunOutput, SettingsInput,
     SettingsOptions, SettingsOutput, TargetsInput, TargetsOptions, TargetsOutput, TaskInput,
-    TaskOptions, TaskOutput, TestInput, TestOptions, TestOutput, WatchPolicy, Workspace,
-    source_watch_options,
+    TaskOptions, TaskOutput, TestInput, TestOptions, TestOutput, Workspace,
 };
 use dashmap::DashMap;
 use destack_artifact::{
@@ -25,14 +24,13 @@ use destack_artifact::{
 use destack_repository::{Ref, Repository, Revision, Trace, TraceSnapshot, TraceView};
 use destack_session::{SessionEvent, SessionEventHandler};
 use destack_source::{
-    Content, ContentId, DiagnosticCollection, Edit, File, FileId, FileWatcher, OverlayFileSystem,
-    TextRange,
+    Content, ContentId, DiagnosticCollection, Edit, File, FileId, OverlayFileSystem, TextRange,
 };
 use futures::future::BoxFuture;
 use parking_lot::Mutex;
 
 use super::root::WorkspaceRoot;
-use super::{ReloadRequest, RunQueryInput, RunQueryResponse, SessionPin, UpdateBatch};
+use super::{RunQueryInput, RunQueryResponse, SessionPin};
 use crate::{ExportInput, ExportResult, ExportedFile, FileEdit, FileImage, QueryFile};
 
 /// Local workspace used by tooling integrations.
@@ -46,12 +44,6 @@ pub struct LocalWorkspace {
     /// Overlay filesystem shared by live sessions.
     pub(crate) overlay_file_system: Option<Arc<OverlayFileSystem>>,
 
-    /// File watcher used for local watch mode.
-    pub(crate) file_watcher: Option<Arc<dyn FileWatcher>>,
-    /// Active workspace watches keyed by subscription identifier.
-    pub(crate) watches: DashMap<WatchId, Arc<WatchSubscription>>,
-    /// Next workspace watch identifier.
-    pub(crate) next_watch_id: AtomicU64,
     /// Number of workers for each opened session.
     pub(crate) worker_limit: usize,
 
@@ -70,9 +62,6 @@ impl std::fmt::Debug for LocalWorkspace {
             .field("roots", &self.roots)
             .field("open_file_by_path", &self.open_file_by_path.len())
             .field("overlay_file_system", &self.overlay_file_system.is_some())
-            .field("file_watcher", &self.file_watcher.is_some())
-            .field("watches", &self.watches.len())
-            .field("next_watch_id", &self.next_watch_id)
             .field("worker_limit", &self.worker_limit)
             .field("event_handler", &self.event_handler.is_some())
             .field("next_command_session_id", &self.next_command_session_id)
@@ -90,7 +79,6 @@ impl LocalWorkspace {
     pub fn new(
         repository: Arc<Repository>,
         overlay_file_system: Option<Arc<OverlayFileSystem>>,
-        file_watcher: Option<Arc<dyn FileWatcher>>,
         roots: Vec<PathBuf>,
         worker_limit: usize,
         event_handler: Option<SessionEventHandler>,
@@ -100,9 +88,6 @@ impl LocalWorkspace {
             roots: dashmap::DashMap::new(),
             open_file_by_path: dashmap::DashMap::new(),
             overlay_file_system,
-            file_watcher,
-            watches: dashmap::DashMap::new(),
-            next_watch_id: AtomicU64::new(1),
             worker_limit,
             event_handler,
             next_command_session_id: AtomicU64::new(1),
@@ -330,20 +315,19 @@ impl Workspace for LocalWorkspace {
         LocalWorkspace::revision(self, root)
     }
 
-    fn reload(&self, request: ReloadRequest) -> Result<UpdateBatch, Error> {
-        if request.roots.is_empty() {
-            LocalWorkspace::reload_all(self)
-        } else {
-            LocalWorkspace::reload_roots(self, &request.roots)
-        }
+    fn reload(&self, root: &Path) -> Result<Option<Commit>, Error> {
+        LocalWorkspace::reload_root(self, root)
     }
 
-    fn file(&self, operation: FileOperation) -> Result<UpdateBatch, Error> {
-        LocalWorkspace::apply_file_operation(self, operation)
+    fn file(&self, root: &Path, operation: FileOperation) -> Result<Option<Commit>, Error> {
+        LocalWorkspace::apply_file_operation(self, root, operation)
     }
 
-    fn is_file_open(&self, path: &Path) -> Result<bool, Error> {
-        Ok(LocalWorkspace::has_open_file(self, path))
+    fn is_file_open(&self, root: &Path, path: &Path) -> Result<bool, Error> {
+        let root = self.workspace_root(root)?;
+        let path = self.resolve_path(root.as_ref(), path)?;
+
+        Ok(LocalWorkspace::has_open_file(self, &path))
     }
 
     fn edit(&self, root: &Path, update: SourceUpdate) -> Result<Commit, Error> {
@@ -719,63 +703,10 @@ impl Workspace for LocalWorkspace {
         }
     }
 
-    fn watch(&self, roots: Vec<PathBuf>, policy: WatchPolicy) -> Result<WatchId, Error> {
-        // validate the complete batching request
-        if roots.is_empty() {
-            return Err(Error::InvalidWatch {
-                detail: "watch requires at least one root".to_string(),
-            });
-        }
-        if policy.max_batch_size == 0 {
-            return Err(Error::InvalidWatch {
-                detail: "watch batch size must be positive".to_string(),
-            });
-        }
+    fn watch(&self, root: &Path) -> Result<Watch, Error> {
+        let root = self.workspace_root(root)?;
 
-        // require a watcher from this workspace host
-        let Some(file_watcher) = self.file_watcher.as_ref() else {
-            return Err(Error::WatchUnavailable);
-        };
-
-        // start and register one independent subscription
-        let watch = Arc::new(WatchSubscription::new(
-            file_watcher.clone(),
-            roots,
-            source_watch_options(),
-            policy,
-        ));
-        let id = self.next_watch_id.fetch_add(1, Ordering::Relaxed);
-        let id = WatchId::new(id);
-        self.watches.insert(id, watch);
-
-        Ok(id)
-    }
-
-    fn next_watch(&self, id: WatchId) -> BoxFuture<'_, Result<Option<WatchUpdate>, Error>> {
-        Box::pin(async move {
-            // retain the subscription while waiting for its next batch
-            let Some(watch) = self.watches.get(&id).map(|watch| watch.clone()) else {
-                return Err(Error::InvalidWatch {
-                    detail: format!("watch {id} is not active"),
-                });
-            };
-
-            let Some(batch) = watch.next_batch().await else {
-                return Ok(None);
-            };
-
-            // apply source changes before publishing the batch
-            let updates = self.apply_watch_batch(&batch)?;
-
-            Ok(Some(WatchUpdate { batch, updates }))
-        })
-    }
-
-    fn unwatch(&self, id: WatchId) {
-        // stop and remove this exact subscription
-        if let Some((_, watch)) = self.watches.remove(&id) {
-            watch.stop();
-        }
+        root.watch()
     }
 }
 
@@ -993,79 +924,102 @@ impl LocalWorkspace {
     }
 
     /// Apply one local file operation.
-    fn apply_file_operation(&self, operation: FileOperation) -> Result<UpdateBatch, Error> {
+    fn apply_file_operation(
+        &self,
+        root: &Path,
+        operation: FileOperation,
+    ) -> Result<Option<Commit>, Error> {
+        let workspace_root = self.workspace_root(root)?;
+        let operation = self.resolve_operation(workspace_root.as_ref(), operation)?;
+
         match operation {
             FileOperation::OpenText {
                 path,
                 uri,
                 version,
                 content,
-            } => self.open_file(
-                uri,
-                version,
-                Edit::SetText {
-                    path,
-                    text: content,
-                },
-            ),
+            } => self
+                .open_file(
+                    uri,
+                    version,
+                    Edit::SetText {
+                        path,
+                        text: content,
+                    },
+                )
+                .map(Some),
             FileOperation::OpenBytes {
                 path,
                 uri,
                 version,
                 content,
-            } => self.open_file(
-                uri,
-                version,
-                Edit::SetBytes {
-                    path,
-                    bytes: content,
-                },
-            ),
+            } => self
+                .open_file(
+                    uri,
+                    version,
+                    Edit::SetBytes {
+                        path,
+                        bytes: content,
+                    },
+                )
+                .map(Some),
             FileOperation::ChangeText {
                 path,
                 uri,
                 version,
                 content,
-            } => self.change_file(
-                uri,
-                version,
-                Edit::SetText {
-                    path,
-                    text: content,
-                },
-            ),
+            } => self
+                .change_file(
+                    uri,
+                    version,
+                    Edit::SetText {
+                        path,
+                        text: content,
+                    },
+                )
+                .map(Some),
             FileOperation::ChangeBytes {
                 path,
                 uri,
                 version,
                 content,
-            } => self.change_file(
-                uri,
-                version,
-                Edit::SetBytes {
-                    path,
-                    bytes: content,
-                },
-            ),
+            } => self
+                .change_file(
+                    uri,
+                    version,
+                    Edit::SetBytes {
+                        path,
+                        bytes: content,
+                    },
+                )
+                .map(Some),
             FileOperation::PatchText {
                 path,
                 uri,
                 version,
                 changes,
-            } => self.patch_text_file(&path, uri, version, changes),
-            FileOperation::SaveText { path, content } => self.save_text_file(&path, content),
-            FileOperation::SaveBytes { path, content } => self.save_bytes_file(&path, content),
+            } => self.patch_text_file(&path, uri, version, changes).map(Some),
+            FileOperation::SaveText { path, content } => {
+                self.save_text_file(&path, content).map(Some)
+            }
+            FileOperation::SaveBytes { path, content } => {
+                self.save_bytes_file(&path, content).map(Some)
+            }
             FileOperation::Close { path } => self.close_file(&path),
-            FileOperation::WriteText { path, content } => self.write_file(Edit::SetText {
-                path,
-                text: content,
-            }),
-            FileOperation::WriteBytes { path, content } => self.write_file(Edit::SetBytes {
-                path,
-                bytes: content,
-            }),
-            FileOperation::Remove { path } => self.write_file(Edit::Remove { path }),
-            FileOperation::Move { from, to } => self.write_file(Edit::Move { from, to }),
+            FileOperation::WriteText { path, content } => self
+                .write_file(Edit::SetText {
+                    path,
+                    text: content,
+                })
+                .map(Some),
+            FileOperation::WriteBytes { path, content } => self
+                .write_file(Edit::SetBytes {
+                    path,
+                    bytes: content,
+                })
+                .map(Some),
+            FileOperation::Remove { path } => self.write_file(Edit::Remove { path }).map(Some),
+            FileOperation::Move { from, to } => self.write_file(Edit::Move { from, to }).map(Some),
         }
     }
 }

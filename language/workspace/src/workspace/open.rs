@@ -12,7 +12,7 @@ use destack_source::Edit;
 #[cfg(not(target_arch = "wasm32"))]
 use destack_repository::open_repository_from_fs;
 #[cfg(not(target_arch = "wasm32"))]
-use destack_source::{OverlayFileSystem, PhysicalFileSystem, PhysicalFileWatcher};
+use destack_source::{OverlayFileSystem, PhysicalFileSystem};
 
 use super::LocalWorkspace;
 use crate::Error;
@@ -37,7 +37,6 @@ impl LocalWorkspace {
         Self::new(
             repository,
             Some(file_system),
-            Some(Arc::new(PhysicalFileWatcher::new())),
             Vec::new(),
             worker_limit,
             None,
@@ -62,7 +61,7 @@ impl LocalWorkspace {
             .map_err(Error::from)?,
         );
 
-        Self::new(repository, None, None, vec![root], worker_limit, None)
+        Self::new(repository, None, vec![root], worker_limit, None)
     }
 }
 

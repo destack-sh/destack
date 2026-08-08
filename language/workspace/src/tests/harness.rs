@@ -16,7 +16,7 @@ use crate::command::{
     CommandInput, CommandOptions, CommandRevision, QueryInput, QueryOutput, RewriteInput,
     RewriteMode, RewriteOutput,
 };
-use crate::{CommandError, LocalWorkspace, UpdateBatch, Workspace};
+use crate::{CommandError, Commit, LocalWorkspace, Workspace};
 
 /// Test harness for workspace integration tests.
 #[derive(Debug)]
@@ -84,15 +84,9 @@ impl TestWorkspace {
             )
             .expect("failed to import repository from overlay fs"),
         );
-        let workspace = LocalWorkspace::new(
-            repository.clone(),
-            Some(overlay),
-            None,
-            roots.clone(),
-            1,
-            None,
-        )
-        .expect("expected workspace");
+        let workspace =
+            LocalWorkspace::new(repository.clone(), Some(overlay), roots.clone(), 1, None)
+                .expect("expected workspace");
 
         Self {
             fs,
@@ -130,7 +124,7 @@ impl TestWorkspace {
     }
 
     /// Apply a text source update for a path.
-    pub(super) fn apply_text(&self, path: &Path, source: &str) -> UpdateBatch {
+    pub(super) fn apply_text(&self, path: &Path, source: &str) -> Commit {
         self.workspace
             .apply_file(Edit::SetText {
                 path: path.to_path_buf(),

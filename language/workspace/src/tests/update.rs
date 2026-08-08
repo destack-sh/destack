@@ -235,6 +235,26 @@ fn test_write_source_edits_rejects_stale_revision() {
     );
 }
 
+/// Reject source updates that escape their exact workspace root.
+#[test]
+fn test_apply_source_edits_rejects_escaping_path() {
+    let test = TestWorkspace::new("workspace_escape_source_edit");
+    let root = &test.roots[0];
+
+    let error = test
+        .workspace
+        .apply_source_edits(
+            root,
+            vec![Edit::SetText {
+                path: "../outside.ds".into(),
+                text: "export const escaped = true;\n".to_string(),
+            }],
+        )
+        .expect_err("reject escaping source path");
+
+    assert!(matches!(error, Error::PathNotInRoot { .. }));
+}
+
 /// Restore every changed file when one source write fails.
 #[test]
 fn test_write_source_edits_restores_failed_batch() {

@@ -3,13 +3,13 @@ use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
 use destack_repository::{Ref, Revision};
-use destack_serde::Reflect;
 use destack_session::{ArtifactPriority, ArtifactRun, Session};
+use destack_source::Edit;
 use parking_lot::Mutex;
-use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::Error;
-use crate::file::normalize_path;
+use crate::file::{FileOperation, normalize_path};
+use crate::{Watch, WatchState};
 
 use super::LocalWorkspace;
 
@@ -19,6 +19,8 @@ pub(crate) struct WorkspaceRoot {
     pub(crate) session: Arc<Session>,
     /// Serializes source changes and open document state.
     pub(crate) writes: Mutex<()>,
+    /// Semantic watch state.
+    pub(crate) watch: Arc<Mutex<WatchState>>,
     /// Latest proactive editor artifact run.
     background_run: Mutex<Option<ArtifactRun>>,
 }
@@ -30,6 +32,7 @@ impl std::fmt::Debug for WorkspaceRoot {
             .debug_struct("WorkspaceRoot")
             .field("session", &self.session)
             .field("writes", &self.writes)
+            .field("watch", &self.watch)
             .field(
                 "background_revision",
                 &self
@@ -43,6 +46,18 @@ impl std::fmt::Debug for WorkspaceRoot {
 }
 
 impl WorkspaceRoot {
+    /// Open one semantic watch at the current root revision.
+    pub(crate) fn watch(&self) -> Result<Watch, Error> {
+        let _write = self.writes.lock();
+        let revision = self.session.revision(self.session.head())?;
+
+        Watch::new(
+            self.session.root().to_path_buf(),
+            revision,
+            self.watch.clone(),
+        )
+    }
+
     /// Schedule proactive editor artifacts for one revision.
     pub(crate) fn schedule_background(&self, revision: Revision, artifacts: &[ArtifactKey]) {
         let run = (!artifacts.is_empty()).then(|| {
@@ -56,27 +71,79 @@ impl WorkspaceRoot {
     }
 }
 
-/// Request to reload host source state.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct ReloadRequest {
-    /// Roots to reload.
-    pub roots: Vec<PathBuf>,
-    /// Reason for the reload.
-    pub reason: ReloadReason,
-}
-
-/// Reason for reloading host source state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum ReloadReason {
-    /// Reload requested by the caller.
-    Manual,
-    /// Reload required after a watcher overflow.
-    Overflow,
-    /// Reload required after watch roots changed.
-    Watch,
-}
-
 impl LocalWorkspace {
+    /// Terminate semantic subscriptions after one host watch failure.
+    pub fn fail_watch(&self, root: &Path, detail: String) -> Result<(), Error> {
+        let root = self.workspace_root(root)?;
+        let _write = root.writes.lock();
+        root.watch.lock().fail(detail);
+
+        Ok(())
+    }
+
+    /// Resolve one source path within one exact opened root.
+    pub(crate) fn resolve_path(&self, root: &WorkspaceRoot, path: &Path) -> Result<PathBuf, Error> {
+        // anchor relative paths at the requested root
+        let path = if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            root.session.root().join(path)
+        };
+
+        // require the resolved path to belong to that exact root
+        let Some(owner) = self.resolve_configured_root(&path) else {
+            return Err(Error::PathNotInRoot { path });
+        };
+        if owner != root.session.root() {
+            return Err(Error::PathNotInRoot { path });
+        }
+
+        Ok(path)
+    }
+
+    /// Resolve every path in one editor file operation.
+    pub(crate) fn resolve_operation(
+        &self,
+        root: &WorkspaceRoot,
+        mut operation: FileOperation,
+    ) -> Result<FileOperation, Error> {
+        match &mut operation {
+            FileOperation::OpenText { path, .. }
+            | FileOperation::OpenBytes { path, .. }
+            | FileOperation::ChangeText { path, .. }
+            | FileOperation::ChangeBytes { path, .. }
+            | FileOperation::PatchText { path, .. }
+            | FileOperation::SaveText { path, .. }
+            | FileOperation::SaveBytes { path, .. }
+            | FileOperation::Close { path }
+            | FileOperation::WriteText { path, .. }
+            | FileOperation::WriteBytes { path, .. }
+            | FileOperation::Remove { path } => *path = self.resolve_path(root, path)?,
+            FileOperation::Move { from, to } => {
+                *from = self.resolve_path(root, from)?;
+                *to = self.resolve_path(root, to)?;
+            }
+        }
+
+        Ok(operation)
+    }
+
+    /// Resolve every path in one source edit.
+    pub(crate) fn resolve_edit(&self, root: &WorkspaceRoot, mut edit: Edit) -> Result<Edit, Error> {
+        match &mut edit {
+            Edit::SetText { path, .. }
+            | Edit::EditText { path, .. }
+            | Edit::SetBytes { path, .. }
+            | Edit::Remove { path } => *path = self.resolve_path(root, path)?,
+            Edit::Move { from, to } => {
+                *from = self.resolve_path(root, from)?;
+                *to = self.resolve_path(root, to)?;
+            }
+        }
+
+        Ok(edit)
+    }
+
     /// Resolve the configured root that owns a path.
     pub(super) fn resolve_configured_root(&self, path: &Path) -> Option<PathBuf> {
         let canonical_path = self.normalized_path(path);
@@ -158,8 +225,8 @@ impl LocalWorkspace {
         Ok(best_root)
     }
 
-    /// Resolve the opened root that should own one edit.
-    pub(crate) fn edit_root(&self, path: &Path) -> Result<Arc<WorkspaceRoot>, Error> {
+    /// Resolve the opened root that owns one path.
+    pub(crate) fn path_root(&self, path: &Path) -> Result<Arc<WorkspaceRoot>, Error> {
         let root = match self.resolve_configured_root(path) {
             Some(root) => root,
             None => self
@@ -170,6 +237,22 @@ impl LocalWorkspace {
         };
 
         self.workspace_root(&root)
+    }
+
+    /// Resolve the exact opened root that owns one source edit.
+    pub(crate) fn edit_root(&self, edit: &Edit) -> Result<Arc<WorkspaceRoot>, Error> {
+        match edit {
+            Edit::SetText { path, .. }
+            | Edit::EditText { path, .. }
+            | Edit::SetBytes { path, .. }
+            | Edit::Remove { path } => self.path_root(path),
+            Edit::Move { from, to } => {
+                let root = self.path_root(from)?;
+                self.resolve_path(root.as_ref(), to)?;
+
+                Ok(root)
+            }
+        }
     }
 
     /// Return the canonical path when available, otherwise the original path.
@@ -197,6 +280,7 @@ impl LocalWorkspace {
         let workspace_root = Arc::new(WorkspaceRoot {
             session: Arc::clone(&session),
             writes: Mutex::new(()),
+            watch: Arc::new(Mutex::new(WatchState::default())),
             background_run: Mutex::new(None),
         });
         let _write = workspace_root.writes.lock();
@@ -225,18 +309,8 @@ impl LocalWorkspace {
         // remove editor state owned by this root
         self.remove_open_files_under(root.as_path());
 
-        // stop subscriptions that include this root
-        let watches = self
-            .watches
-            .iter()
-            .filter(|entry| entry.value().watches(root.as_path()))
-            .map(|entry| *entry.key())
-            .collect::<Vec<_>>();
-        for watch in watches {
-            if let Some((_, watch)) = self.watches.remove(&watch) {
-                watch.stop();
-            }
-        }
+        // terminate subscriptions before removing the root
+        workspace_root.watch.lock().close();
 
         // remove the root after dependent state is gone
         let _session = self.roots.remove(root.as_path());
@@ -259,38 +333,33 @@ impl LocalWorkspace {
         Ok(())
     }
 
-    /// Resolve or create the session for a root.
+    /// Return the session for an opened root.
     pub fn session(&self, root: &Path) -> Result<Arc<Session>, Error> {
         let workspace_root = self.workspace_root(root)?;
 
         Ok(Arc::clone(&workspace_root.session))
     }
 
-    /// Resolve or create one opened root.
+    /// Return one exact opened root.
     pub(crate) fn workspace_root(&self, root: &Path) -> Result<Arc<WorkspaceRoot>, Error> {
         let root = root.to_path_buf();
-
-        if !self.roots.contains_key(&root) {
-            self.open_root(root.clone())?;
-        }
-
-        let session = self
+        let workspace_root = self
             .roots
             .get(root.as_path())
             .map(|entry| Arc::clone(entry.value()))
             .ok_or_else(|| Error::PathNotInRoot { path: root.clone() })?;
 
-        if session.session.root() != root {
+        if workspace_root.session.root() != root {
             return Err(Error::Internal {
                 detail: format!(
                     "session root mismatch: expected {}, found {}",
                     root.display(),
-                    session.session.root().display()
+                    workspace_root.session.root().display()
                 ),
             });
         }
 
-        Ok(session)
+        Ok(workspace_root)
     }
 
     /// Resolve the current revision for the session that owns a path.

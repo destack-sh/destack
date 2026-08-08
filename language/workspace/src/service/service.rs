@@ -7,7 +7,7 @@ use crate::{
     BenchOutput, BuildOutput, CacheOutput, CheckOutput, CleanOutput, Commit, DiagnosticsRequest,
     DocOutput, DoctorOutput, ExportResult, FileImage, FormatOutput, InfoOutput, ProgressEvent,
     QueryOutput, RewriteOutput, RunOutput, RunQueryResponse, SettingsOutput, TargetsOutput,
-    TaskOutput, TestOutput, UpdateBatch, WatchUpdate,
+    TaskOutput, TestOutput, WatchEvent,
 };
 
 /// RPC operations over one Destack workspace.
@@ -18,8 +18,8 @@ pub trait WorkspaceService {
     fn open_root(request: OpenRootRequest) -> OpenRootResponse;
 
     /// Reload one workspace root from its host.
-    #[rpc(name = "ReloadRoot", idempotency = "idempotent")]
-    fn reload_root(request: ReloadRootRequest) -> UpdateBatch;
+    #[rpc(name = "Reload", idempotency = "idempotent")]
+    fn reload(request: ReloadRequest) -> Option<Commit>;
 
     /// Read one workspace root revision.
     #[rpc(name = "ReadRevision", idempotency = "no_side_effects")]
@@ -27,7 +27,7 @@ pub trait WorkspaceService {
 
     /// Apply one editor file operation.
     #[rpc(name = "ApplyFileOperation")]
-    fn apply_file_operation(request: ApplyFileOperationRequest) -> UpdateBatch;
+    fn apply_file_operation(request: ApplyFileOperationRequest) -> Option<Commit>;
 
     /// Apply one atomic source update.
     #[rpc(name = "ApplySourceUpdate")]
@@ -165,7 +165,7 @@ pub trait WorkspaceService {
     #[rpc(name = "RunQuery", idempotency = "no_side_effects")]
     fn run_query(request: RunQueryRequest) -> RunQueryResponse;
 
-    /// Watch workspace roots until cancellation.
-    #[rpc(name = "Watch", response_stream = WatchUpdate)]
+    /// Watch one workspace root until cancellation.
+    #[rpc(name = "Watch", response_stream = WatchEvent)]
     fn watch(request: WatchRequest) -> ();
 }

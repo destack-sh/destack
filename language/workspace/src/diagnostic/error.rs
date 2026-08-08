@@ -44,13 +44,23 @@ pub enum Error {
         /// The validation failure detail.
         detail: String,
     },
-    /// The requested watch configuration is invalid.
-    InvalidWatch {
-        /// The validation failure detail.
+    /// A semantic workspace watch fell behind its root.
+    WatchLagged {
+        /// Root whose changes exceeded the watch capacity.
+        root: PathBuf,
+    },
+    /// A semantic workspace watch lost its closed root.
+    WatchClosed {
+        /// Root closed while it was watched.
+        root: PathBuf,
+    },
+    /// The host stopped watching a workspace root.
+    WatchFailed {
+        /// Root whose host watch failed.
+        root: PathBuf,
+        /// The host watch failure detail.
         detail: String,
     },
-    /// This workspace has no file watcher.
-    WatchUnavailable,
     /// The expected revision does not match the current revision.
     StaleRevision {
         /// The caller expected revision.
@@ -129,11 +139,26 @@ impl std::fmt::Display for Error {
             Error::InvalidEdit { detail } => {
                 write!(formatter, "invalid edit: {detail}")
             }
-            Error::InvalidWatch { detail } => {
-                write!(formatter, "invalid watch: {detail}")
+            Error::WatchLagged { root } => {
+                write!(
+                    formatter,
+                    "workspace watch lagged behind {}",
+                    root.display()
+                )
             }
-            Error::WatchUnavailable => {
-                write!(formatter, "workspace file watching is unavailable")
+            Error::WatchClosed { root } => {
+                write!(
+                    formatter,
+                    "watched workspace root closed: {}",
+                    root.display()
+                )
+            }
+            Error::WatchFailed { root, detail } => {
+                write!(
+                    formatter,
+                    "workspace host watch failed for {}: {detail}",
+                    root.display()
+                )
             }
             Error::StaleRevision { expected, current } => {
                 write!(

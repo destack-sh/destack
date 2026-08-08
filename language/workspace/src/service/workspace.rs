@@ -2,6 +2,7 @@ use std::future::Future;
 use std::sync::Arc;
 
 use destack_artifact::ArtifactPayload;
+use destack_repository::Revision;
 use destack_rpc::{Code, Request, Response, ResponseSender, Status};
 use destack_source::{Content, ContentId};
 use futures::{FutureExt, pin_mut, select_biased};
@@ -10,9 +11,8 @@ use super::*;
 use crate::{
     BenchOutput, BuildOutput, CacheOutput, CheckOutput, CleanOutput, CommandError, CommandProgress,
     Commit, DiagnosticsRequest, DocOutput, DoctorOutput, ExportResult, FileImage, FormatOutput,
-    InfoOutput, ProgressEvent, ProgressEvents, QueryOutput, ReloadRequest, RewriteOutput,
-    RunOutput, RunQueryResponse, SettingsOutput, TargetsOutput, TaskOutput, TestOutput,
-    UpdateBatch, WatchUpdate, Workspace,
+    InfoOutput, ProgressEvent, ProgressEvents, QueryOutput, RewriteOutput, RunOutput,
+    RunQueryResponse, SettingsOutput, TargetsOutput, TaskOutput, TestOutput, WatchEvent, Workspace,
 };
 
 /// Workspace shared by one or more RPC clients.
@@ -81,24 +81,20 @@ impl WorkspaceService for SharedWorkspace {
     }
 
     /// Reload one workspace root from its host.
-    async fn reload_root(
+    async fn reload(
         &self,
-        request: Request<ReloadRootRequest>,
-    ) -> Result<Response<UpdateBatch>, Status> {
-        let request = request.value;
-        let updates = self.workspace.reload(ReloadRequest {
-            roots: vec![request.root],
-            reason: request.reason,
-        })?;
+        request: Request<ReloadRequest>,
+    ) -> Result<Response<Option<Commit>>, Status> {
+        let commit = self.workspace.reload(&request.value.root)?;
 
-        Ok(Response::new(updates))
+        Ok(Response::new(commit))
     }
 
     /// Read one workspace root revision.
     async fn read_revision(
         &self,
         request: Request<ReadRevisionRequest>,
-    ) -> Result<Response<destack_repository::Revision>, Status> {
+    ) -> Result<Response<Revision>, Status> {
         let revision = self.workspace.revision(&request.value.root)?;
 
         Ok(Response::new(revision))
@@ -108,10 +104,11 @@ impl WorkspaceService for SharedWorkspace {
     async fn apply_file_operation(
         &self,
         request: Request<ApplyFileOperationRequest>,
-    ) -> Result<Response<UpdateBatch>, Status> {
-        let updates = self.workspace.file(request.value.operation)?;
+    ) -> Result<Response<Option<Commit>>, Status> {
+        let request = request.value;
+        let commit = self.workspace.file(&request.root, request.operation)?;
 
-        Ok(Response::new(updates))
+        Ok(Response::new(commit))
     }
 
     /// Apply one atomic source update.
@@ -130,7 +127,8 @@ impl WorkspaceService for SharedWorkspace {
         &self,
         request: Request<IsFileOpenRequest>,
     ) -> Result<Response<bool>, Status> {
-        let is_open = self.workspace.is_file_open(&request.value.path)?;
+        let request = request.value;
+        let is_open = self.workspace.is_file_open(&request.root, &request.path)?;
 
         Ok(Response::new(is_open))
     }
@@ -484,45 +482,32 @@ impl WorkspaceService for SharedWorkspace {
         Ok(Response::new(response))
     }
 
-    /// Watch workspace roots until cancellation.
+    /// Watch one workspace root until cancellation.
     async fn watch(
         &self,
         request: Request<WatchRequest>,
-        mut responses: ResponseSender<WatchUpdate>,
+        mut responses: ResponseSender<WatchEvent>,
     ) -> Result<Response<()>, Status> {
-        let request = request.value;
-        let policy = request.policy();
-        let watch = self.workspace.watch(request.roots, policy)?;
+        let mut watch = self.workspace.watch(&request.value.root)?;
 
-        // forward batches until the watch ends or the caller cancels
-        let result = loop {
-            let update = {
+        loop {
+            // wait for cancellation or the next committed change
+            let event = {
                 let canceled = responses.canceled().fuse();
-                let update = self.workspace.next_watch(watch).fuse();
-                pin_mut!(canceled, update);
+                let event = watch.next().fuse();
+                pin_mut!(canceled, event);
 
                 select_biased! {
-                    _ = canceled => break Ok(()),
-                    update = update => update,
+                    _ = canceled => return Ok(Response::new(())),
+                    event = event => event?,
                 }
             };
-            let update = match update {
-                Ok(update) => update,
-                Err(error) => break Err(error.into()),
-            };
-            let Some(update) = update else {
-                break Ok(());
-            };
 
-            // preserve RPC stream backpressure between batches
-            if let Err(error) = responses.send(&update).await {
-                break Err(error.into_status());
-            }
-        };
-
-        // release the workspace subscription on every terminal path
-        self.workspace.unwatch(watch);
-
-        result.map(Response::new)
+            // preserve RPC stream backpressure between semantic events
+            responses
+                .send(&event)
+                .await
+                .map_err(|error| error.into_status())?;
+        }
     }
 }

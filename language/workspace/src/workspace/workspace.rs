@@ -6,17 +6,17 @@ use destack_repository::Revision;
 use destack_source::{Content, ContentId, File, FileId, TextRange};
 use futures::future::BoxFuture;
 
-use super::{ReloadRequest, RunQueryInput, RunQueryResponse};
+use super::{RunQueryInput, RunQueryResponse};
 use crate::diagnostic::{DiagnosticsRequest, Error, FileDiagnostics};
 use crate::file::{Commit, FileOperation, SourceUpdate};
-use crate::watch::{WatchId, WatchUpdate};
+use crate::watch::Watch;
 use crate::{
     BenchInput, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOutput, CheckInput,
     CheckOutput, CleanInput, CleanOutput, CommandError, CommandProgress, DocInput, DocOutput,
     DoctorInput, DoctorOutput, ExportInput, ExportResult, FileEdit, FormatInput, FormatOutput,
     InfoInput, InfoOutput, QueryFile, QueryInput, QueryOutput, RewriteInput, RewriteOutput,
     RunInput, RunOutput, SettingsInput, SettingsOutput, TargetsInput, TargetsOutput, TaskInput,
-    TaskOutput, TestInput, TestOutput, UpdateBatch, WatchPolicy,
+    TaskOutput, TestInput, TestOutput,
 };
 
 /// Operations over one live Destack workspace.
@@ -51,13 +51,13 @@ pub trait Workspace: std::fmt::Debug + Send + Sync {
     // ================================================================================
 
     /// Reload source state from the workspace host.
-    fn reload(&self, request: ReloadRequest) -> Result<UpdateBatch, Error>;
+    fn reload(&self, root: &Path) -> Result<Option<Commit>, Error>;
 
     /// Apply one file operation through the workspace.
-    fn file(&self, operation: FileOperation) -> Result<UpdateBatch, Error>;
+    fn file(&self, root: &Path, operation: FileOperation) -> Result<Option<Commit>, Error>;
 
     /// Return whether one file is currently open through the workspace.
-    fn is_file_open(&self, path: &Path) -> Result<bool, Error>;
+    fn is_file_open(&self, root: &Path, path: &Path) -> Result<bool, Error>;
 
     /// Apply one atomic source edit through the workspace.
     fn edit(&self, root: &Path, update: SourceUpdate) -> Result<Commit, Error>;
@@ -254,12 +254,6 @@ pub trait Workspace: std::fmt::Debug + Send + Sync {
     // Watch
     // ================================================================================
 
-    /// Watch workspace files.
-    fn watch(&self, roots: Vec<PathBuf>, policy: WatchPolicy) -> Result<WatchId, Error>;
-
-    /// Return the next watch update.
-    fn next_watch(&self, watch: WatchId) -> BoxFuture<'_, Result<Option<WatchUpdate>, Error>>;
-
-    /// Stop watching workspace files.
-    fn unwatch(&self, watch: WatchId);
+    /// Watch semantic changes for one workspace root.
+    fn watch(&self, root: &Path) -> Result<Watch, Error>;
 }

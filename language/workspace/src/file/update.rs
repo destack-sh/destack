@@ -4,16 +4,14 @@ use std::path::{Path, PathBuf};
 
 use destack_repository::Revision;
 use destack_serde::Reflect;
+use destack_session as session;
 use destack_session::{Change, Session, SessionError};
-use destack_source::{
-    ContentId, Edit, FileWatchEvent, FileWatchEventKind, TextChange, Uri, apply_text_changes,
-};
+use destack_source::{ContentId, Edit, TextChange, Uri, apply_text_changes};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::Error;
 use crate::file::FileUpdate;
-use crate::workspace::{LocalWorkspace, Message, ReloadReason, UpdateBatch};
-use crate::{WatchBatch, WatchEventKind, WatchStatus};
+use crate::workspace::{LocalWorkspace, WorkspaceRoot};
 
 /// One requested source mutation batch.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -33,8 +31,6 @@ pub struct Commit {
     pub after: Revision,
     /// Workspace updates produced by the commit.
     pub updates: Vec<FileUpdate>,
-    /// Messages produced by the commit.
-    pub messages: Vec<Message>,
 }
 
 /// Previous filesystem content retained until one source commit publishes.
@@ -47,28 +43,44 @@ struct FileBackup {
 
 impl LocalWorkspace {
     /// Open one file with its current content.
-    pub fn open_file(&self, uri: Uri, version: i32, edit: Edit) -> Result<UpdateBatch, Error> {
+    pub fn open_file(&self, uri: Uri, version: i32, edit: Edit) -> Result<Commit, Error> {
         self.change_file(uri, version, edit)
     }
 
     /// Change one open file to its current content.
-    pub fn change_file(&self, uri: Uri, version: i32, edit: Edit) -> Result<UpdateBatch, Error> {
-        let path = file_content_edit_path(&edit)?.to_path_buf();
-        let root = self.edit_root(path.as_path())?;
+    pub fn change_file(&self, uri: Uri, version: i32, edit: Edit) -> Result<Commit, Error> {
+        let path = match &edit {
+            Edit::SetText { path, .. } | Edit::SetBytes { path, .. } | Edit::Remove { path } => {
+                path.clone()
+            }
+            Edit::EditText { .. } => {
+                return Err(Error::InvalidEdit {
+                    detail: "text patch edits require patch_text_file".to_string(),
+                });
+            }
+            Edit::Move { .. } => {
+                return Err(Error::InvalidEdit {
+                    detail: "move edits cannot represent open file content".to_string(),
+                });
+            }
+        };
+        let root = self.path_root(path.as_path())?;
         let _write = root.writes.lock();
 
-        self.commit_open_file(&root.session, path, uri, version, edit)
+        self.commit_open_file(root.as_ref(), path, uri, version, edit)
     }
 
     /// Commit one open file change while its root is locked.
     fn commit_open_file(
         &self,
-        session: &Session,
+        root: &WorkspaceRoot,
         path: PathBuf,
         uri: Uri,
         version: i32,
         edit: Edit,
-    ) -> Result<UpdateBatch, Error> {
+    ) -> Result<Commit, Error> {
+        let session = &root.session;
+
         if let Some(current) = self.open_file_version(path.as_path())
             && version <= current
         {
@@ -88,7 +100,7 @@ impl LocalWorkspace {
         if is_removed {
             self.remove_open_state(path.as_path());
 
-            return self.build_change_result(session, commit.changes);
+            return Ok(self.workspace_commit(root, commit));
         }
 
         // store client metadata after the revision carries the same content
@@ -96,7 +108,7 @@ impl LocalWorkspace {
         let content_id = self.content_id_at_path(session, revision, path.as_path())?;
         self.set_open_state(path.as_path(), uri, version, content_id, open_content);
 
-        self.build_change_result(session, commit.changes)
+        Ok(self.workspace_commit(root, commit))
     }
 
     /// Patch one open text file.
@@ -106,8 +118,8 @@ impl LocalWorkspace {
         uri: Uri,
         version: i32,
         changes: Vec<TextChange>,
-    ) -> Result<UpdateBatch, Error> {
-        let root = self.edit_root(path)?;
+    ) -> Result<Commit, Error> {
+        let root = self.path_root(path)?;
         let _write = root.writes.lock();
 
         // reject stale client versions before computing text
@@ -139,13 +151,27 @@ impl LocalWorkspace {
             text: content,
         };
 
-        self.commit_open_file(&root.session, path.to_path_buf(), uri, version, edit)
+        self.commit_open_file(root.as_ref(), path.to_path_buf(), uri, version, edit)
     }
 
     /// Save one open file to explicit content.
-    pub fn save_file(&self, edit: Edit) -> Result<UpdateBatch, Error> {
-        let path = file_content_edit_path(&edit)?.to_path_buf();
-        let root = self.edit_root(path.as_path())?;
+    pub fn save_file(&self, edit: Edit) -> Result<Commit, Error> {
+        let path = match &edit {
+            Edit::SetText { path, .. } | Edit::SetBytes { path, .. } | Edit::Remove { path } => {
+                path.clone()
+            }
+            Edit::EditText { .. } => {
+                return Err(Error::InvalidEdit {
+                    detail: "text patch edits require patch_text_file".to_string(),
+                });
+            }
+            Edit::Move { .. } => {
+                return Err(Error::InvalidEdit {
+                    detail: "move edits cannot represent saved file content".to_string(),
+                });
+            }
+        };
+        let root = self.path_root(path.as_path())?;
         let _write = root.writes.lock();
         let session = &root.session;
 
@@ -160,7 +186,7 @@ impl LocalWorkspace {
             if is_removed {
                 self.remove_open_state(path.as_path());
 
-                return self.build_change_result(session, commit.changes);
+                return Ok(self.workspace_commit(root.as_ref(), commit));
             }
 
             let revision = session.revision(session.head())?;
@@ -175,15 +201,11 @@ impl LocalWorkspace {
             );
         }
 
-        self.build_change_result(session, commit.changes)
+        Ok(self.workspace_commit(root.as_ref(), commit))
     }
 
     /// Save text content from explicit content or host filesystem.
-    pub fn save_text_file(
-        &self,
-        path: &Path,
-        content: Option<String>,
-    ) -> Result<UpdateBatch, Error> {
+    pub fn save_text_file(&self, path: &Path, content: Option<String>) -> Result<Commit, Error> {
         let content = match content {
             Some(content) => content,
             None => self
@@ -203,11 +225,7 @@ impl LocalWorkspace {
     }
 
     /// Save binary content from explicit content or host filesystem.
-    pub fn save_bytes_file(
-        &self,
-        path: &Path,
-        content: Option<Vec<u8>>,
-    ) -> Result<UpdateBatch, Error> {
+    pub fn save_bytes_file(&self, path: &Path, content: Option<Vec<u8>>) -> Result<Commit, Error> {
         let content = match content {
             Some(content) => content,
             None => self
@@ -227,14 +245,14 @@ impl LocalWorkspace {
     }
 
     /// Close one open file and restore filesystem backed source truth.
-    pub fn close_file(&self, path: &Path) -> Result<UpdateBatch, Error> {
-        let root = self.edit_root(path)?;
+    pub fn close_file(&self, path: &Path) -> Result<Option<Commit>, Error> {
+        let root = self.path_root(path)?;
         let _write = root.writes.lock();
         let session = &root.session;
 
         // remove overlay state first so filesystem reads see disk truth
         let Some(file) = self.remove_open_state(path) else {
-            return Ok(UpdateBatch::default());
+            return Ok(None);
         };
 
         // read the current filesystem truth for this path
@@ -263,34 +281,34 @@ impl LocalWorkspace {
             }
         };
 
-        self.build_change_result(session, commit.changes)
+        Ok(Some(self.workspace_commit(root.as_ref(), commit)))
     }
 
     /// Apply one edit through the workspace.
-    pub fn apply_file(&self, edit: Edit) -> Result<UpdateBatch, Error> {
-        let path = file_content_edit_path(&edit)?.to_path_buf();
-        let root = self.edit_root(path.as_path())?;
+    pub fn apply_file(&self, edit: Edit) -> Result<Commit, Error> {
+        let root = self.edit_root(&edit)?;
         let _write = root.writes.lock();
         let session = &root.session;
+        let edit = self.resolve_edit(root.as_ref(), edit)?;
 
         // apply direct edits through the owning session
         let commit = session
             .edit(session.head(), vec![edit])
             .map_err(Error::from)?;
 
-        self.build_change_result(session, commit.changes)
+        Ok(self.workspace_commit(root.as_ref(), commit))
     }
 
     /// Write one edit to the host filesystem and workspace.
-    pub fn write_file(&self, edit: Edit) -> Result<UpdateBatch, Error> {
-        let path = file_content_edit_path(&edit)?.to_path_buf();
-        let root = self.edit_root(path.as_path())?;
+    pub fn write_file(&self, edit: Edit) -> Result<Commit, Error> {
+        let root = self.edit_root(&edit)?;
         let _write = root.writes.lock();
         let session = &root.session;
+        let edit = self.resolve_edit(root.as_ref(), edit)?;
         let revision = session.revision(session.head())?;
         let commit = self.commit_source_edits(session, revision, vec![edit])?;
 
-        self.build_change_result(session, commit.changes)
+        Ok(self.workspace_commit(root.as_ref(), commit))
     }
 
     /// Write source edits when the current revision still matches.
@@ -302,9 +320,13 @@ impl LocalWorkspace {
     ) -> Result<Commit, Error> {
         let root = self.workspace_root(root)?;
         let _write = root.writes.lock();
+        let edits = edits
+            .into_iter()
+            .map(|edit| self.resolve_edit(root.as_ref(), edit))
+            .collect::<Result<Vec<_>, _>>()?;
         let commit = self.commit_source_edits(&root.session, revision, edits)?;
 
-        self.workspace_commit(&root.session, commit)
+        Ok(self.workspace_commit(root.as_ref(), commit))
     }
 
     /// Apply atomic edits through the workspace.
@@ -312,11 +334,15 @@ impl LocalWorkspace {
         let root = self.workspace_root(root)?;
         let _write = root.writes.lock();
         let session = &root.session;
+        let edits = edits
+            .into_iter()
+            .map(|edit| self.resolve_edit(root.as_ref(), edit))
+            .collect::<Result<Vec<_>, _>>()?;
 
         // publish the edit batch through the owning session
         let commit = session.edit(session.head(), edits)?;
 
-        self.workspace_commit(session, commit)
+        Ok(self.workspace_commit(root.as_ref(), commit))
     }
 
     /// Apply atomic edits when the current revision still matches.
@@ -329,11 +355,15 @@ impl LocalWorkspace {
         let root = self.workspace_root(root)?;
         let _write = root.writes.lock();
         let session = &root.session;
+        let edits = edits
+            .into_iter()
+            .map(|edit| self.resolve_edit(root.as_ref(), edit))
+            .collect::<Result<Vec<_>, _>>()?;
 
         // publish the edit batch through the owning session
         let commit = session.edit_if_current(session.head(), revision, edits)?;
 
-        self.workspace_commit(session, commit)
+        Ok(self.workspace_commit(root.as_ref(), commit))
     }
 
     /// Commit source edits to disk and one exact session revision.
@@ -342,16 +372,9 @@ impl LocalWorkspace {
         session: &Session,
         revision: Revision,
         edits: Vec<Edit>,
-    ) -> Result<destack_session::Commit, Error> {
-        // validate disk targets before preparing repository state
-        for edit in &edits {
-            let path = file_content_edit_path(edit)?;
-            if self.has_open_file(path) {
-                return Err(Error::OpenFileWrite {
-                    path: path.to_path_buf(),
-                });
-            }
-        }
+    ) -> Result<session::Commit, Error> {
+        // retain disk truth before preparing repository state
+        let backups = self.backup_files(&edits)?;
 
         // build and pin the edited revision without publishing it
         let prepared = match session.prepare_edit(session.head(), revision, edits.clone()) {
@@ -361,7 +384,6 @@ impl LocalWorkspace {
             }) => return Err(Error::StaleRevision { expected, current }),
             Err(error) => return Err(Error::from(error)),
         };
-        let backups = self.backup_files(&edits)?;
 
         // write every file while the root and session remain locked
         for edit in &edits {
@@ -379,34 +401,76 @@ impl LocalWorkspace {
 
     /// Retain original filesystem bytes for every edited path.
     fn backup_files(&self, edits: &[Edit]) -> Result<Vec<FileBackup>, Error> {
-        let file_system = self.repository.file_system();
         let mut paths = HashSet::new();
         let mut backups = Vec::new();
 
         // read every distinct path before performing any write
         for edit in edits {
-            let path = file_content_edit_path(edit)?;
-            if !paths.insert(path.to_path_buf()) {
-                continue;
+            match edit {
+                Edit::SetText { path, .. }
+                | Edit::SetBytes { path, .. }
+                | Edit::Remove { path } => {
+                    self.backup_file(path, &mut paths, &mut backups)?;
+                }
+                Edit::Move { from, to } => {
+                    if from == to {
+                        return Err(Error::InvalidEdit {
+                            detail: "move source and destination must differ".to_string(),
+                        });
+                    }
+
+                    self.backup_file(from, &mut paths, &mut backups)?;
+                    self.backup_file(to, &mut paths, &mut backups)?;
+                }
+                Edit::EditText { .. } => {
+                    return Err(Error::InvalidEdit {
+                        detail: "text patch edits cannot be written directly to disk".to_string(),
+                    });
+                }
             }
-            let content = if file_system.exists(path).map_err(|source| Error::Io {
-                path: path.to_path_buf(),
-                source,
-            })? {
-                Some(file_system.read(path).map_err(|source| Error::Io {
-                    path: path.to_path_buf(),
-                    source,
-                })?)
-            } else {
-                None
-            };
-            backups.push(FileBackup {
-                path: path.to_path_buf(),
-                content,
-            });
         }
 
         Ok(backups)
+    }
+
+    /// Retain one original filesystem path once.
+    fn backup_file(
+        &self,
+        path: &Path,
+        paths: &mut HashSet<PathBuf>,
+        backups: &mut Vec<FileBackup>,
+    ) -> Result<(), Error> {
+        // reject disk writes while editor content owns the path
+        if self.has_open_file(path) {
+            return Err(Error::OpenFileWrite {
+                path: path.to_path_buf(),
+            });
+        }
+
+        // retain each physical path once
+        if !paths.insert(path.to_path_buf()) {
+            return Ok(());
+        }
+
+        // snapshot the current bytes or absence
+        let file_system = self.repository.file_system();
+        let content = if file_system.exists(path).map_err(|source| Error::Io {
+            path: path.to_path_buf(),
+            source,
+        })? {
+            Some(file_system.read(path).map_err(|source| Error::Io {
+                path: path.to_path_buf(),
+                source,
+            })?)
+        } else {
+            None
+        };
+        backups.push(FileBackup {
+            path: path.to_path_buf(),
+            content,
+        });
+
+        Ok(())
     }
 
     /// Restore original filesystem content after a failed source commit.
@@ -437,354 +501,78 @@ impl LocalWorkspace {
     }
 
     /// Build one workspace commit from one session commit.
-    fn workspace_commit(
-        &self,
-        session: &Session,
-        commit: destack_session::Commit,
-    ) -> Result<Commit, Error> {
+    fn workspace_commit(&self, root: &WorkspaceRoot, commit: session::Commit) -> Commit {
         let before = commit.before;
         let after = commit.after;
-        let result = self.build_change_result(session, commit.changes)?;
-
-        Ok(Commit {
+        let updates = self.file_updates(commit.changes);
+        let commit = Commit {
             before,
             after,
-            updates: result.updates,
-            messages: result.messages,
-        })
-    }
-
-    /// Apply watch events through the workspace.
-    pub fn apply_watch_events(&self, events: Vec<FileWatchEvent>) -> Result<UpdateBatch, Error> {
-        // apply precise watch events before escalating to a full reload
-        let (mut result, require_reload) = self.apply_watch_events_immediate(events)?;
-
-        if require_reload {
-            let reload = self.reload_all()?;
-            result.updates.extend(reload.updates);
-            result.messages.extend(reload.messages);
-        }
-
-        Ok(result)
-    }
-
-    /// Apply one complete watch batch through the workspace.
-    pub fn apply_watch_batch(&self, batch: &WatchBatch) -> Result<UpdateBatch, Error> {
-        let mut result = UpdateBatch::default();
-        let mut reload_roots = Vec::new();
-        let mut should_reload_all = false;
-
-        // collect status messages and requested reloads
-        for status in &batch.status {
-            match status {
-                WatchStatus::Error { message } => {
-                    result.messages.push(Message::warning(
-                        "watch_status_error",
-                        format!("watch: {message}"),
-                    ));
-                }
-                WatchStatus::ReloadRequested { roots, reason } => {
-                    if roots.is_empty() {
-                        should_reload_all = true;
-                    } else {
-                        reload_roots.extend(roots.iter().cloned());
-                    }
-                    result.messages.push(Message::info(
-                        "watch_reload_requested",
-                        watch_reload_requested_message(*reason),
-                    ));
-                }
-                WatchStatus::Ready { .. } | WatchStatus::Stopped => {}
-            }
-        }
-
-        // apply direct file events through the source update path
-        let events = batch.events.iter().map(FileWatchEvent::from).collect();
-        let event_result = self.apply_watch_events(events)?;
-        result.updates.extend(event_result.updates);
-        result.messages.extend(event_result.messages);
-
-        // overflow without an explicit overflow event still requires a reload
-        let has_overflow_event = batch
-            .events
-            .iter()
-            .any(|event| matches!(event.kind, WatchEventKind::Overflow));
-        if batch.overflowed && !has_overflow_event {
-            should_reload_all = true;
-        }
-
-        // apply requested reloads after precise events
-        let reload = if should_reload_all {
-            Some(self.reload_all()?)
-        } else if reload_roots.is_empty() {
-            None
-        } else {
-            Some(self.reload_roots(&reload_roots)?)
+            updates,
         };
-        if let Some(reload) = reload {
-            result.updates.extend(reload.updates);
-            result.messages.extend(reload.messages);
+
+        // publish only real revision transitions
+        if commit.before != commit.after {
+            root.watch.lock().publish(&commit);
         }
 
-        Ok(result)
+        commit
     }
 
-    /// Apply watch events and return immediate updates plus reload intent.
-    fn apply_watch_events_immediate(
-        &self,
-        events: Vec<FileWatchEvent>,
-    ) -> Result<(UpdateBatch, bool), Error> {
-        // empty batches do no work
-        let mut result = UpdateBatch::default();
-        if events.is_empty() {
-            return Ok((result, false));
-        }
-
-        let mut require_reload = false;
-
-        // fold events into direct updates and reload intent
-        for event in events {
-            let is_path_open = self.has_open_file(&event.path);
-            let is_previous_path_open = event
-                .previous_path
-                .as_ref()
-                .is_some_and(|path| self.has_open_file(path));
-            if is_path_open || is_previous_path_open {
-                continue;
-            }
-
-            // overflow means the event stream is incomplete
-            if matches!(event.kind, FileWatchEventKind::Overflow) {
-                require_reload = true;
-                result.messages.push(Message::warning(
-                    "watch_overflow_reload",
-                    "watch: filesystem reload required after overflow",
-                ));
-                continue;
-            }
-
-            // deletion can invalidate import closure membership
-            if matches!(event.kind, FileWatchEventKind::Deleted) {
-                require_reload = true;
-
-                self.apply_watch_removal(&event.path, &mut result)?;
-
-                continue;
-            }
-
-            // rename is a removal plus a new source path
-            if matches!(event.kind, FileWatchEventKind::Renamed) {
-                require_reload = true;
-
-                if let Some(previous_path) = event.previous_path.as_ref() {
-                    self.apply_watch_removal(previous_path, &mut result)?;
-                }
-
-                self.apply_watch_file(&event.path, &mut result)?;
-
-                continue;
-            }
-
-            // creation can add new import candidates
-            if matches!(event.kind, FileWatchEventKind::Created) {
-                require_reload = true;
-            }
-
-            self.apply_watch_file(&event.path, &mut result)?;
-        }
-
-        Ok((result, require_reload))
-    }
-
-    /// Apply one watched file removal.
-    fn apply_watch_removal(&self, path: &Path, result: &mut UpdateBatch) -> Result<(), Error> {
-        let root = self.edit_root(path)?;
+    /// Reload one root from its host filesystem.
+    pub fn reload_root(&self, root_path: &Path) -> Result<Option<Commit>, Error> {
+        let root = self.workspace_root(root_path)?;
         let _write = root.writes.lock();
         let session = &root.session;
 
-        // ignore files that became open after watch event collection
-        if self.has_open_file(path) {
-            return Ok(());
+        // import host source and editor overlays as one revision
+        let before = session.revision(session.head())?;
+        let changes = session.reload_from_fs(session.head())?;
+        let after = session.revision(session.head())?;
+        root.watch.lock().recover();
+        if before == after {
+            return Ok(None);
         }
-
-        // ignore paths outside repository reload policy
-        if !session.imports_filesystem_path(path) {
-            return Ok(());
-        }
-
-        // publish the removal when the file was tracked
-        match session.edit(
-            session.head(),
-            vec![Edit::Remove {
-                path: path.to_path_buf(),
-            }],
-        ) {
-            Ok(commit) => self.extend_with_change_result(session, commit.changes, result)?,
-            Err(error) => result.messages.push(Message::warning(
-                "watch_remove_failed",
-                format!("watch: failed to remove {}: {error}", path.display()),
-            )),
-        }
-
-        Ok(())
-    }
-
-    /// Apply one watched file content refresh.
-    fn apply_watch_file(&self, path: &Path, result: &mut UpdateBatch) -> Result<(), Error> {
-        let root = self.edit_root(path)?;
-        let _write = root.writes.lock();
-        let session = &root.session;
-
-        // ignore files that became open after watch event collection
-        if self.has_open_file(path) {
-            return Ok(());
-        }
-
-        // ignore paths outside repository reload policy
-        if !session.imports_filesystem_path(path) {
-            return Ok(());
-        }
-
-        // read the latest filesystem payload
-        let edit = match session.read_filesystem_edit(path) {
-            Ok(edit) => edit,
-            Err(error) => {
-                result.messages.push(Message::warning(
-                    "watch_read_failed",
-                    format!("watch: failed to read {}: {error}", path.display()),
-                ));
-
-                return Ok(());
-            }
+        let commit = session::Commit {
+            before,
+            after,
+            changes,
         };
 
-        // publish the refreshed file payload
-        match session.edit(session.head(), vec![edit]) {
-            Ok(commit) => self.extend_with_change_result(session, commit.changes, result)?,
-            Err(error) => result.messages.push(Message::warning(
-                "watch_update_failed",
-                format!("watch: failed to update {}: {error}", path.display()),
-            )),
-        }
-
-        Ok(())
-    }
-
-    /// Extend one workspace result with one session change list.
-    fn extend_with_change_result(
-        &self,
-        session: &Session,
-        changes: Vec<Change>,
-        result: &mut UpdateBatch,
-    ) -> Result<(), Error> {
-        // rebuild workspace updates from the committed session changes
-        let update = self.build_change_result(session, changes)?;
-
-        result.updates.extend(update.updates);
-        result.messages.extend(update.messages);
-
-        Ok(())
-    }
-
-    /// Reload filesystem state for every root.
-    pub fn reload_all(&self) -> Result<UpdateBatch, Error> {
-        // snapshot roots before mutating sessions
-        let roots = self.root_paths();
-
-        self.reload_roots(&roots)
-    }
-
-    /// Reload filesystem state for specific roots.
-    pub fn reload_roots(&self, roots: &[PathBuf]) -> Result<UpdateBatch, Error> {
-        let mut result = UpdateBatch::default();
-
-        // reload each root independently
-        for root_path in roots {
-            let root = self.workspace_root(root_path)?;
-            let _write = root.writes.lock();
-            let session = &root.session;
-            let open_files = self.open_files_under(root_path);
-            let changes = session.reload_from_fs(session.head())?;
-            let update = self.build_change_result(session, changes)?;
-
-            result.updates.extend(update.updates);
-            result.messages.extend(update.messages);
-
-            // reapply open file source truth after filesystem reloads
-            for (path, file) in open_files {
-                let commit = session.edit(session.head(), vec![file.content.clone()])?;
-                let revision = session.revision(session.head())?;
-                let content_id = self.content_id_at_path(session, revision, path.as_path())?;
-                let update = self.build_change_result(session, commit.changes)?;
-
-                self.set_open_state(
-                    path.as_path(),
-                    file.uri.clone(),
-                    file.version,
-                    content_id,
-                    file.content.clone(),
-                );
-                result.updates.extend(update.updates);
-                result.messages.extend(update.messages);
-            }
-        }
-
-        Ok(result)
-    }
-
-    /// Build one workspace result for committed session changes.
-    fn build_change_result(
-        &self,
-        session: &Session,
-        changes: Vec<Change>,
-    ) -> Result<UpdateBatch, Error> {
-        // convert the sealed source revision to workspace updates
-        let revision = session.revision(session.head())?;
-        let updates = self.file_updates(session, revision, changes)?;
-
-        Ok(UpdateBatch::from(updates))
+        Ok(Some(self.workspace_commit(root.as_ref(), commit)))
     }
 
     /// Convert session changes into workspace file updates.
-    fn file_updates(
-        &self,
-        session: &Session,
-        revision: Revision,
-        changes: Vec<Change>,
-    ) -> Result<Vec<FileUpdate>, Error> {
-        let mut file_updates = Vec::new();
+    fn file_updates(&self, changes: Vec<Change>) -> Vec<FileUpdate> {
+        let mut file_updates = Vec::with_capacity(changes.len());
 
         // project each session change into workspace protocol shape
         for change in changes {
-            file_updates.push(self.file_update(session, revision, change)?);
+            file_updates.push(self.file_update(change));
         }
 
-        Ok(file_updates)
+        file_updates
     }
 
     /// Convert one session change into a workspace file update.
-    fn file_update(
-        &self,
-        session: &Session,
-        revision: Revision,
-        change: Change,
-    ) -> Result<FileUpdate, Error> {
+    fn file_update(&self, change: Change) -> FileUpdate {
+        let open_file = match &change {
+            Change::Updated { file, .. } => file
+                .path
+                .as_deref()
+                .and_then(|path| self.open_state(path))
+                .filter(|open| open.content_id == file.content.content_id()),
+            Change::Removed { .. } => None,
+        };
         let mut update = FileUpdate::from(change);
 
-        // attach open file protocol identity when the revision content agrees
-        if let Some(path) = update.file.as_ref().and_then(|file| file.path.as_deref())
-            && let Some(file) = self.open_state(path)
-        {
+        // attach open file identity when its exact content agrees
+        if let Some(file) = open_file {
             update.diagnostic_uri = file.uri;
-            update.diagnostic_version = self.open_file_version_in_revision(
-                session.repository().as_ref(),
-                revision,
-                update.file_id,
-                path,
-            )?;
+            update.diagnostic_version = Some(file.version);
         }
 
-        Ok(update)
+        update
     }
 
     /// Return the content identity for one path in a revision.
@@ -844,10 +632,30 @@ impl LocalWorkspace {
                     detail: "text patch edits cannot be written directly to disk".to_string(),
                 });
             }
-            Edit::Move { .. } => {
-                return Err(Error::InvalidEdit {
-                    detail: "move edits cannot be written directly to disk".to_string(),
-                });
+            Edit::Move { from, to } => {
+                let bytes =
+                    self.repository
+                        .file_system()
+                        .read(from)
+                        .map_err(|source| Error::Io {
+                            path: from.to_path_buf(),
+                            source,
+                        })?;
+                self.create_parent_directory(to)?;
+                self.repository
+                    .file_system()
+                    .write(to, &bytes)
+                    .map_err(|source| Error::Io {
+                        path: to.to_path_buf(),
+                        source,
+                    })?;
+                self.repository
+                    .file_system()
+                    .remove_file(from)
+                    .map_err(|source| Error::Io {
+                        path: from.to_path_buf(),
+                        source,
+                    })?;
             }
         }
 
@@ -867,29 +675,5 @@ impl LocalWorkspace {
                 path: parent.to_path_buf(),
                 source,
             })
-    }
-}
-
-/// Return a user-facing message for one watch reload reason.
-fn watch_reload_requested_message(reason: ReloadReason) -> &'static str {
-    match reason {
-        ReloadReason::Overflow => "watch: filesystem reload requested after overflow",
-        ReloadReason::Manual => "watch: filesystem reload requested",
-        ReloadReason::Watch => "watch: filesystem reload requested after watch roots changed",
-    }
-}
-
-/// Return the path for a full content edit.
-fn file_content_edit_path(edit: &Edit) -> Result<&Path, Error> {
-    match edit {
-        Edit::SetText { path, .. } | Edit::SetBytes { path, .. } | Edit::Remove { path } => {
-            Ok(path.as_path())
-        }
-        Edit::EditText { .. } => Err(Error::InvalidEdit {
-            detail: "text patch edits are only valid in edit batches".to_string(),
-        }),
-        Edit::Move { .. } => Err(Error::InvalidEdit {
-            detail: "move edits are only valid in edit batches".to_string(),
-        }),
     }
 }

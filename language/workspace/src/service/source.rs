@@ -11,6 +11,8 @@ use crate::{Error, FileEdit, FileImage, FileOperation, SourceUpdate};
 /// Request to apply one workspace file operation.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ApplyFileOperationRequest {
+    /// Root receiving the file operation.
+    pub root: PathBuf,
     /// File operation to apply.
     pub operation: FileOperation,
 }
@@ -27,6 +29,8 @@ pub struct ApplySourceUpdateRequest {
 /// Request to inspect whether one file is open.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct IsFileOpenRequest {
+    /// Owning workspace root.
+    pub root: PathBuf,
     /// Source path to inspect.
     pub path: PathBuf,
 }

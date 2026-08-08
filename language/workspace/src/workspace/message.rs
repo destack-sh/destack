@@ -1,4 +1,3 @@
-use crate::FileUpdate;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -49,24 +48,6 @@ impl Message {
             kind: MessageKind::Error,
             code: code.into(),
             message: message.into(),
-        }
-    }
-}
-
-/// Result of applying local workspace updates.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct UpdateBatch {
-    /// Update records produced by the operation.
-    pub updates: Vec<FileUpdate>,
-    /// Message records produced by the operation.
-    pub messages: Vec<Message>,
-}
-
-impl From<Vec<FileUpdate>> for UpdateBatch {
-    fn from(updates: Vec<FileUpdate>) -> Self {
-        Self {
-            updates,
-            messages: Vec::new(),
         }
     }
 }

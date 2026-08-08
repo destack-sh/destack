@@ -4,8 +4,6 @@ use destack_repository::Revision;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::ReloadReason;
-
 /// Request to open one workspace root.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct OpenRootRequest {
@@ -22,13 +20,11 @@ pub struct OpenRootResponse {
     pub revision: Revision,
 }
 
-/// Request to reload one workspace root.
+/// Request to reload one workspace root from its host.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct ReloadRootRequest {
+pub struct ReloadRequest {
     /// Root path to reload.
     pub root: PathBuf,
-    /// Reload reason.
-    pub reason: ReloadReason,
 }
 
 /// Request to read one workspace root revision.

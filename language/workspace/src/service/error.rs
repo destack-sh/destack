@@ -9,16 +9,16 @@ impl From<Error> for Status {
         let code = match &error {
             Error::PathNotInRoot { .. } | Error::FileMissing { .. } => Code::NotFound,
             Error::StaleOpenFile { .. } => Code::Aborted,
-            Error::InvalidTextChange { .. }
-            | Error::InvalidEdit { .. }
-            | Error::InvalidWatch { .. } => Code::InvalidArgument,
+            Error::InvalidTextChange { .. } | Error::InvalidEdit { .. } => Code::InvalidArgument,
             Error::Query(error) if matches!(error.as_ref(), QueryError::Invalid(_)) => {
                 Code::InvalidArgument
             }
             Error::OpenFileWrite { .. }
             | Error::StaleRevision { .. }
-            | Error::TargetNotSelected { .. }
-            | Error::WatchUnavailable => Code::FailedPrecondition,
+            | Error::TargetNotSelected { .. } => Code::FailedPrecondition,
+            Error::WatchLagged { .. } => Code::ResourceExhausted,
+            Error::WatchClosed { .. } => Code::Aborted,
+            Error::WatchFailed { .. } => Code::Unavailable,
             Error::Repository(_)
             | Error::Session(_)
             | Error::Query(_)
