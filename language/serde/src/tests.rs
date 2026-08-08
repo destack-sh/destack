@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Error, Name, Payload, Reflect, Schema, Type, encoded_len, from_slice, to_slice, to_vec,
+    Error, Name, Payload, Reflect, Schema, Type, Value, encoded_len, from_slice, to_slice, to_vec,
 };
 
 /// Example value used by roundtrip tests.
@@ -143,6 +143,23 @@ fn test_roundtrip_struct() {
 
     let bytes = to_vec(&value).expect("encode");
     let decoded = from_slice::<Example>(&bytes).expect("decode");
+
+    assert_eq!(decoded, value);
+}
+
+#[test]
+fn test_roundtrip_value() {
+    let value = Value::Object(vec![
+        ("signed".to_string(), Value::Signed(i128::MIN)),
+        ("unsigned".to_string(), Value::Unsigned(u128::MAX)),
+        (
+            "array".to_string(),
+            Value::Array(vec![Value::Null, Value::Bool(true), Value::Float(1.5)]),
+        ),
+    ]);
+
+    let bytes = to_vec(&value).expect("encode value");
+    let decoded = from_slice::<Value>(&bytes).expect("decode value");
 
     assert_eq!(decoded, value);
 }
