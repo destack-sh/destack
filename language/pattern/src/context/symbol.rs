@@ -4,11 +4,11 @@ use destack_source::ModuleId;
 use crate::{ContextError, ModuleContext, ProgramContext};
 
 impl ModuleContext {
-    /// Return every symbol selected by one checked candidate node.
+    /// Return every symbol selected for one candidate node.
     pub fn symbol_targets(&self, node: dir::LocalNodeIdAny) -> Vec<dir::GlobalSymbolId> {
         let node = node.into_global(self.module());
 
-        // prefer selected member declarations
+        // read selected member declarations
         if let Some(resolution) = self.resolutions().member_resolution(node) {
             let mut symbols = Vec::new();
             for access in resolution.iter() {
@@ -18,12 +18,12 @@ impl ModuleContext {
             return symbols;
         }
 
-        // prefer explicit generic instantiations
+        // read explicit generic selections
         if let Some(resolution) = self.resolutions().instantiation_resolution(node) {
             return vec![resolution.symbol];
         }
 
-        // otherwise read the checked name resolution
+        // read the name resolution
         let Some(resolution) = self.resolutions().name_resolution(node) else {
             return Vec::new();
         };
@@ -65,25 +65,26 @@ impl ModuleContext {
         );
         let mut targets = match lookup {
             dir::SymbolLookup::Missing => {
-                let Some(targets) = self.resolved().imports.global_targets(key) else {
+                let Some(resolutions) = self.resolved().imports.global_resolutions(key) else {
                     return Ok(Vec::new());
                 };
 
-                targets
+                resolutions
                     .iter()
-                    .copied()
-                    .map(dir::ExportTarget::from)
+                    .flat_map(|resolution| resolution.target.iter())
                     .collect()
             }
             dir::SymbolLookup::Found(symbol) => {
-                vec![dir::ExportTarget::Symbol(symbol.into_global(self.module()))]
+                vec![dir::ReferenceTarget::Symbol(
+                    symbol.into_global(self.module()),
+                )]
             }
             dir::SymbolLookup::Ambiguous(symbols) => symbols
                 .into_iter()
-                .map(|symbol| dir::ExportTarget::Symbol(symbol.into_global(self.module())))
+                .map(|symbol| dir::ReferenceTarget::Symbol(symbol.into_global(self.module())))
                 .collect(),
         };
-        targets = program.canonical_targets(&targets)?;
+        targets = program.dependency_targets(&targets)?;
 
         // walk declaration members and imported module exports
         for segment in path.segments.iter().skip(1) {
@@ -91,12 +92,12 @@ impl ModuleContext {
             targets = program.target_members(&targets, key)?;
         }
 
-        let targets = program.canonical_targets(&targets)?;
+        let targets = program.dependency_targets(&targets)?;
         let symbols = targets
             .into_iter()
             .filter_map(|target| match target {
-                dir::ExportTarget::Symbol(symbol) => Some(symbol),
-                dir::ExportTarget::Namespace(_) => None,
+                dir::ReferenceTarget::Symbol(symbol) => Some(symbol),
+                dir::ReferenceTarget::Namespace(_) => None,
             })
             .collect();
 
@@ -105,115 +106,87 @@ impl ModuleContext {
 }
 
 impl ProgramContext {
-    /// Follow imports to canonical declaration symbols.
-    pub fn canonical_symbols(
+    /// Return declaration targets selected by symbol bindings.
+    pub fn symbol_targets(
         &self,
         symbols: &[dir::GlobalSymbolId],
     ) -> Result<Vec<dir::GlobalSymbolId>, ContextError> {
         let targets = symbols
             .iter()
             .copied()
-            .map(dir::ExportTarget::Symbol)
+            .map(dir::ReferenceTarget::Symbol)
             .collect::<Vec<_>>();
-        let targets = self.canonical_targets(&targets)?;
+        let targets = self.dependency_targets(&targets)?;
         let symbols = targets
             .into_iter()
             .filter_map(|target| match target {
-                dir::ExportTarget::Symbol(symbol) => Some(symbol),
-                dir::ExportTarget::Namespace(_) => None,
+                dir::ReferenceTarget::Symbol(symbol) => Some(symbol),
+                dir::ReferenceTarget::Namespace(_) => None,
             })
             .collect();
 
         Ok(symbols)
     }
 
-    /// Follow import bindings to canonical symbols or module namespaces.
-    fn canonical_targets(
+    /// Return symbols or module namespaces selected by dependency bindings.
+    fn dependency_targets(
         &self,
-        targets: &[dir::ExportTarget],
-    ) -> Result<Vec<dir::ExportTarget>, ContextError> {
-        let mut canonical = Vec::new();
+        targets: &[dir::ReferenceTarget],
+    ) -> Result<Vec<dir::ReferenceTarget>, ContextError> {
+        let mut selected = Vec::new();
 
-        // resolve every overload or ambiguous target independently
+        // replace local import declarations with their target declarations
         for target in targets {
-            self.canonical_target(*target, &mut Vec::new(), &mut canonical)?;
-        }
-        canonical.sort_unstable();
-        canonical.dedup();
-
-        Ok(canonical)
-    }
-
-    /// Follow one import binding to its terminal target.
-    fn canonical_target(
-        &self,
-        target: dir::ExportTarget,
-        active: &mut Vec<dir::GlobalSymbolId>,
-        canonical: &mut Vec<dir::ExportTarget>,
-    ) -> Result<(), ContextError> {
-        let dir::ExportTarget::Symbol(symbol) = target else {
-            canonical.push(target);
-
-            return Ok(());
-        };
-        if active.contains(&symbol) {
-            return Err(ContextError::CyclicSymbol(symbol));
-        }
-        active.push(symbol);
-
-        let module = self.module(symbol.module_id)?;
-        let resolution = module.resolved().imports.symbol_resolution(symbol.local_id);
-        match resolution {
-            Some(dir::ImportResolution::Resolved(target)) => {
-                self.canonical_target((*target).into(), active, canonical)?;
+            let dir::ReferenceTarget::Symbol(symbol) = target else {
+                selected.push(*target);
+                continue;
+            };
+            let module = self.module(symbol.module_id)?;
+            match module.resolved().imports.symbol_resolution(symbol.local_id) {
+                Some(resolution) => selected.extend(resolution.targets()),
+                None => selected.push(*target),
             }
-            Some(dir::ImportResolution::Ambiguous(targets)) => {
-                for target in targets {
-                    self.canonical_target((*target).into(), active, canonical)?;
-                }
-            }
-            Some(dir::ImportResolution::Missing) => {}
-            None => canonical.push(dir::ExportTarget::Symbol(symbol)),
         }
-        active.pop();
+        selected.sort_unstable();
+        selected.dedup();
 
-        Ok(())
+        Ok(selected)
     }
 
     /// Select one named member from declarations or module namespaces.
     fn target_members(
         &self,
-        targets: &[dir::ExportTarget],
+        targets: &[dir::ReferenceTarget],
         key: dir::StaticKey,
-    ) -> Result<Vec<dir::ExportTarget>, ContextError> {
+    ) -> Result<Vec<dir::ReferenceTarget>, ContextError> {
         let mut members = Vec::new();
 
         // apply the same member segment to every current target
         for target in targets {
             match target {
-                dir::ExportTarget::Symbol(symbol) => {
+                dir::ReferenceTarget::Symbol(symbol) => {
                     let module = self.module(symbol.module_id)?;
                     let lookup = module.bindings().lookup_key_member(symbol.local_id, key);
                     match lookup {
                         dir::SymbolLookup::Missing => {}
                         dir::SymbolLookup::Found(member) => members.push(
-                            dir::ExportTarget::Symbol(member.into_global(symbol.module_id)),
+                            dir::ReferenceTarget::Symbol(member.into_global(symbol.module_id)),
                         ),
                         dir::SymbolLookup::Ambiguous(symbols) => {
                             members.extend(symbols.into_iter().map(|member| {
-                                dir::ExportTarget::Symbol(member.into_global(symbol.module_id))
+                                dir::ReferenceTarget::Symbol(member.into_global(symbol.module_id))
                             }));
                         }
                     }
                 }
-                dir::ExportTarget::Namespace(module) => {
+                dir::ReferenceTarget::Namespace(module) => {
                     let key = dir::ExportKey::Named(key);
                     members.extend(self.export_targets(*module, key, &mut Vec::new())?);
                 }
             }
         }
 
-        self.canonical_targets(&members)
+        self.dependency_targets(&members)
     }
 
     /// Resolve one named export through local, indirect, and star exports.
@@ -222,20 +195,25 @@ impl ProgramContext {
         module: ModuleId,
         key: dir::ExportKey,
         active: &mut Vec<(ModuleId, dir::ExportKey)>,
-    ) -> Result<Vec<dir::ExportTarget>, ContextError> {
+    ) -> Result<Vec<dir::ReferenceTarget>, ContextError> {
         let relation = (module, key);
+
+        // stop repeated star export relations
         if active.contains(&relation) {
             return Ok(Vec::new());
         }
         active.push(relation);
 
+        // select a direct named export
         let context = self.module(module)?;
-        if let Some(export) = context.exported().exports.export_by_key.get(&key).copied() {
-            let targets = self.named_export_targets(module, export, active)?;
+        if let Some(export) = context.exported().exports.export_by_key.get(&key) {
+            let targets = self.named_export_targets(module, export)?;
             active.pop();
 
             return Ok(targets);
         }
+
+        // exclude default names from star exports
         if key == dir::ExportKey::Default {
             active.pop();
 
@@ -261,22 +239,44 @@ impl ProgramContext {
     fn named_export_targets(
         &self,
         module: ModuleId,
-        export: dir::NamedExport,
-        active: &mut Vec<(ModuleId, dir::ExportKey)>,
-    ) -> Result<Vec<dir::ExportTarget>, ContextError> {
-        match export {
-            dir::NamedExport::Local(export) => Ok(vec![dir::ExportTarget::Symbol(
-                export.source.into_global(module),
-            )]),
-            dir::NamedExport::Indirect(export) => {
-                let Some(module) = export.target else {
-                    return Ok(Vec::new());
-                };
-                let Some(key) = export.imported.selected_export_key() else {
-                    return Ok(vec![dir::ExportTarget::Namespace(module)]);
-                };
+        export: &dir::NamedExport,
+    ) -> Result<Vec<dir::ReferenceTarget>, ContextError> {
+        // read the exact target from resolved dependency items
+        if let Some(item) = export.item {
+            let source = item.into_global_any(module);
+            let context = self.module(module)?;
+            let reference = context
+                .resolved()
+                .references
+                .get(source)
+                .ok_or(ContextError::InvalidReference(source))?;
+            let targets = match reference {
+                dir::Reference::Bound(symbols) => symbols
+                    .iter()
+                    .copied()
+                    .map(dir::ReferenceTarget::Symbol)
+                    .collect(),
+                dir::Reference::Namespace(module) => {
+                    vec![dir::ReferenceTarget::Namespace(*module)]
+                }
+                dir::Reference::Ambiguous(targets) => targets.clone().into_vec(),
+                dir::Reference::Missing => Vec::new(),
+                dir::Reference::Projected { .. } => {
+                    return Err(ContextError::InvalidReference(source));
+                }
+            };
 
-                self.export_targets(module, key, active)
+            return Ok(targets);
+        }
+
+        // read the local symbol group from declaration exports
+        match &export.binding {
+            dir::ExportBinding::Local { symbols } => Ok(symbols
+                .iter()
+                .map(|symbol| dir::ReferenceTarget::Symbol(symbol.into_global(module)))
+                .collect()),
+            dir::ExportBinding::Import { .. } | dir::ExportBinding::ReExport { .. } => {
+                Err(ContextError::InvalidExport(module, export.key))
             }
         }
     }

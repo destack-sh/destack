@@ -19,8 +19,10 @@ pub enum ContextError {
     MismatchedGenericArguments(dir::GlobalSymbolId),
     /// Compiled predicate type syntax violates the supported algebra.
     InvalidPredicateType,
-    /// An import cycle does not terminate at a declaration.
-    CyclicSymbol(dir::GlobalSymbolId),
+    /// A public dependency item has no exact resolved target.
+    InvalidReference(dir::GlobalNodeIdAny),
+    /// An exported name has no source declaration or dependency item.
+    InvalidExport(ModuleId, dir::ExportKey),
     /// Checked DIR artifacts disagree about their module.
     MismatchedModule,
 }
@@ -44,8 +46,11 @@ impl Display for ContextError {
             Self::InvalidPredicateType => {
                 formatter.write_str("compiled predicate contains an unsupported type")
             }
-            Self::CyclicSymbol(symbol) => {
-                write!(formatter, "cyclic DIR symbol resolution at {symbol:?}")
+            Self::InvalidReference(node) => {
+                write!(formatter, "invalid DIR reference at {node:?}")
+            }
+            Self::InvalidExport(module, key) => {
+                write!(formatter, "invalid DIR export {key:?} in {module:?}")
             }
             Self::MismatchedModule => {
                 formatter.write_str("checked DIR artifacts belong to different modules")
