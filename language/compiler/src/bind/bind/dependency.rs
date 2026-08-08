@@ -54,18 +54,34 @@ impl Compiler {
         node_id: dir::LocalNodeId<dir::DependencyItem>,
         dependency_item: &dir::DependencyItem,
     ) {
-        if !dependency_item.is_default_value_export() {
-            return;
-        }
+        let symbol_id = match dependency_item {
+            // explicit aliases declare public module members
+            dir::DependencyItem::Binding {
+                alias: Some(alias), ..
+            } => state.insert_symbol(
+                dir::SymbolRole::Item,
+                dir::SymbolKind::ExportAlias,
+                Some(dir::StaticKey::Name(*alias)),
+                None,
+                dir::SymbolVisibility::Member,
+            ),
 
-        // declare anonymous default export
-        let symbol_id = state.insert_symbol(
-            dir::SymbolRole::Local,
-            dir::SymbolKind::Variable,
-            None,
-            Some(dir::ExportKind::Default),
-            dir::SymbolVisibility::Scope,
-        );
+            // default value expressions declare anonymous local values
+            dir::DependencyItem::Binding {
+                binding: dir::DependencyBinding::Default,
+                value: Some(_),
+                ..
+            } => state.insert_symbol(
+                dir::SymbolRole::Local,
+                dir::SymbolKind::Variable,
+                None,
+                Some(dir::ExportKind::Default),
+                dir::SymbolVisibility::Scope,
+            ),
+
+            // other export items select declarations without introducing one
+            dir::DependencyItem::Binding { .. } | dir::DependencyItem::Error => return,
+        };
 
         state.declare_symbol(symbol_id, node_id);
     }

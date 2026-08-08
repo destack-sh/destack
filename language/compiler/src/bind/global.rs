@@ -18,8 +18,7 @@ impl Compiler {
         let profile = self.profile(context.revision(), profile)?;
         let mut globals = Vec::new();
 
-        // package specifiers resolve through their package exports,
-        // every other entry resolves as a workspace path
+        // resolve package specifiers through their package exports
         for entry in &profile.key.globals {
             let specifier = self
                 .repository
@@ -40,41 +39,29 @@ impl Compiler {
         Ok(globals)
     }
 
-    /// Flatten every global module's surface into resolved targets.
-    pub(in crate::bind) fn build_global_targets(
+    /// Resolve every global module binding.
+    pub(in crate::bind) fn build_global_resolutions(
         &self,
         profile: ProfileId,
         artifacts: &ArtifactReader<'_>,
         globals: &[ModuleId],
-    ) -> CompilerResult<IndexMap<dir::StaticKey, Vec<dir::ImportTarget>>> {
-        // global export surfaces and their re-export webs are declared up front
+    ) -> CompilerResult<IndexMap<dir::StaticKey, Vec<dir::ExportResolution>>> {
         let mut resolver = ExportResolver::new(profile);
-        let mut targets = IndexMap::<dir::StaticKey, Vec<dir::ImportTarget>>::new();
+        let mut resolutions = IndexMap::<dir::StaticKey, Vec<dir::ExportResolution>>::new();
+
+        // resolve each visible global binding
         for module in globals {
             let exported = resolver.exported_module(artifacts, *module)?;
             for (key, entries) in &exported.globals.entries_by_key {
                 for entry in entries {
-                    // locals bind directly, indirect entries resolve through exports
-                    let target = match entry {
-                        dir::GlobalEntry::Local(entry) => {
-                            Some(dir::ImportTarget::Symbol(entry.source.into_global(*module)))
-                        }
-                        dir::GlobalEntry::Indirect(entry) => {
-                            self.resolve_global_entry(artifacts, &mut resolver, entry)?
-                        }
-                    };
-
-                    if let Some(target) = target {
-                        let entries = targets.entry(*key).or_default();
-                        if !entries.contains(&target) {
-                            entries.push(target);
-                        }
-                    }
+                    let lookup = resolver.resolve_global_entry(artifacts, *module, entry)?;
+                    let visible = resolutions.entry(*key).or_default();
+                    lookup.append(visible);
                 }
             }
         }
 
-        Ok(targets)
+        Ok(resolutions)
     }
 
     /// Return the default tree builder module and export selected by one profile.
@@ -121,38 +108,22 @@ impl Compiler {
         let key = dir::ExportKey::Named(dir::StaticKey::Name(self.strings().intern(&export)));
         let mut resolver = ExportResolver::new(profile);
         match resolver.resolve_export_target(artifacts, module, key)? {
-            ExportLookup::Found(dir::ExportTarget::Symbol(symbol)) => Ok(Some(symbol)),
+            ExportLookup::Found(resolution) => {
+                let symbol =
+                    resolution
+                        .target
+                        .single_symbol()
+                        .ok_or_else(|| CompilerError::Internal {
+                            message: format!(
+                                "tree builder export '{export}' did not resolve to one symbol"
+                            ),
+                        })?;
+
+                Ok(Some(symbol))
+            }
             _ => Err(CompilerError::Internal {
                 message: format!("tree builder export '{export}' did not resolve to a symbol"),
             }),
-        }
-    }
-
-    /// Resolve one indirect global export to its concrete target.
-    fn resolve_global_entry(
-        &self,
-        artifacts: &ArtifactReader<'_>,
-        resolver: &mut ExportResolver,
-        entry: &dir::IndirectGlobalEntry,
-    ) -> CompilerResult<Option<dir::ImportTarget>> {
-        let Some(target) = entry.target else {
-            return Ok(None);
-        };
-        if entry.imported == dir::ExportSelector::Namespace {
-            return Ok(Some(dir::ImportTarget::Namespace(target)));
-        }
-        let Some(key) = entry.imported.selected_export_key() else {
-            return Ok(None);
-        };
-
-        match resolver.resolve_export_target(artifacts, target, key)? {
-            ExportLookup::Found(dir::ExportTarget::Symbol(symbol)) => {
-                Ok(Some(dir::ImportTarget::Symbol(symbol)))
-            }
-            ExportLookup::Found(dir::ExportTarget::Namespace(module)) => {
-                Ok(Some(dir::ImportTarget::Namespace(module)))
-            }
-            ExportLookup::Ambiguous(_) | ExportLookup::Missing => Ok(None),
         }
     }
 }
