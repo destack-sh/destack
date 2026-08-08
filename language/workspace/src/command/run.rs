@@ -102,12 +102,11 @@ impl_command_input_options!(RunInput {
 
 /// Payload for run command output.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-#[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RunPayload {
     /// Run completed successfully with a return value.
     Value {
         /// Returned value from the entry function.
-        value: serde_json::Value,
+        value: destack_serde::Value,
     },
     /// Run failed with a runtime error.
     RuntimeError {
@@ -381,7 +380,7 @@ impl CommandContext<'_> {
         };
 
         let payload = RunPayload::Value {
-            value: run_result.payload,
+            value: destack_serde::Value::from(run_result.payload),
         };
 
         Ok(CommandOutcome::new(

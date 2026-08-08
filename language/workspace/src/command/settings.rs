@@ -85,7 +85,6 @@ pub struct SettingsRegistry {
 
 /// Redacted registry authentication shape.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-#[serde(tag = "kind")]
 #[serde(rename_all = "camelCase")]
 pub enum SettingsRegistryAuthentication {
     /// No registry authentication.
