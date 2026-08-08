@@ -648,7 +648,7 @@ impl WalkState<'_, '_> {
                 }
             }
             Some(dir::Reference::Projected {
-                base: dir::ImportTarget::Symbol(base),
+                base: dir::ReferenceTarget::Symbol(base),
                 ..
             }) => {
                 self.commit_reference_name(source, base)?;
@@ -659,7 +659,7 @@ impl WalkState<'_, '_> {
             }
             Some(dir::Reference::Namespace(_))
             | Some(dir::Reference::Projected {
-                base: dir::ImportTarget::Namespace(_),
+                base: dir::ReferenceTarget::Namespace(_),
                 ..
             })
             | Some(dir::Reference::Missing) => {
@@ -697,7 +697,7 @@ impl WalkState<'_, '_> {
 
             // project a type-member path from the resolved base declaration
             Some(dir::Reference::Projected {
-                base: dir::ImportTarget::Symbol(base),
+                base: dir::ReferenceTarget::Symbol(base),
                 from,
             }) => self.walk_member_path_type(
                 id,
@@ -718,7 +718,7 @@ impl WalkState<'_, '_> {
             // reject namespaces and missing references in type position
             Some(dir::Reference::Namespace(_))
             | Some(dir::Reference::Projected {
-                base: dir::ImportTarget::Namespace(_),
+                base: dir::ReferenceTarget::Namespace(_),
                 ..
             })
             | Some(dir::Reference::Missing) => {

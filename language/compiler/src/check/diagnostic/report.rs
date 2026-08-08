@@ -326,7 +326,7 @@ impl CheckState<'_> {
             .and_then(|state| state.resolved.references.get(source.into_global(module)))
         {
             for target in candidates.clone().iter().take(4) {
-                let dir::ImportTarget::Symbol(symbol) = target else {
+                let dir::ReferenceTarget::Symbol(symbol) = target else {
                     continue;
                 };
                 let Ok(declaration) = self.symbol_source(*symbol) else {

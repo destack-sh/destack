@@ -73,7 +73,6 @@ impl BodyState<'_, '_> {
                 if !self.check.is_own_module(symbol.module_id) {
                     self.check.import_external_module(symbol.module_id)?;
                 }
-                let symbol = self.check.resolve_symbol_alias(symbol)?;
                 let arguments = self.check.intern_type_ids(&[])?;
 
                 self.check
@@ -580,7 +579,6 @@ impl BodyState<'_, '_> {
                 _ => None,
             });
         if let Some(symbol) = named {
-            let symbol = self.check.resolve_symbol_alias(symbol)?;
             match self.check.definition(symbol)? {
                 Some(dir::Definition::Class(_)) => {
                     return self.check_tree_class_component(

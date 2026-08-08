@@ -42,8 +42,6 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) module: CheckModuleState,
     /// Loaded external module states keyed by module id.
     pub(in crate::check) external_modules: FxIndexMap<ModuleId, CheckExternalModuleState>,
-    /// Resolved import targets of external modules read for alias hops.
-    pub(in crate::check) external_resolved: FxIndexMap<ModuleId, Arc<DirResolved>>,
     /// Whether this check infers the module's bodies.
     pub(in crate::check) is_checking: bool,
 
@@ -181,7 +179,6 @@ impl<'a> CheckState<'a> {
             module_id,
             module,
             external_modules: FxIndexMap::default(),
-            external_resolved: FxIndexMap::default(),
             is_checking,
             decorators: Vec::new(),
             derived_newtypes: FxIndexMap::default(),
@@ -394,8 +391,6 @@ impl<'a> CheckState<'a> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::LanguageItem>> {
-        let symbol = self.resolve_symbol_alias(symbol)?;
-
         Ok(self.environment_bound.language.item(symbol))
     }
 

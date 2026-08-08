@@ -475,7 +475,6 @@ impl BodyState<'_, '_> {
         )?);
 
         // admit the implicit implementors of the interface
-        let interface = self.resolve_symbol_alias(interface)?;
         if let Some(environment) = &self.check.environment_declared
             && let Some(implementors) = environment.implementations_by_interface.get(&interface)
         {

@@ -42,8 +42,6 @@ impl WalkState<'_, '_> {
         let Some(symbol) = self.walk_decorator_target(decorator.target)? else {
             return Ok(false);
         };
-        let symbol = self.check.resolve_symbol_alias(symbol)?;
-
         // skip kind validation on foreign targets while declaring
         if self
             .check

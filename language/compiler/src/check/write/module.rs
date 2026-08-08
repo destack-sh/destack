@@ -567,11 +567,10 @@ impl CheckState<'_> {
         let dir::Type::Reference(reference) = self.ty(ty)? else {
             return Ok(ty);
         };
-        let symbol = self.resolve_symbol_alias(reference.symbol)?;
-        if self.symbol_template(symbol)?.is_none() {
+        if self.symbol_template(reference.symbol)?.is_none() {
             return Ok(ty);
         }
-        let instance = self.declaration_instance(symbol)?;
+        let instance = self.declaration_instance(reference.symbol)?;
 
         self.intern_type(dir::Type::Application(instance))
     }

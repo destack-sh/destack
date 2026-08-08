@@ -250,15 +250,13 @@ impl CheckState<'_> {
             // select the implemented application naming the requested interface
             let (implemented_module, implemented_instance) =
                 self.nominal_application(implemented)?;
-            let implemented_symbol = self.resolve_symbol_alias(implemented_instance.symbol)?;
-            let interface_symbol = self.resolve_symbol_alias(interface.symbol)?;
-            let (instance, matched) = if implemented_symbol == interface_symbol {
+            let (instance, matched) = if implemented_instance.symbol == interface.symbol {
                 (
                     Some((implemented_module, implemented_instance)),
                     implemented,
                 )
             } else if let Some(inherited) =
-                answer!(self.heritage_instance(origin, implemented, interface_symbol)?)
+                answer!(self.heritage_instance(origin, implemented, interface.symbol)?)
             {
                 (Some(self.nominal_application(inherited)?), inherited)
             } else {

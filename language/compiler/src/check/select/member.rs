@@ -693,10 +693,10 @@ impl BodyState<'_, '_> {
         if let Some(resolution) = resolution
             && let [symbol] = resolution.symbols()
         {
-            let symbol = self.resolve_symbol_alias(*symbol)?;
-            if self.symbol_kind(symbol)?.is_type_alias() {
+            if self.symbol_kind(*symbol)?.is_type_alias() {
                 space = dir::MemberSpace::Static;
-                subject = self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
+                subject =
+                    self.intern_type(dir::Type::Reference(dir::TypeReference { symbol: *symbol }))?;
             }
         }
 
@@ -1427,7 +1427,7 @@ impl BodyState<'_, '_> {
         let owner = member.owner;
 
         // project a declaring class scope's own associated member
-        let scope = self.resolve_symbol_alias(interface.symbol)?;
+        let scope = interface.symbol;
         if let Some(definition) = self.definition(scope)?
             && !matches!(definition, dir::Definition::Interface(_))
         {

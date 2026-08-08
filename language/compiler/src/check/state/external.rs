@@ -32,28 +32,6 @@ impl CheckState<'_> {
             .unwrap_or_else(|| unreachable!("external module {module:?} was not loaded"))
     }
 
-    /// Read one external module's resolved import targets.
-    pub(in crate::check) fn external_resolved(
-        &mut self,
-        module: ModuleId,
-    ) -> CompilerResult<Arc<DirResolved>> {
-        if let Some(state) = self.external_modules.get(&module) {
-            return Ok(Arc::clone(&state.resolved));
-        }
-        if let Some(resolved) = self.external_resolved.get(&module) {
-            return Ok(Arc::clone(resolved));
-        }
-
-        // read the resolve stage directly, it never depends on declared modules
-        let resolved = self
-            .artifacts
-            .read_content::<DirResolved>((module, self.profile))
-            .map_err(CompilerError::from)?;
-        self.external_resolved.insert(module, Arc::clone(&resolved));
-
-        Ok(resolved)
-    }
-
     /// Import and return state for one external module while checking.
     pub(in crate::check) fn import_external_module(
         &mut self,
@@ -73,99 +51,6 @@ impl CheckState<'_> {
         }
 
         Ok(Some(self.external_module(module)))
-    }
-
-    /// Resolve one symbol through import alias chains.
-    pub(in crate::check) fn resolve_symbol_alias(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<dir::GlobalSymbolId> {
-        let mut current = symbol;
-        let mut visited = FxIndexSet::default();
-
-        // hop alias targets until a declaring symbol appears
-        loop {
-            if !visited.insert(current) {
-                return Err(CompilerError::Internal {
-                    message: format!("symbol alias {symbol:?} forwards in a cycle"),
-                });
-            }
-
-            let resolved = if self.is_own_module(current.module_id) {
-                Arc::clone(&self.module(current.module_id).resolved)
-            } else {
-                self.external_resolved(current.module_id)?
-            };
-            let resolution = resolved.imports.symbol_resolution(current.local_id);
-            match resolution {
-                Some(dir::ImportResolution::Resolved(dir::ImportTarget::Symbol(target))) => {
-                    current = *target;
-                }
-                Some(resolution) => {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "symbol alias {current:?} has no exact symbol target: {resolution:?}"
-                        ),
-                    });
-                }
-                None => {
-                    // resolve import binders without a per-symbol target by their key
-                    if let Some(target) = self.import_binder_target(current)?
-                        && target != current
-                    {
-                        current = target;
-                        continue;
-                    }
-
-                    return Ok(current);
-                }
-            }
-        }
-    }
-
-    /// Return one import binder's resolved target symbol, when one exists.
-    ///
-    /// Binder symbols carry no declarations of their own; their targets live
-    /// in the module's import resolutions or its resolved global names.
-    pub(in crate::check) fn import_binder_target(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        // read the binder's kind and key before releasing the table
-        let table = self.binding_table(symbol.module_id);
-        let binding = table.get_symbol(symbol.local_id);
-        let kind = binding.kind;
-        let key = binding.key;
-        drop(table);
-
-        if kind != dir::SymbolKind::Import {
-            return Ok(None);
-        }
-
-        // follow the module's own import resolutions first
-        let resolved = if self.is_own_module(symbol.module_id) {
-            Arc::clone(&self.module(symbol.module_id).resolved)
-        } else {
-            self.external_resolved(symbol.module_id)?
-        };
-        if let Some(dir::ImportResolution::Resolved(dir::ImportTarget::Symbol(target))) =
-            resolved.imports.symbol_resolution(symbol.local_id)
-        {
-            return Ok(Some(*target));
-        }
-
-        // follow resolved global names by the binder's key
-        if let Some(key) = key
-            && let Some([dir::ImportTarget::Symbol(target)]) = resolved
-                .imports
-                .global_target_by_key
-                .get(&key)
-                .map(Vec::as_slice)
-        {
-            return Ok(Some(*target));
-        }
-
-        Ok(None)
     }
 
     /// Import directly imported external modules and record their visibility.

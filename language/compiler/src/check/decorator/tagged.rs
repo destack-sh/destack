@@ -108,7 +108,6 @@ impl CheckState<'_> {
             let Some(symbol) = self.reference_symbol(target.into_global_any(module)) else {
                 continue;
             };
-            let symbol = self.resolve_symbol_alias(symbol)?;
             if self.environment_bound.language.item(symbol) != Some(dir::LanguageItem::Tagged) {
                 continue;
             }

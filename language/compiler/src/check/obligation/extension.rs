@@ -197,11 +197,9 @@ impl CheckState<'_> {
             let other_interfaces = self.declared_interfaces(other)?;
             for other_interface_type in other_interfaces {
                 let (_, other_interface) = self.nominal_application(other_interface_type)?;
-                let other_symbol = self.resolve_symbol_alias(other_interface.symbol)?;
                 for interface_type in interfaces {
                     let (_, interface) = self.nominal_application(*interface_type)?;
-                    let symbol = self.resolve_symbol_alias(interface.symbol)?;
-                    if symbol == other_symbol {
+                    if interface.symbol == other_interface.symbol {
                         candidates.push((other, other_ty, *interface_type, other_interface_type));
                         break;
                     }

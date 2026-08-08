@@ -212,8 +212,6 @@ impl BodyState<'_, '_> {
 
                 return Ok(Answer::Ready(None));
             };
-            let symbol = self.resolve_symbol_alias(symbol)?;
-
             // require a newtype provider
             if self
                 .symbol_kind_maybe(symbol)?
@@ -286,8 +284,6 @@ impl BodyState<'_, '_> {
 
                 return Ok(Answer::Ready(None));
             };
-            let symbol = self.resolve_symbol_alias(symbol)?;
-
             // require a newtype provider
             if self
                 .symbol_kind_maybe(symbol)?

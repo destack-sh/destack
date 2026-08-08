@@ -1810,7 +1810,7 @@ impl WalkState<'_, '_> {
         let dir::Type::Application(instance) = self.check.ty(constraint)? else {
             return Ok(dir::BlanketCoverage::Deferred);
         };
-        let interface = self.check.resolve_symbol_alias(instance.symbol)?;
+        let interface = instance.symbol;
         if !self.check.symbol_kind(interface)?.is_interface() {
             return Ok(dir::BlanketCoverage::Deferred);
         }

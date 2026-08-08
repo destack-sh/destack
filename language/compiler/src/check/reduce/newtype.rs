@@ -72,10 +72,10 @@ impl CheckState<'_> {
         let dir::Type::Application(instance) = self.ty(value)? else {
             return Ok(None);
         };
-        let symbol = self.resolve_symbol_alias(instance.symbol)?;
-        let Some(dir::Definition::Newtype(definition)) = self.definition(symbol)? else {
+        let Some(dir::Definition::Newtype(definition)) = self.definition(instance.symbol)? else {
             return Ok(None);
         };
+        let symbol = instance.symbol;
         let instance = dir::GenericApplication { symbol, ..instance };
         let declared_backing = definition.backing;
 

@@ -804,13 +804,17 @@ impl CheckState<'_> {
 
         // use only unambiguous global symbol imports
         imports
-            .global_target_by_key
+            .global_resolution_by_key
             .iter()
-            .find_map(|(key, targets)| {
-                let [dir::ImportTarget::Symbol(target)] = targets.as_slice() else {
+            .find_map(|(key, resolutions)| {
+                let [resolution] = resolutions.as_slice() else {
                     return None;
                 };
-                if *target == symbol {
+                let is_target = resolution
+                    .target
+                    .symbol_ids()
+                    .is_some_and(|symbols| symbols.contains(&symbol));
+                if is_target {
                     Some(self.format_static_key(key))
                 } else {
                     None

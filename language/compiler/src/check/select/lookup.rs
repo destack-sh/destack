@@ -79,7 +79,6 @@ impl BodyState<'_, '_> {
             return Ok(dir::MemberSpace::Instance);
         };
 
-        let symbol = self.resolve_symbol_alias(symbol)?;
         let kind = self.symbol_kind(symbol)?;
 
         // select static members for names that resolve to types
@@ -598,8 +597,7 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(MemberLookup::Missing));
         }
 
-        // resolve aliases before reading declaration members
-        let mut symbol = self.resolve_symbol_alias(reference.symbol)?;
+        let mut symbol = reference.symbol;
 
         // a type alias names its body's root declaration for statics,
         //  and the body's own members serve whatever the root lacks;
@@ -610,7 +608,7 @@ impl BodyState<'_, '_> {
             let head = answer!(self.reduce_type_head(origin, value)?);
             alias_body = Some(head);
             if let Some(named) = self.type_symbol(head)? {
-                symbol = self.resolve_symbol_alias(named)?;
+                symbol = named;
             }
         }
         if !self.is_own_module(symbol.module_id) {
@@ -1199,7 +1197,7 @@ impl BodyState<'_, '_> {
         keys: &mut FxIndexSet<dir::StaticKey>,
         visited: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<()> {
-        let symbol = self.resolve_symbol_alias(reference.symbol)?;
+        let symbol = reference.symbol;
         let alias = match self.definition(symbol)? {
             Some(dir::Definition::TypeAlias(alias)) => Some(alias.value),
             _ => None,
@@ -1236,7 +1234,6 @@ impl BodyState<'_, '_> {
         visited: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<()> {
         // collect the declaration's own member keys
-        let symbol = self.resolve_symbol_alias(symbol)?;
         self.collect_definition_keys(symbol, space, keys)?;
 
         // collect the tagged discriminator
