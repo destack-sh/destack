@@ -1,9 +1,9 @@
-use destack_serde::SchemaRegistry;
+use destack_serde::Schema;
 
 use crate::{Tree, Type};
 
 /// Include public MIR schema roots.
-pub fn schema(registry: &mut SchemaRegistry) {
-    registry.register::<Tree>();
-    registry.register::<Type>();
+pub fn schema(schema: &mut Schema) {
+    schema.register::<Tree>();
+    schema.register::<Type>();
 }
