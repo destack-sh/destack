@@ -425,13 +425,6 @@ impl Definition {
     }
 }
 
-/// Apply one type id mapping to a heritage list.
-fn visit_heritages(heritages: &[NominalHeritage], visit: &mut impl FnMut(GlobalTypeId)) {
-    for heritage in heritages {
-        visit(heritage.ty);
-    }
-}
-
 /// Checked declaration data for one transparent type alias.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TypeAliasDefinition {

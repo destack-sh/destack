@@ -2502,6 +2502,6 @@ pub struct IntersectionType {
 
 // lock the hot table shapes: one cache line per type, packed forms
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<Type>() == 64);
+const _: () = assert!(std::mem::size_of::<Type>() == 56);
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<Form>() == 32);
+const _: () = assert!(std::mem::size_of::<Form>() == 12);

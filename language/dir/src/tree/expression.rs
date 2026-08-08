@@ -192,6 +192,7 @@ pub enum Expression {
     /// }
     /// ```
     While {
+        label: Option<StringId>,
         form: WhileForm,
         condition: LocalNodeId<Expression>,
         body: LocalNodeId<Block>,
@@ -217,6 +218,7 @@ pub enum Expression {
     /// }
     /// ```
     ForEach {
+        label: Option<StringId>,
         asynchrony: Asynchrony,
         operator: ForEachOperator,
         binding: ForEachBinding,
@@ -234,6 +236,7 @@ pub enum Expression {
     /// }
     /// ```
     For {
+        label: Option<StringId>,
         initialization: Option<LocalNodeId<Expression>>,
         condition: Option<LocalNodeId<Expression>>,
         increment: Option<LocalNodeId<Expression>>,
@@ -251,7 +254,10 @@ pub enum Expression {
     ///     }
     /// }
     /// ```
-    Loop { body: LocalNodeId<Block> },
+    Loop {
+        label: Option<StringId>,
+        body: LocalNodeId<Block>,
+    },
 
     /// A Try is a try/catch/finally expression.
     ///

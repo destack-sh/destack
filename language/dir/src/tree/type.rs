@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Expression, FunctionSignature, GenericArgument, GenericParameter, Key, LocalNodeId, Mutability,
     Node, NodeType, Parameter, Path, RangeEnd, ScalarLiteral, ScopeKind, StaticKey, StringId,
-    SymbolKind, SymbolSpace, ThisForm, TupleElement, TupleForm, TypeLiteral, VarianceBound,
+    SymbolKind, ThisForm, TupleElement, TupleForm, TypeLiteral, VarianceBound,
     WhereClause,
 };
 
@@ -96,11 +96,6 @@ impl TypeMember {
             | Self::IndexSignature { .. }
             | Self::Error => None,
         }
-    }
-
-    /// Return the symbol space introduced by this type member.
-    pub fn symbol_space(&self) -> Option<SymbolSpace> {
-        self.symbol_kind().map(SymbolKind::symbol_space)
     }
 
     /// Return the owned scope kind for this type member symbol.

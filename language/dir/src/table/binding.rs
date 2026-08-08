@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Arena, ExportKind, GlobalNodeIdAny, LocalNodeId, LocalNodeIdAny, LocalScope, LocalScopeId,
     LocalScopeMark, LocalSymbolId, Node, Scope, ScopeIndex, ScopeKind, SegmentView, StaticKey,
-    Symbol, SymbolKind, SymbolLookup, SymbolOrigin, SymbolPath, SymbolRole, SymbolSpace,
+    Symbol, SymbolKind, SymbolLookup, SymbolOrigin, SymbolPath, SymbolRole,
     SymbolVisibility, View,
 };
 
@@ -338,11 +338,10 @@ impl<'a> BindingTable<'a> {
         view: &View<'_>,
         node: LocalNodeIdAny,
         key: StaticKey,
-        space: SymbolSpace,
     ) -> SymbolLookup {
         let scope = self.scope_at(view, node);
 
-        self.lookup_symbol_from_scope(scope, key, space)
+        self.lookup_symbol_from_scope(scope, key)
     }
 
     /// Return the scope in effect at a source node.
@@ -368,11 +367,10 @@ impl<'a> BindingTable<'a> {
         &self,
         mut scope: LocalScope,
         key: StaticKey,
-        space: SymbolSpace,
     ) -> SymbolLookup {
         loop {
             let current = self.get_scope(scope);
-            let lookup = self.lookup_symbols_in_scope(current, scope.mark, key, space);
+            let lookup = self.lookup_symbols_in_scope(current, scope.mark, key);
             if !matches!(lookup, SymbolLookup::Missing) {
                 return lookup;
             }
@@ -426,14 +424,13 @@ impl<'a> BindingTable<'a> {
         scope: &Scope,
         mark: LocalScopeMark,
         key: StaticKey,
-        space: SymbolSpace,
     ) -> SymbolLookup {
         let mut lookup = SymbolLookup::Missing;
 
         // collect whole-scope bindings
         scope.for_symbols_by_key(key, |symbol_id| {
             let symbol = self.get_symbol(symbol_id);
-            if symbol.visibility == SymbolVisibility::Scope && symbol.kind.is_visible_in(space) {
+            if symbol.visibility == SymbolVisibility::Scope {
                 lookup.push(symbol_id);
             }
         });
@@ -441,7 +438,7 @@ impl<'a> BindingTable<'a> {
         // collect forward bindings up to the current source mark
         scope.for_symbols_by_key_up_to(key, mark, |symbol_id| {
             let symbol = self.get_symbol(symbol_id);
-            if symbol.visibility == SymbolVisibility::Forward && symbol.kind.is_visible_in(space) {
+            if symbol.visibility == SymbolVisibility::Forward {
                 lookup.push(symbol_id);
             }
         });

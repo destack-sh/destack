@@ -257,8 +257,6 @@ pub enum ScopeKind {
     Type,
     /// Conditional type infer scope.
     TypeConditional,
-    /// Labeled expression body.
-    Label,
     /// Block expression or statement surface.
     Block,
 }

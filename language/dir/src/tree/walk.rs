@@ -851,6 +851,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::While {
+            label: _,
             form: _,
             condition,
             body,
@@ -862,6 +863,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::ForEach {
+            label: _,
             asynchrony: _,
             operator: _,
             binding,
@@ -888,6 +890,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::For {
+            label: _,
             initialization,
             condition,
             increment,
@@ -909,7 +912,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_block(tree, *body, body_block);
         }
 
-        Expression::Loop { body } => {
+        Expression::Loop { label: _, body } => {
             let body_block = tree.get(*body);
             visitor.visit_block(tree, *body, body_block);
         }

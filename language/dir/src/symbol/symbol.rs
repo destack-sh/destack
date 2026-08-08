@@ -120,17 +120,6 @@ impl SymbolLookup {
     }
 }
 
-/// The space of a symbol.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
-)]
-pub enum SymbolSpace {
-    /// The declaration space.
-    Declaration,
-    /// The label space.
-    Label,
-}
-
 /// The lexical visibility extent of a symbol.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
@@ -142,20 +131,6 @@ pub enum SymbolVisibility {
     Scope,
     /// Visible only through member lookup.
     Member,
-}
-
-impl SymbolSpace {
-    /// Check if this space conflicts with another space.
-    #[inline]
-    pub fn conflicts_with(self, other: Self) -> bool {
-        match (self, other) {
-            // labels only conflict with labels
-            (Self::Label, Self::Label) => true,
-            (Self::Label, _) | (_, Self::Label) => false,
-            // declarations share one namespace
-            (Self::Declaration, Self::Declaration) => true,
-        }
-    }
 }
 
 /// The scope lookup role of a symbol.
@@ -239,8 +214,6 @@ pub enum SymbolKind {
     Variant,
     /// Function symbol.
     Function,
-    /// Label symbol.
-    Label,
     /// Extension symbol.
     Extension,
     /// Type alias declaration symbol.
@@ -316,30 +289,6 @@ impl SymbolKind {
         matches!(self, Self::Variable | Self::Parameter)
     }
 
-    /// Return the symbol space normally introduced by this symbol kind.
-    pub fn symbol_space(self) -> SymbolSpace {
-        match self {
-            Self::Label => SymbolSpace::Label,
-            Self::AssociatedType
-            | Self::AssociatedConst
-            | Self::Class
-            | Self::Enum
-            | Self::Variant
-            | Self::Extension
-            | Self::Function
-            | Self::GenericTypeParameter
-            | Self::GenericValueParameter
-            | Self::Import
-            | Self::Interface
-            | Self::Newtype
-            | Self::NewtypeInterface
-            | Self::Struct
-            | Self::TypeAlias
-            | Self::Variable
-            | Self::Parameter => SymbolSpace::Declaration,
-        }
-    }
-
     /// Check whether this symbol kind can be used in type syntax.
     pub fn can_be_used_as_type(self) -> bool {
         matches!(
@@ -377,13 +326,6 @@ impl SymbolKind {
         )
     }
 
-    /// Check whether this symbol kind is visible in one lookup space.
-    pub fn is_visible_in(self, space: SymbolSpace) -> bool {
-        match space {
-            SymbolSpace::Declaration => !matches!(self, Self::Label),
-            SymbolSpace::Label => self == Self::Label,
-        }
-    }
 }
 
 /// Unique identifier for Symbols.

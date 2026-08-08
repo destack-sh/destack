@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Expression, FunctionSignature, GenericParameter, Key, Keyword, LocalNodeId, Mutability, Node,
-    NodeType, ScopeKind, StaticKey, StringId, SymbolKind, SymbolSpace, TypeExpression, Visibility,
+    NodeType, ScopeKind, StaticKey, StringId, SymbolKind, TypeExpression, Visibility,
     WhereClause,
 };
 
@@ -277,11 +277,6 @@ impl Member {
             | Self::ComptimeBlock { .. }
             | Self::Error => None,
         }
-    }
-
-    /// Return the symbol space introduced by this member.
-    pub fn symbol_space(&self) -> Option<SymbolSpace> {
-        self.symbol_kind().map(SymbolKind::symbol_space)
     }
 
     /// Return whether this member sees the enclosing receiver scope.

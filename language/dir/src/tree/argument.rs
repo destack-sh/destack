@@ -2,7 +2,7 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Expression, LocalNodeId, Node, NodeType, Pattern, StaticKey, StringId, SymbolKind, SymbolSpace,
+    Expression, LocalNodeId, Node, NodeType, Pattern, StaticKey, StringId, SymbolKind,
     TypeExpression, VarianceModifier,
 };
 
@@ -58,18 +58,6 @@ impl GenericParameter {
             | Self::Lifetime { name }
             | Self::Value { name, .. }
             | Self::VariadicValue { name, .. } => Some(StaticKey::Name(*name)),
-            Self::Error => None,
-        }
-    }
-
-    /// Return the symbol space introduced by this generic parameter.
-    pub fn symbol_space(&self) -> Option<SymbolSpace> {
-        match self {
-            Self::Type { .. }
-            | Self::VariadicType { .. }
-            | Self::Lifetime { .. }
-            | Self::Value { .. }
-            | Self::VariadicValue { .. } => Some(SymbolSpace::Declaration),
             Self::Error => None,
         }
     }
