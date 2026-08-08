@@ -176,7 +176,7 @@ pub struct RevisionPin {
 }
 
 impl RevisionPin {
-    /// Build one revision pin from explicit parts.
+    /// Build one revision pin.
     pub(crate) fn new(revision: Revision, repository: Arc<Repository>) -> Self {
         Self {
             revision,
@@ -457,7 +457,7 @@ mod tests {
                 symbols,
             },
             globals: vec![module],
-            global_targets_by_key: IndexMap::new(),
+            global_resolutions_by_key: IndexMap::new(),
             tree: None,
         };
         let key = ArtifactKey::environment_bound(profile);
