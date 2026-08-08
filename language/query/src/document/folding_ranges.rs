@@ -57,7 +57,7 @@ impl FoldingRange {
     }
 }
 
-/// Request folding ranges for a document.
+/// A folding ranges request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FoldingRangesRequest {
     /// The queried module profile.
@@ -66,7 +66,7 @@ pub struct FoldingRangesRequest {
     pub file_id: FileId,
 }
 
-/// Response payload for folding ranges queries.
+/// A folding ranges response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FoldingRangesResponse {
     /// Folding ranges.
@@ -75,7 +75,11 @@ pub struct FoldingRangesResponse {
 
 impl ModuleQueryContext<'_> {
     /// Return folding ranges for a file.
-    pub fn folding_ranges(&self, file_id: FileId) -> QueryResult<Vec<FoldingRange>> {
+    pub fn folding_ranges(
+        &self,
+        request: FoldingRangesRequest,
+    ) -> QueryResult<FoldingRangesResponse> {
+        let file_id = request.file_id;
         let mut ranges = Vec::new();
 
         // collect authored source folds
@@ -94,7 +98,7 @@ impl ModuleQueryContext<'_> {
         });
         ranges.dedup();
 
-        Ok(ranges)
+        Ok(FoldingRangesResponse { ranges })
     }
 }
 

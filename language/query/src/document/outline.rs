@@ -96,7 +96,7 @@ pub struct OutlineSymbol {
     pub children: Vec<OutlineSymbol>,
 }
 
-/// Request the outline for one source file.
+/// An outline request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct OutlineRequest {
     /// The queried module profile.
@@ -105,7 +105,7 @@ pub struct OutlineRequest {
     pub file_id: FileId,
 }
 
-/// Response from one outline query.
+/// An outline response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct OutlineResponse {
     /// The top-level source symbols.
@@ -116,13 +116,15 @@ impl ModuleQueryContext<'_> {
     /// Return the ordered symbol outline for one source file.
     pub fn outline(
         &self,
+        request: OutlineRequest,
         program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-    ) -> QueryResult<Vec<OutlineSymbol>> {
+    ) -> QueryResult<OutlineResponse> {
+        let file_id = request.file_id;
         let view = self.view()?;
         let roots = self.file_roots(file_id)?;
+        let symbols = self.outline_expressions(view, roots, program)?;
 
-        self.outline_expressions(view, roots, program)
+        Ok(OutlineResponse { symbols })
     }
 
     /// Return declarations introduced by one ordered expression list.

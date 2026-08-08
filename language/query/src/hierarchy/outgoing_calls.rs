@@ -16,14 +16,14 @@ pub struct OutgoingCall {
     pub from_ranges: Vec<Span>,
 }
 
-/// Request outgoing calls.
+/// An outgoing calls request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct OutgoingCallsRequest {
     /// The call item to expand.
     pub item: CallItem,
 }
 
-/// Response payload for outgoing call queries.
+/// An outgoing calls response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct OutgoingCallsResponse {
     /// Outgoing calls.
@@ -32,7 +32,11 @@ pub struct OutgoingCallsResponse {
 
 impl ProgramQueryContext<'_> {
     /// Return outgoing calls from one call item.
-    pub fn outgoing_calls(&self, item: &CallItem) -> QueryResult<Vec<OutgoingCall>> {
+    pub fn outgoing_calls(
+        &self,
+        request: OutgoingCallsRequest,
+    ) -> QueryResult<OutgoingCallsResponse> {
+        let item = request.item;
         let symbol_id = item.symbol_id;
         let canonical_id = self
             .canonical_symbol(symbol_id)?
@@ -99,6 +103,6 @@ impl ProgramQueryContext<'_> {
                 .then_with(|| left.to.order().cmp(&right.to.order()))
         });
 
-        Ok(calls)
+        Ok(OutgoingCallsResponse { calls })
     }
 }

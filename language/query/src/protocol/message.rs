@@ -12,7 +12,7 @@ use crate::{
     GotoImplementationRequest, GotoImplementationResponse, GotoTypeDefinitionRequest,
     GotoTypeDefinitionResponse, HighlightRequest, HighlightResponse, HoverRequest, HoverResponse,
     IncomingCallsRequest, IncomingCallsResponse, InlayHintsRequest, InlayHintsResponse,
-    InlineRequest, InlineResponse, LinksRequest, LinksResponse, Module, OutgoingCallsRequest,
+    InlineRequest, InlineResponse, LinksRequest, LinksResponse, OutgoingCallsRequest,
     OutgoingCallsResponse, OutlineRequest, OutlineResponse, RenameFilesRequest,
     RenameFilesResponse, RenameRequest, RenameResponse, RenameTargetRequest, RenameTargetResponse,
     SearchSymbolsRequest, SearchSymbolsResponse, SelectionRangesRequest, SelectionRangesResponse,
@@ -95,77 +95,39 @@ impl QueryRequest {
     /// Return the selected program profile when this request reads one program.
     pub fn profile_id(&self) -> Option<ProfileId> {
         match self {
-            Self::Completion(params) => Some(params.position.module.profile_id),
-            Self::Hover(params) => Some(params.position.module.profile_id),
-            Self::SignatureHelp(params) => Some(params.position.module.profile_id),
-            Self::InlayHints(params) => Some(params.range.module.profile_id),
-            Self::CodeLenses(params) => Some(params.module.profile_id),
-            Self::FoldingRanges(params) => Some(params.module.profile_id),
-            Self::SemanticTokens(params) => Some(params.module.profile_id),
-            Self::SemanticTokensRange(params) => Some(params.range.module.profile_id),
-            Self::Outline(params) => Some(params.module.profile_id),
-            Self::Links(params) => Some(params.module.profile_id),
-            Self::Highlight(params) => Some(params.position.module.profile_id),
-            Self::SelectionRanges(params) => Some(params.module.profile_id),
-            Self::GotoDefinition(params) => Some(params.position.module.profile_id),
-            Self::GotoDeclaration(params) => Some(params.position.module.profile_id),
-            Self::GotoTypeDefinition(params) => Some(params.position.module.profile_id),
-            Self::GotoImplementation(params) => Some(params.position.module.profile_id),
-            Self::FindReferences(params) => Some(params.position.module.profile_id),
-            Self::CallItem(params) => Some(params.position.module.profile_id),
-            Self::IncomingCalls(params) => Some(params.item.target.module.profile_id),
-            Self::OutgoingCalls(params) => Some(params.item.target.module.profile_id),
-            Self::TypeItem(params) => Some(params.position.module.profile_id),
-            Self::Supertypes(params) => Some(params.item.target.module.profile_id),
-            Self::Subtypes(params) => Some(params.item.target.module.profile_id),
-            Self::Decorators(params) => match params.scope {
+            Self::Completion(request) => Some(request.position.module.profile_id),
+            Self::Hover(request) => Some(request.position.module.profile_id),
+            Self::SignatureHelp(request) => Some(request.position.module.profile_id),
+            Self::InlayHints(request) => Some(request.range.module.profile_id),
+            Self::CodeLenses(request) => Some(request.module.profile_id),
+            Self::FoldingRanges(request) => Some(request.module.profile_id),
+            Self::SemanticTokens(request) => Some(request.module.profile_id),
+            Self::SemanticTokensRange(request) => Some(request.range.module.profile_id),
+            Self::Outline(request) => Some(request.module.profile_id),
+            Self::Links(request) => Some(request.module.profile_id),
+            Self::Highlight(request) => Some(request.position.module.profile_id),
+            Self::SelectionRanges(request) => Some(request.module.profile_id),
+            Self::GotoDefinition(request) => Some(request.position.module.profile_id),
+            Self::GotoDeclaration(request) => Some(request.position.module.profile_id),
+            Self::GotoTypeDefinition(request) => Some(request.position.module.profile_id),
+            Self::GotoImplementation(request) => Some(request.position.module.profile_id),
+            Self::FindReferences(request) => Some(request.position.module.profile_id),
+            Self::CallItem(request) => Some(request.position.module.profile_id),
+            Self::IncomingCalls(request) => Some(request.item.target.module.profile_id),
+            Self::OutgoingCalls(request) => Some(request.item.target.module.profile_id),
+            Self::TypeItem(request) => Some(request.position.module.profile_id),
+            Self::Supertypes(request) => Some(request.item.target.module.profile_id),
+            Self::Subtypes(request) => Some(request.item.target.module.profile_id),
+            Self::Decorators(request) => match request.scope {
                 DecoratorScope::Module(module) => Some(module.profile_id),
                 DecoratorScope::Program(profile_id) => Some(profile_id),
             },
-            Self::RenameTarget(params) => Some(params.position.module.profile_id),
-            Self::Rename(params) => Some(params.position.module.profile_id),
-            Self::ExtractVariable(params) => Some(params.range.module.profile_id),
-            Self::Inline(params) => Some(params.position.module.profile_id),
-            Self::CodeActions(params) => Some(params.range.module.profile_id),
+            Self::RenameTarget(request) => Some(request.position.module.profile_id),
+            Self::Rename(request) => Some(request.position.module.profile_id),
+            Self::ExtractVariable(request) => Some(request.range.module.profile_id),
+            Self::Inline(request) => Some(request.position.module.profile_id),
+            Self::CodeActions(request) => Some(request.range.module.profile_id),
             Self::SearchSymbols(_) | Self::RenameFiles(_) => None,
-        }
-    }
-
-    /// Return the anchored module context read by this request when one exists.
-    pub fn module(&self) -> Option<Module> {
-        match self {
-            Self::Completion(params) => Some(params.position.module),
-            Self::Hover(params) => Some(params.position.module),
-            Self::SignatureHelp(params) => Some(params.position.module),
-            Self::InlayHints(params) => Some(params.range.module),
-            Self::CodeLenses(params) => Some(params.module),
-            Self::FoldingRanges(params) => Some(params.module),
-            Self::SemanticTokens(params) => Some(params.module),
-            Self::SemanticTokensRange(params) => Some(params.range.module),
-            Self::Outline(params) => Some(params.module),
-            Self::Links(params) => Some(params.module),
-            Self::Highlight(params) => Some(params.position.module),
-            Self::SelectionRanges(params) => Some(params.module),
-            Self::GotoDefinition(params) => Some(params.position.module),
-            Self::GotoDeclaration(params) => Some(params.position.module),
-            Self::GotoTypeDefinition(params) => Some(params.position.module),
-            Self::GotoImplementation(params) => Some(params.position.module),
-            Self::FindReferences(params) => Some(params.position.module),
-            Self::CallItem(params) => Some(params.position.module),
-            Self::TypeItem(params) => Some(params.position.module),
-            Self::RenameTarget(params) => Some(params.position.module),
-            Self::Rename(params) => Some(params.position.module),
-            Self::ExtractVariable(params) => Some(params.range.module),
-            Self::Inline(params) => Some(params.position.module),
-            Self::CodeActions(params) => Some(params.range.module),
-
-            Self::SearchSymbols(_)
-            | Self::IncomingCalls(_)
-            | Self::OutgoingCalls(_)
-            | Self::Supertypes(_)
-            | Self::Subtypes(_)
-            | Self::Decorators(_)
-            | Self::RenameFiles(_) => None,
         }
     }
 

@@ -24,15 +24,6 @@ impl DecoratorScope {
     }
 }
 
-/// Request payload for decorator queries.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct DecoratorsRequest {
-    /// The query scope.
-    pub scope: DecoratorScope,
-    /// The decorator name filter.
-    pub name: Option<String>,
-}
-
 /// One decorator query item.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct DecoratorItem {
@@ -50,7 +41,16 @@ pub struct DecoratorItem {
     pub declaration: dir::DecoratorTarget,
 }
 
-/// Response payload for decorator queries.
+/// A decorators request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct DecoratorsRequest {
+    /// The query scope.
+    pub scope: DecoratorScope,
+    /// The decorator name filter.
+    pub name: Option<String>,
+}
+
+/// A decorators response.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct DecoratorsResponse {
     /// Matching decorators.
@@ -59,20 +59,16 @@ pub struct DecoratorsResponse {
 
 impl ProgramQueryContext<'_> {
     /// Search decorator entries visible to a program query.
-    pub fn decorators(
-        &self,
-        scope: &DecoratorScope,
-        name: Option<&str>,
-    ) -> QueryResult<Vec<DecoratorItem>> {
+    pub fn decorators(&self, request: DecoratorsRequest) -> QueryResult<DecoratorsResponse> {
         let mut decorators = Vec::new();
 
         // collect indexed decorator occurrences in the requested scope
-        for (profile_id, entry) in self.search_decorator_candidates(name)? {
+        for (profile_id, entry) in self.search_decorator_candidates(request.name.as_deref())? {
             let query_module = Module {
                 module_id: entry.decorator.module_id,
                 profile_id,
             };
-            if !scope.contains(query_module) {
+            if !request.scope.contains(query_module) {
                 continue;
             }
 
@@ -101,6 +97,6 @@ impl ProgramQueryContext<'_> {
             });
         }
 
-        Ok(decorators)
+        Ok(DecoratorsResponse { decorators })
     }
 }

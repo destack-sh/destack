@@ -4,14 +4,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::{ProgramQueryContext, QueryError, QueryResult, TypeItem};
 
-/// Request the direct subtypes of a type item.
+/// A subtypes request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SubtypesRequest {
     /// The type item to expand.
     pub item: TypeItem,
 }
 
-/// Response payload for subtype queries.
+/// A subtypes response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SubtypesResponse {
     /// Type hierarchy items.
@@ -20,7 +20,8 @@ pub struct SubtypesResponse {
 
 impl ProgramQueryContext<'_> {
     /// Return the direct subtypes of a type item.
-    pub fn subtypes(&self, item: &TypeItem) -> QueryResult<Vec<TypeItem>> {
+    pub fn subtypes(&self, request: SubtypesRequest) -> QueryResult<SubtypesResponse> {
+        let item = request.item;
         let symbol_id = item.symbol_id;
         let canonical_id = self
             .canonical_symbol(symbol_id)?
@@ -46,6 +47,6 @@ impl ProgramQueryContext<'_> {
         }
         items.sort_by(|left, right| left.order().cmp(&right.order()));
 
-        Ok(items)
+        Ok(SubtypesResponse { items })
     }
 }

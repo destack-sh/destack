@@ -3,26 +3,19 @@ use destack_repository::{Repository, Revision};
 use destack_source::ProfileId;
 
 use crate::{
-    CallItemResponse, CodeActionKind, CodeActionsResponse, CodeLensesResponse, DecoratorsResponse,
-    ExtractVariableResponse, FindReferencesResponse, FoldingRangesResponse,
-    GotoDeclarationResponse, GotoDefinitionResponse, GotoImplementationResponse,
-    GotoTypeDefinitionResponse, HighlightResponse, HoverResponse, IncomingCallsResponse,
-    InlayHintsResponse, InlineResponse, LinksResponse, OutgoingCallsResponse, OutlineResponse,
-    ProgramQueryContext, QueryError, QueryRequest, QueryResponse, QueryResult, RenameFilesResponse,
-    RenameResponse, RenameTargetResponse, SearchSymbolsResponse, SelectionRangesResponse,
-    SemanticTokensRangeResponse, SemanticTokensResponse, SignatureHelpResponse, SubtypesResponse,
-    SupertypesResponse, TypeItemResponse, rename_files, search_symbols,
+    CodeActionKind, ProgramQueryContext, QueryError, QueryRequest, QueryResponse, QueryResult,
+    rename_files, search_symbols,
 };
 
 impl QueryRequest {
     /// Return diagnostic artifacts read by this request.
     pub fn diagnostic_artifacts(&self) -> Vec<ArtifactKey> {
-        if let Self::CodeActions(params) = self
-            && params.context.includes(CodeActionKind::QuickFix)
+        if let Self::CodeActions(request) = self
+            && request.context.includes(CodeActionKind::QuickFix)
         {
             vec![ArtifactKey::dir_checked(
-                params.range.module.module_id,
-                params.range.module.profile_id,
+                request.range.module.module_id,
+                request.range.module.profile_id,
             )]
         } else {
             Vec::new()
@@ -39,21 +32,18 @@ impl QueryRequest {
     ) -> QueryResult<QueryResponse> {
         // execute requests that read every selected program
         match self {
-            Self::SearchSymbols(params) => {
+            Self::SearchSymbols(request) => {
                 let programs = Self::programs(
                     repository,
                     revision,
                     selected_profile_ids,
                     require_artifacts,
                 )?;
-                let symbols =
-                    search_symbols(&programs, &params.query, params.max_results as usize)?;
+                let response = search_symbols(request, &programs)?;
 
-                Ok(QueryResponse::SearchSymbols(SearchSymbolsResponse {
-                    symbols,
-                }))
+                Ok(QueryResponse::SearchSymbols(response))
             }
-            Self::RenameFiles(params) => {
+            Self::RenameFiles(request) => {
                 let programs = Self::programs(
                     repository,
                     revision,
@@ -64,15 +54,10 @@ impl QueryRequest {
                 for program in &programs {
                     modules.extend(program.authored_modules()?);
                 }
-                let edit = rename_files(
-                    repository,
-                    revision,
-                    &modules,
-                    &params.renames,
-                    require_artifacts,
-                )?;
+                let response =
+                    rename_files(request, repository, revision, &modules, require_artifacts)?;
 
-                Ok(QueryResponse::RenameFiles(RenameFilesResponse { edit }))
+                Ok(QueryResponse::RenameFiles(response))
             }
 
             // execute every other request against its selected program
@@ -86,261 +71,182 @@ impl QueryRequest {
                 let program =
                     ProgramQueryContext::new(repository, revision, profile_id, require_artifacts)?;
 
-                request.execute_program(&program, repository, revision)
+                request.execute_program(&program)
             }
         }
     }
 
     /// Execute this request against its selected program.
-    fn execute_program(
-        self,
-        program: &ProgramQueryContext<'_>,
-        repository: &Repository,
-        revision: Revision,
-    ) -> QueryResult<QueryResponse> {
+    fn execute_program(self, program: &ProgramQueryContext<'_>) -> QueryResult<QueryResponse> {
         let response = match self {
-            Self::Completion(params) => {
-                let context = program.module(params.position.module.module_id)?;
-                let response = context.completion(
-                    program,
-                    params.position.file_id,
-                    params.position.offset,
-                    params.trigger,
-                    params.include_auto_imports,
-                )?;
+            Self::Completion(request) => {
+                let context = program.module(request.position.module.module_id)?;
+                let response = context.completion(request, program)?;
 
                 QueryResponse::Completion(response)
             }
-            Self::Hover(params) => {
-                let context = program.module(params.position.module.module_id)?;
-                let hover =
-                    context.hover(program, params.position.file_id, params.position.offset)?;
+            Self::Hover(request) => {
+                let context = program.module(request.position.module.module_id)?;
+                let response = context.hover(request, program)?;
 
-                QueryResponse::Hover(HoverResponse { hover })
+                QueryResponse::Hover(response)
             }
-            Self::SignatureHelp(params) => {
-                let context = program.module(params.position.module.module_id)?;
-                let help = context.signature_help(
-                    program,
-                    params.position.file_id,
-                    params.position.offset,
-                )?;
+            Self::SignatureHelp(request) => {
+                let context = program.module(request.position.module.module_id)?;
+                let response = context.signature_help(request, program)?;
 
-                QueryResponse::SignatureHelp(SignatureHelpResponse { help })
+                QueryResponse::SignatureHelp(response)
             }
-            Self::InlayHints(params) => {
-                let context = program.module(params.range.module.module_id)?;
-                let hints = context.inlay_hints(
-                    program,
-                    params.range.span,
-                    params.type_hints,
-                    params.parameter_hints,
-                )?;
+            Self::InlayHints(request) => {
+                let context = program.module(request.range.module.module_id)?;
+                let response = context.inlay_hints(request, program)?;
 
-                QueryResponse::InlayHints(InlayHintsResponse { hints })
+                QueryResponse::InlayHints(response)
             }
-            Self::CodeLenses(params) => {
-                let context = program.module(params.module.module_id)?;
-                let lenses = context.code_lenses(program, params.file_id)?;
+            Self::CodeLenses(request) => {
+                let context = program.module(request.module.module_id)?;
+                let response = context.code_lenses(request, program)?;
 
-                QueryResponse::CodeLenses(CodeLensesResponse { lenses })
+                QueryResponse::CodeLenses(response)
             }
-            Self::FoldingRanges(params) => {
-                let context = program.module(params.module.module_id)?;
-                let ranges = context.folding_ranges(params.file_id)?;
+            Self::FoldingRanges(request) => {
+                let context = program.module(request.module.module_id)?;
+                let response = context.folding_ranges(request)?;
 
-                QueryResponse::FoldingRanges(FoldingRangesResponse { ranges })
+                QueryResponse::FoldingRanges(response)
             }
-            Self::SemanticTokens(params) => {
-                let context = program.module(params.module.module_id)?;
-                let tokens = context.semantic_tokens(program, params.file_id)?;
+            Self::SemanticTokens(request) => {
+                let context = program.module(request.module.module_id)?;
+                let response = context.semantic_tokens(request, program)?;
 
-                QueryResponse::SemanticTokens(SemanticTokensResponse { tokens })
+                QueryResponse::SemanticTokens(response)
             }
-            Self::SemanticTokensRange(params) => {
-                let context = program.module(params.range.module.module_id)?;
-                let tokens = context.semantic_tokens_range(program, params.range.span)?;
+            Self::SemanticTokensRange(request) => {
+                let context = program.module(request.range.module.module_id)?;
+                let response = context.semantic_tokens_range(request, program)?;
 
-                QueryResponse::SemanticTokensRange(SemanticTokensRangeResponse { tokens })
+                QueryResponse::SemanticTokensRange(response)
             }
-            Self::Outline(params) => {
-                let context = program.module(params.module.module_id)?;
-                let symbols = context.outline(program, params.file_id)?;
+            Self::Outline(request) => {
+                let context = program.module(request.module.module_id)?;
+                let response = context.outline(request, program)?;
 
-                QueryResponse::Outline(OutlineResponse { symbols })
+                QueryResponse::Outline(response)
             }
-            Self::Links(params) => {
-                let context = program.module(params.module.module_id)?;
-                let links = context.links(params.file_id)?;
+            Self::Links(request) => {
+                let context = program.module(request.module.module_id)?;
+                let response = context.links(request)?;
 
-                QueryResponse::Links(LinksResponse { links })
+                QueryResponse::Links(response)
             }
-            Self::Highlight(params) => {
-                let context = program.module(params.position.module.module_id)?;
-                let highlights =
-                    context.highlight(program, params.position.file_id, params.position.offset)?;
+            Self::Highlight(request) => {
+                let context = program.module(request.position.module.module_id)?;
+                let response = context.highlight(request, program)?;
 
-                QueryResponse::Highlight(HighlightResponse { highlights })
+                QueryResponse::Highlight(response)
             }
-            Self::SelectionRanges(params) => {
-                let context = program.module(params.module.module_id)?;
-                let ranges = context.selection_ranges(params.file_id, &params.offsets)?;
+            Self::SelectionRanges(request) => {
+                let context = program.module(request.module.module_id)?;
+                let response = context.selection_ranges(request)?;
 
-                QueryResponse::SelectionRanges(SelectionRangesResponse { ranges })
+                QueryResponse::SelectionRanges(response)
             }
-            Self::GotoDefinition(params) => {
-                let context = program.module(params.position.module.module_id)?;
-                let targets = context.goto_definition(
-                    program,
-                    params.position.file_id,
-                    params.position.offset,
-                )?;
+            Self::GotoDefinition(request) => {
+                let context = program.module(request.position.module.module_id)?;
+                let response = context.goto_definition(request, program)?;
 
-                QueryResponse::GotoDefinition(GotoDefinitionResponse { targets })
+                QueryResponse::GotoDefinition(response)
             }
-            Self::GotoDeclaration(params) => {
-                let context = program.module(params.position.module.module_id)?;
-                let targets = context.goto_declaration(
-                    program,
-                    params.position.file_id,
-                    params.position.offset,
-                )?;
+            Self::GotoDeclaration(request) => {
+                let context = program.module(request.position.module.module_id)?;
+                let response = context.goto_declaration(request, program)?;
 
-                QueryResponse::GotoDeclaration(GotoDeclarationResponse { targets })
+                QueryResponse::GotoDeclaration(response)
             }
-            Self::GotoTypeDefinition(params) => {
-                let context = program.module(params.position.module.module_id)?;
-                let targets = context.goto_type_definition(
-                    program,
-                    params.position.file_id,
-                    params.position.offset,
-                )?;
+            Self::GotoTypeDefinition(request) => {
+                let context = program.module(request.position.module.module_id)?;
+                let response = context.goto_type_definition(request, program)?;
 
-                QueryResponse::GotoTypeDefinition(GotoTypeDefinitionResponse { targets })
+                QueryResponse::GotoTypeDefinition(response)
             }
-            Self::GotoImplementation(params) => {
-                let context = program.module(params.position.module.module_id)?;
-                let targets = context.goto_implementation(
-                    program,
-                    params.position.file_id,
-                    params.position.offset,
-                )?;
+            Self::GotoImplementation(request) => {
+                let context = program.module(request.position.module.module_id)?;
+                let response = context.goto_implementation(request, program)?;
 
-                QueryResponse::GotoImplementation(GotoImplementationResponse { targets })
+                QueryResponse::GotoImplementation(response)
             }
-            Self::FindReferences(params) => {
-                let context = program.module(params.position.module.module_id)?;
-                let references = context.find_references(
-                    program,
-                    params.position.file_id,
-                    params.position.offset,
-                    params.include_declaration,
-                )?;
+            Self::FindReferences(request) => {
+                let context = program.module(request.position.module.module_id)?;
+                let response = context.find_references(request, program)?;
 
-                QueryResponse::FindReferences(FindReferencesResponse { references })
+                QueryResponse::FindReferences(response)
             }
-            Self::CallItem(params) => {
-                let context = program.module(params.position.module.module_id)?;
-                let item =
-                    context.call_item(program, params.position.file_id, params.position.offset)?;
+            Self::CallItem(request) => {
+                let context = program.module(request.position.module.module_id)?;
+                let response = context.call_item(request, program)?;
 
-                QueryResponse::CallItem(CallItemResponse { item })
+                QueryResponse::CallItem(response)
             }
-            Self::IncomingCalls(params) => {
-                let calls = program.incoming_calls(&params.item)?;
+            Self::IncomingCalls(request) => {
+                let response = program.incoming_calls(request)?;
 
-                QueryResponse::IncomingCalls(IncomingCallsResponse { calls })
+                QueryResponse::IncomingCalls(response)
             }
-            Self::OutgoingCalls(params) => {
-                let calls = program.outgoing_calls(&params.item)?;
+            Self::OutgoingCalls(request) => {
+                let response = program.outgoing_calls(request)?;
 
-                QueryResponse::OutgoingCalls(OutgoingCallsResponse { calls })
+                QueryResponse::OutgoingCalls(response)
             }
-            Self::TypeItem(params) => {
-                let context = program.module(params.position.module.module_id)?;
-                let item =
-                    context.type_item(program, params.position.file_id, params.position.offset)?;
+            Self::TypeItem(request) => {
+                let context = program.module(request.position.module.module_id)?;
+                let response = context.type_item(request, program)?;
 
-                QueryResponse::TypeItem(TypeItemResponse { item })
+                QueryResponse::TypeItem(response)
             }
-            Self::Supertypes(params) => {
-                let items = program.supertypes(&params.item)?;
+            Self::Supertypes(request) => {
+                let response = program.supertypes(request)?;
 
-                QueryResponse::Supertypes(SupertypesResponse { items })
+                QueryResponse::Supertypes(response)
             }
-            Self::Subtypes(params) => {
-                let items = program.subtypes(&params.item)?;
+            Self::Subtypes(request) => {
+                let response = program.subtypes(request)?;
 
-                QueryResponse::Subtypes(SubtypesResponse { items })
+                QueryResponse::Subtypes(response)
             }
-            Self::Decorators(params) => {
-                let decorators = program.decorators(&params.scope, params.name.as_deref())?;
+            Self::Decorators(request) => {
+                let response = program.decorators(request)?;
 
-                QueryResponse::Decorators(DecoratorsResponse { decorators })
+                QueryResponse::Decorators(response)
             }
-            Self::RenameTarget(params) => {
-                let context = program.module(params.position.module.module_id)?;
-                let target = context.rename_target(
-                    program,
-                    params.position.file_id,
-                    params.position.offset,
-                )?;
+            Self::RenameTarget(request) => {
+                let context = program.module(request.position.module.module_id)?;
+                let response = context.rename_target(request, program)?;
 
-                QueryResponse::RenameTarget(RenameTargetResponse { target })
+                QueryResponse::RenameTarget(response)
             }
-            Self::Rename(params) => {
-                let context = program.module(params.position.module.module_id)?;
-                let edit = context.rename(
-                    program,
-                    params.position.file_id,
-                    params.position.offset,
-                    &params.new_name,
-                )?;
+            Self::Rename(request) => {
+                let context = program.module(request.position.module.module_id)?;
+                let response = context.rename(request, program)?;
 
-                QueryResponse::Rename(RenameResponse { edit })
+                QueryResponse::Rename(response)
             }
-            Self::ExtractVariable(params) => {
-                let context = program.module(params.range.module.module_id)?;
-                let edit =
-                    context.extract_variable(program, params.range.span, &params.new_name)?;
+            Self::ExtractVariable(request) => {
+                let context = program.module(request.range.module.module_id)?;
+                let response = context.extract_variable(request, program)?;
 
-                QueryResponse::ExtractVariable(ExtractVariableResponse { edit })
+                QueryResponse::ExtractVariable(response)
             }
-            Self::Inline(params) => {
-                let context = program.module(params.position.module.module_id)?;
-                let edit =
-                    context.inline(program, params.position.file_id, params.position.offset)?;
+            Self::Inline(request) => {
+                let context = program.module(request.position.module.module_id)?;
+                let response = context.inline(request, program)?;
 
-                QueryResponse::Inline(InlineResponse { edit })
+                QueryResponse::Inline(response)
             }
-            Self::CodeActions(params) => {
-                let context = program.module(params.range.module.module_id)?;
-                let diagnostics = if params.context.includes(CodeActionKind::QuickFix) {
-                    let artifact = ArtifactKey::dir_checked(
-                        params.range.module.module_id,
-                        params.range.module.profile_id,
-                    );
-                    let diagnostics = repository.diagnostics_for_keys(revision, &[artifact])?;
-                    let mut diagnostics = diagnostics.group_by_file();
-                    let mut file_diagnostics = Vec::new();
+            Self::CodeActions(request) => {
+                let context = program.module(request.range.module.module_id)?;
+                let response = context.code_actions(request, program)?;
 
-                    // retain diagnostics emitted for this exact source file
-                    if let Some(diagnostics) = diagnostics.remove(&params.range.span.file) {
-                        file_diagnostics = diagnostics;
-                    }
-
-                    file_diagnostics
-                } else {
-                    Vec::new()
-                };
-                let actions = context.code_actions(
-                    program,
-                    params.range.span,
-                    &diagnostics,
-                    &params.context,
-                )?;
-
-                QueryResponse::CodeActions(CodeActionsResponse { actions })
+                QueryResponse::CodeActions(response)
             }
 
             Self::SearchSymbols(_) | Self::RenameFiles(_) => {

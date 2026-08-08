@@ -57,7 +57,7 @@ impl InlayHint {
     }
 }
 
-/// Request inlay hints for a range in a document.
+/// An inlay hints request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct InlayHintsRequest {
     /// The queried range.
@@ -68,7 +68,7 @@ pub struct InlayHintsRequest {
     pub parameter_hints: bool,
 }
 
-/// Response payload for inlay hints queries.
+/// An inlay hints response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct InlayHintsResponse {
     /// Inlay hints.
@@ -79,18 +79,17 @@ impl ModuleQueryContext<'_> {
     /// Return inlay hints for a range in a file.
     pub fn inlay_hints(
         &self,
+        request: InlayHintsRequest,
         program: &ProgramQueryContext<'_>,
-        range: Span,
-        type_hints: bool,
-        parameter_hints: bool,
-    ) -> QueryResult<Vec<InlayHint>> {
+    ) -> QueryResult<InlayHintsResponse> {
+        let range = request.range.span;
         let mut hints = Vec::new();
 
         // collect requested hint families
-        if type_hints {
+        if request.type_hints {
             self.collect_type_inlay_hints(program, range, &mut hints)?;
         }
-        if parameter_hints {
+        if request.parameter_hints {
             self.collect_parameter_inlay_hints(program, range, &mut hints)?;
         }
 
@@ -102,7 +101,7 @@ impl ModuleQueryContext<'_> {
                 .then(left.label.cmp(&right.label))
         });
 
-        Ok(hints)
+        Ok(InlayHintsResponse { hints })
     }
 
     /// Collect inferred type inlay hints.

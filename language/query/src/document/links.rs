@@ -22,7 +22,7 @@ impl Link {
     }
 }
 
-/// Request links for one source file.
+/// A links request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct LinksRequest {
     /// The queried module profile.
@@ -31,7 +31,7 @@ pub struct LinksRequest {
     pub file_id: FileId,
 }
 
-/// Response payload for links queries.
+/// A links response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct LinksResponse {
     /// Links.
@@ -40,7 +40,8 @@ pub struct LinksResponse {
 
 impl ModuleQueryContext<'_> {
     /// Return links for a file.
-    pub fn links(&self, file_id: FileId) -> QueryResult<Vec<Link>> {
+    pub fn links(&self, request: LinksRequest) -> QueryResult<LinksResponse> {
+        let file_id = request.file_id;
         let view = self.view()?;
         let mut links = Vec::new();
 
@@ -79,6 +80,6 @@ impl ModuleQueryContext<'_> {
 
         links.sort_by_key(|link| (link.range.start, link.range.end));
 
-        Ok(links)
+        Ok(LinksResponse { links })
     }
 }

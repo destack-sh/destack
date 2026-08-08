@@ -39,14 +39,14 @@ impl HighlightKind {
     }
 }
 
-/// Request highlights at a cursor position.
+/// A highlight request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct HighlightRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
-/// Response payload for highlight queries.
+/// A highlight response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct HighlightResponse {
     /// Highlights.
@@ -59,12 +59,16 @@ impl ModuleQueryContext<'_> {
     /// Use references to find occurrences in other files.
     pub fn highlight(
         &self,
+        request: HighlightRequest,
         program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Vec<Highlight>> {
-        let Some(occurrence) = self.declaration_at_offset(program, file_id, offset)? else {
-            return Ok(Vec::new());
+    ) -> QueryResult<HighlightResponse> {
+        let position = request.position;
+        let file_id = position.file_id;
+        let Some(occurrence) = self.declaration_at_offset(program, file_id, position.offset)?
+        else {
+            return Ok(HighlightResponse {
+                highlights: Vec::new(),
+            });
         };
 
         // preserve one explicit local import alias
@@ -119,7 +123,7 @@ impl ModuleQueryContext<'_> {
             })
             .collect();
 
-        Ok(highlights)
+        Ok(HighlightResponse { highlights })
     }
 
     /// Insert or merge one highlighted source occurrence.

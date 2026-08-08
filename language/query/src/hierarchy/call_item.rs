@@ -36,14 +36,14 @@ pub enum CallItemKind {
     Constructor,
 }
 
-/// Request the call item at a cursor position.
+/// A call item request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CallItemRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
-/// Response payload for call item queries.
+/// A call item response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CallItemResponse {
     /// Call item, if available.
@@ -54,24 +54,31 @@ impl ModuleQueryContext<'_> {
     /// Return a call item at one offset.
     pub fn call_item(
         &self,
+        request: CallItemRequest,
         program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Option<CallItem>> {
+    ) -> QueryResult<CallItemResponse> {
+        let position = request.position;
+
         // use only the exact callable selection at a call head
-        if let Some(selection) = self.selected_callable_at_offset(file_id, offset)? {
-            return CallItem::from_selection(program, selection);
+        if let Some(selection) =
+            self.selected_callable_at_offset(position.file_id, position.offset)?
+        {
+            let item = CallItem::from_selection(program, selection)?;
+
+            return Ok(CallItemResponse { item });
         }
 
         // otherwise classify the exact symbol occurrence
-        let Some(symbol_at) = self.symbol_at_offset(program, file_id, offset)? else {
-            return Ok(None);
+        let Some(symbol_at) = self.symbol_at_offset(program, position.file_id, position.offset)?
+        else {
+            return Ok(CallItemResponse { item: None });
         };
         let Some(symbol_id) = symbol_at.symbol() else {
-            return Ok(None);
+            return Ok(CallItemResponse { item: None });
         };
+        let item = CallItem::from_symbol(program, symbol_id)?;
 
-        CallItem::from_symbol(program, symbol_id)
+        Ok(CallItemResponse { item })
     }
 }
 

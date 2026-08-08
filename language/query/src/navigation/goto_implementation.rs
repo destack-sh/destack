@@ -1,7 +1,6 @@
 use destack_dir as dir;
 use destack_dir::HeritageKind;
 use destack_serde::Reflect;
-use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -9,14 +8,14 @@ use crate::{
     QueryResult, sort_and_dedup_navigation_targets,
 };
 
-/// Request goto implementation at a cursor position.
+/// A goto implementation request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GotoImplementationRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
-/// Response payload for goto implementation queries.
+/// A goto implementation response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GotoImplementationResponse {
     /// Implementation targets.
@@ -27,13 +26,16 @@ impl ModuleQueryContext<'_> {
     /// Find implementations of the symbol at the given position.
     pub fn goto_implementation(
         &self,
+        request: GotoImplementationRequest,
         program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Vec<NavigationTarget>> {
+    ) -> QueryResult<GotoImplementationResponse> {
         // FUGU #Incomplete: index MemberConformance for implementations and overrides
-        let Some(symbol) = self.symbol_at_offset(program, file_id, offset)? else {
-            return Ok(Vec::new());
+        let position = request.position;
+        let Some(symbol) = self.symbol_at_offset(program, position.file_id, position.offset)?
+        else {
+            return Ok(GotoImplementationResponse {
+                targets: Vec::new(),
+            });
         };
         let origin = QueryRange {
             module: self.module(),
@@ -73,6 +75,6 @@ impl ModuleQueryContext<'_> {
 
         sort_and_dedup_navigation_targets(&mut targets);
 
-        Ok(targets)
+        Ok(GotoImplementationResponse { targets })
     }
 }

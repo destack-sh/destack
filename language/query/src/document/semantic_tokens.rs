@@ -171,7 +171,7 @@ impl SemanticToken {
     }
 }
 
-/// Request semantic tokens for a document.
+/// A semantic tokens request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SemanticTokensRequest {
     /// The queried module profile.
@@ -180,7 +180,7 @@ pub struct SemanticTokensRequest {
     pub file_id: FileId,
 }
 
-/// Response payload for semantic tokens queries.
+/// A semantic tokens response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SemanticTokensResponse {
     /// Semantic tokens.
@@ -191,10 +191,12 @@ impl ModuleQueryContext<'_> {
     /// Return semantic tokens for a module file.
     pub fn semantic_tokens(
         &self,
+        request: SemanticTokensRequest,
         program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-    ) -> QueryResult<Vec<SemanticToken>> {
-        SemanticTokens::collect(self, program, file_id)
+    ) -> QueryResult<SemanticTokensResponse> {
+        let tokens = SemanticTokens::collect(self, program, request.file_id)?;
+
+        Ok(SemanticTokensResponse { tokens })
     }
 }
 

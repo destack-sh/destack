@@ -1,6 +1,5 @@
 use destack_dir as dir;
 use destack_serde::Reflect;
-use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -39,14 +38,14 @@ pub struct SignatureHelp {
     pub active_parameter: Option<usize>,
 }
 
-/// Request signature help at a cursor position.
+/// A signature help request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SignatureHelpRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
-/// Response payload for signature help queries.
+/// A signature help response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SignatureHelpResponse {
     /// Signature help, if available.
@@ -57,11 +56,13 @@ impl ModuleQueryContext<'_> {
     /// Return signature help for the innermost selected call at one offset.
     pub fn signature_help(
         &self,
+        request: SignatureHelpRequest,
         program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Option<SignatureHelp>> {
+    ) -> QueryResult<SignatureHelpResponse> {
         // FUGU #Incomplete: DirChecked must retain call bindings through cursor gaps
+        let position = request.position;
+        let file_id = position.file_id;
+        let offset = position.offset;
         let view = self.view()?;
         let enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
 
@@ -98,7 +99,7 @@ impl ModuleQueryContext<'_> {
                         )
                     } else {
                         let Some(resolution) = call else {
-                            return Ok(None);
+                            return Ok(SignatureHelpResponse { help: None });
                         };
                         let signatures = self.call_signature_items(program, *left, resolution)?;
 
@@ -112,7 +113,7 @@ impl ModuleQueryContext<'_> {
                 dir::Expression::New { arguments, .. } => {
                     let Some(resolution) = self.resolutions()?.construct_resolution(global_id)
                     else {
-                        return Ok(None);
+                        return Ok(SignatureHelpResponse { help: None });
                     };
                     let signatures = self.construct_signature_items(program, resolution)?;
 
@@ -130,14 +131,16 @@ impl ModuleQueryContext<'_> {
                 None => None,
             };
 
-            return Ok(Some(SignatureHelp {
+            let help = SignatureHelp {
                 signatures,
                 active_signature: 0,
                 active_parameter,
-            }));
+            };
+
+            return Ok(SignatureHelpResponse { help: Some(help) });
         }
 
-        Ok(None)
+        Ok(SignatureHelpResponse { help: None })
     }
 
     /// Format every statically selected symbol call target.

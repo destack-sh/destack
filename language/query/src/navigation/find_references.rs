@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_serde::Reflect;
-use destack_source::{FileId, Span};
+use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -16,7 +16,7 @@ pub struct ReferenceOccurrence {
     pub symbols: Vec<dir::GlobalSymbolId>,
 }
 
-/// Request find references at a cursor position.
+/// A find references request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FindReferencesRequest {
     /// The queried position.
@@ -25,7 +25,7 @@ pub struct FindReferencesRequest {
     pub include_declaration: bool,
 }
 
-/// Response payload for find references queries.
+/// A find references response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FindReferencesResponse {
     /// Reference occurrences.
@@ -38,14 +38,17 @@ impl ModuleQueryContext<'_> {
     /// Optionally includes the declaration in the results.
     pub fn find_references(
         &self,
+        request: FindReferencesRequest,
         program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
-        include_declaration: bool,
-    ) -> QueryResult<Vec<ReferenceOccurrence>> {
+    ) -> QueryResult<FindReferencesResponse> {
         // read the exact local alias or final checked identities at the cursor
-        let Some(occurrence) = self.reference_at_offset(program, file_id, offset)? else {
-            return Ok(Vec::new());
+        let position = request.position;
+        let Some(occurrence) =
+            self.reference_at_offset(program, position.file_id, position.offset)?
+        else {
+            return Ok(FindReferencesResponse {
+                references: Vec::new(),
+            });
         };
         let is_local_alias = match occurrence.symbol() {
             Some(symbol) => self.is_local_import_alias(symbol)?,
@@ -63,10 +66,19 @@ impl ModuleQueryContext<'_> {
             symbols
         };
         if symbols.is_empty() {
-            return Ok(Vec::new());
+            return Ok(FindReferencesResponse {
+                references: Vec::new(),
+            });
         }
 
-        self.find_symbol_references(program, &symbols, include_declaration, is_local_alias)
+        let references = self.find_symbol_references(
+            program,
+            &symbols,
+            request.include_declaration,
+            is_local_alias,
+        )?;
+
+        Ok(FindReferencesResponse { references })
     }
 
     /// Find all references to symbols across all modules.

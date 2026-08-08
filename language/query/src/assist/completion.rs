@@ -2,7 +2,7 @@ use std::mem;
 
 use destack_dir as dir;
 use destack_serde::Reflect;
-use destack_source::{FileId, Patch, Span};
+use destack_source::{Patch, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::complete::{CompletionCollector, CompletionCursor, rank_completions};
@@ -70,23 +70,6 @@ pub enum CompletionItemKind {
     ValueParameter,
     /// Builtin type.
     BuiltinType,
-}
-
-/// The origin bucket for one completion candidate.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub(crate) enum CompletionOrigin {
-    /// A context-shaped completion, such as an expected object-literal field.
-    Contextual,
-    /// A local or in-scope declaration.
-    Local,
-    /// A builtin or ambient candidate.
-    Builtin,
-    /// A candidate that requires a new import.
-    AutoImport,
-    /// A language keyword candidate.
-    Keyword,
-    /// A member of the completed receiver.
-    Member,
 }
 
 impl From<dir::SymbolKind> for CompletionItemKind {
@@ -181,6 +164,104 @@ pub struct CompletionItem {
     pub is_auto_import: bool,
     /// Matched character positions in the label.
     pub match_positions: Vec<usize>,
+}
+
+/// Trigger character that caused the completion.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum CompletionTrigger {
+    /// Invoked manually or automatically.
+    Invoked,
+    /// Triggered by one character, for example `.`.
+    Character(char),
+    /// Retriggered for incomplete results.
+    Incomplete,
+}
+
+/// A completion request.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct CompletionRequest {
+    /// The queried position.
+    pub position: QueryPosition,
+    /// The trigger that initiated completion.
+    pub trigger: CompletionTrigger,
+    /// Whether to include auto import completions.
+    pub include_auto_imports: bool,
+}
+
+/// A completion response.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct CompletionResponse {
+    /// Completion items.
+    pub items: Vec<CompletionItem>,
+    /// Whether another request may produce more items.
+    pub is_incomplete: bool,
+}
+
+impl ModuleQueryContext<'_> {
+    /// Return completion items at one position.
+    pub fn completion(
+        &self,
+        request: CompletionRequest,
+        program: &ProgramQueryContext<'_>,
+    ) -> QueryResult<CompletionResponse> {
+        let position = request.position;
+        let file_id = position.file_id;
+        let offset = position.offset;
+        let Some(CompletionCursor { context, token }) =
+            self.classify_completion(file_id, offset)?
+        else {
+            return Ok(CompletionResponse {
+                items: Vec::new(),
+                is_incomplete: false,
+            });
+        };
+
+        // exclude bindings declared by the pattern under initialization
+        let initializing_pattern = self.initializing_pattern_at_offset(file_id, offset)?;
+
+        // collect and rank candidates for the selected context
+        let collector = CompletionCollector::new(self, program, file_id, initializing_pattern);
+        let completions = collector.collect(
+            request.trigger,
+            &context,
+            token.as_ref(),
+            request.include_auto_imports,
+        )?;
+        let is_incomplete = completions.is_incomplete;
+        let completions = rank_completions(completions.items, &context, token.as_ref());
+
+        // resolve only candidates returned to the editor
+        let replacement_start = token.as_ref().map_or(offset, |token| token.start);
+        let replacement_end = token.as_ref().map_or(offset, |token| token.end);
+        let replacement = Span::new(file_id, replacement_start, replacement_end);
+        let mut items = Vec::with_capacity(completions.len());
+        for completion in completions {
+            let completion = collector.resolve(completion)?;
+            items.push(completion.into_item(replacement)?);
+        }
+
+        Ok(CompletionResponse {
+            items,
+            is_incomplete,
+        })
+    }
+}
+
+/// The origin bucket for one completion candidate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub(crate) enum CompletionOrigin {
+    /// A context-shaped completion, such as an expected object-literal field.
+    Contextual,
+    /// A local or in-scope declaration.
+    Local,
+    /// A builtin or ambient candidate.
+    Builtin,
+    /// A candidate that requires a new import.
+    AutoImport,
+    /// A language keyword candidate.
+    Keyword,
+    /// A member of the completed receiver.
+    Member,
 }
 
 /// One completion candidate before ranking and source edit construction.
@@ -283,83 +364,6 @@ pub(crate) struct CompletionCandidates {
     pub(crate) items: Vec<CompletionCandidate>,
     /// Whether another request may produce more candidates.
     pub(crate) is_incomplete: bool,
-}
-
-/// Trigger character that caused the completion.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum CompletionTrigger {
-    /// Invoked manually or automatically.
-    Invoked,
-    /// Triggered by one character, for example `.`.
-    Character(char),
-    /// Retriggered for incomplete results.
-    Incomplete,
-}
-
-/// Request completion items at a cursor position.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct CompletionRequest {
-    /// The queried position.
-    pub position: QueryPosition,
-    /// The trigger that initiated completion.
-    pub trigger: CompletionTrigger,
-    /// Whether to include auto import completions.
-    pub include_auto_imports: bool,
-}
-
-/// Response payload for completion queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct CompletionResponse {
-    /// Completion items.
-    pub items: Vec<CompletionItem>,
-    /// Whether another request may produce more items.
-    pub is_incomplete: bool,
-}
-
-impl ModuleQueryContext<'_> {
-    /// Return completion items at one position.
-    pub fn completion(
-        &self,
-        program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
-        trigger: CompletionTrigger,
-        include_auto_imports: bool,
-    ) -> QueryResult<CompletionResponse> {
-        let Some(CompletionCursor { context, token }) =
-            self.classify_completion(file_id, offset)?
-        else {
-            return Ok(CompletionResponse {
-                items: Vec::new(),
-                is_incomplete: false,
-            });
-        };
-
-        // exclude bindings declared by the pattern under initialization
-        let initializing_pattern = self.initializing_pattern_at_offset(file_id, offset)?;
-
-        // collect and rank candidates for the selected context
-        let collector = CompletionCollector::new(self, program, file_id, initializing_pattern);
-        let completions =
-            collector.collect(trigger, &context, token.as_ref(), include_auto_imports)?;
-        let is_incomplete = completions.is_incomplete;
-        let completions = rank_completions(completions.items, &context, token.as_ref());
-
-        // resolve only candidates returned to the editor
-        let replacement_start = token.as_ref().map_or(offset, |token| token.start);
-        let replacement_end = token.as_ref().map_or(offset, |token| token.end);
-        let replacement = Span::new(file_id, replacement_start, replacement_end);
-        let mut items = Vec::with_capacity(completions.len());
-        for completion in completions {
-            let completion = collector.resolve(completion)?;
-            items.push(completion.into_item(replacement)?);
-        }
-
-        Ok(CompletionResponse {
-            items,
-            is_incomplete,
-        })
-    }
 }
 
 impl CompletionCandidate {

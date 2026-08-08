@@ -1,6 +1,5 @@
 use destack_dir as dir;
 use destack_serde::Reflect;
-use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -8,14 +7,14 @@ use crate::{
     QueryRange, QueryResult, sort_and_dedup_navigation_targets,
 };
 
-/// Request goto type definition at a cursor position.
+/// A goto type definition request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GotoTypeDefinitionRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
-/// Response payload for goto type definition queries.
+/// A goto type definition response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GotoTypeDefinitionResponse {
     /// Type definition targets.
@@ -26,17 +25,19 @@ impl ModuleQueryContext<'_> {
     /// Find the type definition of the symbol at one position.
     pub fn goto_type_definition(
         &self,
+        request: GotoTypeDefinitionRequest,
         program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Vec<NavigationTarget>> {
-        let occurrence = self.symbol_at_offset(program, file_id, offset)?;
+    ) -> QueryResult<GotoTypeDefinitionResponse> {
+        let position = request.position;
+        let occurrence = self.symbol_at_offset(program, position.file_id, position.offset)?;
         let (span, symbols, type_id) = if let Some(occurrence) = occurrence {
             (occurrence.span, occurrence.symbols, occurrence.type_id)
-        } else if let Some(occurrence) = self.type_at_offset(file_id, offset)? {
+        } else if let Some(occurrence) = self.type_at_offset(position.file_id, position.offset)? {
             (occurrence.span, Vec::new(), Some(occurrence.type_id))
         } else {
-            return Ok(Vec::new());
+            return Ok(GotoTypeDefinitionResponse {
+                targets: Vec::new(),
+            });
         };
         let origin = QueryRange {
             module: self.module(),
@@ -94,7 +95,7 @@ impl ModuleQueryContext<'_> {
 
         sort_and_dedup_navigation_targets(&mut targets);
 
-        Ok(targets)
+        Ok(GotoTypeDefinitionResponse { targets })
     }
 
     /// Return nominal declarations beneath checked type forms.

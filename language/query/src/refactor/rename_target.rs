@@ -1,6 +1,5 @@
 use destack_dir as dir;
 use destack_serde::Reflect;
-use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
 use crate::{ModuleQueryContext, ProgramQueryContext, QueryPosition, QueryResult, Target};
@@ -16,14 +15,14 @@ pub struct RenameTarget {
     pub placeholder: String,
 }
 
-/// Request the rename target at a cursor position.
+/// A rename target request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct RenameTargetRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
-/// Response payload for rename target queries.
+/// A rename target response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct RenameTargetResponse {
     /// Rename target, if available.
@@ -34,19 +33,24 @@ impl ModuleQueryContext<'_> {
     /// Return the rename target at the given position.
     pub fn rename_target(
         &self,
+        request: RenameTargetRequest,
         program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Option<RenameTarget>> {
-        let Some(selection) = self.resolve_rename_target(program, file_id, offset)? else {
-            return Ok(None);
+    ) -> QueryResult<RenameTargetResponse> {
+        let position = request.position;
+        let Some(selection) =
+            self.resolve_rename_target(program, position.file_id, position.offset)?
+        else {
+            return Ok(RenameTargetResponse { target: None });
         };
         let target = Target::new(self.module(), selection.occurrence.span);
-
-        Ok(Some(RenameTarget {
+        let target = RenameTarget {
             target,
             symbols: selection.symbols,
             placeholder: selection.placeholder,
-        }))
+        };
+
+        Ok(RenameTargetResponse {
+            target: Some(target),
+        })
     }
 }

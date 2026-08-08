@@ -1,5 +1,4 @@
 use destack_serde::Reflect;
-use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -7,14 +6,14 @@ use crate::{
     QueryResult, sort_and_dedup_navigation_targets,
 };
 
-/// Request goto declaration at a cursor position.
+/// A goto declaration request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GotoDeclarationRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
-/// Response payload for goto declaration queries.
+/// A goto declaration response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GotoDeclarationResponse {
     /// Declaration targets.
@@ -25,12 +24,16 @@ impl ModuleQueryContext<'_> {
     /// Find the declaration of the symbol at one position.
     pub fn goto_declaration(
         &self,
+        request: GotoDeclarationRequest,
         program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Vec<NavigationTarget>> {
-        let Some(occurrence) = self.declaration_at_offset(program, file_id, offset)? else {
-            return Ok(Vec::new());
+    ) -> QueryResult<GotoDeclarationResponse> {
+        let position = request.position;
+        let Some(occurrence) =
+            self.declaration_at_offset(program, position.file_id, position.offset)?
+        else {
+            return Ok(GotoDeclarationResponse {
+                targets: Vec::new(),
+            });
         };
         let origin = QueryRange {
             module: self.module(),
@@ -48,6 +51,6 @@ impl ModuleQueryContext<'_> {
 
         sort_and_dedup_navigation_targets(&mut targets);
 
-        Ok(targets)
+        Ok(GotoDeclarationResponse { targets })
     }
 }

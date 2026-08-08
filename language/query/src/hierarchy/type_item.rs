@@ -1,6 +1,5 @@
 use destack_dir as dir;
 use destack_serde::Reflect;
-use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -23,14 +22,14 @@ pub struct TypeItem {
     pub symbol_id: dir::GlobalSymbolId,
 }
 
-/// Request the type item at a cursor position.
+/// A type item request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TypeItemRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
-/// Response payload for type item queries.
+/// A type item response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TypeItemResponse {
     /// Type hierarchy item, if available.
@@ -126,17 +125,19 @@ impl ModuleQueryContext<'_> {
     /// Return a type item at the given position.
     pub fn type_item(
         &self,
+        request: TypeItemRequest,
         program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Option<TypeItem>> {
-        let Some(symbol_at) = self.symbol_at_offset(program, file_id, offset)? else {
-            return Ok(None);
+    ) -> QueryResult<TypeItemResponse> {
+        let position = request.position;
+        let Some(symbol_at) = self.symbol_at_offset(program, position.file_id, position.offset)?
+        else {
+            return Ok(TypeItemResponse { item: None });
         };
         let Some(symbol_id) = symbol_at.symbol() else {
-            return Ok(None);
+            return Ok(TypeItemResponse { item: None });
         };
+        let item = TypeItem::from_symbol(program, symbol_id)?;
 
-        TypeItem::from_symbol(program, symbol_id)
+        Ok(TypeItemResponse { item })
     }
 }

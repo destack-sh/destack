@@ -21,14 +21,14 @@ pub struct FileRename {
     pub new_path: PathBuf,
 }
 
-/// Request payload for file rename edits.
+/// A file rename request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct RenameFilesRequest {
     /// The file rename entries to apply.
     pub renames: Vec<FileRename>,
 }
 
-/// Response payload for file rename queries.
+/// A file rename response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct RenameFilesResponse {
     /// File rename edit, if available.
@@ -37,17 +37,17 @@ pub struct RenameFilesResponse {
 
 /// Resolve file rename edits across exact module profiles.
 pub fn rename_files(
+    request: RenameFilesRequest,
     repository: &Repository,
     revision: Revision,
     modules: &[Module],
-    renames: &[FileRename],
     require_artifacts: &(dyn Fn(&[ArtifactKey]) -> QueryResult<()> + Sync),
-) -> QueryResult<Option<PatchSet>> {
+) -> QueryResult<RenameFilesResponse> {
     let workspace_root = repository.path().to_path_buf().normalize();
 
     // normalize rename targets against the workspace root
     let mut rename_map = BTreeMap::new();
-    for rename in renames {
+    for rename in request.renames {
         let old_path = workspace_path(&workspace_root, &rename.old_path);
         let new_path = workspace_path(&workspace_root, &rename.new_path);
         if old_path == new_path {
@@ -72,7 +72,7 @@ pub fn rename_files(
 
     // return early when nothing changed
     if rename_map.is_empty() {
-        return Ok(None);
+        return Ok(RenameFilesResponse { edit: None });
     }
 
     // build one replacement per exact authored span
@@ -206,7 +206,7 @@ pub fn rename_files(
 
     // return early when no edits exist
     if edits_by_span.is_empty() {
-        return Ok(None);
+        return Ok(RenameFilesResponse { edit: None });
     }
 
     // group exact replacements into deterministic file edits
@@ -226,7 +226,9 @@ pub fn rename_files(
         batch_edit.push(file_edit);
     }
 
-    Ok(Some(batch_edit))
+    Ok(RenameFilesResponse {
+        edit: Some(batch_edit),
+    })
 }
 
 /// One source string literal used for specifier rewrites.

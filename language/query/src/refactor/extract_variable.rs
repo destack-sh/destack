@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::source::{is_simple_identifier, offset_line_start};
 use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryRange, QueryResult};
 
-/// Request payload for extract variable queries.
+/// An extract variable request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ExtractVariableRequest {
     /// The selected source range.
@@ -15,7 +15,7 @@ pub struct ExtractVariableRequest {
     pub new_name: String,
 }
 
-/// Response payload for extract variable queries.
+/// An extract variable response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ExtractVariableResponse {
     /// Extract variable edit, if available.
@@ -26,13 +26,15 @@ impl ModuleQueryContext<'_> {
     /// Extract a selected expression into a const variable in the nearest statement scope.
     pub fn extract_variable(
         &self,
+        request: ExtractVariableRequest,
         program: &ProgramQueryContext<'_>,
-        selection: Span,
-        new_name: &str,
-    ) -> QueryResult<Option<PatchSet>> {
+    ) -> QueryResult<ExtractVariableResponse> {
+        let selection = request.range.span;
+        let new_name = request.new_name;
+
         // validate the variable name
-        if !is_simple_identifier(new_name) {
-            return Ok(None);
+        if !is_simple_identifier(&new_name) {
+            return Ok(ExtractVariableResponse { edit: None });
         }
 
         // resolve source text for edits
@@ -47,7 +49,7 @@ impl ModuleQueryContext<'_> {
 
         // resolve one exact checked expression target
         let Some(target) = ExtractionTarget::resolve(selection, self)? else {
-            return Ok(None);
+            return Ok(ExtractVariableResponse { edit: None });
         };
         let expression = target.expression.into_global_any(self.module_id());
         let type_id = self
@@ -59,7 +61,7 @@ impl ModuleQueryContext<'_> {
             Ok(matches!(type_value, dir::Type::Error))
         })?;
         if is_error {
-            return Ok(None);
+            return Ok(ExtractVariableResponse { edit: None });
         }
 
         // preserve the exact authored expression text
@@ -72,19 +74,19 @@ impl ModuleQueryContext<'_> {
 
         // avoid no-op extracts when the selection is already the target identifier
         if expression_text == new_name {
-            return Ok(None);
+            return Ok(ExtractVariableResponse { edit: None });
         }
 
         // reject names that would collide with the insertion scope
         let is_name_available =
-            extraction_name_is_available(new_name, target.statement_span, self)?;
+            extraction_name_is_available(&new_name, target.statement_span, self)?;
         if !is_name_available {
-            return Ok(None);
+            return Ok(ExtractVariableResponse { edit: None });
         }
 
         // resolve insertion location and indentation
         let Some(line) = SourceLine::resolve(source, target.statement_span)? else {
-            return Ok(None);
+            return Ok(ExtractVariableResponse { edit: None });
         };
 
         // build replacement edits
@@ -111,7 +113,7 @@ impl ModuleQueryContext<'_> {
         let mut edits = PatchSet::new();
         edits.push(file_edit);
 
-        Ok(Some(edits))
+        Ok(ExtractVariableResponse { edit: Some(edits) })
     }
 }
 

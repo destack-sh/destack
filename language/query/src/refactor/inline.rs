@@ -1,106 +1,71 @@
 use destack_dir as dir;
 use destack_serde::Reflect;
-use destack_source::{FileId, FilePatch, Patch, PatchSet, Span};
+use destack_source::{FilePatch, Patch, PatchSet, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::source::{is_simple_identifier, offset_line_start};
 use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult};
 
-/// Request payload for inline refactor queries.
+/// An inline request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct InlineRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
-/// Response payload for inline refactor queries.
+/// An inline response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct InlineResponse {
     /// Inline edit, if available.
     pub edit: Option<PatchSet>,
 }
 
-/// One binding declaration selected for inlining.
-struct InlineTarget {
-    /// The declarator that owns the binding.
-    declarator: dir::LocalNodeId<dir::Declarator>,
-    /// The let expression that owns the declarator.
-    statement: dir::LocalNodeId<dir::Expression>,
-    /// The initializer expression.
-    value: dir::LocalNodeId<dir::Expression>,
-    /// The selected object pattern field, when destructuring.
-    field: Option<dir::LocalNodeId<dir::PatternField>>,
-    /// The object pattern that owns the selected field.
-    object: Option<dir::LocalNodeId<dir::Pattern>>,
-}
-
-/// Source text and evaluation properties of one inline value.
-struct InlineValue {
-    /// The emitted source text.
-    text: String,
-    /// The expression precedence after any resolved projection.
-    precedence: dir::OperatorPrecedence,
-    /// Whether postfix use requires explicit grouping.
-    needs_postfix_group: bool,
-}
-
-/// One exact indexed reference selected for replacement.
-struct InlineReference {
-    /// The reference expression node.
-    expression: dir::LocalNodeId<dir::Expression>,
-    /// The exact indexed occurrence span.
-    span: Span,
-    /// The shorthand property name retained by expansion.
-    shorthand: Option<String>,
-}
-
-/// Removal span computation for one inlined binding.
-struct InlineRemoval;
-
 impl ModuleQueryContext<'_> {
     /// Inline the symbol at the given position.
     pub fn inline(
         &self,
+        request: InlineRequest,
         program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Option<PatchSet>> {
+    ) -> QueryResult<InlineResponse> {
+        let position = request.position;
+        let file_id = position.file_id;
+
         // resolve one exact local symbol
-        let Some(occurrence) = self.symbol_at_offset(program, file_id, offset)? else {
-            return Ok(None);
+        let Some(occurrence) = self.symbol_at_offset(program, file_id, position.offset)? else {
+            return Ok(InlineResponse { edit: None });
         };
         let Some(symbol) = occurrence.symbol() else {
-            return Ok(None);
+            return Ok(InlineResponse { edit: None });
         };
         let Some(symbol) = program.canonical_symbol(symbol)? else {
-            return Ok(None);
+            return Ok(InlineResponse { edit: None });
         };
         if symbol.module_id != self.module_id() {
-            return Ok(None);
+            return Ok(InlineResponse { edit: None });
         }
 
         // require one unexported authored declaration in this file
         let symbols = self.bindings()?;
         let symbol_record = symbols.get_symbol(symbol.local_id);
         let Some(declaration) = symbol_record.declaration else {
-            return Ok(None);
+            return Ok(InlineResponse { edit: None });
         };
         if symbol_record.export_kind.is_some() {
-            return Ok(None);
+            return Ok(InlineResponse { edit: None });
         }
         let Some(definition_span) = program.symbol_definition_span(symbol)? else {
-            return Ok(None);
+            return Ok(InlineResponse { edit: None });
         };
         if definition_span.file != file_id {
-            return Ok(None);
+            return Ok(InlineResponse { edit: None });
         }
 
         // resolve the exact binding and its initializer
         let Some(target) = InlineTarget::resolve(declaration, self)? else {
-            return Ok(None);
+            return Ok(InlineResponse { edit: None });
         };
         if self.symbol_is_assigned(symbol)? {
-            return Ok(None);
+            return Ok(InlineResponse { edit: None });
         }
 
         // read the one source file used by this local refactor
@@ -113,24 +78,24 @@ impl ModuleQueryContext<'_> {
         // resolve exact persisted references
         let indexed = program.symbol_reference_entries(symbol)?;
         if indexed.is_empty() || indexed.iter().any(|entry| entry.span.file != file_id) {
-            return Ok(None);
+            return Ok(InlineResponse { edit: None });
         }
         let references = self.inline_references(symbol, &indexed)?;
 
         // build the replacement value
         let Some(value) = target.value(file.as_ref(), program, self)? else {
-            return Ok(None);
+            return Ok(InlineResponse { edit: None });
         };
         if !self.inline_captures_are_preserved(program, target.value, &references)? {
-            return Ok(None);
+            return Ok(InlineResponse { edit: None });
         }
 
         // preserve evaluation count and order
         let [reference] = references.as_slice() else {
-            return Ok(None);
+            return Ok(InlineResponse { edit: None });
         };
         if !target.single_use_preserves_evaluation(reference.expression, source, self)? {
-            return Ok(None);
+            return Ok(InlineResponse { edit: None });
         }
 
         // emit every replacement and remove the selected binding
@@ -146,7 +111,7 @@ impl ModuleQueryContext<'_> {
         let mut edit = PatchSet::new();
         edit.push(file_edit);
 
-        Ok(Some(edit))
+        Ok(InlineResponse { edit: Some(edit) })
     }
 
     /// Return whether assignment targets write one symbol.
@@ -309,6 +274,43 @@ impl ModuleQueryContext<'_> {
         Ok(true)
     }
 }
+
+/// One binding declaration selected for inlining.
+struct InlineTarget {
+    /// The declarator that owns the binding.
+    declarator: dir::LocalNodeId<dir::Declarator>,
+    /// The let expression that owns the declarator.
+    statement: dir::LocalNodeId<dir::Expression>,
+    /// The initializer expression.
+    value: dir::LocalNodeId<dir::Expression>,
+    /// The selected object pattern field, when destructuring.
+    field: Option<dir::LocalNodeId<dir::PatternField>>,
+    /// The object pattern that owns the selected field.
+    object: Option<dir::LocalNodeId<dir::Pattern>>,
+}
+
+/// Source text and evaluation properties of one inline value.
+struct InlineValue {
+    /// The emitted source text.
+    text: String,
+    /// The expression precedence after any resolved projection.
+    precedence: dir::OperatorPrecedence,
+    /// Whether postfix use requires explicit grouping.
+    needs_postfix_group: bool,
+}
+
+/// One exact indexed reference selected for replacement.
+struct InlineReference {
+    /// The reference expression node.
+    expression: dir::LocalNodeId<dir::Expression>,
+    /// The exact indexed occurrence span.
+    span: Span,
+    /// The shorthand property name retained by expansion.
+    shorthand: Option<String>,
+}
+
+/// Removal span computation for one inlined binding.
+struct InlineRemoval;
 
 impl InlineTarget {
     /// Resolve one selected binding declaration and its owning let expression.

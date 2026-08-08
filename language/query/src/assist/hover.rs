@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_serde::Reflect;
-use destack_source::{FileId, Span};
+use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -31,14 +31,14 @@ pub struct Hover {
     pub range: Span,
 }
 
-/// Request hover content at a cursor position.
+/// A hover request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct HoverRequest {
     /// The queried position.
     pub position: QueryPosition,
 }
 
-/// Response payload for hover queries.
+/// A hover response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct HoverResponse {
     /// Hover content, if available.
@@ -49,16 +49,18 @@ impl ModuleQueryContext<'_> {
     /// Return hover content for the symbol at the given position.
     pub fn hover(
         &self,
+        request: HoverRequest,
         program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Option<Hover>> {
+    ) -> QueryResult<HoverResponse> {
         // FUGU #Incomplete: DirChecked must retain overload family value selections
         // resolve source documentation and every exact named declaration
+        let position = request.position;
+        let file_id = position.file_id;
+        let offset = position.offset;
         let documentation = self.documentation_at_offset(program, file_id, offset)?;
         let occurrence = self.symbol_at_offset(program, file_id, offset)?;
         if occurrence.is_none() && documentation.is_none() {
-            return Ok(None);
+            return Ok(HoverResponse { hover: None });
         }
 
         let mut symbols = Vec::new();
@@ -97,23 +99,25 @@ impl ModuleQueryContext<'_> {
             });
         }
         if items.is_empty() && documentation.is_none() {
-            return Ok(None);
+            return Ok(HoverResponse { hover: None });
         }
 
         let range = match (&occurrence, &documentation) {
             (Some(occurrence), _) => occurrence.span,
             (None, Some(documentation)) => documentation.span,
-            (None, None) => return Ok(None),
+            (None, None) => return Ok(HoverResponse { hover: None }),
         };
         let documentation = documentation
             .filter(|_| !is_documentation_in_items)
             .map(|documentation| documentation.markdown);
 
-        Ok(Some(Hover {
+        let hover = Hover {
             items,
             documentation,
             range,
-        }))
+        };
+
+        Ok(HoverResponse { hover: Some(hover) })
     }
 
     /// Format an occurrence type when it differs from every declaration type.

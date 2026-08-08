@@ -12,7 +12,7 @@ use crate::{
     SymbolOccurrence,
 };
 
-/// Request rename edits at a cursor position.
+/// A rename request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct RenameRequest {
     /// The queried position.
@@ -21,7 +21,7 @@ pub struct RenameRequest {
     pub new_name: String,
 }
 
-/// Response payload for rename queries.
+/// A rename response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct RenameResponse {
     /// Rename edit, if available.
@@ -32,28 +32,30 @@ impl ModuleQueryContext<'_> {
     /// Rename the symbol at one position.
     pub fn rename(
         &self,
+        request: RenameRequest,
         program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
-        new_name: &str,
-    ) -> QueryResult<Option<PatchSet>> {
-        if !is_simple_identifier(new_name) {
-            return Ok(None);
+    ) -> QueryResult<RenameResponse> {
+        let position = request.position;
+        let new_name = request.new_name;
+        if !is_simple_identifier(&new_name) {
+            return Ok(RenameResponse { edit: None });
         }
 
         // resolve the exact rename target
-        let Some(selection) = self.resolve_rename_target(program, file_id, offset)? else {
-            return Ok(None);
+        let Some(selection) =
+            self.resolve_rename_target(program, position.file_id, position.offset)?
+        else {
+            return Ok(RenameResponse { edit: None });
         };
 
         // reject no-op names
         if selection.placeholder == new_name {
-            return Ok(None);
+            return Ok(RenameResponse { edit: None });
         }
 
         // require every shared occurrence to name only this rename group
         if !selection.is_unambiguous(program)? {
-            return Ok(None);
+            return Ok(RenameResponse { edit: None });
         }
 
         let symbols = &selection.symbols;
@@ -66,9 +68,9 @@ impl ModuleQueryContext<'_> {
         )?;
         let role = RenameRole::resolve(program, symbols)?;
 
-        let edits = selection.edits(program, &occurrences, new_name, role)?;
+        let edit = selection.edits(program, &occurrences, &new_name, role)?;
 
-        Ok(Some(edits))
+        Ok(RenameResponse { edit: Some(edit) })
     }
 }
 
