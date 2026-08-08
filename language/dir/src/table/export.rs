@@ -3,7 +3,7 @@ use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{ExportForm, ExportKey, LocalSymbolId, NamedExport, StarExport};
+use crate::{ExportBinding, ExportForm, ExportKey, LocalSymbolId, NamedExport, StarExport};
 
 /// Resolved module exports for one module.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
@@ -36,10 +36,6 @@ impl ExportTable {
 
     /// Insert one named export.
     pub fn insert(&mut self, export: NamedExport) -> Option<NamedExport> {
-        if let NamedExport::Local(local) = export {
-            self.form_by_symbol.insert(local.source, local.form);
-        }
-
         self.export_by_key.insert(export.key(), export)
     }
 
@@ -72,9 +68,9 @@ impl ExportTable {
     pub fn reexport_modules(&self) -> impl Iterator<Item = ModuleId> + '_ {
         self.export_by_key
             .values()
-            .filter_map(|export| match export {
-                NamedExport::Local(_) => None,
-                NamedExport::Indirect(export) => export.target,
+            .filter_map(|export| match export.binding {
+                ExportBinding::Local { .. } => None,
+                ExportBinding::Import { module, .. } => module,
             })
             .chain(self.star_exports.iter().filter_map(|export| export.target))
     }

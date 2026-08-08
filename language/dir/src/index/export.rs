@@ -66,15 +66,17 @@ impl ExportPostings {
 pub struct ExportEntry {
     /// The exposed name.
     pub name: String,
-    /// The exact resolved target.
+    /// The exact declaration selected by the exposed name.
+    pub declaration: ExportTarget,
+    /// The final exported target.
     pub target: ExportTarget,
 }
 
 impl ExportEntry {
     /// Compare two exports in stable display order.
     fn compare_by_display(&self, other: &Self) -> std::cmp::Ordering {
-        let left = (self.name.as_str(), self.target);
-        let right = (other.name.as_str(), other.target);
+        let left = (self.name.as_str(), &self.declaration, &self.target);
+        let right = (other.name.as_str(), &other.declaration, &other.target);
 
         left.cmp(&right)
     }

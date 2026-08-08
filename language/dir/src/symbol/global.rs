@@ -2,46 +2,31 @@ use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{DependencyItem, ExportSelector, LocalNodeId, LocalSymbolId, StaticKey};
-
-/// One local global declaration from a symbol declared in the current module.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct LocalGlobalEntry {
-    /// The global name.
-    pub key: StaticKey,
-    /// The local symbol exposed as a global.
-    pub source: LocalSymbolId,
-}
-
-/// One named global re-export from another module.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct IndirectGlobalEntry {
-    /// The global name.
-    pub key: StaticKey,
-    /// The dependency item that declared the global export.
-    pub item: LocalNodeId<DependencyItem>,
-    /// The target module selected by the export.
-    pub target: Option<ModuleId>,
-    /// The export selected from the target module.
-    pub imported: ExportSelector,
-}
+use crate::{DependencyItem, ExportBinding, LocalNodeId, LocalSymbolId, StaticKey};
 
 /// One global table entry.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum GlobalEntry {
-    /// A local global declaration.
-    Local(LocalGlobalEntry),
-    /// A re-exported global declaration.
-    Indirect(IndirectGlobalEntry),
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct GlobalEntry {
+    /// The visible global name.
+    pub key: StaticKey,
+    /// The dependency item that declared this global name.
+    pub item: Option<LocalNodeId<DependencyItem>>,
+    /// The explicit public alias declaration.
+    pub alias: Option<LocalSymbolId>,
+    /// How the global name is bound.
+    pub binding: ExportBinding,
 }
 
 impl GlobalEntry {
     /// Return the global key.
     #[inline]
-    pub fn key(self) -> StaticKey {
-        match self {
-            Self::Local(entry) => entry.key,
-            Self::Indirect(entry) => entry.key,
-        }
+    pub fn key(&self) -> StaticKey {
+        self.key
+    }
+
+    /// Return the target module selected by an indirect global.
+    #[inline]
+    pub fn target_module(&self) -> Option<ModuleId> {
+        self.binding.target_module()
     }
 }

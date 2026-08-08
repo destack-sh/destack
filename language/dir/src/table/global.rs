@@ -2,8 +2,12 @@ use destack_core::FxIndexMap as IndexMap;
 use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
+use smallvec::smallvec;
 
-use crate::{GlobalEntry, IndirectGlobalEntry, LocalGlobalEntry, LocalSymbolId, StaticKey};
+use crate::{
+    DependencyItem, ExportBinding, ExportSelector, GlobalEntry, LocalNodeId, LocalSymbolId,
+    StaticKey,
+};
 
 /// Global names contributed by one module.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
@@ -30,15 +34,34 @@ impl GlobalTable {
 
     /// Add one local global declaration.
     pub fn push_local(&mut self, key: StaticKey, symbol: LocalSymbolId) {
-        self.push(GlobalEntry::Local(LocalGlobalEntry {
+        self.push(GlobalEntry {
             key,
-            source: symbol,
-        }));
+            item: None,
+            alias: None,
+            binding: ExportBinding::Local {
+                symbols: smallvec![symbol],
+            },
+        });
     }
 
     /// Add one global re-export.
-    pub fn push_indirect(&mut self, entry: IndirectGlobalEntry) {
-        self.push(GlobalEntry::Indirect(entry));
+    pub fn push_indirect(
+        &mut self,
+        key: StaticKey,
+        item: LocalNodeId<DependencyItem>,
+        alias: Option<LocalSymbolId>,
+        target: Option<ModuleId>,
+        imported: ExportSelector,
+    ) {
+        self.push(GlobalEntry {
+            key,
+            item: Some(item),
+            alias,
+            binding: ExportBinding::Import {
+                module: target,
+                selector: imported,
+            },
+        });
     }
 
     /// Add one global entry.
@@ -58,11 +81,8 @@ impl GlobalTable {
 
     /// Return modules targeted by global re-export edges.
     pub fn reexport_modules(&self) -> impl Iterator<Item = ModuleId> + '_ {
-        self.entries_by_key.values().flat_map(|entries| {
-            entries.iter().filter_map(|entry| match entry {
-                GlobalEntry::Local(_) => None,
-                GlobalEntry::Indirect(entry) => entry.target,
-            })
-        })
+        self.entries_by_key
+            .values()
+            .flat_map(|entries| entries.iter().filter_map(|entry| entry.target_module()))
     }
 }

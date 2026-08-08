@@ -2,18 +2,126 @@ use destack_core::{StringId, StringPool};
 use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 
-use crate::{DependencyItem, GlobalSymbolId, LocalNodeId, LocalSymbolId, Name, StaticKey};
+use crate::{
+    DependencyItem, GlobalSymbolId, LocalNodeId, LocalSymbolId, Name, ReferenceTarget, StaticKey,
+};
 
-/// One exact target exposed through a module export.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
-)]
+/// One resolved target exposed through an exported name.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
 pub enum ExportTarget {
-    /// One declaration symbol.
-    Symbol(GlobalSymbolId),
+    /// One declaration overload group.
+    Symbols(SmallVec<[GlobalSymbolId; 2]>),
     /// One module namespace object.
     Namespace(ModuleId),
+}
+
+impl ExportTarget {
+    /// Create one symbol group.
+    pub fn symbol(symbol: GlobalSymbolId) -> Self {
+        Self::Symbols(SmallVec::from_slice(&[symbol]))
+    }
+
+    /// Create one non-empty symbol group.
+    pub fn symbols(symbols: impl IntoIterator<Item = GlobalSymbolId>) -> Option<Self> {
+        let mut group = SmallVec::new();
+
+        // retain every exact declaration once in source order
+        for symbol in symbols {
+            if !group.contains(&symbol) {
+                group.push(symbol);
+            }
+        }
+
+        (!group.is_empty()).then_some(Self::Symbols(group))
+    }
+
+    /// Iterate the scalar reference targets.
+    pub fn iter(&self) -> impl Iterator<Item = ReferenceTarget> + '_ {
+        let symbols = match self {
+            Self::Symbols(symbols) => Some(symbols.as_slice()),
+            Self::Namespace(_) => None,
+        };
+        let namespace = match self {
+            Self::Symbols(_) => None,
+            Self::Namespace(module) => Some(*module),
+        };
+
+        symbols
+            .into_iter()
+            .flatten()
+            .copied()
+            .map(ReferenceTarget::Symbol)
+            .chain(namespace.map(ReferenceTarget::Namespace))
+    }
+
+    /// Return the symbol declarations in this target.
+    pub fn symbol_ids(&self) -> Option<&[GlobalSymbolId]> {
+        match self {
+            Self::Symbols(symbols) => Some(symbols),
+            Self::Namespace(_) => None,
+        }
+    }
+
+    /// Return the only symbol declaration in this target.
+    pub fn single_symbol(&self) -> Option<GlobalSymbolId> {
+        let symbols = self.symbol_ids()?;
+        let [symbol] = symbols else {
+            return None;
+        };
+
+        Some(*symbol)
+    }
+
+    /// Return the module namespace in this target.
+    pub fn namespace(&self) -> Option<ModuleId> {
+        match self {
+            Self::Symbols(_) => None,
+            Self::Namespace(module) => Some(*module),
+        }
+    }
+
+    /// Return the target module when every declaration belongs to one module.
+    pub fn module(&self) -> Option<ModuleId> {
+        match self {
+            Self::Symbols(symbols) => {
+                let module = symbols.first()?.module_id;
+                symbols
+                    .iter()
+                    .all(|symbol| symbol.module_id == module)
+                    .then_some(module)
+            }
+            Self::Namespace(module) => Some(*module),
+        }
+    }
+}
+
+/// One resolved export declaration and its final compiler target.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
+pub struct ExportResolution {
+    /// The declaration selected by the exported name.
+    pub declaration: ExportTarget,
+    /// The final exported target.
+    pub target: ExportTarget,
+}
+
+impl ExportResolution {
+    /// Create a direct export resolution.
+    pub fn direct(target: ExportTarget) -> Self {
+        Self {
+            declaration: target.clone(),
+            target,
+        }
+    }
+
+    /// Replace the selected declaration while retaining the final target.
+    pub fn through(self, declaration: ExportTarget) -> Self {
+        Self {
+            declaration,
+            target: self.target,
+        }
+    }
 }
 
 /// The exported name in one module record.
@@ -83,19 +191,6 @@ impl ExportForm {
     }
 }
 
-/// One local export from a symbol declared in the current module.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct LocalExport {
-    /// The exported name.
-    pub key: ExportKey,
-    /// The local symbol exposed by the export.
-    pub source: LocalSymbolId,
-    /// The declared form of the exported symbol's type.
-    pub form: ExportForm,
-    /// The export clause item that declared this export.
-    pub item: Option<LocalNodeId<DependencyItem>>,
-}
-
 /// Which binding a re-export selects from the target module.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ExportSelector {
@@ -119,45 +214,63 @@ impl ExportSelector {
     }
 }
 
-/// One named re-export from another module.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct IndirectExport {
-    /// The exported name in the current module.
-    pub key: ExportKey,
-    /// The dependency item that declared the export.
-    pub item: LocalNodeId<DependencyItem>,
-    /// The target module selected by the export.
-    pub target: Option<ModuleId>,
-    /// The export selected from the target module.
-    pub imported: ExportSelector,
+/// How one exported name is bound.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum ExportBinding {
+    /// Declarations from the exporting module.
+    Local {
+        /// The local declaration overload group.
+        symbols: SmallVec<[LocalSymbolId; 2]>,
+    },
+    /// A declaration imported from another module.
+    Import {
+        /// The imported module.
+        module: Option<ModuleId>,
+        /// The selected exported name.
+        selector: ExportSelector,
+    },
+}
+
+impl ExportBinding {
+    /// Return the imported module selected by this binding.
+    pub fn target_module(&self) -> Option<ModuleId> {
+        match self {
+            Self::Local { .. } => None,
+            Self::Import { module, .. } => *module,
+        }
+    }
 }
 
 /// One named export entry.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum NamedExport {
-    /// A local export.
-    Local(LocalExport),
-    /// A re-export from another module.
-    Indirect(IndirectExport),
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct NamedExport {
+    /// The exported name.
+    pub key: ExportKey,
+    /// The dependency item that declared this export.
+    pub item: Option<LocalNodeId<DependencyItem>>,
+    /// The explicit public alias declaration.
+    pub alias: Option<LocalSymbolId>,
+    /// How the exported name is bound.
+    pub binding: ExportBinding,
 }
 
 impl NamedExport {
     /// Return the exported key.
     #[inline]
-    pub fn key(self) -> ExportKey {
-        match self {
-            Self::Local(export) => export.key,
-            Self::Indirect(export) => export.key,
-        }
+    pub fn key(&self) -> ExportKey {
+        self.key
     }
 
     /// Return the export clause item that declared this export.
     #[inline]
-    pub fn item(self) -> Option<LocalNodeId<DependencyItem>> {
-        match self {
-            Self::Local(export) => export.item,
-            Self::Indirect(export) => Some(export.item),
-        }
+    pub fn item(&self) -> Option<LocalNodeId<DependencyItem>> {
+        self.item
+    }
+
+    /// Return the target module selected by an indirect export.
+    #[inline]
+    pub fn target_module(&self) -> Option<ModuleId> {
+        self.binding.target_module()
     }
 }
 

@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use crate::{GlobalNodeIdAny, GlobalSymbolId, ImportTarget};
+use crate::{ExportTarget, GlobalNodeIdAny, GlobalSymbolId};
 
 /// Name resolutions for one module, keyed by the reference node.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
@@ -13,8 +13,27 @@ pub struct ReferenceTable {
     pub module_id: ModuleId,
     /// Semantic targets keyed by their source node.
     pub target_by_node: IndexMap<GlobalNodeIdAny, Reference>,
-    /// Declaration targets keyed by source nodes whose semantic targets differ.
-    pub declarations_by_node: IndexMap<GlobalNodeIdAny, SmallVec<[GlobalSymbolId; 2]>>,
+    /// Authored declarations keyed by source nodes whose final targets differ.
+    pub declaration_by_node: IndexMap<GlobalNodeIdAny, Reference>,
+}
+
+/// One scalar target selected while resolving a source reference.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum ReferenceTarget {
+    /// One declaration symbol.
+    Symbol(GlobalSymbolId),
+    /// One module namespace object.
+    Namespace(ModuleId),
+}
+
+impl ReferenceTarget {
+    /// Return the module that owns this target.
+    pub fn module(self) -> ModuleId {
+        match self {
+            Self::Symbol(symbol) => symbol.module_id,
+            Self::Namespace(module) => module,
+        }
+    }
 }
 
 impl ReferenceTable {
@@ -23,7 +42,7 @@ impl ReferenceTable {
         Self {
             module_id,
             target_by_node: IndexMap::default(),
-            declarations_by_node: IndexMap::default(),
+            declaration_by_node: IndexMap::default(),
         }
     }
 
@@ -32,16 +51,9 @@ impl ReferenceTable {
         self.target_by_node.insert(node, target);
     }
 
-    /// Insert declaration targets for one source node whose semantic targets differ.
-    pub fn insert_declarations(
-        &mut self,
-        node: GlobalNodeIdAny,
-        symbols: impl IntoIterator<Item = GlobalSymbolId>,
-    ) {
-        let symbols = symbols.into_iter().collect::<SmallVec<_>>();
-        if !symbols.is_empty() {
-            self.declarations_by_node.insert(node, symbols);
-        }
+    /// Insert the authored declaration selected by one source node.
+    pub fn insert_declaration(&mut self, node: GlobalNodeIdAny, declaration: Reference) {
+        self.declaration_by_node.insert(node, declaration);
     }
 
     /// Return one semantic target.
@@ -49,14 +61,14 @@ impl ReferenceTable {
         self.target_by_node.get(&node)
     }
 
-    /// Return the declaration targets recorded for one source node.
-    pub fn declarations(&self, node: GlobalNodeIdAny) -> Option<&[GlobalSymbolId]> {
-        self.declarations_by_node.get(&node).map(SmallVec::as_slice)
+    /// Return the authored declaration selected by one source node.
+    pub fn declaration(&self, node: GlobalNodeIdAny) -> Option<&Reference> {
+        self.declaration_by_node.get(&node)
     }
 
     /// Return true when no references were resolved.
     pub fn is_empty(&self) -> bool {
-        self.target_by_node.is_empty() && self.declarations_by_node.is_empty()
+        self.target_by_node.is_empty() && self.declaration_by_node.is_empty()
     }
 
     /// Return modules that own resolved reference targets.
@@ -91,17 +103,27 @@ pub enum Reference {
     /// A flat path named through its first segments; `segments[from..]` project from `base`.
     Projected {
         /// The exact target named by the leading segments.
-        base: ImportTarget,
+        base: ReferenceTarget,
         /// The segment index where member projection begins.
         from: u32,
     },
     /// No single binding wins; the payload retains every resolved candidate target.
-    Ambiguous(SmallVec<[ImportTarget; 2]>),
+    Ambiguous(SmallVec<[ReferenceTarget; 2]>),
     /// No binding by name.
     Missing,
 }
 
 impl Reference {
+    /// Return the bound declaration symbols.
+    pub fn symbols(&self) -> Option<&[GlobalSymbolId]> {
+        match self {
+            Self::Bound(symbols) => Some(symbols),
+            Self::Namespace(_) | Self::Projected { .. } | Self::Ambiguous(_) | Self::Missing => {
+                None
+            }
+        }
+    }
+
     /// Create a bound or missing reference from declaration symbols.
     pub fn from_symbols(symbols: impl IntoIterator<Item = GlobalSymbolId>) -> Self {
         let symbols = symbols.into_iter().collect::<SmallVec<_>>();
@@ -113,8 +135,8 @@ impl Reference {
     }
 
     /// Create a symbol, namespace, or missing reference from semantic targets.
-    pub fn from_targets(resolved_targets: impl IntoIterator<Item = ImportTarget>) -> Self {
-        let mut targets = SmallVec::<[ImportTarget; 2]>::new();
+    pub fn from_targets(resolved_targets: impl IntoIterator<Item = ReferenceTarget>) -> Self {
+        let mut targets = SmallVec::<[ReferenceTarget; 2]>::new();
 
         // retain each exact target once in source order
         for target in resolved_targets {
@@ -129,20 +151,30 @@ impl Reference {
         } else if let Some(symbols) = targets
             .iter()
             .map(|target| match target {
-                ImportTarget::Symbol(symbol) => Some(*symbol),
-                ImportTarget::Namespace(_) => None,
+                ReferenceTarget::Symbol(symbol) => Some(*symbol),
+                ReferenceTarget::Namespace(_) => None,
             })
             .collect::<Option<SmallVec<_>>>()
         {
             Self::Bound(symbols)
         }
         // retain one namespace target
-        else if let [ImportTarget::Namespace(module)] = targets.as_slice() {
+        else if let [ReferenceTarget::Namespace(module)] = targets.as_slice() {
             Self::Namespace(*module)
         }
         // retain every conflicting target
         else {
             Self::Ambiguous(targets)
+        }
+    }
+}
+
+impl From<&ExportTarget> for Reference {
+    /// Convert one export target into a name reference.
+    fn from(target: &ExportTarget) -> Self {
+        match target {
+            ExportTarget::Symbols(symbols) => Self::Bound(symbols.clone()),
+            ExportTarget::Namespace(module) => Self::Namespace(*module),
         }
     }
 }

@@ -6,7 +6,10 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use crate::{ExportTarget, GlobalSymbolId, LanguageItem, LocalSymbolId, Reference, StaticKey};
+use crate::{
+    ExportResolution, ExportTarget, GlobalSymbolId, LanguageItem, LocalSymbolId, Reference,
+    ReferenceTarget, StaticKey,
+};
 
 /// Resolved import targets for one module.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
@@ -15,8 +18,8 @@ pub struct ImportTable {
     pub module_id: ModuleId,
     /// Imported local symbols keyed to their resolution.
     pub resolution_by_symbol: IndexMap<LocalSymbolId, ImportResolution>,
-    /// Global targets made visible by the active profile.
-    pub global_target_by_key: IndexMap<StaticKey, Vec<ImportTarget>>,
+    /// Global resolutions made visible by the active profile.
+    pub global_resolution_by_key: IndexMap<StaticKey, Vec<ExportResolution>>,
     /// Resolved symbols for language items used by this module.
     pub language_symbol_by_item: IndexMap<LanguageItem, GlobalSymbolId>,
     /// The default tree builder pulled in by this module's tree literals.
@@ -25,11 +28,16 @@ pub struct ImportTable {
 
 impl ImportTable {
     /// Iterate every resolved import target.
-    pub fn targets(&self) -> impl Iterator<Item = ImportTarget> + '_ {
+    pub fn targets(&self) -> impl Iterator<Item = ReferenceTarget> + '_ {
         self.resolution_by_symbol
             .values()
             .flat_map(ImportResolution::targets)
-            .chain(self.global_target_by_key.values().flatten().copied())
+            .chain(
+                self.global_resolution_by_key
+                    .values()
+                    .flatten()
+                    .flat_map(|resolution| resolution.target.iter()),
+            )
     }
 
     /// Create an empty import table.
@@ -37,7 +45,7 @@ impl ImportTable {
         Self {
             module_id,
             resolution_by_symbol: IndexMap::default(),
-            global_target_by_key: IndexMap::default(),
+            global_resolution_by_key: IndexMap::default(),
             language_symbol_by_item: IndexMap::default(),
             tree_target: None,
         }
@@ -48,11 +56,11 @@ impl ImportTable {
         self.resolution_by_symbol.insert(symbol, resolution);
     }
 
-    /// Add one imported global target.
-    pub fn push_global_target(&mut self, key: StaticKey, target: ImportTarget) {
-        let targets = self.global_target_by_key.entry(key).or_default();
-        if !targets.contains(&target) {
-            targets.push(target);
+    /// Add one imported global resolution.
+    pub fn push_global_resolution(&mut self, key: StaticKey, resolution: ExportResolution) {
+        let resolutions = self.global_resolution_by_key.entry(key).or_default();
+        if !resolutions.contains(&resolution) {
+            resolutions.push(resolution);
         }
     }
 
@@ -71,18 +79,19 @@ impl ImportTable {
         self.resolution_by_symbol
             .iter()
             .filter_map(|(symbol, resolution)| match resolution {
-                ImportResolution::Resolved(ImportTarget::Symbol(target)) => {
-                    Some(((*symbol).into_global(self.module_id), *target))
+                ImportResolution::Resolved(ExportResolution {
+                    target: ExportTarget::Symbols(targets),
+                    ..
+                }) if targets.len() == 1 => {
+                    Some(((*symbol).into_global(self.module_id), targets[0]))
                 }
-                ImportResolution::Resolved(ImportTarget::Namespace(_))
-                | ImportResolution::Ambiguous(_)
-                | ImportResolution::Missing => None,
+                _ => None,
             })
     }
 
-    /// Return imported global targets for one key.
-    pub fn global_targets(&self, key: StaticKey) -> Option<&[ImportTarget]> {
-        self.global_target_by_key.get(&key).map(Vec::as_slice)
+    /// Return imported global resolutions for one key.
+    pub fn global_resolutions(&self, key: StaticKey) -> Option<&[ExportResolution]> {
+        self.global_resolution_by_key.get(&key).map(Vec::as_slice)
     }
 
     /// Return one imported language item symbol.
@@ -101,12 +110,12 @@ impl ImportTable {
             .resolution_by_symbol
             .values()
             .flat_map(ImportResolution::targets)
-            .map(ImportTarget::module);
+            .map(ReferenceTarget::module);
         let globals = self
-            .global_target_by_key
+            .global_resolution_by_key
             .values()
             .flatten()
-            .map(|target| target.module());
+            .filter_map(|resolution| resolution.target.module());
         let language = self
             .language_symbol_by_item
             .values()
@@ -120,83 +129,89 @@ impl ImportTable {
 /// Resolution of one local import binding.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ImportResolution {
-    /// One exact imported target.
-    Resolved(ImportTarget),
-    /// Multiple conflicting imported targets.
-    Ambiguous(SmallVec<[ImportTarget; 2]>),
+    /// One exact imported declaration and final target.
+    Resolved(ExportResolution),
+    /// Multiple conflicting imported resolutions.
+    Ambiguous(SmallVec<[ExportResolution; 2]>),
     /// No imported target.
     Missing,
 }
 
 impl ImportResolution {
     /// Iterate the retained targets.
-    pub fn targets(&self) -> impl Iterator<Item = ImportTarget> + '_ {
-        let targets = match self {
-            Self::Resolved(target) => slice::from_ref(target),
-            Self::Ambiguous(targets) => targets.as_slice(),
+    pub fn targets(&self) -> impl Iterator<Item = ReferenceTarget> + '_ {
+        let resolutions = match self {
+            Self::Resolved(resolution) => slice::from_ref(resolution),
+            Self::Ambiguous(resolutions) => resolutions.as_slice(),
             Self::Missing => &[],
         };
 
-        targets.iter().copied()
+        resolutions
+            .iter()
+            .flat_map(|resolution| resolution.target.iter())
     }
-}
 
-impl From<ImportTarget> for ImportResolution {
-    /// Convert one exact imported target into a resolution.
-    fn from(target: ImportTarget) -> Self {
-        Self::Resolved(target)
+    /// Iterate the declarations selected by the imported name.
+    pub fn declarations(&self) -> impl Iterator<Item = ReferenceTarget> + '_ {
+        let resolutions = match self {
+            Self::Resolved(resolution) => slice::from_ref(resolution),
+            Self::Ambiguous(resolutions) => resolutions.as_slice(),
+            Self::Missing => &[],
+        };
+
+        resolutions
+            .iter()
+            .flat_map(|resolution| resolution.declaration.iter())
     }
-}
 
-impl From<&ImportResolution> for Reference {
-    /// Convert one import binding resolution into a source reference.
-    fn from(resolution: &ImportResolution) -> Self {
-        match resolution {
-            ImportResolution::Resolved(ImportTarget::Symbol(symbol)) => {
-                Self::from_symbols([*symbol])
-            }
-            ImportResolution::Resolved(ImportTarget::Namespace(module)) => Self::Namespace(*module),
-            ImportResolution::Ambiguous(targets) => Self::Ambiguous(targets.clone()),
-            ImportResolution::Missing => Self::Missing,
-        }
-    }
-}
-
-/// Target selected by one import binding.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum ImportTarget {
-    /// A symbol exported by a target module.
-    Symbol(GlobalSymbolId),
-    /// A namespace object for a target module.
-    Namespace(ModuleId),
-}
-
-impl ImportTarget {
-    /// Return the target module.
-    pub fn module(self) -> ModuleId {
+    /// Replace the selected declaration while retaining final targets.
+    pub fn through(self, declaration: ExportTarget) -> Self {
         match self {
-            Self::Symbol(symbol) => symbol.module_id,
-            Self::Namespace(module) => module,
+            Self::Resolved(resolution) => Self::Resolved(resolution.through(declaration)),
+            Self::Ambiguous(resolutions) => Self::Ambiguous(
+                resolutions
+                    .into_iter()
+                    .map(|resolution| resolution.through(declaration.clone()))
+                    .collect(),
+            ),
+            Self::Missing => Self::Missing,
+        }
+    }
+
+    /// Return the final compiler target as a name reference.
+    pub fn target_reference(&self) -> Reference {
+        match self {
+            Self::Resolved(resolution) => Reference::from(&resolution.target),
+            Self::Ambiguous(resolutions) => {
+                let targets = resolutions
+                    .iter()
+                    .flat_map(|resolution| resolution.target.iter());
+
+                Reference::from_targets(targets)
+            }
+            Self::Missing => Reference::Missing,
+        }
+    }
+
+    /// Return the authored declaration as a name reference.
+    pub fn declaration_reference(&self) -> Reference {
+        match self {
+            Self::Resolved(resolution) => Reference::from(&resolution.declaration),
+            Self::Ambiguous(resolutions) => {
+                let declarations = resolutions
+                    .iter()
+                    .flat_map(|resolution| resolution.declaration.iter());
+
+                Reference::from_targets(declarations)
+            }
+            Self::Missing => Reference::Missing,
         }
     }
 }
 
-impl From<ExportTarget> for ImportTarget {
-    /// Convert one exported target into an imported target.
-    fn from(target: ExportTarget) -> Self {
-        match target {
-            ExportTarget::Symbol(symbol) => Self::Symbol(symbol),
-            ExportTarget::Namespace(module) => Self::Namespace(module),
-        }
-    }
-}
-
-impl From<ImportTarget> for ExportTarget {
-    /// Convert one imported target into its exported target form.
-    fn from(target: ImportTarget) -> Self {
-        match target {
-            ImportTarget::Symbol(symbol) => Self::Symbol(symbol),
-            ImportTarget::Namespace(module) => Self::Namespace(module),
-        }
+impl From<ExportResolution> for ImportResolution {
+    /// Convert one exact imported target into a resolution.
+    fn from(resolution: ExportResolution) -> Self {
+        Self::Resolved(resolution)
     }
 }
