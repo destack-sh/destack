@@ -527,7 +527,7 @@ function total(calculator: Calculator): int32 {
 }
 ```
 
-### [ignored] Rename an interface method
+### Rename an interface method
 
 Renaming an interface method updates implementations and calls through the interface.
 
@@ -563,6 +563,54 @@ class View implements Renderable {
 }
 
 function display(value: Renderable): string {
+    return value.draw();
+}
+```
+
+### Rename from an implementing method
+
+Renaming an implementation updates its interface requirement and calls.
+
+```ds library.ds
+export interface Renderable {
+    render(): string;
+}
+```
+
+```ds main.ds
+import { Renderable } from "./library.ds";
+
+export class View implements Renderable {
+    render(): string {
+    ^^^^^^ target
+        return "";
+    }
+}
+
+function display(value: View): string {
+    return value.render();
+}
+```
+
+```query rename main.ds#target new_name=draw
+```
+
+```ds library.ds after
+export interface Renderable {
+    draw(): string;
+}
+```
+
+```ds main.ds after
+import { Renderable } from "./library.ds";
+
+export class View implements Renderable {
+    draw(): string {
+        return "";
+    }
+}
+
+function display(value: View): string {
     return value.draw();
 }
 ```
