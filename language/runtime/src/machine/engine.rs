@@ -57,7 +57,6 @@ impl Engine {
         self.entries.target(function)
     }
 
-
     /// Return typed native body addresses keyed by Program function id.
     pub(crate) fn functions(&self) -> *const usize {
         self.entries.native.functions.as_ptr()
