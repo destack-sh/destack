@@ -2,7 +2,6 @@ use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_serde::Reflect;
 use destack_source::{File, FileId};
 use indexmap::IndexMap;
 use serde::Deserialize;
@@ -28,7 +27,7 @@ pub const DEFAULT_SOURCE_EXCLUDE: &[&str] = &[
 ];
 
 /// Destack configuration document.
-#[derive(Debug, Deserialize, Clone, Default, Reflect)]
+#[derive(Debug, Deserialize, Clone, Default)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "schema", schemars(title = "Destack"))]
 #[serde(default)]
@@ -134,7 +133,7 @@ pub fn destack_schema() -> schemars::Schema {
 }
 
 /// Workspace package layout.
-#[derive(Debug, Default, Deserialize, Clone, Reflect)]
+#[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceLayout {

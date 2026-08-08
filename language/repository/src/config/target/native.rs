@@ -1,10 +1,9 @@
 use std::path::PathBuf;
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Native target configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -24,7 +23,7 @@ pub struct TargetNativeOptions {
 }
 
 /// Target native linker configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -58,7 +57,7 @@ pub struct TargetLinkOptions {
 }
 
 /// Native output kind for one target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum NativeOutputKind {
@@ -72,7 +71,7 @@ pub enum NativeOutputKind {
 }
 
 /// Position independent code policy for one native target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum PositionIndependentMode {
@@ -88,7 +87,7 @@ pub enum PositionIndependentMode {
 }
 
 /// C runtime linkage policy for one native target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum CrtLinkage {
@@ -102,7 +101,7 @@ pub enum CrtLinkage {
 }
 
 /// Symbol visibility policy for one native target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum SymbolVisibility {

@@ -3,7 +3,6 @@ use destack_heap::{
     DEFAULT_GC_GROWTH_PERCENT, DEFAULT_GC_MINIMUM_HEAP_BYTES, DEFAULT_GC_MINIMUM_WORK_BYTES,
     DEFAULT_GC_TRIGGER_PERCENT, DEFAULT_YOUNG_SIZE_BYTES,
 };
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// The default virtual byte capacity for one World memory map.
@@ -14,7 +13,7 @@ pub const DEFAULT_WORLD_MEMORY_MAP_SIZE_BYTES: usize = if cfg!(target_pointer_wi
 };
 
 /// Runtime heap configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -93,7 +92,7 @@ impl HeapOptions {
 }
 
 /// Runtime local-heap policy.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -135,7 +134,7 @@ impl LocalHeapOptions {
 }
 
 /// Runtime shared-heap policy.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]

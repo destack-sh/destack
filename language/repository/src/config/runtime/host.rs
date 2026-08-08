@@ -1,10 +1,9 @@
 use std::path::PathBuf;
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Runtime host-poller configuration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -14,7 +13,7 @@ pub struct HostPollerOptions {
 }
 
 /// Host poller backend selection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum PollerBackend {
@@ -57,7 +56,7 @@ impl PollerBackend {
 }
 
 /// Runtime host module defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -85,7 +84,7 @@ pub struct HostOptions {
 }
 
 /// Filesystem host defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -97,7 +96,7 @@ pub struct HostFsOptions {
 }
 
 /// Network host defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -111,7 +110,7 @@ pub struct HostNetOptions {
 }
 
 /// Process host defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -125,7 +124,7 @@ pub struct HostProcessOptions {
 }
 
 /// Audio host defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -139,7 +138,7 @@ pub struct HostAudioOptions {
 }
 
 /// Display host defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -149,7 +148,7 @@ pub struct HostDisplayOptions {
 }
 
 /// Input host defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -159,7 +158,7 @@ pub struct HostInputOptions {
 }
 
 /// GPU host defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -171,7 +170,7 @@ pub struct HostGpuOptions {
 }
 
 /// TLS host defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -185,7 +184,7 @@ pub struct HostTlsOptions {
 }
 
 /// OS host defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]

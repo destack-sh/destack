@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 
 use destack_artifact::{BuildLinkage, BuildProfile};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{ExecutionMode, ReplayPayloadMode};
@@ -11,7 +10,7 @@ use super::random::RandomOptions;
 use super::{HeapOptions, HostOptions, RuntimeDiagnosticOptions, TraceOptions, WorkerOptions};
 
 /// Runtime identity used for topology and policy selection.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -23,7 +22,7 @@ pub struct RuntimeIdentityOptions {
 }
 
 /// Runtime configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]

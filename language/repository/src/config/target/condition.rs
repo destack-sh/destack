@@ -1,10 +1,9 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::Stage;
 
 /// Target contribution to the active source graph condition set.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]

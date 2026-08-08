@@ -1,13 +1,12 @@
 use std::path::PathBuf;
 
 use destack_artifact::{Host, Platform};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::config::{CompilerRestrictions, Derive, Stage};
 
 /// Normalized profile options.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]

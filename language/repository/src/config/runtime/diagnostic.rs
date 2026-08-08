@@ -1,8 +1,7 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// Runtime diagnostic verbosity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum RuntimeDiagnosticLevel {
@@ -22,7 +21,7 @@ pub enum RuntimeDiagnosticLevel {
 }
 
 /// Runtime diagnostics configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]

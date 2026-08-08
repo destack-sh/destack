@@ -1,11 +1,10 @@
-use destack_serde::Reflect;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use super::Dependency;
 
 /// Destack lock document.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -19,7 +18,7 @@ pub struct DestackLock {
 }
 
 /// Locked package source and dependency record.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -41,7 +40,7 @@ pub struct PackageLock {
 }
 
 /// Locked source locator.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(tag = "source", rename_all = "camelCase")]
 pub enum SourceLock {

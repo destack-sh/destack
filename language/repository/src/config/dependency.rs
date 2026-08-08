@@ -1,13 +1,12 @@
 use std::path::PathBuf;
 
-use destack_serde::Reflect;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::config::ConditionRef;
 
 /// Package dependency declaration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(tag = "source", rename_all = "camelCase")]
 pub enum Dependency {
@@ -41,7 +40,7 @@ pub enum Dependency {
 }
 
 /// Dependency declarations guarded by one active condition predicate.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -53,7 +52,7 @@ pub struct ConditionalDependencies {
 }
 
 /// Patch file applied to one resolved package.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]

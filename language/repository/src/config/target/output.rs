@@ -1,4 +1,3 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// How one target chooses its root module set.
@@ -23,7 +22,7 @@ pub enum OutputMode {
 }
 
 /// Source map emission mode for one target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum SourceMapMode {

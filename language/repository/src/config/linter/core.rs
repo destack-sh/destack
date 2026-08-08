@@ -1,9 +1,8 @@
-use destack_serde::Reflect;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 /// Linter configuration.
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default, deny_unknown_fields, rename_all = "camelCase")]
 pub struct LinterOptions {
@@ -26,7 +25,7 @@ impl Default for LinterOptions {
 }
 
 /// One configured lint level.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum LintLevel {

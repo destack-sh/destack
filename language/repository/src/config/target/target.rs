@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 use destack_artifact::{
     Code, Host, Output, Platform, Runtime, TargetAbi, TargetArch, TargetVendor,
 };
-use destack_serde::Reflect;
 use destack_source::TargetId;
 use serde::{Deserialize, Serialize};
 
@@ -18,7 +17,7 @@ use super::native::*;
 use super::output::*;
 
 /// A build target configuration.
-#[derive(Debug, Clone, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -431,7 +430,7 @@ impl Target {
 }
 
 /// User callable launched by a Destack target.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct Entrypoint {
