@@ -1,15 +1,16 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_artifact::{ArtifactKey, ArtifactVersion, BuildId, MemoryBlobStore};
+use destack_repository as repository;
 use destack_repository::{
     DestackLayoutOverride, Environment, Execution, Host, Ref, Repository, Revision, Settings,
-    TraceSnapshot, TraceView, open_repository,
+    Trace, TraceSnapshot, TraceView, open_repository,
 };
-use destack_source::{Edit, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
+use destack_source::{FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
 use futures::executor::block_on;
 
-use crate::{Change, Commit, PreparedCommit, Session, SessionError};
+use crate::{ArtifactPriority, Session, SessionError};
 
 const DEFAULT_ROOT: &str = "/workspace";
 
@@ -17,8 +18,6 @@ const DEFAULT_ROOT: &str = "/workspace";
 pub(crate) struct TestSession {
     /// The source root selected by session opening.
     root: PathBuf,
-    /// The memory filesystem backing the session.
-    fs: Arc<MemoryFileSystem>,
     /// The repository imported by the session.
     repository: Arc<Repository>,
     /// The live session under test.
@@ -28,28 +27,11 @@ pub(crate) struct TestSession {
 impl TestSession {
     /// Open one test session from files below the default root.
     pub(crate) fn open(files: &[(&str, &str)]) -> Result<Self, SessionError> {
-        Self::open_with_root(DEFAULT_ROOT, files, 1)
+        Self::create(files, 1, Execution::Cooperative)
     }
 
     /// Open one test session from files below the default root with explicit worker count.
     pub(crate) fn open_with_workers(
-        files: &[(&str, &str)],
-        worker_count: usize,
-    ) -> Result<Self, SessionError> {
-        Self::open_with_root(DEFAULT_ROOT, files, worker_count)
-    }
-
-    /// Open one test session from a specific input path.
-    pub(crate) fn open_from(
-        input: impl AsRef<Path>,
-        files: &[(&str, &str)],
-    ) -> Result<Self, SessionError> {
-        Self::open_with_root(input, files, 1)
-    }
-
-    /// Open one test session from a specific input path and worker count.
-    fn open_with_root(
-        input: impl AsRef<Path>,
         files: &[(&str, &str)],
         worker_count: usize,
     ) -> Result<Self, SessionError> {
@@ -59,12 +41,11 @@ impl TestSession {
             Execution::Threaded
         };
 
-        Self::create(input, files, worker_count, execution)
+        Self::create(files, worker_count, execution)
     }
 
     /// Create one test session with explicit executor behavior.
     fn create(
-        input: impl AsRef<Path>,
         files: &[(&str, &str)],
         worker_count: usize,
         execution: Execution,
@@ -87,89 +68,40 @@ impl TestSession {
         )
         .with_execution(execution);
         let repository = open_repository(
-            PathBuf::from(input.as_ref()),
+            root.clone(),
             host,
             Settings::default(),
             DestackLayoutOverride::default(),
         )?;
         let repository = Arc::new(repository);
         let root = repository.path().to_path_buf();
-        let head = Ref::for_root(&root);
-        let session = Session::new(
-            root.clone(),
-            root.clone(),
-            repository.clone(),
-            head,
-            worker_count,
-            None,
-        )?;
-        session.set_tracing(true);
+        let session = Session::new(repository.clone(), worker_count)?;
 
         Ok(Self {
             root,
-            fs,
             repository,
             session,
         })
     }
 
-    /// Write one file below the selected source root.
-    pub(crate) fn write(&self, path: &str, content: &str) {
-        self.fs
-            .write_string(&self.root.join(path), content)
-            .expect("test file should write");
-    }
+    /// Replace one source file in the repository backing this session.
+    pub(crate) fn edit_text(&self, path: &str, text: &str) {
+        let before = self.revision();
+        let edit = repository::Edit::set_text(path, text);
+        let after = self
+            .repository
+            .commit_edits(before, vec![edit])
+            .expect("test source edit should commit");
+        let after_pin = self
+            .repository
+            .pin(after)
+            .expect("test source revision should remain live");
+        let was_published = self
+            .repository
+            .advance_ref(&self.head(), before, after_pin.revision())
+            .expect("test source edit should publish");
 
-    /// Remove one file below the selected source root.
-    pub(crate) fn remove(&self, path: &str) {
-        self.fs
-            .remove_file(&self.root.join(path))
-            .expect("test file should remove");
-    }
-
-    /// Reload the session from its memory filesystem.
-    pub(crate) fn reload(&self) -> Vec<Change> {
-        self.session
-            .reload_from_fs(&self.head())
-            .expect("test session should reload")
-    }
-
-    /// Edit files through the session.
-    pub(crate) fn edit(&self, edits: Vec<Edit>) -> Commit {
-        self.session
-            .edit(&self.head(), edits)
-            .expect("test session should edit")
-    }
-
-    /// Replace one source file through the session.
-    pub(crate) fn edit_text(&self, path: &str, text: &str) -> Commit {
-        let edit = Edit::SetText {
-            path: path.into(),
-            text: text.into(),
-        };
-
-        self.edit(vec![edit])
-    }
-
-    /// Prepare one source file replacement without publishing it.
-    pub(crate) fn prepare_text(&self, path: &str, text: &str) -> PreparedCommit<'_> {
-        let edit = Edit::SetText {
-            path: path.into(),
-            text: text.into(),
-        };
-        let revision = self.revision();
-
-        self.session
-            .prepare_edit(&self.head(), revision, vec![edit])
-            .expect("test session should prepare edit")
-    }
-
-    /// Load one module from the memory filesystem.
-    pub(crate) fn load_module(&self, path: &str) {
-        let path = self.root.join(path);
-        self.session
-            .load_module_from_fs(&self.head(), &path)
-            .expect("test module should load");
+        assert!(was_published, "test repository head should remain current");
     }
 
     /// Check one module target.
@@ -178,73 +110,24 @@ impl TestSession {
         let module = self.module_id(path, revision);
         let profile = self.profile_id(revision, module, target);
         let key = ArtifactKey::dir_checked(module, profile);
-        let version = block_on(self.session.require(revision, key))
-            .expect("test artifact should be required");
-        let trace = self.trace();
+        let trace = self.session.start_trace(true);
+        let run = self.session.provide_traced(
+            revision,
+            &[key],
+            ArtifactPriority::Foreground,
+            trace.clone(),
+            None,
+        );
+        block_on(run.wait()).expect("test artifact should be provided");
+        trace.finish();
+        let version = self
+            .repository
+            .artifact_version(revision, &key)
+            .expect("test artifact version should read")
+            .expect("test artifact version should exist");
+        let trace = self.trace(trace.as_ref());
 
         (version, trace)
-    }
-
-    /// Assert the selected source root.
-    pub(crate) fn assert_root(&self, expected: &str) {
-        assert_eq!(self.root, PathBuf::from(DEFAULT_ROOT).join(expected));
-    }
-
-    /// Assert the editable repository files visible at the current head.
-    pub(crate) fn assert_files(&self, expected: &[&str]) {
-        let actual = self.files();
-        let mut expected = expected
-            .iter()
-            .map(|path| path.to_string())
-            .collect::<Vec<_>>();
-        expected.sort();
-
-        assert_eq!(actual, expected);
-    }
-
-    /// Assert the number of editable repository files visible at the current head.
-    pub(crate) fn assert_file_count(&self, expected: usize) {
-        assert_eq!(self.files().len(), expected);
-    }
-
-    /// Assert update paths relative to the selected source root.
-    pub(crate) fn assert_update_paths(&self, updates: &[Change], expected: &[&str]) {
-        let mut actual = updates
-            .iter()
-            .map(|update| self.update_path(update))
-            .collect::<Vec<_>>();
-        actual.sort();
-
-        let mut expected = expected
-            .iter()
-            .map(|path| path.to_string())
-            .collect::<Vec<_>>();
-        expected.sort();
-
-        assert_eq!(actual, expected);
-    }
-
-    /// Assert that every update removed a file.
-    pub(crate) fn assert_removed_updates(&self, updates: &[Change]) {
-        assert!(
-            updates.iter().all(Change::is_removed),
-            "expected only removed updates, got {updates:#?}",
-        );
-    }
-
-    /// Assert that no updates were emitted.
-    pub(crate) fn assert_no_updates(&self, updates: &[Change]) {
-        assert!(updates.is_empty(), "expected no updates, got {updates:#?}");
-    }
-
-    /// Assert file commit paths relative to the selected source root.
-    pub(crate) fn assert_commit_paths(&self, commit: &Commit, expected: &[&str]) {
-        self.assert_update_paths(&commit.changes, expected);
-    }
-
-    /// Assert that reloading changes the head revision.
-    pub(crate) fn assert_revision_changed(&self, before: Revision) {
-        assert_ne!(self.revision(), before);
     }
 
     /// Return the current head revision.
@@ -284,12 +167,7 @@ impl TestSession {
     }
 
     /// Return the latest detailed trace snapshot.
-    fn trace(&self) -> TraceSnapshot {
-        let trace = self
-            .session
-            .last_trace()
-            .expect("test trace should be recorded");
-
+    fn trace(&self, trace: &Trace) -> TraceSnapshot {
         trace
             .snapshot(
                 TraceView::Detailed,
@@ -297,48 +175,5 @@ impl TestSession {
                 |_| Ok::<_, ()>(None),
             )
             .unwrap()
-    }
-
-    /// Return editable repository files at the current head.
-    fn files(&self) -> Vec<String> {
-        let revision = self.revision();
-        let mut files = self
-            .repository
-            .editable_file_logical_paths(revision)
-            .expect("test file paths should load")
-            .into_iter()
-            .map(|(_, path)| {
-                let path = self.repository.string_pool().get(path);
-
-                path.to_string()
-            })
-            .collect::<Vec<_>>();
-        files.sort();
-
-        files
-    }
-
-    /// Return one tracked text file at the current head.
-    pub(crate) fn text(&self, path: &str) -> String {
-        let revision = self.revision();
-        let file_id = destack_source::FileId::from_logical_str(path);
-        let file = self
-            .repository
-            .file(revision, file_id)
-            .expect("test file should load")
-            .expect("test file should exist");
-
-        file.text().to_string()
-    }
-
-    /// Return one update path relative to the selected source root.
-    fn update_path(&self, update: &Change) -> String {
-        let path = update
-            .uri()
-            .to_path_buf()
-            .expect("test update uri should be a path");
-        let path = path.strip_prefix(&self.root).unwrap_or(&path);
-
-        path.to_string_lossy().replace('\\', "/")
     }
 }

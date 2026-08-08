@@ -1,19 +1,10 @@
-use std::path::PathBuf;
-
 use destack_artifact::{ArtifactFailure, ArtifactKey, DiagnosticError};
-use destack_repository::{Ref, RepositoryError, Revision};
-use destack_source::{FileId, ModuleId, PackageId, PatchApplyError};
+use destack_repository::RepositoryError;
+use destack_source::{FileId, ModuleId};
 
-/// Errors produced by live session operations.
+/// Errors produced by artifact session operations.
 #[derive(Debug, Clone)]
 pub enum SessionError {
-    /// A filesystem path cannot be loaded as a module.
-    ModulePathNotLoadable {
-        /// The path that could not be loaded.
-        path: PathBuf,
-        /// The failure detail.
-        detail: String,
-    },
     /// The file is not tracked.
     FileNotTracked {
         /// The missing file id.
@@ -23,20 +14,6 @@ pub enum SessionError {
     ModuleNotTracked {
         /// The missing module id.
         module_id: ModuleId,
-    },
-    /// The package is not tracked.
-    PackageNotTracked {
-        /// The missing package id.
-        package_id: PackageId,
-    },
-    /// The session ref changed before an update could publish.
-    StaleRevision {
-        /// The ref that changed.
-        reference: Ref,
-        /// The expected base revision.
-        expected: Revision,
-        /// The current revision.
-        current: Revision,
     },
     /// The worker count is not usable.
     InvalidWorkerCount {
@@ -52,11 +29,6 @@ pub enum SessionError {
         /// The artifact failure.
         failure: Box<ArtifactFailure>,
     },
-    /// One edit is invalid.
-    InvalidEdit {
-        /// The edit failure.
-        error: PatchApplyError,
-    },
     /// Repository work failed inside the session.
     Repository(RepositoryError),
     /// Internal session failure.
@@ -69,31 +41,11 @@ pub enum SessionError {
 impl std::fmt::Display for SessionError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SessionError::ModulePathNotLoadable { path, detail } => {
-                write!(
-                    formatter,
-                    "module path is not loadable for {}: {detail}",
-                    path.display()
-                )
-            }
             SessionError::FileNotTracked { file_id } => {
                 write!(formatter, "file not tracked: {file_id:?}")
             }
             SessionError::ModuleNotTracked { module_id } => {
                 write!(formatter, "module not tracked: {module_id:?}")
-            }
-            SessionError::PackageNotTracked { package_id } => {
-                write!(formatter, "package not tracked: {package_id:?}")
-            }
-            SessionError::StaleRevision {
-                reference,
-                expected,
-                current,
-            } => {
-                write!(
-                    formatter,
-                    "session ref {reference:?} changed from {expected:?} to {current:?}"
-                )
             }
             SessionError::InvalidWorkerCount { worker_count } => {
                 write!(formatter, "invalid session worker count: {worker_count}")
@@ -106,9 +58,6 @@ impl std::fmt::Display for SessionError {
                     formatter,
                     "artifact failed while providing {key:?}: {failure:?}"
                 )
-            }
-            SessionError::InvalidEdit { error } => {
-                write!(formatter, "edit failed: {error}")
             }
             SessionError::Repository(error) => {
                 write!(formatter, "session repository error: {error}")
@@ -123,7 +72,6 @@ impl std::fmt::Display for SessionError {
 impl std::error::Error for SessionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            SessionError::InvalidEdit { error } => Some(error),
             SessionError::Repository(error) => Some(error),
             _ => None,
         }
@@ -141,11 +89,5 @@ impl From<DiagnosticError> for SessionError {
         SessionError::Internal {
             detail: format!("failed to finalize provider diagnostic: {error}"),
         }
-    }
-}
-
-impl From<PatchApplyError> for SessionError {
-    fn from(error: PatchApplyError) -> Self {
-        Self::InvalidEdit { error }
     }
 }
