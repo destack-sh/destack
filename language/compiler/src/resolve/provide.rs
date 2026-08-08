@@ -25,6 +25,7 @@ impl Compiler {
         dependencies.require(ArtifactKey::dir_bound(module, profile));
         dependencies.require(ArtifactKey::dir_imported(module, profile));
         dependencies.require(ArtifactKey::dir_expanded(module, profile));
+        dependencies.require(ArtifactKey::dir_exported(module, profile));
         dependencies.require(ArtifactKey::environment_bound(profile));
 
         Ok(dependencies)
@@ -51,6 +52,9 @@ impl Compiler {
         let expanded = artifacts
             .read::<DirExpanded>((module, profile))
             .map_err(CompilerError::from)?;
+        let exported = artifacts
+            .read::<DirExported>((module, profile))
+            .map_err(CompilerError::from)?;
         let environment = artifacts
             .read::<EnvironmentBound>(profile)
             .map_err(CompilerError::from)?;
@@ -72,11 +76,10 @@ impl Compiler {
         );
 
         // collect source references, module clauses, and syntax language items
-        state.collect_module_clauses(&expanded.roots);
         state.walk(&expanded.roots);
 
         // resolve every collected reference over the declared export closure
-        state.resolve(&environment)?;
+        state.resolve(&environment, &exported)?;
 
         // pull in tree literals to the default builder
         if parsed.tree.has_tree_expressions() {
@@ -94,7 +97,7 @@ impl Compiler {
             },
         ));
 
-        // emit recoverable resolve diagnostics
+        // emit resolve diagnostics
         for diagnostic in state.take_diagnostics() {
             self.emit_diagnostic::<ResolveError>(context, diagnostic)?;
         }

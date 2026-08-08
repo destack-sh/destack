@@ -77,9 +77,9 @@ global {
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 const value = answer;
-/// @reference.bound source=answer targets=[globals.answer]
+/// @reference.target source=answer kind=bound targets=[globals.answer]
 
-/// @import.global key=answer targets=[globals.answer]
+/// @import.global key=answer declarations=[globals.answer] targets=[globals.answer]
 
 /// @import.summary globals=1
 /// @resolve.stats roots=1 expressions=2 types=0 globals=required:1
@@ -131,12 +131,12 @@ export type Option = string;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 let value = Function;
-/// @reference.bound source=Function targets=[types.function.Function, types.Function]
+/// @reference.target source=Function kind=ambiguous targets=[types.function.Function, types.Function]
 
 let projected: Function.Member;
-/// @reference.ambiguous source=Function.Member targets=[types.function.Function, types.Function]
+/// @reference.target source=Function.Member kind=ambiguous targets=[types.function.Function, types.Function]
 
-/// @import.global key=Function targets=[types.function.Function, types.Function]
+/// @import.global key=Function declarations=[types.function.Function, types.Function] targets=[types.function.Function, types.Function]
 
 /// @import.summary globals=1
 /// @resolve.stats roots=2 expressions=3 types=1 globals=required:1
@@ -186,13 +186,14 @@ export const value = 1;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 let local = api;
-/// @reference.namespace source=api module=api.ds
+/// @reference.declaration source=api kind=bound targets=[globals.api]
+/// @reference.target source=api kind=namespace module=api.ds
 
-/// @import.global key=api targets=[api.ds]
+/// @import.global key=api declarations=[globals.api] targets=[api.ds]
 
 /// @import.summary globals=1
 /// @resolve.stats roots=1 expressions=2 types=0 globals=required:1
-/// @reference.summary references=1
+/// @reference.summary references=1 declarations=1
 "#,
     );
 }
@@ -238,8 +239,9 @@ export const value = 1;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 let local = api.value;
-/// @reference.namespace source=api module=api.ds
-/// @reference.bound source=api.value targets=[api.value]
+/// @reference.declaration source=api kind=bound targets=[globals.api]
+/// @reference.target source=api kind=namespace module=api.ds
+/// @reference.target source=api.value kind=bound targets=[api.value]
 
 /// @import.language item=collections.Array symbol=collections.array.Array
 /// @import.language item=collections.FixedArray symbol=collections.fixed-array.FixedArray
@@ -247,11 +249,11 @@ let local = api.value;
 /// @import.language item=math.BigInt symbol=math.bigint.BigInt
 /// @import.language item=math.Number symbol=math.number.Number
 /// @import.language item=string.String symbol=string.string.String
-/// @import.global key=api targets=[api.ds]
+/// @import.global key=api declarations=[globals.api] targets=[api.ds]
 
 /// @import.summary globals=1 language=6
 /// @resolve.stats roots=1 expressions=3 types=0 globals=required:1 language=uses:6 exports=miss:1,hit:0,cycle:0
-/// @reference.summary references=2
+/// @reference.summary references=2 declarations=1
 "#,
     );
 }
@@ -297,10 +299,10 @@ export class Promise<T> {}
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 let promise: Promise<string>;
-/// @reference.bound source=Promise targets=[async.promise.Promise, async.Promise]
+/// @reference.target source=Promise kind=ambiguous targets=[async.promise.Promise, async.Promise]
 
 /// @import.language item=string.String symbol=string.string.String
-/// @import.global key=Promise targets=[async.promise.Promise, async.Promise]
+/// @import.global key=Promise declarations=[async.promise.Promise, async.Promise] targets=[async.promise.Promise, async.Promise]
 
 /// @import.summary globals=1 language=1
 /// @resolve.stats roots=1 expressions=1 types=2 globals=required:1 language=uses:1
@@ -325,10 +327,10 @@ let promise: Promise<string>;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 let promise: Promise<string>;
-/// @reference.bound source=Promise targets=[async.promise.Promise]
+/// @reference.target source=Promise kind=bound targets=[async.promise.Promise]
 
 /// @import.language item=string.String symbol=string.string.String
-/// @import.global key=Promise targets=[async.promise.Promise]
+/// @import.global key=Promise declarations=[async.promise.Promise] targets=[async.promise.Promise]
 
 /// @import.summary globals=1 language=1
 /// @resolve.stats roots=1 expressions=1 types=2 globals=required:1 language=uses:1
@@ -440,8 +442,8 @@ const value = left + right;
 const left = 1;
 const right = 2;
 const value = left + right;
-/// @reference.bound source=left targets=[left]
-/// @reference.bound source=right targets=[right]
+/// @reference.target source=left kind=bound targets=[left]
+/// @reference.target source=right kind=bound targets=[right]
 
 /// @import.language item=ops.Add symbol=ops.plus.Add
 
@@ -489,7 +491,7 @@ global {
         r#"
 const answer = 1;
 const value = answer;
-/// @reference.bound source=answer targets=[answer]
+/// @reference.target source=answer kind=bound targets=[answer]
 
 /// @import.summary
 /// @resolve.stats roots=2 expressions=4 types=0
@@ -538,7 +540,7 @@ global {
 function read() {
     const answer = 1;
     return answer;
-    /// @reference.bound source=answer targets=[read.answer]
+    /// @reference.target source=answer kind=bound targets=[read.answer]
 
 }
 
@@ -592,7 +594,7 @@ export const value = 1;
         r#"
 const api = {};
 const value = api.value;
-/// @reference.bound source=api targets=[api]
+/// @reference.target source=api kind=bound targets=[api]
 
 /// @import.language item=collections.Array symbol=collections.array.Array
 /// @import.language item=collections.FixedArray symbol=collections.fixed-array.FixedArray
@@ -665,8 +667,8 @@ global {
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import { value } from "./dep.ds";
-/// @import.symbol symbol=value target=dep.value
-/// @reference.bound source=value targets=[dep.value]
+/// @import.resolved symbol=value declarations=[dep.value] targets=[dep.value]
+/// @reference.target source=value kind=bound targets=[dep.value]
 
 /// @import.summary symbols=1
 /// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:1,hit:0,cycle:0

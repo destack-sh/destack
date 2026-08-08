@@ -1438,7 +1438,7 @@ impl TestSession {
             }
         }
 
-        // include the modules behind the bound environment's name surface
+        // include modules named by the bound environment
         let reader = self.repository.artifact_reader(self.revision);
         if let Ok(environment) = reader.read_content::<EnvironmentBound>(entry.profile) {
             let language = environment.language.items_by_symbol.keys().copied();
@@ -1448,11 +1448,14 @@ impl TestSession {
                     modules.insert(symbol.module_id);
                 }
             }
-            for targets in environment.global_targets_by_key.values() {
-                for target in targets {
+            for resolutions in environment.global_resolutions_by_key.values() {
+                for target in resolutions
+                    .iter()
+                    .flat_map(|resolution| resolution.target.iter())
+                {
                     let module = match target {
-                        dir::ImportTarget::Symbol(symbol) => symbol.module_id,
-                        dir::ImportTarget::Namespace(module) => *module,
+                        dir::ReferenceTarget::Symbol(symbol) => symbol.module_id,
+                        dir::ReferenceTarget::Namespace(module) => module,
                     };
                     if module != entry.module.id {
                         modules.insert(module);

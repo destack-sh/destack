@@ -1,3 +1,4 @@
+mod export;
 mod expression;
 mod global;
 mod import;

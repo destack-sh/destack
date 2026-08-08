@@ -22,11 +22,12 @@ export let value = 1;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 export * as api from "./dep.ds";
-/// @reference.namespace source=<namespace> module=dep.ds
+/// @reference.declaration source=<namespace> kind=bound targets=[api]
+/// @reference.target source=<namespace> kind=namespace module=dep.ds
 
 /// @import.summary
 /// @resolve.stats roots=1 expressions=1 types=0 clauses=import:0,reexport:1
-/// @reference.summary references=1
+/// @reference.summary references=1 declarations=1
 "#,
     );
 }
@@ -43,7 +44,8 @@ import { renamed } from "./mid.ds";
         .module(
             "mid.ds",
             r#"
-export { value as renamed } from "./dep.ds";
+import { value as imported } from "./dep.ds";
+export { imported as renamed };
 "#,
         )
         .module(
@@ -59,12 +61,13 @@ export let value = 1;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import { renamed } from "./mid.ds";
-/// @import.symbol symbol=renamed target=dep.value
-/// @reference.bound source=renamed targets=[dep.value]
+/// @import.resolved symbol=renamed declarations=[mid.renamed] targets=[dep.value]
+/// @reference.target source=renamed kind=bound targets=[dep.value]
+/// @reference.declaration source=renamed kind=bound targets=[mid.renamed]
 
 /// @import.summary symbols=1
 /// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:2,hit:0,cycle:0
-/// @reference.summary references=1
+/// @reference.summary references=1 declarations=1
 "#,
     );
 }
@@ -98,12 +101,13 @@ export { value as default };
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import { renamed } from "./mid.ds";
-/// @import.symbol symbol=renamed target=dep.value
-/// @reference.bound source=renamed targets=[dep.value]
+/// @import.resolved symbol=renamed declarations=[mid.renamed] targets=[dep.value]
+/// @reference.target source=renamed kind=bound targets=[dep.value]
+/// @reference.declaration source=renamed kind=bound targets=[mid.renamed]
 
 /// @import.summary symbols=1
 /// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:2,hit:0,cycle:0
-/// @reference.summary references=1
+/// @reference.summary references=1 declarations=1
 "#,
     );
 }
@@ -136,8 +140,8 @@ export let value = 1;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import { value } from "./mid.ds";
-/// @import.symbol symbol=value target=dep.value
-/// @reference.bound source=value targets=[dep.value]
+/// @import.resolved symbol=value declarations=[dep.value] targets=[dep.value]
+/// @reference.target source=value kind=bound targets=[dep.value]
 
 /// @import.summary symbols=1
 /// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:2,hit:0,cycle:0
@@ -181,8 +185,8 @@ export let value = 2;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import { value } from "./mid.ds";
-/// @import.symbol symbol=value target=explicit.value
-/// @reference.bound source=value targets=[explicit.value]
+/// @import.resolved symbol=value declarations=[explicit.value] targets=[explicit.value]
+/// @reference.target source=value kind=bound targets=[explicit.value]
 
 /// @import.summary symbols=1
 /// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:2,hit:0,cycle:0
@@ -226,8 +230,8 @@ export let value = 1;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import { value } from "./a.ds";
-/// @import.symbol symbol=value target=c.value
-/// @reference.bound source=value targets=[c.value]
+/// @import.resolved symbol=value declarations=[c.value] targets=[c.value]
+/// @reference.target source=value kind=bound targets=[c.value]
 
 /// @import.summary symbols=1
 /// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:3,hit:1,cycle:1
@@ -288,7 +292,7 @@ export let value = 1;
         DirRows::imports().with_summaries(),
         r#"
 export { missing } from "./dep.ds";
-/// @reference.missing source=missing
+/// @reference.target source=missing kind=missing
 
 /// @import.summary
 /// @reference.summary references=1

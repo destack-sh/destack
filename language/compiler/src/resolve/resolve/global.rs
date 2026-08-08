@@ -54,7 +54,7 @@ impl ResolveState<'_> {
     /// const value = String(value);
     /// ```
     fn resolve_language_global(&mut self, language: &LanguageEnvironment, key: dir::StaticKey) {
-        if self.imports.global_target_by_key.contains_key(&key) {
+        if self.imports.global_resolution_by_key.contains_key(&key) {
             return;
         }
         let dir::StaticKey::Name(name) = key else {
@@ -64,8 +64,9 @@ impl ResolveState<'_> {
             return;
         };
 
+        let target = dir::ExportTarget::symbol(symbol);
         self.imports
-            .push_global_target(key, dir::ImportTarget::Symbol(symbol));
+            .push_global_resolution(key, dir::ExportResolution::direct(target));
     }
 
     /// Resolve one used language item to its symbol.
@@ -105,12 +106,12 @@ impl ResolveState<'_> {
 
         // read each referenced key from the precomputed table
         for key in keys {
-            let Some(targets) = environment.global_targets_by_key.get(&key) else {
+            let Some(resolutions) = environment.global_resolutions_by_key.get(&key) else {
                 continue;
             };
 
-            for target in targets {
-                self.imports.push_global_target(key, *target);
+            for resolution in resolutions {
+                self.imports.push_global_resolution(key, resolution.clone());
             }
         }
 
