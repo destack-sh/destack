@@ -26,11 +26,11 @@ export let Foo = 1;
         r#"
 export { Foo as Bar } from "./dep.ds";
 /// @module.edge relation=re_export specifier=./dep.ds module=dep.ds
-/// @export.indirect key=Bar imported=Foo module=dep.ds
+/// @export.reexport key=Bar imported=Foo declaration=Bar module=dep.ds
 
 /// @module.summary edges=1
 /// @export.summary exports=1
-/// @export.stats roots=1 expressions=visibility:1,export:1 symbols=scanned:1
+/// @export.stats roots=1 expressions=visibility:1,export:1 symbols=scanned:2
 "#,
     );
 }
@@ -62,12 +62,12 @@ export let named = 2;
         r#"
 export { default as value, named as default } from "./dep.ds";
 /// @module.edge relation=re_export specifier=./dep.ds module=dep.ds
-/// @export.indirect key=value imported=<default> module=dep.ds
-/// @export.indirect key=<default> imported=named module=dep.ds
+/// @export.reexport key=value imported=<default> declaration=value module=dep.ds
+/// @export.reexport key=<default> imported=named declaration=default module=dep.ds
 
 /// @module.summary edges=1
 /// @export.summary exports=2
-/// @export.stats roots=1 expressions=visibility:1,export:1 symbols=scanned:1
+/// @export.stats roots=1 expressions=visibility:1,export:1 symbols=scanned:3
 "#,
     );
 }

@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use smallvec::smallvec;
 
 use crate::export::state::ExportState;
 use crate::{Compiler, ExportResult};
@@ -17,7 +18,7 @@ impl Compiler {
 
             if let Some(export) = self.declaration_export_entry(state, symbol_id)? {
                 let anchor = state.local_export_anchor(&export)?;
-                state.insert_export(dir::NamedExport::Local(export), anchor)?;
+                state.insert_export(export, anchor)?;
             }
         }
 
@@ -34,6 +35,11 @@ impl Compiler {
 
         // ignore non-global symbols
         if !symbol.origin.is_global() {
+            return Ok(());
+        }
+
+        // dependency aliases are published by their GlobalEntry
+        if symbol.kind == dir::SymbolKind::ExportAlias {
             return Ok(());
         }
 
@@ -58,9 +64,24 @@ impl Compiler {
             }
         }
 
-        let form = state.symbol_form(symbol_id);
-        state.exports.insert_symbol_form(symbol_id, form);
-        state.globals.push_local(key, symbol_id);
+        let declarations = state.visible_declarations(key);
+        if declarations.last() != Some(&symbol_id) {
+            return Ok(());
+        }
+
+        // retain the complete visible declaration group
+        for symbol in &declarations {
+            let form = state.symbol_form(*symbol);
+            state.exports.insert_symbol_form(*symbol, form);
+        }
+        state.globals.push(dir::GlobalEntry {
+            key,
+            item: None,
+            declaration: None,
+            binding: dir::ExportBinding::Local {
+                symbols: declarations,
+            },
+        });
 
         Ok(())
     }
@@ -70,7 +91,7 @@ impl Compiler {
         &self,
         state: &mut ExportState<'_>,
         symbol_id: dir::LocalSymbolId,
-    ) -> ExportResult<Option<dir::LocalExport>> {
+    ) -> ExportResult<Option<dir::NamedExport>> {
         let symbol = state.bindings.get_symbol(symbol_id);
         let scope = symbol.scope.id;
         let declaration = symbol.declaration;
@@ -103,24 +124,34 @@ impl Compiler {
         let Some(export_kind) = export_kind else {
             return Ok(None);
         };
-        let form = state.symbol_form(symbol_id);
-        state.exports.insert_symbol_form(symbol_id, form);
-        let name = match export_kind {
-            dir::ExportKind::Default => dir::ExportKey::default_key(),
+        let (name, declarations) = match export_kind {
+            dir::ExportKind::Default => (dir::ExportKey::default_key(), smallvec![symbol_id]),
             dir::ExportKind::Named => {
                 let Some(key) = key else {
                     return Ok(None);
                 };
+                let declarations = state.visible_declarations(key);
+                if declarations.last() != Some(&symbol_id) {
+                    return Ok(None);
+                }
 
-                dir::ExportKey::named(key)
+                (dir::ExportKey::named(key), declarations)
             }
         };
 
-        Ok(Some(dir::LocalExport {
+        // retain every exported declaration form
+        for symbol in &declarations {
+            let form = state.symbol_form(*symbol);
+            state.exports.insert_symbol_form(*symbol, form);
+        }
+
+        Ok(Some(dir::NamedExport {
             key: name,
-            source: symbol_id,
-            form,
             item: None,
+            declaration: None,
+            binding: dir::ExportBinding::Local {
+                symbols: declarations,
+            },
         }))
     }
 }

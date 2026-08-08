@@ -18,7 +18,7 @@ export default function main(): number {
         DirRows::exports().with_summaries().with_export_stats(),
         r#"
 export default function main(): number {
-/// @export.local key=<default> source=main
+/// @export.local key=<default> symbols=[main]
 
     return 1;
 }
@@ -45,7 +45,7 @@ export default 1;
         DirRows::exports().with_summaries().with_export_stats(),
         r#"
 export default 1;
-/// @export.local key=<default> source=symbol1
+/// @export.local key=<default> symbols=[symbol1]
 
 /// @export.summary exports=1
 /// @export.stats roots=1 expressions=visibility:1,export:1 symbols=scanned:2

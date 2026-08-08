@@ -61,11 +61,11 @@ export let value = 1;
         r#"
 export * as dep from "./dep.ds";
 /// @module.edge relation=re_export specifier=./dep.ds module=dep.ds
-/// @export.indirect key=dep imported=<namespace> module=dep.ds
+/// @export.reexport key=dep imported=<namespace> declaration=dep module=dep.ds
 
 /// @module.summary edges=1
 /// @export.summary exports=1
-/// @export.stats roots=1 expressions=visibility:1,export:1 symbols=scanned:1
+/// @export.stats roots=1 expressions=visibility:1,export:1 symbols=scanned:2
 "#,
     );
 }

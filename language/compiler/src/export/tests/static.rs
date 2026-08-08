@@ -168,7 +168,7 @@ export let Bar = 2;
         r#"
 export { @if(false) Foo, @if(true) Bar } from "./dep.ds";
 /// @module.edge relation=re_export specifier=./dep.ds module=dep.ds
-/// @export.indirect key=Bar imported=Bar module=dep.ds
+/// @export.reexport key=Bar imported=Bar module=dep.ds
 
 /// @module.summary edges=1
 /// @export.summary exports=1

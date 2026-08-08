@@ -365,19 +365,22 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Add source-visible global names from resolved imports.
     pub(crate) fn add_global_names(&mut self, imports: &dir::ImportTable) {
-        for (key, targets) in &imports.global_target_by_key {
+        for (key, resolutions) in &imports.global_resolution_by_key {
             let Some(name) = key.name() else {
                 continue;
             };
+            for resolution in resolutions {
+                let Some(symbols) = resolution.target.symbol_ids() else {
+                    continue;
+                };
 
-            let [dir::ImportTarget::Symbol(symbol)] = targets.as_slice() else {
-                continue;
-            };
-
-            self.global_names_by_symbol
-                .entry(*symbol)
-                .or_default()
-                .insert(name);
+                for symbol in symbols {
+                    self.global_names_by_symbol
+                        .entry(*symbol)
+                        .or_default()
+                        .insert(name);
+                }
+            }
         }
     }
 
@@ -930,6 +933,17 @@ impl<'a> DirSnapshotBuilder<'a> {
             dir::ExportSelector::Default => "<default>".to_string(),
             dir::ExportSelector::Named(name) => self.static_key(name),
             dir::ExportSelector::Namespace => "<namespace>".to_string(),
+        }
+    }
+
+    /// Render one export target as ordered labels.
+    pub(crate) fn export_target_labels(&self, target: &dir::ExportTarget) -> Vec<String> {
+        match target {
+            dir::ExportTarget::Symbols(symbols) => symbols
+                .iter()
+                .map(|symbol| self.symbol_path_label(*symbol))
+                .collect(),
+            dir::ExportTarget::Namespace(module) => vec![self.module_path(*module)],
         }
     }
 
