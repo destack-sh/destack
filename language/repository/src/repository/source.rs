@@ -258,8 +258,8 @@ impl<'a> FileSystemSource<'a> {
         })
     }
 
-    /// Return repository edits for one logical source file when it exists.
-    pub fn repository_edits_for_path(
+    /// Return edits for one logical source file when it exists.
+    pub fn edits_for_path(
         mut self,
         logical_path: &Path,
     ) -> Result<Option<Vec<Edit>>, RepositoryError> {
@@ -335,19 +335,13 @@ impl<'a> FileSystemSource<'a> {
         directory: &Path,
         loaded: &Path,
     ) -> Result<(), RepositoryError> {
-        let entries = match self.repository.file_system().read_dir(directory) {
-            Ok(entries) => entries,
-            Err(_) => return Ok(()),
-        };
+        let entries = self.read_directory(directory)?;
 
         for entry in entries {
             if entry == loaded || !Self::tracks_path(&entry) {
                 continue;
             }
-            let metadata = match self.repository.file_system().metadata(&entry) {
-                Ok(metadata) => metadata,
-                Err(_) => continue,
-            };
+            let metadata = self.metadata(&entry)?;
             if metadata.is_file {
                 self.import_file(&entry)?;
             }
