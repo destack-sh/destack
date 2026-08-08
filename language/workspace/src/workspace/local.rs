@@ -166,7 +166,7 @@ impl LocalWorkspace {
             profile_count,
             target_count,
         } = result;
-        let revision = context.revision()?;
+        let revision = context.revision();
         let files = context.file_images(revision, &diagnostics, &files)?;
         let success = exit_code == 0;
         let trace = common

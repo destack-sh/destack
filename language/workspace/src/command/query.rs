@@ -248,7 +248,7 @@ impl CommandContext<'_> {
         };
 
         // provide parsed DIR before structural selection
-        let revision = self.revision()?;
+        let revision = self.revision();
         let parsed_keys = modules
             .iter()
             .map(|module| ArtifactKey::dir_parsed(*module))

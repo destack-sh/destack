@@ -130,7 +130,7 @@ impl CommandContext<'_> {
         let settings = self.repository.settings();
 
         // resolve workspace-owned settings
-        let revision = self.revision()?;
+        let revision = self.revision();
         let vendor = self
             .repository
             .destack_for_workspace(revision)

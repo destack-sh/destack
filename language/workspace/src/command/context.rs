@@ -4,17 +4,18 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
+use destack_repository as repository;
 use destack_repository::{
-    DestackFile, Ref, Repository, Revision, Target, TargetRoot, Trace, TraceSnapshot, TraceView,
-    apply_manifest_overrides_to_json, parse_jsonc_text,
+    DestackFile, Repository, Revision, RevisionPin, Target, TargetRoot, Trace, TraceSnapshot,
+    TraceView, apply_manifest_overrides_to_json, parse_jsonc_text,
 };
-use destack_session::{Session, SessionEventHandler};
+use destack_session::{ArtifactPriority, Session, SessionEventHandler};
 use destack_source::{
-    DiagnosticCollection, Edit, File, FileId, FileType, ModuleId, ProfileId, TargetId, Uri, glob,
+    DiagnosticCollection, File, FileId, FileType, ModuleId, ProfileId, TargetId, Uri, glob,
 };
 use serde_json::{Map, Value};
 
-use crate::LocalWorkspace;
+use crate::{FileImage, LocalWorkspace};
 
 use super::common::{
     CommandInput, CommandMessagePayload, CommandOptions, CommandRevision, CommandTargetOverrides,
@@ -25,26 +26,50 @@ use super::output::OutputBuffer;
 use super::{CommandError, CommandResult};
 
 /// Per-request command context.
-#[derive(Debug)]
 pub(crate) struct CommandContext<'a> {
     /// Active local workspace.
     pub(super) workspace: &'a LocalWorkspace,
     /// Workspace root for this command.
     pub(super) root: PathBuf,
+    /// Working directory for this command.
+    pub(super) cwd: PathBuf,
     /// Repository for the command.
     pub(crate) repository: Arc<Repository>,
     /// Root workspace revision from which this command forked.
     pub(super) base: Revision,
-    /// Private command session over the active revision.
-    pub(super) session: Session,
+    /// Active private command revision.
+    revision: RevisionPin,
+    /// Artifact computation session for this command.
+    pub(super) session: Arc<Session>,
     /// Trace spanning the complete command operation.
     trace: Arc<Trace>,
+    /// Optional progress event handler for command artifact runs.
+    event_handler: Option<SessionEventHandler>,
     /// Command files retained for diagnostics without entering the module index.
     files: BTreeMap<FileId, Arc<File>>,
     /// Common command options.
     pub(super) common: &'a CommandOptions,
     /// Output buffer for command streaming.
     pub(super) output: &'a mut OutputBuffer,
+}
+
+impl std::fmt::Debug for CommandContext<'_> {
+    /// Format the visible command context.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CommandContext")
+            .field("root", &self.root)
+            .field("cwd", &self.cwd)
+            .field("repository", &self.repository)
+            .field("base", &self.base)
+            .field("revision", &self.revision)
+            .field("session", &self.session)
+            .field("trace", &self.trace)
+            .field("event_handler", &self.event_handler.is_some())
+            .field("files", &self.files)
+            .field("common", &self.common)
+            .finish_non_exhaustive()
+    }
 }
 
 /// One selected command target.
@@ -67,37 +92,30 @@ impl<'a> CommandContext<'a> {
         output: &'a mut OutputBuffer,
         event_handler: Option<SessionEventHandler>,
     ) -> CommandResult<Self> {
-        // root revision
-        let revision = Self::resolve_command_revision(repository.as_ref(), &root, revision)?;
-
-        // private command session
-        let cwd = common.cwd.clone().unwrap_or_else(|| root.clone());
-        let head = workspace.next_command_session_ref(&root);
-        let session = Session::fork(
-            root.clone(),
-            cwd,
-            repository.clone(),
-            head,
-            revision,
-            workspace.worker_limit,
-            event_handler,
-        )
-        .map_err(|error| {
-            CommandError::internal(format!("failed to initialize command session: {error}"))
+        // select and privately configure the command revision
+        let base = Self::resolve_command_revision(workspace, &root, revision)?;
+        let revision = repository.pin(base).map_err(|error| {
+            CommandError::internal(format!("failed to pin command revision: {error}"))
         })?;
+        let revision = Self::apply_overrides(&root, &repository, revision, &common.overrides)?;
 
-        // enable provider detail before opening the command trace
-        session.set_tracing(common.trace.is_some());
-        Self::apply_overrides(&session, repository.as_ref(), &common.overrides)?;
-        let trace = session.start_trace();
+        // bind the command to the shared workspace executor
+        let cwd = common.cwd.clone().unwrap_or_else(|| root.clone());
+        let session = workspace.session();
+
+        // open the trace after command source preparation
+        let trace = session.start_trace(common.trace.is_some());
 
         Ok(Self {
             workspace,
             root,
+            cwd,
             repository,
-            base: revision,
+            base,
+            revision,
             session,
             trace,
+            event_handler,
             files: BTreeMap::new(),
             common,
             output,
@@ -139,10 +157,15 @@ impl<'a> CommandContext<'a> {
         revision: Revision,
         artifact_keys: &[ArtifactKey],
     ) -> CommandResult<()> {
-        self.session
-            .provide_traced(revision, artifact_keys, self.trace.clone())
-            .await
-            .map_err(|error| error.to_string().into())
+        let run = self.session.provide_traced(
+            revision,
+            artifact_keys,
+            ArtifactPriority::Foreground,
+            self.trace.clone(),
+            self.event_handler.clone(),
+        );
+
+        run.wait().await.map_err(|error| error.to_string().into())
     }
 
     /// Complete artifacts through terminal outcomes while recording into the command trace.
@@ -151,8 +174,15 @@ impl<'a> CommandContext<'a> {
         revision: Revision,
         artifact_keys: &[ArtifactKey],
     ) -> CommandResult<()> {
-        self.session
-            .complete_traced(revision, artifact_keys, self.trace.clone())
+        let run = self.session.provide_traced(
+            revision,
+            artifact_keys,
+            ArtifactPriority::Foreground,
+            self.trace.clone(),
+            self.event_handler.clone(),
+        );
+
+        run.complete()
             .await
             .map_err(|error| error.to_string().into())
     }
@@ -169,34 +199,32 @@ impl<'a> CommandContext<'a> {
             .map_err(|error| error.to_string().into())
     }
 
-    /// Resolve the revision used to fork the command session.
+    /// Resolve the base revision for one command.
     fn resolve_command_revision(
-        repository: &Repository,
+        workspace: &LocalWorkspace,
         root: &Path,
         revision: CommandRevision,
     ) -> CommandResult<Revision> {
         match revision {
-            CommandRevision::Current => {
-                let reference = Ref::for_root(root);
-                repository.current(&reference).map_err(|error| {
-                    CommandError::internal(format!(
-                        "command workspace revision is missing for {}: {error}",
-                        root.display()
-                    ))
-                })
-            }
+            CommandRevision::Current => workspace.revision(root).map_err(|error| {
+                CommandError::internal(format!(
+                    "command workspace revision is missing for {}: {error}",
+                    root.display()
+                ))
+            }),
             CommandRevision::Exact(revision) => Ok(revision),
         }
     }
 
-    /// Apply command manifest overrides to the private session revision.
+    /// Apply manifest overrides to one private command revision.
     fn apply_overrides(
-        session: &Session,
-        repository: &Repository,
+        root: &Path,
+        repository: &Arc<Repository>,
+        revision: RevisionPin,
         overrides: &[ManifestOverride],
-    ) -> CommandResult<()> {
+    ) -> CommandResult<RevisionPin> {
         if overrides.is_empty() {
-            return Ok(());
+            return Ok(revision);
         }
 
         // convert protocol-safe values into repository JSON overrides
@@ -207,10 +235,8 @@ impl<'a> CommandContext<'a> {
             .map_err(|error| CommandError::config(format!("invalid manifest override: {error}")))?;
 
         // collect package manifests visible to this command
-        let before = session.revision(session.head()).map_err(|error| {
-            CommandError::internal(format!("failed to read command session revision: {error}"))
-        })?;
-        let manifests = Self::manifests(session, repository, before)?;
+        let before = revision.revision();
+        let manifests = Self::manifests(root, repository, before)?;
         let mut edits = Vec::with_capacity(manifests.len());
 
         // apply overrides to each manifest image
@@ -226,36 +252,25 @@ impl<'a> CommandContext<'a> {
             let content = format!("{content}\n");
             let logical_path = repository.logical_path(&path);
 
-            edits.push(destack_repository::Edit::set_text(logical_path, content));
+            edits.push(repository::Edit::set_text(logical_path, content));
         }
 
-        // publish the overridden private revision
-        let revision = repository.fork_with_edits(before, edits).map_err(|error| {
+        let after = repository.fork_with_edits(before, edits).map_err(|error| {
             CommandError::internal(format!("failed to apply command config edits: {error}"))
         })?;
-        let did_advance = repository
-            .advance_ref(session.head(), before, revision)
-            .map_err(|error| {
-                CommandError::internal(format!(
-                    "failed to publish command config revision: {error}"
-                ))
-            })?;
-        if !did_advance {
-            return Err(CommandError::internal(
-                "command config revision base changed before publish",
-            ));
-        }
 
-        Ok(())
+        repository.pin(after).map_err(|error| {
+            CommandError::internal(format!("failed to pin command revision: {error}"))
+        })
     }
 
     /// Return manifest paths visible to one command revision.
     fn manifests(
-        session: &Session,
+        root: &Path,
         repository: &Repository,
         revision: Revision,
     ) -> CommandResult<Vec<PathBuf>> {
-        let mut paths = vec![session.root().join("destack.json")];
+        let mut paths = vec![root.join("destack.json")];
 
         // include package configs in monorepos
         for package_path in repository.package_roots(revision).map_err(|error| {
@@ -331,16 +346,16 @@ impl<'a> CommandContext<'a> {
     }
 
     /// Resolve command inputs into module ids.
-    pub(super) fn resolve_modules(&self, inputs: &[CommandInput]) -> CommandResult<Vec<ModuleId>> {
+    pub(super) fn resolve_modules(
+        &mut self,
+        inputs: &[CommandInput],
+    ) -> CommandResult<Vec<ModuleId>> {
         let mut seen = HashSet::new();
         let mut modules = Vec::new();
 
         for input in inputs {
             let module_id = match input {
-                CommandInput::File { path } => self
-                    .session
-                    .load_module_from_fs(self.session.head(), path)
-                    .map_err(|error| format!("failed to resolve {}: {error}", path.display()))?,
+                CommandInput::File { path } => self.load_module(path)?,
                 CommandInput::Inline {
                     name,
                     content,
@@ -365,36 +380,71 @@ impl<'a> CommandContext<'a> {
         Ok(modules)
     }
 
-    /// Return the active workspace revision for this command.
-    pub(crate) fn revision(&self) -> CommandResult<Revision> {
-        self.session
-            .revision(self.session.head())
-            .map_err(|error| CommandError::internal(error.to_string()))
+    /// Return the active private command revision.
+    pub(crate) fn revision(&self) -> Revision {
+        self.revision.revision()
+    }
+
+    /// Load one filesystem module into this command revision.
+    fn load_module(&mut self, path: &Path) -> CommandResult<ModuleId> {
+        // resolve the requested path through its opened root
+        let root = self.workspace.root(&self.root).map_err(|error| {
+            CommandError::internal(format!("failed to open command root: {error}"))
+        })?;
+        let path = self
+            .workspace
+            .resolve_path(root.as_ref(), path)
+            .map_err(|error| {
+                CommandError::source(format!("failed to resolve {}: {error}", path.display()))
+            })?;
+
+        // import the module into this command's private revision
+        let (revision, module_id) = root
+            .load_module(&self.repository, self.revision.clone(), &path)
+            .map_err(|error| format!("failed to resolve {}: {error}", path.display()))?;
+        self.revision = revision;
+
+        Ok(module_id)
     }
 
     /// Materialize one inline command input into one command local revision.
     fn materialize_inline_module(
-        &self,
+        &mut self,
         kind: &str,
         name: &str,
         content: &str,
         file_type: FileType,
     ) -> CommandResult<ModuleId> {
+        // commit the virtual source into the private revision
         let path = PathBuf::from(command_input_logical_path(kind, name, file_type));
-        self.session
-            .edit(
-                self.session.head(),
-                vec![Edit::SetText {
-                    path: path.clone(),
-                    text: content.to_string(),
-                }],
-            )
+        let before = self.revision.revision();
+        let logical_path = path.to_string_lossy();
+        let edit = repository::Edit::set_text(logical_path, content);
+        let after = self
+            .repository
+            .commit_edits(before, vec![edit])
             .map_err(|error| format!("failed to materialize command input {name}: {error}"))?;
 
+        // retain the new private revision
+        let revision = self
+            .repository
+            .pin(after)
+            .map_err(|error| format!("failed to pin command input {name}: {error}"))?;
+
+        // require the virtual source to produce a module
         let module_id = self
-            .session
-            .load_module_from_fs(self.session.head(), &path)
-            .map_err(|error| format!("failed to resolve command input module {name}: {error}"))?;
+            .repository
+            .module_id_for_path(after, &path)
+            .map_err(|error| format!("failed to resolve command input module {name}: {error}"))?
+            .ok_or_else(|| {
+                CommandError::source(format!(
+                    "command input did not produce a module: {}",
+                    path.display()
+                ))
+            })?;
+
+        // publish the revision inside this command only
+        self.revision = revision;
 
         Ok(module_id)
     }
@@ -444,6 +494,52 @@ impl<'a> CommandContext<'a> {
         self.repository
             .file(revision, file_id)
             .map_err(|error| CommandError::internal(error.to_string()))
+    }
+
+    /// Return file images referenced by one command result.
+    pub(crate) fn file_images(
+        &self,
+        revision: Revision,
+        diagnostics: &DiagnosticCollection,
+        sources: &[Arc<File>],
+    ) -> CommandResult<Vec<FileImage>> {
+        let mut seen = HashSet::new();
+        let mut files = Vec::new();
+
+        // retain files referenced by command data
+        for file in sources {
+            if seen.insert(file.id) {
+                files.push(FileImage::from(file.as_ref()));
+            }
+        }
+
+        // collect every file referenced by labels and suggestion patches
+        for diagnostic in diagnostics.iter() {
+            let mut file_ids = vec![diagnostic.primary_label().target.file()];
+            file_ids.extend(diagnostic.labels().map(|label| label.target.file()));
+            file_ids.extend(
+                diagnostic
+                    .suggestions
+                    .iter()
+                    .flat_map(|suggestion| &suggestion.patches.files)
+                    .map(|patch| patch.file),
+            );
+
+            for file_id in file_ids {
+                if !seen.insert(file_id) {
+                    continue;
+                }
+
+                let file = self.file(revision, file_id)?.ok_or_else(|| {
+                    CommandError::internal(format!(
+                        "diagnostic references missing source file {file_id:?}"
+                    ))
+                })?;
+                files.push(FileImage::from(file.as_ref()));
+            }
+        }
+
+        Ok(files)
     }
 
     /// Return the unique selected profile count for the provided modules.
@@ -580,7 +676,7 @@ impl<'a> CommandContext<'a> {
         &self,
         override_path: Option<&Path>,
     ) -> CommandResult<PathBuf> {
-        let revision = self.revision()?;
+        let revision = self.revision();
 
         // honor explicit config paths first
         if let Some(config_path) = override_path {
@@ -593,7 +689,7 @@ impl<'a> CommandContext<'a> {
 
     /// Load one `destack.json` config for a path.
     pub(super) fn load_destack_config(&self, path: &Path) -> CommandResult<DestackFile> {
-        let revision = self.revision()?;
+        let revision = self.revision();
 
         self.repository
             .inherited_destack_for_path(revision, path)
@@ -603,7 +699,7 @@ impl<'a> CommandContext<'a> {
 
     /// Find destack.json for a directory.
     pub(super) fn find_destack_config(&self, cwd: &Path) -> Option<PathBuf> {
-        let revision = self.revision().ok()?;
+        let revision = self.revision();
 
         self.find_destack_config_in_revision(revision, cwd)
     }

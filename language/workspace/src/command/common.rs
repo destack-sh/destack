@@ -1,9 +1,12 @@
 use std::path::PathBuf;
-use std::time::Duration;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use destack_serde::{Reflect, Value, ValueError};
+use destack_session::{SessionEvent, SessionEventHandler};
 use futures::StreamExt;
 use futures::channel::mpsc::{Receiver, Sender, channel};
+use parking_lot::Mutex;
 
 use destack_repository::{Revision, Target, TraceView};
 use destack_source::{FileType, TargetId};
@@ -213,6 +216,33 @@ impl CommandProgress {
     /// Return the progress throttle interval.
     pub fn interval(&self) -> Duration {
         self.interval
+    }
+
+    /// Convert this progress sender into a throttled session event handler.
+    pub(crate) fn event_handler(self) -> SessionEventHandler {
+        let interval = self.interval();
+        let throttle = Mutex::new((None::<Instant>, 0usize));
+
+        Arc::new(move |event| match event {
+            SessionEvent::TaskFinished { artifact_key, .. }
+            | SessionEvent::TaskFailed { artifact_key, .. } => {
+                // count every completed artifact
+                let mut throttle = throttle.lock();
+                throttle.1 += 1;
+                let is_due = throttle.0.is_none_or(|last| last.elapsed() >= interval);
+
+                // emit accumulated progress when the interval elapses
+                if is_due {
+                    throttle.0 = Some(Instant::now());
+                    let _is_queued = self.try_emit(ProgressEvent {
+                        task: artifact_key.stage().name().to_string(),
+                        message: Some(format!("{} artifacts", throttle.1)),
+                        percent: None,
+                    });
+                }
+            }
+            _ => {}
+        })
     }
 }
 

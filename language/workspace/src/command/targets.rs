@@ -89,7 +89,7 @@ impl CommandContext<'_> {
         options: &TargetsOptions,
     ) -> CommandResult<CommandOutcome<TargetsPayload>> {
         // resolve workspace context
-        let revision = self.revision()?;
+        let revision = self.revision();
         // resolve config selection
         let configs = if options.all {
             self.load_workspace_configs(revision)?

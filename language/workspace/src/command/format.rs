@@ -129,7 +129,7 @@ impl CommandContext<'_> {
         let suppress_output = false;
         let mut command_diagnostics = DiagnosticCollection::new();
         let mut diagnostic_files = Vec::new();
-        let revision = self.revision()?;
+        let revision = self.revision();
 
         // build formatter state
         let mut report = FormatReport::new(check);

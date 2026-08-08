@@ -85,7 +85,7 @@ impl CommandContext<'_> {
         options: &InfoOptions,
     ) -> CommandResult<CommandOutcome<InfoPayload>> {
         // build workspace snapshot
-        let revision = self.revision()?;
+        let revision = self.revision();
         let workspace = self
             .repository
             .root(revision)
@@ -102,7 +102,7 @@ impl CommandContext<'_> {
         let manifest = if self.common.manifest.is_some() {
             Some(self.resolve_destack_config_path(self.common.manifest.as_deref())?)
         } else {
-            self.find_destack_config(self.session.cwd())
+            self.find_destack_config(&self.cwd)
         };
         let config = manifest
             .as_ref()

@@ -138,7 +138,7 @@ impl CommandContext<'_> {
             .unwrap_or(1);
 
         // resolve workspace context
-        let revision = self.revision()?;
+        let revision = self.revision();
         let workspace = self
             .repository
             .root(revision)

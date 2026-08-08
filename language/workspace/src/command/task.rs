@@ -267,7 +267,7 @@ impl CommandContext<'_> {
 
     /// Resolve the selected task project scope.
     fn resolve_task_projects(&self, options: &TaskOptions) -> CommandResult<Vec<TaskProject>> {
-        let revision = self.revision()?;
+        let revision = self.revision();
         let workspace = self
             .repository
             .root(revision)

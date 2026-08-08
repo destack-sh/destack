@@ -323,7 +323,7 @@ impl CommandContext<'_> {
         // resolve inputs for the command
         let inputs = self.resolve_command_inputs()?;
         let modules = self.resolve_modules(&inputs)?;
-        let revision = self.revision()?;
+        let revision = self.revision();
         let entry_module = modules
             .first()
             .copied()

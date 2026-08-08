@@ -101,7 +101,7 @@ impl CommandContext<'_> {
         let clean_cache = options.cache || options.all;
 
         // resolve workspace context
-        let revision = self.revision()?;
+        let revision = self.revision();
 
         // resolve configs for output cleanup
         let destack_configs = if options.all_packages {
