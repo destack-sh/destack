@@ -222,7 +222,6 @@ impl ProgramQueryContext<'_> {
                 entry.decorator.module_id,
                 entry.owner.local_id.id,
                 entry.decorator.local_id.id,
-                entry.expression.local_id.id,
                 entry.name.clone(),
             )
         });
@@ -246,12 +245,10 @@ impl ProgramQueryContext<'_> {
         entries.sort_by_key(|entry| {
             (
                 entry.base,
-                entry.span.file,
-                entry.span.start,
-                entry.span.end,
-                entry.kind,
                 entry.derived,
                 entry.declaration,
+                entry.ordinal,
+                entry.kind,
             )
         });
         entries.dedup();
@@ -274,17 +271,55 @@ impl ProgramQueryContext<'_> {
         entries.sort_by_key(|entry| {
             (
                 entry.derived,
-                entry.span.file,
-                entry.span.start,
-                entry.span.end,
+                entry.declaration,
+                entry.ordinal,
                 entry.kind,
                 entry.base,
-                entry.declaration,
             )
         });
         entries.dedup();
 
         Ok(entries)
+    }
+
+    /// Collect members implementing one declared member.
+    pub(crate) fn member_implementations(
+        &self,
+        declaration: dir::GlobalSymbolId,
+    ) -> QueryResult<Vec<dir::GlobalSymbolId>> {
+        let mut implementations = Vec::new();
+
+        // collect edges from modules reached by the declared member
+        for ordinal in self.member_postings()?.declarations.get(&declaration) {
+            let (_, index) = self.member_index_at(*ordinal)?;
+            implementations.extend(index.implementations(declaration));
+        }
+
+        // normalize result order
+        implementations.sort();
+        implementations.dedup();
+
+        Ok(implementations)
+    }
+
+    /// Collect member declarations satisfied by one implementation.
+    pub(crate) fn member_declarations(
+        &self,
+        implementation: dir::GlobalSymbolId,
+    ) -> QueryResult<Vec<dir::GlobalSymbolId>> {
+        let mut declarations = Vec::new();
+
+        // collect edges from modules reached by the implementing member
+        for ordinal in self.member_postings()?.implementations.get(&implementation) {
+            let (_, index) = self.member_index_at(*ordinal)?;
+            declarations.extend(index.declarations(implementation));
+        }
+
+        // normalize result order
+        declarations.sort();
+        declarations.dedup();
+
+        Ok(declarations)
     }
 
     /// Collect indexed references to one target symbol.

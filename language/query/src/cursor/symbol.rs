@@ -119,7 +119,7 @@ impl ModuleQueryContext<'_> {
             u32,
         ) -> QueryResult<Option<T>>,
     ) -> QueryResult<Option<T>> {
-        // exclude comments from semantic occurrences
+        // exclude comments from symbol occurrences
         let is_comment = self
             .comments(file_id)?
             .iter()
@@ -211,7 +211,7 @@ impl ModuleQueryContext<'_> {
             None => program
                 .member_index(self.module_id())?
                 .source_entries(source)
-                .filter_map(|member| member.symbol)
+                .map(|member| member.symbol)
                 .collect(),
         };
         if symbols.is_empty() {

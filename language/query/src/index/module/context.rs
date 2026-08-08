@@ -4,9 +4,9 @@ use std::sync::Arc;
 use destack_artifact::{DirBound, DirChecked, DirDeclared, DirExpanded, DirParsed, DirResolved};
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_source::{ModuleId, SourceIndex, Span};
+use destack_source::{ModuleId, SourceIndex};
 
-/// Semantic DIR read state shared by module index builders.
+/// DIR artifacts shared by module index builders.
 #[derive(Debug)]
 pub(in crate::index) struct ModuleIndexContext<'a> {
     /// The parsed module DIR.
@@ -105,27 +105,11 @@ impl<'a> ModuleIndexContext<'a> {
         &self.resolved
     }
 
-    /// Return the shared string pool.
-    pub(super) fn strings(&self) -> &StringPool {
-        self.strings
-    }
-
     /// Return the symbol declared by one local node.
     pub(super) fn node_symbol(&self, node_id: dir::LocalNodeIdAny) -> Option<dir::LocalSymbolId> {
         let declaration = node_id.into_global(self.module_id);
 
         self.bindings().declaration_symbol(declaration)
-    }
-
-    /// Return the authored selection span for one node.
-    pub(super) fn node_selection_span(
-        &self,
-        view: dir::View<'_>,
-        node_id: dir::LocalNodeIdAny,
-    ) -> Option<Span> {
-        let source_id = view.get_source_any(node_id);
-
-        self.source_index().get_main(source_id)
     }
 
     /// Return whether one symbol is an explicit local import alias.

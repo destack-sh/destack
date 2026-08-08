@@ -219,6 +219,17 @@ impl<'a> ProgramQueryContext<'a> {
         }
     }
 
+    /// Return member postings.
+    pub(crate) fn member_postings(&self) -> QueryResult<&dir::MemberPostings> {
+        match self.program_index(IndexKind::Members)? {
+            ProgramIndex::Members(postings) => Ok(postings),
+            index => Err(QueryError::invalid(format!(
+                "expected member index, found {:?}",
+                index.kind()
+            ))),
+        }
+    }
+
     /// Return reference postings.
     pub(crate) fn reference_postings(&self) -> QueryResult<&dir::ReferencePostings> {
         match self.program_index(IndexKind::References)? {
@@ -316,6 +327,19 @@ impl<'a> ProgramQueryContext<'a> {
         let (module_id, index) = self.module_index_at(ordinal, IndexKind::Exports)?;
         let ModuleIndex::Exports(index) = index else {
             return Err(Self::unexpected_module_index(IndexKind::Exports, index));
+        };
+
+        Ok((module_id, index))
+    }
+
+    /// Return one module member index selected by a program ordinal.
+    pub(crate) fn member_index_at(
+        &self,
+        ordinal: u32,
+    ) -> QueryResult<(ModuleId, &dir::MemberIndex)> {
+        let (module_id, index) = self.module_index_at(ordinal, IndexKind::Members)?;
+        let ModuleIndex::Members(index) = index else {
+            return Err(Self::unexpected_module_index(IndexKind::Members, index));
         };
 
         Ok((module_id, index))

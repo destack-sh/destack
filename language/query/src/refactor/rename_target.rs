@@ -1,5 +1,6 @@
 use destack_dir as dir;
 use destack_serde::Reflect;
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -74,7 +75,6 @@ impl RenameSelection {
         module: &ModuleQueryContext<'_>,
         program: &ProgramQueryContext<'_>,
     ) -> QueryResult<Option<Self>> {
-        // FUGU #Incomplete: expand method groups through MemberConformance
         let Some(occurrence) =
             module.reference_at_offset(program, position.file_id, position.offset)?
         else {
@@ -121,12 +121,15 @@ impl RenameSelection {
             return Ok(None);
         };
 
-        // expand named functions to their complete lexical overload family
-        let overloads = program.function_overloads(first)?;
-        if symbols.len() > 1 && symbols != overloads {
+        // include declarations connected by exact overload and implementation relations
+        let rename_declarations = program.rename_declarations(first)?;
+        if symbols
+            .iter()
+            .any(|symbol| rename_declarations.binary_search(symbol).is_err())
+        {
             return Ok(None);
         }
-        let symbols = overloads;
+        let symbols = rename_declarations;
 
         // require one authored name across the rename group
         for symbol in &symbols[1..] {
@@ -151,6 +154,40 @@ impl RenameSelection {
 }
 
 impl ProgramQueryContext<'_> {
+    /// Return declarations renamed with one symbol.
+    fn rename_declarations(
+        &self,
+        root: dir::GlobalSymbolId,
+    ) -> QueryResult<Vec<dir::GlobalSymbolId>> {
+        let mut symbols = vec![root];
+        let mut selected = FxHashSet::from_iter([root]);
+        let mut cursor = 0;
+
+        // walk exact overload and member implementation relations
+        while cursor < symbols.len() {
+            // select the next connected declaration
+            let symbol = symbols[cursor];
+            cursor += 1;
+
+            // read every exact declaration relation
+            let mut connected = self.function_overloads(symbol)?;
+            connected.extend(self.member_implementations(symbol)?);
+            connected.extend(self.member_declarations(symbol)?);
+
+            // queue declarations not visited yet
+            for connected_symbol in connected {
+                if selected.insert(connected_symbol) {
+                    symbols.push(connected_symbol);
+                }
+            }
+        }
+
+        // normalize result order
+        symbols.sort();
+
+        Ok(symbols)
+    }
+
     /// Return every function declaration sharing one lexical binding.
     fn function_overloads(
         &self,

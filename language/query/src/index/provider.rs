@@ -12,7 +12,7 @@ use destack_repository::{
 use destack_source::{ModuleId, ProfileId};
 
 use super::module::{
-    CallIndexer, DecoratorIndexer, ExportIndexer, ExtensionIndexer, HeritageIndexer, MemberIndexer,
+    CallIndexer, DecoratorIndexer, ExportIndexer, HeritageIndexer, MemberIndexer,
     ModuleIndexContext, ReferenceIndexer, SymbolIndexer,
 };
 use super::program::ProgramIndexer;
@@ -168,15 +168,12 @@ impl Indexer {
                     self.module_index_context(&artifacts, module_id, profile_id, &checked)?;
 
                 match kind {
-                    IndexKind::Members => ModuleIndex::Members(MemberIndexer::build(&module)?),
+                    IndexKind::Members => ModuleIndex::Members(MemberIndexer::build(&module)),
                     IndexKind::References => {
                         ModuleIndex::References(ReferenceIndexer::build(&module)?)
                     }
                     IndexKind::Calls => ModuleIndex::Calls(CallIndexer::build(&module)?),
                     IndexKind::Heritage => ModuleIndex::Heritage(HeritageIndexer::build(&module)?),
-                    IndexKind::Extensions => {
-                        ModuleIndex::Extensions(ExtensionIndexer::build(&module)?)
-                    }
                     IndexKind::Decorators => {
                         ModuleIndex::Decorators(DecoratorIndexer::build(&module))
                     }

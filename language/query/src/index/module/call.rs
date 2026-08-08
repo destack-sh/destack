@@ -12,6 +12,17 @@ pub(in crate::index) struct CallIndexer<'context, 'index> {
     entries: Vec<dir::CallEntry>,
 }
 
+/// One authored call-like source occurrence.
+#[derive(Debug, Clone, Copy)]
+struct CallSite {
+    /// The call-like expression node.
+    source: dir::GlobalNodeId<dir::Expression>,
+    /// The containing callable symbol when present.
+    caller: Option<dir::GlobalSymbolId>,
+    /// The authored source range.
+    span: Span,
+}
+
 impl<'context, 'index> CallIndexer<'context, 'index> {
     /// Build the call index.
     pub(in crate::index) fn build(
@@ -36,14 +47,12 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
     /// Collect checked call target edges.
     fn collect_calls(&mut self) -> ProviderResult<()> {
         for (node_id, resolution) in self.module.resolutions().call_entries() {
-            // resolve call source metadata
-            let source = self.expression_source(node_id, "call")?;
-            let Some(span) = self.module.view().get_span_by_id(node_id.local_id.id) else {
+            // omit generated calls without source occurrences
+            let Some(site) = self.call_site(node_id)? else {
                 continue;
             };
-            let caller = self.containing_symbol(node_id.local_id)?;
 
-            self.push_call_resolution(source, caller, span, resolution);
+            self.push_call_resolution(site, resolution);
         }
 
         Ok(())
@@ -52,13 +61,12 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
     /// Collect getter calls stored by member resolutions.
     fn collect_member_calls(&mut self) -> ProviderResult<()> {
         for (node_id, resolution) in self.module.resolutions().member_entries() {
-            let source = self.expression_source(node_id, "member")?;
-            let Some(span) = self.module.view().get_span_by_id(node_id.local_id.id) else {
+            // omit generated calls without source occurrences
+            let Some(site) = self.call_site(node_id)? else {
                 continue;
             };
-            let caller = self.containing_symbol(node_id.local_id)?;
 
-            self.push_member_resolution(source, caller, span, resolution);
+            self.push_member_resolution(site, resolution);
         }
 
         Ok(())
@@ -67,15 +75,14 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
     /// Collect protocol calls stored by operator resolutions.
     fn collect_operator_calls(&mut self) -> ProviderResult<()> {
         for (node_id, resolution) in self.module.resolutions().operator_entries() {
-            let source = self.expression_source(node_id, "operator")?;
-            let Some(span) = self.module.view().get_span_by_id(node_id.local_id.id) else {
+            // omit generated calls without source occurrences
+            let Some(site) = self.call_site(node_id)? else {
                 continue;
             };
-            let caller = self.containing_symbol(node_id.local_id)?;
 
             for application in resolution.iter() {
                 if let Some(call) = application.call() {
-                    self.push_call(source, caller, span, call);
+                    self.push_call(site, call);
                 }
             }
         }
@@ -86,13 +93,12 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
     /// Collect protocol calls stored by subscript read resolutions.
     fn collect_subscript_calls(&mut self) -> ProviderResult<()> {
         for (node_id, resolution) in self.module.resolutions().subscript_entries() {
-            let source = self.expression_source(node_id, "subscript")?;
-            let Some(span) = self.module.view().get_span_by_id(node_id.local_id.id) else {
+            // omit generated calls without source occurrences
+            let Some(site) = self.call_site(node_id)? else {
                 continue;
             };
-            let caller = self.containing_symbol(node_id.local_id)?;
 
-            self.push_subscript_resolution(source, caller, span, resolution);
+            self.push_subscript_resolution(site, resolution);
         }
 
         Ok(())
@@ -101,16 +107,15 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
     /// Collect accessor and protocol calls stored by place resolutions.
     fn collect_place_calls(&mut self) -> ProviderResult<()> {
         for (node_id, resolution) in self.module.resolutions().assignment_entries() {
-            let source = self.expression_source(node_id, "assignment")?;
-            let Some(span) = self.module.view().get_span_by_id(node_id.local_id.id) else {
+            // omit generated calls without source occurrences
+            let Some(site) = self.call_site(node_id)? else {
                 continue;
             };
-            let caller = self.containing_symbol(node_id.local_id)?;
 
             if let Some(read) = &resolution.read {
-                self.push_read(source, caller, span, read);
+                self.push_read(site, read);
             }
-            self.push_write(source, caller, span, &resolution.write);
+            self.push_write(site, &resolution.write);
         }
 
         Ok(())
@@ -119,93 +124,83 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
     /// Collect checked construct target edges.
     fn collect_constructs(&mut self) -> ProviderResult<()> {
         for (node_id, resolution) in self.module.resolutions().construct_entries() {
-            // resolve construct source metadata
-            let source = self.expression_source(node_id, "construct")?;
-            let Some(span) = self.module.view().get_span_by_id(node_id.local_id.id) else {
+            // omit generated calls without source occurrences
+            let Some(site) = self.call_site(node_id)? else {
                 continue;
             };
-            let caller = self.containing_symbol(node_id.local_id)?;
 
-            // emit the resolved construct edge
+            // omit constructions without declaration-backed call targets
             let Some(callee) = resolution.target.call_symbol() else {
                 continue;
             };
+
+            // emit the resolved construct edge
             self.entries.push(dir::CallEntry {
-                source,
+                source: site.source,
                 kind: dir::CallKind::Construct,
-                caller,
+                caller: site.caller,
                 callee,
-                span,
+                span: site.span,
             });
         }
 
         Ok(())
     }
 
-    /// Return one resolution source as a typed expression node.
-    fn expression_source(
-        &self,
-        node_id: dir::GlobalNodeIdAny,
-        family: &str,
-    ) -> ProviderResult<dir::GlobalNodeId<dir::Expression>> {
-        node_id
+    /// Return one authored call site for a checked resolution source.
+    fn call_site(&self, node_id: dir::GlobalNodeIdAny) -> ProviderResult<Option<CallSite>> {
+        let source = node_id
             .try_into_typed::<dir::Expression>()
             .map_err(|error| {
-                ProviderError::internal(format!("{family} source is not an expression: {error}"))
-                    .into()
-            })
+                ProviderError::internal(format!("call index source is not an expression: {error}"))
+            })?;
+        let view = self.module.view();
+        let source_id = view.get_source_any(node_id.local_id);
+        if self.module.source_index().try_get(source_id).is_none() {
+            return Ok(None);
+        }
+
+        // require every authored call site to have a complete source range
+        let span = view.get_span_by_id(node_id.local_id.id).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "authored call index source has no span: {node_id:?}"
+            ))
+        })?;
+        let caller = self.containing_symbol(node_id.local_id)?;
+
+        Ok(Some(CallSite {
+            source,
+            caller,
+            span,
+        }))
     }
 
     /// Push call edges selected by one call resolution.
-    fn push_call_resolution(
-        &mut self,
-        source: dir::GlobalNodeId<dir::Expression>,
-        caller: Option<dir::GlobalSymbolId>,
-        span: Span,
-        resolution: &dir::CallResolution,
-    ) {
+    fn push_call_resolution(&mut self, site: CallSite, resolution: &dir::CallResolution) {
         for call in resolution.iter() {
-            self.push_call(source, caller, span, call);
+            self.push_call(site, call);
         }
     }
 
     /// Push getter call edges selected by one member resolution.
-    fn push_member_resolution(
-        &mut self,
-        source: dir::GlobalNodeId<dir::Expression>,
-        caller: Option<dir::GlobalSymbolId>,
-        span: Span,
-        resolution: &dir::MemberResolution,
-    ) {
+    fn push_member_resolution(&mut self, site: CallSite, resolution: &dir::MemberResolution) {
         for access in resolution.iter() {
-            self.push_member_target(source, caller, span, &access.target);
+            self.push_member_target(site, &access.target);
         }
     }
 
     /// Push calls selected by one singular member access.
-    fn push_member_access(
-        &mut self,
-        source: dir::GlobalNodeId<dir::Expression>,
-        caller: Option<dir::GlobalSymbolId>,
-        span: Span,
-        access: &dir::MemberAccess,
-    ) {
-        self.push_member_target(source, caller, span, &access.target);
+    fn push_member_access(&mut self, site: CallSite, access: &dir::MemberAccess) {
+        self.push_member_target(site, &access.target);
     }
 
     /// Push calls selected by one member target.
-    fn push_member_target(
-        &mut self,
-        source: dir::GlobalNodeId<dir::Expression>,
-        caller: Option<dir::GlobalSymbolId>,
-        span: Span,
-        target: &dir::MemberTarget,
-    ) {
+    fn push_member_target(&mut self, site: CallSite, target: &dir::MemberTarget) {
         match target {
-            dir::MemberTarget::Call(call) => self.push_call(source, caller, span, call),
+            dir::MemberTarget::Call(call) => self.push_call(site, call),
             dir::MemberTarget::Existential(targets) | dir::MemberTarget::Intersection(targets) => {
                 for target in targets {
-                    self.push_member_target(source, caller, span, target);
+                    self.push_member_target(site, target);
                 }
             }
             dir::MemberTarget::Projection { .. }
@@ -216,22 +211,14 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
     }
 
     /// Push calls selected by one subscript resolution.
-    fn push_subscript_resolution(
-        &mut self,
-        source: dir::GlobalNodeId<dir::Expression>,
-        caller: Option<dir::GlobalSymbolId>,
-        span: Span,
-        resolution: &dir::SubscriptResolution,
-    ) {
+    fn push_subscript_resolution(&mut self, site: CallSite, resolution: &dir::SubscriptResolution) {
         for subscript in resolution.iter() {
             match &subscript.target {
                 dir::SubscriptTarget::Member(member) => {
-                    self.push_member_access(source, caller, span, member);
+                    self.push_member_access(site, member);
                 }
-                dir::SubscriptTarget::Call(call) => self.push_call(source, caller, span, call),
-                dir::SubscriptTarget::Index(read) => {
-                    self.push_call(source, caller, span, &read.call)
-                }
+                dir::SubscriptTarget::Call(call) => self.push_call(site, call),
+                dir::SubscriptTarget::Index(read) => self.push_call(site, &read.call),
             }
         }
     }
@@ -239,80 +226,61 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
     /// Push calls selected by one dereference resolution.
     fn push_dereference_resolution(
         &mut self,
-        source: dir::GlobalNodeId<dir::Expression>,
-        caller: Option<dir::GlobalSymbolId>,
-        span: Span,
+        site: CallSite,
         resolution: &dir::DereferenceResolution,
     ) {
         for dereference in resolution.iter() {
             if let dir::DereferenceTarget::Call(call) = &dereference.target {
-                self.push_call(source, caller, span, call);
+                self.push_call(site, call);
             }
         }
     }
 
     /// Push calls selected by one place read.
-    fn push_read(
-        &mut self,
-        source: dir::GlobalNodeId<dir::Expression>,
-        caller: Option<dir::GlobalSymbolId>,
-        span: Span,
-        read: &dir::ReadResolution,
-    ) {
+    fn push_read(&mut self, site: CallSite, read: &dir::ReadResolution) {
         match read {
             dir::ReadResolution::Binding { .. } => {}
             dir::ReadResolution::Member(member) => {
-                self.push_member_resolution(source, caller, span, member);
+                self.push_member_resolution(site, member);
             }
             dir::ReadResolution::Subscript(subscript) => {
-                self.push_subscript_resolution(source, caller, span, subscript);
+                self.push_subscript_resolution(site, subscript);
             }
             dir::ReadResolution::Dereference(dereference) => {
-                self.push_dereference_resolution(source, caller, span, dereference);
+                self.push_dereference_resolution(site, dereference);
             }
         }
     }
 
     /// Push calls selected by one place write.
-    fn push_write(
-        &mut self,
-        source: dir::GlobalNodeId<dir::Expression>,
-        caller: Option<dir::GlobalSymbolId>,
-        span: Span,
-        write: &dir::WriteResolution,
-    ) {
+    fn push_write(&mut self, site: CallSite, write: &dir::WriteResolution) {
         match write {
             dir::WriteResolution::Binding { .. } => {}
             dir::WriteResolution::Member(member) => {
-                self.push_member_resolution(source, caller, span, member);
+                self.push_member_resolution(site, member);
             }
             dir::WriteResolution::Subscript(subscript) => {
-                self.push_subscript_resolution(source, caller, span, subscript);
+                self.push_subscript_resolution(site, subscript);
             }
             dir::WriteResolution::Dereference(dereference) => {
-                self.push_dereference_resolution(source, caller, span, dereference);
+                self.push_dereference_resolution(site, dereference);
             }
         }
     }
 
     /// Push one singular call edge.
-    fn push_call(
-        &mut self,
-        source: dir::GlobalNodeId<dir::Expression>,
-        caller: Option<dir::GlobalSymbolId>,
-        span: Span,
-        call: &dir::Call,
-    ) {
+    fn push_call(&mut self, site: CallSite, call: &dir::Call) {
+        // omit dynamically dispatched calls without a declaration edge
         let Some(callee) = call.target.symbol() else {
             return;
         };
 
         self.entries.push(dir::CallEntry {
-            source,
+            source: site.source,
             kind: dir::CallKind::Call,
-            caller,
+            caller: site.caller,
             callee,
-            span,
+            span: site.span,
         });
     }
 

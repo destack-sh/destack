@@ -29,7 +29,6 @@ impl ModuleQueryContext<'_> {
         request: GotoImplementationRequest,
         program: &ProgramQueryContext<'_>,
     ) -> QueryResult<GotoImplementationResponse> {
-        // FUGU #Incomplete: index MemberConformance for implementations and overrides
         let position = request.position;
         let Some(symbol) = self.symbol_at_offset(program, position.file_id, position.offset)?
         else {
@@ -46,6 +45,14 @@ impl ModuleQueryContext<'_> {
         // collect implementations for every exact declaration named by the occurrence
         for symbol_id in symbol.symbols {
             for target_id in program.symbol_targets(symbol_id)? {
+                // collect exact member implementations
+                for implementation in program.member_implementations(target_id)? {
+                    let module = program.module(implementation.module_id)?;
+                    let target = module.navigation_target(program, implementation, origin)?;
+                    targets.push(target);
+                }
+
+                // collect nominal implementations and subclasses
                 let target_module = program.module(target_id.module_id)?;
                 let symbols = target_module.bindings()?;
                 let symbol = symbols.get_symbol(target_id.local_id);
@@ -58,7 +65,7 @@ impl ModuleQueryContext<'_> {
                     _ => continue,
                 };
 
-                // match cached direct edges against this target declaration
+                // match direct heritage edges against this target declaration
                 for entry in program.base_heritage(target_id)? {
                     if entry.kind == heritage_kind {
                         let declaration_module = program.module(entry.declaration.module_id)?;

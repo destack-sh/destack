@@ -135,7 +135,7 @@ impl SearchSymbol {
         kind: SymbolKind,
     ) -> QueryResult<Self> {
         let module = Module {
-            module_id: entry.source.module_id,
+            module_id: entry.symbol.module_id,
             profile_id,
         };
         let target = Target::new(module, entry.span).with_selection_span(entry.selection)?;
