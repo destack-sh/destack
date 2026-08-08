@@ -1,4 +1,4 @@
-use destack_serde::SchemaRegistry;
+use destack_serde::Schema;
 
 use crate::{
     Applicability, ByteRange, ComponentId, Content, ContentId, Diagnostic, DiagnosticHelp,
@@ -8,36 +8,36 @@ use crate::{
 };
 
 /// Include public source schema roots.
-pub fn schema(registry: &mut SchemaRegistry) {
-    registry.register::<PackageId>();
-    registry.register::<ModuleId>();
-    registry.register::<ProfileId>();
-    registry.register::<ComponentId>();
-    registry.register::<TargetId>();
-    registry.register::<ProductId>();
-    registry.register::<FileId>();
-    registry.register::<ContentId>();
-    registry.register::<Content>();
-    registry.register::<Span>();
-    registry.register::<FileType>();
+pub fn schema(schema: &mut Schema) {
+    schema.register::<PackageId>();
+    schema.register::<ModuleId>();
+    schema.register::<ProfileId>();
+    schema.register::<ComponentId>();
+    schema.register::<TargetId>();
+    schema.register::<ProductId>();
+    schema.register::<FileId>();
+    schema.register::<ContentId>();
+    schema.register::<Content>();
+    schema.register::<Span>();
+    schema.register::<FileType>();
 
-    registry.register::<DiagnosticSeverity>();
-    registry.register::<DiagnosticTag>();
-    registry.register::<Applicability>();
-    registry.register::<DiagnosticLabel>();
-    registry.register::<DiagnosticNote>();
-    registry.register::<DiagnosticHelp>();
-    registry.register::<DiagnosticSuggestion>();
-    registry.register::<Diagnostic>();
-    registry.register::<DiagnosticReference>();
-    registry.register::<Patch>();
-    registry.register::<FilePatch>();
-    registry.register::<PatchSet>();
+    schema.register::<DiagnosticSeverity>();
+    schema.register::<DiagnosticTag>();
+    schema.register::<Applicability>();
+    schema.register::<DiagnosticLabel>();
+    schema.register::<DiagnosticNote>();
+    schema.register::<DiagnosticHelp>();
+    schema.register::<DiagnosticSuggestion>();
+    schema.register::<Diagnostic>();
+    schema.register::<DiagnosticReference>();
+    schema.register::<Patch>();
+    schema.register::<FilePatch>();
+    schema.register::<PatchSet>();
 
-    registry.register::<TextChange>();
-    registry.register::<TextRange>();
-    registry.register::<TextPosition>();
-    registry.register::<ByteRange>();
-    registry.register::<TextPatch>();
-    registry.register::<Edit>();
+    schema.register::<TextChange>();
+    schema.register::<TextRange>();
+    schema.register::<TextPosition>();
+    schema.register::<ByteRange>();
+    schema.register::<TextPatch>();
+    schema.register::<Edit>();
 }

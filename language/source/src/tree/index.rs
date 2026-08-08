@@ -308,8 +308,8 @@ struct SourceIndexArchive {
 }
 
 impl Reflect for SourceIndex {
-    fn reflect(registry: &mut destack_serde::SchemaRegistry) -> destack_serde::SchemaRef {
-        SourceIndexArchive::reflect(registry)
+    fn reflect(schema: &mut destack_serde::Schema) -> destack_serde::Type {
+        SourceIndexArchive::reflect(schema)
     }
 }
 
