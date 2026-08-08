@@ -934,6 +934,7 @@ dependencies = [
  "destack_program",
  "destack_query",
  "destack_repository",
+ "destack_serde",
  "destack_session",
  "destack_source",
  "destack_webassembly",

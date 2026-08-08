@@ -5,8 +5,8 @@ use destack_artifact::{Data, DirBound, Script};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_repository::Module;
+use destack_serde::Value;
 use destack_source::{Content, Loader, ModuleId};
-use serde_json::Value;
 
 use crate::link::TargetLocation;
 use crate::{LinkError, LinkResult};
@@ -131,21 +131,27 @@ fn insert_json_expression(
             module_id,
             anchor,
         )),
-        Value::Number(value) => {
-            let number = value.as_f64().ok_or_else(|| LinkError::Internal {
-                anchor: (module_id.package_id).into(),
-                package: module_id.package_id,
-                message: format!("failed to lower JSON number '{value}'"),
-            })?;
-
-            Ok(tree.insert_from_source_any(
-                js::Expression::ScalarLiteral {
-                    value: js::ScalarLiteral::Number(number),
-                },
-                module_id,
-                anchor,
-            ))
-        }
+        Value::Signed(value) => Ok(tree.insert_from_source_any(
+            js::Expression::ScalarLiteral {
+                value: js::ScalarLiteral::Number(*value as f64),
+            },
+            module_id,
+            anchor,
+        )),
+        Value::Unsigned(value) => Ok(tree.insert_from_source_any(
+            js::Expression::ScalarLiteral {
+                value: js::ScalarLiteral::Number(*value as f64),
+            },
+            module_id,
+            anchor,
+        )),
+        Value::Float(value) => Ok(tree.insert_from_source_any(
+            js::Expression::ScalarLiteral {
+                value: js::ScalarLiteral::Number(*value),
+            },
+            module_id,
+            anchor,
+        )),
         Value::String(value) => Ok(insert_string_expression(
             tree, strings, module_id, anchor, value,
         )),

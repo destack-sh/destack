@@ -30,6 +30,7 @@ destack_query = { workspace = true }
 destack_source = { workspace = true }
 destack_webassembly = { workspace = true }
 destack_repository = { path = "../repository", default-features = false }
+destack_serde = { workspace = true }
 
 # general
 dashmap = { workspace = true }

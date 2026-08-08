@@ -60,8 +60,17 @@ impl Compiler {
         output: &mut Bundle,
         manifest: BuildManifest,
     ) -> Result<(), RepositoryError> {
-        let manifest_content = serde_json::to_string_pretty(&manifest)
-            .unwrap_or_else(|_| serde_json::to_string(&manifest).unwrap_or_default());
+        let manifest =
+            manifest
+                .to_json_value()
+                .map_err(|error| RepositoryError::InvalidArtifact {
+                    message: format!("failed to build manifest JSON: {error}"),
+                })?;
+        let manifest_content = serde_json::to_string_pretty(&manifest).map_err(|error| {
+            RepositoryError::InvalidArtifact {
+                message: format!("failed to serialize manifest JSON: {error}"),
+            }
+        })?;
 
         let output_layout = TargetLocation::new(package_dir, target, target_name);
         let manifest_path = output_layout.manifest_location();
@@ -104,7 +113,8 @@ impl Compiler {
 
     /// Build one source map output payload.
     pub(crate) fn source_map_content(source_map: &SourceMap) -> Result<Content, serde_json::Error> {
-        let content = serde_json::to_string(source_map)?;
+        let source_map = source_map.to_json_value()?;
+        let content = serde_json::to_string(&source_map)?;
 
         Ok(Self::text_output_content(content))
     }
