@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::{fmt, mem, slice};
 
 pub use destack_serde::SectionEntry;
-use destack_serde::{Reflect, SchemaRef, SchemaRegistry};
+use destack_serde::{Reflect, Schema, Type};
 use serde::{Deserialize, Serialize};
 
 use crate::StringId;
@@ -502,8 +502,8 @@ where
     T: Reflect + SectionEntry,
 {
     /// Reflect this optional entry as a regular optional value.
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
-        Option::<T>::reflect(registry)
+    fn reflect(schema: &mut Schema) -> Type {
+        Option::<T>::reflect(schema)
     }
 }
 
@@ -601,8 +601,8 @@ impl<'de> Deserialize<'de> for SectionStorage {
 
 impl Reflect for SectionStorage {
     /// Reflect section storage as its logical image bytes.
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
-        Vec::<u8>::reflect(registry)
+    fn reflect(schema: &mut Schema) -> Type {
+        Vec::<u8>::reflect(schema)
     }
 }
 

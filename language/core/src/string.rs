@@ -1,4 +1,4 @@
-use destack_serde::{Reflect, SchemaRef, SchemaRegistry};
+use destack_serde::{Reflect, Schema, Type};
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -505,8 +505,8 @@ impl<'de> Deserialize<'de> for StringPool {
 
 impl Reflect for StringPool {
     /// Register the serialized string pool shape.
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
-        StringPoolData::reflect(registry)
+    fn reflect(schema: &mut Schema) -> Type {
+        StringPoolData::reflect(schema)
     }
 }
 
