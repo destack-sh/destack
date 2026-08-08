@@ -225,15 +225,15 @@ impl DirResolved {
                 }
                 dir::Reference::Namespace(module) => namespaces.push(*module),
                 dir::Reference::Projected { base, .. } => match base {
-                    dir::ImportTarget::Symbol(symbol) => symbols.push(*symbol),
-                    dir::ImportTarget::Namespace(module) => namespaces.push(*module),
+                    dir::ReferenceTarget::Symbol(symbol) => symbols.push(*symbol),
+                    dir::ReferenceTarget::Namespace(module) => namespaces.push(*module),
                 },
                 dir::Reference::Ambiguous(targets) => {
                     // retain every candidate because check may select any one
                     for target in targets {
                         match target {
-                            dir::ImportTarget::Symbol(symbol) => symbols.push(*symbol),
-                            dir::ImportTarget::Namespace(module) => namespaces.push(*module),
+                            dir::ReferenceTarget::Symbol(symbol) => symbols.push(*symbol),
+                            dir::ReferenceTarget::Namespace(module) => namespaces.push(*module),
                         }
                     }
                 }
