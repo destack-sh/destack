@@ -45,8 +45,21 @@ impl SessionState {
             ArtifactProvider::Index => self.indexer().collect(&attempt),
         };
 
+        // preserve failed dynamic reads as terminal requirements
+        let mut set = match collected {
+            Ok(set) => set,
+            Err(error) => match *error {
+                ProviderError::RequirementFailed { key } => {
+                    let mut set = ArtifactDependencySet::default();
+                    set.require(key);
+
+                    set
+                }
+                error => return Err(Box::new(error)),
+            },
+        };
+
         // require every blocked read so the frontier schedules it
-        let mut set = collected?;
         let blocked = attempt.take_blocked();
         if !blocked.is_empty() {
             for artifact_key in blocked {
