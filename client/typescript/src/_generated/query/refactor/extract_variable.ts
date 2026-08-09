@@ -6,7 +6,7 @@ import type { PatchSet } from "../../source/edit/edit.js";
 import { decodeQueryRange, encodeQueryRange, fromJsonQueryRange, toJsonQueryRange } from "../protocol/target.js";
 import { decodePatchSet, encodePatchSet, fromJsonPatchSet, toJsonPatchSet } from "../../source/edit/edit.js";
 
-/** Request payload for extract variable queries. */
+/** An extract variable request. */
 export type ExtractVariableRequest = {
     /** The selected source range. */
     readonly range: QueryRange;
@@ -71,7 +71,7 @@ export function fromJsonExtractVariableRequest(value: Json): ExtractVariableRequ
     };
 }
 
-/** Response payload for extract variable queries. */
+/** An extract variable response. */
 export type ExtractVariableResponse = {
     /** Extract variable edit, if available. */
     readonly edit?: PatchSet;

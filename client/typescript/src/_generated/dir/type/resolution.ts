@@ -32,6 +32,208 @@ import { decodeDynamicDispatch, encodeDynamicDispatch, fromJsonDynamicDispatch, 
 import { decodeMemberReceiver, encodeMemberReceiver, fromJsonMemberReceiver, toJsonMemberReceiver } from "./receiver.js";
 import { decodeGlobalTypeId, encodeGlobalTypeId, fromJsonGlobalTypeId, toJsonGlobalTypeId } from "./type.js";
 
+/** Assignment target meaning selected during checking. */
+export type AssignPatternDecision =
+    /** Direct writable place target, like `value` or `object.field`. */
+    | {
+          readonly kind: "place";
+      }
+    /** Defaulted assignment target, like `value = fallback`. */
+    | {
+          readonly kind: "default";
+          readonly default: AssignPatternDefaultResolution;
+      }
+    /** Ordered destructuring target, like `[head, ...tail]`. */
+    | {
+          readonly kind: "sequence";
+          readonly sequence: AssignPatternSequenceResolution;
+      }
+    /** Tuple destructuring target, like `(x, y)` or `(x,)`. */
+    | {
+          readonly kind: "tuple";
+          readonly tuple: AssignPatternTupleResolution;
+      }
+    /** Object destructuring target, like `{ name, age: years }`. */
+    | {
+          readonly kind: "object";
+          readonly object: AssignPatternObjectResolution;
+      }
+;
+
+export const AssignPatternDecision = {
+    /** Direct writable place target, like `value` or `object.field`. */
+    place(): AssignPatternDecision {
+        return { kind: "place" };
+    },
+
+    /** Defaulted assignment target, like `value = fallback`. */
+    "default"(default_: AssignPatternDefaultResolution): AssignPatternDecision {
+        return { kind: "default", default: default_ };
+    },
+
+    /** Ordered destructuring target, like `[head, ...tail]`. */
+    sequence(sequence: AssignPatternSequenceResolution): AssignPatternDecision {
+        return { kind: "sequence", sequence };
+    },
+
+    /** Tuple destructuring target, like `(x, y)` or `(x,)`. */
+    tuple(tuple: AssignPatternTupleResolution): AssignPatternDecision {
+        return { kind: "tuple", tuple };
+    },
+
+    /** Object destructuring target, like `{ name, age: years }`. */
+    "object"(object_: AssignPatternObjectResolution): AssignPatternDecision {
+        return { kind: "object", object: object_ };
+    },
+
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: AssignPatternDecision): void {
+        encodeAssignPatternDecision(writer, value);
+    },
+
+    /** Decode one AssignPatternDecision. */
+    decode(reader: BinaryReader): AssignPatternDecision {
+        return decodeAssignPatternDecision(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: AssignPatternDecision): Json {
+        return toJsonAssignPatternDecision(value);
+    },
+
+    /** Return one AssignPatternDecision from one JSON value. */
+    fromJson(value: Json): AssignPatternDecision {
+        return fromJsonAssignPatternDecision(value);
+    },
+};
+
+/** Encode one AssignPatternDecision. */
+export function encodeAssignPatternDecision(writer: BinaryWriter, value: AssignPatternDecision): void {
+    switch (value.kind) {
+        case "place":
+            writer.writeUnsigned(0);
+            return;
+        case "default":
+            writer.writeUnsigned(1);
+            encodeAssignPatternDefaultResolution(writer, value.default);
+            return;
+        case "sequence":
+            writer.writeUnsigned(2);
+            encodeAssignPatternSequenceResolution(writer, value.sequence);
+            return;
+        case "tuple":
+            writer.writeUnsigned(3);
+            encodeAssignPatternTupleResolution(writer, value.tuple);
+            return;
+        case "object":
+            writer.writeUnsigned(4);
+            encodeAssignPatternObjectResolution(writer, value.object);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one AssignPatternDecision. */
+export function decodeAssignPatternDecision(reader: BinaryReader): AssignPatternDecision {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0: {
+            return { kind: "place" };
+        }
+        case 1: {
+            const default_ = decodeAssignPatternDefaultResolution(reader);
+
+            return { kind: "default", default: default_ };
+        }
+        case 2: {
+            const sequence = decodeAssignPatternSequenceResolution(reader);
+
+            return { kind: "sequence", sequence };
+        }
+        case 3: {
+            const tuple = decodeAssignPatternTupleResolution(reader);
+
+            return { kind: "tuple", tuple };
+        }
+        case 4: {
+            const object_ = decodeAssignPatternObjectResolution(reader);
+
+            return { kind: "object", object: object_ };
+        }
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one AssignPatternDecision. */
+export function toJsonAssignPatternDecision(value: AssignPatternDecision): Json {
+    switch (value.kind) {
+        case "place":
+            return {
+                kind: "place",
+            };
+        case "default":
+            return {
+                kind: "default",
+                default: toJsonAssignPatternDefaultResolution(value.default),
+            };
+        case "sequence":
+            return {
+                kind: "sequence",
+                sequence: toJsonAssignPatternSequenceResolution(value.sequence),
+            };
+        case "tuple":
+            return {
+                kind: "tuple",
+                tuple: toJsonAssignPatternTupleResolution(value.tuple),
+            };
+        case "object":
+            return {
+                kind: "object",
+                object: toJsonAssignPatternObjectResolution(value.object),
+            };
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Return one AssignPatternDecision from one JSON value. */
+export function fromJsonAssignPatternDecision(value: Json): AssignPatternDecision {
+    const object = jsonObject(value);
+    const kind = jsonString(jsonField(object, "kind"));
+
+    switch (kind) {
+        case "place":
+            return {
+                kind,
+            };
+        case "default":
+            return {
+                kind,
+                default: fromJsonAssignPatternDefaultResolution(jsonField(object, "default")),
+            };
+        case "sequence":
+            return {
+                kind,
+                sequence: fromJsonAssignPatternSequenceResolution(jsonField(object, "sequence")),
+            };
+        case "tuple":
+            return {
+                kind,
+                tuple: fromJsonAssignPatternTupleResolution(jsonField(object, "tuple")),
+            };
+        case "object":
+            return {
+                kind,
+                object: fromJsonAssignPatternObjectResolution(jsonField(object, "object")),
+            };
+    }
+
+    throw new SerdeError(`unknown enum variant: ${kind}`);
+}
+
 /** Defaulted assignment target selected during checking. */
 export type AssignPatternDefaultResolution = {
     /** The nested assignment target. */
@@ -239,208 +441,6 @@ export function fromJsonAssignPatternObjectResolution(value: Json): AssignPatter
         fields: jsonArray(jsonField(object, "fields")).map((item0) => fromJsonAssignPatternFieldResolution(item0)),
         rest: jsonOptional(object, "rest", (value) => fromJsonAssignPatternRestResolution(value)),
     };
-}
-
-/** Assignment target meaning selected during checking. */
-export type AssignPatternResolution =
-    /** Direct writable place target, like `value` or `object.field`. */
-    | {
-          readonly kind: "place";
-      }
-    /** Defaulted assignment target, like `value = fallback`. */
-    | {
-          readonly kind: "default";
-          readonly default: AssignPatternDefaultResolution;
-      }
-    /** Ordered destructuring target, like `[head, ...tail]`. */
-    | {
-          readonly kind: "sequence";
-          readonly sequence: AssignPatternSequenceResolution;
-      }
-    /** Tuple destructuring target, like `(x, y)` or `(x,)`. */
-    | {
-          readonly kind: "tuple";
-          readonly tuple: AssignPatternTupleResolution;
-      }
-    /** Object destructuring target, like `{ name, age: years }`. */
-    | {
-          readonly kind: "object";
-          readonly object: AssignPatternObjectResolution;
-      }
-;
-
-export const AssignPatternResolution = {
-    /** Direct writable place target, like `value` or `object.field`. */
-    place(): AssignPatternResolution {
-        return { kind: "place" };
-    },
-
-    /** Defaulted assignment target, like `value = fallback`. */
-    "default"(default_: AssignPatternDefaultResolution): AssignPatternResolution {
-        return { kind: "default", default: default_ };
-    },
-
-    /** Ordered destructuring target, like `[head, ...tail]`. */
-    sequence(sequence: AssignPatternSequenceResolution): AssignPatternResolution {
-        return { kind: "sequence", sequence };
-    },
-
-    /** Tuple destructuring target, like `(x, y)` or `(x,)`. */
-    tuple(tuple: AssignPatternTupleResolution): AssignPatternResolution {
-        return { kind: "tuple", tuple };
-    },
-
-    /** Object destructuring target, like `{ name, age: years }`. */
-    "object"(object_: AssignPatternObjectResolution): AssignPatternResolution {
-        return { kind: "object", object: object_ };
-    },
-
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: AssignPatternResolution): void {
-        encodeAssignPatternResolution(writer, value);
-    },
-
-    /** Decode one AssignPatternResolution. */
-    decode(reader: BinaryReader): AssignPatternResolution {
-        return decodeAssignPatternResolution(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: AssignPatternResolution): Json {
-        return toJsonAssignPatternResolution(value);
-    },
-
-    /** Return one AssignPatternResolution from one JSON value. */
-    fromJson(value: Json): AssignPatternResolution {
-        return fromJsonAssignPatternResolution(value);
-    },
-};
-
-/** Encode one AssignPatternResolution. */
-export function encodeAssignPatternResolution(writer: BinaryWriter, value: AssignPatternResolution): void {
-    switch (value.kind) {
-        case "place":
-            writer.writeUnsigned(0);
-            return;
-        case "default":
-            writer.writeUnsigned(1);
-            encodeAssignPatternDefaultResolution(writer, value.default);
-            return;
-        case "sequence":
-            writer.writeUnsigned(2);
-            encodeAssignPatternSequenceResolution(writer, value.sequence);
-            return;
-        case "tuple":
-            writer.writeUnsigned(3);
-            encodeAssignPatternTupleResolution(writer, value.tuple);
-            return;
-        case "object":
-            writer.writeUnsigned(4);
-            encodeAssignPatternObjectResolution(writer, value.object);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one AssignPatternResolution. */
-export function decodeAssignPatternResolution(reader: BinaryReader): AssignPatternResolution {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0: {
-            return { kind: "place" };
-        }
-        case 1: {
-            const default_ = decodeAssignPatternDefaultResolution(reader);
-
-            return { kind: "default", default: default_ };
-        }
-        case 2: {
-            const sequence = decodeAssignPatternSequenceResolution(reader);
-
-            return { kind: "sequence", sequence };
-        }
-        case 3: {
-            const tuple = decodeAssignPatternTupleResolution(reader);
-
-            return { kind: "tuple", tuple };
-        }
-        case 4: {
-            const object_ = decodeAssignPatternObjectResolution(reader);
-
-            return { kind: "object", object: object_ };
-        }
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one AssignPatternResolution. */
-export function toJsonAssignPatternResolution(value: AssignPatternResolution): Json {
-    switch (value.kind) {
-        case "place":
-            return {
-                kind: "place",
-            };
-        case "default":
-            return {
-                kind: "default",
-                default: toJsonAssignPatternDefaultResolution(value.default),
-            };
-        case "sequence":
-            return {
-                kind: "sequence",
-                sequence: toJsonAssignPatternSequenceResolution(value.sequence),
-            };
-        case "tuple":
-            return {
-                kind: "tuple",
-                tuple: toJsonAssignPatternTupleResolution(value.tuple),
-            };
-        case "object":
-            return {
-                kind: "object",
-                object: toJsonAssignPatternObjectResolution(value.object),
-            };
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Return one AssignPatternResolution from one JSON value. */
-export function fromJsonAssignPatternResolution(value: Json): AssignPatternResolution {
-    const object = jsonObject(value);
-    const kind = jsonString(jsonField(object, "kind"));
-
-    switch (kind) {
-        case "place":
-            return {
-                kind,
-            };
-        case "default":
-            return {
-                kind,
-                default: fromJsonAssignPatternDefaultResolution(jsonField(object, "default")),
-            };
-        case "sequence":
-            return {
-                kind,
-                sequence: fromJsonAssignPatternSequenceResolution(jsonField(object, "sequence")),
-            };
-        case "tuple":
-            return {
-                kind,
-                tuple: fromJsonAssignPatternTupleResolution(jsonField(object, "tuple")),
-            };
-        case "object":
-            return {
-                kind,
-                object: fromJsonAssignPatternObjectResolution(jsonField(object, "object")),
-            };
-    }
-
-    throw new SerdeError(`unknown enum variant: ${kind}`);
 }
 
 /** Rest field selected by one assignment destructuring pattern. */
@@ -656,7 +656,7 @@ export function fromJsonAssignPatternTupleResolution(value: Json): AssignPattern
 }
 
 /** Read and write operations selected for one assignment target. */
-export type AssignmentResolution = {
+export type AssignmentDecision = {
     /** The expression node designating the assignment target. */
     readonly target: GlobalNodeIdAny;
     /** The selected read, when the source operator reads before writing. */
@@ -665,30 +665,30 @@ export type AssignmentResolution = {
     readonly write: WriteResolution;
 };
 
-export const AssignmentResolution = {
+export const AssignmentDecision = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: AssignmentResolution): void {
-        encodeAssignmentResolution(writer, value);
+    encode(writer: BinaryWriter, value: AssignmentDecision): void {
+        encodeAssignmentDecision(writer, value);
     },
 
-    /** Decode one AssignmentResolution. */
-    decode(reader: BinaryReader): AssignmentResolution {
-        return decodeAssignmentResolution(reader);
+    /** Decode one AssignmentDecision. */
+    decode(reader: BinaryReader): AssignmentDecision {
+        return decodeAssignmentDecision(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: AssignmentResolution): Json {
-        return toJsonAssignmentResolution(value);
+    toJson(value: AssignmentDecision): Json {
+        return toJsonAssignmentDecision(value);
     },
 
-    /** Return one AssignmentResolution from one JSON value. */
-    fromJson(value: Json): AssignmentResolution {
-        return fromJsonAssignmentResolution(value);
+    /** Return one AssignmentDecision from one JSON value. */
+    fromJson(value: Json): AssignmentDecision {
+        return fromJsonAssignmentDecision(value);
     },
 };
 
-/** Encode one AssignmentResolution. */
-export function encodeAssignmentResolution(writer: BinaryWriter, value: AssignmentResolution): void {
+/** Encode one AssignmentDecision. */
+export function encodeAssignmentDecision(writer: BinaryWriter, value: AssignmentDecision): void {
     encodeGlobalNodeIdAny(writer, value.target);
     writer.writeOption(value.read, (value1) => {
         encodeReadResolution(writer, value1);
@@ -696,8 +696,8 @@ export function encodeAssignmentResolution(writer: BinaryWriter, value: Assignme
     encodeWriteResolution(writer, value.write);
 }
 
-/** Decode one AssignmentResolution. */
-export function decodeAssignmentResolution(reader: BinaryReader): AssignmentResolution {
+/** Decode one AssignmentDecision. */
+export function decodeAssignmentDecision(reader: BinaryReader): AssignmentDecision {
     const target = decodeGlobalNodeIdAny(reader);
     const read = reader.readOption(() => decodeReadResolution(reader));
     const write = decodeWriteResolution(reader);
@@ -709,8 +709,8 @@ export function decodeAssignmentResolution(reader: BinaryReader): AssignmentReso
     };
 }
 
-/** Return one JSON value for one AssignmentResolution. */
-export function toJsonAssignmentResolution(value: AssignmentResolution): Json {
+/** Return one JSON value for one AssignmentDecision. */
+export function toJsonAssignmentDecision(value: AssignmentDecision): Json {
     return {
         target: toJsonGlobalNodeIdAny(value.target),
         ...(value.read === undefined ? {} : { read: toJsonReadResolution(value.read) }),
@@ -718,8 +718,8 @@ export function toJsonAssignmentResolution(value: AssignmentResolution): Json {
     };
 }
 
-/** Return one AssignmentResolution from one JSON value. */
-export function fromJsonAssignmentResolution(value: Json): AssignmentResolution {
+/** Return one AssignmentDecision from one JSON value. */
+export function fromJsonAssignmentDecision(value: Json): AssignmentDecision {
     const object = jsonObject(value);
 
     return {
@@ -1076,7 +1076,7 @@ export function fromJsonClassConstructCandidate(value: Json): ClassConstructCand
 }
 
 /** Construct expression selected at a usage site. */
-export type ConstructResolution = {
+export type ConstructDecision = {
     /** The selected construct target. */
     readonly target: ConstructTarget;
     /** The source arguments bound to selected parameters. */
@@ -1085,30 +1085,30 @@ export type ConstructResolution = {
     readonly returnType: GlobalTypeId;
 };
 
-export const ConstructResolution = {
+export const ConstructDecision = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: ConstructResolution): void {
-        encodeConstructResolution(writer, value);
+    encode(writer: BinaryWriter, value: ConstructDecision): void {
+        encodeConstructDecision(writer, value);
     },
 
-    /** Decode one ConstructResolution. */
-    decode(reader: BinaryReader): ConstructResolution {
-        return decodeConstructResolution(reader);
+    /** Decode one ConstructDecision. */
+    decode(reader: BinaryReader): ConstructDecision {
+        return decodeConstructDecision(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: ConstructResolution): Json {
-        return toJsonConstructResolution(value);
+    toJson(value: ConstructDecision): Json {
+        return toJsonConstructDecision(value);
     },
 
-    /** Return one ConstructResolution from one JSON value. */
-    fromJson(value: Json): ConstructResolution {
-        return fromJsonConstructResolution(value);
+    /** Return one ConstructDecision from one JSON value. */
+    fromJson(value: Json): ConstructDecision {
+        return fromJsonConstructDecision(value);
     },
 };
 
-/** Encode one ConstructResolution. */
-export function encodeConstructResolution(writer: BinaryWriter, value: ConstructResolution): void {
+/** Encode one ConstructDecision. */
+export function encodeConstructDecision(writer: BinaryWriter, value: ConstructDecision): void {
     encodeConstructTarget(writer, value.target);
     writer.writeUnsigned(value.arguments.length);
     for (const item1 of value.arguments) {
@@ -1117,8 +1117,8 @@ export function encodeConstructResolution(writer: BinaryWriter, value: Construct
     encodeGlobalTypeId(writer, value.returnType);
 }
 
-/** Decode one ConstructResolution. */
-export function decodeConstructResolution(reader: BinaryReader): ConstructResolution {
+/** Decode one ConstructDecision. */
+export function decodeConstructDecision(reader: BinaryReader): ConstructDecision {
     const target = decodeConstructTarget(reader);
     const arguments_ = (() => { const length1 = reader.readNumber(); const items1: Array<ArgumentBinding> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeArgumentBinding(reader)); } return items1; })();
     const returnType = decodeGlobalTypeId(reader);
@@ -1130,8 +1130,8 @@ export function decodeConstructResolution(reader: BinaryReader): ConstructResolu
     };
 }
 
-/** Return one JSON value for one ConstructResolution. */
-export function toJsonConstructResolution(value: ConstructResolution): Json {
+/** Return one JSON value for one ConstructDecision. */
+export function toJsonConstructDecision(value: ConstructDecision): Json {
     return {
         target: toJsonConstructTarget(value.target),
         arguments: value.arguments.map((item0) => toJsonArgumentBinding(item0)),
@@ -1139,8 +1139,8 @@ export function toJsonConstructResolution(value: ConstructResolution): Json {
     };
 }
 
-/** Return one ConstructResolution from one JSON value. */
-export function fromJsonConstructResolution(value: Json): ConstructResolution {
+/** Return one ConstructDecision from one JSON value. */
+export function fromJsonConstructDecision(value: Json): ConstructDecision {
     const object = jsonObject(value);
 
     return {
@@ -2156,98 +2156,98 @@ export function fromJsonFunctionTarget(value: Json): FunctionTarget {
 }
 
 /** Guard expression selected during checking. */
-export type GuardResolution =
+export type GuardDecision =
     /** `is` guard, like `value is T`. */
     | {
           readonly kind: "is";
-          readonly is: IsGuardResolution;
+          readonly is: IsGuardDecision;
       }
     /** `instanceof` guard, like `value instanceof User`. */
     | {
           readonly kind: "instanceOf";
-          readonly instance_of: InstanceOfGuardResolution;
+          readonly instance_of: InstanceOfGuardDecision;
       }
     /** `in` guard, like `"name" in value`. */
     | {
           readonly kind: "in";
-          readonly in: InGuardResolution;
+          readonly in: InGuardDecision;
       }
 ;
 
-export const GuardResolution = {
+export const GuardDecision = {
     /** `is` guard, like `value is T`. */
-    "is"(is_: IsGuardResolution): GuardResolution {
+    "is"(is_: IsGuardDecision): GuardDecision {
         return { kind: "is", is: is_ };
     },
 
     /** `instanceof` guard, like `value instanceof User`. */
-    instanceOf(instance_of: InstanceOfGuardResolution): GuardResolution {
+    instanceOf(instance_of: InstanceOfGuardDecision): GuardDecision {
         return { kind: "instanceOf", instance_of };
     },
 
     /** `in` guard, like `"name" in value`. */
-    "in"(in_: InGuardResolution): GuardResolution {
+    "in"(in_: InGuardDecision): GuardDecision {
         return { kind: "in", in: in_ };
     },
 
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: GuardResolution): void {
-        encodeGuardResolution(writer, value);
+    encode(writer: BinaryWriter, value: GuardDecision): void {
+        encodeGuardDecision(writer, value);
     },
 
-    /** Decode one GuardResolution. */
-    decode(reader: BinaryReader): GuardResolution {
-        return decodeGuardResolution(reader);
+    /** Decode one GuardDecision. */
+    decode(reader: BinaryReader): GuardDecision {
+        return decodeGuardDecision(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: GuardResolution): Json {
-        return toJsonGuardResolution(value);
+    toJson(value: GuardDecision): Json {
+        return toJsonGuardDecision(value);
     },
 
-    /** Return one GuardResolution from one JSON value. */
-    fromJson(value: Json): GuardResolution {
-        return fromJsonGuardResolution(value);
+    /** Return one GuardDecision from one JSON value. */
+    fromJson(value: Json): GuardDecision {
+        return fromJsonGuardDecision(value);
     },
 };
 
-/** Encode one GuardResolution. */
-export function encodeGuardResolution(writer: BinaryWriter, value: GuardResolution): void {
+/** Encode one GuardDecision. */
+export function encodeGuardDecision(writer: BinaryWriter, value: GuardDecision): void {
     switch (value.kind) {
         case "is":
             writer.writeUnsigned(0);
-            encodeIsGuardResolution(writer, value.is);
+            encodeIsGuardDecision(writer, value.is);
             return;
         case "instanceOf":
             writer.writeUnsigned(1);
-            encodeInstanceOfGuardResolution(writer, value.instance_of);
+            encodeInstanceOfGuardDecision(writer, value.instance_of);
             return;
         case "in":
             writer.writeUnsigned(2);
-            encodeInGuardResolution(writer, value.in);
+            encodeInGuardDecision(writer, value.in);
             return;
     }
 
     throw new SerdeError("unknown enum variant");
 }
 
-/** Decode one GuardResolution. */
-export function decodeGuardResolution(reader: BinaryReader): GuardResolution {
+/** Decode one GuardDecision. */
+export function decodeGuardDecision(reader: BinaryReader): GuardDecision {
     const variant = reader.readNumber();
 
     switch (variant) {
         case 0: {
-            const is_ = decodeIsGuardResolution(reader);
+            const is_ = decodeIsGuardDecision(reader);
 
             return { kind: "is", is: is_ };
         }
         case 1: {
-            const instance_of = decodeInstanceOfGuardResolution(reader);
+            const instance_of = decodeInstanceOfGuardDecision(reader);
 
             return { kind: "instanceOf", instance_of };
         }
         case 2: {
-            const in_ = decodeInGuardResolution(reader);
+            const in_ = decodeInGuardDecision(reader);
 
             return { kind: "in", in: in_ };
         }
@@ -2256,31 +2256,31 @@ export function decodeGuardResolution(reader: BinaryReader): GuardResolution {
     throw new SerdeError(`unknown enum variant index: ${variant}`);
 }
 
-/** Return one JSON value for one GuardResolution. */
-export function toJsonGuardResolution(value: GuardResolution): Json {
+/** Return one JSON value for one GuardDecision. */
+export function toJsonGuardDecision(value: GuardDecision): Json {
     switch (value.kind) {
         case "is":
             return {
                 kind: "is",
-                is: toJsonIsGuardResolution(value.is),
+                is: toJsonIsGuardDecision(value.is),
             };
         case "instanceOf":
             return {
                 kind: "instanceOf",
-                instance_of: toJsonInstanceOfGuardResolution(value.instance_of),
+                instance_of: toJsonInstanceOfGuardDecision(value.instance_of),
             };
         case "in":
             return {
                 kind: "in",
-                in: toJsonInGuardResolution(value.in),
+                in: toJsonInGuardDecision(value.in),
             };
     }
 
     throw new SerdeError("unknown enum variant");
 }
 
-/** Return one GuardResolution from one JSON value. */
-export function fromJsonGuardResolution(value: Json): GuardResolution {
+/** Return one GuardDecision from one JSON value. */
+export function fromJsonGuardDecision(value: Json): GuardDecision {
     const object = jsonObject(value);
     const kind = jsonString(jsonField(object, "kind"));
 
@@ -2288,17 +2288,17 @@ export function fromJsonGuardResolution(value: Json): GuardResolution {
         case "is":
             return {
                 kind,
-                is: fromJsonIsGuardResolution(jsonField(object, "is")),
+                is: fromJsonIsGuardDecision(jsonField(object, "is")),
             };
         case "instanceOf":
             return {
                 kind,
-                instance_of: fromJsonInstanceOfGuardResolution(jsonField(object, "instance_of")),
+                instance_of: fromJsonInstanceOfGuardDecision(jsonField(object, "instance_of")),
             };
         case "in":
             return {
                 kind,
-                in: fromJsonInGuardResolution(jsonField(object, "in")),
+                in: fromJsonInGuardDecision(jsonField(object, "in")),
             };
     }
 
@@ -2306,7 +2306,7 @@ export function fromJsonGuardResolution(value: Json): GuardResolution {
 }
 
 /** `in` guard selected during checking. */
-export type InGuardResolution = {
+export type InGuardDecision = {
     /** The tested key type. */
     readonly keyType: GlobalTypeId;
     /** The tested receiver type. */
@@ -2315,37 +2315,37 @@ export type InGuardResolution = {
     readonly predicate: Predicate;
 };
 
-export const InGuardResolution = {
+export const InGuardDecision = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: InGuardResolution): void {
-        encodeInGuardResolution(writer, value);
+    encode(writer: BinaryWriter, value: InGuardDecision): void {
+        encodeInGuardDecision(writer, value);
     },
 
-    /** Decode one InGuardResolution. */
-    decode(reader: BinaryReader): InGuardResolution {
-        return decodeInGuardResolution(reader);
+    /** Decode one InGuardDecision. */
+    decode(reader: BinaryReader): InGuardDecision {
+        return decodeInGuardDecision(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: InGuardResolution): Json {
-        return toJsonInGuardResolution(value);
+    toJson(value: InGuardDecision): Json {
+        return toJsonInGuardDecision(value);
     },
 
-    /** Return one InGuardResolution from one JSON value. */
-    fromJson(value: Json): InGuardResolution {
-        return fromJsonInGuardResolution(value);
+    /** Return one InGuardDecision from one JSON value. */
+    fromJson(value: Json): InGuardDecision {
+        return fromJsonInGuardDecision(value);
     },
 };
 
-/** Encode one InGuardResolution. */
-export function encodeInGuardResolution(writer: BinaryWriter, value: InGuardResolution): void {
+/** Encode one InGuardDecision. */
+export function encodeInGuardDecision(writer: BinaryWriter, value: InGuardDecision): void {
     encodeGlobalTypeId(writer, value.keyType);
     encodeGlobalTypeId(writer, value.receiverType);
     encodePredicate(writer, value.predicate);
 }
 
-/** Decode one InGuardResolution. */
-export function decodeInGuardResolution(reader: BinaryReader): InGuardResolution {
+/** Decode one InGuardDecision. */
+export function decodeInGuardDecision(reader: BinaryReader): InGuardDecision {
     const keyType = decodeGlobalTypeId(reader);
     const receiverType = decodeGlobalTypeId(reader);
     const predicate = decodePredicate(reader);
@@ -2357,8 +2357,8 @@ export function decodeInGuardResolution(reader: BinaryReader): InGuardResolution
     };
 }
 
-/** Return one JSON value for one InGuardResolution. */
-export function toJsonInGuardResolution(value: InGuardResolution): Json {
+/** Return one JSON value for one InGuardDecision. */
+export function toJsonInGuardDecision(value: InGuardDecision): Json {
     return {
         keyType: toJsonGlobalTypeId(value.keyType),
         receiverType: toJsonGlobalTypeId(value.receiverType),
@@ -2366,8 +2366,8 @@ export function toJsonInGuardResolution(value: InGuardResolution): Json {
     };
 }
 
-/** Return one InGuardResolution from one JSON value. */
-export function fromJsonInGuardResolution(value: Json): InGuardResolution {
+/** Return one InGuardDecision from one JSON value. */
+export function fromJsonInGuardDecision(value: Json): InGuardDecision {
     const object = jsonObject(value);
 
     return {
@@ -2648,7 +2648,7 @@ export function fromJsonIndexTarget(value: Json): IndexTarget {
 }
 
 /** `instanceof` guard selected during checking. */
-export type InstanceOfGuardResolution = {
+export type InstanceOfGuardDecision = {
     /** The tested value type. */
     readonly valueType: GlobalTypeId;
     /** The selected right-hand-side declaration. */
@@ -2659,38 +2659,38 @@ export type InstanceOfGuardResolution = {
     readonly predicate: Predicate;
 };
 
-export const InstanceOfGuardResolution = {
+export const InstanceOfGuardDecision = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: InstanceOfGuardResolution): void {
-        encodeInstanceOfGuardResolution(writer, value);
+    encode(writer: BinaryWriter, value: InstanceOfGuardDecision): void {
+        encodeInstanceOfGuardDecision(writer, value);
     },
 
-    /** Decode one InstanceOfGuardResolution. */
-    decode(reader: BinaryReader): InstanceOfGuardResolution {
-        return decodeInstanceOfGuardResolution(reader);
+    /** Decode one InstanceOfGuardDecision. */
+    decode(reader: BinaryReader): InstanceOfGuardDecision {
+        return decodeInstanceOfGuardDecision(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: InstanceOfGuardResolution): Json {
-        return toJsonInstanceOfGuardResolution(value);
+    toJson(value: InstanceOfGuardDecision): Json {
+        return toJsonInstanceOfGuardDecision(value);
     },
 
-    /** Return one InstanceOfGuardResolution from one JSON value. */
-    fromJson(value: Json): InstanceOfGuardResolution {
-        return fromJsonInstanceOfGuardResolution(value);
+    /** Return one InstanceOfGuardDecision from one JSON value. */
+    fromJson(value: Json): InstanceOfGuardDecision {
+        return fromJsonInstanceOfGuardDecision(value);
     },
 };
 
-/** Encode one InstanceOfGuardResolution. */
-export function encodeInstanceOfGuardResolution(writer: BinaryWriter, value: InstanceOfGuardResolution): void {
+/** Encode one InstanceOfGuardDecision. */
+export function encodeInstanceOfGuardDecision(writer: BinaryWriter, value: InstanceOfGuardDecision): void {
     encodeGlobalTypeId(writer, value.valueType);
     encodeGlobalSymbolId(writer, value.target);
     encodeGlobalTypeId(writer, value.targetType);
     encodePredicate(writer, value.predicate);
 }
 
-/** Decode one InstanceOfGuardResolution. */
-export function decodeInstanceOfGuardResolution(reader: BinaryReader): InstanceOfGuardResolution {
+/** Decode one InstanceOfGuardDecision. */
+export function decodeInstanceOfGuardDecision(reader: BinaryReader): InstanceOfGuardDecision {
     const valueType = decodeGlobalTypeId(reader);
     const target = decodeGlobalSymbolId(reader);
     const targetType = decodeGlobalTypeId(reader);
@@ -2704,8 +2704,8 @@ export function decodeInstanceOfGuardResolution(reader: BinaryReader): InstanceO
     };
 }
 
-/** Return one JSON value for one InstanceOfGuardResolution. */
-export function toJsonInstanceOfGuardResolution(value: InstanceOfGuardResolution): Json {
+/** Return one JSON value for one InstanceOfGuardDecision. */
+export function toJsonInstanceOfGuardDecision(value: InstanceOfGuardDecision): Json {
     return {
         valueType: toJsonGlobalTypeId(value.valueType),
         target: toJsonGlobalSymbolId(value.target),
@@ -2714,8 +2714,8 @@ export function toJsonInstanceOfGuardResolution(value: InstanceOfGuardResolution
     };
 }
 
-/** Return one InstanceOfGuardResolution from one JSON value. */
-export function fromJsonInstanceOfGuardResolution(value: Json): InstanceOfGuardResolution {
+/** Return one InstanceOfGuardDecision from one JSON value. */
+export function fromJsonInstanceOfGuardDecision(value: Json): InstanceOfGuardDecision {
     const object = jsonObject(value);
 
     return {
@@ -2727,37 +2727,37 @@ export function fromJsonInstanceOfGuardResolution(value: Json): InstanceOfGuardR
 }
 
 /** Explicit generic application selected at a usage site. */
-export type InstantiationResolution = {
+export type InstantiationDecision = {
     /** The generic declaration being applied. */
     readonly symbol: GlobalSymbolId;
     /** The complete selected generic argument bindings. */
     readonly genericArguments: ReadonlyArray<GenericArgumentBinding>;
 };
 
-export const InstantiationResolution = {
+export const InstantiationDecision = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: InstantiationResolution): void {
-        encodeInstantiationResolution(writer, value);
+    encode(writer: BinaryWriter, value: InstantiationDecision): void {
+        encodeInstantiationDecision(writer, value);
     },
 
-    /** Decode one InstantiationResolution. */
-    decode(reader: BinaryReader): InstantiationResolution {
-        return decodeInstantiationResolution(reader);
+    /** Decode one InstantiationDecision. */
+    decode(reader: BinaryReader): InstantiationDecision {
+        return decodeInstantiationDecision(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: InstantiationResolution): Json {
-        return toJsonInstantiationResolution(value);
+    toJson(value: InstantiationDecision): Json {
+        return toJsonInstantiationDecision(value);
     },
 
-    /** Return one InstantiationResolution from one JSON value. */
-    fromJson(value: Json): InstantiationResolution {
-        return fromJsonInstantiationResolution(value);
+    /** Return one InstantiationDecision from one JSON value. */
+    fromJson(value: Json): InstantiationDecision {
+        return fromJsonInstantiationDecision(value);
     },
 };
 
-/** Encode one InstantiationResolution. */
-export function encodeInstantiationResolution(writer: BinaryWriter, value: InstantiationResolution): void {
+/** Encode one InstantiationDecision. */
+export function encodeInstantiationDecision(writer: BinaryWriter, value: InstantiationDecision): void {
     encodeGlobalSymbolId(writer, value.symbol);
     writer.writeUnsigned(value.genericArguments.length);
     for (const item1 of value.genericArguments) {
@@ -2765,8 +2765,8 @@ export function encodeInstantiationResolution(writer: BinaryWriter, value: Insta
     }
 }
 
-/** Decode one InstantiationResolution. */
-export function decodeInstantiationResolution(reader: BinaryReader): InstantiationResolution {
+/** Decode one InstantiationDecision. */
+export function decodeInstantiationDecision(reader: BinaryReader): InstantiationDecision {
     const symbol_ = decodeGlobalSymbolId(reader);
     const genericArguments = (() => { const length1 = reader.readNumber(); const items1: Array<GenericArgumentBinding> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGenericArgumentBinding(reader)); } return items1; })();
 
@@ -2776,16 +2776,16 @@ export function decodeInstantiationResolution(reader: BinaryReader): Instantiati
     };
 }
 
-/** Return one JSON value for one InstantiationResolution. */
-export function toJsonInstantiationResolution(value: InstantiationResolution): Json {
+/** Return one JSON value for one InstantiationDecision. */
+export function toJsonInstantiationDecision(value: InstantiationDecision): Json {
     return {
         symbol: toJsonGlobalSymbolId(value.symbol),
         genericArguments: value.genericArguments.map((item0) => toJsonGenericArgumentBinding(item0)),
     };
 }
 
-/** Return one InstantiationResolution from one JSON value. */
-export function fromJsonInstantiationResolution(value: Json): InstantiationResolution {
+/** Return one InstantiationDecision from one JSON value. */
+export function fromJsonInstantiationDecision(value: Json): InstantiationDecision {
     const object = jsonObject(value);
 
     return {
@@ -2795,7 +2795,7 @@ export function fromJsonInstantiationResolution(value: Json): InstantiationResol
 }
 
 /** `is` guard selected during checking. */
-export type IsGuardResolution = {
+export type IsGuardDecision = {
     /** The tested value type. */
     readonly valueType: GlobalTypeId;
     /** The tested target type. */
@@ -2804,37 +2804,37 @@ export type IsGuardResolution = {
     readonly predicate: Predicate;
 };
 
-export const IsGuardResolution = {
+export const IsGuardDecision = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: IsGuardResolution): void {
-        encodeIsGuardResolution(writer, value);
+    encode(writer: BinaryWriter, value: IsGuardDecision): void {
+        encodeIsGuardDecision(writer, value);
     },
 
-    /** Decode one IsGuardResolution. */
-    decode(reader: BinaryReader): IsGuardResolution {
-        return decodeIsGuardResolution(reader);
+    /** Decode one IsGuardDecision. */
+    decode(reader: BinaryReader): IsGuardDecision {
+        return decodeIsGuardDecision(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: IsGuardResolution): Json {
-        return toJsonIsGuardResolution(value);
+    toJson(value: IsGuardDecision): Json {
+        return toJsonIsGuardDecision(value);
     },
 
-    /** Return one IsGuardResolution from one JSON value. */
-    fromJson(value: Json): IsGuardResolution {
-        return fromJsonIsGuardResolution(value);
+    /** Return one IsGuardDecision from one JSON value. */
+    fromJson(value: Json): IsGuardDecision {
+        return fromJsonIsGuardDecision(value);
     },
 };
 
-/** Encode one IsGuardResolution. */
-export function encodeIsGuardResolution(writer: BinaryWriter, value: IsGuardResolution): void {
+/** Encode one IsGuardDecision. */
+export function encodeIsGuardDecision(writer: BinaryWriter, value: IsGuardDecision): void {
     encodeGlobalTypeId(writer, value.valueType);
     encodeGlobalTypeId(writer, value.targetType);
     encodePredicate(writer, value.predicate);
 }
 
-/** Decode one IsGuardResolution. */
-export function decodeIsGuardResolution(reader: BinaryReader): IsGuardResolution {
+/** Decode one IsGuardDecision. */
+export function decodeIsGuardDecision(reader: BinaryReader): IsGuardDecision {
     const valueType = decodeGlobalTypeId(reader);
     const targetType = decodeGlobalTypeId(reader);
     const predicate = decodePredicate(reader);
@@ -2846,8 +2846,8 @@ export function decodeIsGuardResolution(reader: BinaryReader): IsGuardResolution
     };
 }
 
-/** Return one JSON value for one IsGuardResolution. */
-export function toJsonIsGuardResolution(value: IsGuardResolution): Json {
+/** Return one JSON value for one IsGuardDecision. */
+export function toJsonIsGuardDecision(value: IsGuardDecision): Json {
     return {
         valueType: toJsonGlobalTypeId(value.valueType),
         targetType: toJsonGlobalTypeId(value.targetType),
@@ -2855,8 +2855,8 @@ export function toJsonIsGuardResolution(value: IsGuardResolution): Json {
     };
 }
 
-/** Return one IsGuardResolution from one JSON value. */
-export function fromJsonIsGuardResolution(value: Json): IsGuardResolution {
+/** Return one IsGuardDecision from one JSON value. */
+export function fromJsonIsGuardDecision(value: Json): IsGuardDecision {
     const object = jsonObject(value);
 
     return {
@@ -3666,6 +3666,324 @@ export function fromJsonPatternBindingResolution(value: Json): PatternBindingRes
     };
 }
 
+/** Pattern meaning selected during checking. */
+export type PatternDecision =
+    /** Pattern that accepts the input without binding, like `_`. */
+    | {
+          readonly kind: "ignore";
+      }
+    /** Pattern that binds a symbol, like `value`. */
+    | {
+          readonly kind: "bind";
+          readonly bind: PatternBindingResolution;
+      }
+    /** Pattern that requires a successful nested match, like `value!`. */
+    | {
+          readonly kind: "must";
+          readonly must: PatternMustResolution;
+      }
+    /** Pattern that uses a default value when the selected value is undefined. */
+    | {
+          readonly kind: "default";
+          readonly default: PatternDefaultResolution;
+      }
+    /** Pattern that tests one executable predicate. */
+    | {
+          readonly kind: "test";
+          readonly test: PatternPredicateResolution;
+      }
+    /** Pattern that selects one declared variant. */
+    | {
+          readonly kind: "variant";
+          readonly variant: PatternVariantResolution;
+      }
+    /** Pattern that projects the input before matching, like `*Point { x, y }`. */
+    | {
+          readonly kind: "project";
+          readonly project: PatternProjectionResolution;
+      }
+    /** Pattern that destructures projected child values. */
+    | {
+          readonly kind: "destructure";
+          readonly destructure: PatternDestructureResolution;
+      }
+    /** Pattern that accepts one of several branches, like `0 | 1 | 2`. */
+    | {
+          readonly kind: "or";
+          readonly or: PatternOrResolution;
+      }
+;
+
+export const PatternDecision = {
+    /** Pattern that accepts the input without binding, like `_`. */
+    ignore(): PatternDecision {
+        return { kind: "ignore" };
+    },
+
+    /** Pattern that binds a symbol, like `value`. */
+    bind(bind: PatternBindingResolution): PatternDecision {
+        return { kind: "bind", bind };
+    },
+
+    /** Pattern that requires a successful nested match, like `value!`. */
+    must(must: PatternMustResolution): PatternDecision {
+        return { kind: "must", must };
+    },
+
+    /** Pattern that uses a default value when the selected value is undefined. */
+    "default"(default_: PatternDefaultResolution): PatternDecision {
+        return { kind: "default", default: default_ };
+    },
+
+    /** Pattern that tests one executable predicate. */
+    test(test: PatternPredicateResolution): PatternDecision {
+        return { kind: "test", test };
+    },
+
+    /** Pattern that selects one declared variant. */
+    variant(variant: PatternVariantResolution): PatternDecision {
+        return { kind: "variant", variant };
+    },
+
+    /** Pattern that projects the input before matching, like `*Point { x, y }`. */
+    project(project: PatternProjectionResolution): PatternDecision {
+        return { kind: "project", project };
+    },
+
+    /** Pattern that destructures projected child values. */
+    destructure(destructure: PatternDestructureResolution): PatternDecision {
+        return { kind: "destructure", destructure };
+    },
+
+    /** Pattern that accepts one of several branches, like `0 | 1 | 2`. */
+    or(or: PatternOrResolution): PatternDecision {
+        return { kind: "or", or };
+    },
+
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: PatternDecision): void {
+        encodePatternDecision(writer, value);
+    },
+
+    /** Decode one PatternDecision. */
+    decode(reader: BinaryReader): PatternDecision {
+        return decodePatternDecision(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: PatternDecision): Json {
+        return toJsonPatternDecision(value);
+    },
+
+    /** Return one PatternDecision from one JSON value. */
+    fromJson(value: Json): PatternDecision {
+        return fromJsonPatternDecision(value);
+    },
+};
+
+/** Encode one PatternDecision. */
+export function encodePatternDecision(writer: BinaryWriter, value: PatternDecision): void {
+    switch (value.kind) {
+        case "ignore":
+            writer.writeUnsigned(0);
+            return;
+        case "bind":
+            writer.writeUnsigned(1);
+            encodePatternBindingResolution(writer, value.bind);
+            return;
+        case "must":
+            writer.writeUnsigned(2);
+            encodePatternMustResolution(writer, value.must);
+            return;
+        case "default":
+            writer.writeUnsigned(3);
+            encodePatternDefaultResolution(writer, value.default);
+            return;
+        case "test":
+            writer.writeUnsigned(4);
+            encodePatternPredicateResolution(writer, value.test);
+            return;
+        case "variant":
+            writer.writeUnsigned(5);
+            encodePatternVariantResolution(writer, value.variant);
+            return;
+        case "project":
+            writer.writeUnsigned(6);
+            encodePatternProjectionResolution(writer, value.project);
+            return;
+        case "destructure":
+            writer.writeUnsigned(7);
+            encodePatternDestructureResolution(writer, value.destructure);
+            return;
+        case "or":
+            writer.writeUnsigned(8);
+            encodePatternOrResolution(writer, value.or);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one PatternDecision. */
+export function decodePatternDecision(reader: BinaryReader): PatternDecision {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0: {
+            return { kind: "ignore" };
+        }
+        case 1: {
+            const bind = decodePatternBindingResolution(reader);
+
+            return { kind: "bind", bind };
+        }
+        case 2: {
+            const must = decodePatternMustResolution(reader);
+
+            return { kind: "must", must };
+        }
+        case 3: {
+            const default_ = decodePatternDefaultResolution(reader);
+
+            return { kind: "default", default: default_ };
+        }
+        case 4: {
+            const test = decodePatternPredicateResolution(reader);
+
+            return { kind: "test", test };
+        }
+        case 5: {
+            const variant = decodePatternVariantResolution(reader);
+
+            return { kind: "variant", variant };
+        }
+        case 6: {
+            const project = decodePatternProjectionResolution(reader);
+
+            return { kind: "project", project };
+        }
+        case 7: {
+            const destructure = decodePatternDestructureResolution(reader);
+
+            return { kind: "destructure", destructure };
+        }
+        case 8: {
+            const or = decodePatternOrResolution(reader);
+
+            return { kind: "or", or };
+        }
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one PatternDecision. */
+export function toJsonPatternDecision(value: PatternDecision): Json {
+    switch (value.kind) {
+        case "ignore":
+            return {
+                kind: "ignore",
+            };
+        case "bind":
+            return {
+                kind: "bind",
+                bind: toJsonPatternBindingResolution(value.bind),
+            };
+        case "must":
+            return {
+                kind: "must",
+                must: toJsonPatternMustResolution(value.must),
+            };
+        case "default":
+            return {
+                kind: "default",
+                default: toJsonPatternDefaultResolution(value.default),
+            };
+        case "test":
+            return {
+                kind: "test",
+                test: toJsonPatternPredicateResolution(value.test),
+            };
+        case "variant":
+            return {
+                kind: "variant",
+                variant: toJsonPatternVariantResolution(value.variant),
+            };
+        case "project":
+            return {
+                kind: "project",
+                project: toJsonPatternProjectionResolution(value.project),
+            };
+        case "destructure":
+            return {
+                kind: "destructure",
+                destructure: toJsonPatternDestructureResolution(value.destructure),
+            };
+        case "or":
+            return {
+                kind: "or",
+                or: toJsonPatternOrResolution(value.or),
+            };
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Return one PatternDecision from one JSON value. */
+export function fromJsonPatternDecision(value: Json): PatternDecision {
+    const object = jsonObject(value);
+    const kind = jsonString(jsonField(object, "kind"));
+
+    switch (kind) {
+        case "ignore":
+            return {
+                kind,
+            };
+        case "bind":
+            return {
+                kind,
+                bind: fromJsonPatternBindingResolution(jsonField(object, "bind")),
+            };
+        case "must":
+            return {
+                kind,
+                must: fromJsonPatternMustResolution(jsonField(object, "must")),
+            };
+        case "default":
+            return {
+                kind,
+                default: fromJsonPatternDefaultResolution(jsonField(object, "default")),
+            };
+        case "test":
+            return {
+                kind,
+                test: fromJsonPatternPredicateResolution(jsonField(object, "test")),
+            };
+        case "variant":
+            return {
+                kind,
+                variant: fromJsonPatternVariantResolution(jsonField(object, "variant")),
+            };
+        case "project":
+            return {
+                kind,
+                project: fromJsonPatternProjectionResolution(jsonField(object, "project")),
+            };
+        case "destructure":
+            return {
+                kind,
+                destructure: fromJsonPatternDestructureResolution(jsonField(object, "destructure")),
+            };
+        case "or":
+            return {
+                kind,
+                or: fromJsonPatternOrResolution(jsonField(object, "or")),
+            };
+    }
+
+    throw new SerdeError(`unknown enum variant: ${kind}`);
+}
+
 /** Defaulted nested pattern selected during checking. */
 export type PatternDefaultResolution = {
     /** The nested pattern. */
@@ -4383,324 +4701,6 @@ export function fromJsonPatternProjectionResolution(value: Json): PatternProject
         projection: fromJsonOperationResolution(jsonField(object, "projection")),
         pattern: jsonOptional(object, "pattern", (value) => fromJsonGlobalNodeIdAny(value)),
     };
-}
-
-/** Pattern meaning selected during checking. */
-export type PatternResolution =
-    /** Pattern that accepts the input without binding, like `_`. */
-    | {
-          readonly kind: "ignore";
-      }
-    /** Pattern that binds a symbol, like `value`. */
-    | {
-          readonly kind: "bind";
-          readonly bind: PatternBindingResolution;
-      }
-    /** Pattern that requires a successful nested match, like `value!`. */
-    | {
-          readonly kind: "must";
-          readonly must: PatternMustResolution;
-      }
-    /** Pattern that uses a default value when the selected value is undefined. */
-    | {
-          readonly kind: "default";
-          readonly default: PatternDefaultResolution;
-      }
-    /** Pattern that tests one executable predicate. */
-    | {
-          readonly kind: "test";
-          readonly test: PatternPredicateResolution;
-      }
-    /** Pattern that selects one declared variant. */
-    | {
-          readonly kind: "variant";
-          readonly variant: PatternVariantResolution;
-      }
-    /** Pattern that projects the input before matching, like `*Point { x, y }`. */
-    | {
-          readonly kind: "project";
-          readonly project: PatternProjectionResolution;
-      }
-    /** Pattern that destructures projected child values. */
-    | {
-          readonly kind: "destructure";
-          readonly destructure: PatternDestructureResolution;
-      }
-    /** Pattern that accepts one of several branches, like `0 | 1 | 2`. */
-    | {
-          readonly kind: "or";
-          readonly or: PatternOrResolution;
-      }
-;
-
-export const PatternResolution = {
-    /** Pattern that accepts the input without binding, like `_`. */
-    ignore(): PatternResolution {
-        return { kind: "ignore" };
-    },
-
-    /** Pattern that binds a symbol, like `value`. */
-    bind(bind: PatternBindingResolution): PatternResolution {
-        return { kind: "bind", bind };
-    },
-
-    /** Pattern that requires a successful nested match, like `value!`. */
-    must(must: PatternMustResolution): PatternResolution {
-        return { kind: "must", must };
-    },
-
-    /** Pattern that uses a default value when the selected value is undefined. */
-    "default"(default_: PatternDefaultResolution): PatternResolution {
-        return { kind: "default", default: default_ };
-    },
-
-    /** Pattern that tests one executable predicate. */
-    test(test: PatternPredicateResolution): PatternResolution {
-        return { kind: "test", test };
-    },
-
-    /** Pattern that selects one declared variant. */
-    variant(variant: PatternVariantResolution): PatternResolution {
-        return { kind: "variant", variant };
-    },
-
-    /** Pattern that projects the input before matching, like `*Point { x, y }`. */
-    project(project: PatternProjectionResolution): PatternResolution {
-        return { kind: "project", project };
-    },
-
-    /** Pattern that destructures projected child values. */
-    destructure(destructure: PatternDestructureResolution): PatternResolution {
-        return { kind: "destructure", destructure };
-    },
-
-    /** Pattern that accepts one of several branches, like `0 | 1 | 2`. */
-    or(or: PatternOrResolution): PatternResolution {
-        return { kind: "or", or };
-    },
-
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: PatternResolution): void {
-        encodePatternResolution(writer, value);
-    },
-
-    /** Decode one PatternResolution. */
-    decode(reader: BinaryReader): PatternResolution {
-        return decodePatternResolution(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: PatternResolution): Json {
-        return toJsonPatternResolution(value);
-    },
-
-    /** Return one PatternResolution from one JSON value. */
-    fromJson(value: Json): PatternResolution {
-        return fromJsonPatternResolution(value);
-    },
-};
-
-/** Encode one PatternResolution. */
-export function encodePatternResolution(writer: BinaryWriter, value: PatternResolution): void {
-    switch (value.kind) {
-        case "ignore":
-            writer.writeUnsigned(0);
-            return;
-        case "bind":
-            writer.writeUnsigned(1);
-            encodePatternBindingResolution(writer, value.bind);
-            return;
-        case "must":
-            writer.writeUnsigned(2);
-            encodePatternMustResolution(writer, value.must);
-            return;
-        case "default":
-            writer.writeUnsigned(3);
-            encodePatternDefaultResolution(writer, value.default);
-            return;
-        case "test":
-            writer.writeUnsigned(4);
-            encodePatternPredicateResolution(writer, value.test);
-            return;
-        case "variant":
-            writer.writeUnsigned(5);
-            encodePatternVariantResolution(writer, value.variant);
-            return;
-        case "project":
-            writer.writeUnsigned(6);
-            encodePatternProjectionResolution(writer, value.project);
-            return;
-        case "destructure":
-            writer.writeUnsigned(7);
-            encodePatternDestructureResolution(writer, value.destructure);
-            return;
-        case "or":
-            writer.writeUnsigned(8);
-            encodePatternOrResolution(writer, value.or);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one PatternResolution. */
-export function decodePatternResolution(reader: BinaryReader): PatternResolution {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0: {
-            return { kind: "ignore" };
-        }
-        case 1: {
-            const bind = decodePatternBindingResolution(reader);
-
-            return { kind: "bind", bind };
-        }
-        case 2: {
-            const must = decodePatternMustResolution(reader);
-
-            return { kind: "must", must };
-        }
-        case 3: {
-            const default_ = decodePatternDefaultResolution(reader);
-
-            return { kind: "default", default: default_ };
-        }
-        case 4: {
-            const test = decodePatternPredicateResolution(reader);
-
-            return { kind: "test", test };
-        }
-        case 5: {
-            const variant = decodePatternVariantResolution(reader);
-
-            return { kind: "variant", variant };
-        }
-        case 6: {
-            const project = decodePatternProjectionResolution(reader);
-
-            return { kind: "project", project };
-        }
-        case 7: {
-            const destructure = decodePatternDestructureResolution(reader);
-
-            return { kind: "destructure", destructure };
-        }
-        case 8: {
-            const or = decodePatternOrResolution(reader);
-
-            return { kind: "or", or };
-        }
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one PatternResolution. */
-export function toJsonPatternResolution(value: PatternResolution): Json {
-    switch (value.kind) {
-        case "ignore":
-            return {
-                kind: "ignore",
-            };
-        case "bind":
-            return {
-                kind: "bind",
-                bind: toJsonPatternBindingResolution(value.bind),
-            };
-        case "must":
-            return {
-                kind: "must",
-                must: toJsonPatternMustResolution(value.must),
-            };
-        case "default":
-            return {
-                kind: "default",
-                default: toJsonPatternDefaultResolution(value.default),
-            };
-        case "test":
-            return {
-                kind: "test",
-                test: toJsonPatternPredicateResolution(value.test),
-            };
-        case "variant":
-            return {
-                kind: "variant",
-                variant: toJsonPatternVariantResolution(value.variant),
-            };
-        case "project":
-            return {
-                kind: "project",
-                project: toJsonPatternProjectionResolution(value.project),
-            };
-        case "destructure":
-            return {
-                kind: "destructure",
-                destructure: toJsonPatternDestructureResolution(value.destructure),
-            };
-        case "or":
-            return {
-                kind: "or",
-                or: toJsonPatternOrResolution(value.or),
-            };
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Return one PatternResolution from one JSON value. */
-export function fromJsonPatternResolution(value: Json): PatternResolution {
-    const object = jsonObject(value);
-    const kind = jsonString(jsonField(object, "kind"));
-
-    switch (kind) {
-        case "ignore":
-            return {
-                kind,
-            };
-        case "bind":
-            return {
-                kind,
-                bind: fromJsonPatternBindingResolution(jsonField(object, "bind")),
-            };
-        case "must":
-            return {
-                kind,
-                must: fromJsonPatternMustResolution(jsonField(object, "must")),
-            };
-        case "default":
-            return {
-                kind,
-                default: fromJsonPatternDefaultResolution(jsonField(object, "default")),
-            };
-        case "test":
-            return {
-                kind,
-                test: fromJsonPatternPredicateResolution(jsonField(object, "test")),
-            };
-        case "variant":
-            return {
-                kind,
-                variant: fromJsonPatternVariantResolution(jsonField(object, "variant")),
-            };
-        case "project":
-            return {
-                kind,
-                project: fromJsonPatternProjectionResolution(jsonField(object, "project")),
-            };
-        case "destructure":
-            return {
-                kind,
-                destructure: fromJsonPatternDestructureResolution(jsonField(object, "destructure")),
-            };
-        case "or":
-            return {
-                kind,
-                or: fromJsonPatternOrResolution(jsonField(object, "or")),
-            };
-    }
-
-    throw new SerdeError(`unknown enum variant: ${kind}`);
 }
 
 /** Arity requirement introduced by one sequence pattern. */
@@ -5735,6 +5735,98 @@ export function fromJsonTreeChildBinding(value: Json): TreeChildBinding {
     throw new SerdeError(`unknown enum variant: ${kind}`);
 }
 
+/** The checked resolution of one tree literal. */
+export type TreeDecision = {
+    /** The builder type constructing this literal. */
+    readonly builder: GlobalTypeId;
+    /** The resolved literal target. */
+    readonly target: TreeTarget;
+    /** The checked attributes in source order. */
+    readonly attributes: ReadonlyArray<TreeAttributeBinding>;
+    /** The checked children in source order. */
+    readonly children: ReadonlyArray<TreeChildBinding>;
+    /** The type produced by the literal. */
+    readonly ty: GlobalTypeId;
+};
+
+export const TreeDecision = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: TreeDecision): void {
+        encodeTreeDecision(writer, value);
+    },
+
+    /** Decode one TreeDecision. */
+    decode(reader: BinaryReader): TreeDecision {
+        return decodeTreeDecision(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: TreeDecision): Json {
+        return toJsonTreeDecision(value);
+    },
+
+    /** Return one TreeDecision from one JSON value. */
+    fromJson(value: Json): TreeDecision {
+        return fromJsonTreeDecision(value);
+    },
+};
+
+/** Encode one TreeDecision. */
+export function encodeTreeDecision(writer: BinaryWriter, value: TreeDecision): void {
+    encodeGlobalTypeId(writer, value.builder);
+    encodeTreeTarget(writer, value.target);
+    writer.writeUnsigned(value.attributes.length);
+    for (const item2 of value.attributes) {
+        encodeTreeAttributeBinding(writer, item2);
+    }
+    writer.writeUnsigned(value.children.length);
+    for (const item3 of value.children) {
+        encodeTreeChildBinding(writer, item3);
+    }
+    encodeGlobalTypeId(writer, value.ty);
+}
+
+/** Decode one TreeDecision. */
+export function decodeTreeDecision(reader: BinaryReader): TreeDecision {
+    const builder = decodeGlobalTypeId(reader);
+    const target = decodeTreeTarget(reader);
+    const attributes = (() => { const length2 = reader.readNumber(); const items2: Array<TreeAttributeBinding> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeTreeAttributeBinding(reader)); } return items2; })();
+    const children = (() => { const length3 = reader.readNumber(); const items3: Array<TreeChildBinding> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeTreeChildBinding(reader)); } return items3; })();
+    const ty = decodeGlobalTypeId(reader);
+
+    return {
+        builder,
+        target,
+        attributes,
+        children,
+        ty,
+    };
+}
+
+/** Return one JSON value for one TreeDecision. */
+export function toJsonTreeDecision(value: TreeDecision): Json {
+    return {
+        builder: toJsonGlobalTypeId(value.builder),
+        target: toJsonTreeTarget(value.target),
+        attributes: value.attributes.map((item0) => toJsonTreeAttributeBinding(item0)),
+        children: value.children.map((item0) => toJsonTreeChildBinding(item0)),
+        ty: toJsonGlobalTypeId(value.ty),
+    };
+}
+
+/** Return one TreeDecision from one JSON value. */
+export function fromJsonTreeDecision(value: Json): TreeDecision {
+    const object = jsonObject(value);
+
+    return {
+        builder: fromJsonGlobalTypeId(jsonField(object, "builder")),
+        target: fromJsonTreeTarget(jsonField(object, "target")),
+        attributes: jsonArray(jsonField(object, "attributes")).map((item0) => fromJsonTreeAttributeBinding(item0)),
+        children: jsonArray(jsonField(object, "children")).map((item0) => fromJsonTreeChildBinding(item0)),
+        ty: fromJsonGlobalTypeId(jsonField(object, "ty")),
+    };
+}
+
 /** The resolved invocation of one tree component. */
 export type TreeInvocation =
     /** A callable component invoked with its props row. */
@@ -5745,7 +5837,7 @@ export type TreeInvocation =
     /** A class component built through its selected constructor. */
     | {
           readonly kind: "construct";
-          readonly construct: ConstructResolution;
+          readonly construct: ConstructDecision;
       }
     /** A struct component built through its literal field form. */
     | {
@@ -5762,7 +5854,7 @@ export const TreeInvocation = {
     },
 
     /** A class component built through its selected constructor. */
-    construct(construct: ConstructResolution): TreeInvocation {
+    construct(construct: ConstructDecision): TreeInvocation {
         return { kind: "construct", construct };
     },
 
@@ -5801,7 +5893,7 @@ export function encodeTreeInvocation(writer: BinaryWriter, value: TreeInvocation
             return;
         case "construct":
             writer.writeUnsigned(1);
-            encodeConstructResolution(writer, value.construct);
+            encodeConstructDecision(writer, value.construct);
             return;
         case "struct":
             writer.writeUnsigned(2);
@@ -5823,7 +5915,7 @@ export function decodeTreeInvocation(reader: BinaryReader): TreeInvocation {
             return { kind: "call", call };
         }
         case 1: {
-            const construct = decodeConstructResolution(reader);
+            const construct = decodeConstructDecision(reader);
 
             return { kind: "construct", construct };
         }
@@ -5851,7 +5943,7 @@ export function toJsonTreeInvocation(value: TreeInvocation): Json {
         case "construct":
             return {
                 kind: "construct",
-                construct: toJsonConstructResolution(value.construct),
+                construct: toJsonConstructDecision(value.construct),
             };
         case "struct":
             return {
@@ -5877,7 +5969,7 @@ export function fromJsonTreeInvocation(value: Json): TreeInvocation {
         case "construct":
             return {
                 kind,
-                construct: fromJsonConstructResolution(jsonField(object, "construct")),
+                construct: fromJsonConstructDecision(jsonField(object, "construct")),
             };
         case "struct":
             return {
@@ -5887,98 +5979,6 @@ export function fromJsonTreeInvocation(value: Json): TreeInvocation {
     }
 
     throw new SerdeError(`unknown enum variant: ${kind}`);
-}
-
-/** The checked resolution of one tree literal. */
-export type TreeResolution = {
-    /** The builder type constructing this literal. */
-    readonly builder: GlobalTypeId;
-    /** The resolved literal target. */
-    readonly target: TreeTarget;
-    /** The checked attributes in source order. */
-    readonly attributes: ReadonlyArray<TreeAttributeBinding>;
-    /** The checked children in source order. */
-    readonly children: ReadonlyArray<TreeChildBinding>;
-    /** The type produced by the literal. */
-    readonly ty: GlobalTypeId;
-};
-
-export const TreeResolution = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: TreeResolution): void {
-        encodeTreeResolution(writer, value);
-    },
-
-    /** Decode one TreeResolution. */
-    decode(reader: BinaryReader): TreeResolution {
-        return decodeTreeResolution(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: TreeResolution): Json {
-        return toJsonTreeResolution(value);
-    },
-
-    /** Return one TreeResolution from one JSON value. */
-    fromJson(value: Json): TreeResolution {
-        return fromJsonTreeResolution(value);
-    },
-};
-
-/** Encode one TreeResolution. */
-export function encodeTreeResolution(writer: BinaryWriter, value: TreeResolution): void {
-    encodeGlobalTypeId(writer, value.builder);
-    encodeTreeTarget(writer, value.target);
-    writer.writeUnsigned(value.attributes.length);
-    for (const item2 of value.attributes) {
-        encodeTreeAttributeBinding(writer, item2);
-    }
-    writer.writeUnsigned(value.children.length);
-    for (const item3 of value.children) {
-        encodeTreeChildBinding(writer, item3);
-    }
-    encodeGlobalTypeId(writer, value.ty);
-}
-
-/** Decode one TreeResolution. */
-export function decodeTreeResolution(reader: BinaryReader): TreeResolution {
-    const builder = decodeGlobalTypeId(reader);
-    const target = decodeTreeTarget(reader);
-    const attributes = (() => { const length2 = reader.readNumber(); const items2: Array<TreeAttributeBinding> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeTreeAttributeBinding(reader)); } return items2; })();
-    const children = (() => { const length3 = reader.readNumber(); const items3: Array<TreeChildBinding> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeTreeChildBinding(reader)); } return items3; })();
-    const ty = decodeGlobalTypeId(reader);
-
-    return {
-        builder,
-        target,
-        attributes,
-        children,
-        ty,
-    };
-}
-
-/** Return one JSON value for one TreeResolution. */
-export function toJsonTreeResolution(value: TreeResolution): Json {
-    return {
-        builder: toJsonGlobalTypeId(value.builder),
-        target: toJsonTreeTarget(value.target),
-        attributes: value.attributes.map((item0) => toJsonTreeAttributeBinding(item0)),
-        children: value.children.map((item0) => toJsonTreeChildBinding(item0)),
-        ty: toJsonGlobalTypeId(value.ty),
-    };
-}
-
-/** Return one TreeResolution from one JSON value. */
-export function fromJsonTreeResolution(value: Json): TreeResolution {
-    const object = jsonObject(value);
-
-    return {
-        builder: fromJsonGlobalTypeId(jsonField(object, "builder")),
-        target: fromJsonTreeTarget(jsonField(object, "target")),
-        attributes: jsonArray(jsonField(object, "attributes")).map((item0) => fromJsonTreeAttributeBinding(item0)),
-        children: jsonArray(jsonField(object, "children")).map((item0) => fromJsonTreeChildBinding(item0)),
-        ty: fromJsonGlobalTypeId(jsonField(object, "ty")),
-    };
 }
 
 /** The resolved target of one tree literal. */

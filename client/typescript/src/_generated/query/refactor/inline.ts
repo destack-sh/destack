@@ -6,7 +6,7 @@ import type { PatchSet } from "../../source/edit/edit.js";
 import { decodeQueryPosition, encodeQueryPosition, fromJsonQueryPosition, toJsonQueryPosition } from "../protocol/target.js";
 import { decodePatchSet, encodePatchSet, fromJsonPatchSet, toJsonPatchSet } from "../../source/edit/edit.js";
 
-/** Request payload for inline refactor queries. */
+/** An inline request. */
 export type InlineRequest = {
     /** The queried position. */
     readonly position: QueryPosition;
@@ -64,7 +64,7 @@ export function fromJsonInlineRequest(value: Json): InlineRequest {
     };
 }
 
-/** Response payload for inline refactor queries. */
+/** An inline response. */
 export type InlineResponse = {
     /** Inline edit, if available. */
     readonly edit?: PatchSet;

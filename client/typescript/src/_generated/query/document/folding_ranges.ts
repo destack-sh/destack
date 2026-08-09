@@ -186,7 +186,7 @@ export function fromJsonFoldingRangeKind(value: Json): FoldingRangeKind {
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
-/** Request folding ranges for a document. */
+/** A folding ranges request. */
 export type FoldingRangesRequest = {
     /** The queried module profile. */
     readonly module: Module;
@@ -251,7 +251,7 @@ export function fromJsonFoldingRangesRequest(value: Json): FoldingRangesRequest 
     };
 }
 
-/** Response payload for folding ranges queries. */
+/** A folding ranges response. */
 export type FoldingRangesResponse = {
     /** Folding ranges. */
     readonly ranges: ReadonlyArray<FoldingRange>;

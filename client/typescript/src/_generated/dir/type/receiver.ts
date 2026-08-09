@@ -506,6 +506,78 @@ export function fromJsonReceiverAdjustment(value: Json): ReceiverAdjustment {
     throw new SerdeError(`unknown enum variant: ${kind}`);
 }
 
+/** Receiver selected by contextual lookup, such as `this` or `super`. */
+export type ReceiverDecision = {
+    /** The receiver syntax kind. */
+    readonly kind: ReceiverKind;
+    /** The declaration that introduces the receiver. */
+    readonly declaration: GlobalSymbolId;
+    /** The receiver type after inference. */
+    readonly ty: GlobalTypeId;
+};
+
+export const ReceiverDecision = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: ReceiverDecision): void {
+        encodeReceiverDecision(writer, value);
+    },
+
+    /** Decode one ReceiverDecision. */
+    decode(reader: BinaryReader): ReceiverDecision {
+        return decodeReceiverDecision(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: ReceiverDecision): Json {
+        return toJsonReceiverDecision(value);
+    },
+
+    /** Return one ReceiverDecision from one JSON value. */
+    fromJson(value: Json): ReceiverDecision {
+        return fromJsonReceiverDecision(value);
+    },
+};
+
+/** Encode one ReceiverDecision. */
+export function encodeReceiverDecision(writer: BinaryWriter, value: ReceiverDecision): void {
+    encodeReceiverKind(writer, value.kind);
+    encodeGlobalSymbolId(writer, value.declaration);
+    encodeGlobalTypeId(writer, value.ty);
+}
+
+/** Decode one ReceiverDecision. */
+export function decodeReceiverDecision(reader: BinaryReader): ReceiverDecision {
+    const kind = decodeReceiverKind(reader);
+    const declaration = decodeGlobalSymbolId(reader);
+    const ty = decodeGlobalTypeId(reader);
+
+    return {
+        kind,
+        declaration,
+        ty,
+    };
+}
+
+/** Return one JSON value for one ReceiverDecision. */
+export function toJsonReceiverDecision(value: ReceiverDecision): Json {
+    return {
+        kind: toJsonReceiverKind(value.kind),
+        declaration: toJsonGlobalSymbolId(value.declaration),
+        ty: toJsonGlobalTypeId(value.ty),
+    };
+}
+
+/** Return one ReceiverDecision from one JSON value. */
+export function fromJsonReceiverDecision(value: Json): ReceiverDecision {
+    const object = jsonObject(value);
+
+    return {
+        kind: fromJsonReceiverKind(jsonField(object, "kind")),
+        declaration: fromJsonGlobalSymbolId(jsonField(object, "declaration")),
+        ty: fromJsonGlobalTypeId(jsonField(object, "ty")),
+    };
+}
+
 /** Receiver syntax resolved by contextual lookup. */
 export type ReceiverKind = "this" | "super";
 
@@ -576,76 +648,4 @@ export function fromJsonReceiverKind(value: Json): ReceiverKind {
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);
-}
-
-/** Receiver selected by contextual lookup, such as `this` or `super`. */
-export type ReceiverResolution = {
-    /** The receiver syntax kind. */
-    readonly kind: ReceiverKind;
-    /** The declaration that introduces the receiver. */
-    readonly declaration: GlobalSymbolId;
-    /** The receiver type after inference. */
-    readonly ty: GlobalTypeId;
-};
-
-export const ReceiverResolution = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: ReceiverResolution): void {
-        encodeReceiverResolution(writer, value);
-    },
-
-    /** Decode one ReceiverResolution. */
-    decode(reader: BinaryReader): ReceiverResolution {
-        return decodeReceiverResolution(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: ReceiverResolution): Json {
-        return toJsonReceiverResolution(value);
-    },
-
-    /** Return one ReceiverResolution from one JSON value. */
-    fromJson(value: Json): ReceiverResolution {
-        return fromJsonReceiverResolution(value);
-    },
-};
-
-/** Encode one ReceiverResolution. */
-export function encodeReceiverResolution(writer: BinaryWriter, value: ReceiverResolution): void {
-    encodeReceiverKind(writer, value.kind);
-    encodeGlobalSymbolId(writer, value.declaration);
-    encodeGlobalTypeId(writer, value.ty);
-}
-
-/** Decode one ReceiverResolution. */
-export function decodeReceiverResolution(reader: BinaryReader): ReceiverResolution {
-    const kind = decodeReceiverKind(reader);
-    const declaration = decodeGlobalSymbolId(reader);
-    const ty = decodeGlobalTypeId(reader);
-
-    return {
-        kind,
-        declaration,
-        ty,
-    };
-}
-
-/** Return one JSON value for one ReceiverResolution. */
-export function toJsonReceiverResolution(value: ReceiverResolution): Json {
-    return {
-        kind: toJsonReceiverKind(value.kind),
-        declaration: toJsonGlobalSymbolId(value.declaration),
-        ty: toJsonGlobalTypeId(value.ty),
-    };
-}
-
-/** Return one ReceiverResolution from one JSON value. */
-export function fromJsonReceiverResolution(value: Json): ReceiverResolution {
-    const object = jsonObject(value);
-
-    return {
-        kind: fromJsonReceiverKind(jsonField(object, "kind")),
-        declaration: fromJsonGlobalSymbolId(jsonField(object, "declaration")),
-        ty: fromJsonGlobalTypeId(jsonField(object, "ty")),
-    };
 }

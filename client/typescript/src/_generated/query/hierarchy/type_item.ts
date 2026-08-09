@@ -98,7 +98,7 @@ export function fromJsonTypeItem(value: Json): TypeItem {
     };
 }
 
-/** Request the type item at a cursor position. */
+/** A type item request. */
 export type TypeItemRequest = {
     /** The queried position. */
     readonly position: QueryPosition;
@@ -156,7 +156,7 @@ export function fromJsonTypeItemRequest(value: Json): TypeItemRequest {
     };
 }
 
-/** Response payload for type item queries. */
+/** A type item response. */
 export type TypeItemResponse = {
     /** Type hierarchy item, if available. */
     readonly item?: TypeItem;

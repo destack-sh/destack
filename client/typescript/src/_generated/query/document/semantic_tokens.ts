@@ -295,7 +295,7 @@ export function fromJsonSemanticTokenType(value: Json): SemanticTokenType {
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
-/** Request semantic tokens for a document. */
+/** A semantic tokens request. */
 export type SemanticTokensRequest = {
     /** The queried module profile. */
     readonly module: Module;
@@ -360,7 +360,7 @@ export function fromJsonSemanticTokensRequest(value: Json): SemanticTokensReques
     };
 }
 
-/** Response payload for semantic tokens queries. */
+/** A semantic tokens response. */
 export type SemanticTokensResponse = {
     /** Semantic tokens. */
     readonly tokens: ReadonlyArray<SemanticToken>;

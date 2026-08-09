@@ -4,20 +4,14 @@ import { BinaryReader, BinaryWriter, Json, jsonArray, jsonField, jsonObject, jso
 import type { Postings } from "./postings.js";
 import type { GlobalSymbolId } from "../symbol/symbol.js";
 import type { SymbolKind } from "../symbol/symbol.js";
-import type { SymbolRole } from "../symbol/symbol.js";
 import type { MemberKind } from "../table/member.js";
-import type { GlobalNodeIdAny } from "../tree/node.js";
 import type { Mutability } from "../tree/node.js";
-import type { FileId } from "../../source/file/model/file.js";
 import type { Span } from "../../source/file/model/span.js";
 import { decodePostings, encodePostings, fromJsonPostings, toJsonPostings } from "./postings.js";
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../symbol/symbol.js";
 import { decodeSymbolKind, encodeSymbolKind, fromJsonSymbolKind, toJsonSymbolKind } from "../symbol/symbol.js";
-import { decodeSymbolRole, encodeSymbolRole, fromJsonSymbolRole, toJsonSymbolRole } from "../symbol/symbol.js";
 import { decodeMemberKind, encodeMemberKind, fromJsonMemberKind, toJsonMemberKind } from "../table/member.js";
-import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, toJsonGlobalNodeIdAny } from "../tree/node.js";
 import { decodeMutability, encodeMutability, fromJsonMutability, toJsonMutability } from "../tree/node.js";
-import { decodeFileId, encodeFileId, fromJsonFileId, toJsonFileId } from "../../source/file/model/file.js";
 import { decodeSpan, encodeSpan, fromJsonSpan, toJsonSpan } from "../../source/file/model/span.js";
 
 /** One indexed declared symbol. */
@@ -28,14 +22,8 @@ export type SymbolEntry = {
     readonly kind: SymbolKind;
     /** The declaration member kind when present. */
     readonly memberKind?: MemberKind;
-    /** The symbol role. */
-    readonly role: SymbolRole;
     /** The symbol id. */
     readonly symbol: GlobalSymbolId;
-    /** The source node that declares the symbol. */
-    readonly source: GlobalNodeIdAny;
-    /** The source file. */
-    readonly file: FileId;
     /** The source range. */
     readonly span: Span;
     /** The declaration name range. */
@@ -75,17 +63,14 @@ export function encodeSymbolEntry(writer: BinaryWriter, value: SymbolEntry): voi
     writer.writeOption(value.memberKind, (value2) => {
         encodeMemberKind(writer, value2);
     });
-    encodeSymbolRole(writer, value.role);
     encodeGlobalSymbolId(writer, value.symbol);
-    encodeGlobalNodeIdAny(writer, value.source);
-    encodeFileId(writer, value.file);
     encodeSpan(writer, value.span);
     encodeSpan(writer, value.selection);
-    writer.writeOption(value.container, (value9) => {
-        writer.writeString(value9);
+    writer.writeOption(value.container, (value6) => {
+        writer.writeString(value6);
     });
-    writer.writeOption(value.mutability, (value10) => {
-        encodeMutability(writer, value10);
+    writer.writeOption(value.mutability, (value7) => {
+        encodeMutability(writer, value7);
     });
 }
 
@@ -94,10 +79,7 @@ export function decodeSymbolEntry(reader: BinaryReader): SymbolEntry {
     const name = reader.readString();
     const kind = decodeSymbolKind(reader);
     const memberKind = reader.readOption(() => decodeMemberKind(reader));
-    const role = decodeSymbolRole(reader);
     const symbol_ = decodeGlobalSymbolId(reader);
-    const source = decodeGlobalNodeIdAny(reader);
-    const file = decodeFileId(reader);
     const span = decodeSpan(reader);
     const selection = decodeSpan(reader);
     const container = reader.readOption(() => reader.readString());
@@ -107,10 +89,7 @@ export function decodeSymbolEntry(reader: BinaryReader): SymbolEntry {
         name,
         kind,
         ...(memberKind === undefined ? {} : { memberKind }),
-        role,
         symbol: symbol_,
-        source,
-        file,
         span,
         selection,
         ...(container === undefined ? {} : { container }),
@@ -124,10 +103,7 @@ export function toJsonSymbolEntry(value: SymbolEntry): Json {
         name: value.name,
         kind: toJsonSymbolKind(value.kind),
         ...(value.memberKind === undefined ? {} : { memberKind: toJsonMemberKind(value.memberKind) }),
-        role: toJsonSymbolRole(value.role),
         symbol: toJsonGlobalSymbolId(value.symbol),
-        source: toJsonGlobalNodeIdAny(value.source),
-        file: toJsonFileId(value.file),
         span: toJsonSpan(value.span),
         selection: toJsonSpan(value.selection),
         ...(value.container === undefined ? {} : { container: value.container }),
@@ -143,10 +119,7 @@ export function fromJsonSymbolEntry(value: Json): SymbolEntry {
         name: jsonString(jsonField(object, "name")),
         kind: fromJsonSymbolKind(jsonField(object, "kind")),
         memberKind: jsonOptional(object, "memberKind", (value) => fromJsonMemberKind(value)),
-        role: fromJsonSymbolRole(jsonField(object, "role")),
         symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
-        source: fromJsonGlobalNodeIdAny(jsonField(object, "source")),
-        file: fromJsonFileId(jsonField(object, "file")),
         span: fromJsonSpan(jsonField(object, "span")),
         selection: fromJsonSpan(jsonField(object, "selection")),
         container: jsonOptional(object, "container", (value) => jsonString(value)),

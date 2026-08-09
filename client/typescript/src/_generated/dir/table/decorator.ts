@@ -5,6 +5,7 @@ import type { LanguageItem } from "../symbol/language.js";
 import type { GlobalSymbolId } from "../symbol/symbol.js";
 import type { GlobalNodeId } from "../tree/node.js";
 import type { GlobalNodeIdAny } from "../tree/node.js";
+import type { LocalNodeId } from "../tree/node.js";
 import type { GlobalStaticId } from "../tree/static.js";
 import type { ArgumentBinding } from "../type/generic.js";
 import type { NewtypeSelection } from "../type/resolution.js";
@@ -14,6 +15,7 @@ import { decodeLanguageItem, encodeLanguageItem, fromJsonLanguageItem, toJsonLan
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../symbol/symbol.js";
 import { decodeGlobalNodeId, encodeGlobalNodeId, fromJsonGlobalNodeId, toJsonGlobalNodeId } from "../tree/node.js";
 import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, toJsonGlobalNodeIdAny } from "../tree/node.js";
+import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "../tree/node.js";
 import { decodeGlobalStaticId, encodeGlobalStaticId, fromJsonGlobalStaticId, toJsonGlobalStaticId } from "../tree/static.js";
 import { decodeArgumentBinding, encodeArgumentBinding, fromJsonArgumentBinding, toJsonArgumentBinding } from "../type/generic.js";
 import { decodeNewtypeSelection, encodeNewtypeSelection, fromJsonNewtypeSelection, toJsonNewtypeSelection } from "../type/resolution.js";
@@ -188,6 +190,8 @@ export type DecoratorSegment = {
     readonly applications: ReadonlyArray<DecoratorApplication>;
     /** Decorator applications attached to each owner. */
     readonly applicationsByOwner: ReadonlyMap<GlobalNodeIdAny, ReadonlyArray<LocalDecoratorId>>;
+    /** Declared decorator uses awaiting selection and evaluation. */
+    readonly uses: ReadonlyArray<DecoratorUse>;
 };
 
 export const DecoratorSegment = {
@@ -235,6 +239,10 @@ export function encodeDecoratorSegment(writer: BinaryWriter, value: DecoratorSeg
             encodeLocalDecoratorId(writer, item4);
         }
     }
+    writer.writeUnsigned(value.uses.length);
+    for (const item4 of value.uses) {
+        encodeDecoratorUse(writer, item4);
+    }
 }
 
 /** Decode one DecoratorSegment. */
@@ -243,12 +251,14 @@ export function decodeDecoratorSegment(reader: BinaryReader): DecoratorSegment {
     const firstApplicationId = reader.readNumber();
     const applications = (() => { const length2 = reader.readNumber(); const items2: Array<DecoratorApplication> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeDecoratorApplication(reader)); } return items2; })();
     const applicationsByOwner = (() => { const length3 = reader.readNumber(); const items3 = new Map<GlobalNodeIdAny, ReadonlyArray<LocalDecoratorId>>(); for (let index = 0; index < length3; index += 1) { items3.set(decodeGlobalNodeIdAny(reader), (() => { const length5 = reader.readNumber(); const items5: Array<LocalDecoratorId> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeLocalDecoratorId(reader)); } return items5; })()); } return items3; })();
+    const uses = (() => { const length4 = reader.readNumber(); const items4: Array<DecoratorUse> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeDecoratorUse(reader)); } return items4; })();
 
     return {
         moduleId,
         firstApplicationId,
         applications,
         applicationsByOwner,
+        uses,
     };
 }
 
@@ -259,6 +269,7 @@ export function toJsonDecoratorSegment(value: DecoratorSegment): Json {
         firstApplicationId: value.firstApplicationId,
         applications: value.applications.map((item0) => toJsonDecoratorApplication(item0)),
         applicationsByOwner: Array.from(value.applicationsByOwner.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), item0.map((item1) => toJsonLocalDecoratorId(item1))] as const),
+        uses: value.uses.map((item0) => toJsonDecoratorUse(item0)),
     };
 }
 
@@ -271,6 +282,7 @@ export function fromJsonDecoratorSegment(value: Json): DecoratorSegment {
         firstApplicationId: jsonInteger(jsonField(object, "firstApplicationId")),
         applications: jsonArray(jsonField(object, "applications")).map((item0) => fromJsonDecoratorApplication(item0)),
         applicationsByOwner: new Map(jsonArray(jsonField(object, "applicationsByOwner")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), jsonArray(item0).map((item1) => fromJsonLocalDecoratorId(item1))] as const; })),
+        uses: jsonArray(jsonField(object, "uses")).map((item0) => fromJsonDecoratorUse(item0)),
     };
 }
 
@@ -550,6 +562,105 @@ export function fromJsonDecoratorTarget(value: Json): DecoratorTarget {
     }
 
     throw new SerdeError(`unknown enum variant: ${kind}`);
+}
+
+/** Declared decorator use awaiting selection and evaluation. */
+export type DecoratorUse = {
+    /** The decorator node. */
+    readonly source: GlobalNodeId;
+    /** The node decorated by this use. */
+    readonly owner: GlobalNodeIdAny;
+    /** The decorator target expression. */
+    readonly target: GlobalNodeId;
+    /** The resolved decorator symbol. */
+    readonly symbol: GlobalSymbolId;
+    /** The explicit generic arguments. */
+    readonly genericArguments: ReadonlyArray<LocalNodeId>;
+    /** The decorator application arguments. */
+    readonly arguments: ReadonlyArray<LocalNodeId>;
+};
+
+export const DecoratorUse = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: DecoratorUse): void {
+        encodeDecoratorUse(writer, value);
+    },
+
+    /** Decode one DecoratorUse. */
+    decode(reader: BinaryReader): DecoratorUse {
+        return decodeDecoratorUse(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: DecoratorUse): Json {
+        return toJsonDecoratorUse(value);
+    },
+
+    /** Return one DecoratorUse from one JSON value. */
+    fromJson(value: Json): DecoratorUse {
+        return fromJsonDecoratorUse(value);
+    },
+};
+
+/** Encode one DecoratorUse. */
+export function encodeDecoratorUse(writer: BinaryWriter, value: DecoratorUse): void {
+    encodeGlobalNodeId(writer, value.source);
+    encodeGlobalNodeIdAny(writer, value.owner);
+    encodeGlobalNodeId(writer, value.target);
+    encodeGlobalSymbolId(writer, value.symbol);
+    writer.writeUnsigned(value.genericArguments.length);
+    for (const item4 of value.genericArguments) {
+        encodeLocalNodeId(writer, item4);
+    }
+    writer.writeUnsigned(value.arguments.length);
+    for (const item5 of value.arguments) {
+        encodeLocalNodeId(writer, item5);
+    }
+}
+
+/** Decode one DecoratorUse. */
+export function decodeDecoratorUse(reader: BinaryReader): DecoratorUse {
+    const source = decodeGlobalNodeId(reader);
+    const owner = decodeGlobalNodeIdAny(reader);
+    const target = decodeGlobalNodeId(reader);
+    const symbol_ = decodeGlobalSymbolId(reader);
+    const genericArguments = (() => { const length4 = reader.readNumber(); const items4: Array<LocalNodeId> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeLocalNodeId(reader)); } return items4; })();
+    const arguments_ = (() => { const length5 = reader.readNumber(); const items5: Array<LocalNodeId> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeLocalNodeId(reader)); } return items5; })();
+
+    return {
+        source,
+        owner,
+        target,
+        symbol: symbol_,
+        genericArguments,
+        arguments: arguments_,
+    };
+}
+
+/** Return one JSON value for one DecoratorUse. */
+export function toJsonDecoratorUse(value: DecoratorUse): Json {
+    return {
+        source: toJsonGlobalNodeId(value.source),
+        owner: toJsonGlobalNodeIdAny(value.owner),
+        target: toJsonGlobalNodeId(value.target),
+        symbol: toJsonGlobalSymbolId(value.symbol),
+        genericArguments: value.genericArguments.map((item0) => toJsonLocalNodeId(item0)),
+        arguments: value.arguments.map((item0) => toJsonLocalNodeId(item0)),
+    };
+}
+
+/** Return one DecoratorUse from one JSON value. */
+export function fromJsonDecoratorUse(value: Json): DecoratorUse {
+    const object = jsonObject(value);
+
+    return {
+        source: fromJsonGlobalNodeId(jsonField(object, "source")),
+        owner: fromJsonGlobalNodeIdAny(jsonField(object, "owner")),
+        target: fromJsonGlobalNodeId(jsonField(object, "target")),
+        symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
+        genericArguments: jsonArray(jsonField(object, "genericArguments")).map((item0) => fromJsonLocalNodeId(item0)),
+        arguments: jsonArray(jsonField(object, "arguments")).map((item0) => fromJsonLocalNodeId(item0)),
+    };
 }
 
 /** One provider selected by a compiler-owned derive decorator. */

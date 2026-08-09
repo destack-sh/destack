@@ -69,7 +69,7 @@ export function fromJsonFileRename(value: Json): FileRename {
     };
 }
 
-/** Request payload for file rename edits. */
+/** A file rename request. */
 export type RenameFilesRequest = {
     /** The file rename entries to apply. */
     readonly renames: ReadonlyArray<FileRename>;
@@ -130,7 +130,7 @@ export function fromJsonRenameFilesRequest(value: Json): RenameFilesRequest {
     };
 }
 
-/** Response payload for file rename queries. */
+/** A file rename response. */
 export type RenameFilesResponse = {
     /** File rename edit, if available. */
     readonly edit?: PatchSet;

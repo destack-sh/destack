@@ -8,7 +8,7 @@ import { decodeModule, encodeModule, fromJsonModule, toJsonModule } from "../pro
 import { decodeFileId, encodeFileId, fromJsonFileId, toJsonFileId } from "../../source/file/model/file.js";
 import { decodeSpan, encodeSpan, fromJsonSpan, toJsonSpan } from "../../source/file/model/span.js";
 
-/** Request the outline for one source file. */
+/** An outline request. */
 export type OutlineRequest = {
     /** The queried module profile. */
     readonly module: Module;
@@ -73,7 +73,7 @@ export function fromJsonOutlineRequest(value: Json): OutlineRequest {
     };
 }
 
-/** Response from one outline query. */
+/** An outline response. */
 export type OutlineResponse = {
     /** The top-level source symbols. */
     readonly symbols: ReadonlyArray<OutlineSymbol>;

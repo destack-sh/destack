@@ -271,7 +271,7 @@ export function fromJsonSymbol(value: Json): Symbol {
 }
 
 /** The declaration kind of a symbol. */
-export type SymbolKind = "variable" | "parameter" | "import" | "class" | "struct" | "interface" | "newtypeInterface" | "enum" | "variant" | "function" | "label" | "extension" | "typeAlias" | "genericTypeParameter" | "genericValueParameter" | "associatedType" | "associatedConst" | "newtype";
+export type SymbolKind = "variable" | "parameter" | "import" | "exportAlias" | "class" | "struct" | "interface" | "newtypeInterface" | "enum" | "variant" | "function" | "extension" | "typeAlias" | "genericTypeParameter" | "genericValueParameter" | "associatedType" | "associatedConst" | "newtype";
 
 export const SymbolKind = {
     /** Encode this value. */
@@ -307,28 +307,28 @@ export function encodeSymbolKind(writer: BinaryWriter, value: SymbolKind): void 
         case "import":
             writer.writeUnsigned(2);
             return;
-        case "class":
+        case "exportAlias":
             writer.writeUnsigned(3);
             return;
-        case "struct":
+        case "class":
             writer.writeUnsigned(4);
             return;
-        case "interface":
+        case "struct":
             writer.writeUnsigned(5);
             return;
-        case "newtypeInterface":
+        case "interface":
             writer.writeUnsigned(6);
             return;
-        case "enum":
+        case "newtypeInterface":
             writer.writeUnsigned(7);
             return;
-        case "variant":
+        case "enum":
             writer.writeUnsigned(8);
             return;
-        case "function":
+        case "variant":
             writer.writeUnsigned(9);
             return;
-        case "label":
+        case "function":
             writer.writeUnsigned(10);
             return;
         case "extension":
@@ -369,21 +369,21 @@ export function decodeSymbolKind(reader: BinaryReader): SymbolKind {
         case 2:
             return "import";
         case 3:
-            return "class";
+            return "exportAlias";
         case 4:
-            return "struct";
+            return "class";
         case 5:
-            return "interface";
+            return "struct";
         case 6:
-            return "newtypeInterface";
+            return "interface";
         case 7:
-            return "enum";
+            return "newtypeInterface";
         case 8:
-            return "variant";
+            return "enum";
         case 9:
-            return "function";
+            return "variant";
         case 10:
-            return "label";
+            return "function";
         case 11:
             return "extension";
         case 12:
@@ -419,6 +419,8 @@ export function fromJsonSymbolKind(value: Json): SymbolKind {
             return "parameter";
         case "import":
             return "import";
+        case "exportAlias":
+            return "exportAlias";
         case "class":
             return "class";
         case "struct":
@@ -433,8 +435,6 @@ export function fromJsonSymbolKind(value: Json): SymbolKind {
             return "variant";
         case "function":
             return "function";
-        case "label":
-            return "label";
         case "extension":
             return "extension";
         case "typeAlias":

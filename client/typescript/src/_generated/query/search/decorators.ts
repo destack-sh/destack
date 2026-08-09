@@ -230,7 +230,7 @@ export function fromJsonDecoratorScope(value: Json): DecoratorScope {
     throw new SerdeError(`unknown enum variant: ${kind}`);
 }
 
-/** Request payload for decorator queries. */
+/** A decorators request. */
 export type DecoratorsRequest = {
     /** The query scope. */
     readonly scope: DecoratorScope;
@@ -297,7 +297,7 @@ export function fromJsonDecoratorsRequest(value: Json): DecoratorsRequest {
     };
 }
 
-/** Response payload for decorator queries. */
+/** A decorators response. */
 export type DecoratorsResponse = {
     /** Matching decorators. */
     readonly decorators: ReadonlyArray<DecoratorItem>;

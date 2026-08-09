@@ -81,7 +81,7 @@ export function fromJsonSignatureHelp(value: Json): SignatureHelp {
     };
 }
 
-/** Request signature help at a cursor position. */
+/** A signature help request. */
 export type SignatureHelpRequest = {
     /** The queried position. */
     readonly position: QueryPosition;
@@ -139,7 +139,7 @@ export function fromJsonSignatureHelpRequest(value: Json): SignatureHelpRequest 
     };
 }
 
-/** Response payload for signature help queries. */
+/** A signature help response. */
 export type SignatureHelpResponse = {
     /** Signature help, if available. */
     readonly help?: SignatureHelp;

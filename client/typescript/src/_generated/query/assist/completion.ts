@@ -483,7 +483,7 @@ export function fromJsonCompletionItemKind(value: Json): CompletionItemKind {
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
-/** Request completion items at a cursor position. */
+/** A completion request. */
 export type CompletionRequest = {
     /** The queried position. */
     readonly position: QueryPosition;
@@ -555,7 +555,7 @@ export function fromJsonCompletionRequest(value: Json): CompletionRequest {
     };
 }
 
-/** Response payload for completion queries. */
+/** A completion response. */
 export type CompletionResponse = {
     /** Completion items. */
     readonly items: ReadonlyArray<CompletionItem>;

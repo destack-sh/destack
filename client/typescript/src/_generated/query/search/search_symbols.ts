@@ -96,7 +96,7 @@ export function fromJsonSearchSymbol(value: Json): SearchSymbol {
     };
 }
 
-/** Request symbol search for a query string. */
+/** A symbol search request. */
 export type SearchSymbolsRequest = {
     /** The search query string. */
     readonly query: string;
@@ -161,7 +161,7 @@ export function fromJsonSearchSymbolsRequest(value: Json): SearchSymbolsRequest 
     };
 }
 
-/** Response payload for symbol search queries. */
+/** A symbol search response. */
 export type SearchSymbolsResponse = {
     /** The matching symbols. */
     readonly symbols: ReadonlyArray<SearchSymbol>;

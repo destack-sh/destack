@@ -175,7 +175,7 @@ export function fromJsonCallItemKind(value: Json): CallItemKind {
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
-/** Request the call item at a cursor position. */
+/** A call item request. */
 export type CallItemRequest = {
     /** The queried position. */
     readonly position: QueryPosition;
@@ -233,7 +233,7 @@ export function fromJsonCallItemRequest(value: Json): CallItemRequest {
     };
 }
 
-/** Response payload for call item queries. */
+/** A call item response. */
 export type CallItemResponse = {
     /** Call item, if available. */
     readonly item?: CallItem;

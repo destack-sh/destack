@@ -85,7 +85,7 @@ const artifactMethodResponse: Decoder<artifactPayload.ArtifactPayload> = {
 const artifactMethod: Method<workspaceServiceArtifact.ArtifactRequest, artifactPayload.ArtifactPayload, never, never> = {
     service: 5221210015570525267n,
     method: 10319401099963147929n,
-    fingerprint: 216090178123276960687120006602803991502n,
+    fingerprint: 135858152832239270078707586686747063352n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: artifactMethodRequest,
@@ -144,7 +144,7 @@ const buildMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 const buildMethod: Method<workspaceServiceCommand.BuildRequest, workspaceCommandOutput.BuildOutput, never, workspaceCommandCommon.ProgressEvent> = {
     service: 5221210015570525267n,
     method: 1211703523183514908n,
-    fingerprint: 61201324978381196256275768559044175150n,
+    fingerprint: 143155944968304573303216113657581615468n,
     kind: "serverStreaming",
     idempotency: "unknown",
     request: buildMethodRequest,
@@ -341,7 +341,7 @@ const exportMethodResponse: Decoder<workspaceArtifactExport.ExportResult> = {
 const exportMethod: Method<workspaceServiceArtifact.ExportRequest, workspaceArtifactExport.ExportResult, never, never> = {
     service: 5221210015570525267n,
     method: 3979786105473524246n,
-    fingerprint: 234865519379651103855208651802266856371n,
+    fingerprint: 61235052036031421749036749530061707436n,
     kind: "unary",
     idempotency: "unknown",
     request: exportMethodRequest,

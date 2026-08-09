@@ -75,7 +75,7 @@ export function fromJsonSelectionRange(value: Json): SelectionRange {
     };
 }
 
-/** Request selection ranges for positions in a document. */
+/** A selection ranges request. */
 export type SelectionRangesRequest = {
     /** The queried module profile. */
     readonly module: Module;
@@ -150,7 +150,7 @@ export function fromJsonSelectionRangesRequest(value: Json): SelectionRangesRequ
     };
 }
 
-/** Response payload for selection ranges queries. */
+/** A selection ranges response. */
 export type SelectionRangesResponse = {
     /** Selection ranges. */
     readonly ranges: ReadonlyArray<SelectionRange>;

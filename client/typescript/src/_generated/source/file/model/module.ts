@@ -4,7 +4,7 @@ import { BinaryReader, BinaryWriter, Json, jsonBigint, jsonField, jsonObject } f
 import type { PackageId } from "./package.js";
 import { decodePackageId, encodePackageId, fromJsonPackageId, toJsonPackageId } from "./package.js";
 
-/** Unique identifier for Modules. */
+/** One module's unique identifier. */
 export type ModuleId = {
     /** The package this module belongs to. */
     readonly packageId: PackageId;

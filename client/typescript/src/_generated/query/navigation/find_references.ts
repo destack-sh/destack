@@ -8,7 +8,7 @@ import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJ
 import { decodeTarget, encodeTarget, fromJsonTarget, toJsonTarget } from "../protocol/target.js";
 import { decodeQueryPosition, encodeQueryPosition, fromJsonQueryPosition, toJsonQueryPosition } from "../protocol/target.js";
 
-/** Request find references at a cursor position. */
+/** A find references request. */
 export type FindReferencesRequest = {
     /** The queried position. */
     readonly position: QueryPosition;
@@ -73,7 +73,7 @@ export function fromJsonFindReferencesRequest(value: Json): FindReferencesReques
     };
 }
 
-/** Response payload for find references queries. */
+/** A find references response. */
 export type FindReferencesResponse = {
     /** Reference occurrences. */
     readonly references: ReadonlyArray<ReferenceOccurrence>;

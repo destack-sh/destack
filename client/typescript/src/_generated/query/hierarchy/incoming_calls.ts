@@ -74,7 +74,7 @@ export function fromJsonIncomingCall(value: Json): IncomingCall {
     };
 }
 
-/** Request incoming calls. */
+/** An incoming calls request. */
 export type IncomingCallsRequest = {
     /** The call item to expand. */
     readonly item: CallItem;
@@ -132,7 +132,7 @@ export function fromJsonIncomingCallsRequest(value: Json): IncomingCallsRequest 
     };
 }
 
-/** Response payload for incoming call queries. */
+/** An incoming calls response. */
 export type IncomingCallsResponse = {
     /** Incoming calls. */
     readonly calls: ReadonlyArray<IncomingCall>;

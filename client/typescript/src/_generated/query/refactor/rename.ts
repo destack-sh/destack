@@ -6,7 +6,7 @@ import type { PatchSet } from "../../source/edit/edit.js";
 import { decodeQueryPosition, encodeQueryPosition, fromJsonQueryPosition, toJsonQueryPosition } from "../protocol/target.js";
 import { decodePatchSet, encodePatchSet, fromJsonPatchSet, toJsonPatchSet } from "../../source/edit/edit.js";
 
-/** Request rename edits at a cursor position. */
+/** A rename request. */
 export type RenameRequest = {
     /** The queried position. */
     readonly position: QueryPosition;
@@ -71,7 +71,7 @@ export function fromJsonRenameRequest(value: Json): RenameRequest {
     };
 }
 
-/** Response payload for rename queries. */
+/** A rename response. */
 export type RenameResponse = {
     /** Rename edit, if available. */
     readonly edit?: PatchSet;

@@ -6,7 +6,7 @@ import type { QueryRange } from "../protocol/target.js";
 import { decodeSemanticToken, encodeSemanticToken, fromJsonSemanticToken, toJsonSemanticToken } from "./semantic_tokens.js";
 import { decodeQueryRange, encodeQueryRange, fromJsonQueryRange, toJsonQueryRange } from "../protocol/target.js";
 
-/** Request semantic tokens for a document range. */
+/** A semantic tokens range request. */
 export type SemanticTokensRangeRequest = {
     /** The queried range. */
     readonly range: QueryRange;
@@ -64,7 +64,7 @@ export function fromJsonSemanticTokensRangeRequest(value: Json): SemanticTokensR
     };
 }
 
-/** Response payload for range semantic token queries. */
+/** A semantic tokens range response. */
 export type SemanticTokensRangeResponse = {
     /** Semantic tokens. */
     readonly tokens: ReadonlyArray<SemanticToken>;

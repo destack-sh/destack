@@ -109,8 +109,12 @@ export function fromJsonMemberBinding(value: Json): MemberBinding {
 export type MemberDeclaration = {
     /** The selected declaration symbol. */
     readonly symbol: GlobalSymbolId;
+    /** The declaration that exposed this member, through heritage. */
+    readonly owner: GlobalSymbolId;
     /** The declaration family that exposed this member. */
     readonly origin: MemberOrigin;
+    /** How the member behaves at a use site. */
+    readonly role: MemberRole;
     /** The substituted callable type, when callable. */
     readonly callableType?: GlobalTypeId;
 };
@@ -140,21 +144,27 @@ export const MemberDeclaration = {
 /** Encode one MemberDeclaration. */
 export function encodeMemberDeclaration(writer: BinaryWriter, value: MemberDeclaration): void {
     encodeGlobalSymbolId(writer, value.symbol);
+    encodeGlobalSymbolId(writer, value.owner);
     encodeMemberOrigin(writer, value.origin);
-    writer.writeOption(value.callableType, (value2) => {
-        encodeGlobalTypeId(writer, value2);
+    encodeMemberRole(writer, value.role);
+    writer.writeOption(value.callableType, (value4) => {
+        encodeGlobalTypeId(writer, value4);
     });
 }
 
 /** Decode one MemberDeclaration. */
 export function decodeMemberDeclaration(reader: BinaryReader): MemberDeclaration {
     const symbol_ = decodeGlobalSymbolId(reader);
+    const owner = decodeGlobalSymbolId(reader);
     const origin = decodeMemberOrigin(reader);
+    const role = decodeMemberRole(reader);
     const callableType = reader.readOption(() => decodeGlobalTypeId(reader));
 
     return {
         symbol: symbol_,
+        owner,
         origin,
+        role,
         ...(callableType === undefined ? {} : { callableType }),
     };
 }
@@ -163,7 +173,9 @@ export function decodeMemberDeclaration(reader: BinaryReader): MemberDeclaration
 export function toJsonMemberDeclaration(value: MemberDeclaration): Json {
     return {
         symbol: toJsonGlobalSymbolId(value.symbol),
+        owner: toJsonGlobalSymbolId(value.owner),
         origin: toJsonMemberOrigin(value.origin),
+        role: toJsonMemberRole(value.role),
         ...(value.callableType === undefined ? {} : { callableType: toJsonGlobalTypeId(value.callableType) }),
     };
 }
@@ -174,7 +186,9 @@ export function fromJsonMemberDeclaration(value: Json): MemberDeclaration {
 
     return {
         symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
+        owner: fromJsonGlobalSymbolId(jsonField(object, "owner")),
         origin: fromJsonMemberOrigin(jsonField(object, "origin")),
+        role: fromJsonMemberRole(jsonField(object, "role")),
         callableType: jsonOptional(object, "callableType", (value) => fromJsonGlobalTypeId(value)),
     };
 }
@@ -381,6 +395,113 @@ export function fromJsonMemberOrigin(value: Json): MemberOrigin {
             return "rootedExtension";
         case "blanketExtension":
             return "blanketExtension";
+    }
+
+    throw new SerdeError(`unknown enum variant: ${variant}`);
+}
+
+/** How one declaration member behaves at a use site. */
+export type MemberRole = "field" | "method" | "getter" | "setter" | "associated" | "variantValue" | "variantConstructor";
+
+export const MemberRole = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: MemberRole): void {
+        encodeMemberRole(writer, value);
+    },
+
+    /** Decode one MemberRole. */
+    decode(reader: BinaryReader): MemberRole {
+        return decodeMemberRole(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: MemberRole): Json {
+        return toJsonMemberRole(value);
+    },
+
+    /** Return one MemberRole from one JSON value. */
+    fromJson(value: Json): MemberRole {
+        return fromJsonMemberRole(value);
+    },
+};
+
+/** Encode one MemberRole. */
+export function encodeMemberRole(writer: BinaryWriter, value: MemberRole): void {
+    switch (value) {
+        case "field":
+            writer.writeUnsigned(0);
+            return;
+        case "method":
+            writer.writeUnsigned(1);
+            return;
+        case "getter":
+            writer.writeUnsigned(2);
+            return;
+        case "setter":
+            writer.writeUnsigned(3);
+            return;
+        case "associated":
+            writer.writeUnsigned(4);
+            return;
+        case "variantValue":
+            writer.writeUnsigned(5);
+            return;
+        case "variantConstructor":
+            writer.writeUnsigned(6);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one MemberRole. */
+export function decodeMemberRole(reader: BinaryReader): MemberRole {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0:
+            return "field";
+        case 1:
+            return "method";
+        case 2:
+            return "getter";
+        case 3:
+            return "setter";
+        case 4:
+            return "associated";
+        case 5:
+            return "variantValue";
+        case 6:
+            return "variantConstructor";
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one MemberRole. */
+export function toJsonMemberRole(value: MemberRole): Json {
+    return value;
+}
+
+/** Return one MemberRole from one JSON value. */
+export function fromJsonMemberRole(value: Json): MemberRole {
+    const variant = jsonString(value);
+
+    switch (variant) {
+        case "field":
+            return "field";
+        case "method":
+            return "method";
+        case "getter":
+            return "getter";
+        case "setter":
+            return "setter";
+        case "associated":
+            return "associated";
+        case "variantValue":
+            return "variantValue";
+        case "variantConstructor":
+            return "variantConstructor";
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);

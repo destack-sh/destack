@@ -7,8 +7,6 @@ import type { DecoratorIndex } from "../dir/index/decorator.js";
 import type { DecoratorPostings } from "../dir/index/decorator.js";
 import type { ExportIndex } from "../dir/index/export.js";
 import type { ExportPostings } from "../dir/index/export.js";
-import type { ExtensionIndex } from "../dir/index/extension.js";
-import type { ExtensionPostings } from "../dir/index/extension.js";
 import type { HeritageIndex } from "../dir/index/heritage.js";
 import type { HeritagePostings } from "../dir/index/heritage.js";
 import type { MemberIndex } from "../dir/index/member.js";
@@ -23,8 +21,6 @@ import { decodeDecoratorIndex, encodeDecoratorIndex, fromJsonDecoratorIndex, toJ
 import { decodeDecoratorPostings, encodeDecoratorPostings, fromJsonDecoratorPostings, toJsonDecoratorPostings } from "../dir/index/decorator.js";
 import { decodeExportIndex, encodeExportIndex, fromJsonExportIndex, toJsonExportIndex } from "../dir/index/export.js";
 import { decodeExportPostings, encodeExportPostings, fromJsonExportPostings, toJsonExportPostings } from "../dir/index/export.js";
-import { decodeExtensionIndex, encodeExtensionIndex, fromJsonExtensionIndex, toJsonExtensionIndex } from "../dir/index/extension.js";
-import { decodeExtensionPostings, encodeExtensionPostings, fromJsonExtensionPostings, toJsonExtensionPostings } from "../dir/index/extension.js";
 import { decodeHeritageIndex, encodeHeritageIndex, fromJsonHeritageIndex, toJsonHeritageIndex } from "../dir/index/heritage.js";
 import { decodeHeritagePostings, encodeHeritagePostings, fromJsonHeritagePostings, toJsonHeritagePostings } from "../dir/index/heritage.js";
 import { decodeMemberIndex, encodeMemberIndex, fromJsonMemberIndex, toJsonMemberIndex } from "../dir/index/member.js";
@@ -34,8 +30,8 @@ import { decodeReferencePostings, encodeReferencePostings, fromJsonReferencePost
 import { decodeSymbolIndex, encodeSymbolIndex, fromJsonSymbolIndex, toJsonSymbolIndex } from "../dir/index/symbol.js";
 import { decodeSymbolPostings, encodeSymbolPostings, fromJsonSymbolPostings, toJsonSymbolPostings } from "../dir/index/symbol.js";
 
-/** One query index kind shared by module, inference-component, and program artifacts. */
-export type IndexKind = "symbols" | "exports" | "members" | "references" | "calls" | "heritage" | "extensions" | "decorators";
+/** One query index kind shared by module and program artifacts. */
+export type IndexKind = "symbols" | "exports" | "members" | "references" | "calls" | "heritage" | "decorators";
 
 export const IndexKind = {
     /** Encode this value. */
@@ -80,11 +76,8 @@ export function encodeIndexKind(writer: BinaryWriter, value: IndexKind): void {
         case "heritage":
             writer.writeUnsigned(5);
             return;
-        case "extensions":
-            writer.writeUnsigned(6);
-            return;
         case "decorators":
-            writer.writeUnsigned(7);
+            writer.writeUnsigned(6);
             return;
     }
 
@@ -109,8 +102,6 @@ export function decodeIndexKind(reader: BinaryReader): IndexKind {
         case 5:
             return "heritage";
         case 6:
-            return "extensions";
-        case 7:
             return "decorators";
     }
 
@@ -139,8 +130,6 @@ export function fromJsonIndexKind(value: Json): IndexKind {
             return "calls";
         case "heritage":
             return "heritage";
-        case "extensions":
-            return "extensions";
         case "decorators":
             return "decorators";
     }
@@ -160,7 +149,7 @@ export type ModuleIndex =
           readonly kind: "exports";
           readonly exports: ExportIndex;
       }
-    /** Checked members. */
+    /** Member declarations and implementations. */
     | {
           readonly kind: "members";
           readonly members: MemberIndex;
@@ -180,11 +169,6 @@ export type ModuleIndex =
           readonly kind: "heritage";
           readonly heritage: HeritageIndex;
       }
-    /** Checked extensions. */
-    | {
-          readonly kind: "extensions";
-          readonly extensions: ExtensionIndex;
-      }
     /** Decorator applications. */
     | {
           readonly kind: "decorators";
@@ -203,7 +187,7 @@ export const ModuleIndex = {
         return { kind: "exports", exports };
     },
 
-    /** Checked members. */
+    /** Member declarations and implementations. */
     members(members: MemberIndex): ModuleIndex {
         return { kind: "members", members };
     },
@@ -221,11 +205,6 @@ export const ModuleIndex = {
     /** Nominal heritage edges. */
     heritage(heritage: HeritageIndex): ModuleIndex {
         return { kind: "heritage", heritage };
-    },
-
-    /** Checked extensions. */
-    extensions(extensions: ExtensionIndex): ModuleIndex {
-        return { kind: "extensions", extensions };
     },
 
     /** Decorator applications. */
@@ -281,12 +260,8 @@ export function encodeModuleIndex(writer: BinaryWriter, value: ModuleIndex): voi
             writer.writeUnsigned(5);
             encodeHeritageIndex(writer, value.heritage);
             return;
-        case "extensions":
-            writer.writeUnsigned(6);
-            encodeExtensionIndex(writer, value.extensions);
-            return;
         case "decorators":
-            writer.writeUnsigned(7);
+            writer.writeUnsigned(6);
             encodeDecoratorIndex(writer, value.decorators);
             return;
     }
@@ -330,11 +305,6 @@ export function decodeModuleIndex(reader: BinaryReader): ModuleIndex {
             return { kind: "heritage", heritage };
         }
         case 6: {
-            const extensions = decodeExtensionIndex(reader);
-
-            return { kind: "extensions", extensions };
-        }
-        case 7: {
             const decorators = decodeDecoratorIndex(reader);
 
             return { kind: "decorators", decorators };
@@ -376,11 +346,6 @@ export function toJsonModuleIndex(value: ModuleIndex): Json {
             return {
                 kind: "heritage",
                 heritage: toJsonHeritageIndex(value.heritage),
-            };
-        case "extensions":
-            return {
-                kind: "extensions",
-                extensions: toJsonExtensionIndex(value.extensions),
             };
         case "decorators":
             return {
@@ -428,11 +393,6 @@ export function fromJsonModuleIndex(value: Json): ModuleIndex {
                 kind,
                 heritage: fromJsonHeritageIndex(jsonField(object, "heritage")),
             };
-        case "extensions":
-            return {
-                kind,
-                extensions: fromJsonExtensionIndex(jsonField(object, "extensions")),
-            };
         case "decorators":
             return {
                 kind,
@@ -455,7 +415,7 @@ export type ProgramIndex =
           readonly kind: "exports";
           readonly exports: ExportPostings;
       }
-    /** Member lookup postings. */
+    /** Member implementation postings. */
     | {
           readonly kind: "members";
           readonly members: MemberPostings;
@@ -475,11 +435,6 @@ export type ProgramIndex =
           readonly kind: "heritage";
           readonly heritage: HeritagePostings;
       }
-    /** Extension lookup postings. */
-    | {
-          readonly kind: "extensions";
-          readonly extensions: ExtensionPostings;
-      }
     /** Decorator name postings. */
     | {
           readonly kind: "decorators";
@@ -498,7 +453,7 @@ export const ProgramIndex = {
         return { kind: "exports", exports };
     },
 
-    /** Member lookup postings. */
+    /** Member implementation postings. */
     members(members: MemberPostings): ProgramIndex {
         return { kind: "members", members };
     },
@@ -516,11 +471,6 @@ export const ProgramIndex = {
     /** Heritage lookup postings. */
     heritage(heritage: HeritagePostings): ProgramIndex {
         return { kind: "heritage", heritage };
-    },
-
-    /** Extension lookup postings. */
-    extensions(extensions: ExtensionPostings): ProgramIndex {
-        return { kind: "extensions", extensions };
     },
 
     /** Decorator name postings. */
@@ -576,12 +526,8 @@ export function encodeProgramIndex(writer: BinaryWriter, value: ProgramIndex): v
             writer.writeUnsigned(5);
             encodeHeritagePostings(writer, value.heritage);
             return;
-        case "extensions":
-            writer.writeUnsigned(6);
-            encodeExtensionPostings(writer, value.extensions);
-            return;
         case "decorators":
-            writer.writeUnsigned(7);
+            writer.writeUnsigned(6);
             encodeDecoratorPostings(writer, value.decorators);
             return;
     }
@@ -625,11 +571,6 @@ export function decodeProgramIndex(reader: BinaryReader): ProgramIndex {
             return { kind: "heritage", heritage };
         }
         case 6: {
-            const extensions = decodeExtensionPostings(reader);
-
-            return { kind: "extensions", extensions };
-        }
-        case 7: {
             const decorators = decodeDecoratorPostings(reader);
 
             return { kind: "decorators", decorators };
@@ -671,11 +612,6 @@ export function toJsonProgramIndex(value: ProgramIndex): Json {
             return {
                 kind: "heritage",
                 heritage: toJsonHeritagePostings(value.heritage),
-            };
-        case "extensions":
-            return {
-                kind: "extensions",
-                extensions: toJsonExtensionPostings(value.extensions),
             };
         case "decorators":
             return {
@@ -722,11 +658,6 @@ export function fromJsonProgramIndex(value: Json): ProgramIndex {
             return {
                 kind,
                 heritage: fromJsonHeritagePostings(jsonField(object, "heritage")),
-            };
-        case "extensions":
-            return {
-                kind,
-                extensions: fromJsonExtensionPostings(jsonField(object, "extensions")),
             };
         case "decorators":
             return {

@@ -150,7 +150,7 @@ export function fromJsonHighlightKind(value: Json): HighlightKind {
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
-/** Request highlights at a cursor position. */
+/** A highlight request. */
 export type HighlightRequest = {
     /** The queried position. */
     readonly position: QueryPosition;
@@ -208,7 +208,7 @@ export function fromJsonHighlightRequest(value: Json): HighlightRequest {
     };
 }
 
-/** Response payload for highlight queries. */
+/** A highlight response. */
 export type HighlightResponse = {
     /** Highlights. */
     readonly highlights: ReadonlyArray<Highlight>;

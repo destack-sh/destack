@@ -4,7 +4,7 @@ import { BinaryReader, BinaryWriter, Json, jsonArray, jsonField, jsonInteger, js
 import type { TypeOperation } from "../dir/type/type.js";
 import { decodeTypeOperation, encodeTypeOperation, fromJsonTypeOperation, toJsonTypeOperation } from "../dir/type/type.js";
 
-/** Deduplicating value arena continuing one id space across segments. */
+/** Value rows of one pool kind continuing one id space across segments. */
 export type ValuePool = {
     /** The first value id owned by this pool. */
     readonly firstId: number;

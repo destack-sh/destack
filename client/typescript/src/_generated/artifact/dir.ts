@@ -10,6 +10,7 @@ import type { AutoSegment } from "../dir/table/auto.js";
 import type { BindingSegment } from "../dir/table/binding.js";
 import type { CaptureSegment } from "../dir/table/capture.js";
 import type { CoercionSegment } from "../dir/table/coercion.js";
+import type { DecisionSegment } from "../dir/table/decision.js";
 import type { DecoratorSegment } from "../dir/table/decorator.js";
 import type { DefinitionSegment } from "../dir/table/definition.js";
 import type { ExportTable } from "../dir/table/export.js";
@@ -29,6 +30,7 @@ import type { LocalNodeIdAny } from "../dir/tree/node.js";
 import type { Patch } from "../dir/tree/patch.js";
 import type { Tree } from "../dir/tree/tree.js";
 import type { FileId } from "../source/file/model/file.js";
+import type { ModuleId } from "../source/file/model/module.js";
 import { decodeArtifactProjectionFingerprint, encodeArtifactProjectionFingerprint, fromJsonArtifactProjectionFingerprint, toJsonArtifactProjectionFingerprint } from "./core/dependency.js";
 import { decodeDiagnosticControlTable, encodeDiagnosticControlTable, fromJsonDiagnosticControlTable, toJsonDiagnosticControlTable } from "./diagnostic/control.js";
 import { decodeComment, encodeComment, fromJsonComment, toJsonComment } from "../dir/source/comment.js";
@@ -38,6 +40,7 @@ import { decodeAutoSegment, encodeAutoSegment, fromJsonAutoSegment, toJsonAutoSe
 import { decodeBindingSegment, encodeBindingSegment, fromJsonBindingSegment, toJsonBindingSegment } from "../dir/table/binding.js";
 import { decodeCaptureSegment, encodeCaptureSegment, fromJsonCaptureSegment, toJsonCaptureSegment } from "../dir/table/capture.js";
 import { decodeCoercionSegment, encodeCoercionSegment, fromJsonCoercionSegment, toJsonCoercionSegment } from "../dir/table/coercion.js";
+import { decodeDecisionSegment, encodeDecisionSegment, fromJsonDecisionSegment, toJsonDecisionSegment } from "../dir/table/decision.js";
 import { decodeDecoratorSegment, encodeDecoratorSegment, fromJsonDecoratorSegment, toJsonDecoratorSegment } from "../dir/table/decorator.js";
 import { decodeDefinitionSegment, encodeDefinitionSegment, fromJsonDefinitionSegment, toJsonDefinitionSegment } from "../dir/table/definition.js";
 import { decodeExportTable, encodeExportTable, fromJsonExportTable, toJsonExportTable } from "../dir/table/export.js";
@@ -57,6 +60,7 @@ import { decodeLocalNodeIdAny, encodeLocalNodeIdAny, fromJsonLocalNodeIdAny, toJ
 import { decodePatch, encodePatch, fromJsonPatch, toJsonPatch } from "../dir/tree/patch.js";
 import { decodeTree, encodeTree, fromJsonTree, toJsonTree } from "../dir/tree/tree.js";
 import { decodeFileId, encodeFileId, fromJsonFileId, toJsonFileId } from "../source/file/model/file.js";
+import { decodeModuleId, encodeModuleId, fromJsonModuleId, toJsonModuleId } from "../source/file/model/module.js";
 
 /** Bound DIR base for one source module. */
 export type DirBound = {
@@ -164,19 +168,17 @@ export type DirChecked = {
     readonly decorators: DecoratorSegment;
     /** Checked diagnostic controls. */
     readonly controls: DiagnosticControlTable;
-    /** Auto-derived implementations. */
-    readonly auto: AutoSegment;
     /** New types. */
     readonly types: TypeSegment;
     /** New static values. */
     readonly statics: StaticSegment;
     /** New resolutions. */
     readonly resolutions: ResolutionSegment;
-    /** Checked member availability. */
-    readonly members: MemberSegment;
+    /** New decisions. */
+    readonly decisions: DecisionSegment;
     /** New generic slots and instances. */
     readonly generics: GenericSegment;
-    /** New declaration definitions. */
+    /** Refined declaration definitions. */
     readonly definitions: DefinitionSegment;
     /** New implicit coercions. */
     readonly coercions: CoercionSegment;
@@ -212,11 +214,10 @@ export function encodeDirChecked(writer: BinaryWriter, value: DirChecked): void 
     encodeBindingSegment(writer, value.bindings);
     encodeDecoratorSegment(writer, value.decorators);
     encodeDiagnosticControlTable(writer, value.controls);
-    encodeAutoSegment(writer, value.auto);
     encodeTypeSegment(writer, value.types);
     encodeStaticSegment(writer, value.statics);
     encodeResolutionSegment(writer, value.resolutions);
-    encodeMemberSegment(writer, value.members);
+    encodeDecisionSegment(writer, value.decisions);
     encodeGenericSegment(writer, value.generics);
     encodeDefinitionSegment(writer, value.definitions);
     encodeCoercionSegment(writer, value.coercions);
@@ -229,11 +230,10 @@ export function decodeDirChecked(reader: BinaryReader): DirChecked {
     const bindings = decodeBindingSegment(reader);
     const decorators = decodeDecoratorSegment(reader);
     const controls = decodeDiagnosticControlTable(reader);
-    const auto = decodeAutoSegment(reader);
     const types = decodeTypeSegment(reader);
     const statics = decodeStaticSegment(reader);
     const resolutions = decodeResolutionSegment(reader);
-    const members = decodeMemberSegment(reader);
+    const decisions = decodeDecisionSegment(reader);
     const generics = decodeGenericSegment(reader);
     const definitions = decodeDefinitionSegment(reader);
     const coercions = decodeCoercionSegment(reader);
@@ -244,11 +244,10 @@ export function decodeDirChecked(reader: BinaryReader): DirChecked {
         bindings,
         decorators,
         controls,
-        auto,
         types,
         statics,
         resolutions,
-        members,
+        decisions,
         generics,
         definitions,
         coercions,
@@ -263,11 +262,10 @@ export function toJsonDirChecked(value: DirChecked): Json {
         bindings: toJsonBindingSegment(value.bindings),
         decorators: toJsonDecoratorSegment(value.decorators),
         controls: toJsonDiagnosticControlTable(value.controls),
-        auto: toJsonAutoSegment(value.auto),
         types: toJsonTypeSegment(value.types),
         statics: toJsonStaticSegment(value.statics),
         resolutions: toJsonResolutionSegment(value.resolutions),
-        members: toJsonMemberSegment(value.members),
+        decisions: toJsonDecisionSegment(value.decisions),
         generics: toJsonGenericSegment(value.generics),
         definitions: toJsonDefinitionSegment(value.definitions),
         coercions: toJsonCoercionSegment(value.coercions),
@@ -284,11 +282,10 @@ export function fromJsonDirChecked(value: Json): DirChecked {
         bindings: fromJsonBindingSegment(jsonField(object, "bindings")),
         decorators: fromJsonDecoratorSegment(jsonField(object, "decorators")),
         controls: fromJsonDiagnosticControlTable(jsonField(object, "controls")),
-        auto: fromJsonAutoSegment(jsonField(object, "auto")),
         types: fromJsonTypeSegment(jsonField(object, "types")),
         statics: fromJsonStaticSegment(jsonField(object, "statics")),
         resolutions: fromJsonResolutionSegment(jsonField(object, "resolutions")),
-        members: fromJsonMemberSegment(jsonField(object, "members")),
+        decisions: fromJsonDecisionSegment(jsonField(object, "decisions")),
         generics: fromJsonGenericSegment(jsonField(object, "generics")),
         definitions: fromJsonDefinitionSegment(jsonField(object, "definitions")),
         coercions: fromJsonCoercionSegment(jsonField(object, "coercions")),
@@ -300,6 +297,8 @@ export function fromJsonDirChecked(value: Json): DirChecked {
 export type DirDeclared = {
     /** The stable fingerprint of this module's declared output. */
     readonly fingerprint: ArtifactProjectionFingerprint;
+    /** The modules this artifact's rows mention. */
+    readonly references: ReadonlyArray<ModuleId>;
     /** Declared binding segment. */
     readonly bindings: BindingSegment;
     /** Declared decorator applications. */
@@ -314,6 +313,8 @@ export type DirDeclared = {
     readonly definitions: DefinitionSegment;
     /** Declared node resolutions. */
     readonly resolutions: ResolutionSegment;
+    /** Decisions made while declaring. */
+    readonly decisions: DecisionSegment;
     /** Authored member lookup subjects. */
     readonly members: MemberSegment;
 };
@@ -343,6 +344,10 @@ export const DirDeclared = {
 /** Encode one DirDeclared. */
 export function encodeDirDeclared(writer: BinaryWriter, value: DirDeclared): void {
     encodeArtifactProjectionFingerprint(writer, value.fingerprint);
+    writer.writeUnsigned(value.references.length);
+    for (const item1 of value.references) {
+        encodeModuleId(writer, item1);
+    }
     encodeBindingSegment(writer, value.bindings);
     encodeDecoratorSegment(writer, value.decorators);
     encodeTypeSegment(writer, value.types);
@@ -350,12 +355,14 @@ export function encodeDirDeclared(writer: BinaryWriter, value: DirDeclared): voi
     encodeGenericSegment(writer, value.generics);
     encodeDefinitionSegment(writer, value.definitions);
     encodeResolutionSegment(writer, value.resolutions);
+    encodeDecisionSegment(writer, value.decisions);
     encodeMemberSegment(writer, value.members);
 }
 
 /** Decode one DirDeclared. */
 export function decodeDirDeclared(reader: BinaryReader): DirDeclared {
     const fingerprint = decodeArtifactProjectionFingerprint(reader);
+    const references = (() => { const length1 = reader.readNumber(); const items1: Array<ModuleId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeModuleId(reader)); } return items1; })();
     const bindings = decodeBindingSegment(reader);
     const decorators = decodeDecoratorSegment(reader);
     const types = decodeTypeSegment(reader);
@@ -363,10 +370,12 @@ export function decodeDirDeclared(reader: BinaryReader): DirDeclared {
     const generics = decodeGenericSegment(reader);
     const definitions = decodeDefinitionSegment(reader);
     const resolutions = decodeResolutionSegment(reader);
+    const decisions = decodeDecisionSegment(reader);
     const members = decodeMemberSegment(reader);
 
     return {
         fingerprint,
+        references,
         bindings,
         decorators,
         types,
@@ -374,6 +383,7 @@ export function decodeDirDeclared(reader: BinaryReader): DirDeclared {
         generics,
         definitions,
         resolutions,
+        decisions,
         members,
     };
 }
@@ -382,6 +392,7 @@ export function decodeDirDeclared(reader: BinaryReader): DirDeclared {
 export function toJsonDirDeclared(value: DirDeclared): Json {
     return {
         fingerprint: toJsonArtifactProjectionFingerprint(value.fingerprint),
+        references: value.references.map((item0) => toJsonModuleId(item0)),
         bindings: toJsonBindingSegment(value.bindings),
         decorators: toJsonDecoratorSegment(value.decorators),
         types: toJsonTypeSegment(value.types),
@@ -389,6 +400,7 @@ export function toJsonDirDeclared(value: DirDeclared): Json {
         generics: toJsonGenericSegment(value.generics),
         definitions: toJsonDefinitionSegment(value.definitions),
         resolutions: toJsonResolutionSegment(value.resolutions),
+        decisions: toJsonDecisionSegment(value.decisions),
         members: toJsonMemberSegment(value.members),
     };
 }
@@ -399,6 +411,7 @@ export function fromJsonDirDeclared(value: Json): DirDeclared {
 
     return {
         fingerprint: fromJsonArtifactProjectionFingerprint(jsonField(object, "fingerprint")),
+        references: jsonArray(jsonField(object, "references")).map((item0) => fromJsonModuleId(item0)),
         bindings: fromJsonBindingSegment(jsonField(object, "bindings")),
         decorators: fromJsonDecoratorSegment(jsonField(object, "decorators")),
         types: fromJsonTypeSegment(jsonField(object, "types")),
@@ -406,7 +419,153 @@ export function fromJsonDirDeclared(value: Json): DirDeclared {
         generics: fromJsonGenericSegment(jsonField(object, "generics")),
         definitions: fromJsonDefinitionSegment(jsonField(object, "definitions")),
         resolutions: fromJsonResolutionSegment(jsonField(object, "resolutions")),
+        decisions: fromJsonDecisionSegment(jsonField(object, "decisions")),
         members: fromJsonMemberSegment(jsonField(object, "members")),
+    };
+}
+
+/** Elaborated DIR for one module under one profile. */
+export type DirElaborated = {
+    /** The stable fingerprint of this module's elaborated output. */
+    readonly fingerprint: ArtifactProjectionFingerprint;
+    /** The modules this artifact's rows mention. */
+    readonly references: ReadonlyArray<ModuleId>;
+    /** Symbols minted while deriving variants and constructors. */
+    readonly bindings: BindingSegment;
+    /** Types minted while flattening member bindings. */
+    readonly types: TypeSegment;
+    /** Flattened member bindings per owner subject. */
+    readonly members: MemberSegment;
+    /** Auto conformances for concrete nominals. */
+    readonly auto: AutoSegment;
+    /** Derived variances. */
+    readonly generics: GenericSegment;
+    /** Definitions carrying derived constructor rows. */
+    readonly definitions: DefinitionSegment;
+    /** Selected and evaluated decorator applications. */
+    readonly decorators: DecoratorSegment;
+    /** Resolutions recorded while checking declarations and decorators. */
+    readonly resolutions: ResolutionSegment;
+    /** Decisions made while elaborating declarations and decorators. */
+    readonly decisions: DecisionSegment;
+    /** Static values evaluated for decorator applications. */
+    readonly statics: StaticSegment;
+    /** Diagnostic controls applied by decorators. */
+    readonly controls: DiagnosticControlTable;
+};
+
+export const DirElaborated = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: DirElaborated): void {
+        encodeDirElaborated(writer, value);
+    },
+
+    /** Decode one DirElaborated. */
+    decode(reader: BinaryReader): DirElaborated {
+        return decodeDirElaborated(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: DirElaborated): Json {
+        return toJsonDirElaborated(value);
+    },
+
+    /** Return one DirElaborated from one JSON value. */
+    fromJson(value: Json): DirElaborated {
+        return fromJsonDirElaborated(value);
+    },
+};
+
+/** Encode one DirElaborated. */
+export function encodeDirElaborated(writer: BinaryWriter, value: DirElaborated): void {
+    encodeArtifactProjectionFingerprint(writer, value.fingerprint);
+    writer.writeUnsigned(value.references.length);
+    for (const item1 of value.references) {
+        encodeModuleId(writer, item1);
+    }
+    encodeBindingSegment(writer, value.bindings);
+    encodeTypeSegment(writer, value.types);
+    encodeMemberSegment(writer, value.members);
+    encodeAutoSegment(writer, value.auto);
+    encodeGenericSegment(writer, value.generics);
+    encodeDefinitionSegment(writer, value.definitions);
+    encodeDecoratorSegment(writer, value.decorators);
+    encodeResolutionSegment(writer, value.resolutions);
+    encodeDecisionSegment(writer, value.decisions);
+    encodeStaticSegment(writer, value.statics);
+    encodeDiagnosticControlTable(writer, value.controls);
+}
+
+/** Decode one DirElaborated. */
+export function decodeDirElaborated(reader: BinaryReader): DirElaborated {
+    const fingerprint = decodeArtifactProjectionFingerprint(reader);
+    const references = (() => { const length1 = reader.readNumber(); const items1: Array<ModuleId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeModuleId(reader)); } return items1; })();
+    const bindings = decodeBindingSegment(reader);
+    const types = decodeTypeSegment(reader);
+    const members = decodeMemberSegment(reader);
+    const auto = decodeAutoSegment(reader);
+    const generics = decodeGenericSegment(reader);
+    const definitions = decodeDefinitionSegment(reader);
+    const decorators = decodeDecoratorSegment(reader);
+    const resolutions = decodeResolutionSegment(reader);
+    const decisions = decodeDecisionSegment(reader);
+    const statics = decodeStaticSegment(reader);
+    const controls = decodeDiagnosticControlTable(reader);
+
+    return {
+        fingerprint,
+        references,
+        bindings,
+        types,
+        members,
+        auto,
+        generics,
+        definitions,
+        decorators,
+        resolutions,
+        decisions,
+        statics,
+        controls,
+    };
+}
+
+/** Return one JSON value for one DirElaborated. */
+export function toJsonDirElaborated(value: DirElaborated): Json {
+    return {
+        fingerprint: toJsonArtifactProjectionFingerprint(value.fingerprint),
+        references: value.references.map((item0) => toJsonModuleId(item0)),
+        bindings: toJsonBindingSegment(value.bindings),
+        types: toJsonTypeSegment(value.types),
+        members: toJsonMemberSegment(value.members),
+        auto: toJsonAutoSegment(value.auto),
+        generics: toJsonGenericSegment(value.generics),
+        definitions: toJsonDefinitionSegment(value.definitions),
+        decorators: toJsonDecoratorSegment(value.decorators),
+        resolutions: toJsonResolutionSegment(value.resolutions),
+        decisions: toJsonDecisionSegment(value.decisions),
+        statics: toJsonStaticSegment(value.statics),
+        controls: toJsonDiagnosticControlTable(value.controls),
+    };
+}
+
+/** Return one DirElaborated from one JSON value. */
+export function fromJsonDirElaborated(value: Json): DirElaborated {
+    const object = jsonObject(value);
+
+    return {
+        fingerprint: fromJsonArtifactProjectionFingerprint(jsonField(object, "fingerprint")),
+        references: jsonArray(jsonField(object, "references")).map((item0) => fromJsonModuleId(item0)),
+        bindings: fromJsonBindingSegment(jsonField(object, "bindings")),
+        types: fromJsonTypeSegment(jsonField(object, "types")),
+        members: fromJsonMemberSegment(jsonField(object, "members")),
+        auto: fromJsonAutoSegment(jsonField(object, "auto")),
+        generics: fromJsonGenericSegment(jsonField(object, "generics")),
+        definitions: fromJsonDefinitionSegment(jsonField(object, "definitions")),
+        decorators: fromJsonDecoratorSegment(jsonField(object, "decorators")),
+        resolutions: fromJsonResolutionSegment(jsonField(object, "resolutions")),
+        decisions: fromJsonDecisionSegment(jsonField(object, "decisions")),
+        statics: fromJsonStaticSegment(jsonField(object, "statics")),
+        controls: fromJsonDiagnosticControlTable(jsonField(object, "controls")),
     };
 }
 
@@ -658,6 +817,8 @@ export type DirMaterialized = {
     readonly statics: StaticSegment;
     /** New resolutions. */
     readonly resolutions: ResolutionSegment;
+    /** New decisions. */
+    readonly decisions: DecisionSegment;
     /** New generic slots and instances. */
     readonly generics: GenericSegment;
     /** New implicit coercions. */
@@ -697,12 +858,13 @@ export function encodeDirMaterialized(writer: BinaryWriter, value: DirMaterializ
     encodeTypeSegment(writer, value.types);
     encodeStaticSegment(writer, value.statics);
     encodeResolutionSegment(writer, value.resolutions);
+    encodeDecisionSegment(writer, value.decisions);
     encodeGenericSegment(writer, value.generics);
     encodeCoercionSegment(writer, value.coercions);
     encodeCaptureSegment(writer, value.captures);
     writer.writeUnsigned(value.roots.length);
-    for (const item8 of value.roots) {
-        encodeLocalNodeId(writer, item8);
+    for (const item9 of value.roots) {
+        encodeLocalNodeId(writer, item9);
     }
 }
 
@@ -713,10 +875,11 @@ export function decodeDirMaterialized(reader: BinaryReader): DirMaterialized {
     const types = decodeTypeSegment(reader);
     const statics = decodeStaticSegment(reader);
     const resolutions = decodeResolutionSegment(reader);
+    const decisions = decodeDecisionSegment(reader);
     const generics = decodeGenericSegment(reader);
     const coercions = decodeCoercionSegment(reader);
     const captures = decodeCaptureSegment(reader);
-    const roots = (() => { const length8 = reader.readNumber(); const items8: Array<LocalNodeId> = []; for (let index = 0; index < length8; index += 1) { items8.push(decodeLocalNodeId(reader)); } return items8; })();
+    const roots = (() => { const length9 = reader.readNumber(); const items9: Array<LocalNodeId> = []; for (let index = 0; index < length9; index += 1) { items9.push(decodeLocalNodeId(reader)); } return items9; })();
 
     return {
         patch,
@@ -724,6 +887,7 @@ export function decodeDirMaterialized(reader: BinaryReader): DirMaterialized {
         types,
         statics,
         resolutions,
+        decisions,
         generics,
         coercions,
         captures,
@@ -739,6 +903,7 @@ export function toJsonDirMaterialized(value: DirMaterialized): Json {
         types: toJsonTypeSegment(value.types),
         statics: toJsonStaticSegment(value.statics),
         resolutions: toJsonResolutionSegment(value.resolutions),
+        decisions: toJsonDecisionSegment(value.decisions),
         generics: toJsonGenericSegment(value.generics),
         coercions: toJsonCoercionSegment(value.coercions),
         captures: toJsonCaptureSegment(value.captures),
@@ -756,6 +921,7 @@ export function fromJsonDirMaterialized(value: Json): DirMaterialized {
         types: fromJsonTypeSegment(jsonField(object, "types")),
         statics: fromJsonStaticSegment(jsonField(object, "statics")),
         resolutions: fromJsonResolutionSegment(jsonField(object, "resolutions")),
+        decisions: fromJsonDecisionSegment(jsonField(object, "decisions")),
         generics: fromJsonGenericSegment(jsonField(object, "generics")),
         coercions: fromJsonCoercionSegment(jsonField(object, "coercions")),
         captures: fromJsonCaptureSegment(jsonField(object, "captures")),

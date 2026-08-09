@@ -202,7 +202,7 @@ export function fromJsonCodeLensAction(value: Json): CodeLensAction {
     throw new SerdeError(`unknown enum variant: ${kind}`);
 }
 
-/** Request code lenses for a document. */
+/** A code lenses request. */
 export type CodeLensesRequest = {
     /** The queried module profile. */
     readonly module: Module;
@@ -267,7 +267,7 @@ export function fromJsonCodeLensesRequest(value: Json): CodeLensesRequest {
     };
 }
 
-/** Response payload for code lenses queries. */
+/** A code lenses response. */
 export type CodeLensesResponse = {
     /** Code lenses. */
     readonly lenses: ReadonlyArray<CodeLens>;

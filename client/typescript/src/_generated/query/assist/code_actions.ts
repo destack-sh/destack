@@ -260,7 +260,7 @@ export function fromJsonCodeActionKind(value: Json): CodeActionKind {
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
-/** Request code actions for a range in a document. */
+/** A code actions request. */
 export type CodeActionsRequest = {
     /** The queried range. */
     readonly range: QueryRange;
@@ -325,7 +325,7 @@ export function fromJsonCodeActionsRequest(value: Json): CodeActionsRequest {
     };
 }
 
-/** Response payload for code actions queries. */
+/** A code actions response. */
 export type CodeActionsResponse = {
     /** Code actions. */
     readonly actions: ReadonlyArray<CodeAction>;

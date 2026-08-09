@@ -73,7 +73,7 @@ export function fromJsonLink(value: Json): Link {
     };
 }
 
-/** Request links for one source file. */
+/** A links request. */
 export type LinksRequest = {
     /** The queried module profile. */
     readonly module: Module;
@@ -138,7 +138,7 @@ export function fromJsonLinksRequest(value: Json): LinksRequest {
     };
 }
 
-/** Response payload for links queries. */
+/** A links response. */
 export type LinksResponse = {
     /** Links. */
     readonly links: ReadonlyArray<Link>;

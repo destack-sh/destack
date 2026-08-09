@@ -82,6 +82,12 @@ export type ArtifactKey =
           readonly kind: "environmentDeclared";
           readonly profile: ProfileId;
       }
+    /** Elaborated DIR module. */
+    | {
+          readonly kind: "dirElaborated";
+          readonly module: ModuleId;
+          readonly profile: ProfileId;
+      }
     /** Checked DIR module. */
     | {
           readonly kind: "dirChecked";
@@ -260,6 +266,11 @@ export const ArtifactKey = {
         return { kind: "environmentDeclared", profile };
     },
 
+    /** Elaborated DIR module. */
+    dirElaborated(module_: ModuleId, profile: ProfileId): ArtifactKey {
+        return { kind: "dirElaborated", module: module_, profile };
+    },
+
     /** Checked DIR module. */
     dirChecked(module_: ModuleId, profile: ProfileId): ArtifactKey {
         return { kind: "dirChecked", module: module_, profile };
@@ -428,100 +439,105 @@ export function encodeArtifactKey(writer: BinaryWriter, value: ArtifactKey): voi
             writer.writeUnsigned(11);
             encodeProfileId(writer, value.profile);
             return;
-        case "dirChecked":
+        case "dirElaborated":
             writer.writeUnsigned(12);
             encodeModuleId(writer, value.module);
             encodeProfileId(writer, value.profile);
             return;
-        case "dirMaterialized":
+        case "dirChecked":
             writer.writeUnsigned(13);
             encodeModuleId(writer, value.module);
             encodeProfileId(writer, value.profile);
             return;
-        case "mirLowered":
+        case "dirMaterialized":
             writer.writeUnsigned(14);
             encodeModuleId(writer, value.module);
             encodeProfileId(writer, value.profile);
-            encodeTargetId(writer, value.target);
             return;
-        case "mirVerified":
+        case "mirLowered":
             writer.writeUnsigned(15);
             encodeModuleId(writer, value.module);
             encodeProfileId(writer, value.profile);
             encodeTargetId(writer, value.target);
             return;
-        case "mirElaborated":
+        case "mirVerified":
             writer.writeUnsigned(16);
             encodeModuleId(writer, value.module);
             encodeProfileId(writer, value.profile);
             encodeTargetId(writer, value.target);
             return;
-        case "mirAnalyzed":
+        case "mirElaborated":
             writer.writeUnsigned(17);
             encodeModuleId(writer, value.module);
             encodeProfileId(writer, value.profile);
             encodeTargetId(writer, value.target);
             return;
-        case "mirOptimized":
+        case "mirAnalyzed":
             writer.writeUnsigned(18);
             encodeModuleId(writer, value.module);
             encodeProfileId(writer, value.profile);
             encodeTargetId(writer, value.target);
             return;
-        case "programAnalysis":
+        case "mirOptimized":
             writer.writeUnsigned(19);
+            encodeModuleId(writer, value.module);
+            encodeProfileId(writer, value.profile);
+            encodeTargetId(writer, value.target);
+            return;
+        case "programAnalysis":
+            writer.writeUnsigned(20);
             encodeProfileId(writer, value.profile);
             encodeTargetId(writer, value.target);
             return;
         case "moduleIndex":
-            writer.writeUnsigned(20);
+            writer.writeUnsigned(21);
             encodeModuleId(writer, value.module);
             encodeProfileId(writer, value.profile);
             encodeIndexKind(writer, value.kindValue);
             return;
         case "programIndex":
-            writer.writeUnsigned(21);
+            writer.writeUnsigned(22);
             encodeProfileId(writer, value.profile);
             encodeIndexKind(writer, value.kindValue);
             return;
         case "moduleLinted":
-            writer.writeUnsigned(22);
+            writer.writeUnsigned(23);
             encodeModuleId(writer, value.module);
             encodeProfileId(writer, value.profile);
             encodeTargetId(writer, value.target);
             return;
         case "programLinted":
-            writer.writeUnsigned(23);
+            writer.writeUnsigned(24);
             encodeProfileId(writer, value.profile);
             encodeTargetId(writer, value.target);
             return;
         case "script":
-            writer.writeUnsigned(24);
-            encodeModuleId(writer, value.module);
-            encodeTargetId(writer, value.target);
-            return;
-        case "object":
             writer.writeUnsigned(25);
             encodeModuleId(writer, value.module);
             encodeTargetId(writer, value.target);
             return;
-        case "asset":
+        case "object":
             writer.writeUnsigned(26);
             encodeModuleId(writer, value.module);
             encodeTargetId(writer, value.target);
             return;
-        case "bundle":
+        case "asset":
             writer.writeUnsigned(27);
-            encodePackageId(writer, value.package);
+            encodeModuleId(writer, value.module);
             encodeTargetId(writer, value.target);
             return;
-        case "program":
+        case "bundle":
             writer.writeUnsigned(28);
             encodePackageId(writer, value.package);
             encodeTargetId(writer, value.target);
             return;
-        case "product":
+        case "program":
             writer.writeUnsigned(29);
+            encodePackageId(writer, value.package);
+            encodeTargetId(writer, value.target);
+            return;
+        case "product":
+            writer.writeUnsigned(30);
             encodePackageId(writer, value.package);
             encodeProductId(writer, value.product);
             return;
@@ -648,7 +664,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
             const profile = decodeProfileId(reader);
 
             return {
-                kind: "dirChecked",
+                kind: "dirElaborated",
                 module: module_,
                 profile,
             };
@@ -658,12 +674,22 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
             const profile = decodeProfileId(reader);
 
             return {
-                kind: "dirMaterialized",
+                kind: "dirChecked",
                 module: module_,
                 profile,
             };
         }
         case 14: {
+            const module_ = decodeModuleId(reader);
+            const profile = decodeProfileId(reader);
+
+            return {
+                kind: "dirMaterialized",
+                module: module_,
+                profile,
+            };
+        }
+        case 15: {
             const module_ = decodeModuleId(reader);
             const profile = decodeProfileId(reader);
             const target = decodeTargetId(reader);
@@ -675,7 +701,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 15: {
+        case 16: {
             const module_ = decodeModuleId(reader);
             const profile = decodeProfileId(reader);
             const target = decodeTargetId(reader);
@@ -687,7 +713,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 16: {
+        case 17: {
             const module_ = decodeModuleId(reader);
             const profile = decodeProfileId(reader);
             const target = decodeTargetId(reader);
@@ -699,7 +725,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 17: {
+        case 18: {
             const module_ = decodeModuleId(reader);
             const profile = decodeProfileId(reader);
             const target = decodeTargetId(reader);
@@ -711,7 +737,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 18: {
+        case 19: {
             const module_ = decodeModuleId(reader);
             const profile = decodeProfileId(reader);
             const target = decodeTargetId(reader);
@@ -723,7 +749,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 19: {
+        case 20: {
             const profile = decodeProfileId(reader);
             const target = decodeTargetId(reader);
 
@@ -733,7 +759,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 20: {
+        case 21: {
             const module_ = decodeModuleId(reader);
             const profile = decodeProfileId(reader);
             const kindValue = decodeIndexKind(reader);
@@ -745,7 +771,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 kindValue,
             };
         }
-        case 21: {
+        case 22: {
             const profile = decodeProfileId(reader);
             const kindValue = decodeIndexKind(reader);
 
@@ -755,7 +781,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 kindValue,
             };
         }
-        case 22: {
+        case 23: {
             const module_ = decodeModuleId(reader);
             const profile = decodeProfileId(reader);
             const target = decodeTargetId(reader);
@@ -767,7 +793,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 23: {
+        case 24: {
             const profile = decodeProfileId(reader);
             const target = decodeTargetId(reader);
 
@@ -777,7 +803,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 24: {
+        case 25: {
             const module_ = decodeModuleId(reader);
             const target = decodeTargetId(reader);
 
@@ -787,7 +813,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 25: {
+        case 26: {
             const module_ = decodeModuleId(reader);
             const target = decodeTargetId(reader);
 
@@ -797,7 +823,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 26: {
+        case 27: {
             const module_ = decodeModuleId(reader);
             const target = decodeTargetId(reader);
 
@@ -807,7 +833,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 27: {
+        case 28: {
             const package_ = decodePackageId(reader);
             const target = decodeTargetId(reader);
 
@@ -817,7 +843,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 28: {
+        case 29: {
             const package_ = decodePackageId(reader);
             const target = decodeTargetId(reader);
 
@@ -827,7 +853,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 29: {
+        case 30: {
             const package_ = decodePackageId(reader);
             const product = decodeProductId(reader);
 
@@ -909,6 +935,12 @@ export function toJsonArtifactKey(value: ArtifactKey): Json {
         case "environmentDeclared":
             return {
                 kind: "environmentDeclared",
+                profile: toJsonProfileId(value.profile),
+            };
+        case "dirElaborated":
+            return {
+                kind: "dirElaborated",
+                module: toJsonModuleId(value.module),
                 profile: toJsonProfileId(value.profile),
             };
         case "dirChecked":
@@ -1101,6 +1133,12 @@ export function fromJsonArtifactKey(value: Json): ArtifactKey {
         case "environmentDeclared":
             return {
                 kind,
+                profile: fromJsonProfileId(jsonField(object, "profile")),
+            };
+        case "dirElaborated":
+            return {
+                kind,
+                module: fromJsonModuleId(jsonField(object, "module")),
                 profile: fromJsonProfileId(jsonField(object, "profile")),
             };
         case "dirChecked":

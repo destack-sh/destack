@@ -2,12 +2,10 @@
 
 import { BinaryReader, BinaryWriter, Json, jsonArray, jsonField, jsonObject, jsonOptional, jsonString } from "../../../protocol/serde.js";
 import type { Postings } from "./postings.js";
-import type { LocalDecoratorId } from "../table/decorator.js";
 import type { DecoratorTarget } from "../table/decorator.js";
 import type { GlobalNodeId } from "../tree/node.js";
 import type { GlobalNodeIdAny } from "../tree/node.js";
 import { decodePostings, encodePostings, fromJsonPostings, toJsonPostings } from "./postings.js";
-import { decodeLocalDecoratorId, encodeLocalDecoratorId, fromJsonLocalDecoratorId, toJsonLocalDecoratorId } from "../table/decorator.js";
 import { decodeDecoratorTarget, encodeDecoratorTarget, fromJsonDecoratorTarget, toJsonDecoratorTarget } from "../table/decorator.js";
 import { decodeGlobalNodeId, encodeGlobalNodeId, fromJsonGlobalNodeId, toJsonGlobalNodeId } from "../tree/node.js";
 import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, toJsonGlobalNodeIdAny } from "../tree/node.js";
@@ -16,12 +14,8 @@ import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, 
 export type DecoratorEntry = {
     /** The decorator name when syntactically known. */
     readonly name?: string;
-    /** The local decorator application id. */
-    readonly application: LocalDecoratorId;
     /** The decorator node. */
     readonly decorator: GlobalNodeId;
-    /** The decorator expression target. */
-    readonly expression: GlobalNodeId;
     /** The decorated owner node. */
     readonly owner: GlobalNodeIdAny;
     /** The resolved decorator declaration. */
@@ -55,9 +49,7 @@ export function encodeDecoratorEntry(writer: BinaryWriter, value: DecoratorEntry
     writer.writeOption(value.name, (value0) => {
         writer.writeString(value0);
     });
-    encodeLocalDecoratorId(writer, value.application);
     encodeGlobalNodeId(writer, value.decorator);
-    encodeGlobalNodeId(writer, value.expression);
     encodeGlobalNodeIdAny(writer, value.owner);
     encodeDecoratorTarget(writer, value.target);
 }
@@ -65,17 +57,13 @@ export function encodeDecoratorEntry(writer: BinaryWriter, value: DecoratorEntry
 /** Decode one DecoratorEntry. */
 export function decodeDecoratorEntry(reader: BinaryReader): DecoratorEntry {
     const name = reader.readOption(() => reader.readString());
-    const application = decodeLocalDecoratorId(reader);
     const decorator = decodeGlobalNodeId(reader);
-    const expression = decodeGlobalNodeId(reader);
     const owner = decodeGlobalNodeIdAny(reader);
     const target = decodeDecoratorTarget(reader);
 
     return {
         ...(name === undefined ? {} : { name }),
-        application,
         decorator,
-        expression,
         owner,
         target,
     };
@@ -85,9 +73,7 @@ export function decodeDecoratorEntry(reader: BinaryReader): DecoratorEntry {
 export function toJsonDecoratorEntry(value: DecoratorEntry): Json {
     return {
         ...(value.name === undefined ? {} : { name: value.name }),
-        application: toJsonLocalDecoratorId(value.application),
         decorator: toJsonGlobalNodeId(value.decorator),
-        expression: toJsonGlobalNodeId(value.expression),
         owner: toJsonGlobalNodeIdAny(value.owner),
         target: toJsonDecoratorTarget(value.target),
     };
@@ -99,9 +85,7 @@ export function fromJsonDecoratorEntry(value: Json): DecoratorEntry {
 
     return {
         name: jsonOptional(object, "name", (value) => jsonString(value)),
-        application: fromJsonLocalDecoratorId(jsonField(object, "application")),
         decorator: fromJsonGlobalNodeId(jsonField(object, "decorator")),
-        expression: fromJsonGlobalNodeId(jsonField(object, "expression")),
         owner: fromJsonGlobalNodeIdAny(jsonField(object, "owner")),
         target: fromJsonDecoratorTarget(jsonField(object, "target")),
     };

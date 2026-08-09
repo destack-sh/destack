@@ -2,17 +2,17 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, compareBytes, jsonArray, jsonField, jsonObject, jsonOptional, nestedBytes } from "../../protocol/serde.js";
 import type { StringId } from "../core/string.js";
+import type { ExportResolution } from "../dir/symbol/export.js";
 import type { StaticKey } from "../dir/symbol/key.js";
 import type { LanguageItem } from "../dir/symbol/language.js";
 import type { GlobalSymbolId } from "../dir/symbol/symbol.js";
-import type { ImportTarget } from "../dir/table/import.js";
 import type { PrimitiveType } from "../dir/type/primitive.js";
 import type { ModuleId } from "../source/file/model/module.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../core/string.js";
+import { decodeExportResolution, encodeExportResolution, fromJsonExportResolution, toJsonExportResolution } from "../dir/symbol/export.js";
 import { decodeStaticKey, encodeStaticKey, fromJsonStaticKey, toJsonStaticKey } from "../dir/symbol/key.js";
 import { decodeLanguageItem, encodeLanguageItem, fromJsonLanguageItem, toJsonLanguageItem } from "../dir/symbol/language.js";
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../dir/symbol/symbol.js";
-import { decodeImportTarget, encodeImportTarget, fromJsonImportTarget, toJsonImportTarget } from "../dir/table/import.js";
 import { decodePrimitiveType, encodePrimitiveType, fromJsonPrimitiveType, toJsonPrimitiveType } from "../dir/type/primitive.js";
 import { decodeModuleId, encodeModuleId, fromJsonModuleId, toJsonModuleId } from "../source/file/model/module.js";
 
@@ -23,7 +23,7 @@ export type EnvironmentBound = {
     /** Explicit global modules in load order. */
     readonly globals: ReadonlyArray<ModuleId>;
     /** Resolved global bindings by key across the global modules. */
-    readonly globalTargetsByKey: ReadonlyMap<StaticKey, ReadonlyArray<ImportTarget>>;
+    readonly globalResolutionsByKey: ReadonlyMap<StaticKey, ReadonlyArray<ExportResolution>>;
     /** The default tree builder selected by the profile. */
     readonly tree?: GlobalSymbolId;
 };
@@ -57,7 +57,7 @@ export function encodeEnvironmentBound(writer: BinaryWriter, value: EnvironmentB
     for (const item1 of value.globals) {
         encodeModuleId(writer, item1);
     }
-    const entries2 = Array.from(value.globalTargetsByKey.entries()).map(([key2, item2]) => {
+    const entries2 = Array.from(value.globalResolutionsByKey.entries()).map(([key2, item2]) => {
         const keyBytes = nestedBytes((writer) => {
             encodeStaticKey(writer, key2);
         });
@@ -69,7 +69,7 @@ export function encodeEnvironmentBound(writer: BinaryWriter, value: EnvironmentB
         encodeStaticKey(writer, entry2.key2);
         writer.writeUnsigned(entry2.item2.length);
         for (const item3 of entry2.item2) {
-            encodeImportTarget(writer, item3);
+            encodeExportResolution(writer, item3);
         }
     }
     writer.writeOption(value.tree, (value3) => {
@@ -81,13 +81,13 @@ export function encodeEnvironmentBound(writer: BinaryWriter, value: EnvironmentB
 export function decodeEnvironmentBound(reader: BinaryReader): EnvironmentBound {
     const language = decodeLanguageEnvironment(reader);
     const globals = (() => { const length1 = reader.readNumber(); const items1: Array<ModuleId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeModuleId(reader)); } return items1; })();
-    const globalTargetsByKey = (() => { const length2 = reader.readNumber(); const items2 = new Map<StaticKey, ReadonlyArray<ImportTarget>>(); for (let index = 0; index < length2; index += 1) { items2.set(decodeStaticKey(reader), (() => { const length4 = reader.readNumber(); const items4: Array<ImportTarget> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeImportTarget(reader)); } return items4; })()); } return items2; })();
+    const globalResolutionsByKey = (() => { const length2 = reader.readNumber(); const items2 = new Map<StaticKey, ReadonlyArray<ExportResolution>>(); for (let index = 0; index < length2; index += 1) { items2.set(decodeStaticKey(reader), (() => { const length4 = reader.readNumber(); const items4: Array<ExportResolution> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeExportResolution(reader)); } return items4; })()); } return items2; })();
     const tree = reader.readOption(() => decodeGlobalSymbolId(reader));
 
     return {
         language,
         globals,
-        globalTargetsByKey,
+        globalResolutionsByKey,
         ...(tree === undefined ? {} : { tree }),
     };
 }
@@ -97,7 +97,7 @@ export function toJsonEnvironmentBound(value: EnvironmentBound): Json {
     return {
         language: toJsonLanguageEnvironment(value.language),
         globals: value.globals.map((item0) => toJsonModuleId(item0)),
-        globalTargetsByKey: Array.from(value.globalTargetsByKey.entries()).map(([key0, item0]) => [toJsonStaticKey(key0), item0.map((item1) => toJsonImportTarget(item1))] as const),
+        globalResolutionsByKey: Array.from(value.globalResolutionsByKey.entries()).map(([key0, item0]) => [toJsonStaticKey(key0), item0.map((item1) => toJsonExportResolution(item1))] as const),
         ...(value.tree === undefined ? {} : { tree: toJsonGlobalSymbolId(value.tree) }),
     };
 }
@@ -109,7 +109,7 @@ export function fromJsonEnvironmentBound(value: Json): EnvironmentBound {
     return {
         language: fromJsonLanguageEnvironment(jsonField(object, "language")),
         globals: jsonArray(jsonField(object, "globals")).map((item0) => fromJsonModuleId(item0)),
-        globalTargetsByKey: new Map(jsonArray(jsonField(object, "globalTargetsByKey")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonStaticKey(key0), jsonArray(item0).map((item1) => fromJsonImportTarget(item1))] as const; })),
+        globalResolutionsByKey: new Map(jsonArray(jsonField(object, "globalResolutionsByKey")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonStaticKey(key0), jsonArray(item0).map((item1) => fromJsonExportResolution(item1))] as const; })),
         tree: jsonOptional(object, "tree", (value) => fromJsonGlobalSymbolId(value)),
     };
 }

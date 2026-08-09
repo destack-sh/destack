@@ -10,7 +10,9 @@ import { decodeExportTarget, encodeExportTarget, fromJsonExportTarget, toJsonExp
 export type ExportEntry = {
     /** The exposed name. */
     readonly name: string;
-    /** The exact resolved target. */
+    /** The exact declaration selected by the exposed name. */
+    readonly declaration: ExportTarget;
+    /** The final exported target. */
     readonly target: ExportTarget;
 };
 
@@ -39,16 +41,19 @@ export const ExportEntry = {
 /** Encode one ExportEntry. */
 export function encodeExportEntry(writer: BinaryWriter, value: ExportEntry): void {
     writer.writeString(value.name);
+    encodeExportTarget(writer, value.declaration);
     encodeExportTarget(writer, value.target);
 }
 
 /** Decode one ExportEntry. */
 export function decodeExportEntry(reader: BinaryReader): ExportEntry {
     const name = reader.readString();
+    const declaration = decodeExportTarget(reader);
     const target = decodeExportTarget(reader);
 
     return {
         name,
+        declaration,
         target,
     };
 }
@@ -57,6 +62,7 @@ export function decodeExportEntry(reader: BinaryReader): ExportEntry {
 export function toJsonExportEntry(value: ExportEntry): Json {
     return {
         name: value.name,
+        declaration: toJsonExportTarget(value.declaration),
         target: toJsonExportTarget(value.target),
     };
 }
@@ -67,6 +73,7 @@ export function fromJsonExportEntry(value: Json): ExportEntry {
 
     return {
         name: jsonString(jsonField(object, "name")),
+        declaration: fromJsonExportTarget(jsonField(object, "declaration")),
         target: fromJsonExportTarget(jsonField(object, "target")),
     };
 }

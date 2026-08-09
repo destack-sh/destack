@@ -360,6 +360,8 @@ export type GenericParameterBinding = {
     readonly template: LocalGenericTemplateId;
     /** The source node that declares or induces this parameter. */
     readonly source: GlobalNodeIdAny;
+    /** The declaring parameter symbol, absent on induced parameters. */
+    readonly symbol?: GlobalSymbolId;
     /** The canonical type denoting this parameter. */
     readonly ty: GlobalTypeId;
     /** The parameter key. */
@@ -406,16 +408,19 @@ export const GenericParameterBinding = {
 export function encodeGenericParameterBinding(writer: BinaryWriter, value: GenericParameterBinding): void {
     encodeLocalGenericTemplateId(writer, value.template);
     encodeGlobalNodeIdAny(writer, value.source);
+    writer.writeOption(value.symbol, (value2) => {
+        encodeGlobalSymbolId(writer, value2);
+    });
     encodeGlobalTypeId(writer, value.ty);
     encodeGenericParameterKey(writer, value.key);
-    writer.writeOption(value.variance, (value4) => {
-        encodeVarianceModifier(writer, value4);
+    writer.writeOption(value.variance, (value5) => {
+        encodeVarianceModifier(writer, value5);
     });
-    writer.writeOption(value.constraint, (value5) => {
-        encodeGlobalTypeId(writer, value5);
-    });
-    writer.writeOption(value.default, (value6) => {
+    writer.writeOption(value.constraint, (value6) => {
         encodeGlobalTypeId(writer, value6);
+    });
+    writer.writeOption(value.default, (value7) => {
+        encodeGlobalTypeId(writer, value7);
     });
     encodeGenericParameterOrigin(writer, value.origin);
     encodeGenericParameterKind(writer, value.kind);
@@ -427,6 +432,7 @@ export function encodeGenericParameterBinding(writer: BinaryWriter, value: Gener
 export function decodeGenericParameterBinding(reader: BinaryReader): GenericParameterBinding {
     const template = decodeLocalGenericTemplateId(reader);
     const source = decodeGlobalNodeIdAny(reader);
+    const symbol_ = reader.readOption(() => decodeGlobalSymbolId(reader));
     const ty = decodeGlobalTypeId(reader);
     const key = decodeGenericParameterKey(reader);
     const variance = reader.readOption(() => decodeVarianceModifier(reader));
@@ -440,6 +446,7 @@ export function decodeGenericParameterBinding(reader: BinaryReader): GenericPara
     return {
         template,
         source,
+        ...(symbol_ === undefined ? {} : { symbol: symbol_ }),
         ty,
         key,
         ...(variance === undefined ? {} : { variance }),
@@ -457,6 +464,7 @@ export function toJsonGenericParameterBinding(value: GenericParameterBinding): J
     return {
         template: toJsonLocalGenericTemplateId(value.template),
         source: toJsonGlobalNodeIdAny(value.source),
+        ...(value.symbol === undefined ? {} : { symbol: toJsonGlobalSymbolId(value.symbol) }),
         ty: toJsonGlobalTypeId(value.ty),
         key: toJsonGenericParameterKey(value.key),
         ...(value.variance === undefined ? {} : { variance: toJsonVarianceModifier(value.variance) }),
@@ -476,6 +484,7 @@ export function fromJsonGenericParameterBinding(value: Json): GenericParameterBi
     return {
         template: fromJsonLocalGenericTemplateId(jsonField(object, "template")),
         source: fromJsonGlobalNodeIdAny(jsonField(object, "source")),
+        symbol: jsonOptional(object, "symbol", (value) => fromJsonGlobalSymbolId(value)),
         ty: fromJsonGlobalTypeId(jsonField(object, "ty")),
         key: fromJsonGenericParameterKey(jsonField(object, "key")),
         variance: jsonOptional(object, "variance", (value) => fromJsonVarianceModifier(value)),

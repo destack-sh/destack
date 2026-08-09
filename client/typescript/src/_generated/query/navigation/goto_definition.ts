@@ -6,7 +6,7 @@ import type { QueryPosition } from "../protocol/target.js";
 import { decodeNavigationTarget, encodeNavigationTarget, fromJsonNavigationTarget, toJsonNavigationTarget } from "./target.js";
 import { decodeQueryPosition, encodeQueryPosition, fromJsonQueryPosition, toJsonQueryPosition } from "../protocol/target.js";
 
-/** Request goto definition at a cursor position. */
+/** A goto definition request. */
 export type GotoDefinitionRequest = {
     /** The queried position. */
     readonly position: QueryPosition;
@@ -64,7 +64,7 @@ export function fromJsonGotoDefinitionRequest(value: Json): GotoDefinitionReques
     };
 }
 
-/** Response payload for goto definition queries. */
+/** A goto definition response. */
 export type GotoDefinitionResponse = {
     /** Definition targets. */
     readonly targets: ReadonlyArray<NavigationTarget>;

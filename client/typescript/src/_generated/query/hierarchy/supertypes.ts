@@ -4,7 +4,7 @@ import { BinaryReader, BinaryWriter, Json, jsonArray, jsonField, jsonObject } fr
 import type { TypeItem } from "./type_item.js";
 import { decodeTypeItem, encodeTypeItem, fromJsonTypeItem, toJsonTypeItem } from "./type_item.js";
 
-/** Request the direct supertypes of a type item. */
+/** A supertypes request. */
 export type SupertypesRequest = {
     /** The type item to expand. */
     readonly item: TypeItem;
@@ -62,7 +62,7 @@ export function fromJsonSupertypesRequest(value: Json): SupertypesRequest {
     };
 }
 
-/** Response payload for supertype queries. */
+/** A supertypes response. */
 export type SupertypesResponse = {
     /** Type hierarchy items. */
     readonly items: ReadonlyArray<TypeItem>;

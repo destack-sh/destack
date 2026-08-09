@@ -162,7 +162,7 @@ export function fromJsonInlayHintKind(value: Json): InlayHintKind {
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
-/** Request inlay hints for a range in a document. */
+/** An inlay hints request. */
 export type InlayHintsRequest = {
     /** The queried range. */
     readonly range: QueryRange;
@@ -234,7 +234,7 @@ export function fromJsonInlayHintsRequest(value: Json): InlayHintsRequest {
     };
 }
 
-/** Response payload for inlay hints queries. */
+/** An inlay hints response. */
 export type InlayHintsResponse = {
     /** Inlay hints. */
     readonly hints: ReadonlyArray<InlayHint>;

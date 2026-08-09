@@ -4,7 +4,7 @@ import { BinaryReader, BinaryWriter, Json, jsonArray, jsonField, jsonObject } fr
 import type { TypeItem } from "./type_item.js";
 import { decodeTypeItem, encodeTypeItem, fromJsonTypeItem, toJsonTypeItem } from "./type_item.js";
 
-/** Request the direct subtypes of a type item. */
+/** A subtypes request. */
 export type SubtypesRequest = {
     /** The type item to expand. */
     readonly item: TypeItem;
@@ -62,7 +62,7 @@ export function fromJsonSubtypesRequest(value: Json): SubtypesRequest {
     };
 }
 
-/** Response payload for subtype queries. */
+/** A subtypes response. */
 export type SubtypesResponse = {
     /** Type hierarchy items. */
     readonly items: ReadonlyArray<TypeItem>;

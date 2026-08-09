@@ -8,6 +8,7 @@ import type { Data } from "./data.js";
 import type { DirBound } from "./dir.js";
 import type { DirChecked } from "./dir.js";
 import type { DirDeclared } from "./dir.js";
+import type { DirElaborated } from "./dir.js";
 import type { DirExpanded } from "./dir.js";
 import type { DirExported } from "./dir.js";
 import type { DirImported } from "./dir.js";
@@ -38,6 +39,7 @@ import { decodeData, encodeData, fromJsonData, toJsonData } from "./data.js";
 import { decodeDirBound, encodeDirBound, fromJsonDirBound, toJsonDirBound } from "./dir.js";
 import { decodeDirChecked, encodeDirChecked, fromJsonDirChecked, toJsonDirChecked } from "./dir.js";
 import { decodeDirDeclared, encodeDirDeclared, fromJsonDirDeclared, toJsonDirDeclared } from "./dir.js";
+import { decodeDirElaborated, encodeDirElaborated, fromJsonDirElaborated, toJsonDirElaborated } from "./dir.js";
 import { decodeDirExpanded, encodeDirExpanded, fromJsonDirExpanded, toJsonDirExpanded } from "./dir.js";
 import { decodeDirExported, encodeDirExported, fromJsonDirExported, toJsonDirExported } from "./dir.js";
 import { decodeDirImported, encodeDirImported, fromJsonDirImported, toJsonDirImported } from "./dir.js";
@@ -125,6 +127,10 @@ export type ArtifactPayload =
           readonly environment_declared: EnvironmentDeclared;
       }
     /** Checked DIR module. */
+    | {
+          readonly kind: "dirElaborated";
+          readonly dir_elaborated: DirElaborated;
+      }
     | {
           readonly kind: "dirChecked";
           readonly dir_checked: DirChecked;
@@ -278,6 +284,10 @@ export const ArtifactPayload = {
     },
 
     /** Checked DIR module. */
+    dirElaborated(dir_elaborated: DirElaborated): ArtifactPayload {
+        return { kind: "dirElaborated", dir_elaborated };
+    },
+
     dirChecked(dir_checked: DirChecked): ArtifactPayload {
         return { kind: "dirChecked", dir_checked };
     },
@@ -439,76 +449,80 @@ export function encodeArtifactPayload(writer: BinaryWriter, value: ArtifactPaylo
             writer.writeUnsigned(11);
             encodeEnvironmentDeclared(writer, value.environment_declared);
             return;
-        case "dirChecked":
+        case "dirElaborated":
             writer.writeUnsigned(12);
+            encodeDirElaborated(writer, value.dir_elaborated);
+            return;
+        case "dirChecked":
+            writer.writeUnsigned(13);
             encodeDirChecked(writer, value.dir_checked);
             return;
         case "dirMaterialized":
-            writer.writeUnsigned(13);
+            writer.writeUnsigned(14);
             encodeDirMaterialized(writer, value.dir_materialized);
             return;
         case "mirLowered":
-            writer.writeUnsigned(14);
+            writer.writeUnsigned(15);
             encodeMirLowered(writer, value.mir_lowered);
             return;
         case "mirVerified":
-            writer.writeUnsigned(15);
+            writer.writeUnsigned(16);
             encodeMirVerified(writer, value.mir_verified);
             return;
         case "mirElaborated":
-            writer.writeUnsigned(16);
+            writer.writeUnsigned(17);
             encodeMirElaborated(writer, value.mir_elaborated);
             return;
         case "mirAnalyzed":
-            writer.writeUnsigned(17);
+            writer.writeUnsigned(18);
             encodeMirAnalyzed(writer, value.mir_analyzed);
             return;
         case "mirOptimized":
-            writer.writeUnsigned(18);
+            writer.writeUnsigned(19);
             encodeMirOptimized(writer, value.mir_optimized);
             return;
         case "programAnalysis":
-            writer.writeUnsigned(19);
+            writer.writeUnsigned(20);
             encodeProgramAnalysis(writer, value.program_analysis);
             return;
         case "moduleIndex":
-            writer.writeUnsigned(20);
+            writer.writeUnsigned(21);
             encodeModuleIndex(writer, value.module_index);
             return;
         case "programIndex":
-            writer.writeUnsigned(21);
+            writer.writeUnsigned(22);
             encodeProgramIndex(writer, value.program_index);
             return;
         case "moduleLinted":
-            writer.writeUnsigned(22);
+            writer.writeUnsigned(23);
             encodeModuleLinted(writer, value.module_linted);
             return;
         case "programLinted":
-            writer.writeUnsigned(23);
+            writer.writeUnsigned(24);
             encodeProgramLinted(writer, value.program_linted);
             return;
         case "script":
-            writer.writeUnsigned(24);
+            writer.writeUnsigned(25);
             encodeScript(writer, value.script);
             return;
         case "object":
-            writer.writeUnsigned(25);
+            writer.writeUnsigned(26);
             encodeObject(writer, value.object);
             return;
         case "asset":
-            writer.writeUnsigned(26);
+            writer.writeUnsigned(27);
             encodeAsset(writer, value.asset);
             return;
         case "bundle":
-            writer.writeUnsigned(27);
+            writer.writeUnsigned(28);
             encodeBundle(writer, value.bundle);
             return;
         case "program":
-            writer.writeUnsigned(28);
+            writer.writeUnsigned(29);
             encodeProgram(writer, value.program);
             return;
         case "product":
-            writer.writeUnsigned(29);
+            writer.writeUnsigned(30);
             encodeProduct(writer, value.product);
             return;
     }
@@ -582,91 +596,96 @@ export function decodeArtifactPayload(reader: BinaryReader): ArtifactPayload {
             return { kind: "environmentDeclared", environment_declared };
         }
         case 12: {
+            const dir_elaborated = decodeDirElaborated(reader);
+
+            return { kind: "dirElaborated", dir_elaborated };
+        }
+        case 13: {
             const dir_checked = decodeDirChecked(reader);
 
             return { kind: "dirChecked", dir_checked };
         }
-        case 13: {
+        case 14: {
             const dir_materialized = decodeDirMaterialized(reader);
 
             return { kind: "dirMaterialized", dir_materialized };
         }
-        case 14: {
+        case 15: {
             const mir_lowered = decodeMirLowered(reader);
 
             return { kind: "mirLowered", mir_lowered };
         }
-        case 15: {
+        case 16: {
             const mir_verified = decodeMirVerified(reader);
 
             return { kind: "mirVerified", mir_verified };
         }
-        case 16: {
+        case 17: {
             const mir_elaborated = decodeMirElaborated(reader);
 
             return { kind: "mirElaborated", mir_elaborated };
         }
-        case 17: {
+        case 18: {
             const mir_analyzed = decodeMirAnalyzed(reader);
 
             return { kind: "mirAnalyzed", mir_analyzed };
         }
-        case 18: {
+        case 19: {
             const mir_optimized = decodeMirOptimized(reader);
 
             return { kind: "mirOptimized", mir_optimized };
         }
-        case 19: {
+        case 20: {
             const program_analysis = decodeProgramAnalysis(reader);
 
             return { kind: "programAnalysis", program_analysis };
         }
-        case 20: {
+        case 21: {
             const module_index = decodeModuleIndex(reader);
 
             return { kind: "moduleIndex", module_index };
         }
-        case 21: {
+        case 22: {
             const program_index = decodeProgramIndex(reader);
 
             return { kind: "programIndex", program_index };
         }
-        case 22: {
+        case 23: {
             const module_linted = decodeModuleLinted(reader);
 
             return { kind: "moduleLinted", module_linted };
         }
-        case 23: {
+        case 24: {
             const program_linted = decodeProgramLinted(reader);
 
             return { kind: "programLinted", program_linted };
         }
-        case 24: {
+        case 25: {
             const script = decodeScript(reader);
 
             return { kind: "script", script };
         }
-        case 25: {
+        case 26: {
             const object_ = decodeObject(reader);
 
             return { kind: "object", object: object_ };
         }
-        case 26: {
+        case 27: {
             const asset = decodeAsset(reader);
 
             return { kind: "asset", asset };
         }
-        case 27: {
+        case 28: {
             const bundle = decodeBundle(reader);
 
             return { kind: "bundle", bundle };
         }
-        case 28: {
+        case 29: {
             const program = decodeProgram(reader);
 
             return { kind: "program", program };
         }
-        case 29: {
+        case 30: {
             const product = decodeProduct(reader);
 
             return { kind: "product", product };
@@ -738,6 +757,11 @@ export function toJsonArtifactPayload(value: ArtifactPayload): Json {
             return {
                 kind: "environmentDeclared",
                 environment_declared: toJsonEnvironmentDeclared(value.environment_declared),
+            };
+        case "dirElaborated":
+            return {
+                kind: "dirElaborated",
+                dir_elaborated: toJsonDirElaborated(value.dir_elaborated),
             };
         case "dirChecked":
             return {
@@ -899,6 +923,11 @@ export function fromJsonArtifactPayload(value: Json): ArtifactPayload {
             return {
                 kind,
                 environment_declared: fromJsonEnvironmentDeclared(jsonField(object, "environment_declared")),
+            };
+        case "dirElaborated":
+            return {
+                kind,
+                dir_elaborated: fromJsonDirElaborated(jsonField(object, "dir_elaborated")),
             };
         case "dirChecked":
             return {

@@ -168,7 +168,7 @@ export function fromJsonHoverItem(value: Json): HoverItem {
     };
 }
 
-/** Request hover content at a cursor position. */
+/** A hover request. */
 export type HoverRequest = {
     /** The queried position. */
     readonly position: QueryPosition;
@@ -226,7 +226,7 @@ export function fromJsonHoverRequest(value: Json): HoverRequest {
     };
 }
 
-/** Response payload for hover queries. */
+/** A hover response. */
 export type HoverResponse = {
     /** Hover content, if available. */
     readonly hover?: Hover;

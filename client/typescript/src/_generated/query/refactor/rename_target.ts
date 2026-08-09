@@ -83,7 +83,7 @@ export function fromJsonRenameTarget(value: Json): RenameTarget {
     };
 }
 
-/** Request the rename target at a cursor position. */
+/** A rename target request. */
 export type RenameTargetRequest = {
     /** The queried position. */
     readonly position: QueryPosition;
@@ -141,7 +141,7 @@ export function fromJsonRenameTargetRequest(value: Json): RenameTargetRequest {
     };
 }
 
-/** Response payload for rename target queries. */
+/** A rename target response. */
 export type RenameTargetResponse = {
     /** Rename target, if available. */
     readonly target?: RenameTarget;

@@ -2,11 +2,9 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, compareBytes, jsonArray, jsonField, jsonInteger, jsonObject, jsonString, nestedBytes } from "../../../protocol/serde.js";
 import type { GlobalSymbolId } from "../symbol/symbol.js";
-import type { ImportTarget } from "./import.js";
 import type { GlobalNodeIdAny } from "../tree/node.js";
 import type { ModuleId } from "../../source/file/model/module.js";
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../symbol/symbol.js";
-import { decodeImportTarget, encodeImportTarget, fromJsonImportTarget, toJsonImportTarget } from "./import.js";
 import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, toJsonGlobalNodeIdAny } from "../tree/node.js";
 import { decodeModuleId, encodeModuleId, fromJsonModuleId, toJsonModuleId } from "../../source/file/model/module.js";
 
@@ -26,14 +24,14 @@ export type Reference =
     | {
           readonly kind: "projected";
           /** The exact target named by the leading segments. */
-          readonly base: ImportTarget;
+          readonly base: ReferenceTarget;
           /** The segment index where member projection begins. */
           readonly from: number;
       }
     /** No single binding wins; the payload retains every resolved candidate target. */
     | {
           readonly kind: "ambiguous";
-          readonly ambiguous: ReadonlyArray<ImportTarget>;
+          readonly ambiguous: ReadonlyArray<ReferenceTarget>;
       }
     /** No binding by name. */
     | {
@@ -53,12 +51,12 @@ export const Reference = {
     },
 
     /** A flat path named through its first segments; `segments[from..]` project from `base`. */
-    projected(base: ImportTarget, from_: number): Reference {
+    projected(base: ReferenceTarget, from_: number): Reference {
         return { kind: "projected", base, from: from_ };
     },
 
     /** No single binding wins; the payload retains every resolved candidate target. */
-    ambiguous(ambiguous: ReadonlyArray<ImportTarget>): Reference {
+    ambiguous(ambiguous: ReadonlyArray<ReferenceTarget>): Reference {
         return { kind: "ambiguous", ambiguous };
     },
 
@@ -104,14 +102,14 @@ export function encodeReference(writer: BinaryWriter, value: Reference): void {
             return;
         case "projected":
             writer.writeUnsigned(2);
-            encodeImportTarget(writer, value.base);
+            encodeReferenceTarget(writer, value.base);
             writer.writeUnsigned(value.from);
             return;
         case "ambiguous":
             writer.writeUnsigned(3);
             writer.writeUnsigned(value.ambiguous.length);
             for (const item0 of value.ambiguous) {
-                encodeImportTarget(writer, item0);
+                encodeReferenceTarget(writer, item0);
             }
             return;
         case "missing":
@@ -138,7 +136,7 @@ export function decodeReference(reader: BinaryReader): Reference {
             return { kind: "namespace", namespace: namespace_ };
         }
         case 2: {
-            const base = decodeImportTarget(reader);
+            const base = decodeReferenceTarget(reader);
             const from_ = reader.readNumber();
 
             return {
@@ -148,7 +146,7 @@ export function decodeReference(reader: BinaryReader): Reference {
             };
         }
         case 3: {
-            const ambiguous = (() => { const length0 = reader.readNumber(); const items0: Array<ImportTarget> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeImportTarget(reader)); } return items0; })();
+            const ambiguous = (() => { const length0 = reader.readNumber(); const items0: Array<ReferenceTarget> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeReferenceTarget(reader)); } return items0; })();
 
             return { kind: "ambiguous", ambiguous };
         }
@@ -176,13 +174,13 @@ export function toJsonReference(value: Reference): Json {
         case "projected":
             return {
                 kind: "projected",
-                base: toJsonImportTarget(value.base),
+                base: toJsonReferenceTarget(value.base),
                 from: value.from,
             };
         case "ambiguous":
             return {
                 kind: "ambiguous",
-                ambiguous: value.ambiguous.map((item0) => toJsonImportTarget(item0)),
+                ambiguous: value.ambiguous.map((item0) => toJsonReferenceTarget(item0)),
             };
         case "missing":
             return {
@@ -212,13 +210,13 @@ export function fromJsonReference(value: Json): Reference {
         case "projected":
             return {
                 kind,
-                base: fromJsonImportTarget(jsonField(object, "base")),
+                base: fromJsonReferenceTarget(jsonField(object, "base")),
                 from: jsonInteger(jsonField(object, "from")),
             };
         case "ambiguous":
             return {
                 kind,
-                ambiguous: jsonArray(jsonField(object, "ambiguous")).map((item0) => fromJsonImportTarget(item0)),
+                ambiguous: jsonArray(jsonField(object, "ambiguous")).map((item0) => fromJsonReferenceTarget(item0)),
             };
         case "missing":
             return {
@@ -233,10 +231,10 @@ export function fromJsonReference(value: Json): Reference {
 export type ReferenceTable = {
     /** The module id of the reference table. */
     readonly moduleId: ModuleId;
-    /** Semantic targets keyed by their source node. */
+    /** Final targets keyed by their source node. */
     readonly targetByNode: ReadonlyMap<GlobalNodeIdAny, Reference>;
-    /** Declaration targets keyed by source nodes whose semantic targets differ. */
-    readonly declarationsByNode: ReadonlyMap<GlobalNodeIdAny, ReadonlyArray<GlobalSymbolId>>;
+    /** Authored declarations that differ from their final target. */
+    readonly declarationByNode: ReadonlyMap<GlobalNodeIdAny, Reference>;
 };
 
 export const ReferenceTable = {
@@ -276,7 +274,7 @@ export function encodeReferenceTable(writer: BinaryWriter, value: ReferenceTable
         encodeGlobalNodeIdAny(writer, entry1.key1);
         encodeReference(writer, entry1.item1);
     }
-    const entries2 = Array.from(value.declarationsByNode.entries()).map(([key2, item2]) => {
+    const entries2 = Array.from(value.declarationByNode.entries()).map(([key2, item2]) => {
         const keyBytes = nestedBytes((writer) => {
             encodeGlobalNodeIdAny(writer, key2);
         });
@@ -286,10 +284,7 @@ export function encodeReferenceTable(writer: BinaryWriter, value: ReferenceTable
     writer.writeUnsigned(entries2.length);
     for (const entry2 of entries2) {
         encodeGlobalNodeIdAny(writer, entry2.key2);
-        writer.writeUnsigned(entry2.item2.length);
-        for (const item3 of entry2.item2) {
-            encodeGlobalSymbolId(writer, item3);
-        }
+        encodeReference(writer, entry2.item2);
     }
 }
 
@@ -297,12 +292,12 @@ export function encodeReferenceTable(writer: BinaryWriter, value: ReferenceTable
 export function decodeReferenceTable(reader: BinaryReader): ReferenceTable {
     const moduleId = decodeModuleId(reader);
     const targetByNode = (() => { const length1 = reader.readNumber(); const items1 = new Map<GlobalNodeIdAny, Reference>(); for (let index = 0; index < length1; index += 1) { items1.set(decodeGlobalNodeIdAny(reader), decodeReference(reader)); } return items1; })();
-    const declarationsByNode = (() => { const length2 = reader.readNumber(); const items2 = new Map<GlobalNodeIdAny, ReadonlyArray<GlobalSymbolId>>(); for (let index = 0; index < length2; index += 1) { items2.set(decodeGlobalNodeIdAny(reader), (() => { const length4 = reader.readNumber(); const items4: Array<GlobalSymbolId> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeGlobalSymbolId(reader)); } return items4; })()); } return items2; })();
+    const declarationByNode = (() => { const length2 = reader.readNumber(); const items2 = new Map<GlobalNodeIdAny, Reference>(); for (let index = 0; index < length2; index += 1) { items2.set(decodeGlobalNodeIdAny(reader), decodeReference(reader)); } return items2; })();
 
     return {
         moduleId,
         targetByNode,
-        declarationsByNode,
+        declarationByNode,
     };
 }
 
@@ -311,7 +306,7 @@ export function toJsonReferenceTable(value: ReferenceTable): Json {
     return {
         moduleId: toJsonModuleId(value.moduleId),
         targetByNode: Array.from(value.targetByNode.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonReference(item0)] as const),
-        declarationsByNode: Array.from(value.declarationsByNode.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), item0.map((item1) => toJsonGlobalSymbolId(item1))] as const),
+        declarationByNode: Array.from(value.declarationByNode.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonReference(item0)] as const),
     };
 }
 
@@ -322,6 +317,127 @@ export function fromJsonReferenceTable(value: Json): ReferenceTable {
     return {
         moduleId: fromJsonModuleId(jsonField(object, "moduleId")),
         targetByNode: new Map(jsonArray(jsonField(object, "targetByNode")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonReference(item0)] as const; })),
-        declarationsByNode: new Map(jsonArray(jsonField(object, "declarationsByNode")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), jsonArray(item0).map((item1) => fromJsonGlobalSymbolId(item1))] as const; })),
+        declarationByNode: new Map(jsonArray(jsonField(object, "declarationByNode")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonReference(item0)] as const; })),
     };
+}
+
+/** One scalar target selected while resolving a source reference. */
+export type ReferenceTarget =
+    /** One declaration symbol. */
+    | {
+          readonly kind: "symbol";
+          readonly symbol: GlobalSymbolId;
+      }
+    /** One module namespace object. */
+    | {
+          readonly kind: "namespace";
+          readonly namespace: ModuleId;
+      }
+;
+
+export const ReferenceTarget = {
+    /** One declaration symbol. */
+    "symbol"(symbol_: GlobalSymbolId): ReferenceTarget {
+        return { kind: "symbol", symbol: symbol_ };
+    },
+
+    /** One module namespace object. */
+    "namespace"(namespace_: ModuleId): ReferenceTarget {
+        return { kind: "namespace", namespace: namespace_ };
+    },
+
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: ReferenceTarget): void {
+        encodeReferenceTarget(writer, value);
+    },
+
+    /** Decode one ReferenceTarget. */
+    decode(reader: BinaryReader): ReferenceTarget {
+        return decodeReferenceTarget(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: ReferenceTarget): Json {
+        return toJsonReferenceTarget(value);
+    },
+
+    /** Return one ReferenceTarget from one JSON value. */
+    fromJson(value: Json): ReferenceTarget {
+        return fromJsonReferenceTarget(value);
+    },
+};
+
+/** Encode one ReferenceTarget. */
+export function encodeReferenceTarget(writer: BinaryWriter, value: ReferenceTarget): void {
+    switch (value.kind) {
+        case "symbol":
+            writer.writeUnsigned(0);
+            encodeGlobalSymbolId(writer, value.symbol);
+            return;
+        case "namespace":
+            writer.writeUnsigned(1);
+            encodeModuleId(writer, value.namespace);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one ReferenceTarget. */
+export function decodeReferenceTarget(reader: BinaryReader): ReferenceTarget {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0: {
+            const symbol_ = decodeGlobalSymbolId(reader);
+
+            return { kind: "symbol", symbol: symbol_ };
+        }
+        case 1: {
+            const namespace_ = decodeModuleId(reader);
+
+            return { kind: "namespace", namespace: namespace_ };
+        }
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one ReferenceTarget. */
+export function toJsonReferenceTarget(value: ReferenceTarget): Json {
+    switch (value.kind) {
+        case "symbol":
+            return {
+                kind: "symbol",
+                symbol: toJsonGlobalSymbolId(value.symbol),
+            };
+        case "namespace":
+            return {
+                kind: "namespace",
+                namespace: toJsonModuleId(value.namespace),
+            };
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Return one ReferenceTarget from one JSON value. */
+export function fromJsonReferenceTarget(value: Json): ReferenceTarget {
+    const object = jsonObject(value);
+    const kind = jsonString(jsonField(object, "kind"));
+
+    switch (kind) {
+        case "symbol":
+            return {
+                kind,
+                symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
+            };
+        case "namespace":
+            return {
+                kind,
+                namespace: fromJsonModuleId(jsonField(object, "namespace")),
+            };
+    }
+
+    throw new SerdeError(`unknown enum variant: ${kind}`);
 }

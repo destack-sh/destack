@@ -18,8 +18,8 @@ export type ReferenceEntry = {
     readonly source: GlobalNodeIdAny;
     /** The source range. */
     readonly span: Span;
-    /** Whether the occurrence names an explicit local import alias. */
-    readonly isImportAlias: boolean;
+    /** Whether the authored occurrence names an alias instead of the target. */
+    readonly isAlias: boolean;
 };
 
 export const ReferenceEntry = {
@@ -49,7 +49,7 @@ export function encodeReferenceEntry(writer: BinaryWriter, value: ReferenceEntry
     encodeGlobalSymbolId(writer, value.symbol);
     encodeGlobalNodeIdAny(writer, value.source);
     encodeSpan(writer, value.span);
-    writer.writeBool(value.isImportAlias);
+    writer.writeBool(value.isAlias);
 }
 
 /** Decode one ReferenceEntry. */
@@ -57,13 +57,13 @@ export function decodeReferenceEntry(reader: BinaryReader): ReferenceEntry {
     const symbol_ = decodeGlobalSymbolId(reader);
     const source = decodeGlobalNodeIdAny(reader);
     const span = decodeSpan(reader);
-    const isImportAlias = reader.readBool();
+    const isAlias = reader.readBool();
 
     return {
         symbol: symbol_,
         source,
         span,
-        isImportAlias,
+        isAlias,
     };
 }
 
@@ -73,7 +73,7 @@ export function toJsonReferenceEntry(value: ReferenceEntry): Json {
         symbol: toJsonGlobalSymbolId(value.symbol),
         source: toJsonGlobalNodeIdAny(value.source),
         span: toJsonSpan(value.span),
-        isImportAlias: value.isImportAlias,
+        isAlias: value.isAlias,
     };
 }
 
@@ -85,7 +85,7 @@ export function fromJsonReferenceEntry(value: Json): ReferenceEntry {
         symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
         source: fromJsonGlobalNodeIdAny(jsonField(object, "source")),
         span: fromJsonSpan(jsonField(object, "span")),
-        isImportAlias: jsonBool(jsonField(object, "isImportAlias")),
+        isAlias: jsonBool(jsonField(object, "isAlias")),
     };
 }
 

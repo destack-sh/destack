@@ -636,7 +636,7 @@ export function fromJsonScopeIndexEntry(value: Json): ScopeIndexEntry {
 }
 
 /** The kind of a scope. */
-export type ScopeKind = "module" | "global" | "namespace" | "function" | "type" | "typeConditional" | "label" | "block";
+export type ScopeKind = "module" | "global" | "namespace" | "function" | "type" | "typeConditional" | "block";
 
 export const ScopeKind = {
     /** Encode this value. */
@@ -681,11 +681,8 @@ export function encodeScopeKind(writer: BinaryWriter, value: ScopeKind): void {
         case "typeConditional":
             writer.writeUnsigned(5);
             return;
-        case "label":
-            writer.writeUnsigned(6);
-            return;
         case "block":
-            writer.writeUnsigned(7);
+            writer.writeUnsigned(6);
             return;
     }
 
@@ -710,8 +707,6 @@ export function decodeScopeKind(reader: BinaryReader): ScopeKind {
         case 5:
             return "typeConditional";
         case 6:
-            return "label";
-        case 7:
             return "block";
     }
 
@@ -740,8 +735,6 @@ export function fromJsonScopeKind(value: Json): ScopeKind {
             return "type";
         case "typeConditional":
             return "typeConditional";
-        case "label":
-            return "label";
         case "block":
             return "block";
     }

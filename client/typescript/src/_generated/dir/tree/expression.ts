@@ -395,12 +395,6 @@ export type Expression =
           readonly kind: "block";
           readonly block: LocalNodeId;
       }
-    /** Label statement (like `label: stmt` in JavaScript). */
-    | {
-          readonly kind: "label";
-          readonly label: StringId;
-          readonly body: LocalNodeId;
-      }
     /** An Import is an import declaration for dependency management. */
     | {
           readonly kind: "import";
@@ -454,6 +448,7 @@ export type Expression =
     /** A While is while or do-while loop. */
     | {
           readonly kind: "while";
+          readonly label?: StringId;
           readonly form: WhileForm;
           readonly condition: LocalNodeId;
           readonly body: LocalNodeId;
@@ -461,6 +456,7 @@ export type Expression =
     /** A ForEach is a for loop over an iterator with a binding. */
     | {
           readonly kind: "forEach";
+          readonly label?: StringId;
           readonly asynchrony: Asynchrony;
           readonly operator: ForEachOperator;
           readonly binding: ForEachBinding;
@@ -470,6 +466,7 @@ export type Expression =
     /** A For is a for loop with the traditional three-part (initialization, condition, increment). */
     | {
           readonly kind: "for";
+          readonly label?: StringId;
           readonly initialization?: LocalNodeId;
           readonly condition?: LocalNodeId;
           readonly increment?: LocalNodeId;
@@ -478,6 +475,7 @@ export type Expression =
     /** A Loop is an unconditional loop. */
     | {
           readonly kind: "loop";
+          readonly label?: StringId;
           readonly body: LocalNodeId;
       }
     /** A Try is a try/catch/finally expression. */
@@ -767,11 +765,6 @@ export const Expression = {
         return { kind: "block", block };
     },
 
-    /** Label statement (like `label: stmt` in JavaScript). */
-    label(label: StringId, body: LocalNodeId): Expression {
-        return { kind: "label", label, body };
-    },
-
     /** An Import is an import declaration for dependency management. */
     "import"(form: DependencyForm, target: StringId, items: ReadonlyArray<LocalNodeId> | undefined, attributes: ImportAttributeClause | undefined): Expression {
         return { kind: "import", form, target, items, attributes };
@@ -803,23 +796,23 @@ export const Expression = {
     },
 
     /** A While is while or do-while loop. */
-    "while"(form: WhileForm, condition: LocalNodeId, body: LocalNodeId): Expression {
-        return { kind: "while", form, condition, body };
+    "while"(label: StringId | undefined, form: WhileForm, condition: LocalNodeId, body: LocalNodeId): Expression {
+        return { kind: "while", label, form, condition, body };
     },
 
     /** A ForEach is a for loop over an iterator with a binding. */
-    forEach(asynchrony: Asynchrony, operator: ForEachOperator, binding: ForEachBinding, iterator: LocalNodeId, body: LocalNodeId): Expression {
-        return { kind: "forEach", asynchrony, operator, binding, iterator, body };
+    forEach(label: StringId | undefined, asynchrony: Asynchrony, operator: ForEachOperator, binding: ForEachBinding, iterator: LocalNodeId, body: LocalNodeId): Expression {
+        return { kind: "forEach", label, asynchrony, operator, binding, iterator, body };
     },
 
     /** A For is a for loop with the traditional three-part (initialization, condition, increment). */
-    "for"(initialization: LocalNodeId | undefined, condition: LocalNodeId | undefined, increment: LocalNodeId | undefined, body: LocalNodeId): Expression {
-        return { kind: "for", initialization, condition, increment, body };
+    "for"(label: StringId | undefined, initialization: LocalNodeId | undefined, condition: LocalNodeId | undefined, increment: LocalNodeId | undefined, body: LocalNodeId): Expression {
+        return { kind: "for", label, initialization, condition, increment, body };
     },
 
     /** A Loop is an unconditional loop. */
-    loop(body: LocalNodeId): Expression {
-        return { kind: "loop", body };
+    loop(label: StringId | undefined, body: LocalNodeId): Expression {
+        return { kind: "loop", label, body };
     },
 
     /** A Try is a try/catch/finally expression. */
@@ -1089,13 +1082,8 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             writer.writeUnsigned(1);
             encodeLocalNodeId(writer, value.block);
             return;
-        case "label":
-            writer.writeUnsigned(2);
-            encodeStringId(writer, value.label);
-            encodeLocalNodeId(writer, value.body);
-            return;
         case "import":
-            writer.writeUnsigned(3);
+            writer.writeUnsigned(2);
             encodeDependencyForm(writer, value.form);
             encodeStringId(writer, value.target);
             writer.writeOption(value.items, (value2) => {
@@ -1109,7 +1097,7 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             });
             return;
         case "export":
-            writer.writeUnsigned(4);
+            writer.writeUnsigned(3);
             encodeDependencyForm(writer, value.form);
             writer.writeOption(value.target, (value1) => {
                 encodeStringId(writer, value1);
@@ -1123,7 +1111,7 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             });
             return;
         case "let":
-            writer.writeUnsigned(5);
+            writer.writeUnsigned(4);
             encodeLetKind(writer, value.kindValue);
             writer.writeOption(value.export, (value1) => {
                 encodeExportKind(writer, value1);
@@ -1139,14 +1127,14 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             });
             return;
         case "letElse":
-            writer.writeUnsigned(6);
+            writer.writeUnsigned(5);
             encodeLetKind(writer, value.kindValue);
             encodeMutability(writer, value.mutability);
             encodeLocalNodeId(writer, value.declarator);
             encodeLocalNodeId(writer, value.elseBranch);
             return;
         case "using":
-            writer.writeUnsigned(7);
+            writer.writeUnsigned(6);
             encodeAsynchrony(writer, value.asynchrony);
             writer.writeOption(value.export, (value1) => {
                 encodeExportKind(writer, value1);
@@ -1158,7 +1146,7 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             writer.writeBool(value.isAmbient);
             return;
         case "if":
-            writer.writeUnsigned(8);
+            writer.writeUnsigned(7);
             encodeIfForm(writer, value.form);
             encodeCondition(writer, value.condition);
             encodeLocalNodeId(writer, value.thenExpression);
@@ -1167,13 +1155,19 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             });
             return;
         case "while":
-            writer.writeUnsigned(9);
+            writer.writeUnsigned(8);
+            writer.writeOption(value.label, (value0) => {
+                encodeStringId(writer, value0);
+            });
             encodeWhileForm(writer, value.form);
             encodeLocalNodeId(writer, value.condition);
             encodeLocalNodeId(writer, value.body);
             return;
         case "forEach":
-            writer.writeUnsigned(10);
+            writer.writeUnsigned(9);
+            writer.writeOption(value.label, (value0) => {
+                encodeStringId(writer, value0);
+            });
             encodeAsynchrony(writer, value.asynchrony);
             encodeForEachOperator(writer, value.operator);
             encodeForEachBinding(writer, value.binding);
@@ -1181,24 +1175,30 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             encodeLocalNodeId(writer, value.body);
             return;
         case "for":
-            writer.writeUnsigned(11);
-            writer.writeOption(value.initialization, (value0) => {
-                encodeLocalNodeId(writer, value0);
+            writer.writeUnsigned(10);
+            writer.writeOption(value.label, (value0) => {
+                encodeStringId(writer, value0);
             });
-            writer.writeOption(value.condition, (value1) => {
+            writer.writeOption(value.initialization, (value1) => {
                 encodeLocalNodeId(writer, value1);
             });
-            writer.writeOption(value.increment, (value2) => {
+            writer.writeOption(value.condition, (value2) => {
                 encodeLocalNodeId(writer, value2);
+            });
+            writer.writeOption(value.increment, (value3) => {
+                encodeLocalNodeId(writer, value3);
             });
             encodeLocalNodeId(writer, value.body);
             return;
         case "loop":
-            writer.writeUnsigned(12);
+            writer.writeUnsigned(11);
+            writer.writeOption(value.label, (value0) => {
+                encodeStringId(writer, value0);
+            });
             encodeLocalNodeId(writer, value.body);
             return;
         case "try":
-            writer.writeUnsigned(13);
+            writer.writeUnsigned(12);
             encodeLocalNodeId(writer, value.body);
             writer.writeOption(value.catch, (value1) => {
                 encodeLocalNodeId(writer, value1);
@@ -1208,7 +1208,7 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             });
             return;
         case "match":
-            writer.writeUnsigned(14);
+            writer.writeUnsigned(13);
             encodeLocalNodeId(writer, value.value);
             writer.writeUnsigned(value.arms.length);
             for (const item1 of value.arms) {
@@ -1216,7 +1216,7 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             }
             return;
         case "switch":
-            writer.writeUnsigned(15);
+            writer.writeUnsigned(14);
             encodeLocalNodeId(writer, value.value);
             writer.writeUnsigned(value.cases.length);
             for (const item1 of value.cases) {
@@ -1224,7 +1224,7 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             }
             return;
         case "break":
-            writer.writeUnsigned(16);
+            writer.writeUnsigned(15);
             writer.writeOption(value.label, (value0) => {
                 encodeStringId(writer, value0);
             });
@@ -1233,58 +1233,58 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             });
             return;
         case "continue":
-            writer.writeUnsigned(17);
+            writer.writeUnsigned(16);
             writer.writeOption(value.label, (value0) => {
                 encodeStringId(writer, value0);
             });
             return;
         case "await":
-            writer.writeUnsigned(18);
+            writer.writeUnsigned(17);
             encodeLocalNodeId(writer, value.expression);
             return;
         case "awaitMaybe":
-            writer.writeUnsigned(19);
+            writer.writeUnsigned(18);
             encodeLocalNodeId(writer, value.expression);
             return;
         case "awaitMust":
-            writer.writeUnsigned(20);
+            writer.writeUnsigned(19);
             encodeLocalNodeId(writer, value.expression);
             return;
         case "yield":
-            writer.writeUnsigned(21);
+            writer.writeUnsigned(20);
             encodeYieldCardinality(writer, value.cardinality);
             writer.writeOption(value.value, (value1) => {
                 encodeLocalNodeId(writer, value1);
             });
             return;
         case "return":
-            writer.writeUnsigned(22);
+            writer.writeUnsigned(21);
             writer.writeOption(value.value, (value0) => {
                 encodeLocalNodeId(writer, value0);
             });
             return;
         case "identifier":
-            writer.writeUnsigned(23);
+            writer.writeUnsigned(22);
             encodeStringId(writer, value.name);
             return;
         case "this":
-            writer.writeUnsigned(24);
+            writer.writeUnsigned(23);
             return;
         case "super":
-            writer.writeUnsigned(25);
+            writer.writeUnsigned(24);
             return;
         case "importMeta":
-            writer.writeUnsigned(26);
+            writer.writeUnsigned(25);
             return;
         case "importSource":
-            writer.writeUnsigned(27);
+            writer.writeUnsigned(26);
             return;
         case "scalarLiteral":
-            writer.writeUnsigned(28);
+            writer.writeUnsigned(27);
             encodeScalarLiteral(writer, value.scalar_literal);
             return;
         case "rangeExpression":
-            writer.writeUnsigned(29);
+            writer.writeUnsigned(28);
             writer.writeOption(value.start, (value0) => {
                 encodeLocalNodeId(writer, value0);
             });
@@ -1294,11 +1294,11 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             encodeRangeEnd(writer, value.endKind);
             return;
         case "templateExpression":
-            writer.writeUnsigned(30);
+            writer.writeUnsigned(29);
             encodeTemplateLiteral(writer, value.value);
             return;
         case "taggedTemplateExpression":
-            writer.writeUnsigned(31);
+            writer.writeUnsigned(30);
             encodeLocalNodeId(writer, value.tag);
             writer.writeUnsigned(value.genericArguments.length);
             for (const item1 of value.genericArguments) {
@@ -1307,33 +1307,33 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             encodeTemplateLiteral(writer, value.value);
             return;
         case "arrayExpression":
-            writer.writeUnsigned(32);
+            writer.writeUnsigned(31);
             writer.writeUnsigned(value.elements.length);
             for (const item0 of value.elements) {
                 encodeLocalNodeId(writer, item0);
             }
             return;
         case "fixedArrayExpression":
-            writer.writeUnsigned(33);
+            writer.writeUnsigned(32);
             encodeLocalNodeId(writer, value.value);
             encodeLocalNodeId(writer, value.length);
             return;
         case "tupleExpression":
-            writer.writeUnsigned(34);
+            writer.writeUnsigned(33);
             writer.writeUnsigned(value.elements.length);
             for (const item0 of value.elements) {
                 encodeLocalNodeId(writer, item0);
             }
             return;
         case "objectExpression":
-            writer.writeUnsigned(35);
+            writer.writeUnsigned(34);
             writer.writeUnsigned(value.properties.length);
             for (const item0 of value.properties) {
                 encodeLocalNodeId(writer, item0);
             }
             return;
         case "structExpression":
-            writer.writeUnsigned(36);
+            writer.writeUnsigned(35);
             encodeLocalNodeId(writer, value.ty);
             writer.writeUnsigned(value.properties.length);
             for (const item1 of value.properties) {
@@ -1341,7 +1341,7 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             }
             return;
         case "treeExpression":
-            writer.writeUnsigned(37);
+            writer.writeUnsigned(36);
             writer.writeOption(value.left, (value0) => {
                 encodeLocalNodeId(writer, value0);
             });
@@ -1363,40 +1363,40 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             });
             return;
         case "type":
-            writer.writeUnsigned(38);
+            writer.writeUnsigned(37);
             encodeLocalNodeId(writer, value.value);
             return;
         case "comptime":
-            writer.writeUnsigned(39);
+            writer.writeUnsigned(38);
             encodeLocalNodeId(writer, value.body);
             return;
         case "as":
-            writer.writeUnsigned(40);
+            writer.writeUnsigned(39);
             encodeLocalNodeId(writer, value.expression);
             encodeLocalNodeId(writer, value.targetType);
             return;
         case "satisfies":
-            writer.writeUnsigned(41);
+            writer.writeUnsigned(40);
             encodeLocalNodeId(writer, value.expression);
             encodeLocalNodeId(writer, value.targetType);
             return;
         case "is":
-            writer.writeUnsigned(42);
+            writer.writeUnsigned(41);
             encodeLocalNodeId(writer, value.value);
             encodeLocalNodeId(writer, value.targetType);
             return;
         case "instanceOf":
-            writer.writeUnsigned(43);
+            writer.writeUnsigned(42);
             encodeLocalNodeId(writer, value.value);
             encodeLocalNodeId(writer, value.target);
             return;
         case "unary":
-            writer.writeUnsigned(44);
+            writer.writeUnsigned(43);
             encodeUnaryOperator(writer, value.operator);
             encodeLocalNodeId(writer, value.right);
             return;
         case "borrowOf":
-            writer.writeUnsigned(45);
+            writer.writeUnsigned(44);
             writer.writeOption(value.mutability, (value0) => {
                 encodeMutability(writer, value0);
             });
@@ -1406,7 +1406,7 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             encodeLocalNodeId(writer, value.right);
             return;
         case "member":
-            writer.writeUnsigned(46);
+            writer.writeUnsigned(45);
             encodeLocalNodeId(writer, value.left);
             writer.writeOption(value.name, (value1) => {
                 encodeStringId(writer, value1);
@@ -1414,7 +1414,7 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             writer.writeBool(value.isOptional);
             return;
         case "index":
-            writer.writeUnsigned(47);
+            writer.writeUnsigned(46);
             encodePostfixPosition(writer, value.position);
             encodeLocalNodeId(writer, value.left);
             writer.writeOption(value.index, (value2) => {
@@ -1423,7 +1423,7 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             writer.writeBool(value.isOptional);
             return;
         case "instantiation":
-            writer.writeUnsigned(48);
+            writer.writeUnsigned(47);
             encodeLocalNodeId(writer, value.left);
             writer.writeUnsigned(value.genericArguments.length);
             for (const item1 of value.genericArguments) {
@@ -1431,14 +1431,14 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             }
             return;
         case "infer":
-            writer.writeUnsigned(49);
+            writer.writeUnsigned(48);
             encodeInferForm(writer, value.form);
             writer.writeOption(value.name, (value1) => {
                 encodeStringId(writer, value1);
             });
             return;
         case "call":
-            writer.writeUnsigned(50);
+            writer.writeUnsigned(49);
             encodePostfixPosition(writer, value.position);
             encodeLocalNodeId(writer, value.left);
             writer.writeUnsigned(value.genericArguments.length);
@@ -1452,7 +1452,7 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             writer.writeBool(value.isOptional);
             return;
         case "new":
-            writer.writeUnsigned(51);
+            writer.writeUnsigned(50);
             encodeLocalNodeId(writer, value.ty);
             writer.writeUnsigned(value.arguments.length);
             for (const item1 of value.arguments) {
@@ -1460,39 +1460,39 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             }
             return;
         case "chain":
-            writer.writeUnsigned(52);
+            writer.writeUnsigned(51);
             encodeLocalNodeId(writer, value.expression);
             return;
         case "maybe":
-            writer.writeUnsigned(53);
+            writer.writeUnsigned(52);
             encodePostfixPosition(writer, value.position);
             encodeLocalNodeId(writer, value.left);
             return;
         case "must":
-            writer.writeUnsigned(54);
+            writer.writeUnsigned(53);
             encodePostfixPosition(writer, value.position);
             encodeLocalNodeId(writer, value.left);
             return;
         case "binary":
-            writer.writeUnsigned(55);
+            writer.writeUnsigned(54);
             encodeLocalNodeId(writer, value.left);
             encodeBinaryOperator(writer, value.operator);
             encodeLocalNodeId(writer, value.right);
             return;
         case "assign":
-            writer.writeUnsigned(56);
+            writer.writeUnsigned(55);
             encodeLocalNodeId(writer, value.left);
             encodeAssignOperator(writer, value.operator);
             encodeLocalNodeId(writer, value.right);
             return;
         case "debugger":
-            writer.writeUnsigned(57);
+            writer.writeUnsigned(56);
             return;
         case "missing":
-            writer.writeUnsigned(58);
+            writer.writeUnsigned(57);
             return;
         case "error":
-            writer.writeUnsigned(59);
+            writer.writeUnsigned(58);
             return;
     }
 
@@ -1515,16 +1515,6 @@ export function decodeExpression(reader: BinaryReader): Expression {
             return { kind: "block", block };
         }
         case 2: {
-            const label = decodeStringId(reader);
-            const body = decodeLocalNodeId(reader);
-
-            return {
-                kind: "label",
-                label,
-                body,
-            };
-        }
-        case 3: {
             const form = decodeDependencyForm(reader);
             const target = decodeStringId(reader);
             const items = reader.readOption(() => (() => { const length3 = reader.readNumber(); const items3: Array<LocalNodeId> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeLocalNodeId(reader)); } return items3; })());
@@ -1538,7 +1528,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 ...(attributes === undefined ? {} : { attributes }),
             };
         }
-        case 4: {
+        case 3: {
             const form = decodeDependencyForm(reader);
             const target = reader.readOption(() => decodeStringId(reader));
             const items = (() => { const length2 = reader.readNumber(); const items2: Array<LocalNodeId> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeLocalNodeId(reader)); } return items2; })();
@@ -1552,7 +1542,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 ...(attributes === undefined ? {} : { attributes }),
             };
         }
-        case 5: {
+        case 4: {
             const kindValue = decodeLetKind(reader);
             const export_ = reader.readOption(() => decodeExportKind(reader));
             const mutability = decodeMutability(reader);
@@ -1570,7 +1560,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 ...(place === undefined ? {} : { place }),
             };
         }
-        case 6: {
+        case 5: {
             const kindValue = decodeLetKind(reader);
             const mutability = decodeMutability(reader);
             const declarator = decodeLocalNodeId(reader);
@@ -1584,7 +1574,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 elseBranch,
             };
         }
-        case 7: {
+        case 6: {
             const asynchrony = decodeAsynchrony(reader);
             const export_ = reader.readOption(() => decodeExportKind(reader));
             const declarators = (() => { const length2 = reader.readNumber(); const items2: Array<LocalNodeId> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeLocalNodeId(reader)); } return items2; })();
@@ -1598,7 +1588,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 isAmbient,
             };
         }
-        case 8: {
+        case 7: {
             const form = decodeIfForm(reader);
             const condition = decodeCondition(reader);
             const thenExpression = decodeLocalNodeId(reader);
@@ -1612,19 +1602,22 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 ...(elseExpression === undefined ? {} : { elseExpression }),
             };
         }
-        case 9: {
+        case 8: {
+            const label = reader.readOption(() => decodeStringId(reader));
             const form = decodeWhileForm(reader);
             const condition = decodeLocalNodeId(reader);
             const body = decodeLocalNodeId(reader);
 
             return {
                 kind: "while",
+                ...(label === undefined ? {} : { label }),
                 form,
                 condition,
                 body,
             };
         }
-        case 10: {
+        case 9: {
+            const label = reader.readOption(() => decodeStringId(reader));
             const asynchrony = decodeAsynchrony(reader);
             const operator = decodeForEachOperator(reader);
             const binding = decodeForEachBinding(reader);
@@ -1633,6 +1626,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
 
             return {
                 kind: "forEach",
+                ...(label === undefined ? {} : { label }),
                 asynchrony,
                 operator,
                 binding,
@@ -1640,7 +1634,8 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 body,
             };
         }
-        case 11: {
+        case 10: {
+            const label = reader.readOption(() => decodeStringId(reader));
             const initialization = reader.readOption(() => decodeLocalNodeId(reader));
             const condition = reader.readOption(() => decodeLocalNodeId(reader));
             const increment = reader.readOption(() => decodeLocalNodeId(reader));
@@ -1648,21 +1643,24 @@ export function decodeExpression(reader: BinaryReader): Expression {
 
             return {
                 kind: "for",
+                ...(label === undefined ? {} : { label }),
                 ...(initialization === undefined ? {} : { initialization }),
                 ...(condition === undefined ? {} : { condition }),
                 ...(increment === undefined ? {} : { increment }),
                 body,
             };
         }
-        case 12: {
+        case 11: {
+            const label = reader.readOption(() => decodeStringId(reader));
             const body = decodeLocalNodeId(reader);
 
             return {
                 kind: "loop",
+                ...(label === undefined ? {} : { label }),
                 body,
             };
         }
-        case 13: {
+        case 12: {
             const body = decodeLocalNodeId(reader);
             const catch_ = reader.readOption(() => decodeLocalNodeId(reader));
             const finally_ = reader.readOption(() => decodeLocalNodeId(reader));
@@ -1674,7 +1672,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 ...(finally_ === undefined ? {} : { finally: finally_ }),
             };
         }
-        case 14: {
+        case 13: {
             const value = decodeLocalNodeId(reader);
             const arms = (() => { const length1 = reader.readNumber(); const items1: Array<LocalNodeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeLocalNodeId(reader)); } return items1; })();
 
@@ -1684,7 +1682,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 arms,
             };
         }
-        case 15: {
+        case 14: {
             const value = decodeLocalNodeId(reader);
             const cases = (() => { const length1 = reader.readNumber(); const items1: Array<LocalNodeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeLocalNodeId(reader)); } return items1; })();
 
@@ -1694,7 +1692,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 cases,
             };
         }
-        case 16: {
+        case 15: {
             const label = reader.readOption(() => decodeStringId(reader));
             const value = reader.readOption(() => decodeLocalNodeId(reader));
 
@@ -1704,7 +1702,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 ...(value === undefined ? {} : { value }),
             };
         }
-        case 17: {
+        case 16: {
             const label = reader.readOption(() => decodeStringId(reader));
 
             return {
@@ -1712,7 +1710,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 ...(label === undefined ? {} : { label }),
             };
         }
-        case 18: {
+        case 17: {
             const expression = decodeLocalNodeId(reader);
 
             return {
@@ -1720,7 +1718,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 expression,
             };
         }
-        case 19: {
+        case 18: {
             const expression = decodeLocalNodeId(reader);
 
             return {
@@ -1728,7 +1726,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 expression,
             };
         }
-        case 20: {
+        case 19: {
             const expression = decodeLocalNodeId(reader);
 
             return {
@@ -1736,7 +1734,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 expression,
             };
         }
-        case 21: {
+        case 20: {
             const cardinality = decodeYieldCardinality(reader);
             const value = reader.readOption(() => decodeLocalNodeId(reader));
 
@@ -1746,7 +1744,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 ...(value === undefined ? {} : { value }),
             };
         }
-        case 22: {
+        case 21: {
             const value = reader.readOption(() => decodeLocalNodeId(reader));
 
             return {
@@ -1754,7 +1752,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 ...(value === undefined ? {} : { value }),
             };
         }
-        case 23: {
+        case 22: {
             const name = decodeStringId(reader);
 
             return {
@@ -1762,24 +1760,24 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 name,
             };
         }
-        case 24: {
+        case 23: {
             return { kind: "this" };
         }
-        case 25: {
+        case 24: {
             return { kind: "super" };
         }
-        case 26: {
+        case 25: {
             return { kind: "importMeta" };
         }
-        case 27: {
+        case 26: {
             return { kind: "importSource" };
         }
-        case 28: {
+        case 27: {
             const scalar_literal = decodeScalarLiteral(reader);
 
             return { kind: "scalarLiteral", scalar_literal };
         }
-        case 29: {
+        case 28: {
             const start = reader.readOption(() => decodeLocalNodeId(reader));
             const end = reader.readOption(() => decodeLocalNodeId(reader));
             const endKind = decodeRangeEnd(reader);
@@ -1791,7 +1789,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 endKind,
             };
         }
-        case 30: {
+        case 29: {
             const value = decodeTemplateLiteral(reader);
 
             return {
@@ -1799,7 +1797,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 value,
             };
         }
-        case 31: {
+        case 30: {
             const tag = decodeLocalNodeId(reader);
             const genericArguments = (() => { const length1 = reader.readNumber(); const items1: Array<LocalNodeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeLocalNodeId(reader)); } return items1; })();
             const value = decodeTemplateLiteral(reader);
@@ -1811,7 +1809,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 value,
             };
         }
-        case 32: {
+        case 31: {
             const elements = (() => { const length0 = reader.readNumber(); const items0: Array<LocalNodeId> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeLocalNodeId(reader)); } return items0; })();
 
             return {
@@ -1819,7 +1817,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 elements,
             };
         }
-        case 33: {
+        case 32: {
             const value = decodeLocalNodeId(reader);
             const length = decodeLocalNodeId(reader);
 
@@ -1829,7 +1827,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 length,
             };
         }
-        case 34: {
+        case 33: {
             const elements = (() => { const length0 = reader.readNumber(); const items0: Array<LocalNodeId> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeLocalNodeId(reader)); } return items0; })();
 
             return {
@@ -1837,7 +1835,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 elements,
             };
         }
-        case 35: {
+        case 34: {
             const properties = (() => { const length0 = reader.readNumber(); const items0: Array<LocalNodeId> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeLocalNodeId(reader)); } return items0; })();
 
             return {
@@ -1845,7 +1843,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 properties,
             };
         }
-        case 36: {
+        case 35: {
             const ty = decodeLocalNodeId(reader);
             const properties = (() => { const length1 = reader.readNumber(); const items1: Array<LocalNodeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeLocalNodeId(reader)); } return items1; })();
 
@@ -1855,7 +1853,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 properties,
             };
         }
-        case 37: {
+        case 36: {
             const left = reader.readOption(() => decodeLocalNodeId(reader));
             const genericArguments = (() => { const length1 = reader.readNumber(); const items1: Array<LocalNodeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeLocalNodeId(reader)); } return items1; })();
             const attributes = reader.readOption(() => (() => { const length3 = reader.readNumber(); const items3: Array<LocalNodeId> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeLocalNodeId(reader)); } return items3; })());
@@ -1869,7 +1867,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 ...(children === undefined ? {} : { children }),
             };
         }
-        case 38: {
+        case 37: {
             const value = decodeLocalNodeId(reader);
 
             return {
@@ -1877,7 +1875,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 value,
             };
         }
-        case 39: {
+        case 38: {
             const body = decodeLocalNodeId(reader);
 
             return {
@@ -1885,7 +1883,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 body,
             };
         }
-        case 40: {
+        case 39: {
             const expression = decodeLocalNodeId(reader);
             const targetType = decodeLocalNodeId(reader);
 
@@ -1895,7 +1893,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 targetType,
             };
         }
-        case 41: {
+        case 40: {
             const expression = decodeLocalNodeId(reader);
             const targetType = decodeLocalNodeId(reader);
 
@@ -1905,7 +1903,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 targetType,
             };
         }
-        case 42: {
+        case 41: {
             const value = decodeLocalNodeId(reader);
             const targetType = decodeLocalNodeId(reader);
 
@@ -1915,7 +1913,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 targetType,
             };
         }
-        case 43: {
+        case 42: {
             const value = decodeLocalNodeId(reader);
             const target = decodeLocalNodeId(reader);
 
@@ -1925,7 +1923,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 target,
             };
         }
-        case 44: {
+        case 43: {
             const operator = decodeUnaryOperator(reader);
             const right = decodeLocalNodeId(reader);
 
@@ -1935,7 +1933,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 right,
             };
         }
-        case 45: {
+        case 44: {
             const mutability = reader.readOption(() => decodeMutability(reader));
             const variance = reader.readOption(() => decodeVarianceBound(reader));
             const right = decodeLocalNodeId(reader);
@@ -1947,7 +1945,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 right,
             };
         }
-        case 46: {
+        case 45: {
             const left = decodeLocalNodeId(reader);
             const name = reader.readOption(() => decodeStringId(reader));
             const isOptional = reader.readBool();
@@ -1959,7 +1957,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 isOptional,
             };
         }
-        case 47: {
+        case 46: {
             const position = decodePostfixPosition(reader);
             const left = decodeLocalNodeId(reader);
             const index = reader.readOption(() => decodeLocalNodeId(reader));
@@ -1973,7 +1971,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 isOptional,
             };
         }
-        case 48: {
+        case 47: {
             const left = decodeLocalNodeId(reader);
             const genericArguments = (() => { const length1 = reader.readNumber(); const items1: Array<LocalNodeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeLocalNodeId(reader)); } return items1; })();
 
@@ -1983,7 +1981,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 genericArguments,
             };
         }
-        case 49: {
+        case 48: {
             const form = decodeInferForm(reader);
             const name = reader.readOption(() => decodeStringId(reader));
 
@@ -1993,7 +1991,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 ...(name === undefined ? {} : { name }),
             };
         }
-        case 50: {
+        case 49: {
             const position = decodePostfixPosition(reader);
             const left = decodeLocalNodeId(reader);
             const genericArguments = (() => { const length2 = reader.readNumber(); const items2: Array<LocalNodeId> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeLocalNodeId(reader)); } return items2; })();
@@ -2009,7 +2007,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 isOptional,
             };
         }
-        case 51: {
+        case 50: {
             const ty = decodeLocalNodeId(reader);
             const arguments_ = (() => { const length1 = reader.readNumber(); const items1: Array<LocalNodeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeLocalNodeId(reader)); } return items1; })();
 
@@ -2019,7 +2017,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 arguments: arguments_,
             };
         }
-        case 52: {
+        case 51: {
             const expression = decodeLocalNodeId(reader);
 
             return {
@@ -2027,7 +2025,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 expression,
             };
         }
-        case 53: {
+        case 52: {
             const position = decodePostfixPosition(reader);
             const left = decodeLocalNodeId(reader);
 
@@ -2037,7 +2035,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 left,
             };
         }
-        case 54: {
+        case 53: {
             const position = decodePostfixPosition(reader);
             const left = decodeLocalNodeId(reader);
 
@@ -2047,7 +2045,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 left,
             };
         }
-        case 55: {
+        case 54: {
             const left = decodeLocalNodeId(reader);
             const operator = decodeBinaryOperator(reader);
             const right = decodeLocalNodeId(reader);
@@ -2059,7 +2057,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 right,
             };
         }
-        case 56: {
+        case 55: {
             const left = decodeLocalNodeId(reader);
             const operator = decodeAssignOperator(reader);
             const right = decodeLocalNodeId(reader);
@@ -2071,13 +2069,13 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 right,
             };
         }
-        case 57: {
+        case 56: {
             return { kind: "debugger" };
         }
-        case 58: {
+        case 57: {
             return { kind: "missing" };
         }
-        case 59: {
+        case 58: {
             return { kind: "error" };
         }
     }
@@ -2097,12 +2095,6 @@ export function toJsonExpression(value: Expression): Json {
             return {
                 kind: "block",
                 block: toJsonLocalNodeId(value.block),
-            };
-        case "label":
-            return {
-                kind: "label",
-                label: toJsonStringId(value.label),
-                body: toJsonLocalNodeId(value.body),
             };
         case "import":
             return {
@@ -2157,6 +2149,7 @@ export function toJsonExpression(value: Expression): Json {
         case "while":
             return {
                 kind: "while",
+                ...(value.label === undefined ? {} : { label: toJsonStringId(value.label) }),
                 form: toJsonWhileForm(value.form),
                 condition: toJsonLocalNodeId(value.condition),
                 body: toJsonLocalNodeId(value.body),
@@ -2164,6 +2157,7 @@ export function toJsonExpression(value: Expression): Json {
         case "forEach":
             return {
                 kind: "forEach",
+                ...(value.label === undefined ? {} : { label: toJsonStringId(value.label) }),
                 asynchrony: toJsonAsynchrony(value.asynchrony),
                 operator: toJsonForEachOperator(value.operator),
                 binding: toJsonForEachBinding(value.binding),
@@ -2173,6 +2167,7 @@ export function toJsonExpression(value: Expression): Json {
         case "for":
             return {
                 kind: "for",
+                ...(value.label === undefined ? {} : { label: toJsonStringId(value.label) }),
                 ...(value.initialization === undefined ? {} : { initialization: toJsonLocalNodeId(value.initialization) }),
                 ...(value.condition === undefined ? {} : { condition: toJsonLocalNodeId(value.condition) }),
                 ...(value.increment === undefined ? {} : { increment: toJsonLocalNodeId(value.increment) }),
@@ -2181,6 +2176,7 @@ export function toJsonExpression(value: Expression): Json {
         case "loop":
             return {
                 kind: "loop",
+                ...(value.label === undefined ? {} : { label: toJsonStringId(value.label) }),
                 body: toJsonLocalNodeId(value.body),
             };
         case "try":
@@ -2472,12 +2468,6 @@ export function fromJsonExpression(value: Json): Expression {
                 kind,
                 block: fromJsonLocalNodeId(jsonField(object, "block")),
             };
-        case "label":
-            return {
-                kind,
-                label: fromJsonStringId(jsonField(object, "label")),
-                body: fromJsonLocalNodeId(jsonField(object, "body")),
-            };
         case "import":
             return {
                 kind,
@@ -2531,6 +2521,7 @@ export function fromJsonExpression(value: Json): Expression {
         case "while":
             return {
                 kind,
+                label: jsonOptional(object, "label", (value) => fromJsonStringId(value)),
                 form: fromJsonWhileForm(jsonField(object, "form")),
                 condition: fromJsonLocalNodeId(jsonField(object, "condition")),
                 body: fromJsonLocalNodeId(jsonField(object, "body")),
@@ -2538,6 +2529,7 @@ export function fromJsonExpression(value: Json): Expression {
         case "forEach":
             return {
                 kind,
+                label: jsonOptional(object, "label", (value) => fromJsonStringId(value)),
                 asynchrony: fromJsonAsynchrony(jsonField(object, "asynchrony")),
                 operator: fromJsonForEachOperator(jsonField(object, "operator")),
                 binding: fromJsonForEachBinding(jsonField(object, "binding")),
@@ -2547,6 +2539,7 @@ export function fromJsonExpression(value: Json): Expression {
         case "for":
             return {
                 kind,
+                label: jsonOptional(object, "label", (value) => fromJsonStringId(value)),
                 initialization: jsonOptional(object, "initialization", (value) => fromJsonLocalNodeId(value)),
                 condition: jsonOptional(object, "condition", (value) => fromJsonLocalNodeId(value)),
                 increment: jsonOptional(object, "increment", (value) => fromJsonLocalNodeId(value)),
@@ -2555,6 +2548,7 @@ export function fromJsonExpression(value: Json): Expression {
         case "loop":
             return {
                 kind,
+                label: jsonOptional(object, "label", (value) => fromJsonStringId(value)),
                 body: fromJsonLocalNodeId(jsonField(object, "body")),
             };
         case "try":
