@@ -43,7 +43,7 @@ pub(crate) enum TypeIndexKey {
 }
 
 impl Tree {
-    /// Find one equal structural type.
+    /// Find one type equal by structure.
     pub fn find_type(&self, ty: &Type) -> Option<TypeId> {
         let hash = intern_hash(ty);
         let key = TypeIndexKey::Structural(hash);
@@ -52,7 +52,7 @@ impl Tree {
         ids.iter().copied().find(|id| self.get(*id) == ty)
     }
 
-    /// Intern one structural type.
+    /// Intern one type by structure.
     pub fn intern_type(&mut self, ty: Type) -> TypeId {
         // reuse an equal structural type
         let hash = intern_hash(&ty);
@@ -123,11 +123,15 @@ impl Tree {
         let TypeEntry::Reserved { symbol } = entry else {
             panic!("defined MIR type {id:?} twice or without reserving it");
         };
+        let structural = TypeIndexKey::Structural(intern_hash(&ty));
         *entry = TypeEntry::Identified {
             ty,
             symbol: *symbol,
             declaration: None,
         };
+
+        // index the defined content structurally, so an equal unrolling reuses it
+        self.type_index.entry(structural).or_default().push(id);
     }
 
     /// Insert one declaration for a completely defined identified type.

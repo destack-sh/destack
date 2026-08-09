@@ -47,6 +47,52 @@ impl Tree {
         key
     }
 
+    /// Return whether two type graphs are equal, cycles included.
+    ///
+    /// A revisited pair holds by assumption, so unrolled and rolled
+    /// spellings of one recursive type compare equal.
+    pub fn types_equal(&self, left: TypeId, right: TypeId) -> bool {
+        let mut assumed = FxIndexMap::default();
+
+        self.types_equal_assuming(left, right, &mut assumed)
+    }
+
+    /// Compare two type graphs under an assumption set.
+    fn types_equal_assuming(
+        &self,
+        left: TypeId,
+        right: TypeId,
+        assumed: &mut FxIndexMap<(TypeId, TypeId), ()>,
+    ) -> bool {
+        if left == right {
+            return true;
+        }
+        if assumed.insert((left, right), ()).is_some() {
+            return true;
+        }
+
+        // compare the nodes shallowly with their children masked out
+        let mut left_row = self.get(left).clone();
+        let mut right_row = self.get(right).clone();
+        left_row.map_child_type_ids(&mut |_| left);
+        right_row.map_child_type_ids(&mut |_| left);
+        if left_row != right_row {
+            return false;
+        }
+
+        // recurse into the paired children
+        let left_children = self.child_type_ids(left);
+        let right_children = self.child_type_ids(right);
+        if left_children.len() != right_children.len() {
+            return false;
+        }
+
+        left_children
+            .into_iter()
+            .zip(right_children)
+            .all(|(left, right)| self.types_equal_assuming(left, right, assumed))
+    }
+
     /// Collect every type reachable from one node through child edges.
     fn collect_reachable(&self, root: TypeId, visited: &mut FxIndexMap<TypeId, ()>) {
         let mut queue = vec![root];
