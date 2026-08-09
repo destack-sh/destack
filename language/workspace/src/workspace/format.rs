@@ -5,9 +5,9 @@ use destack_formatter::{format_source, format_source_range};
 use destack_repository::{FormatterOptions, Revision};
 use destack_source::{DiagnosticSeverity, File, Patch, Span, TextRange};
 
-use crate::diagnostic::Error;
+use crate::Error;
 
-use super::LocalWorkspace;
+use super::Workspace;
 
 /// One patch over an exact source file.
 #[derive(Debug, Clone)]
@@ -18,22 +18,17 @@ pub struct FileEdit {
     pub patch: Patch,
 }
 
-impl LocalWorkspace {
+impl Workspace {
     /// Format one source file or selected text range.
     pub fn format_file(
         &self,
-        root: &Path,
         path: PathBuf,
         range: Option<TextRange>,
     ) -> Result<Option<FileEdit>, Error> {
-        // require the requested path to belong to the requested root
-        let owning_root = self.root_at(&path)?;
-        if owning_root != root {
-            return Err(Error::PathNotInRoot { path });
-        }
+        let path = self.resolve_path(&path)?;
 
         // read the file and formatter options from one revision
-        let session = self.pin_workspace(root)?;
+        let session = self.pin()?;
         let Some(file_id) = session.file_id(&path)? else {
             return Ok(None);
         };

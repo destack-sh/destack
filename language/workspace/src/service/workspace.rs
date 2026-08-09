@@ -1,91 +1,27 @@
-use std::future::Future;
 use std::sync::Arc;
 
 use destack_artifact::ArtifactPayload;
-use destack_repository::Revision;
-use destack_rpc::{Code, Request, Response, ResponseSender, Status};
+use destack_repository::{Commit, Revision};
+use destack_rpc::{Request, Response, ResponseSender, Status};
 use destack_source::{Content, ContentId};
 use futures::{FutureExt, pin_mut, select_biased};
 
 use super::*;
 use crate::{
-    BenchOutput, BuildOutput, CacheOutput, CheckOutput, CleanOutput, CommandError, CommandProgress,
-    Commit, DiagnosticsRequest, DocOutput, DoctorOutput, ExportResult, FileImage, FormatOutput,
-    InfoOutput, ProgressEvent, ProgressEvents, QueryOutput, RewriteOutput, RunOutput,
-    RunQueryResponse, SettingsOutput, TargetsOutput, TaskOutput, TestOutput, WatchEvent, Workspace,
+    BenchOutput, BuildOutput, CacheOutput, CheckOutput, CleanOutput, CommandProgress, DocOutput,
+    DoctorOutput, ExportResult, FileImage, FormatOutput, InfoOutput, ProgressEvent, QueryOutput,
+    RewriteOutput, RunOutput, RunQueryResponse, SettingsOutput, TargetsOutput, TaskOutput,
+    TestOutput, WatchEvent, Workspace,
 };
 
-/// Workspace shared by one or more RPC clients.
-#[derive(Debug)]
-pub struct SharedWorkspace {
-    /// Workspace implementation.
-    workspace: Arc<dyn Workspace>,
-}
-
-impl SharedWorkspace {
-    /// Create one shared RPC workspace.
-    pub fn new(workspace: Arc<dyn Workspace>) -> Self {
-        Self { workspace }
-    }
-
-    /// Execute one command while forwarding bounded progress events.
-    async fn forward_command<T>(
-        mut responses: ResponseSender<ProgressEvent>,
-        command: impl Future<Output = Result<T, CommandError>> + Send,
-        mut events: ProgressEvents,
-    ) -> Result<Response<T>, Status> {
-        let command = command.fuse();
-        pin_mut!(command);
-
-        loop {
-            // wait for cancellation, command completion, or the next progress event
-            let event = {
-                let canceled = responses.canceled().fuse();
-                let event = events.receive().fuse();
-                pin_mut!(canceled, event);
-
-                select_biased! {
-                    _ = canceled => {
-                        return Err(Status::new(Code::Canceled, "RPC call was canceled"));
-                    },
-                    output = command => {
-                        return output.map(Response::new).map_err(Status::from);
-                    },
-                    event = event => event,
-                }
-            };
-            let Some(event) = event else {
-                return command.await.map(Response::new).map_err(Status::from);
-            };
-
-            // preserve RPC stream backpressure between progress events
-            responses
-                .send(&event)
-                .await
-                .map_err(|error| error.into_status())?;
-        }
-    }
-}
-
-impl WorkspaceService for SharedWorkspace {
-    /// Open one workspace root.
-    async fn open_root(
-        &self,
-        request: Request<OpenRootRequest>,
-    ) -> Result<Response<OpenRootResponse>, Status> {
-        let root = self.workspace.canonicalize(&request.value.root)?;
-        self.workspace.open(root.clone())?;
-        let revision = self.workspace.revision(&root)?;
-
-        Ok(Response::new(OpenRootResponse { root, revision }))
-    }
-
+impl WorkspaceService for Arc<Workspace> {
     /// Reload one workspace root from its host.
     async fn reload(
         &self,
         request: Request<ReloadRequest>,
     ) -> Result<Response<Option<Commit>>, Status> {
-        let commit = self.workspace.reload(&request.value.root)?;
+        self.resolve_root(&request.value.root)?;
+        let commit = Workspace::reload(self.as_ref())?;
 
         Ok(Response::new(commit))
     }
@@ -95,7 +31,8 @@ impl WorkspaceService for SharedWorkspace {
         &self,
         request: Request<ReadRevisionRequest>,
     ) -> Result<Response<Revision>, Status> {
-        let revision = self.workspace.revision(&request.value.root)?;
+        self.resolve_root(&request.value.root)?;
+        let revision = Workspace::revision(self.as_ref())?;
 
         Ok(Response::new(revision))
     }
@@ -106,7 +43,8 @@ impl WorkspaceService for SharedWorkspace {
         request: Request<ApplyFileOperationRequest>,
     ) -> Result<Response<Option<Commit>>, Status> {
         let request = request.value;
-        let commit = self.workspace.file(&request.root, request.operation)?;
+        self.resolve_root(&request.root)?;
+        let commit = Workspace::apply_file_operation(self.as_ref(), request.operation)?;
 
         Ok(Response::new(commit))
     }
@@ -117,7 +55,8 @@ impl WorkspaceService for SharedWorkspace {
         request: Request<ApplySourceUpdateRequest>,
     ) -> Result<Response<Commit>, Status> {
         let request = request.value;
-        let commit = self.workspace.edit(&request.root, request.update)?;
+        self.resolve_root(&request.root)?;
+        let commit = Workspace::edit(self.as_ref(), request.update)?;
 
         Ok(Response::new(commit))
     }
@@ -128,7 +67,8 @@ impl WorkspaceService for SharedWorkspace {
         request: Request<IsFileOpenRequest>,
     ) -> Result<Response<bool>, Status> {
         let request = request.value;
-        let is_open = self.workspace.is_file_open(&request.root, &request.path)?;
+        self.resolve_root(&request.root)?;
+        let is_open = Workspace::is_file_open(self.as_ref(), &request.path)?;
 
         Ok(Response::new(is_open))
     }
@@ -139,9 +79,8 @@ impl WorkspaceService for SharedWorkspace {
         request: Request<FormatFileRequest>,
     ) -> Result<Response<Option<FileEditResponse>>, Status> {
         let request = request.value;
-        let edit = self
-            .workspace
-            .format_file(&request.root, request.path, request.range)?;
+        self.resolve_root(&request.root)?;
+        let edit = Workspace::format_file(self.as_ref(), request.path, request.range)?;
         let edit = edit.as_ref().map(FileEditResponse::from);
 
         Ok(Response::new(edit))
@@ -153,9 +92,8 @@ impl WorkspaceService for SharedWorkspace {
         request: Request<ReadFilesRequest>,
     ) -> Result<Response<Vec<FileImage>>, Status> {
         let request = request.value;
-        let files = self
-            .workspace
-            .read_files(&request.root, request.revision, request.file_ids)?;
+        self.resolve_root(&request.root)?;
+        let files = Workspace::read_files(self.as_ref(), request.revision, request.file_ids)?;
         let files = files
             .iter()
             .map(|file| FileImage::from(file.as_ref()))
@@ -171,12 +109,11 @@ impl WorkspaceService for SharedWorkspace {
         responses: ResponseSender<ProgressEvent>,
     ) -> Result<Response<CheckOutput>, Status> {
         let request = request.value;
+        self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = self
-            .workspace
-            .check(&request.root, request.input, Some(progress));
+        let command = Workspace::check(self.as_ref(), request.input, Some(progress));
 
-        Self::forward_command(responses, command, events).await
+        events.forward(responses, command).await
     }
 
     /// Format source files or content.
@@ -186,12 +123,11 @@ impl WorkspaceService for SharedWorkspace {
         responses: ResponseSender<ProgressEvent>,
     ) -> Result<Response<FormatOutput>, Status> {
         let request = request.value;
+        self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = self
-            .workspace
-            .format(&request.root, request.input, Some(progress));
+        let command = Workspace::format(self.as_ref(), request.input, Some(progress));
 
-        Self::forward_command(responses, command, events).await
+        events.forward(responses, command).await
     }
 
     /// Query source files with one structural pattern.
@@ -201,12 +137,11 @@ impl WorkspaceService for SharedWorkspace {
         responses: ResponseSender<ProgressEvent>,
     ) -> Result<Response<QueryOutput>, Status> {
         let request = request.value;
+        self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = self
-            .workspace
-            .query(&request.root, request.input, Some(progress));
+        let command = Workspace::query(self.as_ref(), request.input, Some(progress));
 
-        Self::forward_command(responses, command, events).await
+        events.forward(responses, command).await
     }
 
     /// Rewrite source files with one structural pattern.
@@ -216,12 +151,11 @@ impl WorkspaceService for SharedWorkspace {
         responses: ResponseSender<ProgressEvent>,
     ) -> Result<Response<RewriteOutput>, Status> {
         let request = request.value;
+        self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = self
-            .workspace
-            .rewrite(&request.root, request.input, Some(progress));
+        let command = Workspace::rewrite(self.as_ref(), request.input, Some(progress));
 
-        Self::forward_command(responses, command, events).await
+        events.forward(responses, command).await
     }
 
     /// Build target artifacts.
@@ -231,12 +165,11 @@ impl WorkspaceService for SharedWorkspace {
         responses: ResponseSender<ProgressEvent>,
     ) -> Result<Response<BuildOutput>, Status> {
         let request = request.value;
+        self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = self
-            .workspace
-            .build(&request.root, request.input, Some(progress));
+        let command = Workspace::build(self.as_ref(), request.input, Some(progress));
 
-        Self::forward_command(responses, command, events).await
+        events.forward(responses, command).await
     }
 
     /// Run one workspace target.
@@ -246,12 +179,11 @@ impl WorkspaceService for SharedWorkspace {
         responses: ResponseSender<ProgressEvent>,
     ) -> Result<Response<RunOutput>, Status> {
         let request = request.value;
+        self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = self
-            .workspace
-            .run(&request.root, request.input, Some(progress));
+        let command = Workspace::run(self.as_ref(), request.input, Some(progress));
 
-        Self::forward_command(responses, command, events).await
+        events.forward(responses, command).await
     }
 
     /// Run workspace tests.
@@ -261,12 +193,11 @@ impl WorkspaceService for SharedWorkspace {
         responses: ResponseSender<ProgressEvent>,
     ) -> Result<Response<TestOutput>, Status> {
         let request = request.value;
+        self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = self
-            .workspace
-            .test(&request.root, request.input, Some(progress));
+        let command = Workspace::test(self.as_ref(), request.input, Some(progress));
 
-        Self::forward_command(responses, command, events).await
+        events.forward(responses, command).await
     }
 
     /// Generate workspace documentation.
@@ -276,12 +207,11 @@ impl WorkspaceService for SharedWorkspace {
         responses: ResponseSender<ProgressEvent>,
     ) -> Result<Response<DocOutput>, Status> {
         let request = request.value;
+        self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = self
-            .workspace
-            .doc(&request.root, request.input, Some(progress));
+        let command = Workspace::doc(self.as_ref(), request.input, Some(progress));
 
-        Self::forward_command(responses, command, events).await
+        events.forward(responses, command).await
     }
 
     /// Run workspace benchmarks.
@@ -291,12 +221,11 @@ impl WorkspaceService for SharedWorkspace {
         responses: ResponseSender<ProgressEvent>,
     ) -> Result<Response<BenchOutput>, Status> {
         let request = request.value;
+        self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = self
-            .workspace
-            .bench(&request.root, request.input, Some(progress));
+        let command = Workspace::bench(self.as_ref(), request.input, Some(progress));
 
-        Self::forward_command(responses, command, events).await
+        events.forward(responses, command).await
     }
 
     /// Return workspace information.
@@ -306,12 +235,11 @@ impl WorkspaceService for SharedWorkspace {
         responses: ResponseSender<ProgressEvent>,
     ) -> Result<Response<InfoOutput>, Status> {
         let request = request.value;
+        self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = self
-            .workspace
-            .info(&request.root, request.input, Some(progress));
+        let command = Workspace::info(self.as_ref(), request.input, Some(progress));
 
-        Self::forward_command(responses, command, events).await
+        events.forward(responses, command).await
     }
 
     /// Return configured targets.
@@ -321,12 +249,11 @@ impl WorkspaceService for SharedWorkspace {
         responses: ResponseSender<ProgressEvent>,
     ) -> Result<Response<TargetsOutput>, Status> {
         let request = request.value;
+        self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = self
-            .workspace
-            .targets(&request.root, request.input, Some(progress));
+        let command = Workspace::targets(self.as_ref(), request.input, Some(progress));
 
-        Self::forward_command(responses, command, events).await
+        events.forward(responses, command).await
     }
 
     /// Return cache locations.
@@ -336,12 +263,11 @@ impl WorkspaceService for SharedWorkspace {
         responses: ResponseSender<ProgressEvent>,
     ) -> Result<Response<CacheOutput>, Status> {
         let request = request.value;
+        self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = self
-            .workspace
-            .cache(&request.root, request.input, Some(progress));
+        let command = Workspace::cache(self.as_ref(), request.input, Some(progress));
 
-        Self::forward_command(responses, command, events).await
+        events.forward(responses, command).await
     }
 
     /// Return resolved settings.
@@ -351,12 +277,11 @@ impl WorkspaceService for SharedWorkspace {
         responses: ResponseSender<ProgressEvent>,
     ) -> Result<Response<SettingsOutput>, Status> {
         let request = request.value;
+        self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = self
-            .workspace
-            .settings(&request.root, request.input, Some(progress));
+        let command = Workspace::settings(self.as_ref(), request.input, Some(progress));
 
-        Self::forward_command(responses, command, events).await
+        events.forward(responses, command).await
     }
 
     /// Diagnose workspace configuration and state.
@@ -366,12 +291,11 @@ impl WorkspaceService for SharedWorkspace {
         responses: ResponseSender<ProgressEvent>,
     ) -> Result<Response<DoctorOutput>, Status> {
         let request = request.value;
+        self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = self
-            .workspace
-            .doctor(&request.root, request.input, Some(progress));
+        let command = Workspace::doctor(self.as_ref(), request.input, Some(progress));
 
-        Self::forward_command(responses, command, events).await
+        events.forward(responses, command).await
     }
 
     /// Execute configured workspace tasks.
@@ -381,12 +305,11 @@ impl WorkspaceService for SharedWorkspace {
         responses: ResponseSender<ProgressEvent>,
     ) -> Result<Response<TaskOutput>, Status> {
         let request = request.value;
+        self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = self
-            .workspace
-            .task(&request.root, request.input, Some(progress));
+        let command = Workspace::task(self.as_ref(), request.input, Some(progress));
 
-        Self::forward_command(responses, command, events).await
+        events.forward(responses, command).await
     }
 
     /// Clean generated workspace state.
@@ -396,12 +319,11 @@ impl WorkspaceService for SharedWorkspace {
         responses: ResponseSender<ProgressEvent>,
     ) -> Result<Response<CleanOutput>, Status> {
         let request = request.value;
+        self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
-        let command = self
-            .workspace
-            .clean(&request.root, request.input, Some(progress));
+        let command = Workspace::clean(self.as_ref(), request.input, Some(progress));
 
-        Self::forward_command(responses, command, events).await
+        events.forward(responses, command).await
     }
 
     /// Read one exact artifact payload.
@@ -410,21 +332,26 @@ impl WorkspaceService for SharedWorkspace {
         request: Request<ArtifactRequest>,
     ) -> Result<Response<ArtifactPayload>, Status> {
         let request = request.value;
-        let artifact = self.workspace.artifact(&request.root, request.artifact)?;
+        self.resolve_root(&request.root)?;
+        let artifact = Workspace::artifact(self.as_ref(), request.artifact)?;
 
         Ok(Response::new(artifact))
     }
 
     /// Store one content value.
     async fn store(&self, request: Request<StoreRequest>) -> Result<Response<ContentId>, Status> {
-        let content = self.workspace.store(request.value.content)?;
+        let request = request.value;
+        self.resolve_root(&request.root)?;
+        let content = Workspace::store(self.as_ref(), request.content)?;
 
         Ok(Response::new(content))
     }
 
     /// Load one content value.
     async fn load(&self, request: Request<LoadRequest>) -> Result<Response<Content>, Status> {
-        let content = self.workspace.load(request.value.content)?;
+        let request = request.value;
+        self.resolve_root(&request.root)?;
+        let content = Workspace::load(self.as_ref(), request.content)?;
 
         Ok(Response::new(content))
     }
@@ -435,7 +362,8 @@ impl WorkspaceService for SharedWorkspace {
         request: Request<ExportRequest>,
     ) -> Result<Response<ExportResult>, Status> {
         let request = request.value;
-        let result = self.workspace.export(&request.root, request.input)?;
+        self.resolve_root(&request.root)?;
+        let result = Workspace::export(self.as_ref(), request.input)?;
 
         Ok(Response::new(result))
     }
@@ -443,9 +371,11 @@ impl WorkspaceService for SharedWorkspace {
     /// Read exact diagnostics.
     async fn diagnose(
         &self,
-        request: Request<DiagnosticsRequest>,
+        request: Request<DiagnoseRequest>,
     ) -> Result<Response<Vec<FileDiagnosticsResponse>>, Status> {
-        let diagnostics = self.workspace.diagnose(request.value).await?;
+        let request = request.value;
+        self.resolve_root(&request.root)?;
+        let diagnostics = Workspace::diagnose(self.as_ref(), request.request).await?;
         let diagnostics = diagnostics
             .iter()
             .map(FileDiagnosticsResponse::from)
@@ -460,9 +390,8 @@ impl WorkspaceService for SharedWorkspace {
         request: Request<ResolveQueryFileRequest>,
     ) -> Result<Response<Option<QueryFileResponse>>, Status> {
         let request = request.value;
-        let file = self
-            .workspace
-            .resolve_query_file(&request.root, request.path)?;
+        self.resolve_root(&request.root)?;
+        let file = Workspace::resolve_query_file(self.as_ref(), request.path)?;
         let file = file.as_ref().map(QueryFileResponse::from);
 
         Ok(Response::new(file))
@@ -474,10 +403,8 @@ impl WorkspaceService for SharedWorkspace {
         request: Request<RunQueryRequest>,
     ) -> Result<Response<RunQueryResponse>, Status> {
         let request = request.value;
-        let response = self
-            .workspace
-            .run_query(&request.root, request.input)
-            .await?;
+        self.resolve_root(&request.root)?;
+        let response = Workspace::run_query(self.as_ref(), request.input).await?;
 
         Ok(Response::new(response))
     }
@@ -488,7 +415,8 @@ impl WorkspaceService for SharedWorkspace {
         request: Request<WatchRequest>,
         mut responses: ResponseSender<WatchEvent>,
     ) -> Result<Response<()>, Status> {
-        let mut watch = self.workspace.watch(&request.value.root)?;
+        self.resolve_root(&request.value.root)?;
+        let mut watch = Workspace::watch(self.as_ref())?;
 
         loop {
             // wait for cancellation or the next committed change

@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::{ArtifactKey, IndexKind};
@@ -7,15 +7,15 @@ use destack_repository::{Package, Repository, RepositoryError, Revision, Revisio
 use destack_session::{Session, SessionError};
 use destack_source::{File, FileId, ModuleId, ProfileId, TargetId};
 
-use crate::diagnostic::Error;
+use crate::Error;
 
-use super::{LocalWorkspace, WorkspaceRoot};
+use super::Workspace;
 
 /// Pinned workspace state at one immutable repository revision.
 #[derive(Debug)]
 pub(crate) struct WorkspacePin {
-    /// The opened workspace root.
-    root: Arc<WorkspaceRoot>,
+    /// The canonical workspace root.
+    root: PathBuf,
     /// The shared computation session.
     session: Arc<Session>,
     /// The retained repository revision.
@@ -24,11 +24,7 @@ pub(crate) struct WorkspacePin {
 
 impl WorkspacePin {
     /// Create one workspace pin.
-    pub(crate) fn new(
-        root: Arc<WorkspaceRoot>,
-        session: Arc<Session>,
-        revision: RevisionPin,
-    ) -> Self {
+    pub(crate) fn new(root: PathBuf, session: Arc<Session>, revision: RevisionPin) -> Self {
         Self {
             root,
             session,
@@ -53,7 +49,16 @@ impl WorkspacePin {
 
     /// Return one tracked file id for a path in this revision.
     pub(crate) fn file_id(&self, path: &Path) -> Result<Option<FileId>, Error> {
-        let file_id = self.root.file_id(self.repository(), path)?;
+        let path = if let Ok(path) = self.repository().file_system().canonicalize(path) {
+            path
+        } else {
+            path.to_path_buf()
+        };
+        let logical_path = path
+            .strip_prefix(&self.root)
+            .map_err(|_| Error::PathNotInRoot { path: path.clone() })?;
+        let logical_path = logical_path.to_string_lossy().replace('\\', "/");
+        let file_id = FileId::from_logical_str(&logical_path);
         let file = self.repository().file(self.revision(), file_id)?;
 
         Ok(file.map(|_| file_id))
@@ -217,13 +222,16 @@ impl WorkspacePin {
     }
 }
 
-impl LocalWorkspace {
-    /// Pin one opened root at its current revision.
-    pub(crate) fn pin_workspace(&self, root: &Path) -> Result<WorkspacePin, Error> {
-        let root = self.root(root)?;
-        let revision = root.revision(&self.repository)?;
+impl Workspace {
+    /// Pin this workspace at its current revision.
+    pub(crate) fn pin(&self) -> Result<WorkspacePin, Error> {
+        let revision = self.revision()?;
         let revision = self.repository.pin(revision)?;
 
-        Ok(WorkspacePin::new(root, self.session(), revision))
+        Ok(WorkspacePin::new(
+            self.root.clone(),
+            self.session(),
+            revision,
+        ))
     }
 }

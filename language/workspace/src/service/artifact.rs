@@ -19,6 +19,8 @@ pub struct ArtifactRequest {
 /// Request to store one content value.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct StoreRequest {
+    /// Owning workspace root.
+    pub root: PathBuf,
     /// Content value to store.
     pub content: Content,
 }
@@ -26,6 +28,8 @@ pub struct StoreRequest {
 /// Request to load one content value.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct LoadRequest {
+    /// Owning workspace root.
+    pub root: PathBuf,
     /// Content identifier to load.
     pub content: ContentId,
 }

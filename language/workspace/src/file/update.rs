@@ -1,14 +1,14 @@
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
-use destack_repository::{FileSystemSource, Revision};
-use destack_source::{Edit, TextChange, Uri, apply_text_changes};
+use destack_repository::{Commit, Revision};
+use destack_source::{Content, Edit, FileType, TextChange, Uri, apply_text_changes};
 
-use crate::diagnostic::Error;
-use crate::file::Commit;
-use crate::workspace::{LocalWorkspace, WorkspaceRoot};
+use crate::Error;
+use crate::file::{FileOperation, OpenFile};
+use crate::workspace::Workspace;
 
-impl LocalWorkspace {
+impl Workspace {
     /// Open one file with its current content.
     pub fn open_file(&self, uri: Uri, version: i32, edit: Edit) -> Result<Commit, Error> {
         self.change_file(uri, version, edit)
@@ -16,6 +16,8 @@ impl LocalWorkspace {
 
     /// Change one open file to its current content.
     pub fn change_file(&self, uri: Uri, version: i32, edit: Edit) -> Result<Commit, Error> {
+        let _write = self.write()?;
+        let edit = self.resolve_edit(edit)?;
         let path = match &edit {
             Edit::SetText { path, .. } | Edit::SetBytes { path, .. } | Edit::Remove { path } => {
                 path.clone()
@@ -31,22 +33,19 @@ impl LocalWorkspace {
                 });
             }
         };
-        let root = self.owner(path.as_path())?;
-        let _write = root.write()?;
 
-        self.commit_open_file(root.as_ref(), path, uri, version, edit)
+        self.commit_open_file(path, uri, version, edit)
     }
 
-    /// Commit one open file change while its root is locked.
+    /// Commit one open file change while its workspace is locked.
     fn commit_open_file(
         &self,
-        root: &WorkspaceRoot,
         path: PathBuf,
         uri: Uri,
         version: i32,
         edit: Edit,
     ) -> Result<Commit, Error> {
-        if let Some(current) = self.open_file_version(path.as_path())
+        if let Some(current) = self.find_open_file(path.as_path()).map(|file| file.version)
             && version <= current
         {
             return Err(Error::StaleOpenFile {
@@ -56,43 +55,28 @@ impl LocalWorkspace {
             });
         }
 
-        // advance the root to the open content
+        // advance the workspace to the open content
         let is_removed = edit.is_remove();
-        let open_content = edit.clone();
-        let revision = root.revision(&self.repository)?;
-        let pending = root.prepare(revision, vec![edit], self)?;
+        let revision = self.revision()?;
+        let commit = self.commit(revision, vec![edit])?;
 
         // removed files are no longer open source truth
         if is_removed {
-            let commit = pending.advance(root, self)?;
-            self.remove_open_state(path.as_path());
+            self.remove_open_file(path.as_path());
 
-            return Ok(commit.publish(root));
+            return self.publish(commit);
         }
 
-        // resolve client identity before advancing the root
-        let content_id = self.content_id(root, pending.after(), path.as_path())?;
-        let file_id = root.file_id(&self.repository, &path)?;
-        let mut commit = pending.advance(root, self)?;
-
-        // publish editor state before notifying semantic watches
-        self.set_open_state(
-            path.as_path(),
-            uri.clone(),
+        // resolve and publish editor identity before notifying semantic watches
+        let content = self.content(commit.after, path.as_path())?;
+        let file = OpenFile {
+            uri,
             version,
-            content_id,
-            open_content,
-        );
-        if let Some(update) = commit
-            .updates
-            .iter_mut()
-            .find(|update| update.file_id == file_id)
-        {
-            update.diagnostic_uri = uri;
-            update.diagnostic_version = Some(version);
-        }
+            content,
+        };
+        self.upsert_open_file(path.as_path(), file);
 
-        Ok(commit.publish(root))
+        self.publish(commit)
     }
 
     /// Patch one open text file.
@@ -103,43 +87,52 @@ impl LocalWorkspace {
         version: i32,
         changes: Vec<TextChange>,
     ) -> Result<Commit, Error> {
-        let root = self.owner(path)?;
-        let _write = root.write()?;
+        let _write = self.write()?;
+        let path = self.resolve_path(path)?;
 
         // reject stale client versions before computing text
-        if let Some(current) = self.open_file_version(path)
+        if let Some(current) = self.find_open_file(&path).map(|file| file.version)
             && version <= current
         {
             return Err(Error::StaleOpenFile {
-                path: path.to_path_buf(),
+                path,
                 incoming: version,
                 current,
             });
         }
 
         // apply the patch to the current open text
-        let Some(text) = self.open_file_text(path) else {
+        let Some(file) = self.find_open_file(&path) else {
             return Err(Error::InvalidTextChange {
-                path: path.to_path_buf(),
+                path,
                 detail: "open file text is not available".to_string(),
             });
         };
-        let content =
-            apply_text_changes(text, &changes).map_err(|error| Error::InvalidTextChange {
-                path: path.to_path_buf(),
+        let Content::Text { content: text } = file.content.payload() else {
+            return Err(Error::InvalidTextChange {
+                path,
+                detail: "open file text is not available".to_string(),
+            });
+        };
+        let content = apply_text_changes(text.clone(), &changes).map_err(|error| {
+            Error::InvalidTextChange {
+                path: path.clone(),
                 detail: error.to_string(),
-            })?;
+            }
+        })?;
 
         let edit = Edit::SetText {
-            path: path.to_path_buf(),
+            path: path.clone(),
             text: content,
         };
 
-        self.commit_open_file(root.as_ref(), path.to_path_buf(), uri, version, edit)
+        self.commit_open_file(path, uri, version, edit)
     }
 
     /// Save one open file to explicit content.
     pub fn save_file(&self, edit: Edit) -> Result<Commit, Error> {
+        let _write = self.write()?;
+        let edit = self.resolve_edit(edit)?;
         let path = match &edit {
             Edit::SetText { path, .. } | Edit::SetBytes { path, .. } | Edit::Remove { path } => {
                 path.clone()
@@ -155,127 +148,118 @@ impl LocalWorkspace {
                 });
             }
         };
-        let root = self.owner(path.as_path())?;
-        let _write = root.write()?;
 
-        // advance the root to the saved content
-        let file = self.open_state(path.as_path());
+        // advance the workspace to the saved content
+        let file = self.find_open_file(path.as_path());
         let is_removed = edit.is_remove();
-        let open_content = edit.clone();
-        let revision = root.revision(&self.repository)?;
-        let pending = root.prepare(revision, vec![edit], self)?;
+        let revision = self.revision()?;
+        let commit = self.commit(revision, vec![edit])?;
 
-        // remove open state after publishing file removal
+        // remove the open file after committing its removal
         if let Some(file) = file {
             if is_removed {
-                let commit = pending.advance(root.as_ref(), self)?;
-                self.remove_open_state(path.as_path());
+                self.remove_open_file(path.as_path());
 
-                return Ok(commit.publish(root.as_ref()));
+                return self.publish(commit);
             }
 
-            // resolve client identity before advancing the root
-            let content_id = self.content_id(root.as_ref(), pending.after(), path.as_path())?;
-            let file_id = root.file_id(&self.repository, &path)?;
-            let mut commit = pending.advance(root.as_ref(), self)?;
+            // resolve and publish editor identity before notifying semantic watches
+            let content = self.content(commit.after, path.as_path())?;
+            let file = OpenFile { content, ..file };
+            self.upsert_open_file(path.as_path(), file);
 
-            // publish editor state before notifying semantic watches
-            self.set_open_state(
-                path.as_path(),
-                file.uri.clone(),
-                file.version,
-                content_id,
-                open_content,
-            );
-            if let Some(update) = commit
-                .updates
-                .iter_mut()
-                .find(|update| update.file_id == file_id)
-            {
-                update.diagnostic_uri = file.uri;
-                update.diagnostic_version = Some(file.version);
-            }
-
-            return Ok(commit.publish(root.as_ref()));
+            return self.publish(commit);
         }
 
-        let commit = pending.advance(root.as_ref(), self)?;
-
-        Ok(commit.publish(root.as_ref()))
+        self.publish(commit)
     }
 
     /// Save text content from explicit content or host filesystem.
     pub fn save_text_file(&self, path: &Path, content: Option<String>) -> Result<Commit, Error> {
+        let path = self.resolve_path(path)?;
         let content = match content {
             Some(content) => content,
             None => self
                 .repository
                 .file_system()
-                .read_to_string(path)
+                .read_to_string(&path)
                 .map_err(|source| Error::Io {
-                    path: path.to_path_buf(),
+                    path: path.clone(),
                     source,
                 })?,
         };
 
         self.save_file(Edit::SetText {
-            path: path.to_path_buf(),
+            path,
             text: content,
         })
     }
 
     /// Save binary content from explicit content or host filesystem.
     pub fn save_bytes_file(&self, path: &Path, content: Option<Vec<u8>>) -> Result<Commit, Error> {
+        let path = self.resolve_path(path)?;
         let content = match content {
             Some(content) => content,
             None => self
                 .repository
                 .file_system()
-                .read(path)
+                .read(&path)
                 .map_err(|source| Error::Io {
-                    path: path.to_path_buf(),
+                    path: path.clone(),
                     source,
                 })?,
         };
 
         self.save_file(Edit::SetBytes {
-            path: path.to_path_buf(),
+            path,
             bytes: content,
         })
     }
 
     /// Close one open file and restore filesystem backed source truth.
     pub fn close_file(&self, path: &Path) -> Result<Option<Commit>, Error> {
-        let root = self.owner(path)?;
-        let _write = root.write()?;
+        let _write = self.write()?;
+        let path = self.resolve_path(path)?;
+        let revision = self.revision()?;
 
         // remove overlay state first so filesystem reads see disk truth
-        let Some(file) = self.remove_open_state(path) else {
+        let Some(file) = self.remove_open_file(&path) else {
             return Ok(None);
         };
 
         // read the current filesystem truth for this path
-        let edit = match FileSystemSource::read_edit(self.repository.as_ref(), path) {
+        let file_system = self.repository.file_system();
+        let edit = if FileType::from_path(&path).is_some_and(|file_type| file_type.is_binary()) {
+            file_system.read(&path).map(|bytes| Edit::SetBytes {
+                path: path.clone(),
+                bytes,
+            })
+        } else {
+            file_system.read_to_string(&path).map(|text| Edit::SetText {
+                path: path.clone(),
+                text,
+            })
+        };
+        let edit = match edit {
             Ok(edit) => edit,
-            Err(error) if error.kind() == ErrorKind::NotFound => Edit::Remove {
-                path: path.to_path_buf(),
-            },
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                Edit::Remove { path: path.clone() }
+            }
             Err(error) => {
-                self.set_open_state(path, file.uri, file.version, file.content_id, file.content);
+                self.upsert_open_file(&path, file);
 
                 return Err(Error::Io {
-                    path: path.to_path_buf(),
+                    path,
                     source: error,
                 });
             }
         };
 
         // restore the open overlay if the repository update fails
-        let revision = root.revision(&self.repository)?;
-        let commit = match self.commit(root.as_ref(), revision, vec![edit]) {
-            Ok(commit) => commit,
+        let commit = match self.commit(revision, vec![edit]) {
+            Ok(commit) => self.publish(commit)?,
             Err(error) => {
-                self.set_open_state(path, file.uri, file.version, file.content_id, file.content);
+                self.upsert_open_file(&path, file);
 
                 return Err(error);
             }
@@ -286,50 +270,139 @@ impl LocalWorkspace {
 
     /// Apply one edit through the workspace.
     pub fn apply_file(&self, edit: Edit) -> Result<Commit, Error> {
-        let root = self.edit_root(&edit)?;
-        let _write = root.write()?;
-        let edit = self.resolve_edit(root.as_ref(), edit)?;
+        let _write = self.write()?;
+        let edit = self.resolve_edit(edit)?;
 
-        // apply direct edits through the owning root
-        let revision = root.revision(&self.repository)?;
-        let commit = self.commit(root.as_ref(), revision, vec![edit])?;
+        // apply one direct edit through this workspace
+        let revision = self.revision()?;
+        let commit = self.commit(revision, vec![edit])?;
 
-        Ok(commit)
+        self.publish(commit)
     }
 
     /// Apply atomic edits through the workspace.
-    pub fn apply_source_edits(&self, root: &Path, edits: Vec<Edit>) -> Result<Commit, Error> {
-        let root = self.root(root)?;
-        let _write = root.write()?;
+    pub fn apply_source_edits(&self, edits: Vec<Edit>) -> Result<Commit, Error> {
+        let _write = self.write()?;
         let edits = edits
             .into_iter()
-            .map(|edit| self.resolve_edit(root.as_ref(), edit))
+            .map(|edit| self.resolve_edit(edit))
             .collect::<Result<Vec<_>, _>>()?;
 
-        // publish the edit batch through the owning root
-        let revision = root.revision(&self.repository)?;
-        let commit = self.commit(root.as_ref(), revision, edits)?;
+        // publish the edit batch through this workspace
+        let revision = self.revision()?;
+        let commit = self.commit(revision, edits)?;
 
-        Ok(commit)
+        self.publish(commit)
     }
 
     /// Apply atomic edits when the current revision still matches.
     pub fn apply_source_edits_if_current(
         &self,
-        root: &Path,
         revision: Revision,
         edits: Vec<Edit>,
     ) -> Result<Commit, Error> {
-        let root = self.root(root)?;
-        let _write = root.write()?;
+        let _write = self.write()?;
         let edits = edits
             .into_iter()
-            .map(|edit| self.resolve_edit(root.as_ref(), edit))
+            .map(|edit| self.resolve_edit(edit))
             .collect::<Result<Vec<_>, _>>()?;
 
-        // publish the edit batch through the owning root
-        let commit = self.commit(root.as_ref(), revision, edits)?;
+        // publish the edit batch through this workspace
+        let commit = self.commit(revision, edits)?;
 
-        Ok(commit)
+        self.publish(commit)
+    }
+
+    /// Apply one editor file operation.
+    pub fn apply_file_operation(&self, operation: FileOperation) -> Result<Option<Commit>, Error> {
+        match operation {
+            FileOperation::OpenText {
+                path,
+                uri,
+                version,
+                content,
+            } => self
+                .open_file(
+                    uri,
+                    version,
+                    Edit::SetText {
+                        path,
+                        text: content,
+                    },
+                )
+                .map(Some),
+            FileOperation::OpenBytes {
+                path,
+                uri,
+                version,
+                content,
+            } => self
+                .open_file(
+                    uri,
+                    version,
+                    Edit::SetBytes {
+                        path,
+                        bytes: content,
+                    },
+                )
+                .map(Some),
+            FileOperation::ChangeText {
+                path,
+                uri,
+                version,
+                content,
+            } => self
+                .change_file(
+                    uri,
+                    version,
+                    Edit::SetText {
+                        path,
+                        text: content,
+                    },
+                )
+                .map(Some),
+            FileOperation::ChangeBytes {
+                path,
+                uri,
+                version,
+                content,
+            } => self
+                .change_file(
+                    uri,
+                    version,
+                    Edit::SetBytes {
+                        path,
+                        bytes: content,
+                    },
+                )
+                .map(Some),
+            FileOperation::PatchText {
+                path,
+                uri,
+                version,
+                changes,
+            } => self.patch_text_file(&path, uri, version, changes).map(Some),
+            FileOperation::SaveText { path, content } => {
+                self.save_text_file(&path, content).map(Some)
+            }
+            FileOperation::SaveBytes { path, content } => {
+                self.save_bytes_file(&path, content).map(Some)
+            }
+            FileOperation::Close { path } => self.close_file(&path),
+            FileOperation::WriteText { path, content } => self
+                .write_file(Edit::SetText {
+                    path,
+                    text: content,
+                })
+                .map(Some),
+            FileOperation::WriteBytes { path, content } => self
+                .write_file(Edit::SetBytes {
+                    path,
+                    bytes: content,
+                })
+                .map(Some),
+            FileOperation::Remove { path } => self.write_file(Edit::Remove { path }).map(Some),
+            FileOperation::Move { from, to } => self.write_file(Edit::Move { from, to }).map(Some),
+        }
     }
 }

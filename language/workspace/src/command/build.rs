@@ -124,8 +124,8 @@ impl CommandContext<'_> {
             self.product_roots(revision, &module_targets, input.product.as_deref())?;
         artifact_keys.extend(product_keys.iter().copied());
 
-        // provide the requested build roots
-        self.provide(revision, &artifact_keys).await?;
+        // complete the requested build roots through diagnostic failures
+        self.complete(revision, &artifact_keys).await?;
 
         // collect requested artifact refs
         let mut payload = BuildPayload::default();

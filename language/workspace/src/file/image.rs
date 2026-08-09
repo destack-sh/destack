@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
 
 use destack_serde::Reflect;
-use destack_source::{Content, File, FileId, FileType, ModuleId, TextChange, Uri};
+use destack_source::{Content, File, FileId, FileType, TextChange, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::diagnostic::Error;
+use crate::Error;
 
 /// In-memory image for one updated file.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -60,52 +60,6 @@ impl FileImage {
             content,
         ))
     }
-}
-
-/// One coarse kind for a workspace file update.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum UpdateKind {
-    /// One ordinary source change.
-    Source,
-    /// One `destack.json` change.
-    Config,
-}
-
-impl UpdateKind {
-    /// Return the coarse update kind for one path.
-    pub(crate) fn for_path(path: &Path) -> Self {
-        let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
-            return Self::Source;
-        };
-
-        // destack manifest
-        if file_name == "destack.json" {
-            Self::Config
-        }
-        // ordinary source
-        else {
-            Self::Source
-        }
-    }
-}
-
-/// File update emitted by the workspace.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct FileUpdate {
-    /// Updated module id when known.
-    pub module_id: Option<ModuleId>,
-    /// Updated file id.
-    pub file_id: FileId,
-    /// Diagnostic uri for this update.
-    pub diagnostic_uri: Uri,
-    /// Protocol file version for diagnostics when the file is open.
-    pub diagnostic_version: Option<i32>,
-    /// Updated file image when the file still exists.
-    pub file: Option<FileImage>,
-    /// Whether this update removed the file.
-    pub is_removed: bool,
-    /// The coarse change kind for this file.
-    pub kind: UpdateKind,
 }
 
 /// File operation applied through a workspace.

@@ -2,75 +2,84 @@ use std::path::Path;
 use std::sync::Arc;
 
 use destack_repository as repository;
-use destack_repository::{FileSystemSource, Repository, Revision, RevisionPin};
+use destack_repository::{Commit, RepositoryError, Revision, RevisionPin};
 use destack_source::{
-    Content, Edit, FileId, FilePatch, ModuleId, Patch, Span, TextPatch, apply_file_patch,
+    Content, ContentEntry, Edit, FileId, FilePatch, ModuleId, Patch, Span, TextPatch,
+    apply_file_patch,
 };
 
 use crate::Error;
 use crate::file::normalize_path;
 
-use super::WorkspaceRoot;
+use super::Workspace;
 
-impl WorkspaceRoot {
-    /// Return one root relative logical path.
-    pub(crate) fn logical_path(
-        &self,
-        repository: &Repository,
-        path: &Path,
-    ) -> Result<String, Error> {
-        let path = if let Ok(path) = repository.file_system().canonicalize(path) {
+impl Workspace {
+    /// Return one workspace-relative logical path.
+    pub(crate) fn logical_path(&self, path: &Path) -> Result<String, Error> {
+        let path = if let Ok(path) = self.repository.file_system().canonicalize(path) {
             path
         } else if let (Some(parent), Some(file_name)) = (path.parent(), path.file_name())
-            && let Ok(parent) = repository.file_system().canonicalize(parent)
+            && let Ok(parent) = self.repository.file_system().canonicalize(parent)
         {
             parent.join(file_name)
         } else {
             normalize_path(path)
         };
         let logical_path = path
-            .strip_prefix(&self.path)
+            .strip_prefix(&self.root)
             .map_err(|_| Error::PathNotInRoot { path: path.clone() })?;
 
         Ok(Self::path_text(logical_path))
     }
 
-    /// Return one root relative file id.
-    pub(crate) fn file_id(&self, repository: &Repository, path: &Path) -> Result<FileId, Error> {
-        let path = self.logical_path(repository, path)?;
+    /// Return one workspace-relative file id.
+    pub(crate) fn file_id(&self, path: &Path) -> Result<FileId, Error> {
+        let path = self.logical_path(path)?;
 
         Ok(FileId::from_logical_str(&path))
+    }
+
+    /// Return the shared content for one path in one revision.
+    pub(crate) fn content(
+        &self,
+        revision: Revision,
+        path: &Path,
+    ) -> Result<Arc<ContentEntry>, Error> {
+        let file_id = self.file_id(path)?;
+        let file = self
+            .repository
+            .file(revision, file_id)?
+            .ok_or_else(|| Error::Internal {
+                detail: format!("file has no content in revision: {}", path.display()),
+            })?;
+
+        Ok(file.content.clone())
     }
 
     /// Load one filesystem module into a private revision.
     pub(crate) fn load_module(
         &self,
-        repository: &Arc<Repository>,
         revision: RevisionPin,
         path: &Path,
     ) -> Result<(RevisionPin, ModuleId), Error> {
         let before = revision.revision();
-        let logical_path = self.logical_path(repository, path)?;
+        let logical_path = self.logical_path(path)?;
         let logical_path = Path::new(&logical_path);
 
         // reuse a module already tracked by this revision
-        if let Some(module_id) = repository.module_id_for_path(before, logical_path)? {
+        if let Some(module_id) = self.repository.module_id_for_path(before, logical_path)? {
             return Ok((revision, module_id));
         }
 
-        // import the requested physical source file
-        let source = FileSystemSource::new(repository.as_ref(), &self.path, before);
-        let Some(edits) = source.edits_for_path(logical_path)? else {
-            return Err(Error::ModuleNotLoadable {
-                path: path.to_path_buf(),
-                detail: "source file is not loadable".to_string(),
-            });
-        };
-        let after = repository.commit_edits(before, edits)?;
-        let revision = repository.pin(after)?;
+        // load the requested physical source file
+        let edits = self
+            .repository
+            .scan_file(&self.root, before, logical_path.to_path_buf())?;
+        let after = self.repository.edit(before, edits)?.after;
+        let revision = self.repository.pin(after)?;
 
         // require the imported file to produce a module
-        let module_id = repository.module_id_for_path(after, logical_path)?;
+        let module_id = self.repository.module_id_for_path(after, logical_path)?;
         let Some(module_id) = module_id else {
             return Err(Error::ModuleNotLoadable {
                 path: path.to_path_buf(),
@@ -81,28 +90,57 @@ impl WorkspaceRoot {
         Ok((revision, module_id))
     }
 
-    /// Lower one source edit into one repository edit.
-    pub(crate) fn lower(
+    /// Commit source edits against this workspace's exact revision.
+    pub(crate) fn commit(&self, revision: Revision, edits: Vec<Edit>) -> Result<Commit, Error> {
+        let current = self.revision()?;
+        if current != revision {
+            return Err(Error::StaleRevision {
+                expected: revision,
+                current,
+            });
+        }
+
+        // lower every source edit against the same immutable revision
+        let edits = edits
+            .into_iter()
+            .map(|edit| self.lower(revision, edit))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        self.advance(revision, edits)
+    }
+
+    /// Advance this workspace with repository edits.
+    pub(crate) fn advance(
         &self,
-        repository: &Repository,
         revision: Revision,
-        edit: Edit,
-    ) -> Result<repository::Edit, Error> {
+        edits: Vec<repository::Edit>,
+    ) -> Result<Commit, Error> {
+        self.repository
+            .commit(&self.head, revision, edits)
+            .map_err(|error| match error {
+                RepositoryError::RefChanged {
+                    expected, current, ..
+                } => Error::StaleRevision { expected, current },
+                error => Error::from(error),
+            })
+    }
+
+    /// Lower one source edit into one repository edit.
+    pub(crate) fn lower(&self, revision: Revision, edit: Edit) -> Result<repository::Edit, Error> {
         let edit = match edit {
             Edit::SetText { path, text } => {
-                let path = self.logical_path(repository, &path)?;
+                let path = self.logical_path(&path)?;
 
                 repository::Edit::set_text(path, text)
             }
             Edit::EditText { path, patches } => {
-                let logical_path = self.logical_path(repository, &path)?;
-                let text =
-                    self.apply_text_patches(repository, revision, &path, &logical_path, patches)?;
+                let logical_path = self.logical_path(&path)?;
+                let text = self.apply_text_patches(revision, &path, &logical_path, patches)?;
 
                 repository::Edit::set_text(logical_path, text)
             }
             Edit::SetBytes { path, bytes } => {
-                let logical_path = self.logical_path(repository, &path)?;
+                let logical_path = self.logical_path(&path)?;
 
                 repository::Edit::SetFile {
                     logical_path,
@@ -110,13 +148,13 @@ impl WorkspaceRoot {
                 }
             }
             Edit::Remove { path } => {
-                let path = self.logical_path(repository, &path)?;
+                let path = self.logical_path(&path)?;
 
                 repository::Edit::remove_file(path)
             }
             Edit::Move { from, to } => {
-                let from = self.logical_path(repository, &from)?;
-                let to = self.logical_path(repository, &to)?;
+                let from = self.logical_path(&from)?;
+                let to = self.logical_path(&to)?;
 
                 repository::Edit::move_file(from, to)
             }
@@ -128,14 +166,14 @@ impl WorkspaceRoot {
     /// Apply text patches to one tracked file.
     fn apply_text_patches(
         &self,
-        repository: &Repository,
         revision: Revision,
         path: &Path,
         logical_path: &str,
         patches: Vec<TextPatch>,
     ) -> Result<String, Error> {
         let file_id = FileId::from_logical_str(logical_path);
-        let file = repository
+        let file = self
+            .repository
             .file(revision, file_id)?
             .ok_or_else(|| Error::FileMissing {
                 path: path.to_path_buf(),

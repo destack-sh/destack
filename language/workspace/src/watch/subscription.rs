@@ -2,30 +2,31 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_repository::Revision;
+use destack_repository::{Commit, Repository, Revision, RevisionPin};
 use futures::StreamExt;
 use futures::channel::mpsc::{Receiver, Sender, channel};
 use parking_lot::Mutex;
 
 use super::WatchEvent;
-use crate::{Commit, Error};
+use crate::Error;
 
-/// Maximum pending semantic changes retained by one workspace watch.
-const WATCH_CAPACITY: usize = 64;
-
-/// One semantic watch over an opened workspace root.
+/// One semantic watch over a workspace.
 pub struct Watch {
     /// Watched workspace root.
     root: PathBuf,
     /// Initial revision not yet returned to the caller.
     ready: Option<Revision>,
-    /// Pending committed changes.
-    receiver: Receiver<WatchEvent>,
-    /// Terminal reason set by the owning root.
+    /// Pending commits and their result revision pins.
+    receiver: Receiver<(Commit, RevisionPin)>,
+    /// Input revision retained for the latest delivered commit.
+    before: Option<RevisionPin>,
+    /// Ready or result revision retained for the latest delivered event.
+    after: RevisionPin,
+    /// Terminal reason set by the workspace.
     end: Arc<Mutex<Option<WatchEnd>>>,
-    /// Mutable state shared with the owning root.
+    /// Mutable state shared with the workspace.
     state: Arc<Mutex<WatchState>>,
-    /// Identifier inside the root watch state.
+    /// Identifier inside the workspace watch state.
     identifier: u64,
 }
 
@@ -42,18 +43,22 @@ impl std::fmt::Debug for Watch {
 }
 
 impl Watch {
-    /// Register one watch beginning at an exact root revision.
+    /// Register one watch beginning at an exact workspace revision.
     pub(crate) fn new(
         root: PathBuf,
         revision: Revision,
+        repository: &Arc<Repository>,
         state: Arc<Mutex<WatchState>>,
     ) -> Result<Self, Error> {
+        let after = repository.pin(revision)?;
         let (identifier, receiver, end) = state.lock().subscribe(&root)?;
 
         Ok(Self {
             root,
             ready: Some(revision),
             receiver,
+            before: None,
+            after,
             end,
             state,
             identifier,
@@ -66,11 +71,11 @@ impl Watch {
             return Ok(WatchEvent::Ready { revision });
         }
 
-        let event = self.receiver.next().await;
+        let commit = self.receiver.next().await;
         if let Some(end) = self.end.lock().clone() {
             return Err(end.error(self.root.clone()));
         }
-        let Some(event) = event else {
+        let Some((commit, after)) = commit else {
             return Err(Error::Internal {
                 detail: format!(
                     "workspace watch ended without a reason: {}",
@@ -79,18 +84,31 @@ impl Watch {
             });
         };
 
-        Ok(event)
+        if self.after.revision() != commit.before {
+            return Err(Error::Internal {
+                detail: format!(
+                    "workspace watch expected revision {} before {}",
+                    self.after.revision(),
+                    commit.before,
+                ),
+            });
+        }
+
+        let before = std::mem::replace(&mut self.after, after);
+        self.before = Some(before);
+
+        Ok(WatchEvent::Commit(commit))
     }
 }
 
 impl Drop for Watch {
-    /// Remove this watch from its root.
+    /// Remove this watch from its workspace.
     fn drop(&mut self) {
         self.state.lock().remove(self.identifier);
     }
 }
 
-/// Semantic watch state for one opened workspace root.
+/// Semantic watch state for one workspace.
 #[derive(Debug)]
 pub(crate) struct WatchState {
     /// Active subscriptions keyed by identifier.
@@ -99,12 +117,12 @@ pub(crate) struct WatchState {
     next_identifier: u64,
     /// Latest host watch failure blocking new subscriptions.
     failure: Option<String>,
-    /// Whether the owning root has closed.
+    /// Whether the workspace has closed.
     is_closed: bool,
 }
 
 impl Default for WatchState {
-    /// Create empty watch state for an opened root.
+    /// Create empty watch state for an open workspace.
     fn default() -> Self {
         Self {
             subscriptions: HashMap::new(),
@@ -120,8 +138,15 @@ impl WatchState {
     fn subscribe(
         &mut self,
         root: &Path,
-    ) -> Result<(u64, Receiver<WatchEvent>, Arc<Mutex<Option<WatchEnd>>>), Error> {
-        // reject subscriptions while the root cannot sustain a watch
+    ) -> Result<
+        (
+            u64,
+            Receiver<(Commit, RevisionPin)>,
+            Arc<Mutex<Option<WatchEnd>>>,
+        ),
+        Error,
+    > {
+        // reject subscriptions while the workspace cannot sustain a watch
         if self.is_closed {
             return Err(Error::WatchClosed {
                 root: root.to_path_buf(),
@@ -133,8 +158,8 @@ impl WatchState {
             });
         }
 
-        // allocate and publish one live subscription
-        let (sender, receiver) = channel(WATCH_CAPACITY);
+        // use the sender's implicit slot as the single pending commit
+        let (sender, receiver) = channel(0);
         let end = Arc::new(Mutex::new(None));
         let identifier = self.next_identifier;
         self.next_identifier += 1;
@@ -147,12 +172,22 @@ impl WatchState {
         Ok((identifier, receiver, end))
     }
 
-    /// Publish one committed root transition to every active watch.
-    pub(crate) fn publish(&mut self, commit: &Commit) {
+    /// Publish one committed workspace transition to every active watch.
+    pub(crate) fn publish(
+        &mut self,
+        commit: &Commit,
+        repository: &Arc<Repository>,
+    ) -> Result<(), Error> {
+        if self.subscriptions.is_empty() {
+            return Ok(());
+        }
+
+        let after = repository.pin(commit.after)?;
+        let commit = (commit.clone(), after);
+
         // retain subscriptions that accepted this exact commit
         self.subscriptions.retain(|_, subscription| {
-            let event = WatchEvent::Commit(commit.clone());
-            match subscription.sender.try_send(event) {
+            match subscription.sender.try_send(commit.clone()) {
                 Ok(()) => true,
                 Err(error) if error.is_full() => {
                     *subscription.end.lock() = Some(WatchEnd::Lagged);
@@ -162,13 +197,15 @@ impl WatchState {
                 Err(_) => false,
             }
         });
+
+        Ok(())
     }
 
-    /// Close every active watch because the owning root closed.
+    /// Close every active watch because the workspace closed.
     pub(crate) fn close(&mut self) {
         self.is_closed = true;
 
-        // terminate every subscription with the exact root lifecycle reason
+        // terminate every subscription with the exact workspace lifecycle reason
         for subscription in self.subscriptions.values() {
             *subscription.end.lock() = Some(WatchEnd::Closed);
         }
@@ -197,11 +234,11 @@ impl WatchState {
     }
 }
 
-/// One sender and its overflow state.
+/// One semantic commit subscription.
 #[derive(Debug)]
 struct Subscription {
     /// Pending semantic event sender.
-    sender: Sender<WatchEvent>,
+    sender: Sender<(Commit, RevisionPin)>,
     /// Terminal reason shared with the receiving watch.
     end: Arc<Mutex<Option<WatchEnd>>>,
 }
@@ -211,9 +248,9 @@ struct Subscription {
 enum WatchEnd {
     /// The consumer exceeded its bounded commit backlog.
     Lagged,
-    /// The owning root closed.
+    /// The workspace closed.
     Closed,
-    /// The root host watcher failed.
+    /// The workspace host watcher failed.
     Failed(String),
 }
 

@@ -7,7 +7,6 @@ use crate::command::{
     RewritePayload,
 };
 use crate::tests::harness::TestPattern;
-use crate::workspace::Workspace;
 
 /// Manifest selecting one checked entry module.
 const ENTRY_CONFIG: &str = r#"{
@@ -272,11 +271,7 @@ fn test_rewrite_source_pattern_write() {
     let files = test
         .harness
         .workspace
-        .read_files(
-            &test.harness.roots[0],
-            after,
-            vec![output.data.changes[0].patch.file],
-        )
+        .read_files(after, vec![output.data.changes[0].patch.file])
         .expect("read rewritten workspace file");
     assert_ne!(after, before);
     assert_eq!(

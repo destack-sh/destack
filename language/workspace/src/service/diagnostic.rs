@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_repository::Revision;
@@ -5,7 +6,16 @@ use destack_serde::Reflect;
 use destack_source::{Diagnostic, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::{Error, FileDiagnostics, FileImage};
+use crate::{DiagnosticsRequest, Error, FileDiagnostics, FileImage};
+
+/// Request to read diagnostics from one workspace.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct DiagnoseRequest {
+    /// Owning workspace root.
+    pub root: PathBuf,
+    /// Diagnostic selection within the workspace.
+    pub request: DiagnosticsRequest,
+}
 
 /// Serialized diagnostics for one exact source file.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]

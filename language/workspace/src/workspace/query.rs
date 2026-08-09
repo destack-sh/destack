@@ -1,19 +1,17 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
 use destack_query::{Module, QueryError, QueryPosition, QueryRange, QueryRequest, QueryResponse};
-use destack_repository::{Revision, Trace};
+use destack_repository::{ProviderError, Revision, Trace};
 use destack_serde::Reflect;
 use destack_session::{ArtifactPriority, ArtifactRun};
 use destack_source::{File, ProfileId, Span};
-use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
-use crate::RunGuard;
-use crate::diagnostic::Error;
+use crate::Error;
 
-use super::{LocalWorkspace, WorkspacePin};
+use super::{Workspace, WorkspacePin};
 
 /// One source file resolved for semantic queries.
 #[derive(Debug, Clone)]
@@ -51,21 +49,13 @@ impl QueryFile {
     }
 }
 
-impl LocalWorkspace {
+impl Workspace {
     /// Resolve one source file for semantic queries.
-    pub fn resolve_query_file(
-        &self,
-        root: &Path,
-        path: PathBuf,
-    ) -> Result<Option<QueryFile>, Error> {
-        // require the requested path to belong to the requested root
-        let owning_root = self.root_at(&path)?;
-        if owning_root != root {
-            return Err(Error::PathNotInRoot { path });
-        }
+    pub fn resolve_query_file(&self, path: PathBuf) -> Result<Option<QueryFile>, Error> {
+        let path = self.resolve_path(&path)?;
 
-        // pin the root and resolve the requested source
-        let session = self.pin_workspace(root)?;
+        // pin the workspace and resolve the requested source
+        let session = self.pin()?;
         let Some(file_id) = session.file_id(&path)? else {
             return Ok(None);
         };
@@ -148,16 +138,6 @@ impl QueryRun {
         self.trace.clone()
     }
 
-    /// Cancel this query when its caller abandons the operation.
-    pub fn guard(&self) -> RunGuard {
-        let mut cancellations = vec![self.artifacts.cancellation()];
-        if let Some(diagnostics) = self.diagnostics.as_ref() {
-            cancellations.push(diagnostics.cancellation());
-        }
-
-        RunGuard::new(cancellations)
-    }
-
     /// Wait for ready artifacts and execute the exact query.
     pub async fn wait(self) -> Result<RunQueryResponse, Error> {
         let QueryRun {
@@ -180,46 +160,43 @@ impl QueryRun {
             let response = trace
                 .span_async("query", async {
                     loop {
-                        // collect artifacts requested by this synchronous execution attempt
-                        let pending = Mutex::new(Vec::new());
-                        let require_artifacts = |artifact_keys: &[ArtifactKey]| {
-                            let missing = artifact_keys
+                        // reject artifact reads that have not been provided by this run
+                        let require = |keys: &[ArtifactKey]| {
+                            let mut missing = keys
                                 .iter()
                                 .filter(|key| !provided.contains(*key))
                                 .copied()
                                 .collect::<Vec<_>>();
+                            missing.sort_unstable();
+                            missing.dedup();
                             if missing.is_empty() {
-                                return Ok(());
+                                Ok(())
+                            } else {
+                                Err(ProviderError::blocked_many(missing).into())
                             }
-
-                            pending.lock().extend(missing);
-
-                            Err(QueryError::artifact(PendingQueryArtifacts))
                         };
 
-                        // run until the query completes or requests unavailable artifacts
+                        // execute until the query completes or requests unavailable artifacts
                         let response = request.clone().execute(
                             session.repository(),
                             revision,
                             &selected_profile_ids,
-                            &require_artifacts,
+                            &require,
                         );
+                        let missing = match response {
+                            Err(QueryError::Artifact(error)) => match *error {
+                                ProviderError::Blocked { keys } => keys,
+                                error => {
+                                    let error = QueryError::Artifact(Box::new(error));
 
-                        // normalize dependencies discovered throughout the attempt
-                        let mut missing = pending.into_inner();
-                        missing.sort_unstable();
-                        missing.dedup();
-
-                        // return the real query result when execution did not suspend
-                        if missing.is_empty() {
-                            break response;
-                        }
+                                    break Err(Error::from(error));
+                                }
+                            },
+                            response => break response.map_err(Error::from),
+                        };
 
                         // provide missing artifacts before restarting exact query execution
-                        artifacts
-                            .require(&missing)
-                            .await
-                            .map_err(QueryError::artifact)?;
+                        artifacts.require(&missing).await?;
                         provided.extend(missing);
                         provided.sort_unstable();
                         provided.dedup();
@@ -239,19 +216,6 @@ impl QueryRun {
     }
 }
 
-/// Internal query restart after discovering unprovided artifacts.
-#[derive(Debug)]
-struct PendingQueryArtifacts;
-
-impl std::fmt::Display for PendingQueryArtifacts {
-    /// Format this internal restart signal.
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("query requires additional artifacts")
-    }
-}
-
-impl std::error::Error for PendingQueryArtifacts {}
-
 /// Revision selection policy for one query.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum RevisionPolicy {
@@ -263,30 +227,24 @@ pub enum RevisionPolicy {
     Current(Revision),
 }
 
-impl LocalWorkspace {
-    /// Schedule one semantic query for a root.
-    pub fn start_query(
-        &self,
-        root: &Path,
-        request: RunQueryInput,
-        is_tracing: bool,
-    ) -> Result<QueryRun, Error> {
+impl Workspace {
+    /// Schedule one semantic query for this workspace.
+    pub fn start_query(&self, request: RunQueryInput, is_tracing: bool) -> Result<QueryRun, Error> {
         // pin the session selected by the revision policy
         let session = match request.revision {
             // select the latest ref state
-            RevisionPolicy::Latest => self.pin_workspace(root)?,
+            RevisionPolicy::Latest => self.pin()?,
 
             // pin the exact immutable revision
             RevisionPolicy::Exact(revision) => {
-                let root = self.root(root)?;
                 let revision = self.repository.pin(revision)?;
 
-                WorkspacePin::new(root, self.session(), revision)
+                WorkspacePin::new(self.root.clone(), self.session(), revision)
             }
 
             // require the ref to remain at the caller's revision
             RevisionPolicy::Current(expected) => {
-                let session = self.pin_workspace(root)?;
+                let session = self.pin()?;
                 let current = session.revision();
                 if current != expected {
                     return Err(Error::StaleRevision { expected, current });
@@ -340,12 +298,8 @@ impl LocalWorkspace {
         })
     }
 
-    /// Run one semantic query for a root.
-    pub async fn run_query(
-        &self,
-        root: &Path,
-        request: RunQueryInput,
-    ) -> Result<RunQueryResponse, Error> {
-        self.start_query(root, request, false)?.wait().await
+    /// Run one semantic query for this workspace.
+    pub async fn run_query(&self, request: RunQueryInput) -> Result<RunQueryResponse, Error> {
+        self.start_query(request, false)?.wait().await
     }
 }

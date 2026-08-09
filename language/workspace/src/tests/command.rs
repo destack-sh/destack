@@ -3,7 +3,6 @@ use futures::executor::block_on;
 
 use crate::command::{CheckInput, CommandInput, CommandOptions, CommandRevision};
 use crate::tests::harness::TestWorkspace;
-use crate::workspace::Workspace;
 
 #[test]
 fn test_check_command_reports_check_errors() {
@@ -21,8 +20,7 @@ const wrong: string = 1;
             ..CommandOptions::default()
         },
     ));
-    let output =
-        block_on(test.workspace.check(&test.roots[0], input, None)).expect("check command failed");
+    let output = block_on(test.workspace.check(input, None)).expect("check command failed");
 
     let ids: Vec<&str> = output
         .diagnostics
@@ -59,8 +57,7 @@ const second = sibling;
             ..CommandOptions::default()
         },
     ));
-    let output =
-        block_on(test.workspace.check(&test.roots[0], input, None)).expect("check command failed");
+    let output = block_on(test.workspace.check(input, None)).expect("check command failed");
 
     // the sibling hint labels the declaring module across files
     let diagnostic = output
@@ -90,7 +87,7 @@ const second = sibling;
 }
 
 #[test]
-fn test_check_command_lints_selected_module_and_program() {
+fn test_check_command_requests_selected_module_and_program_lints() {
     let test = TestWorkspace::new("check-command-lints");
     let config_source = r#"{
   "name": "test",
@@ -99,7 +96,10 @@ fn test_check_command_lints_selected_module_and_program() {
       "entry": ["main.ds"]
     }
   },
-  "defaultTarget": "default"
+  "defaultTarget": "default",
+  "linter": {
+    "only": ["no-debugger"]
+  }
 }
 "#;
     let config = test.write_text("destack.json", config_source);
@@ -119,8 +119,7 @@ fn test_check_command_lints_selected_module_and_program() {
         },
     ));
     input.trace = Some(TraceView::Detailed);
-    let output =
-        block_on(test.workspace.check(&test.roots[0], input, None)).expect("check command failed");
+    let output = block_on(test.workspace.check(input, None)).expect("check command failed");
 
     // lint the explicit module even though it is outside the target graph
     let diagnostic_ids = output
@@ -130,7 +129,7 @@ fn test_check_command_lints_selected_module_and_program() {
         .collect::<Vec<_>>();
     assert_eq!(diagnostic_ids, ["no-debugger"]);
 
-    // run target program lints and both required module lint passes
+    // request the selected module and its target program lint artifacts
     let trace = output.trace.expect("check trace");
     let mut lint_artifacts = trace
         .attempts
@@ -143,7 +142,6 @@ fn test_check_command_lints_selected_module_and_program() {
     assert_eq!(
         lint_artifacts,
         [
-            ("module.lint", Some("file://main.ds")),
             ("module.lint", Some("file://selected.ds")),
             ("program.lint", None),
         ]

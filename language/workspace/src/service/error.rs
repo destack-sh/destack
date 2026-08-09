@@ -15,7 +15,8 @@ impl From<Error> for Status {
             Error::Query(error) if matches!(error.as_ref(), QueryError::Invalid(_)) => {
                 Code::InvalidArgument
             }
-            Error::OpenFileWrite { .. }
+            Error::WorkspaceClosed
+            | Error::OpenFileWrite { .. }
             | Error::StaleRevision { .. }
             | Error::TargetNotSelected { .. } => Code::FailedPrecondition,
             Error::WatchLagged { .. } => Code::ResourceExhausted,

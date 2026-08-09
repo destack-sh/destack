@@ -4,10 +4,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use destack_dir as dir;
 use destack_repository::{
-    DestackLayoutOverride, Environment, Revision, Settings, open_repository_from_fs,
+    Change, Commit, DestackLayoutOverride, Environment, Execution, Revision, Settings,
+    open_repository_from_fs,
 };
+use destack_session::Executor;
 use destack_source::{
-    Edit, FileMetadata, FileSystem, OverlayFileSystem, PhysicalFileSystem,
+    ContentId, Edit, FileId, FileMetadata, FileSystem, OverlayFileSystem, PhysicalFileSystem,
     TemporaryPhysicalFileSystem, Uri,
 };
 use futures::executor::block_on;
@@ -16,7 +18,7 @@ use crate::command::{
     CommandInput, CommandOptions, CommandRevision, QueryInput, QueryOutput, RewriteInput,
     RewriteMode, RewriteOutput,
 };
-use crate::{CommandError, Commit, LocalWorkspace, Workspace};
+use crate::{CommandError, Workspace};
 
 /// Test harness for workspace integration tests.
 #[derive(Debug)]
@@ -24,53 +26,35 @@ pub(super) struct TestWorkspace {
     /// Temporary filesystem root.
     pub fs: TemporaryPhysicalFileSystem,
     /// Workspace under test.
-    pub workspace: LocalWorkspace,
-    /// Workspace roots registered in the workspace.
-    pub roots: Vec<PathBuf>,
+    pub workspace: Workspace,
+    /// Canonical workspace root.
+    pub root: PathBuf,
 }
 
 impl TestWorkspace {
     /// Create a new harness rooted at a temporary source root.
     pub(super) fn new(prefix: &str) -> Self {
-        Self::new_with_roots(prefix, 1)
-    }
-
-    /// Create a new harness with explicit root count.
-    pub(super) fn new_with_roots(prefix: &str, root_count: usize) -> Self {
-        Self::build(prefix, root_count, |_| Arc::new(PhysicalFileSystem::new()))
+        Self::build(prefix, |_| Arc::new(PhysicalFileSystem::new()))
     }
 
     /// Create a new harness whose first write to one path fails.
     pub(super) fn new_with_write_failure(prefix: &str, path: &str) -> Self {
-        Self::build(prefix, 1, |roots| {
-            Arc::new(FailingFileSystem::fail_once(roots[0].join(path)))
+        Self::build(prefix, |root| {
+            Arc::new(FailingFileSystem::fail_once(root.join(path)))
         })
     }
 
     /// Create one harness over an explicit repository filesystem.
-    fn build(
-        prefix: &str,
-        root_count: usize,
-        file_system: impl FnOnce(&[PathBuf]) -> Arc<dyn FileSystem>,
-    ) -> Self {
+    fn build(prefix: &str, file_system: impl FnOnce(&Path) -> Arc<dyn FileSystem>) -> Self {
         // create a temporary filesystem root for test files
         let fs = TemporaryPhysicalFileSystem::new_with_prefix(prefix);
-        let roots = build_roots(&fs, root_count.max(1));
-        let root = roots[0].clone();
-        let file_system = file_system(&roots);
+        let root = fs.root().to_path_buf();
+        let file_system = file_system(&root);
 
-        // name every package before opening the repository
-        for (index, root) in roots.iter().enumerate() {
-            let name = if roots.len() == 1 {
-                "test".to_string()
-            } else {
-                format!("test-{index}")
-            };
-            let config = format!("{{ \"name\": \"{name}\" }}\n");
-            let path = root.join("destack.json");
-            fs.write_text(&path, &config)
-                .unwrap_or_else(|error| panic!("failed to write {}: {error}", path.display()));
-        }
+        // name the package before opening the repository
+        let config = root.join("destack.json");
+        fs.write_text(&config, "{ \"name\": \"test\" }\n")
+            .unwrap_or_else(|error| panic!("failed to write {}: {error}", config.display()));
 
         // create a repository with an overlay over physical fs
         let overlay = Arc::new(OverlayFileSystem::with_inner(file_system));
@@ -84,33 +68,35 @@ impl TestWorkspace {
             )
             .expect("failed to import repository from overlay fs"),
         );
-        let workspace = LocalWorkspace::new(repository.clone(), Some(overlay), roots.clone(), 1)
-            .expect("expected workspace");
+        let executor = Executor::new(Execution::Threaded, 1).expect("create executor");
+        let workspace =
+            Workspace::new(repository, Some(overlay), executor).expect("expected workspace");
 
         Self {
             fs,
             workspace,
-            roots,
+            root,
         }
     }
 
     /// Resolve a path under the temporary root.
     pub(super) fn path_for(&self, path: impl AsRef<Path>) -> PathBuf {
-        self.path_for_root(0, path)
-    }
-
-    /// Resolve a path under a specific source root.
-    pub(super) fn path_for_root(&self, root_index: usize, path: impl AsRef<Path>) -> PathBuf {
-        let root = self
-            .roots
-            .get(root_index)
-            .unwrap_or_else(|| panic!("missing root index: {root_index}"));
-        root.join(path.as_ref())
+        self.root.join(path.as_ref())
     }
 
     /// Build a source uri for a path.
     pub(super) fn uri_for_path(&self, path: &Path) -> Uri {
         Uri::from_file_path(path)
+    }
+
+    /// Build one exact expected text change.
+    pub(super) fn change(path: &str, before: Option<&str>, after: Option<&str>) -> Change {
+        Change {
+            file: FileId::from_logical_str(path),
+            path: path.to_string(),
+            before: before.map(ContentId::for_text),
+            after: after.map(ContentId::for_text),
+        }
     }
 
     /// Write text under the default root.
@@ -220,7 +206,7 @@ impl TestPattern {
     pub(super) fn revision(&self) -> Revision {
         self.harness
             .workspace
-            .revision(&self.harness.roots[0])
+            .revision()
             .expect("read Pattern test revision")
     }
 
@@ -281,12 +267,7 @@ impl TestQuery<'_> {
 
     /// Execute this Query.
     pub(super) fn run(self) -> QueryOutput {
-        block_on(self.fixture.harness.workspace.query(
-            &self.fixture.harness.roots[0],
-            self.input,
-            None,
-        ))
-        .expect("run Pattern Query")
+        block_on(self.fixture.harness.workspace.query(self.input, None)).expect("run Pattern Query")
     }
 }
 
@@ -322,22 +303,14 @@ impl TestRewrite<'_> {
 
     /// Execute this Rewrite.
     pub(super) fn run(self) -> RewriteOutput {
-        block_on(self.fixture.harness.workspace.rewrite(
-            &self.fixture.harness.roots[0],
-            self.input,
-            None,
-        ))
-        .expect("run Pattern Rewrite")
+        block_on(self.fixture.harness.workspace.rewrite(self.input, None))
+            .expect("run Pattern Rewrite")
     }
 
     /// Execute this Rewrite and return its command error.
     pub(super) fn error(self) -> CommandError {
-        block_on(self.fixture.harness.workspace.rewrite(
-            &self.fixture.harness.roots[0],
-            self.input,
-            None,
-        ))
-        .expect_err("reject Pattern Rewrite")
+        block_on(self.fixture.harness.workspace.rewrite(self.input, None))
+            .expect_err("reject Pattern Rewrite")
     }
 }
 
@@ -441,23 +414,4 @@ impl FileSystem for FailingFileSystem {
     fn remove_dir(&self, path: &Path) -> std::io::Result<()> {
         self.physical.remove_dir(path)
     }
-}
-
-/// Build source roots for a test harness.
-fn build_roots(fs: &TemporaryPhysicalFileSystem, root_count: usize) -> Vec<PathBuf> {
-    // keep a single root at the fs root for common cases
-    if root_count == 1 {
-        return vec![fs.root().to_path_buf()];
-    }
-
-    // create one sub root per source root
-    let mut roots = Vec::new();
-    for index in 0..root_count {
-        let root = fs.path_for(format!("root-{index}"));
-        std::fs::create_dir_all(&root)
-            .unwrap_or_else(|error| panic!("failed to create root {}: {error}", root.display()));
-        roots.push(root);
-    }
-
-    roots
 }

@@ -4,14 +4,12 @@ use std::sync::Arc;
 use destack_artifact::ArtifactKey;
 use destack_dir as dir;
 use destack_pattern::{Rewrite, Rewriter};
-use destack_repository::TraceView;
+use destack_repository::{Commit, TraceView};
 use destack_serde::Reflect;
 use destack_source::{
     DiagnosticCollection, DiffOptions, Edit, File, FilePatch, Uri, apply_file_patch, format_diff,
 };
 use serde::{Deserialize, Serialize};
-
-use crate::Commit;
 
 use super::common::{
     CommandEnvVar, CommandInput, CommandOptions, CommandRevision, CommandTargetOverrides,
@@ -381,7 +379,7 @@ impl CommandContext<'_> {
             .collect::<CommandResult<Vec<_>>>()?;
         let commit = self
             .workspace
-            .write_source_edits_if_current(&self.root, self.base, edits)
+            .write_source_edits_if_current(self.base, edits)
             .map_err(|error| CommandError::source(error.to_string()))?;
 
         Ok(Some(commit))

@@ -5,10 +5,12 @@ use destack_repository::{RepositoryError, Revision};
 use destack_session::SessionError;
 use destack_source::PackageId;
 
-/// Errors produced by workspace operations.
+/// Failure from a workspace operation.
 #[derive(Debug)]
 pub enum Error {
-    /// A path is outside every opened root.
+    /// This workspace is closed.
+    WorkspaceClosed,
+    /// A path is outside the workspace root.
     PathNotInRoot {
         /// The path that failed root routing.
         path: PathBuf,
@@ -112,8 +114,13 @@ pub enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Error::WorkspaceClosed => write!(formatter, "workspace is closed"),
             Error::PathNotInRoot { path } => {
-                write!(formatter, "path is outside every root: {}", path.display())
+                write!(
+                    formatter,
+                    "path is outside workspace root: {}",
+                    path.display()
+                )
             }
             Error::FileMissing { path } => {
                 write!(formatter, "file is missing: {}", path.display())

@@ -1,259 +1,788 @@
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactPayload, ArtifactReference};
-use destack_repository::Revision;
-use destack_source::{Content, ContentId, File, FileId, TextRange};
+use dashmap::DashMap;
+use destack_artifact::{
+    ArtifactKey, ArtifactPayload, ArtifactReference, Bundle, BundleFile, Product,
+};
+use destack_repository::{Commit, Ref, Repository, Revision, Trace, TraceSnapshot, TraceView};
+use destack_session::{ArtifactRun, Executor, Session};
+use destack_source::{Content, ContentId, File, FileId, OverlayFileSystem};
 use futures::future::BoxFuture;
+use parking_lot::Mutex;
 
-use super::{RunQueryInput, RunQueryResponse};
-use crate::diagnostic::{DiagnosticsRequest, Error, FileDiagnostics};
-use crate::file::{Commit, FileOperation, SourceUpdate};
-use crate::watch::Watch;
+use super::{State, WorkspacePin};
+use crate::file::OpenFile;
 use crate::{
-    BenchInput, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOutput, CheckInput,
-    CheckOutput, CleanInput, CleanOutput, CommandError, CommandProgress, DocInput, DocOutput,
-    DoctorInput, DoctorOutput, ExportInput, ExportResult, FileEdit, FormatInput, FormatOutput,
-    InfoInput, InfoOutput, QueryFile, QueryInput, QueryOutput, RewriteInput, RewriteOutput,
-    RunInput, RunOutput, SettingsInput, SettingsOutput, TargetsInput, TargetsOutput, TaskInput,
-    TaskOutput, TestInput, TestOutput,
+    BenchInput, BenchOptions, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOptions,
+    CacheOutput, CheckInput, CheckOutput, CleanInput, CleanOptions, CleanOutput, CommandContext,
+    CommandError, CommandOptions, CommandOutcome, CommandProgress, CommandResult, CommandRevision,
+    DocInput, DocOptions, DocOutput, DoctorInput, DoctorOptions, DoctorOutput, Error, ExportInput,
+    ExportResult, ExportedFile, FormatInput, FormatOutput, InfoInput, InfoOptions, InfoOutput,
+    Output, OutputBuffer, QueryInput, QueryOutput, RewriteInput, RewriteOutput, RunInput,
+    RunOutput, SettingsInput, SettingsOptions, SettingsOutput, SourceUpdate, TargetsInput,
+    TargetsOptions, TargetsOutput, TaskInput, TaskOptions, TaskOutput, TestInput, TestOptions,
+    TestOutput, WatchState,
 };
 
-/// Operations over one live Destack workspace.
-pub trait Workspace: std::fmt::Debug + Send + Sync {
-    // ================================================================================
-    // Roots
-    // ================================================================================
+/// One live Destack workspace rooted at one repository path.
+pub struct Workspace {
+    /// Canonical workspace root.
+    pub(crate) root: PathBuf,
+    /// Moving repository ref published by this workspace.
+    pub(crate) head: Ref,
+    /// Repository for workspace resolution.
+    pub(crate) repository: Arc<Repository>,
+    /// Repository-specific artifact computation session.
+    pub(crate) session: Arc<Session>,
+    /// Open files keyed by source path.
+    pub(crate) open_file_by_path: DashMap<PathBuf, OpenFile>,
+    /// Overlay filesystem used by workspace source operations.
+    pub(crate) overlay_file_system: Option<Arc<OverlayFileSystem>>,
+    /// Serialized workspace lifecycle and mutation state.
+    pub(crate) state: Mutex<State>,
+    /// Semantic watch state.
+    pub(crate) watch: Arc<Mutex<WatchState>>,
+    /// Latest proactive editor artifact run.
+    pub(crate) background_run: Mutex<Option<ArtifactRun>>,
+}
 
-    /// Return the workspace home path.
-    fn home(&self) -> &Path;
+impl std::fmt::Debug for Workspace {
+    /// Format the visible workspace state.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Workspace")
+            .field("root", &self.root)
+            .field("head", &self.head)
+            .field("repository", &self.repository)
+            .field("session", &self.session)
+            .field("open_file_by_path", &self.open_file_by_path.len())
+            .field("overlay_file_system", &self.overlay_file_system.is_some())
+            .field("state", &self.state)
+            .field("watch", &self.watch)
+            .field(
+                "background_revision",
+                &self
+                    .background_run
+                    .lock()
+                    .as_ref()
+                    .map(ArtifactRun::revision),
+            )
+            .finish()
+    }
+}
 
-    /// Return one canonical path according to the workspace host.
-    fn canonicalize(&self, path: &Path) -> Result<PathBuf, Error>;
+impl Workspace {
+    /// Create one workspace over an opened repository.
+    pub fn new(
+        repository: Arc<Repository>,
+        overlay_file_system: Option<Arc<OverlayFileSystem>>,
+        executor: Arc<Executor>,
+    ) -> Result<Self, Error> {
+        let root = repository.path().to_path_buf();
+        let head = Ref::for_root(&root);
+        let _revision = repository.current(&head)?;
+        let session = Arc::new(Session::new(repository.clone(), executor)?);
+        let workspace = Self {
+            root,
+            head,
+            repository,
+            session,
+            open_file_by_path: DashMap::new(),
+            overlay_file_system,
+            state: Mutex::new(State::Open),
+            watch: Arc::new(Mutex::new(WatchState::default())),
+            background_run: Mutex::new(None),
+        };
 
-    /// Return opened workspace roots.
-    fn roots(&self) -> Vec<PathBuf>;
+        workspace.reload()?;
 
-    /// Open one root.
-    fn open(&self, root: PathBuf) -> Result<(), Error>;
+        Ok(workspace)
+    }
 
-    /// Close one root.
-    fn close(&self, root: &Path) -> Result<(), Error>;
+    /// Return this workspace's canonical root.
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
 
-    /// Return the open root that owns one path.
-    fn root(&self, path: &Path) -> Result<PathBuf, Error>;
+    /// Return the editor overlay used by this workspace.
+    pub fn overlay_file_system(&self) -> Option<Arc<OverlayFileSystem>> {
+        self.overlay_file_system.clone()
+    }
 
-    /// Return the current revision for a root.
-    fn revision(&self, root: &Path) -> Result<Revision, Error>;
-
-    // ================================================================================
-    // Source
-    // ================================================================================
-
-    /// Reload source state from the workspace host.
-    fn reload(&self, root: &Path) -> Result<Option<Commit>, Error>;
-
-    /// Apply one file operation through the workspace.
-    fn file(&self, root: &Path, operation: FileOperation) -> Result<Option<Commit>, Error>;
-
-    /// Return whether one file is currently open through the workspace.
-    fn is_file_open(&self, root: &Path, path: &Path) -> Result<bool, Error>;
-
-    /// Apply one atomic source edit through the workspace.
-    fn edit(&self, root: &Path, update: SourceUpdate) -> Result<Commit, Error>;
-
-    /// Format one source file or selected text range.
-    fn format_file(
+    /// Snapshot one workspace operation trace with repository display names.
+    pub fn snapshot_trace(
         &self,
-        root: &Path,
-        path: PathBuf,
-        range: Option<TextRange>,
-    ) -> Result<Option<FileEdit>, Error>;
+        revision: Revision,
+        trace: &Trace,
+        view: TraceView,
+    ) -> Result<TraceSnapshot, Error> {
+        trace.snapshot(
+            view,
+            |key| {
+                self.repository
+                    .artifact_display(revision, *key)
+                    .map_err(Error::from)
+            },
+            |target| {
+                self.repository
+                    .target_display(revision, target)
+                    .map_err(Error::from)
+            },
+        )
+    }
+
+    /// Execute one command operation.
+    pub(crate) async fn run_command<'a, T, O>(
+        &self,
+        common: &'a CommandOptions,
+        revision: CommandRevision,
+        progress: Option<CommandProgress>,
+        execute: impl for<'context> FnOnce(
+            &'context mut CommandContext<'_>,
+        )
+            -> BoxFuture<'context, CommandResult<CommandOutcome<T>>>,
+    ) -> CommandResult<O>
+    where
+        O: From<Output<T>>,
+    {
+        let repository = self.repository.clone();
+
+        let event_handler = progress.map(CommandProgress::event_handler);
+
+        // gather shared context
+        let mut output = OutputBuffer::default();
+        let mut context = CommandContext::new(
+            self,
+            repository,
+            common,
+            revision,
+            &mut output,
+            event_handler,
+        )?;
+
+        // execute the requested operation
+        let result = execute(&mut context).await?;
+
+        // finalize command output
+        let CommandOutcome {
+            diagnostics,
+            exit_code,
+            messages,
+            files,
+            data,
+            module_count,
+            profile_count,
+            target_count,
+        } = result;
+        let revision = context.revision();
+        let files = context.file_images(revision, &diagnostics, &files)?;
+        let success = exit_code == 0;
+        let trace = common
+            .trace
+            .map(|view| context.command_trace(revision, view))
+            .transpose()?;
+
+        let output = Output {
+            revision,
+            success,
+            exit_code,
+            diagnostics: diagnostics.iter().cloned().collect(),
+            files,
+            messages,
+            output: output.chunks,
+            outputs: Vec::new(),
+            trace,
+            data,
+            module_count,
+            profile_count,
+            target_count,
+        };
+
+        Ok(output.into())
+    }
+}
+
+impl Workspace {
+    /// Return one canonical path according to the workspace host.
+    pub fn canonicalize(&self, path: &Path) -> Result<PathBuf, Error> {
+        self.repository
+            .file_system()
+            .canonicalize(path)
+            .map_err(|error| Error::Io {
+                path: path.to_path_buf(),
+                source: error,
+            })
+    }
+
+    /// Return whether one file is currently open.
+    pub fn is_file_open(&self, path: &Path) -> Result<bool, Error> {
+        let path = self.resolve_path(path)?;
+
+        Ok(self.has_open_file(&path))
+    }
+
+    /// Apply one atomic source update.
+    pub fn edit(&self, update: SourceUpdate) -> Result<Commit, Error> {
+        if let Some(base) = update.base {
+            self.apply_source_edits_if_current(base, update.edits)
+        } else {
+            self.apply_source_edits(update.edits)
+        }
+    }
+
+    /// Check source state.
+    pub fn check<'a>(
+        &'a self,
+        request: CheckInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<CheckOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(&common, request.revision, progress, move |context| {
+                Box::pin(async move { context.run_check_command(&request).await })
+            })
+            .await
+        })
+    }
+
+    /// Format source files or content.
+    pub fn format<'a>(
+        &'a self,
+        request: FormatInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<FormatOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            let command_root = self.root.clone();
+            self.run_command(&common, request.revision, progress, move |context| {
+                Box::pin(async move {
+                    context.run_format_command(&command_root, &request.source, request.mode)
+                })
+            })
+            .await
+        })
+    }
+
+    /// Query source files with one structural pattern.
+    pub fn query<'a>(
+        &'a self,
+        request: QueryInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<QueryOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(&common, request.revision, progress, move |context| {
+                Box::pin(async move { context.run_query_command(&request).await })
+            })
+            .await
+        })
+    }
+
+    /// Rewrite source files with one structural pattern.
+    pub fn rewrite<'a>(
+        &'a self,
+        request: RewriteInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<RewriteOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(&common, request.revision, progress, move |context| {
+                Box::pin(async move { context.run_rewrite_command(&request).await })
+            })
+            .await
+        })
+    }
+
+    /// Build target artifacts.
+    pub fn build<'a>(
+        &'a self,
+        request: BuildInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<BuildOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(&common, request.revision, progress, move |context| {
+                Box::pin(async move { context.run_build_command(&request).await })
+            })
+            .await
+        })
+    }
+
+    /// Run one workspace target.
+    pub fn run<'a>(
+        &'a self,
+        request: RunInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<RunOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(&common, request.revision, progress, move |context| {
+                Box::pin(async move { context.execute_run_command(&request).await })
+            })
+            .await
+        })
+    }
+
+    /// Run workspace tests.
+    pub fn test<'a>(
+        &'a self,
+        request: TestInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<TestOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(&common, request.revision, progress, move |context| {
+                Box::pin(async move { context.run_test_command(&TestOptions::default()) })
+            })
+            .await
+        })
+    }
+
+    /// Generate workspace documentation.
+    pub fn doc<'a>(
+        &'a self,
+        request: DocInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<DocOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(&common, request.revision, progress, move |context| {
+                Box::pin(async move { context.run_doc_command(&DocOptions::default()) })
+            })
+            .await
+        })
+    }
+
+    /// Run workspace benchmarks.
+    pub fn bench<'a>(
+        &'a self,
+        request: BenchInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<BenchOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(&common, request.revision, progress, move |context| {
+                Box::pin(async move { context.run_bench_command(&BenchOptions::default()) })
+            })
+            .await
+        })
+    }
+
+    /// Return workspace information.
+    pub fn info<'a>(
+        &'a self,
+        request: InfoInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<InfoOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(&common, request.revision, progress, move |context| {
+                Box::pin(async move { context.run_info_command(&InfoOptions { all: request.all }) })
+            })
+            .await
+        })
+    }
+
+    /// Return configured targets.
+    pub fn targets<'a>(
+        &'a self,
+        request: TargetsInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<TargetsOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(&common, request.revision, progress, move |context| {
+                Box::pin(async move {
+                    context.run_targets_command(&TargetsOptions { all: request.all })
+                })
+            })
+            .await
+        })
+    }
+
+    /// Return cache locations.
+    pub fn cache<'a>(
+        &'a self,
+        request: CacheInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<CacheOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(&common, request.revision, progress, move |context| {
+                Box::pin(async move { context.run_cache_command(&CacheOptions) })
+            })
+            .await
+        })
+    }
+
+    /// Return resolved settings.
+    pub fn settings<'a>(
+        &'a self,
+        request: SettingsInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<SettingsOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(&common, request.revision, progress, move |context| {
+                Box::pin(async move { context.run_settings_command(&SettingsOptions) })
+            })
+            .await
+        })
+    }
+
+    /// Diagnose workspace configuration and state.
+    pub fn doctor<'a>(
+        &'a self,
+        request: DoctorInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<DoctorOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(&common, request.revision, progress, move |context| {
+                Box::pin(async move {
+                    context.run_doctor_command(&DoctorOptions { full: request.full })
+                })
+            })
+            .await
+        })
+    }
+
+    /// Execute configured workspace tasks.
+    pub fn task<'a>(
+        &'a self,
+        request: TaskInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<TaskOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            self.run_command(&common, request.revision, progress, move |context| {
+                Box::pin(async move {
+                    context.run_task_command(&TaskOptions {
+                        action: request.action.clone(),
+                        projects: request.projects.clone(),
+                        groups: request.groups.clone(),
+                    })
+                })
+            })
+            .await
+        })
+    }
+
+    /// Clean generated workspace state.
+    pub fn clean<'a>(
+        &'a self,
+        request: CleanInput,
+        progress: Option<CommandProgress>,
+    ) -> BoxFuture<'a, Result<CleanOutput, CommandError>> {
+        Box::pin(async move {
+            let common = request.command_options();
+
+            let command_root = self.root.clone();
+            self.run_command(&common, request.revision, progress, move |context| {
+                Box::pin(async move {
+                    context.run_clean_command(
+                        &command_root,
+                        &CleanOptions {
+                            dir: request.dir.clone(),
+                            dist: request.dist,
+                            cache: request.cache,
+                            all: request.all,
+                            all_packages: request.all_packages,
+                        },
+                    )
+                })
+            })
+            .await
+        })
+    }
 
     /// Read source files from one exact revision.
-    fn read_files(
+    pub fn read_files(
+        &self,
+        revision: Revision,
+        file_ids: Vec<FileId>,
+    ) -> Result<Vec<Arc<File>>, Error> {
+        // pin the requested immutable revision
+        let revision = self.repository.pin(revision)?;
+        let session = WorkspacePin::new(self.root.clone(), self.session(), revision);
+
+        // read every requested file exactly
+        let mut files = Vec::with_capacity(file_ids.len());
+        for file_id in file_ids {
+            files.push(session.file(file_id)?);
+        }
+
+        Ok(files)
+    }
+
+    /// Return one artifact payload.
+    pub fn artifact(&self, artifact: ArtifactReference) -> Result<ArtifactPayload, Error> {
+        self.revision()?;
+        let payload = self.artifact_payload(artifact)?;
+
+        Ok(payload)
+    }
+
+    /// Store one content payload.
+    pub fn store(&self, content: Content) -> Result<ContentId, Error> {
+        self.repository.intern_content(content).map_err(Error::from)
+    }
+
+    /// Load one content payload.
+    pub fn load(&self, content: ContentId) -> Result<Content, Error> {
+        let entry = self.repository.content(content)?;
+
+        Ok(entry.payload().clone())
+    }
+
+    /// Materialize one artifact on the workspace host.
+    pub fn export(&self, request: ExportInput) -> Result<ExportResult, Error> {
+        let revision = self.revision()?;
+        let payload = self.artifact(request.artifact)?;
+
+        match payload {
+            ArtifactPayload::Bundle(bundle) => {
+                self.export_bundle(&self.root, bundle.as_ref(), &request)
+            }
+            ArtifactPayload::Product(product) => {
+                self.export_product(&self.root, revision, product.as_ref(), &request)
+            }
+            payload => Err(Error::InvalidEdit {
+                detail: format!(
+                    "workspace export cannot materialize {} artifacts",
+                    payload.name()
+                ),
+            }),
+        }
+    }
+}
+
+impl Workspace {
+    /// Return one artifact payload by exact version.
+    fn artifact_payload(&self, artifact: ArtifactReference) -> Result<ArtifactPayload, Error> {
+        if artifact.key != artifact.version.key {
+            return Err(Error::Internal {
+                detail: format!(
+                    "artifact reference key {:?} does not match version {:?}",
+                    artifact.key, artifact.version
+                ),
+            });
+        }
+
+        if let Some(payload) = self.artifact_payload_in_memory(artifact)? {
+            return Ok(payload);
+        }
+
+        if let Some(payload) = self.repository.load_artifact(artifact.version)? {
+            return Ok(payload);
+        }
+
+        Err(Error::Internal {
+            detail: format!("artifact payload is missing for {:?}", artifact.version),
+        })
+    }
+
+    /// Return one in-memory artifact payload by exact version.
+    fn artifact_payload_in_memory(
+        &self,
+        artifact: ArtifactReference,
+    ) -> Result<Option<ArtifactPayload>, Error> {
+        let payload = self.repository.artifact_table().payload(&artifact.version);
+
+        Ok(payload)
+    }
+
+    /// Return one artifact payload by key in one revision.
+    fn artifact_payload_for_key(
+        &self,
+        revision: Revision,
+        key: ArtifactKey,
+    ) -> Result<ArtifactPayload, Error> {
+        let version = self
+            .repository
+            .artifact_version(revision, &key)?
+            .ok_or_else(|| Error::Internal {
+                detail: format!("artifact version is missing for {key:?}"),
+            })?;
+        let reference = ArtifactReference { key, version };
+
+        self.artifact_payload(reference)
+    }
+
+    /// Export one bundle to the host filesystem.
+    fn export_bundle(
+        &self,
+        root: &Path,
+        bundle: &Bundle,
+        request: &ExportInput,
+    ) -> Result<ExportResult, Error> {
+        let mut files = Vec::new();
+
+        // materialize each bundle file under the requested directory
+        for file in bundle.files() {
+            let file = self.export_bundle_file(root, file, request)?;
+            files.push(file);
+        }
+
+        Ok(ExportResult { files })
+    }
+
+    /// Export one product to the host filesystem.
+    fn export_product(
         &self,
         root: &Path,
         revision: Revision,
-        file_ids: Vec<FileId>,
-    ) -> Result<Vec<Arc<File>>, Error>;
+        product: &Product,
+        request: &ExportInput,
+    ) -> Result<ExportResult, Error> {
+        let mut files = Vec::new();
 
-    // ================================================================================
-    // Command
-    // ================================================================================
+        // materialize each bundle included by the product
+        for target in product.targets.values() {
+            if !target.includes_bundle {
+                continue;
+            }
 
-    /// Check source state for a root.
-    fn check<'a>(
-        &'a self,
-        root: &'a Path,
-        input: CheckInput,
-        progress: Option<CommandProgress>,
-    ) -> BoxFuture<'a, Result<CheckOutput, CommandError>>;
+            let key = ArtifactKey::bundle(target.target.package_id(), target.target);
+            let payload = self.artifact_payload_for_key(revision, key)?;
+            let ArtifactPayload::Bundle(bundle) = payload else {
+                return Err(Error::Internal {
+                    detail: format!("product target did not resolve to bundle artifact: {key:?}"),
+                });
+            };
+            let result = self.export_bundle(root, bundle.as_ref(), request)?;
+            files.extend(result.files);
+        }
 
-    /// Format source files or content.
-    fn format<'a>(
-        &'a self,
-        root: &'a Path,
-        input: FormatInput,
-        progress: Option<CommandProgress>,
-    ) -> BoxFuture<'a, Result<FormatOutput, CommandError>>;
+        Ok(ExportResult { files })
+    }
 
-    /// Query source files with one structural pattern.
-    fn query<'a>(
-        &'a self,
-        root: &'a Path,
-        input: QueryInput,
-        progress: Option<CommandProgress>,
-    ) -> BoxFuture<'a, Result<QueryOutput, CommandError>>;
-
-    /// Rewrite source files with one structural pattern.
-    fn rewrite<'a>(
-        &'a self,
-        root: &'a Path,
-        input: RewriteInput,
-        progress: Option<CommandProgress>,
-    ) -> BoxFuture<'a, Result<RewriteOutput, CommandError>>;
-
-    /// Build target artifacts for a root.
-    fn build<'a>(
-        &'a self,
-        root: &'a Path,
-        input: BuildInput,
-        progress: Option<CommandProgress>,
-    ) -> BoxFuture<'a, Result<BuildOutput, CommandError>>;
-
-    /// Run a workspace target.
-    fn run<'a>(
-        &'a self,
-        root: &'a Path,
-        input: RunInput,
-        progress: Option<CommandProgress>,
-    ) -> BoxFuture<'a, Result<RunOutput, CommandError>>;
-
-    /// Run workspace tests.
-    fn test<'a>(
-        &'a self,
-        root: &'a Path,
-        input: TestInput,
-        progress: Option<CommandProgress>,
-    ) -> BoxFuture<'a, Result<TestOutput, CommandError>>;
-
-    /// Generate documentation.
-    fn doc<'a>(
-        &'a self,
-        root: &'a Path,
-        input: DocInput,
-        progress: Option<CommandProgress>,
-    ) -> BoxFuture<'a, Result<DocOutput, CommandError>>;
-
-    /// Run benchmarks.
-    fn bench<'a>(
-        &'a self,
-        root: &'a Path,
-        input: BenchInput,
-        progress: Option<CommandProgress>,
-    ) -> BoxFuture<'a, Result<BenchOutput, CommandError>>;
-
-    /// Return workspace information.
-    fn info<'a>(
-        &'a self,
-        root: &'a Path,
-        input: InfoInput,
-        progress: Option<CommandProgress>,
-    ) -> BoxFuture<'a, Result<InfoOutput, CommandError>>;
-
-    /// Return configured targets.
-    fn targets<'a>(
-        &'a self,
-        root: &'a Path,
-        input: TargetsInput,
-        progress: Option<CommandProgress>,
-    ) -> BoxFuture<'a, Result<TargetsOutput, CommandError>>;
-
-    /// Return cache locations.
-    fn cache<'a>(
-        &'a self,
-        root: &'a Path,
-        input: CacheInput,
-        progress: Option<CommandProgress>,
-    ) -> BoxFuture<'a, Result<CacheOutput, CommandError>>;
-
-    /// Return resolved settings.
-    fn settings<'a>(
-        &'a self,
-        root: &'a Path,
-        input: SettingsInput,
-        progress: Option<CommandProgress>,
-    ) -> BoxFuture<'a, Result<SettingsOutput, CommandError>>;
-
-    /// Return workspace health information.
-    fn doctor<'a>(
-        &'a self,
-        root: &'a Path,
-        input: DoctorInput,
-        progress: Option<CommandProgress>,
-    ) -> BoxFuture<'a, Result<DoctorOutput, CommandError>>;
-
-    /// Run workspace tasks.
-    fn task<'a>(
-        &'a self,
-        root: &'a Path,
-        input: TaskInput,
-        progress: Option<CommandProgress>,
-    ) -> BoxFuture<'a, Result<TaskOutput, CommandError>>;
-
-    /// Clean generated state.
-    fn clean<'a>(
-        &'a self,
-        root: &'a Path,
-        input: CleanInput,
-        progress: Option<CommandProgress>,
-    ) -> BoxFuture<'a, Result<CleanOutput, CommandError>>;
-
-    // ================================================================================
-    // Query
-    // ================================================================================
-
-    /// Run one semantic query for a root.
-    fn run_query<'a>(
-        &'a self,
-        root: &'a Path,
-        request: RunQueryInput,
-    ) -> BoxFuture<'a, Result<RunQueryResponse, Error>>;
-
-    /// Resolve one source file for semantic queries.
-    fn resolve_query_file(&self, root: &Path, path: PathBuf) -> Result<Option<QueryFile>, Error>;
-
-    // ================================================================================
-    // Diagnostics
-    // ================================================================================
-
-    /// Return exact file diagnostics.
-    fn diagnose(
+    /// Export one bundle file to the host filesystem.
+    fn export_bundle_file(
         &self,
-        request: DiagnosticsRequest,
-    ) -> BoxFuture<'_, Result<Vec<FileDiagnostics>, Error>>;
+        root: &Path,
+        file: &BundleFile,
+        request: &ExportInput,
+    ) -> Result<ExportedFile, Error> {
+        let path = self.export_file_path(root, file, request)?;
+        let content = self.repository.content(file.content)?.payload().clone();
 
-    // ================================================================================
-    // Artifact
-    // ================================================================================
+        // refuse to overwrite existing output unless explicitly allowed
+        let exists = self
+            .repository
+            .file_system()
+            .exists(&path)
+            .map_err(|source| Error::Io {
+                path: path.clone(),
+                source,
+            })?;
+        if exists && !request.overwrite {
+            return Err(Error::InvalidEdit {
+                detail: format!("export output already exists: {}", path.display()),
+            });
+        }
 
-    /// Return one artifact payload.
-    fn artifact(&self, root: &Path, artifact: ArtifactReference) -> Result<ArtifactPayload, Error>;
+        // ensure the output directory exists
+        if let Some(parent) = path.parent() {
+            self.repository
+                .file_system()
+                .create_dir_all(parent)
+                .map_err(|source| Error::Io {
+                    path: parent.to_path_buf(),
+                    source,
+                })?;
+        }
 
-    /// Store one content payload in the workspace content store.
-    fn store(&self, content: Content) -> Result<ContentId, Error>;
+        // write the payload in its native content representation
+        let size_bytes = match content {
+            Content::Text { content } => {
+                let size_bytes = content.len() as u64;
+                self.repository
+                    .file_system()
+                    .write_string(&path, &content)
+                    .map_err(|source| Error::Io {
+                        path: path.clone(),
+                        source,
+                    })?;
 
-    /// Return one content payload from the workspace content store.
-    fn load(&self, content: ContentId) -> Result<Content, Error>;
+                size_bytes
+            }
+            Content::Binary { content } => {
+                let size_bytes = content.len() as u64;
+                self.repository
+                    .file_system()
+                    .write(&path, &content)
+                    .map_err(|source| Error::Io {
+                        path: path.clone(),
+                        source,
+                    })?;
 
-    /// Materialize derived outputs on the workspace host.
-    fn export(&self, root: &Path, request: ExportInput) -> Result<ExportResult, Error>;
+                size_bytes
+            }
+        };
 
-    // ================================================================================
-    // Watch
-    // ================================================================================
+        Ok(ExportedFile {
+            path,
+            content: file.content,
+            size_bytes,
+        })
+    }
 
-    /// Watch semantic changes for one workspace root.
-    fn watch(&self, root: &Path) -> Result<Watch, Error>;
+    /// Resolve one bundle file export path.
+    fn export_file_path(
+        &self,
+        root: &Path,
+        file: &BundleFile,
+        request: &ExportInput,
+    ) -> Result<PathBuf, Error> {
+        let Some(source_path) = file.uri.to_path_buf() else {
+            return Err(Error::InvalidEdit {
+                detail: format!("bundle file URI is not path-like: {}", file.uri),
+            });
+        };
+        let relative = if source_path.is_absolute() {
+            source_path
+                .strip_prefix(root)
+                .map(Path::to_path_buf)
+                .map_err(|_| Error::InvalidEdit {
+                    detail: format!(
+                        "bundle file path is outside export root: {}",
+                        source_path.display()
+                    ),
+                })?
+        } else {
+            source_path
+        };
+
+        // reject paths that escape the output directory
+        if relative
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+        {
+            return Err(Error::InvalidEdit {
+                detail: format!(
+                    "bundle file path is not export-safe: {}",
+                    relative.display()
+                ),
+            });
+        }
+
+        Ok(request.directory.join(relative))
+    }
 }

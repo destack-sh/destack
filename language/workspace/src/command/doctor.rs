@@ -204,7 +204,7 @@ impl CommandContext<'_> {
             cwd: self.cwd.display().to_string(),
             os: os.to_string(),
             arch: arch.to_string(),
-            workers: self.workspace.worker_count as u64,
+            workers: self.workspace.session().executor().worker_count() as u64,
             available_parallelism: u64::try_from(available_parallelism).unwrap_or(u64::MAX),
             workspace: DoctorWorkspace {
                 root: workspace.root.display().to_string(),

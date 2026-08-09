@@ -14,7 +14,7 @@ fn test_format_file_without_query_target() {
     // format the exact workspace file without semantic module resolution
     let edit = test
         .workspace
-        .format_file(&test.roots[0], path, None)
+        .format_file(path, None)
         .expect("format file")
         .expect("format edit");
 

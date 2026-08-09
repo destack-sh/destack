@@ -3,13 +3,12 @@ use destack_source::{Edit, FileSystem};
 use crate::Error;
 use crate::tests::harness::TestWorkspace;
 
-/// Emit an explicit removed update when a tracked file is deleted.
+/// Emit one explicit removal when a tracked file is deleted.
 #[test]
-fn test_apply_file_emits_removed_update() {
+fn test_apply_file_emits_removal() {
     let test = TestWorkspace::new("workspace_remove_file");
     let source = "export const value = 1;\n";
     let path = test.write_text("main.ds", source);
-    let uri = test.uri_for_path(&path);
 
     // load the file before removing it from the revision
     let _ = test.apply_text(&path, source);
@@ -21,11 +20,9 @@ fn test_apply_file_emits_removed_update() {
         .apply_file(Edit::Remove { path: path.clone() })
         .expect("expected removed file update");
 
-    assert!(
-        removed.updates.iter().any(|update| {
-            update.diagnostic_uri == uri && update.is_removed && update.file.is_none()
-        }),
-        "expected an explicit removed update"
+    assert_eq!(
+        removed.changes,
+        vec![TestWorkspace::change("main.ds", Some(source), None)]
     );
 }
 
@@ -47,28 +44,17 @@ fn test_apply_config_update_stays_direct() {
         &config_path,
         "{ \"name\": \"test\", \"compiler\": { \"noThrow\": true } }\n",
     );
-    let updated_paths: Vec<_> = updated
-        .updates
-        .iter()
-        .filter_map(|update| update.file.as_ref().and_then(|file| file.path.as_ref()))
-        .cloned()
-        .collect();
-
-    assert!(
-        updated_paths.iter().all(|path| path != &module_a),
-        "expected config updates to avoid implicit module fanout"
-    );
-    assert!(
-        updated_paths.iter().all(|path| path != &module_b),
-        "expected config updates to avoid implicit module fanout"
-    );
-    assert!(
-        updated_paths.iter().any(|path| path == &config_path),
-        "expected direct config publish"
+    assert_eq!(
+        updated.changes,
+        vec![TestWorkspace::change(
+            "destack.json",
+            Some("{ \"name\": \"test\", \"compiler\": {} }\n"),
+            Some("{ \"name\": \"test\", \"compiler\": { \"noThrow\": true } }\n"),
+        )]
     );
 }
 
-/// Preserve open file protocol state through open, change, and close.
+/// Preserve the client uri and version through open, change, and close.
 #[test]
 fn test_open_file_tracks_client_state() {
     let test = TestWorkspace::new("workspace_open_file");
@@ -88,12 +74,9 @@ fn test_open_file_tracks_client_state() {
         )
         .expect("expected open file");
 
-    assert!(
-        test.workspace.has_open_file(&path),
-        "expected open file state"
-    );
+    assert!(test.workspace.has_open_file(&path), "expected open file");
 
-    let changed = "export const value = 2;\n";
+    let changed_source = "export const value = 2;\n";
     let changed = test
         .workspace
         .change_file(
@@ -101,34 +84,38 @@ fn test_open_file_tracks_client_state() {
             2,
             Edit::SetText {
                 path: path.clone(),
-                text: changed.to_string(),
+                text: changed_source.to_string(),
             },
         )
         .expect("expected changed file");
 
-    assert!(
-        changed
-            .updates
-            .iter()
-            .any(|update| update.diagnostic_uri == uri && update.diagnostic_version == Some(2)),
-        "expected changed update to use client uri and version"
+    assert_eq!(
+        changed.changes,
+        vec![TestWorkspace::change(
+            "main.ds",
+            Some(source),
+            Some(changed_source),
+        )]
     );
+    let open = test
+        .workspace
+        .find_open_file(&path)
+        .expect("expected open file");
+    assert_eq!(open.uri, uri);
+    assert_eq!(open.version, 2);
 
     let _ = test
         .workspace
         .close_file(&path)
         .expect("expected closed file");
 
-    assert!(
-        !test.workspace.has_open_file(&path),
-        "expected closed file state"
-    );
+    assert!(!test.workspace.has_open_file(&path), "expected closed file");
 }
 
-/// Clears root-scoped open file state when closing a workspace root.
+/// Remove open files when closing a workspace.
 #[test]
-fn test_close_root_clears_open_files() {
-    let test = TestWorkspace::new("workspace_close_root");
+fn test_close_workspace_clears_open_files() {
+    let test = TestWorkspace::new("workspace_close");
     let source = "export const value = 1;\n";
     let path = test.write_text("main.ds", source);
     let uri = test.uri_for_path(&path);
@@ -145,50 +132,23 @@ fn test_close_root_clears_open_files() {
         )
         .expect("expected open file");
 
-    // close the root and check that root scoped live state disappears
-    test.workspace
-        .close_root(test.roots[0].as_path())
-        .expect("expected closed root");
+    // close the workspace and check that live editor state disappears
+    test.workspace.close();
 
     assert!(
         !test.workspace.has_open_file(&path),
-        "expected root close to clear open file state"
+        "expected root close to remove open file"
     );
 }
 
-/// Reject mutations retained by an operation after its root closes.
+/// Reject mutations after the workspace closes.
 #[test]
-fn test_close_root_rejects_retained_mutation() {
-    let test = TestWorkspace::new("workspace_close_retained_root");
-    let root = &test.roots[0];
-    let retained = test.workspace.root(root).expect("retain opened root");
+fn test_close_workspace_rejects_mutation() {
+    let test = TestWorkspace::new("workspace_close_mutation");
+    test.workspace.close();
+    let error = test.workspace.write().expect_err("reject closed mutation");
 
-    test.workspace.close_root(root).expect("close root");
-    let error = retained.write().expect_err("reject retained mutation");
-
-    assert!(matches!(error, Error::PathNotInRoot { path } if path == *root));
-}
-
-/// Distinguish the deepest operation owner from every affected containing root.
-#[test]
-fn test_route_nested_root_path() {
-    let test = TestWorkspace::new("workspace_nested_root");
-    let outer = &test.roots[0];
-    let nested = outer.join("nested");
-    let config = nested.join("destack.json");
-    test.fs
-        .write_text(&config, "{ \"name\": \"nested\" }\n")
-        .expect("write nested manifest");
-    test.workspace
-        .open_root(nested.clone())
-        .expect("open nested root");
-    let path = nested.join("main.ds");
-
-    assert_eq!(
-        test.workspace.roots_at(&path),
-        vec![outer.clone(), nested.clone()]
-    );
-    assert_eq!(test.workspace.root_at(&path).expect("route path"), nested);
+    assert!(matches!(error, Error::WorkspaceClosed));
 }
 
 /// Reject stale open file changes before mutating source state.
@@ -235,20 +195,13 @@ fn test_write_source_edits_rejects_stale_revision() {
     let attempted_source = "export const value = 3;\n";
     let path = test.write_text("main.ds", disk_source);
     test.apply_text(&path, disk_source);
-    let stale = test
-        .workspace
-        .revision(&test.roots[0])
-        .expect("read stale base");
+    let stale = test.workspace.revision().expect("read stale base");
     test.apply_text(&path, live_source);
-    let live = test
-        .workspace
-        .revision(&test.roots[0])
-        .expect("read live revision");
+    let live = test.workspace.revision().expect("read live revision");
 
     let error = test
         .workspace
         .write_source_edits_if_current(
-            &test.roots[0],
             stale,
             vec![Edit::SetText {
                 path: path.clone(),
@@ -263,9 +216,7 @@ fn test_write_source_edits_rejects_stale_revision() {
         disk_source
     );
     assert_eq!(
-        test.workspace
-            .revision(&test.roots[0])
-            .expect("read retained revision"),
+        test.workspace.revision().expect("read retained revision"),
         live
     );
 }
@@ -274,17 +225,12 @@ fn test_write_source_edits_rejects_stale_revision() {
 #[test]
 fn test_apply_source_edits_rejects_escaping_path() {
     let test = TestWorkspace::new("workspace_escape_source_edit");
-    let root = &test.roots[0];
-
     let error = test
         .workspace
-        .apply_source_edits(
-            root,
-            vec![Edit::SetText {
-                path: "../outside.ds".into(),
-                text: "export const escaped = true;\n".to_string(),
-            }],
-        )
+        .apply_source_edits(vec![Edit::SetText {
+            path: "../outside.ds".into(),
+            text: "export const escaped = true;\n".to_string(),
+        }])
         .expect_err("reject escaping source path");
 
     assert!(matches!(error, Error::PathNotInRoot { .. }));
@@ -302,7 +248,7 @@ fn test_write_source_edits_restores_failed_batch() {
     test.apply_text(&second, second_source);
     let before = test
         .workspace
-        .revision(&test.roots[0])
+        .revision()
         .expect("read revision before failed write");
     let edits = vec![
         Edit::SetText {
@@ -317,7 +263,7 @@ fn test_write_source_edits_restores_failed_batch() {
 
     let error = test
         .workspace
-        .write_source_edits_if_current(&test.roots[0], before, edits)
+        .write_source_edits_if_current(before, edits)
         .expect_err("fail source write batch");
 
     assert_eq!(
@@ -336,9 +282,7 @@ fn test_write_source_edits_restores_failed_batch() {
         second_source
     );
     assert_eq!(
-        test.workspace
-            .revision(&test.roots[0])
-            .expect("read unchanged revision"),
+        test.workspace.revision().expect("read unchanged revision"),
         before
     );
 }

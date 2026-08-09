@@ -1,10 +1,11 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::sync::Arc;
 
 use destack_repository::{Repository, Revision};
-use destack_source::{ContentId, Edit, FileId, Uri};
+use destack_source::{Content, ContentEntry, FileId, Uri};
 
-use crate::diagnostic::Error;
-use crate::workspace::LocalWorkspace;
+use crate::Error;
+use crate::workspace::Workspace;
 
 /// One currently open file tracked by the workspace.
 #[derive(Debug, Clone)]
@@ -13,15 +14,29 @@ pub(crate) struct OpenFile {
     pub uri: Uri,
     /// Client-provided file version.
     pub version: i32,
-    /// Repository content id corresponding to the open content.
-    pub content_id: ContentId,
-    /// Current open content.
-    pub content: Edit,
+    /// Current repository content.
+    pub content: Arc<ContentEntry>,
 }
 
-impl LocalWorkspace {
+impl OpenFile {
+    /// Return the client version when one revision contains this open content.
+    pub(crate) fn version_at(
+        &self,
+        repository: &Repository,
+        revision: Revision,
+        file_id: FileId,
+    ) -> Result<Option<i32>, Error> {
+        let Some(content_id) = repository.file_content_id(revision, file_id)? else {
+            return Ok(None);
+        };
+
+        Ok((content_id == self.content.content_id()).then_some(self.version))
+    }
+}
+
+impl Workspace {
     /// Return the open file for one path.
-    pub(crate) fn open_state(&self, path: &Path) -> Option<OpenFile> {
+    pub(crate) fn find_open_file(&self, path: &Path) -> Option<OpenFile> {
         // open file paths are stored by normalized path
         let path = self.normalized_path(path);
 
@@ -30,35 +45,19 @@ impl LocalWorkspace {
             .map(|file| file.value().clone())
     }
 
-    /// Return the client version for one open file path.
-    pub(crate) fn open_file_version(&self, path: &Path) -> Option<i32> {
-        self.open_state(path).map(|file| file.version)
-    }
-
-    /// Set one open file.
-    pub(crate) fn set_open_state(
-        &self,
-        path: &Path,
-        uri: Uri,
-        version: i32,
-        content_id: ContentId,
-        content: Edit,
-    ) {
-        // mirror open text into the shared filesystem overlay
+    /// Insert or replace one open file.
+    pub(crate) fn upsert_open_file(&self, path: &Path, file: OpenFile) {
         let path = self.normalized_path(path);
-        let file = OpenFile {
-            uri,
-            version,
-            content_id,
-            content: content.clone(),
-        };
 
-        // update the text overlay only for text content
+        // mirror open content into the shared filesystem overlay
         if let Some(overlay_file_system) = self.overlay_file_system.as_ref() {
-            if let Some(text) = content.text() {
-                overlay_file_system.set_overlay(path.as_path(), text.to_string());
-            } else {
-                overlay_file_system.remove_overlay(path.as_path());
+            match file.content.payload() {
+                Content::Text { content } => {
+                    overlay_file_system.set_overlay(path.as_path(), content.clone());
+                }
+                Content::Binary { content } => {
+                    overlay_file_system.set_overlay_bytes(path.as_path(), content.clone());
+                }
             }
         }
 
@@ -67,8 +66,8 @@ impl LocalWorkspace {
     }
 
     /// Remove one open file.
-    pub(crate) fn remove_open_state(&self, path: &Path) -> Option<OpenFile> {
-        // remove overlay state before dropping open file metadata
+    pub(crate) fn remove_open_file(&self, path: &Path) -> Option<OpenFile> {
+        // remove the overlay before dropping the open file
         let path = self.normalized_path(path);
 
         if let Some(overlay_file_system) = self.overlay_file_system.as_ref() {
@@ -80,13 +79,6 @@ impl LocalWorkspace {
             .map(|(_, file)| file)
     }
 
-    /// Return the current text for one open file.
-    pub(crate) fn open_file_text(&self, path: &Path) -> Option<String> {
-        let file = self.open_state(path)?;
-
-        file.content.text().map(str::to_string)
-    }
-
     /// Return true when a path is open.
     pub fn has_open_file(&self, path: &Path) -> bool {
         // compare normalized paths with the open file map
@@ -95,48 +87,20 @@ impl LocalWorkspace {
         self.open_file_by_path.contains_key(path.as_path())
     }
 
-    /// Return open files contained by one root.
-    pub(crate) fn open_files_under(&self, root: &Path) -> Vec<(PathBuf, OpenFile)> {
-        let root = self.normalized_path(root);
-
+    /// Return every open file.
+    pub(crate) fn open_files(&self) -> Vec<(std::path::PathBuf, OpenFile)> {
         self.open_file_by_path
             .iter()
-            .filter(|entry| entry.key().starts_with(root.as_path()))
             .map(|entry| (entry.key().clone(), entry.value().clone()))
             .collect()
     }
 
-    /// Remove open files contained by one root.
-    pub(crate) fn remove_open_files_under(&self, root: &Path) {
-        let files = self.open_files_under(root);
+    /// Remove every open file.
+    pub(crate) fn remove_open_files(&self) {
+        let files = self.open_files();
 
-        for (path, _file) in files {
-            self.remove_open_state(path.as_path());
+        for (path, _) in files {
+            self.remove_open_file(path.as_path());
         }
-    }
-
-    /// Return the open file diagnostic version when it matches a revision.
-    pub(crate) fn open_file_version_in_revision(
-        &self,
-        repository: &Repository,
-        revision: Revision,
-        file_id: FileId,
-        path: &Path,
-    ) -> Result<Option<i32>, Error> {
-        // missing open files have no client version
-        let Some(file) = self.open_state(path) else {
-            return Ok(None);
-        };
-
-        // only advertise a version when revision content matches open text
-        let Some(content_id) = repository.file_content_id(revision, file_id)? else {
-            return Ok(None);
-        };
-
-        if content_id != file.content_id {
-            return Ok(None);
-        }
-
-        Ok(Some(file.version))
     }
 }

@@ -1,8 +1,6 @@
-use destack_repository::Revision;
+use destack_repository::{Commit, Revision};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
-
-use crate::Commit;
 
 /// One semantic workspace change observed for an opened root.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]

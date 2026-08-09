@@ -2,12 +2,11 @@ use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
-use destack_repository::Revision;
+use destack_repository::{Commit, Revision};
 use destack_source::Edit;
 
-use crate::diagnostic::Error;
-use crate::file::Commit;
-use crate::workspace::{LocalWorkspace, WorkspaceRoot};
+use crate::Error;
+use crate::workspace::Workspace;
 
 /// Previous filesystem content retained until one commit publishes.
 struct Backup {
@@ -17,45 +16,73 @@ struct Backup {
     content: Option<Vec<u8>>,
 }
 
-impl LocalWorkspace {
+impl Workspace {
+    /// Reload this workspace from its host filesystem.
+    pub fn reload(&self) -> Result<Option<Commit>, Error> {
+        let _write = self.write()?;
+        let before = self.revision()?;
+        let edits = self.repository.scan(&self.root, before)?;
+        let commit = self.advance(before, edits)?;
+
+        if commit.before == commit.after {
+            return Ok(None);
+        }
+
+        Ok(Some(self.publish(commit)?))
+    }
+
+    /// Reconcile changed host paths through this workspace.
+    pub fn reconcile(&self, paths: Vec<PathBuf>) -> Result<Option<Commit>, Error> {
+        let _write = self.write()?;
+
+        // resolve physical paths against this workspace
+        let logical_paths = paths
+            .into_iter()
+            .map(|path| self.logical_path(&path).map(PathBuf::from))
+            .collect::<Result<Vec<_>, _>>()?;
+        let before = self.revision()?;
+        let edits = self
+            .repository
+            .scan_paths(&self.root, before, logical_paths)?;
+        let commit = self.advance(before, edits)?;
+
+        // publish only an observable repository transition
+        if commit.before == commit.after {
+            return Ok(None);
+        }
+
+        Ok(Some(self.publish(commit)?))
+    }
+
     /// Write one edit to the host filesystem and workspace.
     pub fn write_file(&self, edit: Edit) -> Result<Commit, Error> {
-        let root = self.edit_root(&edit)?;
-        let _write = root.write()?;
-        let edit = self.resolve_edit(root.as_ref(), edit)?;
-        let revision = root.revision(&self.repository)?;
+        let _write = self.write()?;
+        let edit = self.resolve_edit(edit)?;
+        let revision = self.revision()?;
 
-        self.write(root.as_ref(), revision, vec![edit])
+        self.persist(revision, vec![edit])
     }
 
     /// Write source edits when the current revision still matches.
     pub(crate) fn write_source_edits_if_current(
         &self,
-        root: &Path,
         revision: Revision,
         edits: Vec<Edit>,
     ) -> Result<Commit, Error> {
-        let root = self.root(root)?;
-        let _write = root.write()?;
+        let _write = self.write()?;
         let edits = edits
             .into_iter()
-            .map(|edit| self.resolve_edit(root.as_ref(), edit))
+            .map(|edit| self.resolve_edit(edit))
             .collect::<Result<Vec<_>, _>>()?;
 
-        self.write(root.as_ref(), revision, edits)
+        self.persist(revision, edits)
     }
 
     /// Commit source edits to disk and one exact workspace revision.
-    fn write(
-        &self,
-        root: &WorkspaceRoot,
-        revision: Revision,
-        edits: Vec<Edit>,
-    ) -> Result<Commit, Error> {
+    fn persist(&self, revision: Revision, edits: Vec<Edit>) -> Result<Commit, Error> {
         let backups = self.backups(&edits)?;
-        let pending = root.prepare(revision, edits.clone(), self)?;
 
-        // write every file while the root remains locked
+        // write every file while the workspace remains locked
         for edit in &edits {
             if let Err(error) = self.write_edit(edit) {
                 return Err(self.restore(error, &backups));
@@ -63,8 +90,8 @@ impl LocalWorkspace {
         }
 
         // publish only after every filesystem write succeeds
-        match pending.advance(root, self) {
-            Ok(commit) => Ok(commit.publish(root)),
+        match self.commit(revision, edits) {
+            Ok(commit) => self.publish(commit),
             Err(error) => Err(self.restore(error, &backups)),
         }
     }

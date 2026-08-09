@@ -11,17 +11,14 @@ use destack_session::{ArtifactPriority, ArtifactRun};
 use destack_source::{Diagnostic, File, FileId, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::RunGuard;
-use crate::diagnostic::Error;
-use crate::workspace::{LocalWorkspace, WorkspacePin};
+use crate::Error;
+use crate::workspace::{Workspace, WorkspacePin};
 
 /// Selection for one diagnostic read.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum DiagnosticsRequest {
-    /// Return diagnostics for every open root.
+    /// Return diagnostics for this workspace.
     All,
-    /// Return diagnostics for one root.
-    Root(PathBuf),
     /// Return diagnostics for one file.
     File(PathBuf),
 }
@@ -96,10 +93,12 @@ impl FileDiagnostics {
     }
 }
 
-/// One scheduled diagnostic read across exact root revisions.
+/// One scheduled diagnostic read at an exact workspace revision.
 pub struct DiagnosticRun {
-    /// Exact root reads scheduled by this request.
-    reads: Vec<DiagnosticRead>,
+    /// The exact workspace revision selected by this request.
+    revision: Revision,
+    /// The scheduled read, absent when a requested file is not tracked.
+    read: Option<DiagnosticRead>,
 }
 
 impl std::fmt::Debug for DiagnosticRun {
@@ -107,64 +106,44 @@ impl std::fmt::Debug for DiagnosticRun {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("DiagnosticRun")
-            .field("roots", &self.reads.len())
+            .field("revision", &self.revision)
+            .field("is_scheduled", &self.read.is_some())
             .finish()
     }
 }
 
 impl DiagnosticRun {
-    /// Return every root revision pinned by this diagnostic run.
-    pub fn revisions(&self) -> Vec<(PathBuf, Revision)> {
-        self.reads
-            .iter()
-            .map(|read| (read.root.clone(), read.session.revision()))
-            .collect()
+    /// Return the exact workspace revision pinned by this diagnostic run.
+    pub fn revision(&self) -> Revision {
+        self.revision
     }
 
-    /// Cancel this diagnostic read when its caller abandons the operation.
-    pub fn guard(&self) -> RunGuard {
-        let cancellations = self
-            .reads
-            .iter()
-            .map(|read| read.artifact_run.cancellation())
-            .collect();
-
-        RunGuard::new(cancellations)
-    }
-
-    /// Complete every root and read its exact diagnostics and failures.
+    /// Complete the scheduled read and return its diagnostics and failures.
     pub async fn wait(self) -> DiagnosticOutcome {
-        let mut outcome = DiagnosticOutcome::default();
-        for read in self.reads {
-            let mut current = read.wait().await;
-            outcome.diagnostics.append(&mut current.diagnostics);
-            outcome.failures.append(&mut current.failures);
+        match self.read {
+            Some(read) => read.wait().await,
+            None => DiagnosticOutcome::default(),
         }
-
-        outcome
     }
 }
 
-/// One exact root diagnostic read.
+/// One exact workspace diagnostic read.
 struct DiagnosticRead {
-    /// Opened root containing this exact read.
-    root: PathBuf,
     /// Pinned source and diagnostic state.
     session: WorkspacePin,
-    /// Files selected from this root.
+    /// Files selected from this workspace.
     selection: DiagnosticSelection,
     /// Open file protocol identities at the pinned revision.
     open_files: HashMap<FileId, (Uri, Option<i32>)>,
-    /// Exact diagnostic artifact roots for this root.
+    /// Exact diagnostic artifact roots for this workspace.
     artifact_keys: Vec<ArtifactKey>,
     /// Foreground provisioning for the diagnostic artifacts.
     artifact_run: ArtifactRun,
 }
 
 impl DiagnosticRead {
-    /// Schedule one exact root diagnostic read.
+    /// Schedule one exact workspace diagnostic read.
     fn new(
-        root: PathBuf,
         session: WorkspacePin,
         selection: DiagnosticSelection,
         open_files: HashMap<FileId, (Uri, Option<i32>)>,
@@ -178,7 +157,6 @@ impl DiagnosticRead {
         );
 
         Ok(Self {
-            root,
             session,
             selection,
             open_files,
@@ -187,10 +165,9 @@ impl DiagnosticRead {
         })
     }
 
-    /// Complete this root and read its selected diagnostics and failures.
+    /// Complete this workspace read and return its diagnostics and failures.
     async fn wait(self) -> DiagnosticOutcome {
         let Self {
-            root,
             session,
             selection,
             open_files,
@@ -231,7 +208,7 @@ impl DiagnosticRead {
             return outcome;
         }
 
-        // build stable root diagnostics
+        // build stable workspace diagnostics
         for (file_id, file_diagnostics) in diagnostics_by_file {
             let file = match FileDiagnostics::read(&session, &open_files, file_id, file_diagnostics)
             {
@@ -242,14 +219,7 @@ impl DiagnosticRead {
                     continue;
                 }
             };
-            let belongs_to_root = file
-                .file
-                .path
-                .as_deref()
-                .is_some_and(|path| path.starts_with(&root));
-            if belongs_to_root || open_files.contains_key(&file_id) {
-                outcome.diagnostics.push(file);
-            }
+            outcome.diagnostics.push(file);
         }
         outcome.diagnostics.sort_by(|left, right| {
             let paths = left.file.path.cmp(&right.file.path);
@@ -264,41 +234,34 @@ impl DiagnosticRead {
     }
 }
 
-/// Files selected from one diagnostic root.
+/// Files selected from one diagnostic request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DiagnosticSelection {
     /// Every file carrying diagnostics or open editor state.
-    Root,
+    All,
     /// One exact source file.
     File(FileId),
 }
 
-impl LocalWorkspace {
+impl Workspace {
     /// Schedule exact diagnostics selected by one request.
     pub fn start_diagnostics(&self, request: DiagnosticsRequest) -> Result<DiagnosticRun, Error> {
-        let reads = match request {
-            DiagnosticsRequest::All => {
-                let mut roots = self.root_paths();
-                roots.sort();
-
-                roots
-                    .into_iter()
-                    .map(|root| self.start_root_diagnostics(&root))
-                    .collect::<Result<Vec<_>, _>>()?
-            }
-            DiagnosticsRequest::Root(root) => vec![self.start_root_diagnostics(&root)?],
-            DiagnosticsRequest::File(path) => {
-                self.start_file_diagnostics(&path)?.into_iter().collect()
-            }
+        let session = self.pin()?;
+        let revision = session.revision();
+        let read = match request {
+            DiagnosticsRequest::All => Some(self.start_all_diagnostics(session)?),
+            DiagnosticsRequest::File(path) => self.start_file_diagnostics(session, &path)?,
         };
 
-        Ok(DiagnosticRun { reads })
+        Ok(DiagnosticRun { revision, read })
     }
 
     /// Schedule exact diagnostics for one file path.
-    fn start_file_diagnostics(&self, path: &Path) -> Result<Option<DiagnosticRead>, Error> {
-        let root = self.root_at(path)?;
-        let session = self.pin_workspace(&root)?;
+    fn start_file_diagnostics(
+        &self,
+        session: WorkspacePin,
+        path: &Path,
+    ) -> Result<Option<DiagnosticRead>, Error> {
         let revision = session.revision();
         let repository = session.repository();
 
@@ -312,20 +275,18 @@ impl LocalWorkspace {
             .transpose()?
             .into_iter()
             .collect::<Vec<_>>();
-        self.schedule_program_indexes(&root, &session)?;
+        self.schedule_program_indexes(&session)?;
 
         // retain open protocol identity only when it matches this revision
         let mut open_files = HashMap::new();
         if let Some(path) = file.path.as_deref()
-            && let Some(open_file) = self.open_state(path)
+            && let Some(open_file) = self.find_open_file(path)
         {
-            let version =
-                self.open_file_version_in_revision(repository, revision, file_id, path)?;
+            let version = open_file.version_at(repository, revision, file_id)?;
             open_files.insert(file_id, (open_file.uri, version));
         }
 
         let read = DiagnosticRead::new(
-            root,
             session,
             DiagnosticSelection::File(file_id),
             open_files,
@@ -335,40 +296,31 @@ impl LocalWorkspace {
         Ok(Some(read))
     }
 
-    /// Schedule exact diagnostics for one root.
-    fn start_root_diagnostics(&self, root: &Path) -> Result<DiagnosticRead, Error> {
-        let session = self.pin_workspace(root)?;
+    /// Schedule exact diagnostics for this workspace.
+    fn start_all_diagnostics(&self, session: WorkspacePin) -> Result<DiagnosticRead, Error> {
         let revision = session.revision();
         let repository = session.repository();
         let module_ids = repository.module_ids(revision)?;
         let modules = session.selected_modules(&module_ids)?;
-        self.schedule_program_indexes(root, &session)?;
+        self.schedule_program_indexes(&session)?;
 
         // retain open protocol identities that match this revision
         let mut open_files = HashMap::new();
-        for (path, file) in self.open_files_under(root) {
+        for (path, file) in self.open_files() {
             let Some(file_id) = session.file_id(&path)? else {
                 return Err(Error::FileMissing { path });
             };
-            let version =
-                self.open_file_version_in_revision(repository, revision, file_id, &path)?;
+            let version = file.version_at(repository, revision, file_id)?;
             open_files.insert(file_id, (file.uri, version));
         }
 
-        DiagnosticRead::new(
-            root.to_path_buf(),
-            session,
-            DiagnosticSelection::Root,
-            open_files,
-            &modules,
-        )
+        DiagnosticRead::new(session, DiagnosticSelection::All, open_files, &modules)
     }
 
     /// Schedule program indexes for one selected revision.
-    fn schedule_program_indexes(&self, root: &Path, session: &WorkspacePin) -> Result<(), Error> {
-        let root = self.root(root)?;
+    fn schedule_program_indexes(&self, session: &WorkspacePin) -> Result<(), Error> {
         let artifacts = session.program_indexes()?;
-        root.schedule_background(session.revision(), &artifacts, session.session())?;
+        self.schedule_background(session.revision(), &artifacts)?;
 
         Ok(())
     }

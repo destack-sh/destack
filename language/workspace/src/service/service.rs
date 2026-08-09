@@ -1,22 +1,17 @@
 use destack_artifact::ArtifactPayload;
-use destack_repository::Revision;
+use destack_repository::{Commit, Revision};
 use destack_source::{Content, ContentId};
 
 use super::*;
 use crate::{
-    BenchOutput, BuildOutput, CacheOutput, CheckOutput, CleanOutput, Commit, DiagnosticsRequest,
-    DocOutput, DoctorOutput, ExportResult, FileImage, FormatOutput, InfoOutput, ProgressEvent,
-    QueryOutput, RewriteOutput, RunOutput, RunQueryResponse, SettingsOutput, TargetsOutput,
-    TaskOutput, TestOutput, WatchEvent,
+    BenchOutput, BuildOutput, CacheOutput, CheckOutput, CleanOutput, DocOutput, DoctorOutput,
+    ExportResult, FileImage, FormatOutput, InfoOutput, ProgressEvent, QueryOutput, RewriteOutput,
+    RunOutput, RunQueryResponse, SettingsOutput, TargetsOutput, TaskOutput, TestOutput, WatchEvent,
 };
 
 /// RPC operations over one Destack workspace.
 #[destack_rpc::service(name = "destack.workspace.Workspace")]
 pub trait WorkspaceService {
-    /// Open one workspace root.
-    #[rpc(name = "OpenRoot", idempotency = "idempotent")]
-    fn open_root(request: OpenRootRequest) -> OpenRootResponse;
-
     /// Reload one workspace root from its host.
     #[rpc(name = "Reload", idempotency = "idempotent")]
     fn reload(request: ReloadRequest) -> Option<Commit>;
@@ -155,7 +150,7 @@ pub trait WorkspaceService {
 
     /// Read exact diagnostics.
     #[rpc(name = "Diagnose", idempotency = "no_side_effects")]
-    fn diagnose(request: DiagnosticsRequest) -> Vec<FileDiagnosticsResponse>;
+    fn diagnose(request: DiagnoseRequest) -> Vec<FileDiagnosticsResponse>;
 
     /// Resolve one source file for semantic queries.
     #[rpc(name = "ResolveQueryFile", idempotency = "no_side_effects")]

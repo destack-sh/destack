@@ -15,7 +15,7 @@ use destack_source::{
 };
 use serde_json::{Map, Value};
 
-use crate::{FileImage, LocalWorkspace};
+use crate::{FileImage, Workspace};
 
 use super::common::{
     CommandInput, CommandMessagePayload, CommandOptions, CommandRevision, CommandTargetOverrides,
@@ -28,7 +28,7 @@ use super::{CommandError, CommandResult};
 /// Per-request command context.
 pub(crate) struct CommandContext<'a> {
     /// Active local workspace.
-    pub(super) workspace: &'a LocalWorkspace,
+    pub(super) workspace: &'a Workspace,
     /// Workspace root for this command.
     pub(super) root: PathBuf,
     /// Working directory for this command.
@@ -84,16 +84,17 @@ pub(super) struct SelectedTarget {
 impl<'a> CommandContext<'a> {
     /// Create a command context for a request.
     pub(crate) fn new(
-        workspace: &'a LocalWorkspace,
-        root: PathBuf,
+        workspace: &'a Workspace,
         repository: Arc<Repository>,
         common: &'a CommandOptions,
         revision: CommandRevision,
         output: &'a mut OutputBuffer,
         event_handler: Option<SessionEventHandler>,
     ) -> CommandResult<Self> {
+        let root = workspace.root().to_path_buf();
+
         // select and privately configure the command revision
-        let base = Self::resolve_command_revision(workspace, &root, revision)?;
+        let base = Self::resolve_command_revision(workspace, revision)?;
         let revision = repository.pin(base).map_err(|error| {
             CommandError::internal(format!("failed to pin command revision: {error}"))
         })?;
@@ -201,15 +202,14 @@ impl<'a> CommandContext<'a> {
 
     /// Resolve the base revision for one command.
     fn resolve_command_revision(
-        workspace: &LocalWorkspace,
-        root: &Path,
+        workspace: &Workspace,
         revision: CommandRevision,
     ) -> CommandResult<Revision> {
         match revision {
-            CommandRevision::Current => workspace.revision(root).map_err(|error| {
+            CommandRevision::Current => workspace.revision().map_err(|error| {
                 CommandError::internal(format!(
                     "command workspace revision is missing for {}: {error}",
-                    root.display()
+                    workspace.root().display()
                 ))
             }),
             CommandRevision::Exact(revision) => Ok(revision),
@@ -255,9 +255,12 @@ impl<'a> CommandContext<'a> {
             edits.push(repository::Edit::set_text(logical_path, content));
         }
 
-        let after = repository.fork_with_edits(before, edits).map_err(|error| {
-            CommandError::internal(format!("failed to apply command config edits: {error}"))
-        })?;
+        let after = repository
+            .edit(before, edits)
+            .map_err(|error| {
+                CommandError::internal(format!("failed to apply command config edits: {error}"))
+            })?
+            .after;
 
         repository.pin(after).map_err(|error| {
             CommandError::internal(format!("failed to pin command revision: {error}"))
@@ -387,20 +390,15 @@ impl<'a> CommandContext<'a> {
 
     /// Load one filesystem module into this command revision.
     fn load_module(&mut self, path: &Path) -> CommandResult<ModuleId> {
-        // resolve the requested path through its opened root
-        let root = self.workspace.root(&self.root).map_err(|error| {
-            CommandError::internal(format!("failed to open command root: {error}"))
+        // resolve the requested path through this workspace
+        let path = self.workspace.resolve_path(path).map_err(|error| {
+            CommandError::source(format!("failed to resolve {}: {error}", path.display()))
         })?;
-        let path = self
-            .workspace
-            .resolve_path(root.as_ref(), path)
-            .map_err(|error| {
-                CommandError::source(format!("failed to resolve {}: {error}", path.display()))
-            })?;
 
         // import the module into this command's private revision
-        let (revision, module_id) = root
-            .load_module(&self.repository, self.revision.clone(), &path)
+        let (revision, module_id) = self
+            .workspace
+            .load_module(self.revision.clone(), &path)
             .map_err(|error| format!("failed to resolve {}: {error}", path.display()))?;
         self.revision = revision;
 
@@ -422,8 +420,9 @@ impl<'a> CommandContext<'a> {
         let edit = repository::Edit::set_text(logical_path, content);
         let after = self
             .repository
-            .commit_edits(before, vec![edit])
-            .map_err(|error| format!("failed to materialize command input {name}: {error}"))?;
+            .edit(before, vec![edit])
+            .map_err(|error| format!("failed to materialize command input {name}: {error}"))?
+            .after;
 
         // retain the new private revision
         let revision = self
@@ -749,12 +748,13 @@ impl<'a> CommandContext<'a> {
         revision: Revision,
         config_path: &Path,
     ) -> CommandResult<PathBuf> {
-        // resolve relative paths against the command root
-        let resolved = if config_path.is_absolute() {
-            config_path.to_path_buf()
-        } else {
-            self.root.join(config_path)
-        };
+        // resolve the manifest inside this workspace
+        let resolved = self.workspace.resolve_path(config_path).map_err(|error| {
+            CommandError::config(format!(
+                "failed to resolve manifest {}: {error}",
+                config_path.display()
+            ))
+        })?;
 
         // handle directory overrides
         let metadata = self
@@ -773,14 +773,15 @@ impl<'a> CommandContext<'a> {
 
     /// Find the nearest `destack.json` at or above a path in one revision.
     fn find_destack_config_in_revision(&self, revision: Revision, cwd: &Path) -> Option<PathBuf> {
+        let cwd = self.workspace.resolve_path(cwd).ok()?;
         let mut directory = if self
             .repository
-            .file_metadata(revision, cwd)
+            .file_metadata(revision, &cwd)
             .ok()
             .flatten()
             .is_some_and(|metadata| metadata.is_directory)
         {
-            cwd.to_path_buf()
+            cwd
         } else {
             cwd.parent()?.to_path_buf()
         };
@@ -798,10 +799,12 @@ impl<'a> CommandContext<'a> {
                 return Some(candidate);
             }
 
-            // walk toward the repository root
-            if !directory.pop() {
+            // stop after checking the workspace root
+            if directory == self.root {
                 return None;
             }
+
+            directory = directory.parent()?.to_path_buf();
         }
     }
 }
