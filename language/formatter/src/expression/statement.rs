@@ -1,9 +1,8 @@
 use super::control::{
     format_break_expression, format_continue_expression, format_for_each_expression,
     format_for_expression, format_if_else_chain, format_loop_expression, format_match_expression,
-    format_return_expression, format_statement_body_block, format_switch_statement,
-    format_try_expression, format_while_expression, format_yield_expression,
-    is_empty_statement_block,
+    format_return_expression, format_switch_statement, format_try_expression,
+    format_while_expression, format_yield_expression,
 };
 use super::ternary::format_ternary;
 use crate::DestackFormatter;
@@ -16,11 +15,10 @@ use crate::declaration::sequence::{
 };
 use crate::declaration::{
     format_let_else_statement_expression, format_let_statement_expression,
-    format_using_statement_expression, statement_wrapper_needs_semicolon,
-    write_statement_terminator,
+    format_using_statement_expression,
 };
 use crate::tree::tree_control_child_should_expand;
-use destack_dir::{Catch, Comment, Expression, IfForm, LocalNodeId, TokenType};
+use destack_dir::{Catch, Comment, Expression, IfForm, LocalNodeId, StringId, TokenType};
 use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::{format_with, group, space, token};
 use destack_fir::write;
@@ -96,56 +94,6 @@ pub(crate) fn format_statement_expression<'ast>(
         // block
         Expression::Block(node) => node.format(f)?,
 
-        // labeled statement
-        Expression::Label { label, body } => {
-            let body_span = f.context().span(*body);
-            let separator_comments =
-                if let Some(separator_token) = f.context().previous_token_before_span(body_span) {
-                    if separator_token.token.ty() == TokenType::Colon {
-                        let comments = f.context().comments();
-                        comments
-                            .comments_in_range(separator_token.span.end, body_span.start)
-                            .to_vec()
-                    } else {
-                        Vec::<Comment>::new()
-                    }
-                } else {
-                    Vec::<Comment>::new()
-                };
-            let has_line_comment = separator_comments.iter().any(|comment| comment.is_line());
-
-            if has_line_comment {
-                write!(f, [FormatLeadingComments::Comments(&separator_comments)])?;
-            }
-
-            write!(f, [label, token(":")])?;
-            if !has_line_comment && !separator_comments.is_empty() {
-                write!(f, [FormatTrailingComments::Comments(&separator_comments)])?;
-            }
-
-            let body_expression = f.context().tree.get(*body);
-            let body_is_empty_statement = matches!(
-                body_expression,
-                Expression::Block(block_id) if is_empty_statement_block(f.context(), *block_id)
-            );
-            let body_has_prefix_annotation = f.context().has_prefix_annotation(*body);
-            if !body_is_empty_statement || body_has_prefix_annotation {
-                write!(f, [space()])?;
-            }
-
-            match body_expression {
-                Expression::Block(block_id) => {
-                    format_statement_body_block(f, *block_id)?;
-                }
-                _ => {
-                    write!(f, [*body])?;
-                    if statement_wrapper_needs_semicolon(f.context(), *body) {
-                        write_statement_terminator(f, *body)?;
-                    }
-                }
-            }
-        }
-
         // import and export family
         Expression::Import { .. } | Expression::Export { .. } => {
             format_dependency_statement_expression(f, node_id, expression)?;
@@ -208,21 +156,25 @@ pub(crate) fn format_statement_expression<'ast>(
 
         // while
         Expression::While {
+            label,
             form,
             condition,
             body,
         } => {
+            format_loop_label(f, label.as_ref(), node_id)?;
             format_while_expression(f, *form, *condition, *body)?;
         }
 
         // for each
         Expression::ForEach {
+            label,
             asynchrony,
             operator,
             binding,
             iterator,
             body,
         } => {
+            format_loop_label(f, label.as_ref(), node_id)?;
             format_for_each_expression(
                 f,
                 node_id,
@@ -236,16 +188,19 @@ pub(crate) fn format_statement_expression<'ast>(
 
         // for condition
         Expression::For {
+            label,
             initialization,
             condition,
             increment,
             body,
         } => {
+            format_loop_label(f, label.as_ref(), node_id)?;
             format_for_expression(f, *initialization, *condition, *increment, *body)?;
         }
 
         // loop
-        Expression::Loop { body } => {
+        Expression::Loop { label, body } => {
+            format_loop_label(f, label.as_ref(), node_id)?;
             format_loop_expression(f, *body)?;
         }
 
@@ -291,4 +246,56 @@ pub(crate) fn format_statement_expression<'ast>(
         _ => return Ok(false),
     }
     Ok(true)
+}
+
+/// Format one loop label ahead of its loop keyword.
+fn format_loop_label<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    label: Option<&StringId>,
+    target: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    // unlabeled loops print nothing
+    let Some(label) = label else {
+        return Ok(());
+    };
+
+    format_statement_label(f, label, target)?;
+    write!(f, [space()])?;
+
+    Ok(())
+}
+
+/// Format one statement label with its colon and separator comments.
+fn format_statement_label<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    label: &StringId,
+    target: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    // collect the comments between the label colon and its target
+    let target_span = f.context().span(target);
+    let separator_comments =
+        if let Some(separator_token) = f.context().previous_token_before_span(target_span) {
+            if separator_token.token.ty() == TokenType::Colon {
+                let comments = f.context().comments();
+                comments
+                    .comments_in_range(separator_token.span.end, target_span.start)
+                    .to_vec()
+            } else {
+                Vec::<Comment>::new()
+            }
+        } else {
+            Vec::<Comment>::new()
+        };
+    let has_line_comment = separator_comments.iter().any(|comment| comment.is_line());
+
+    // keep line comments ahead of the label, trailing comments after the colon
+    if has_line_comment {
+        write!(f, [FormatLeadingComments::Comments(&separator_comments)])?;
+    }
+    write!(f, [label, token(":")])?;
+    if !has_line_comment && !separator_comments.is_empty() {
+        write!(f, [FormatTrailingComments::Comments(&separator_comments)])?;
+    }
+
+    Ok(())
 }

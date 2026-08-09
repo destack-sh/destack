@@ -1197,9 +1197,8 @@ pub(crate) fn expression_is_in_statement_context(
                 Expression::While { body, .. }
                 | Expression::ForEach { body, .. }
                 | Expression::For { body, .. }
-                | Expression::Loop { body } => body.id == expression_id.id,
+                | Expression::Loop { body, .. } => body.id == expression_id.id,
                 Expression::Try { .. } => false,
-                Expression::Label { body, .. } => body.id == expression_id.id,
                 _ => false,
             };
 

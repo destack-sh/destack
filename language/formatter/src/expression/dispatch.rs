@@ -69,7 +69,6 @@ fn write_expression_trailing_annotations<'ast>(
     match expression {
         Expression::Declaration(_)
         | Expression::Block(_)
-        | Expression::Label { .. }
         | Expression::Import { .. }
         | Expression::Export { .. }
         | Expression::Let { .. }
@@ -265,7 +264,6 @@ fn format_expression_body_inner<'ast>(
     match expression {
         Expression::Declaration(_)
         | Expression::Block(_)
-        | Expression::Label { .. }
         | Expression::Import { .. }
         | Expression::Export { .. }
         | Expression::Let { .. }
