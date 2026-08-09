@@ -4,8 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Expression, FunctionSignature, GenericArgument, GenericParameter, Key, LocalNodeId, Mutability,
     Node, NodeType, Parameter, Path, RangeEnd, ScalarLiteral, ScopeKind, StaticKey, StringId,
-    SymbolKind, ThisForm, TupleElement, TupleForm, TypeLiteral, VarianceBound,
-    WhereClause,
+    SymbolKind, ThisForm, TupleElement, TupleForm, TypeLiteral, VarianceBound, WhereClause,
 };
 
 /// One type-surface member.

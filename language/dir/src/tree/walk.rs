@@ -756,11 +756,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_block(tree, *block_id, block);
         }
 
-        Expression::Label { label: _, body } => {
-            let body_expr = tree.get(*body);
-            visitor.visit_expression(tree, *body, body_expr);
-        }
-
         Expression::Import {
             form: _,
             target: _,

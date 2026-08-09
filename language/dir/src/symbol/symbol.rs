@@ -325,7 +325,6 @@ impl SymbolKind {
                 | Self::Variable
         )
     }
-
 }
 
 /// Unique identifier for Symbols.

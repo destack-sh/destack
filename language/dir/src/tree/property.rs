@@ -3,8 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Expression, FunctionSignature, GenericParameter, Key, Keyword, LocalNodeId, Mutability, Node,
-    NodeType, ScopeKind, StaticKey, StringId, SymbolKind, TypeExpression, Visibility,
-    WhereClause,
+    NodeType, ScopeKind, StaticKey, StringId, SymbolKind, TypeExpression, Visibility, WhereClause,
 };
 
 /// Variance annotation for generic parameters.

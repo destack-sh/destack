@@ -9,8 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Arena, ExportKind, GlobalNodeIdAny, LocalNodeId, LocalNodeIdAny, LocalScope, LocalScopeId,
     LocalScopeMark, LocalSymbolId, Node, Scope, ScopeIndex, ScopeKind, SegmentView, StaticKey,
-    Symbol, SymbolKind, SymbolLookup, SymbolOrigin, SymbolPath, SymbolRole,
-    SymbolVisibility, View,
+    Symbol, SymbolKind, SymbolLookup, SymbolOrigin, SymbolPath, SymbolRole, SymbolVisibility, View,
 };
 
 /// Cumulative lexical scopes and symbols for one DIR module.
@@ -363,11 +362,7 @@ impl<'a> BindingTable<'a> {
     }
 
     /// Look up one symbol visible from a lexical scope cursor.
-    pub fn lookup_symbol_from_scope(
-        &self,
-        mut scope: LocalScope,
-        key: StaticKey,
-    ) -> SymbolLookup {
+    pub fn lookup_symbol_from_scope(&self, mut scope: LocalScope, key: StaticKey) -> SymbolLookup {
         loop {
             let current = self.get_scope(scope);
             let lookup = self.lookup_symbols_in_scope(current, scope.mark, key);

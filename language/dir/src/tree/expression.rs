@@ -34,18 +34,6 @@ pub enum Expression {
     /// Block of Expressions.
     Block(LocalNodeId<Block>),
 
-    /// Label statement (like `label: stmt` in JavaScript).
-    ///
-    /// Examples:
-    /// ```
-    /// outer: while (true) { break outer }
-    /// label: { break label }
-    /// ```
-    Label {
-        label: StringId,
-        body: LocalNodeId<Expression>,
-    },
-
     /// An Import is an import declaration for dependency management.
     ///
     /// Examples:
@@ -845,7 +833,6 @@ impl Expression {
         match self {
             Self::Declaration(..) => "Declaration",
             Self::Block(..) => "Block",
-            Self::Label { .. } => "Label",
             Self::Import { .. } => "Import",
             Self::Export { .. } => "Export",
             Self::Let { .. } => "Let",
@@ -948,7 +935,6 @@ impl Expression {
         match self {
             Expression::Block(_) => true,
             Expression::Declaration(_) => true,
-            Expression::Label { .. } => true,
             Expression::Break { .. } => true,
             Expression::Continue { .. } => true,
             Expression::Yield { .. } => true,
@@ -1006,7 +992,6 @@ impl Expression {
             self,
             Expression::Block(_)
                 | Expression::Declaration(_)
-                | Expression::Label { .. }
                 | Expression::Import { .. }
                 | Expression::Export { .. }
                 | Expression::Let { .. }
