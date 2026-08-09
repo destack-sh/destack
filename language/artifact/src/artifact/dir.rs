@@ -613,12 +613,14 @@ impl DirMaterialized {
         bound: &DirBound,
         expanded: &DirExpanded,
         declared: &DirDeclared,
+        elaborated: &DirElaborated,
         checked: &DirChecked,
     ) -> dir::TypeTable<'static> {
         dir::TypeTable::from_segments(vec![
             bound.types.clone(),
             expanded.types.clone(),
             declared.types.clone(),
+            elaborated.types.clone(),
             checked.types.clone(),
             self.types.clone(),
         ])
