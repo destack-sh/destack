@@ -112,6 +112,9 @@ impl Compiler {
         let declared = artifacts
             .dir_declared(module, profile)
             .map_err(CompilerError::from)?;
+        let elaborated = artifacts
+            .dir_elaborated(module, profile)
+            .map_err(CompilerError::from)?;
         let checked = artifacts
             .dir_checked(module, profile)
             .map_err(CompilerError::from)?;
@@ -145,6 +148,9 @@ impl Compiler {
             let declared = artifacts
                 .dir_declared(reachable, profile)
                 .map_err(CompilerError::from)?;
+            let elaborated = artifacts
+                .dir_elaborated(reachable, profile)
+                .map_err(CompilerError::from)?;
             let checked = artifacts
                 .dir_checked(reachable, profile)
                 .map_err(CompilerError::from)?;
@@ -159,6 +165,7 @@ impl Compiler {
                     &bound,
                     &expanded,
                     &declared,
+                    &elaborated,
                     &checked,
                     &materialized,
                     path,
@@ -176,6 +183,7 @@ impl Compiler {
                 &bound,
                 &expanded,
                 &declared,
+                &elaborated,
                 &checked,
                 &materialized,
                 path,

@@ -18,7 +18,7 @@ impl ModuleLowerer<'_> {
         self.types(ty.module_id)?
             .get_type_maybe(ty.local_id)
             .ok_or_else(|| CompilerError::Internal {
-                message: format!("missing type {:?}", ty.local_id),
+                message: format!("missing type {:?} of {}", ty.local_id, ty.module_id),
             })
     }
 

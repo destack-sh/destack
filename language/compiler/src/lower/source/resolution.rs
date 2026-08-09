@@ -40,15 +40,15 @@ impl FunctionLowerer<'_, '_, '_> {
 
 impl FunctionLowerer<'_, '_, '_> {
     /// Return the call resolution of one applying expression.
-    pub(in crate::lower) fn call_resolution(
+    pub(in crate::lower) fn call_decision(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<dir::CallResolution> {
+    ) -> CompilerResult<dir::CallDecision> {
         let node = expression.into_global_any(self.source);
 
         self.source()
-            .resolutions
-            .call_resolution(node)
+            .decisions
+            .call_decision(node)
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("missing a call resolution for node {}", node.local_id.id),
@@ -56,26 +56,26 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return the construct resolution on one call expression.
-    pub(in crate::lower) fn construct_resolution(
+    pub(in crate::lower) fn construct_decision(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<dir::ConstructResolution> {
+    ) -> Option<dir::ConstructDecision> {
         self.source()
-            .resolutions
-            .construct_resolution(expression.into_global_any(self.source))
+            .decisions
+            .construct_decision(expression.into_global_any(self.source))
             .cloned()
     }
 
     /// Return the tree resolution on one tree expression.
-    pub(in crate::lower) fn tree_resolution(
+    pub(in crate::lower) fn tree_decision(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<dir::TreeResolution> {
+    ) -> CompilerResult<dir::TreeDecision> {
         let node = expression.into_global_any(self.source);
 
         self.source()
-            .resolutions
-            .tree_resolution(node)
+            .decisions
+            .tree_decision(node)
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("missing a tree resolution for node {}", node.local_id.id),
@@ -83,15 +83,15 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return the assignment resolution of one target expression.
-    pub(in crate::lower) fn assignment_resolution(
+    pub(in crate::lower) fn assignment_decision(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<dir::AssignmentResolution> {
+    ) -> CompilerResult<dir::AssignmentDecision> {
         let node = expression.into_global_any(self.source);
 
         self.source()
-            .resolutions
-            .assignment_resolution(node)
+            .decisions
+            .assignment_decision(node)
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
                 message: format!(
@@ -105,12 +105,12 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn assign_resolution(
         &self,
         pattern: dir::LocalNodeId<dir::AssignPattern>,
-    ) -> CompilerResult<dir::AssignPatternResolution> {
+    ) -> CompilerResult<dir::AssignPatternDecision> {
         let node = pattern.into_global_any(self.source);
 
         self.source()
-            .resolutions
-            .assign_pattern_resolution(node)
+            .decisions
+            .assign_pattern_decision(node)
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
                 message: format!(
@@ -121,31 +121,36 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return the member resolution of one member expression.
-    pub(in crate::lower) fn member_resolution(
+    pub(in crate::lower) fn member_decision(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<dir::MemberResolution> {
+    ) -> CompilerResult<dir::MemberDecision> {
         let node = expression.into_global_any(self.source);
 
         self.source()
-            .resolutions
-            .member_resolution(node)
+            .decisions
+            .member_decision(node)
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
-                message: format!("missing a member resolution for node {}", node.local_id.id),
+                message: format!(
+                    "missing a member resolution for node {} of {}: {:?}",
+                    node.local_id.id,
+                    self.source,
+                    self.source().tree().get(expression),
+                ),
             })
     }
 
     /// Return the subscript resolution of one index expression.
-    pub(in crate::lower) fn subscript_resolution(
+    pub(in crate::lower) fn subscript_decision(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<dir::SubscriptResolution> {
+    ) -> CompilerResult<dir::SubscriptDecision> {
         let node = expression.into_global_any(self.source);
 
         self.source()
-            .resolutions
-            .subscript_resolution(node)
+            .decisions
+            .subscript_decision(node)
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
                 message: format!(
@@ -156,15 +161,15 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return the resolution of one pattern node.
-    pub(in crate::lower) fn pattern_resolution(
+    pub(in crate::lower) fn pattern_decision(
         &self,
         pattern: dir::LocalNodeId<dir::Pattern>,
-    ) -> CompilerResult<dir::PatternResolution> {
+    ) -> CompilerResult<dir::PatternDecision> {
         let node = pattern.into_global_any(self.source);
 
         self.source()
-            .resolutions
-            .pattern_resolution(node)
+            .decisions
+            .pattern_decision(node)
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("missing a pattern resolution for node {}", node.local_id.id),
@@ -172,15 +177,15 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return the operator resolution of one applying node.
-    pub(in crate::lower) fn operator_resolution<T: dir::Node>(
+    pub(in crate::lower) fn operator_decision<T: dir::Node>(
         &self,
         node: dir::LocalNodeId<T>,
-    ) -> CompilerResult<dir::OperatorResolution> {
+    ) -> CompilerResult<dir::OperatorDecision> {
         let node = node.into_global_any(self.source);
 
         self.source()
-            .resolutions
-            .operator_resolution(node)
+            .decisions
+            .operator_decision(node)
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
                 message: format!(

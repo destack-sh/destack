@@ -133,7 +133,7 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         target: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
-        let resolution = self.operator_resolution(expression)?;
+        let resolution = self.operator_decision(expression)?;
         let dir::OperationResolution::One(dir::OperatorApplication::Unary {
             operator,
             target: dir::OperatorTarget::Builtin(_),
@@ -146,7 +146,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // resolve the updated place
-        let resolution = self.assignment_resolution(target)?;
+        let resolution = self.assignment_decision(target)?;
         let place = self.place(&resolution)?;
 
         // rewrite the place by one over its carrier

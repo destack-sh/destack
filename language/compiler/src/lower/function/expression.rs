@@ -549,6 +549,40 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Lower one value expression by form.
+    /// Lower one expression that resolved to a symbol.
+    pub(in crate::lower) fn lower_resolved_value(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<mir::Value> {
+        match self.values.get(&symbol.local_id).copied() {
+            Some(Binding::Value(value)) => Ok(value),
+            Some(Binding::Local(local)) => Ok(self.builder.local_get(local)),
+            // load captured bindings through their frame field
+            Some(Binding::Captured { frame, field, ty }) => {
+                let address = self.emit_field_address(frame, field, ty, mir::Access::Mutable);
+
+                Ok(self.builder.load(address, ty))
+            }
+            // load module constants through their globals
+            None => {
+                if let Some(global) = self.module_constant_global(symbol)? {
+                    return Ok(self.builder.load_global(global));
+                }
+                // materialize callable declarations as function values
+                if let Some(value) = self.lower_function_value(expression, symbol, None)? {
+                    return Ok(value);
+                }
+
+                Err(LowerError::Unsupported {
+                    anchor: self.lowerer.module.into(),
+                    construct: "a module or captured binding".to_string(),
+                }
+                .into())
+            }
+        }
+    }
+
     fn lower_expression_value(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -559,45 +593,17 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         match self.source().tree().get(expression).clone() {
-            // value
             dir::Expression::Identifier { .. } => {
                 let node = expression.into_global_any(self.source);
                 let symbol = self.lowerer.resolved_symbol(node)?;
-                match self.values.get(&symbol.local_id).copied() {
-                    Some(Binding::Value(value)) => Ok(value),
-                    Some(Binding::Local(local)) => Ok(self.builder.local_get(local)),
-                    // load captured bindings through their frame field
-                    Some(Binding::Captured { frame, field, ty }) => {
-                        let address =
-                            self.emit_field_address(frame, field, ty, mir::Access::Mutable);
 
-                        Ok(self.builder.load(address, ty))
-                    }
-                    // load module constants through their globals
-                    None => {
-                        if let Some(global) = self.module_constant_global(symbol)? {
-                            return Ok(self.builder.load_global(global));
-                        }
-                        // materialize callable declarations as function values
-                        if let Some(value) = self.lower_function_value(expression, symbol, None)? {
-                            return Ok(value);
-                        }
-
-                        Err(LowerError::Unsupported {
-                            anchor: self.lowerer.module.into(),
-                            construct: "a module or captured binding".to_string(),
-                        }
-                        .into())
-                    }
-                }
+                self.lower_resolved_value(expression, symbol)
             }
 
-            // 1
             dir::Expression::ScalarLiteral(literal) => {
                 self.lower_scalar_literal(expression, literal)
             }
 
-            // (value) => value * 2
             dir::Expression::Declaration(declaration) => {
                 let node = declaration.into_global_any(self.source);
                 let Some(symbol) = self.lowerer.symbol_declared_at(node)? else {
@@ -624,7 +630,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 operator: _,
                 right,
             } => {
-                let resolution = self.operator_resolution(expression)?;
+                let resolution = self.operator_decision(expression)?;
                 let dir::OperationResolution::One(application) = resolution else {
                     return Err(LowerError::Unsupported {
                         anchor: self.lowerer.module.into(),
@@ -641,12 +647,10 @@ impl FunctionLowerer<'_, '_, '_> {
                         dir::BinaryOperator::EqualStrict | dir::BinaryOperator::NotEqualStrict => {
                             self.lower_strict_equality(left, operator, right, &operands)
                         }
-                        operator => match operator {
-                            dir::BinaryOperator::And | dir::BinaryOperator::Or => {
-                                self.lower_logical(expression, left, operator, right)
-                            }
-                            operator => self.lower_binary(left, operator, right, &operands),
-                        },
+                        dir::BinaryOperator::And | dir::BinaryOperator::Or => {
+                            self.lower_logical(expression, left, operator, right)
+                        }
+                        operator => self.lower_binary(left, operator, right, &operands),
                     },
                     // dispatch protocol operators as left.method(right)
                     dir::OperatorApplication::Binary {
@@ -673,7 +677,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // -value
             dir::Expression::Unary { operator: _, right } => {
-                let resolution = self.operator_resolution(expression)?;
+                let resolution = self.operator_decision(expression)?;
                 let dir::OperationResolution::One(application) = resolution else {
                     return Err(LowerError::Unsupported {
                         anchor: self.lowerer.module.into(),
@@ -758,14 +762,14 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // Meters(5)
             dir::Expression::Call { .. }
-                if let Some(resolution) = self.construct_resolution(expression) =>
+                if let Some(resolution) = self.construct_decision(expression) =>
             {
                 self.lower_construct(&resolution)
             }
 
             // new Counter(start)
             dir::Expression::New { .. } => {
-                let Some(resolution) = self.construct_resolution(expression) else {
+                let Some(resolution) = self.construct_decision(expression) else {
                     return Err(CompilerError::Internal {
                         message: "missing a construct resolution for one new".to_string(),
                     });
@@ -776,7 +780,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // <div .../>
             dir::Expression::TreeExpression { .. } => {
-                let resolution = self.tree_resolution(expression)?;
+                let resolution = self.tree_decision(expression)?;
 
                 self.lower_tree(&resolution)
             }

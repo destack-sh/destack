@@ -38,7 +38,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Return the place selected by one assignment resolution.
     pub(in crate::lower) fn place(
         &mut self,
-        assignment: &dir::AssignmentResolution,
+        assignment: &dir::AssignmentDecision,
     ) -> CompilerResult<Place> {
         let Ok(source) = assignment
             .target
@@ -129,7 +129,7 @@ impl FunctionLowerer<'_, '_, '_> {
         match *self.source().tree().get(expression) {
             // base.field keeps projecting
             dir::Expression::Member { left, .. } => {
-                let resolution = self.member_resolution(expression)?;
+                let resolution = self.member_decision(expression)?;
                 let dir::OperationResolution::One(access) = &resolution else {
                     return Err(LowerError::Unsupported {
                         anchor: self.lowerer.module.into(),

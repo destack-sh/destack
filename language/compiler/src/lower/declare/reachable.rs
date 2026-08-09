@@ -131,7 +131,7 @@ impl ModuleLowerer<'_> {
             }
 
             // declare constructor instances and import foreign declared constructors
-            if let Some(resolution) = state.resolutions.construct_resolution(node)
+            if let Some(resolution) = state.decisions.construct_decision(node)
                 && let dir::ConstructTarget::Class(candidate) = &resolution.target
                 && let dir::ClassConstructor::Declared { symbol } = &candidate.constructor
             {
@@ -148,14 +148,14 @@ impl ModuleLowerer<'_> {
             }
 
             // collect the calls selected inside a tree resolution
-            if let Some(resolution) = state.resolutions.tree_resolution(node) {
+            if let Some(resolution) = state.decisions.tree_decision(node) {
                 match &resolution.target {
                     dir::TreeTarget::Element { call, .. } | dir::TreeTarget::Fragment { call } => {
-                        self.collect_call_resolution(call, substitution, reachable)?;
+                        self.collect_call_decision(call, substitution, reachable)?;
                     }
                     dir::TreeTarget::Component { invocation, .. } => match invocation {
                         dir::TreeInvocation::Call(call) => {
-                            self.collect_call_resolution(call, substitution, reachable)?;
+                            self.collect_call_decision(call, substitution, reachable)?;
                         }
                         dir::TreeInvocation::Construct(construct) => {
                             if let dir::ConstructTarget::Class(candidate) = &construct.target
@@ -185,47 +185,47 @@ impl ModuleLowerer<'_> {
             }
 
             // collect the accessor and protocol calls selected behind places
-            if let Some(resolution) = state.resolutions.member_resolution(node) {
-                self.collect_member_resolution(resolution, substitution, reachable)?;
+            if let Some(resolution) = state.decisions.member_decision(node) {
+                self.collect_member_decision(resolution, substitution, reachable)?;
             }
-            if let Some(resolution) = state.resolutions.subscript_resolution(node) {
-                self.collect_subscript_resolution(resolution, substitution, reachable)?;
+            if let Some(resolution) = state.decisions.subscript_decision(node) {
+                self.collect_subscript_decision(resolution, substitution, reachable)?;
             }
-            if let Some(resolution) = state.resolutions.assignment_resolution(node) {
+            if let Some(resolution) = state.decisions.assignment_decision(node) {
                 match &resolution.read {
                     Some(dir::ReadResolution::Member(member)) => {
-                        self.collect_member_resolution(member, substitution, reachable)?;
+                        self.collect_member_decision(member, substitution, reachable)?;
                     }
                     Some(dir::ReadResolution::Subscript(subscript)) => {
-                        self.collect_subscript_resolution(subscript, substitution, reachable)?;
+                        self.collect_subscript_decision(subscript, substitution, reachable)?;
                     }
                     _ => {}
                 }
                 match &resolution.write {
                     dir::WriteResolution::Member(member) => {
-                        self.collect_member_resolution(member, substitution, reachable)?;
+                        self.collect_member_decision(member, substitution, reachable)?;
                     }
                     dir::WriteResolution::Subscript(subscript) => {
-                        self.collect_subscript_resolution(subscript, substitution, reachable)?;
+                        self.collect_subscript_decision(subscript, substitution, reachable)?;
                     }
                     _ => {}
                 }
             }
 
             // collect the instance behind a resolved call
-            let Some(resolution) = state.resolutions.call_resolution(node) else {
+            let Some(resolution) = state.decisions.call_decision(node) else {
                 continue;
             };
-            self.collect_call_resolution(resolution, substitution, reachable)?;
+            self.collect_call_decision(resolution, substitution, reachable)?;
         }
 
         Ok(())
     }
 
     /// Collect the accessor calls selected by one member resolution.
-    fn collect_member_resolution(
+    fn collect_member_decision(
         &self,
-        resolution: &dir::MemberResolution,
+        resolution: &dir::MemberDecision,
         substitution: &TypeSubstitution,
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
@@ -258,9 +258,9 @@ impl ModuleLowerer<'_> {
     }
 
     /// Collect the protocol calls selected by one subscript resolution.
-    fn collect_subscript_resolution(
+    fn collect_subscript_decision(
         &self,
-        resolution: &dir::SubscriptResolution,
+        resolution: &dir::SubscriptDecision,
         substitution: &TypeSubstitution,
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
@@ -352,7 +352,7 @@ impl ModuleLowerer<'_> {
         }
 
         // select the instance the recorded instantiation binds
-        if let Some(instantiation) = state.resolutions.instantiation_resolution(node) {
+        if let Some(instantiation) = state.decisions.instantiation_decision(node) {
             let bindings =
                 self.instance_bindings(&instantiation.generic_arguments, substitution)?;
             if !bindings.is_empty() {
@@ -539,9 +539,9 @@ impl ModuleLowerer<'_> {
     }
 
     /// Collect every declaration selected by one call resolution.
-    fn collect_call_resolution(
+    fn collect_call_decision(
         &self,
-        resolution: &dir::CallResolution,
+        resolution: &dir::CallDecision,
         substitution: &TypeSubstitution,
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {

@@ -12,7 +12,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<mir::Value>> {
-        let resolution = self.call_resolution(expression)?;
+        let resolution = self.call_decision(expression)?;
         let dir::OperationResolution::One(call) = &resolution else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),

@@ -17,18 +17,18 @@ class Node {
     session.assert_mir_lowered(
         "main.ds",
         r#"
+type Node {
+    wrapper: Wrapper;
+}
+
 @copy
 type Wrapper {
     node: ref<Node, managed, mutable>;
 }
-
-type Node {
-    wrapper: Wrapper;
-}
-/// @layout.struct name=Wrapper size=8 align=8
-/// @layout.field owner=Wrapper index=0 name=node offset=0 size=8 align=8
 /// @layout.struct name=Node size=8 align=8
 /// @layout.field owner=Node index=0 name=wrapper offset=0 size=8 align=8
+/// @layout.struct name=Wrapper size=8 align=8
+/// @layout.field owner=Wrapper index=0 name=node offset=0 size=8 align=8
 "#,
     );
 }

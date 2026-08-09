@@ -9,7 +9,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one construct call through its construct resolution.
     pub(in crate::lower) fn lower_construct(
         &mut self,
-        resolution: &dir::ConstructResolution,
+        resolution: &dir::ConstructDecision,
     ) -> CompilerResult<mir::Value> {
         match &resolution.target {
             // Meters(5)
@@ -34,7 +34,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one class construction to an allocation and its constructor call.
     fn lower_class_construct(
         &mut self,
-        resolution: &dir::ConstructResolution,
+        resolution: &dir::ConstructDecision,
         candidate: &dir::ClassConstructCandidate,
     ) -> CompilerResult<mir::Value> {
         // lower the constructor arguments in declaration order
@@ -145,7 +145,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one newtype construction to a single-value aggregate.
     fn lower_newtype_construct(
         &mut self,
-        resolution: &dir::ConstructResolution,
+        resolution: &dir::ConstructDecision,
     ) -> CompilerResult<mir::Value> {
         // lower the newtype named by the construct resolution
         let ty = self.lower_type(resolution.return_type)?;
@@ -184,7 +184,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one tagged case construction into its variant carrier.
     fn lower_variant_construct(
         &mut self,
-        resolution: &dir::ConstructResolution,
+        resolution: &dir::ConstructDecision,
         candidate: &dir::VariantConstructCandidate,
     ) -> CompilerResult<mir::Value> {
         // lower the tagged owner named by the construct resolution
@@ -513,12 +513,17 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "lowered property value misses its declared carrier".to_string(),
             });
         };
-        let Some(case) = cases
-            .iter()
-            .position(|case| case.ty == mir::TypeId::from(value_type))
-        else {
+        let Some(case) = cases.iter().position(|case| {
+            case.ty == mir::TypeId::from(value_type)
+                || self
+                    .builder
+                    .tree()
+                    .types_equal(case.ty, mir::TypeId::from(value_type))
+        }) else {
             return Err(CompilerError::Internal {
-                message: "lowered property value selects no declared case".to_string(),
+                message: format!(
+                    "lowered property value {value_type:?} selects no case of carrier {carrier:?}"
+                ),
             });
         };
 

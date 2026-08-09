@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirExpanded, DirMaterialized, DirParsed,
+    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirMaterialized, DirParsed,
 };
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -17,6 +17,8 @@ pub(crate) struct LowerModuleState {
     pub(in crate::lower) roots: Vec<dir::LocalNodeId<dir::Expression>>,
     /// The type table.
     pub(in crate::lower) types: dir::TypeTable<'static>,
+    /// The decision table.
+    pub(in crate::lower) decisions: dir::DecisionTable<'static>,
     /// The resolution table.
     pub(in crate::lower) resolutions: dir::ResolutionTable<'static>,
     /// The binding table.
@@ -44,20 +46,22 @@ impl LowerModuleState {
         bound: &DirBound,
         expanded: &DirExpanded,
         declared: &DirDeclared,
+        elaborated: &DirElaborated,
         checked: &DirChecked,
         materialized: &DirMaterialized,
         path: String,
     ) -> Self {
         Self {
             roots: materialized.roots.to_vec(),
-            types: materialized.type_table(bound, expanded, declared, checked),
-            resolutions: materialized.resolution_table(declared, checked),
+            types: materialized.type_table(bound, expanded, declared, elaborated, checked),
+            resolutions: materialized.resolution_table(declared, elaborated, checked),
+            decisions: materialized.decision_table(declared, elaborated, checked),
             bindings: materialized.binding_table(bound, expanded),
             coercions: materialized.coercion_table(checked),
-            definitions: materialized.definition_table(declared, checked),
-            statics: materialized.static_table(bound, expanded, declared, checked),
+            definitions: materialized.definition_table(elaborated),
+            statics: materialized.static_table(bound, expanded, declared, elaborated, checked),
             generics: materialized.generic_table(declared, checked),
-            decorators: checked.decorator_table(declared),
+            decorators: checked.decorator_table(elaborated),
             captures: materialized.capture_table(checked),
             path,
             parsed,

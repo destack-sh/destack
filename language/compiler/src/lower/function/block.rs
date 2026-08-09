@@ -154,44 +154,23 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // while (cond) { ... }
             dir::Expression::While {
+                label,
                 form,
                 condition,
                 body,
-            } => self.lower_while(None, form, condition, body),
+            } => self.lower_while(label, form, condition, body),
 
             // for (init; cond; step) { ... }
             dir::Expression::For {
+                label,
                 initialization,
                 condition,
                 increment,
                 body,
-            } => self.lower_for(None, initialization, condition, increment, body),
+            } => self.lower_for(label, initialization, condition, increment, body),
 
             // loop { ... }
-            dir::Expression::Loop { body } => self.lower_loop(None, body),
-
-            // outer: while (cond) { ... }
-            dir::Expression::Label { label, body } => {
-                match self.source().tree().get(body).clone() {
-                    dir::Expression::While {
-                        form,
-                        condition,
-                        body,
-                    } => self.lower_while(Some(label), form, condition, body),
-                    dir::Expression::For {
-                        initialization,
-                        condition,
-                        increment,
-                        body,
-                    } => self.lower_for(Some(label), initialization, condition, increment, body),
-                    dir::Expression::Loop { body } => self.lower_loop(Some(label), body),
-                    other => Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
-                        construct: format!("a labeled '{}' statement", other.variant_name()),
-                    }
-                    .into()),
-                }
-            }
+            dir::Expression::Loop { label, body } => self.lower_loop(label, body),
 
             // break label
             dir::Expression::Break { label, value } => self.lower_break(label, value),
@@ -201,7 +180,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // Meters(5)
             dir::Expression::Call { .. }
-                if let Some(resolution) = self.construct_resolution(statement) =>
+                if let Some(resolution) = self.construct_decision(statement) =>
             {
                 self.lower_construct(&resolution)?;
 

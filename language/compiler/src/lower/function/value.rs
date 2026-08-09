@@ -51,8 +51,8 @@ impl FunctionLowerer<'_, '_, '_> {
         let instantiation = self
             .lowerer
             .state(self.source)?
-            .resolutions
-            .instantiation_resolution(node)
+            .decisions
+            .instantiation_decision(node)
             .cloned();
 
         // key explicitly applied references by their recorded arguments

@@ -72,7 +72,7 @@ impl FunctionLowerer<'_, '_, '_> {
         right: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
         // require a place assignment
-        let dir::AssignPatternResolution::Place = self.assign_resolution(left)? else {
+        let dir::AssignPatternDecision::Place = self.assign_resolution(left)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "a destructuring assignment".to_string(),
@@ -84,7 +84,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a non-place pattern resolved as a place".to_string(),
             });
         };
-        let resolution = self.assignment_resolution(expression)?;
+        let resolution = self.assignment_decision(expression)?;
 
         // write through the setter member when one is selected
         if let dir::WriteResolution::Member(dir::OperationResolution::One(access)) =
@@ -106,7 +106,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // apply the builtin operation for compound assignment
         else {
             let place = self.place(&resolution)?;
-            let resolution = self.operator_resolution(statement)?;
+            let resolution = self.operator_decision(statement)?;
             let dir::OperationResolution::One(dir::OperatorApplication::Binary {
                 operator,
                 target: dir::OperatorTarget::Builtin(_),

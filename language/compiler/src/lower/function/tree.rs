@@ -8,7 +8,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one tree literal through its resolution.
     pub(in crate::lower) fn lower_tree(
         &mut self,
-        resolution: &dir::TreeResolution,
+        resolution: &dir::TreeDecision,
     ) -> CompilerResult<mir::Value> {
         match &resolution.target {
             dir::TreeTarget::Element { call, .. } => {
@@ -58,7 +58,7 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Unwrap the single-receiver call behind one tree selection.
-    fn tree_call(&self, call: &dir::CallResolution) -> CompilerResult<dir::Call> {
+    fn tree_call(&self, call: &dir::CallDecision) -> CompilerResult<dir::Call> {
         let dir::OperationResolution::One(call) = call else {
             return Err(CompilerError::Internal {
                 message: "tree call resolved over a union receiver".to_string(),
@@ -118,7 +118,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_tree_attributes(
         &mut self,
         attributes: dir::GlobalTypeId,
-        resolution: &dir::TreeResolution,
+        resolution: &dir::TreeDecision,
     ) -> CompilerResult<mir::Value> {
         let attributes = self.lowerer.reduced_type(attributes)?;
         let dir::Type::Application(_) = self.lowerer.ty(attributes)? else {
@@ -136,7 +136,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_tree_aggregate(
         &mut self,
         attributes: dir::GlobalTypeId,
-        resolution: &dir::TreeResolution,
+        resolution: &dir::TreeDecision,
     ) -> CompilerResult<mir::Value> {
         let attributes = self.lowerer.reduced_type(attributes)?;
         let dir::Type::Application(instance) = self.lowerer.ty(attributes)? else {
@@ -257,8 +257,8 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one class component construction with its attribute object.
     fn lower_tree_construct(
         &mut self,
-        construct: &dir::ConstructResolution,
-        resolution: &dir::TreeResolution,
+        construct: &dir::ConstructDecision,
+        resolution: &dir::TreeDecision,
     ) -> CompilerResult<mir::Value> {
         let dir::ConstructTarget::Class(candidate) = &construct.target else {
             return Err(CompilerError::Internal {

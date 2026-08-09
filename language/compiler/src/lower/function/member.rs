@@ -11,13 +11,24 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Value> {
-        // construct the case value for enum and payload-free Tagged members
+        // construct the case value for enum and payload-free tagged members
         if let dir::Type::Variant(variant) = self.node_type(expression)? {
             return self.lower_variant_member(&variant);
         }
 
+        // read a decided reference as its resolved symbol
+        let node = expression.into_global_any(self.source);
+        let named = self
+            .source()
+            .resolutions
+            .name_resolution(node)
+            .and_then(|resolution| resolution.symbols().first().copied());
+        if let Some(symbol) = named {
+            return self.lower_resolved_value(expression, symbol);
+        }
+
         // read the single access the checker selected for this member
-        let resolution = self.member_resolution(expression)?;
+        let resolution = self.member_decision(expression)?;
         let dir::OperationResolution::One(access) = &resolution else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -73,7 +84,7 @@ impl FunctionLowerer<'_, '_, '_> {
         left: dir::LocalNodeId<dir::Expression>,
         index: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> CompilerResult<mir::Value> {
-        let resolution = self.subscript_resolution(expression)?;
+        let resolution = self.subscript_decision(expression)?;
         let dir::OperationResolution::One(subscript) = resolution else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -90,7 +101,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 dir::MemberTarget::Index(read)
                     if matches!(read.target, dir::IndexTarget::Signature(_)) =>
                 {
-                    // keyed finds dispatch by name over string domains only
+                    // dispatch a keyed find by name over string domains only
                     let domain = self.lowerer.reduced_type(read.key_type)?;
                     if !matches!(
                         self.lowerer.ty(domain)?,

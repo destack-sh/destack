@@ -108,7 +108,7 @@ impl FunctionLowerer<'_, '_, '_> {
             ) {
                 continue;
             }
-            let resolution = self.operator_resolution(*case)?;
+            let resolution = self.operator_decision(*case)?;
             let dir::OperationResolution::One(dir::OperatorApplication::Binary {
                 operator: dir::BinaryOperator::EqualStrict,
                 target: dir::OperatorTarget::Builtin(operands),
@@ -174,7 +174,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let dir::SwitchSelector::Case(selector) = selector else {
                     continue;
                 };
-                let resolution = self.operator_resolution(case.case)?;
+                let resolution = self.operator_decision(case.case)?;
                 let dir::OperationResolution::One(dir::OperatorApplication::Binary {
                     operator: dir::BinaryOperator::EqualStrict,
                     target: dir::OperatorTarget::Builtin(operands),
@@ -235,7 +235,7 @@ impl FunctionLowerer<'_, '_, '_> {
             let dir::SwitchSelector::Case(selector) = selector else {
                 continue;
             };
-            if !self.operator_resolution(case.case)?.is_builtin() {
+            if !self.operator_decision(case.case)?.is_builtin() {
                 return Ok(None);
             }
             let dir::Type::Literal(dir::ScalarLiteral::Integer(constant)) =
@@ -270,15 +270,15 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         pattern: dir::LocalNodeId<dir::Pattern>,
     ) -> CompilerResult<Option<u32>> {
-        match self.pattern_resolution(pattern)? {
+        match self.pattern_decision(pattern)? {
             // take the default arm for wildcards and bare bindings
-            dir::PatternResolution::Ignore => Ok(None),
-            dir::PatternResolution::Bind(dir::PatternBindingResolution {
-                pattern: None, ..
-            }) => Ok(None),
+            dir::PatternDecision::Ignore => Ok(None),
+            dir::PatternDecision::Bind(dir::PatternBindingResolution { pattern: None, .. }) => {
+                Ok(None)
+            }
 
             // select the declared carrier position of unit variants
-            dir::PatternResolution::Variant(resolution)
+            dir::PatternDecision::Variant(resolution)
                 if resolution.payload.is_none() && resolution.fields.is_empty() =>
             {
                 let index = self
@@ -289,7 +289,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
 
             // reject payload variants
-            dir::PatternResolution::Variant(_) => Err(LowerError::Unsupported {
+            dir::PatternDecision::Variant(_) => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "a tagged payload pattern".to_string(),
             }
