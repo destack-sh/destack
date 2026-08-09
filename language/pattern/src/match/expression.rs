@@ -32,29 +32,6 @@ impl Matcher<'_, '_> {
                 self.match_block(nodes, *pattern, *candidate, bindings)
             }
             (
-                dir::Expression::Label {
-                    label: pattern_label,
-                    body: pattern_body,
-                },
-                dir::Expression::Label {
-                    label: candidate_label,
-                    body: candidate_body,
-                },
-            ) => {
-                if !self.match_node_name(
-                    nodes,
-                    pattern_any,
-                    candidate_id.into_any(),
-                    Some(*pattern_label),
-                    Some(*candidate_label),
-                    bindings,
-                )? {
-                    return Ok(false);
-                }
-
-                self.match_expression(nodes, *pattern_body, *candidate_body, bindings)
-            }
-            (
                 dir::Expression::Import {
                     form: pattern_form,
                     target: pattern_target,
@@ -228,12 +205,12 @@ impl Matcher<'_, '_> {
                 self.match_optional_expression(nodes, *pattern_else, *candidate_else, bindings)
             }
             (
-                dir::Expression::While {
+                dir::Expression::While { label: _,
                     form: pattern_form,
                     condition: pattern_condition,
                     body: pattern_body,
                 },
-                dir::Expression::While {
+                dir::Expression::While { label: _,
                     form: candidate_form,
                     condition: candidate_condition,
                     body: candidate_body,
@@ -253,14 +230,14 @@ impl Matcher<'_, '_> {
                 self.match_block(nodes, *pattern_body, *candidate_body, bindings)
             }
             (
-                dir::Expression::ForEach {
+                dir::Expression::ForEach { label: _,
                     asynchrony: pattern_asynchrony,
                     operator: pattern_operator,
                     binding: pattern_binding,
                     iterator: pattern_iterator,
                     body: pattern_body,
                 },
-                dir::Expression::ForEach {
+                dir::Expression::ForEach { label: _,
                     asynchrony: candidate_asynchrony,
                     operator: candidate_operator,
                     binding: candidate_binding,
@@ -289,13 +266,13 @@ impl Matcher<'_, '_> {
                 self.match_block(nodes, *pattern_body, *candidate_body, bindings)
             }
             (
-                dir::Expression::For {
+                dir::Expression::For { label: _,
                     initialization: pattern_initialization,
                     condition: pattern_condition,
                     increment: pattern_increment,
                     body: pattern_body,
                 },
-                dir::Expression::For {
+                dir::Expression::For { label: _,
                     initialization: candidate_initialization,
                     condition: candidate_condition,
                     increment: candidate_increment,
@@ -324,8 +301,8 @@ impl Matcher<'_, '_> {
                 self.match_block(nodes, *pattern_body, *candidate_body, bindings)
             }
             (
-                dir::Expression::Loop { body: pattern },
-                dir::Expression::Loop { body: candidate },
+                dir::Expression::Loop { label: _, body: pattern },
+                dir::Expression::Loop { label: _, body: candidate },
             ) => self.match_block(nodes, *pattern, *candidate, bindings),
             (
                 dir::Expression::Try {

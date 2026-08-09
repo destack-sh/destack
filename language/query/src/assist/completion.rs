@@ -117,7 +117,6 @@ impl From<dir::SymbolKind> for CompletionItemKind {
             dir::SymbolKind::Enum => CompletionItemKind::Enum,
             dir::SymbolKind::Variant => CompletionItemKind::EnumMember,
             dir::SymbolKind::Function => CompletionItemKind::Function,
-            dir::SymbolKind::Label => CompletionItemKind::Label,
             dir::SymbolKind::Import => CompletionItemKind::Reference,
             dir::SymbolKind::Extension => CompletionItemKind::Extension,
             dir::SymbolKind::TypeAlias => CompletionItemKind::TypeAlias,

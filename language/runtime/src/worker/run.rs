@@ -386,9 +386,14 @@ impl Worker {
                 )?
             } else {
                 match queue {
-                    RunQueue::Task => {
-                        self.select_task(world, shared_static, immortal_space, constant_space, host, host_queue)?
-                    }
+                    RunQueue::Task => self.select_task(
+                        world,
+                        shared_static,
+                        immortal_space,
+                        constant_space,
+                        host,
+                        host_queue,
+                    )?,
                     RunQueue::Microtask => {
                         let Some(runnable) = self.event_loop.pop_microtask() else {
                             return Ok(WorkerRunOutcome::Idle);
@@ -639,8 +644,14 @@ impl Worker {
         }
 
         // local heap work
-        let progress =
-            self.step_local_collection(world, shared_static, immortal_space, constant_space, host, host_queue)?;
+        let progress = self.step_local_collection(
+            world,
+            shared_static,
+            immortal_space,
+            constant_space,
+            host,
+            host_queue,
+        )?;
         if progress.advanced() {
             return Ok(Some(progress));
         }
@@ -660,8 +671,14 @@ impl Worker {
         host_queue: &HostQueue,
     ) -> RuntimeResult<Option<heap::GcAdvance>> {
         // local heap work
-        let progress =
-            self.step_local_collection(world, shared_static, immortal_space, constant_space, host, host_queue)?;
+        let progress = self.step_local_collection(
+            world,
+            shared_static,
+            immortal_space,
+            constant_space,
+            host,
+            host_queue,
+        )?;
         if progress.advanced() {
             return Ok(Some(progress));
         }
@@ -788,7 +805,15 @@ impl Worker {
             .map_err(Box::<RuntimeError>::from)?;
 
         if let heap::GcAdvance::Drop(drop) = progress {
-            self.drop_value(world, shared_static, immortal_space, constant_space, host, host_queue, drop)?;
+            self.drop_value(
+                world,
+                shared_static,
+                immortal_space,
+                constant_space,
+                host,
+                host_queue,
+                drop,
+            )?;
             shared_heap
                 .complete_drop(drop.reference)
                 .map_err(Box::<RuntimeError>::from)?;
@@ -832,7 +857,15 @@ impl Worker {
                 .step_collection(&mut roots, budget_bytes, self.program.trace_view())?;
 
         if let heap::GcAdvance::Drop(drop) = progress {
-            self.drop_value(world, shared_static, immortal_space, constant_space, host, host_queue, drop)?;
+            self.drop_value(
+                world,
+                shared_static,
+                immortal_space,
+                constant_space,
+                host,
+                host_queue,
+                drop,
+            )?;
             self.heap
                 .complete_drop(drop.reference)
                 .map_err(Box::<RuntimeError>::from)?;
@@ -1307,7 +1340,14 @@ impl Worker {
     ) -> RuntimeResult<WorkerRunOutcome> {
         // destroy released values only after physical execution has completed
         if matches!(outcome, WorkerRunOutcome::Progressed { .. }) {
-            self.destroy_released_values(world, shared_static, immortal_space, constant_space, host, host_queue)?;
+            self.destroy_released_values(
+                world,
+                shared_static,
+                immortal_space,
+                constant_space,
+                host,
+                host_queue,
+            )?;
         }
 
         if outcome != WorkerRunOutcome::Idle {

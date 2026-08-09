@@ -73,8 +73,7 @@ impl TryFrom<dir::SymbolKind> for SymbolKind {
             dir::SymbolKind::GenericTypeParameter
             | dir::SymbolKind::GenericValueParameter
             | dir::SymbolKind::Parameter
-            | dir::SymbolKind::Import
-            | dir::SymbolKind::Label => Err(kind),
+            | dir::SymbolKind::Import => Err(kind),
         }
     }
 }

@@ -54,6 +54,9 @@ impl Compiler {
             ArtifactKey::DirDeclared { module, profile } => {
                 self.collect_dir_declared(module, profile, context)
             }
+            ArtifactKey::DirElaborated { module, profile } => {
+                self.collect_dir_elaborated(module, profile, context)
+            }
             ArtifactKey::DirChecked { module, profile } => {
                 self.collect_dir_checked(module, profile, context)
             }
@@ -166,6 +169,9 @@ impl Compiler {
             }
             ArtifactKey::DirDeclared { module, profile } => {
                 self.provide_dir_declared(module, profile, context)
+            }
+            ArtifactKey::DirElaborated { module, profile } => {
+                self.provide_dir_elaborated(module, profile, context)
             }
             ArtifactKey::DirChecked { module, profile } => {
                 self.provide_dir_checked(module, profile, context)

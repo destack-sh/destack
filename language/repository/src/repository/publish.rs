@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -96,14 +97,19 @@ impl Repository {
                 new_module_ids.sort_unstable();
                 new_module_ids.dedup();
 
-                if self.package_ids(base_revision_id)? != new_package_ids {
-                    delta.extend([SourceDependency::packages(&new_package_ids)]);
+                let changed_packages =
+                    symmetric_difference(&self.package_ids(base_revision_id)?, &new_package_ids);
+                if !changed_packages.is_empty() {
+                    delta.extend([SourceDependency::packages(&changed_packages)]);
                 }
-                if self.module_ids(base_revision_id)? != new_module_ids {
-                    delta.extend([SourceDependency::modules(&new_module_ids)]);
+                let changed_modules =
+                    symmetric_difference(&self.module_ids(base_revision_id)?, &new_module_ids);
+                if !changed_modules.is_empty() {
+                    delta.extend([SourceDependency::modules(&changed_modules)]);
                 }
             }
         }
+        // fork the artifact table across the collected source delta
         let artifacts = base_revision
             .artifacts
             .fork(&delta, self.artifact_table())?;
@@ -120,8 +126,11 @@ impl Repository {
         }
 
         match self.revisions.entry(revision_id) {
-            // retain the existing derived state for identical source states
-            Entry::Occupied(_entry) => {}
+            // an existing entry for the same content adopts the forked
+            //  bindings: both tables hold valid facts of this state
+            Entry::Occupied(entry) => {
+                entry.get().state().artifacts.adopt(&revision.artifacts);
+            }
 
             // publish one new source state
             Entry::Vacant(entry) => {
@@ -177,7 +186,7 @@ impl Repository {
         Ok(())
     }
 
-    /// Apply edits to one file bindings.
+    /// Apply one edit sequence to a revision's file bindings.
     fn apply_edits<I>(
         &self,
         base_revision: Revision,
@@ -187,10 +196,10 @@ impl Repository {
     where
         I: IntoIterator<Item = Edit>,
     {
+        // apply each edit, recording the sources it invalidates
         let mut changed_sources = Vec::new();
         let mut is_discovery_changed = false;
         let mut is_config_changed = false;
-
         for edit in edits {
             match edit {
                 // write the requested file payload
@@ -313,4 +322,27 @@ impl Repository {
 /// Return whether one logical path names a package config file.
 fn is_package_config_path(logical_path: &str) -> bool {
     logical_path.rsplit('/').next() == Some("destack.json")
+}
+
+/// Return the elements on exactly one side of two sorted id lists.
+fn symmetric_difference<T: Ord + Copy>(base: &[T], new: &[T]) -> Vec<T> {
+    let mut changed = Vec::new();
+    let (mut left, mut right) = (base.iter().peekable(), new.iter().peekable());
+    loop {
+        match (left.peek(), right.peek()) {
+            (Some(first), Some(second)) => match first.cmp(second) {
+                Ordering::Less => changed.push(*left.next().unwrap()),
+                Ordering::Greater => changed.push(*right.next().unwrap()),
+                Ordering::Equal => {
+                    left.next();
+                    right.next();
+                }
+            },
+            (Some(_), None) => changed.push(*left.next().unwrap()),
+            (None, Some(_)) => changed.push(*right.next().unwrap()),
+            (None, None) => break,
+        }
+    }
+
+    changed
 }

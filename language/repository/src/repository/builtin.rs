@@ -68,8 +68,7 @@ impl EmbeddedBuiltinPackage {
 
         // read declared build targets from the embedded manifest
         let manifest = BUILTIN_MANIFEST_FILE.file();
-        let source =
-            parse_jsonc_file(&manifest).expect("embedded builtin manifest should parse");
+        let source = parse_jsonc_file(&manifest).expect("embedded builtin manifest should parse");
         let config = DestackFile::from_file(
             BUILTIN_MANIFEST_FILE.file_id(),
             vec![BUILTIN_MANIFEST_FILE.file_id()],

@@ -234,6 +234,27 @@ impl ModuleLowerer<'_> {
         Ok(js::ArrowFunctionBody::Block(block_id))
     }
 
+    /// Wrap one lowered loop statement in its label.
+    fn label_statement(
+        &mut self,
+        label: Option<dir::StringId>,
+        statement: js::Statement,
+        source: dir::LocalNodeId<dir::Expression>,
+    ) -> js::Statement {
+        match label {
+            // insert the loop and point the label at it
+            Some(label) => {
+                let body = self
+                    .tree
+                    .insert_from_source(statement, self.module.id, source);
+
+                js::Statement::Labelled { label, body }
+            }
+            // unlabeled loops stay bare
+            None => statement,
+        }
+    }
+
     /// Lower one for initializer into JavaScript.
     fn lower_for_initialization(
         &mut self,
@@ -867,26 +888,23 @@ impl ModuleLowerer<'_> {
                 }
             },
             dir::Expression::While {
+                label,
                 form,
                 condition,
                 body,
             } => {
                 let body = self.lower_block(*body)?;
                 let condition = self.lower_expression_as::<js::Expression>(*condition)?;
-                if *form == dir::WhileForm::DoWhile {
-                    let statement = js::Statement::DoWhile { body, condition };
-                    return Ok(self
-                        .tree
-                        .insert_from_source(statement, self.module.id, expression_id)
-                        .into_any());
-                }
-
-                let statement = js::Statement::While { condition, body };
+                let statement = match form {
+                    dir::WhileForm::DoWhile => js::Statement::DoWhile { body, condition },
+                    dir::WhileForm::While => js::Statement::While { condition, body },
+                };
+                let statement = self.label_statement(*label, statement, expression_id);
                 self.tree
                     .insert_from_source(statement, self.module.id, expression_id)
                     .into_any()
             }
-            dir::Expression::Loop { body } => {
+            dir::Expression::Loop { label, body } => {
                 let body = self.lower_block(*body)?;
                 let condition = js::Expression::ScalarLiteral {
                     value: js::ScalarLiteral::Boolean(true),
@@ -895,11 +913,13 @@ impl ModuleLowerer<'_> {
                     self.tree
                         .insert_from_source(condition, self.module.id, expression_id);
                 let statement = js::Statement::While { condition, body };
+                let statement = self.label_statement(*label, statement, expression_id);
                 self.tree
                     .insert_from_source(statement, self.module.id, expression_id)
                     .into_any()
             }
             dir::Expression::ForEach {
+                label,
                 asynchrony,
                 operator,
                 binding,
@@ -963,11 +983,13 @@ impl ModuleLowerer<'_> {
                         }
                     }
                 };
+                let statement = self.label_statement(*label, statement, expression_id);
                 self.tree
                     .insert_from_source(statement, self.module.id, expression_id)
                     .into_any()
             }
             dir::Expression::For {
+                label,
                 initialization,
                 condition,
                 increment,
@@ -989,6 +1011,7 @@ impl ModuleLowerer<'_> {
                     increment,
                     body,
                 };
+                let statement = self.label_statement(*label, statement, expression_id);
                 self.tree
                     .insert_from_source(statement, self.module.id, expression_id)
                     .into_any()
@@ -1117,22 +1140,6 @@ impl ModuleLowerer<'_> {
                 let expression = js::Expression::Error;
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
-                    .into_any()
-            }
-
-            dir::Expression::Label { label, body } => {
-                let label = *label;
-                let Some(body_id) = self.lower_expression_as_statement(*body)? else {
-                    return Err(self.internal_error(
-                        "erased expression reached JavaScript label body".to_string(),
-                    ));
-                };
-                let statement = js::Statement::Labelled {
-                    label,
-                    body: body_id,
-                };
-                self.tree
-                    .insert_from_source(statement, self.module.id, expression_id)
                     .into_any()
             }
 

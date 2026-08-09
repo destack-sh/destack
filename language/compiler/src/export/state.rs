@@ -93,15 +93,11 @@ impl<'a> ExportState<'a> {
     pub(in crate::export) fn module_scope_names(&self) -> Vec<String> {
         let scope = self.bindings.module_scope();
         let mut names = Vec::new();
-        for (key, symbol) in self
+        for (key, _symbol) in self
             .bindings
             .get_scope(scope)
             .named_symbols_up_to(scope.mark)
         {
-            let kind = self.bindings.get_symbol(symbol).kind;
-            if !kind.is_visible_in(dir::SymbolSpace::Declaration) {
-                continue;
-            }
             if let dir::StaticKey::Name(name) = key {
                 names.push(self.strings.get(name).to_string());
             }

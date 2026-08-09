@@ -300,7 +300,6 @@ impl ModuleQueryContext<'_> {
                     &view,
                     reference.expression.into(),
                     dir::StaticKey::Name(*name),
-                    dir::SymbolSpace::Declaration,
                 );
                 let actual = lookup_symbols(program, self.module_id(), lookup)?;
                 if &actual != expected {

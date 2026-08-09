@@ -1262,9 +1262,9 @@ function main(): void {
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix detail="Auto import from ./core" insert="greet()" auto_import=true matches=0,1,2
+@completion.item label=greet kind=function replace=main.ds#prefix detail="() => void" description="from ./core" insert="greet()" auto_import=true matches=0,1,2
 @completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./core\";\n"
-@completion.item label=greet kind=function replace=main.ds#prefix detail="Auto import from ./library" insert="greet()" auto_import=true matches=0,1,2
+@completion.item label=greet kind=function replace=main.ds#prefix detail="() => void" description="from ./library" insert="greet()" auto_import=true matches=0,1,2
 @completion.additional_edit item=1 range=main.ds#insertion text="import { greet } from \"./library\";\n"
 ```
 
@@ -1291,9 +1291,9 @@ function main(): void {
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix detail="Auto import from ./core" insert="greet()" auto_import=true matches=0,1,2
+@completion.item label=greet kind=function replace=main.ds#prefix detail="() => void" description="from ./core" insert="greet()" auto_import=true matches=0,1,2
 @completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./core\";\n"
-@completion.item label=greet kind=function replace=main.ds#prefix detail="Auto import from ./library" insert="greet()" auto_import=true matches=0,1,2
+@completion.item label=greet kind=function replace=main.ds#prefix detail="() => void" description="from ./library" insert="greet()" auto_import=true matches=0,1,2
 @completion.additional_edit item=1 range=main.ds#insertion text="import { greet } from \"./library\";\n"
 ```
 

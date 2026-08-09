@@ -247,13 +247,16 @@ impl StaticSpace {
         for &relocation in relocations {
             // read the space-relative target offset
             let word_offset = self.range.offset + relocation as usize;
-            let bytes = self.memory.read_bytes(word_offset, GlobalAddress::BYTE_LEN)?;
+            let bytes = self
+                .memory
+                .read_bytes(word_offset, GlobalAddress::BYTE_LEN)?;
             let mut word = [0u8; GlobalAddress::BYTE_LEN];
             word.copy_from_slice(&bytes);
 
             // rebase the target into world memory
             let target = u64::from_le_bytes(word) + self.range.offset as u64;
-            self.memory.write_bytes(word_offset, &target.to_le_bytes())?;
+            self.memory
+                .write_bytes(word_offset, &target.to_le_bytes())?;
         }
 
         Ok(())

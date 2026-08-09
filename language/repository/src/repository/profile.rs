@@ -72,7 +72,6 @@ impl Repository {
             product.as_deref(),
             product_role.as_deref(),
         )?;
-
         Ok(profile)
     }
 

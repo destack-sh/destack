@@ -47,6 +47,7 @@ impl Compiler {
             types: Arc::new(dir::TypeSegment::from_base(&checked.types)),
             statics: Arc::new(dir::StaticSegment::from_base(&checked.statics)),
             resolutions: Arc::new(dir::ResolutionSegment::new(module)),
+            decisions: Arc::new(dir::DecisionSegment::new(module)),
             generics: Arc::new(dir::GenericSegment::from_base(&checked.generics)),
             coercions: Arc::new(dir::CoercionSegment::new(module)),
             captures: Arc::new(dir::CaptureSegment::new(module)),

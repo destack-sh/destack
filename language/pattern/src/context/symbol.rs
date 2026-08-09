@@ -57,12 +57,9 @@ impl ModuleContext {
             return Ok(Vec::new());
         };
         let key = dir::StaticKey::Name(first);
-        let lookup = self.bindings().lookup_symbol_at(
-            &self.view(),
-            candidate,
-            key,
-            dir::SymbolSpace::Declaration,
-        );
+        let lookup = self
+            .bindings()
+            .lookup_symbol_at(&self.view(), candidate, key);
         let mut targets = match lookup {
             dir::SymbolLookup::Missing => {
                 let Some(targets) = self.resolved().imports.global_targets(key) else {

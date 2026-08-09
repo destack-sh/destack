@@ -679,10 +679,13 @@ impl<'a> QueryRun<'a> {
         let declared = artifacts
             .dir_declared(symbol_id.module_id, profile_id)
             .map_err(|error| format!("failed to read declared DIR for query symbol: {error}"))?;
+        let elaborated = artifacts
+            .dir_elaborated(symbol_id.module_id, profile_id)
+            .map_err(|error| format!("failed to read elaborated DIR for query symbol: {error}"))?;
         let checked = artifacts
             .dir_checked(symbol_id.module_id, profile_id)
             .map_err(|error| format!("failed to read checked DIR for query symbol: {error}"))?;
-        let bindings = checked.binding_table(&bound, &expanded, &declared);
+        let bindings = checked.binding_table(&bound, &expanded, &declared, &elaborated);
         let symbol = bindings
             .get_symbol_maybe(symbol_id.local_id)
             .ok_or_else(|| format!("query response names unknown symbol {symbol_id:?}"))?;

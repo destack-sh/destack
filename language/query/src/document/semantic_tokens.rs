@@ -69,7 +69,6 @@ impl SemanticTokenType {
             dir::SymbolKind::Enum => Self::Enum,
             dir::SymbolKind::Variant => Self::EnumMember,
             dir::SymbolKind::Function => Self::Function,
-            dir::SymbolKind::Label => Self::Label,
             dir::SymbolKind::Import => Self::Variable,
             dir::SymbolKind::Extension => Self::Type,
             dir::SymbolKind::AssociatedType
@@ -523,15 +522,6 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
             }
 
             match expression {
-                dir::Expression::Label { .. } => {
-                    if let Some(main_span) = self.main_span(expression_id.into_any())? {
-                        self.tokens.push(SemanticToken::new(
-                            main_span,
-                            SemanticTokenType::Label,
-                            SemanticTokenModifiers::DECLARATION,
-                        ));
-                    }
-                }
                 dir::Expression::Identifier { .. } | dir::Expression::Member { .. } => {
                     let node_id = expression_id.into_global_any(self.module.module_id());
                     let Some((token_type, modifiers)) = self.reference_token(node_id)? else {

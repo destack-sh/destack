@@ -99,6 +99,29 @@ impl ArtifactBindingTable {
         self.bindings.write().bind(artifact, binding);
     }
 
+    /// Adopt bindings this table lacks from one equal content state.
+    pub(crate) fn adopt(&self, other: &Self) {
+        let other = other.bindings.read();
+        let mut bindings = self.bindings.write();
+        if bindings.values.len() < other.values.len() {
+            bindings.values.resize(other.values.len(), None);
+        }
+
+        // fill absent bindings and carry their dirty ordinals along
+        for (index, binding) in other.values.iter().enumerate() {
+            let Some(binding) = binding else {
+                continue;
+            };
+            if bindings.values[index].is_none() {
+                bindings.values[index] = Some(*binding);
+                let artifact = ArtifactId::from_index(index);
+                if let Some(dirty) = other.dirty.get(&artifact) {
+                    bindings.dirty.insert(artifact, dirty.clone());
+                }
+            }
+        }
+    }
+
     /// Commit resolved bindings when every observed selection still matches.
     pub(crate) fn commit(
         &self,

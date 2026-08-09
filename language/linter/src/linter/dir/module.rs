@@ -364,12 +364,12 @@ impl DirModuleStorage {
         let modules = expanded.module_table(&imported);
         let types = checked.type_table(&bound, &expanded, &declared, &elaborated);
         let statics = checked.static_table(&bound, &expanded, &declared, &elaborated);
-        let decorators = checked.decorator_table(&declared);
-        let auto = checked.auto_table(&elaborated);
+        let decorators = checked.decorator_table(&elaborated);
+        let auto = elaborated.auto_table();
         let resolutions = checked.resolution_table(&declared, &elaborated);
         let decisions = checked.decision_table(&declared, &elaborated);
         let generics = checked.generic_table(&declared, &elaborated);
-        let definitions = checked.definition_table(&declared, &elaborated);
+        let definitions = elaborated.definition_table();
         let coercions = checked.coercion_table();
         let captures = checked.capture_table();
         let roots = expanded.roots.clone();
