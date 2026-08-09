@@ -21,8 +21,7 @@
         "client"
     ],
     "files": [
-        "dist",
-        "README.md"
+        "dist"
     ],
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
@@ -52,7 +51,8 @@
     "scripts": {
         "generate": "cargo run -p destack_client_generate",
         "build": "bun run generate && rm -rf dist && bun x tsc -p tsconfig.json",
-        "test": "bun run --cwd ../napi build && bun run build && bun test ./test/*.ts",
+        "typecheck": "bun x tsc -p tsconfig.test.json",
+        "test": "bun run --cwd ../napi build && bun run build && bun run typecheck && bun test ./test/*.ts",
         "prepublishOnly": "bun run build",
         "publish:dry": "npm publish --dry-run --access public",
         "publish:live": "npm publish --access public"
