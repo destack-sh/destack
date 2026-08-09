@@ -115,7 +115,7 @@ impl RevisionEntry {
 
     /// Return the retained revision state.
     pub(crate) fn state(&self) -> Arc<RevisionState> {
-        Arc::clone(&self.state)
+        self.state.clone()
     }
 
     /// Increment the anonymous pin count.

@@ -330,7 +330,7 @@ impl<'a> ArtifactResolver<'a> {
             let resolution = self.terminal(&binding)?;
             let dependencies = match dependencies {
                 Some(dependencies) => Arc::from(dependencies),
-                None => Arc::clone(&binding.dependencies),
+                None => binding.dependencies.clone(),
             };
             let binding = self
                 .repository

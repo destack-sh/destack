@@ -17,21 +17,25 @@ impl Repository {
 
         drop(entry);
 
-        Ok(RevisionPin::new(revision, Arc::clone(self)))
+        Ok(RevisionPin::new(revision, self.clone()))
     }
 
     /// Increment one revision pin count.
     pub(crate) fn increment_revision_pin(&self, revision: Revision) {
-        if let Some(entry) = self.revisions.get(&revision) {
-            entry.pin();
-        }
+        let Some(entry) = self.revisions.get(&revision) else {
+            unreachable!("cannot clone a pin for a missing repository revision");
+        };
+
+        entry.pin();
     }
 
     /// Decrement one revision pin count.
     pub(crate) fn decrement_revision_pin(&self, revision: Revision) {
-        if let Some(entry) = self.revisions.get(&revision) {
-            entry.unpin();
-        }
+        let Some(entry) = self.revisions.get(&revision) else {
+            unreachable!("cannot release a pin for a missing repository revision");
+        };
+
+        entry.unpin();
     }
 
     /// Prune file revisions and file contents that are no longer reachable.
@@ -231,7 +235,7 @@ impl Clone for RevisionPin {
 
         Self {
             revision: self.revision,
-            repository: Arc::clone(&self.repository),
+            repository: self.repository.clone(),
         }
     }
 }
@@ -245,10 +249,10 @@ impl Drop for RevisionPin {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
     use std::path::{Path, PathBuf};
     use std::sync::Arc;
     use std::time::{SystemTime, UNIX_EPOCH};
+    use std::{env, fs, process};
 
     use destack_artifact::{
         ArtifactDependency, ArtifactKey, ArtifactPayload, ArtifactProjection,
@@ -256,7 +260,7 @@ mod tests {
         BundleSection, DirExported, DiskBlobStore, EnvironmentBound, LanguageEnvironment,
         SourceDependency,
     };
-    use destack_dir::{GlobalSymbolId, LocalSymbolId};
+    use destack_dir::{ExportTable, GlobalSymbolId, GlobalTable, LocalSymbolId};
     use destack_source::{
         Content, FileSystem, FileType, ModuleId, PackageId, PhysicalFileSystem, ProfileId,
         TargetId, Uri,
@@ -502,9 +506,9 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("wall clock should be after unix epoch")
             .as_nanos();
-        let process_id = std::process::id();
+        let process_id = process::id();
 
-        std::env::temp_dir().join(format!("destack-{prefix}-{process_id}-{timestamp}"))
+        env::temp_dir().join(format!("destack-{prefix}-{process_id}-{timestamp}"))
     }
 
     /// Prune old unpinned revisions during explicit retention.
@@ -796,8 +800,8 @@ mod tests {
             SourceDependency::file_content(file, first_content),
         )];
         let owner = DirExported {
-            exports: destack_dir::ExportTable::new(module),
-            globals: destack_dir::GlobalTable::new(module),
+            exports: ExportTable::new(module),
+            globals: GlobalTable::new(module),
             locals: Vec::new(),
         };
         let owner_key = ArtifactKey::dir_exported(module, profile);

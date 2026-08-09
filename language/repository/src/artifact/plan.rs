@@ -146,7 +146,7 @@ impl Repository {
         // bind a committed payload when the dependency set already produced it
         let reused = recorder
             .span("reuse", || {
-                self.bind_artifact_version(revision, key, Arc::clone(&dependencies))
+                self.bind_artifact_version(revision, key, dependencies.clone())
             })
             .map_err(|error| {
                 ProviderError::internal(format!("failed to bind reused artifact {key:?}: {error}"))
@@ -161,7 +161,7 @@ impl Repository {
         // load and select a committed result before running the provider
         let loaded = recorder
             .span("load", || {
-                self.load_artifact_binding(revision, key, Arc::clone(&dependencies), Some(recorder))
+                self.load_artifact_binding(revision, key, dependencies.clone(), Some(recorder))
             })
             .map_err(|error| {
                 ProviderError::internal(format!("failed to load cached artifact {key:?}: {error}"))

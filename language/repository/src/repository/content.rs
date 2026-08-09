@@ -24,14 +24,14 @@ impl ContentPool {
             .entry(content_id)
             .or_insert_with(|| Arc::new(ContentEntry::new(content)));
 
-        Arc::clone(entry.value())
+        entry.value().clone()
     }
 
     /// Get one shared content payload.
     pub(crate) fn get(&self, content_id: ContentId) -> Option<Arc<ContentEntry>> {
         self.content_by_id
             .get(&content_id)
-            .map(|entry| Arc::clone(entry.value()))
+            .map(|entry| entry.value().clone())
     }
 
     /// Retain only the reachable content ids.

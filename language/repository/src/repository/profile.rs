@@ -106,7 +106,7 @@ impl Repository {
         let revision_cache = revision_state.cache();
 
         if let Some(profiles) = revision_cache.profiles.get() {
-            return Ok(Arc::clone(profiles));
+            return Ok(profiles.clone());
         }
 
         let mut profiles = OrdMap::new();
@@ -125,7 +125,7 @@ impl Repository {
         let profiles = Arc::new(profiles);
         let profiles = revision_cache.profiles.get_or_init(|| profiles);
 
-        Ok(Arc::clone(profiles))
+        Ok(profiles.clone())
     }
 
     /// Return one exact revision-scoped profile by id when present.

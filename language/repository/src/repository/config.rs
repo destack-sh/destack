@@ -52,7 +52,7 @@ impl Repository {
             return config
                 .value()
                 .as_ref()
-                .map(|config| Some(Arc::clone(config)))
+                .map(|config| Some(config.clone()))
                 .map_err(|message| RepositoryError::InvalidConfig {
                     file: file_id,
                     message: message.clone(),
@@ -66,13 +66,14 @@ impl Repository {
         let config = DestackFile::parse(&file)
             .map(Arc::new)
             .map_err(|error| error.to_string());
-        let destack_config = config
-            .as_ref()
-            .map(|config| Some(Arc::clone(config)))
-            .map_err(|message| RepositoryError::InvalidConfig {
-                file: file_id,
-                message: message.clone(),
-            });
+        let destack_config =
+            config
+                .as_ref()
+                .map(|config| Some(config.clone()))
+                .map_err(|message| RepositoryError::InvalidConfig {
+                    file: file_id,
+                    message: message.clone(),
+                });
 
         // populate cache
         self.files

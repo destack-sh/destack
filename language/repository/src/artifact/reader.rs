@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
 use destack_artifact::{
@@ -35,8 +36,8 @@ pub struct ModuleGraphReader<'a> {
     graph: Arc<ModuleGraph>,
 }
 
-impl std::fmt::Debug for ArtifactReader<'_> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Debug for ArtifactReader<'_> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("ArtifactReader")
             .finish_non_exhaustive()

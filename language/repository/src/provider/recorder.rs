@@ -1,3 +1,4 @@
+use std::mem;
 use std::sync::Arc;
 
 use destack_artifact::{ArtifactDependency, ArtifactKey};
@@ -169,8 +170,8 @@ impl ArtifactAttemptRecorder {
             worker: self.worker,
             span,
             outcome,
-            spans: std::mem::take(&mut self.spans.lock()),
-            counters: std::mem::take(&mut self.counters.lock()),
+            spans: mem::take(&mut self.spans.lock()),
+            counters: mem::take(&mut self.counters.lock()),
             dependencies: self.dependencies.lock().take(),
         };
 

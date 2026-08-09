@@ -115,7 +115,7 @@ impl Repository {
             .fork(&delta, self.artifact_table())?;
         let revision = Arc::new(RevisionState::new(
             files,
-            Arc::clone(&base_revision.environment),
+            base_revision.environment.clone(),
             artifacts,
         ));
         let revision_id = revision.revision();

@@ -1,3 +1,4 @@
+use std::cmp::Reverse;
 use std::collections::{BTreeMap, VecDeque};
 use std::future::Future;
 use std::sync::Arc;
@@ -173,7 +174,7 @@ impl TraceAggregate {
             "seconds",
         );
         let mut rows = self.attempts.iter().collect::<Vec<_>>();
-        rows.sort_by_key(|(_, row)| std::cmp::Reverse(row.time));
+        rows.sort_by_key(|(_, row)| Reverse(row.time));
         for (name, row) in rows {
             output.push_str(&format!(
                 "{name:<24} {:>8} {:>9} {:>9} {:>10.3}\n",
@@ -185,7 +186,7 @@ impl TraceAggregate {
         }
 
         let mut spans = self.spans.iter().collect::<Vec<_>>();
-        spans.sort_by_key(|(_, totals)| std::cmp::Reverse(totals.time));
+        spans.sort_by_key(|(_, totals)| Reverse(totals.time));
         output.push_str(&format!(
             "\n{:<24} {:>9} {:>10}\n",
             "span", "count", "seconds"
@@ -301,7 +302,7 @@ impl Trace {
             None
         };
 
-        ArtifactAttemptRecorder::new(Arc::clone(self), key, worker, started)
+        ArtifactAttemptRecorder::new(self.clone(), key, worker, started)
     }
 
     /// Return the recorded artifact attempts.
@@ -358,10 +359,7 @@ impl Trace {
         let mut stages = ArtifactStage::ALL.map(|stage| (stage, Duration::ZERO));
         for attempt in attempts.iter() {
             let stage = attempt.key.stage();
-            let row = stages
-                .iter_mut()
-                .find(|(candidate, _)| *candidate == stage)
-                .expect("every stage has a rollup row");
+            let row = &mut stages[stage as usize];
             row.1 += work_duration(&attempt.spans);
         }
 

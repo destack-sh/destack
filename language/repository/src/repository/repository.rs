@@ -60,7 +60,7 @@ impl Repository {
         let root_reference = Ref::for_root(&root);
 
         let artifact_store = Arc::new(SegmentedArtifactStore::new(
-            Arc::clone(host.blob_store()),
+            host.blob_store().clone(),
             Self::repository_store_layout_for(&root, &layout),
             host.build_id(),
         ));
@@ -101,7 +101,7 @@ impl Repository {
     /// Override the backing blob store.
     pub fn with_blob_store(mut self, blob_store: Arc<dyn BlobStore>) -> Self {
         let artifact_store = Arc::new(SegmentedArtifactStore::new(
-            Arc::clone(&blob_store),
+            blob_store.clone(),
             self.repository_store_layout(),
             self.host.build_id(),
         ));
@@ -169,7 +169,7 @@ impl Repository {
         let revision_cache = revision_state.cache();
 
         if let Some(root) = revision_cache.root.get() {
-            return Ok(Arc::clone(root));
+            return Ok(root.clone());
         }
 
         let root_config = self.destack_for_workspace(revision)?;
@@ -190,7 +190,7 @@ impl Repository {
 
         let root = revision_cache.root.get_or_init(|| root);
 
-        Ok(Arc::clone(root))
+        Ok(root.clone())
     }
 
     /// Resolve the repository cache directory.

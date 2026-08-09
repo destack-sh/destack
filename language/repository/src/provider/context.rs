@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependency, ArtifactKey, ArtifactSidecar, ArtifactVersion, DiagnosticContext,
-    DiagnosticError, DiagnosticLike, DiagnosticRecord,
+    ArtifactBindingPin, ArtifactDependency, ArtifactKey, ArtifactSidecar, ArtifactVersion,
+    DiagnosticContext, DiagnosticError, DiagnosticLike, DiagnosticRecord,
 };
 use smallvec::SmallVec;
 
@@ -18,7 +18,7 @@ pub struct ArtifactBase {
     /// Dependency ordinals that may differ in the requested revision.
     pub(crate) dirty_dependencies: SmallVec<[u32; 2]>,
     /// The retained predecessor artifact binding.
-    _binding_pin: destack_artifact::ArtifactBindingPin,
+    _binding_pin: ArtifactBindingPin,
 }
 
 impl ArtifactBase {
@@ -27,7 +27,7 @@ impl ArtifactBase {
         version: ArtifactVersion,
         dependencies: Arc<[ArtifactDependency]>,
         dirty_dependencies: SmallVec<[u32; 2]>,
-        binding_pin: destack_artifact::ArtifactBindingPin,
+        binding_pin: ArtifactBindingPin,
     ) -> Self {
         Self {
             version,

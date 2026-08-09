@@ -153,7 +153,7 @@ impl EmbeddedBuiltinPackage {
 
     /// Return the embedded fallback Package.
     pub fn package(&self) -> Arc<Package> {
-        Arc::clone(&self.package)
+        self.package.clone()
     }
 
     /// Return all embedded Builtin files.
@@ -245,7 +245,7 @@ impl EmbeddedBuiltinPackage {
     pub(crate) fn modules(&self) -> impl Iterator<Item = (ModuleId, Arc<Module>)> + '_ {
         self.modules
             .iter()
-            .map(|(module_id, module)| (*module_id, Arc::clone(module)))
+            .map(|(module_id, module)| (*module_id, module.clone()))
     }
 
     /// Return builtin module ids.

@@ -265,7 +265,7 @@ impl Repository {
         let binding_pin = self.publish_artifact_result(
             version,
             payload,
-            Arc::clone(&dependencies),
+            dependencies.clone(),
             diagnostics,
             sidecars,
             recorder,
@@ -297,7 +297,7 @@ impl Repository {
         let pending = self
             .pending_artifacts
             .iter()
-            .map(|entry| (*entry.key(), Arc::clone(entry.value())))
+            .map(|entry| (*entry.key(), entry.value().clone()))
             .collect::<Vec<_>>();
 
         // encode and transfer every completed artifact version to the persistent store
